@@ -1,0 +1,5 @@
+/target
+/dist
+/tmp
+config.yaml
+manifest.yaml

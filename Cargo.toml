@@ -1,0 +1,17 @@
+[package]
+name = "ludusavi"
+version = "0.1.0"
+authors = ["mtkennerly <mtkennerly@gmail.com>"]
+edition = "2018"
+description = "Game save backup tool"
+repository = "https://github.com/mtkennerly/ludusavi"
+readme = "README.md"
+license = "MIT"
+
+[dependencies]
+iced = "0.1.1"
+itertools = "0.9.0"
+reqwest = { version = "0.10.6", features = [ "blocking" ] }
+serde = { version = "1.0.111", features = ["derive"] }
+serde_yaml = "0.8.13"
+thiserror = "1.0.20"
