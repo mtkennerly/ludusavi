@@ -3,7 +3,7 @@ use crate::prelude::Error;
 
 const MANIFEST_FILE: &str = "manifest.yaml";
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Os {
     #[serde(rename = "windows")]
     Windows,
@@ -21,7 +21,7 @@ impl Default for Os {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Store {
     #[serde(rename = "steam")]
     Steam,
@@ -35,7 +35,7 @@ impl Default for Store {
     }
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Tag {
     #[serde(rename = "steam")]
     Steam,
@@ -52,7 +52,7 @@ impl Default for Tag {
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Manifest(pub std::collections::HashMap<String, Game>);
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Game {
     pub files: Option<std::collections::HashMap<String, GameFileConstraint>>,
     #[serde(rename = "installDir")]
@@ -61,16 +61,16 @@ pub struct Game {
     pub tags: Option<Vec<Tag>>,
 }
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct GameFileConstraint {
     pub os: Option<Os>,
     pub store: Option<Store>,
 }
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct GameInstallDirConstraint {}
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct GameRegistryConstraint {
     pub store: Option<Store>,
 }
@@ -94,8 +94,13 @@ impl Manifest {
                 res.copy_to(&mut file).map_err(|_| Error::ManifestCannotBeUpdated)?;
 
                 if let Some(etag) = res.headers().get(reqwest::header::ETAG) {
-                    config.manifest.etag = Some(String::from_utf8_lossy(etag.as_bytes()).to_string());
-                    config.save();
+                    match &config.manifest.etag {
+                        Some(old_etag) if etag == old_etag => (),
+                        _ => {
+                            config.manifest.etag = Some(String::from_utf8_lossy(etag.as_bytes()).to_string());
+                            config.save();
+                        }
+                    }
                 }
 
                 Ok(())

@@ -22,7 +22,22 @@ impl Translator {
             Error::ConfigInvalid { why } => self.config_is_invalid(why),
             Error::ManifestInvalid { why } => self.manifest_is_invalid(why),
             Error::ManifestCannotBeUpdated => self.manifest_cannot_be_updated(),
+            Error::CannotPrepareBackupTarget => self.cannot_prepare_backup_target(),
         }
+    }
+
+    pub fn backup_button(&self) -> String {
+        match self.language {
+            Language::English => "Back up",
+        }
+        .into()
+    }
+
+    pub fn scan_button(&self) -> String {
+        match self.language {
+            Language::English => "Scan",
+        }
+        .into()
     }
 
     pub fn config_is_invalid(&self, why: &str) -> String {
@@ -44,9 +59,16 @@ impl Translator {
         .into()
     }
 
-    pub fn backing_up_roots(&self, roots: usize) -> String {
+    pub fn cannot_prepare_backup_target(&self) -> String {
         match self.language {
-            Language::English => format!("Pretending to back up games from {} roots:", roots),
+            Language::English => "Error: Unable to prepare backup target by either cleaning or creating the folder).",
+        }
+        .into()
+    }
+
+    pub fn processed_games(&self, total: usize) -> String {
+        match self.language {
+            Language::English => format!("{} games", total),
         }
     }
 }

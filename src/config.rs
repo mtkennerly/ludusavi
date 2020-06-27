@@ -3,11 +3,13 @@ use crate::prelude::Error;
 
 const CONFIG_FILE: &str = "config.yaml";
 const MANIFEST_URL: &str = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
+const BACKUP_PATH: &str = "./ludusavi-backup";
 
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub manifest: ManifestConfig,
     pub roots: Vec<RootsConfig>,
+    pub backup: BackupConfig,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -16,10 +18,15 @@ pub struct ManifestConfig {
     pub etag: Option<String>,
 }
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct RootsConfig {
     pub path: String,
     pub store: Store,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct BackupConfig {
+    pub path: String,
 }
 
 impl Default for ManifestConfig {
@@ -27,6 +34,14 @@ impl Default for ManifestConfig {
         Self {
             url: MANIFEST_URL.to_string(),
             etag: None,
+        }
+    }
+}
+
+impl Default for BackupConfig {
+    fn default() -> Self {
+        Self {
+            path: BACKUP_PATH.to_string(),
         }
     }
 }
