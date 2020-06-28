@@ -1,3 +1,4 @@
+use crate::manifest::Store;
 use crate::prelude::Error;
 
 #[derive(Clone, Copy, Debug)]
@@ -40,6 +41,27 @@ impl Translator {
         .into()
     }
 
+    pub fn add_root_button(&self) -> String {
+        match self.language {
+            Language::English => "Add root",
+        }
+        .into()
+    }
+
+    pub fn remove_root_button(&self) -> String {
+        match self.language {
+            Language::English => "Remove",
+        }
+        .into()
+    }
+
+    pub fn no_roots_are_configured(&self) -> String {
+        match self.language {
+            Language::English => "Add some roots (e.g., Steam installation directory) to back up more data.",
+        }
+        .into()
+    }
+
     pub fn config_is_invalid(&self, why: &str) -> String {
         match self.language {
             Language::English => format!("Error: The config file is invalid.\n{}", why),
@@ -61,7 +83,7 @@ impl Translator {
 
     pub fn cannot_prepare_backup_target(&self) -> String {
         match self.language {
-            Language::English => "Error: Unable to prepare backup target by either cleaning or creating the folder).",
+            Language::English => "Error: Unable to prepare backup target (either creating or emptying the folder).",
         }
         .into()
     }
@@ -70,5 +92,22 @@ impl Translator {
         match self.language {
             Language::English => format!("{} games", total),
         }
+    }
+
+    pub fn backup_target_label(&self) -> String {
+        match self.language {
+            Language::English => "Backup target:",
+        }
+        .into()
+    }
+
+    pub fn store(&self, store: &Store) -> String {
+        match self.language {
+            Language::English => match store {
+                Store::Steam => "Steam",
+                Store::Other => "Other",
+            },
+        }
+        .into()
     }
 }

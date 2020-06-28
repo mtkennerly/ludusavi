@@ -82,9 +82,17 @@ fn glob_any(path: &str, base: &str) -> Result<glob::Paths, ()> {
 pub fn scan_game(game: &Game, name: &str, roots: &[RootsConfig], manifest_dir: &str) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     let found_registry = false;
+    let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig {
+        path: "<skip>".to_string(),
+        store: Store::Other,
+    }];
+    roots_to_check.extend(roots.iter().cloned());
     let mut paths_to_check: Vec<String> = vec![];
 
-    for root in roots {
+    for root in roots_to_check {
+        if root.path.trim().is_empty() {
+            continue;
+        }
         if let Some(files) = &game.files {
             let default_install_dir = name.to_string();
             let install_dirs: Vec<_> = match &game.install_dir {
@@ -103,7 +111,7 @@ pub fn scan_game(game: &Game, name: &str, roots: &[RootsConfig], manifest_dir: &
                     }
                 }
                 for install_dir in &install_dirs {
-                    let path = parse_path(raw_path, root, install_dir);
+                    let path = parse_path(raw_path, &root, install_dir);
                     if path.contains("<skip>") {
                         continue;
                     }

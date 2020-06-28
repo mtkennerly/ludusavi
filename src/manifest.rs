@@ -21,7 +21,7 @@ impl Default for Os {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Store {
     #[serde(rename = "steam")]
     Steam,
