@@ -1,7 +1,5 @@
 use crate::config::Config;
-use crate::prelude::Error;
-
-const MANIFEST_FILE: &str = "manifest.yaml";
+use crate::prelude::{app_dir, Error};
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Os {
@@ -76,9 +74,15 @@ pub struct GameRegistryConstraint {
 }
 
 impl Manifest {
+    fn file() -> std::path::PathBuf {
+        let mut path = app_dir();
+        path.push("manifest.yaml");
+        path
+    }
+
     pub fn load(config: &mut Config) -> Result<Self, Error> {
         Self::update(config)?;
-        let content = std::fs::read_to_string(MANIFEST_FILE).unwrap();
+        let content = std::fs::read_to_string(Self::file()).unwrap();
         serde_yaml::from_str(&content).map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })
     }
 
@@ -90,7 +94,8 @@ impl Manifest {
         let mut res = req.send().map_err(|_e| Error::ManifestCannotBeUpdated)?;
         match res.status() {
             reqwest::StatusCode::OK => {
-                let mut file = std::fs::File::create(MANIFEST_FILE).map_err(|_| Error::ManifestCannotBeUpdated)?;
+                std::fs::create_dir_all(app_dir()).map_err(|_| Error::ManifestCannotBeUpdated)?;
+                let mut file = std::fs::File::create(Self::file()).map_err(|_| Error::ManifestCannotBeUpdated)?;
                 res.copy_to(&mut file).map_err(|_| Error::ManifestCannotBeUpdated)?;
 
                 if let Some(etag) = res.headers().get(reqwest::header::ETAG) {

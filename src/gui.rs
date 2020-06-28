@@ -1,7 +1,10 @@
 use crate::config::{Config, RootsConfig};
 use crate::lang::Translator;
 use crate::manifest::{Manifest, Store};
-use crate::prelude::{back_up_game, prepare_backup_target, scan_game, Error, ScanInfo};
+use crate::prelude::{
+    back_up_game, get_target_from_backup_file, prepare_backup_target, restore_game, scan_game_for_backup,
+    scan_game_for_restoration, Error, ScanInfo,
+};
 
 use iced::{
     button, executor, scrollable, text_input, Align, Application, Button, Column, Command, Container, Element,
@@ -13,9 +16,13 @@ struct WidgetState {
     log_scroll: scrollable::State,
     roots_scroll: scrollable::State,
     backup_button: button::State,
-    scan_button: button::State,
+    restore_button: button::State,
+    preview_button: button::State,
+    nav_backup_button: button::State,
+    nav_restore_button: button::State,
     add_root_button: button::State,
     backup_target_input: text_input::State,
+    restore_source_input: text_input::State,
     root_rows: Vec<(button::State, text_input::State)>,
 }
 
@@ -29,27 +36,46 @@ struct App {
     manifest: Manifest,
     translator: Translator,
     operation: Option<OngoingOperation>,
+    screen: Screen,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
+    Idle,
     BackupStart,
+    RestoreStart,
+    PreviewBackupStart,
+    PreviewRestoreStart,
     BackupStep { game: String, info: ScanInfo },
-    BackupEnd,
-    ScanStart,
-    ScanStep { game: String, info: ScanInfo },
-    ScanEnd,
+    RestoreStep { game: String, info: ScanInfo },
     EditedBackupTarget(String),
+    EditedRestoreSource(String),
     EditedRootPath(usize, String),
     EditedRootStore(usize, Store),
     AddRoot,
     RemoveRoot(usize),
+    SwitchScreenToRestore,
+    SwitchScreenToBackup,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 enum OngoingOperation {
     Backup,
-    Scan,
+    PreviewBackup,
+    Restore,
+    PreviewRestore,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum Screen {
+    Backup,
+    Restore,
+}
+
+impl Default for Screen {
+    fn default() -> Self {
+        Self::Backup
+    }
 }
 
 impl Application for App {
@@ -96,24 +122,33 @@ impl Application for App {
     }
 
     fn title(&self) -> String {
-        format!("Ludusavi v{}", env!("CARGO_PKG_VERSION"))
+        self.translator.window_title()
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
+            Message::Idle => {
+                self.operation = None;
+                Command::none()
+            }
             Message::BackupStart => {
                 if self.operation.is_some() {
                     return Command::none();
                 }
-                self.config.save();
-                self.operation = Some(OngoingOperation::Backup);
+
                 self.total_games = 0;
                 self.log.clear();
                 self.error = None;
 
                 if let Err(e) = prepare_backup_target(&self.config.backup.path) {
                     self.error = Some(e);
+                    return Command::none();
                 }
+
+                self.config.save();
+                self.operation = Some(OngoingOperation::Backup);
+
+                self.log.push(self.translator.start_of_backup());
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
@@ -123,7 +158,7 @@ impl Application for App {
                     let backup_path = self.config.backup.path.clone();
                     commands.push(Command::perform(
                         async move {
-                            let info = scan_game(&game, &key, &roots, &".".to_string());
+                            let info = scan_game_for_backup(&game, &key, &roots, &".".to_string());
                             back_up_game(&info, &backup_path, &key);
                             info
                         },
@@ -134,12 +169,110 @@ impl Application for App {
                     ));
                 }
 
-                commands.push(Command::perform(
-                    async move {
-                        std::thread::sleep(std::time::Duration::from_millis(100));
-                    },
-                    move |_| Message::BackupEnd,
-                ));
+                commands.push(Command::perform(async move {}, move |_| Message::Idle));
+                Command::batch(commands)
+            }
+            Message::PreviewBackupStart => {
+                if self.operation.is_some() {
+                    return Command::none();
+                }
+                self.config.save();
+                self.operation = Some(OngoingOperation::PreviewBackup);
+                self.total_games = 0;
+                self.log.clear();
+                self.error = None;
+
+                self.log.push(self.translator.start_of_backup_preview());
+
+                let mut commands: Vec<Command<Message>> = vec![];
+                for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
+                    let game = self.manifest.0[&key].clone();
+                    let roots = self.config.roots.clone();
+                    let key2 = key.clone();
+                    commands.push(Command::perform(
+                        async move { scan_game_for_backup(&game, &key, &roots, &".".to_string()) },
+                        move |info| Message::BackupStep {
+                            game: key2.clone(),
+                            info,
+                        },
+                    ));
+                }
+
+                commands.push(Command::perform(async move {}, move |_| Message::Idle));
+                Command::batch(commands)
+            }
+            Message::RestoreStart => {
+                if self.operation.is_some() {
+                    return Command::none();
+                }
+
+                self.total_games = 0;
+                self.log.clear();
+                self.error = None;
+
+                if !std::path::Path::new(&self.config.restore.path).is_dir() {
+                    self.error = Some(Error::RestorationSourceInvalid);
+                    return Command::none();
+                }
+
+                self.config.save();
+                self.operation = Some(OngoingOperation::Restore);
+
+                self.log.push(self.translator.start_of_restore());
+
+                let mut commands: Vec<Command<Message>> = vec![];
+                for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
+                    let source = self.config.restore.path.clone();
+                    let key2 = key.clone();
+                    commands.push(Command::perform(
+                        async move {
+                            let info = scan_game_for_restoration(&key, &source);
+                            restore_game(&info);
+                            info
+                        },
+                        move |info| Message::RestoreStep {
+                            game: key2.clone(),
+                            info,
+                        },
+                    ));
+                }
+
+                commands.push(Command::perform(async move {}, move |_| Message::Idle));
+                Command::batch(commands)
+            }
+            Message::PreviewRestoreStart => {
+                if self.operation.is_some() {
+                    return Command::none();
+                }
+
+                self.total_games = 0;
+                self.log.clear();
+                self.error = None;
+
+                if !std::path::Path::new(&self.config.restore.path).is_dir() {
+                    self.error = Some(Error::RestorationSourceInvalid);
+                    return Command::none();
+                }
+
+                self.config.save();
+                self.operation = Some(OngoingOperation::PreviewRestore);
+
+                self.log.push(self.translator.start_of_restore_preview());
+
+                let mut commands: Vec<Command<Message>> = vec![];
+                for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
+                    let source = self.config.restore.path.clone();
+                    let key2 = key.clone();
+                    commands.push(Command::perform(
+                        async move { scan_game_for_restoration(&key, &source) },
+                        move |info| Message::RestoreStep {
+                            game: key2.clone(),
+                            info,
+                        },
+                    ));
+                }
+
+                commands.push(Command::perform(async move {}, move |_| Message::Idle));
                 Command::batch(commands)
             }
             Message::BackupStep { game, info } => {
@@ -152,57 +285,23 @@ impl Application for App {
                 }
                 Command::none()
             }
-            Message::BackupEnd => {
-                self.operation = None;
-                Command::none()
-            }
-            Message::ScanStart => {
-                if self.operation.is_some() {
-                    return Command::none();
-                }
-                self.config.save();
-                self.operation = Some(OngoingOperation::Scan);
-                self.total_games = 0;
-                self.log.clear();
-                self.error = None;
-
-                let mut commands: Vec<Command<Message>> = vec![];
-                for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
-                    let game = self.manifest.0[&key].clone();
-                    let roots = self.config.roots.clone();
-                    let key2 = key.clone();
-                    commands.push(Command::perform(
-                        async move { scan_game(&game, &key, &roots, &".".to_string()) },
-                        move |info| Message::ScanStep {
-                            game: key2.clone(),
-                            info,
-                        },
-                    ));
-                }
-
-                commands.push(Command::perform(
-                    async move {
-                        std::thread::sleep(std::time::Duration::from_millis(100));
-                    },
-                    move |_| Message::ScanEnd,
-                ));
-                Command::batch(commands)
-            }
-            Message::ScanStep { game, info } => {
+            Message::RestoreStep { game, info } => {
                 if !info.found_files.is_empty() {
                     self.total_games += 1;
                     self.log.push(game);
                     for file in info.found_files {
-                        self.log.push(format!(". . . . . {}", file));
+                        if let Ok(target) = get_target_from_backup_file(&file) {
+                            self.log.push(format!(". . . . . {}", target));
+                        }
                     }
                 }
                 Command::none()
             }
-            Message::ScanEnd => {
-                self.operation = None;
+            Message::EditedBackupTarget(text) => {
+                self.config.backup.path = text;
                 Command::none()
             }
-            Message::EditedBackupTarget(text) => {
+            Message::EditedRestoreSource(text) => {
                 self.config.backup.path = text;
                 Command::none()
             }
@@ -229,6 +328,14 @@ impl Application for App {
                 self.config.roots.remove(index);
                 Command::none()
             }
+            Message::SwitchScreenToBackup => {
+                self.screen = Screen::Backup;
+                Command::none()
+            }
+            Message::SwitchScreenToRestore => {
+                self.screen = Screen::Restore;
+                Command::none()
+            }
         }
     }
 
@@ -237,18 +344,18 @@ impl Application for App {
             Column::new()
                 .padding(20)
                 .align_items(Align::Center)
-                .push(
-                    Row::new()
+                .push(match self.screen {
+                    Screen::Backup => Row::new()
                         .padding(20)
                         .spacing(20)
                         .align_items(Align::Center)
                         .push(
                             Button::new(
-                                &mut self.widgets.scan_button,
-                                Text::new(self.translator.scan_button())
+                                &mut self.widgets.preview_button,
+                                Text::new(self.translator.preview_button())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::ScanStart)
+                            .on_press(Message::PreviewBackupStart)
                             .width(Length::Units(125))
                             .style(if self.operation.is_some() {
                                 style::Button::Disabled
@@ -278,13 +385,61 @@ impl Application for App {
                             )
                             .on_press(Message::AddRoot)
                             .width(Length::Units(125))
+                            .style(style::Button::Primary),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.widgets.nav_restore_button,
+                                Text::new(self.translator.nav_restore_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::SwitchScreenToRestore)
+                            .width(Length::Units(125))
+                            .style(style::Button::Navigation),
+                        ),
+                    Screen::Restore => Row::new()
+                        .padding(20)
+                        .spacing(20)
+                        .align_items(Align::Center)
+                        .push(
+                            Button::new(
+                                &mut self.widgets.preview_button,
+                                Text::new(self.translator.preview_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::PreviewRestoreStart)
+                            .width(Length::Units(125))
                             .style(if self.operation.is_some() {
                                 style::Button::Disabled
                             } else {
                                 style::Button::Primary
                             }),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.widgets.restore_button,
+                                Text::new(self.translator.restore_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::RestoreStart)
+                            .width(Length::Units(125))
+                            .style(if self.operation.is_some() {
+                                style::Button::Disabled
+                            } else {
+                                style::Button::Primary
+                            }),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.widgets.nav_backup_button,
+                                Text::new(self.translator.nav_backup_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::SwitchScreenToBackup)
+                            .width(Length::Units(125))
+                            .style(style::Button::Navigation),
                         ),
-                )
+                })
                 .push(
                     Row::new()
                         .padding(20)
@@ -304,78 +459,97 @@ impl Application for App {
                         Row::new()
                     }
                 })
-                .push(
-                    Row::new()
-                        .padding(20)
-                        .align_items(Align::Center)
-                        .push(Text::new(self.translator.backup_target_label()))
-                        .push(Space::new(Length::Units(20), Length::Units(0)))
-                        .push(
-                            TextInput::new(
-                                &mut self.widgets.backup_target_input,
-                                "",
-                                &self.config.backup.path,
-                                Message::EditedBackupTarget,
-                            )
-                            .padding(5),
-                        ),
-                )
                 .push({
-                    let translator = self.translator;
-                    let roots = self.config.roots.clone();
-                    if roots.is_empty() {
-                        Container::new(Text::new(translator.no_roots_are_configured()))
-                    } else {
-                        Container::new({
-                            self.widgets.root_rows.iter_mut().enumerate().fold(
-                                Scrollable::new(&mut self.widgets.roots_scroll)
-                                    .width(Length::Fill)
-                                    .height(Length::Units(100))
-                                    .style(style::Scrollable),
-                                |parent: Scrollable<'_, Message>, (i, x)| {
-                                    parent
-                                        .push(
-                                            Row::new()
+                    let mut row = Row::new().padding(20).align_items(Align::Center);
+                    row = match self.screen {
+                        Screen::Backup => row
+                            .push(Text::new(self.translator.backup_target_label()))
+                            .push(Space::new(Length::Units(20), Length::Units(0)))
+                            .push(
+                                TextInput::new(
+                                    &mut self.widgets.backup_target_input,
+                                    "",
+                                    &self.config.backup.path,
+                                    Message::EditedBackupTarget,
+                                )
+                                .padding(5),
+                            ),
+                        Screen::Restore => row
+                            .push(Text::new(self.translator.restore_source_label()))
+                            .push(Space::new(Length::Units(20), Length::Units(0)))
+                            .push(
+                                TextInput::new(
+                                    &mut self.widgets.restore_source_input,
+                                    "",
+                                    &self.config.backup.path,
+                                    Message::EditedRestoreSource,
+                                )
+                                .padding(5),
+                            ),
+                    };
+                    row
+                })
+                .push({
+                    match self.screen {
+                        Screen::Backup => {
+                            let translator = self.translator;
+                            let roots = self.config.roots.clone();
+                            if roots.is_empty() {
+                                Container::new(Text::new(translator.no_roots_are_configured()))
+                            } else {
+                                Container::new({
+                                    self.widgets.root_rows.iter_mut().enumerate().fold(
+                                        Scrollable::new(&mut self.widgets.roots_scroll)
+                                            .width(Length::Fill)
+                                            .max_height(100)
+                                            .style(style::Scrollable),
+                                        |parent: Scrollable<'_, Message>, (i, x)| {
+                                            parent
                                                 .push(
-                                                    Button::new(
-                                                        &mut x.0,
-                                                        Text::new(translator.remove_root_button())
-                                                            .horizontal_alignment(HorizontalAlignment::Center)
-                                                            .size(14),
-                                                    )
-                                                    .on_press(Message::RemoveRoot(i))
-                                                    .style(style::Button::Negative),
+                                                    Row::new()
+                                                        .push(
+                                                            Button::new(
+                                                                &mut x.0,
+                                                                Text::new(translator.remove_root_button())
+                                                                    .horizontal_alignment(HorizontalAlignment::Center)
+                                                                    .size(14),
+                                                            )
+                                                            .on_press(Message::RemoveRoot(i))
+                                                            .style(style::Button::Negative),
+                                                        )
+                                                        .push(Space::new(Length::Units(20), Length::Units(0)))
+                                                        .push(
+                                                            TextInput::new(&mut x.1, "", &roots[i].path, move |v| {
+                                                                Message::EditedRootPath(i, v)
+                                                            })
+                                                            .width(Length::FillPortion(3))
+                                                            .padding(5),
+                                                        )
+                                                        .push(Space::new(Length::Units(20), Length::Units(0)))
+                                                        .push({
+                                                            Radio::new(
+                                                                Store::Steam,
+                                                                translator.store(&Store::Steam),
+                                                                Some(roots[i].store),
+                                                                move |v| Message::EditedRootStore(i, v),
+                                                            )
+                                                        })
+                                                        .push({
+                                                            Radio::new(
+                                                                Store::Other,
+                                                                translator.store(&Store::Other),
+                                                                Some(roots[i].store),
+                                                                move |v| Message::EditedRootStore(i, v),
+                                                            )
+                                                        }),
                                                 )
-                                                .push(Space::new(Length::Units(20), Length::Units(0)))
-                                                .push(
-                                                    TextInput::new(&mut x.1, "", &roots[i].path, move |v| {
-                                                        Message::EditedRootPath(i, v)
-                                                    })
-                                                    .width(Length::FillPortion(3))
-                                                    .padding(5),
-                                                )
-                                                .push(Space::new(Length::Units(20), Length::Units(0)))
-                                                .push({
-                                                    Radio::new(
-                                                        Store::Steam,
-                                                        translator.store(&Store::Steam),
-                                                        Some(roots[i].store),
-                                                        move |v| Message::EditedRootStore(i, v),
-                                                    )
-                                                })
-                                                .push({
-                                                    Radio::new(
-                                                        Store::Other,
-                                                        translator.store(&Store::Other),
-                                                        Some(roots[i].store),
-                                                        move |v| Message::EditedRootStore(i, v),
-                                                    )
-                                                }),
-                                        )
-                                        .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
-                                },
-                            )
-                        })
+                                                .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
+                                        },
+                                    )
+                                })
+                            }
+                        }
+                        Screen::Restore => Container::new(Row::new()),
                     }
                 })
                 .push(Space::new(Length::Units(0), Length::Units(30)))
@@ -402,15 +576,17 @@ mod style {
         Primary,
         Disabled,
         Negative,
+        Navigation,
     }
     impl button::StyleSheet for Button {
         fn active(&self) -> button::Style {
             button::Style {
-                background: Some(Background::Color(match self {
-                    Button::Primary => Color::from_rgb(0.11, 0.42, 0.87),
-                    Button::Disabled => Color::from_rgb(0.66, 0.66, 0.66),
-                    Button::Negative => Color::from_rgb(1.0, 0.0, 0.0),
-                })),
+                background: match self {
+                    Button::Primary => Some(Background::Color(Color::from_rgb8(28, 107, 223))),
+                    Button::Disabled => Some(Background::Color(Color::from_rgb8(169, 169, 169))),
+                    Button::Negative => Some(Background::Color(Color::from_rgb8(255, 0, 0))),
+                    Button::Navigation => Some(Background::Color(Color::from_rgb8(136, 0, 219))),
+                },
                 border_radius: 4,
                 shadow_offset: Vector::new(1.0, 1.0),
                 text_color: Color::from_rgb8(0xEE, 0xEE, 0xEE),

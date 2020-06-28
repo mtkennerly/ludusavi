@@ -1,7 +1,6 @@
 use crate::manifest::Store;
-use crate::prelude::Error;
+use crate::prelude::{app_dir, Error};
 
-const CONFIG_FILE: &str = "config.yaml";
 const MANIFEST_URL: &str = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
 const BACKUP_PATH: &str = "./ludusavi-backup";
 
@@ -10,6 +9,7 @@ pub struct Config {
     pub manifest: ManifestConfig,
     pub roots: Vec<RootsConfig>,
     pub backup: BackupConfig,
+    pub restore: RestoreConfig,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -26,6 +26,11 @@ pub struct RootsConfig {
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BackupConfig {
+    pub path: String,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct RestoreConfig {
     pub path: String,
 }
 
@@ -46,16 +51,32 @@ impl Default for BackupConfig {
     }
 }
 
+impl Default for RestoreConfig {
+    fn default() -> Self {
+        Self {
+            path: BACKUP_PATH.to_string(),
+        }
+    }
+}
+
 impl Config {
+    fn file() -> std::path::PathBuf {
+        let mut path = app_dir();
+        path.push("config.yaml");
+        path
+    }
+
     pub fn save(&self) {
-        std::fs::write(CONFIG_FILE, serde_yaml::to_string(self).unwrap().as_bytes()).unwrap();
+        if std::fs::create_dir_all(app_dir()).is_ok() {
+            std::fs::write(Self::file(), serde_yaml::to_string(self).unwrap().as_bytes()).unwrap();
+        }
     }
 
     pub fn load() -> Result<Self, Error> {
-        if !std::path::Path::new(CONFIG_FILE).exists() {
+        if !std::path::Path::new(&Self::file()).exists() {
             return Ok(Self::default());
         }
-        let content = std::fs::read_to_string(CONFIG_FILE).unwrap();
+        let content = std::fs::read_to_string(Self::file()).unwrap();
         serde_yaml::from_str(&content).map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
     }
 }

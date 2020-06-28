@@ -16,6 +16,15 @@ pub enum Error {
 
     #[error("Cannot prepare the backup target")]
     CannotPrepareBackupTarget,
+
+    #[error("Cannot prepare the backup target")]
+    RestorationSourceInvalid,
+}
+
+#[derive(Clone, Debug, thiserror::Error)]
+pub enum OtherError {
+    #[error("Cannot determine restoration target")]
+    BadRestorationTarget,
 }
 
 #[derive(Clone, Debug)]
@@ -27,6 +36,13 @@ pub struct ScanInfo {
 #[derive(Clone, Debug)]
 pub struct BackupInfo {
     pub failed_files: std::collections::HashSet<String>,
+}
+
+pub fn app_dir() -> std::path::PathBuf {
+    let mut path = dirs::home_dir().unwrap();
+    path.push(".config");
+    path.push("ludusavi");
+    path
 }
 
 pub fn get_os() -> Os {
@@ -51,7 +67,7 @@ pub fn parse_path(path: &str, root: &RootsConfig, install_dir: &str) -> String {
         .replace("<base>", &base)
         .replace(
             "<home>",
-            &dirs::home_dir().unwrap_or_else(|| "~".into()).to_string_lossy(),
+            &dirs::home_dir().unwrap_or_else(|| "<skip>".into()).to_string_lossy(),
         )
         .replace("<storeUserId>", "<skip>")
         .replace("<osUserName>", "<skip>")
@@ -79,7 +95,7 @@ fn glob_any(path: &str, base: &str) -> Result<glob::Paths, ()> {
     Ok(entries)
 }
 
-pub fn scan_game(game: &Game, name: &str, roots: &[RootsConfig], manifest_dir: &str) -> ScanInfo {
+pub fn scan_game_for_backup(game: &Game, name: &str, roots: &[RootsConfig], manifest_dir: &str) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     let found_registry = false;
     let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig {
@@ -152,6 +168,30 @@ pub fn scan_game(game: &Game, name: &str, roots: &[RootsConfig], manifest_dir: &
     }
 }
 
+pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
+    let mut found_files = std::collections::HashSet::new();
+    let found_registry = false;
+
+    let target_game: std::path::PathBuf = [source, &base64::encode(&name)].iter().collect();
+    if target_game.as_path().is_dir() {
+        for child in walkdir::WalkDir::new(target_game.as_path())
+            .max_depth(1)
+            .into_iter()
+            .filter_map(|e| e.ok())
+        {
+            if child.file_type().is_file() {
+                let source = child.path().display().to_string().replace("\\", "/");
+                found_files.insert(source);
+            }
+        }
+    }
+
+    ScanInfo {
+        found_files,
+        found_registry,
+    }
+}
+
 pub fn prepare_backup_target(target: &str) -> Result<(), Error> {
     let p = std::path::Path::new(target);
     if p.is_file() {
@@ -180,6 +220,41 @@ pub fn back_up_game(info: &ScanInfo, target: &str, name: &str) -> BackupInfo {
         if std::fs::copy(file, target_file).is_err() {
             failed_files.insert(file.to_string());
             continue;
+        }
+    }
+
+    BackupInfo { failed_files }
+}
+
+pub fn get_target_from_backup_file(file: &str) -> Result<String, Box<dyn std::error::Error>> {
+    let base_name = std::path::Path::new(file)
+        .file_name()
+        .ok_or(OtherError::BadRestorationTarget)?;
+    let decoded = base64::decode(base_name.to_string_lossy().as_bytes())?;
+    Ok(std::str::from_utf8(&decoded)?.to_string())
+}
+
+pub fn restore_game(info: &ScanInfo) -> BackupInfo {
+    let mut failed_files = std::collections::HashSet::new();
+
+    for file in &info.found_files {
+        match get_target_from_backup_file(&file) {
+            Err(_) => {
+                failed_files.insert(file.to_string());
+                continue;
+            }
+            Ok(target) => {
+                let mut p = std::path::PathBuf::from(&target);
+                p.pop();
+                if std::fs::create_dir_all(&p.as_path().display().to_string()).is_err() {
+                    failed_files.insert(file.to_string());
+                    continue;
+                }
+                if std::fs::copy(file, target).is_err() {
+                    failed_files.insert(file.to_string());
+                    continue;
+                }
+            }
         }
     }
 

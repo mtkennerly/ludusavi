@@ -1,5 +1,5 @@
 # Ludusavi
-**This project is still a prototype! It is not yet functional.**
+**This project is still a prototype!**
 
 Ludusavi is a tool for backing up your PC video game save data, written in Rust.
 It is cross-platform and supports multiple game stores.
@@ -8,6 +8,17 @@ This tool uses the [Ludusavi Manifest](https://github.com/mtkennerly/ludusavi-ma
 for info on what to back up, and it will automatically download the latest version of
 the primary manifest. To add or update game entries in the primary manifest, please refer
 to that project.
+
+## Features
+* Backup and restore for Steam as well as other game libraries.
+* Preview the backup/restore before actually performing it.
+
+Planned for the future:
+
+* (De)select specific games for backup/restore.
+* Restore to different locations.
+* Support for Proton saves with Steam.
+* CLI mode.
 
 ## Comparison with other tools
 There are other excellent backup tools available, but not a singular

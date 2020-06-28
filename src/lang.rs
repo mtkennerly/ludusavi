@@ -18,12 +18,17 @@ pub struct Translator {
 }
 
 impl Translator {
+    pub fn window_title(&self) -> String {
+        format!("Ludusavi v{}", env!("CARGO_PKG_VERSION"))
+    }
+
     pub fn handle_error(&self, error: &Error) -> String {
         match error {
             Error::ConfigInvalid { why } => self.config_is_invalid(why),
             Error::ManifestInvalid { why } => self.manifest_is_invalid(why),
             Error::ManifestCannotBeUpdated => self.manifest_cannot_be_updated(),
             Error::CannotPrepareBackupTarget => self.cannot_prepare_backup_target(),
+            Error::RestorationSourceInvalid => self.restoration_source_is_invalid(),
         }
     }
 
@@ -34,9 +39,30 @@ impl Translator {
         .into()
     }
 
-    pub fn scan_button(&self) -> String {
+    pub fn preview_button(&self) -> String {
         match self.language {
-            Language::English => "Scan",
+            Language::English => "Preview",
+        }
+        .into()
+    }
+
+    pub fn restore_button(&self) -> String {
+        match self.language {
+            Language::English => "Restore",
+        }
+        .into()
+    }
+
+    pub fn nav_backup_button(&self) -> String {
+        match self.language {
+            Language::English => "=> Backup",
+        }
+        .into()
+    }
+
+    pub fn nav_restore_button(&self) -> String {
+        match self.language {
+            Language::English => "=> Restore",
         }
         .into()
     }
@@ -88,6 +114,15 @@ impl Translator {
         .into()
     }
 
+    pub fn restoration_source_is_invalid(&self) -> String {
+        match self.language {
+            Language::English => {
+                "Error: The restoration source is invalid (either doesn't exist or isn't a directory)."
+            }
+        }
+        .into()
+    }
+
     pub fn processed_games(&self, total: usize) -> String {
         match self.language {
             Language::English => format!("{} games", total),
@@ -96,7 +131,14 @@ impl Translator {
 
     pub fn backup_target_label(&self) -> String {
         match self.language {
-            Language::English => "Backup target:",
+            Language::English => "Back up to:",
+        }
+        .into()
+    }
+
+    pub fn restore_source_label(&self) -> String {
+        match self.language {
+            Language::English => "Restore from:",
         }
         .into()
     }
@@ -107,6 +149,34 @@ impl Translator {
                 Store::Steam => "Steam",
                 Store::Other => "Other",
             },
+        }
+        .into()
+    }
+
+    pub fn start_of_backup(&self) -> String {
+        match self.language {
+            Language::English => "[ Backup ]",
+        }
+        .into()
+    }
+
+    pub fn start_of_backup_preview(&self) -> String {
+        match self.language {
+            Language::English => "[ Backup Preview ]",
+        }
+        .into()
+    }
+
+    pub fn start_of_restore(&self) -> String {
+        match self.language {
+            Language::English => "[ Restore ]",
+        }
+        .into()
+    }
+
+    pub fn start_of_restore_preview(&self) -> String {
+        match self.language {
+            Language::English => "[ Restore Preview ]",
         }
         .into()
     }
