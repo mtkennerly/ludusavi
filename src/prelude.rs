@@ -92,7 +92,7 @@ pub fn parse_paths(
                     "<base>",
                     &match root.store {
                         Store::Steam => format!("{}/steamapps/common/{}", root.path, install_dir),
-                        Store::Other => format!("{}/**/{}", root.path, install_dir),
+                        Store::Other => format!("{}/{}", root.path, install_dir),
                     },
                 )
                 .replace(

@@ -384,7 +384,7 @@ impl Application for App {
         if let Some(m) = &self.modal {
             return Container::new(
                 Column::new()
-                    .padding(20)
+                    .padding(5)
                     .align_items(Align::Center)
                     .push(
                         Row::new()
@@ -429,8 +429,7 @@ impl Application for App {
                                     self.translator.modal_confirm_restore(&self.config.restore.path)
                                 }
                             }))
-                            .width(Length::Units(640))
-                            .height(Length::Units(480)),
+                            .height(Length::Fill),
                     ),
             )
             .height(Length::Fill)
@@ -442,7 +441,7 @@ impl Application for App {
         if let Some(e) = &self.error {
             return Container::new(
                 Column::new()
-                    .padding(20)
+                    .padding(5)
                     .align_items(Align::Center)
                     .push(
                         Row::new().padding(20).spacing(20).align_items(Align::Center).push(
@@ -474,7 +473,7 @@ impl Application for App {
 
         Container::new(
             Column::new()
-                .padding(20)
+                .padding(5)
                 .align_items(Align::Center)
                 .push(match self.screen {
                     Screen::Backup => Row::new()

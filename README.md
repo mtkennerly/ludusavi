@@ -22,6 +22,8 @@ Planned for the future:
 
 ## Usage
 ### Backup mode
+> ![Ludusavi in backup mode](./docs/backup.png)
+
 * This is the default mode when you open the program.
 * You can press `preview` to see what the backup will include,
   without actually performing it.
@@ -50,6 +52,8 @@ Planned for the future:
     would be `D:/Epic`).
 
 ### Restore mode
+> ![Ludusavi in restore mode](./docs/restore.png)
+
 * Switch to restore mode by clicking the `=> restore` button.
 * You can press `preview` to see what the restore will include,
   without actually performing it.
