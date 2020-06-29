@@ -103,6 +103,7 @@ pub fn parse_paths(
                 .replace("<osUserName>", &whoami::username())
                 .replace("<winAppData>", &check_windows_path(dirs::data_dir()))
                 .replace("<winLocalAppData>", &check_windows_path(dirs::data_local_dir()))
+                .replace("<winDocuments>", &check_windows_path(dirs::document_dir()))
                 .replace("<winPublic>", &check_windows_path(dirs::public_dir()))
                 .replace(
                     "<winProgramData>",
@@ -131,6 +132,7 @@ pub fn parse_paths(
                         "<winLocalAppData>",
                         &format!("{}/users/steamuser/AppData/Local", prefix),
                     )
+                    .replace("<winDocuments>", &format!("{}/users/steamuser/My Documents", prefix))
                     .replace("<winPublic>", &format!("{}/users/Public", prefix))
                     .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
                     .replace("<winDir>", &format!("{}/windows", prefix))
