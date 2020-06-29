@@ -81,6 +81,27 @@ impl Translator {
         .into()
     }
 
+    pub fn continue_button(&self) -> String {
+        match self.language {
+            Language::English => "Continue",
+        }
+        .into()
+    }
+
+    pub fn cancel_button(&self) -> String {
+        match self.language {
+            Language::English => "Cancel",
+        }
+        .into()
+    }
+
+    pub fn okay_button(&self) -> String {
+        match self.language {
+            Language::English => "Okay",
+        }
+        .into()
+    }
+
     pub fn no_roots_are_configured(&self) -> String {
         match self.language {
             Language::English => "Add some roots (e.g., Steam installation directory) to back up more data.",
@@ -109,7 +130,7 @@ impl Translator {
 
     pub fn cannot_prepare_backup_target(&self) -> String {
         match self.language {
-            Language::English => "Error: Unable to prepare backup target (either creating or emptying the folder).",
+            Language::English => "Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it.",
         }
         .into()
     }
@@ -117,7 +138,7 @@ impl Translator {
     pub fn restoration_source_is_invalid(&self) -> String {
         match self.language {
             Language::English => {
-                "Error: The restoration source is invalid (either doesn't exist or isn't a directory)."
+                "Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location."
             }
         }
         .into()
@@ -179,5 +200,18 @@ impl Translator {
             Language::English => "[ Restore Preview ]",
         }
         .into()
+    }
+
+    pub fn modal_confirm_backup(&self, target: &str, target_exists: bool) -> String {
+        match (self.language, target_exists) {
+            (Language::English, false) => format!("Are you sure you want to proceed with the backup? The target folder does not already exist, so it will be created: {}", target),
+            (Language::English, true) => format!("Are you sure you want to proceed with the backup? The target folder already exists, so it will be deleted and recreated from scratch: {}", target),
+        }
+    }
+
+    pub fn modal_confirm_restore(&self, source: &str) -> String {
+        match self.language {
+            Language::English => format!("Are you sure you want to proceed with the restoration? This will overwrite any current files with the backups from here: {}", source),
+        }
     }
 }

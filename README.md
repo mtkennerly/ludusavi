@@ -20,6 +20,46 @@ Planned for the future:
 * Backing up saves from the Windows registry.
 * CLI mode.
 
+## Usage
+### Backup mode
+* This is the default mode when you open the program.
+* You can press `preview` to see what the backup will include,
+  without actually performing it.
+* You can press `back up` to perform the backup for real.
+  * If the target folder already exists, it will be deleted first,
+    then recreated.
+  * Within the target folder, for every game with data to back up,
+    a subfolder will be created with the game's name encoded as base 64.
+    For example, files for `Celeste` would go into a folder named `Q2VsZXN0ZQ==`.
+  * Within each game's folder, any relevant files will be stored with their
+    name as the base 64 encoding of the full path to the original file.
+    For example, `D:/Steam/steamapps/common/Celeste/Saves/0.celeste` would be
+    backed up as `RDovU3RlYW0vc3RlYW1hcHBzL2NvbW1vbi9DZWxlc3RlL1NhdmVzLzAuY2VsZXN0ZQ==`.
+* By default, no roots are configured. Roots are folders that Ludusavi can
+  check for additional game data. You can click `add root` and configure
+  as many as you need, along with its type:
+  * For a Steam root, this should be the folder containing the `steamapps` and
+    `userdata` subdirectories. Here are some common/standard locations, if you
+    haven't chosen a custom place:
+    * Windows: `C:/Program Files (x86)/Steam`
+    * Linux: `~/.steam/steam`
+  * For the "other" root type, it should be a folder whose direct children are
+    individual games. For example, in the Epic Games store, this would be
+    what you choose as the "install location" for your games (e.g., if you choose
+    `D:/Epic` and it creates a subfolder for `D:/Epic/Celeste`, then the root
+    would be `D:/Epic`).
+
+### Restore mode
+* Switch to restore mode by clicking the `=> restore` button.
+* You can press `preview` to see what the restore will include,
+  without actually performing it.
+* You can press `restore` to perform the restore for real.
+  * For all the files in the source directory, they will be decoded as base 64
+    to get the target path and then copied to that location. Any necessary
+    parent directories will be created as well before the copy, but if the
+    directories already exist, their current files will be left alone (other
+    than overwriting the ones that are being restored from the backup).
+
 ## Comparison with other tools
 There are other excellent backup tools available, but not a singular
 cross-platform and cross-store solution:

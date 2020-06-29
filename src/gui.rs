@@ -8,7 +8,7 @@ use crate::prelude::{
 
 use iced::{
     button, executor, scrollable, text_input, Align, Application, Button, Column, Command, Container, Element,
-    HorizontalAlignment, Length, Radio, Row, Scrollable, Settings, Space, Text, TextInput,
+    HorizontalAlignment, Length, Radio, Row, Scrollable, Space, Text, TextInput,
 };
 
 #[derive(Default)]
@@ -21,6 +21,8 @@ struct WidgetState {
     nav_backup_button: button::State,
     nav_restore_button: button::State,
     add_root_button: button::State,
+    modal_positive_button: button::State,
+    modal_negative_button: button::State,
     backup_target_input: text_input::State,
     restore_source_input: text_input::State,
     root_rows: Vec<(button::State, text_input::State)>,
@@ -37,13 +39,16 @@ struct App {
     translator: Translator,
     operation: Option<OngoingOperation>,
     screen: Screen,
+    modal: Option<Modal>,
     original_working_dir: std::path::PathBuf,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     Idle,
+    ConfirmBackupStart,
     BackupStart,
+    ConfirmRestoreStart,
     RestoreStart,
     PreviewBackupStart,
     PreviewRestoreStart,
@@ -71,6 +76,12 @@ enum OngoingOperation {
 enum Screen {
     Backup,
     Restore,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum Modal {
+    ConfirmBackup,
+    ConfirmRestore,
 }
 
 impl Default for Screen {
@@ -131,7 +142,17 @@ impl Application for App {
         match message {
             Message::Idle => {
                 self.operation = None;
+                self.error = None;
+                self.modal = None;
                 std::env::set_current_dir(&self.original_working_dir).unwrap();
+                Command::none()
+            }
+            Message::ConfirmBackupStart => {
+                self.modal = Some(Modal::ConfirmBackup);
+                Command::none()
+            }
+            Message::ConfirmRestoreStart => {
+                self.modal = Some(Modal::ConfirmRestore);
                 Command::none()
             }
             Message::BackupStart => {
@@ -142,6 +163,7 @@ impl Application for App {
                 self.total_games = 0;
                 self.log.clear();
                 self.error = None;
+                self.modal = None;
 
                 if let Err(e) = prepare_backup_target(&self.config.backup.path) {
                     self.error = Some(e);
@@ -227,6 +249,7 @@ impl Application for App {
                 self.total_games = 0;
                 self.log.clear();
                 self.error = None;
+                self.modal = None;
 
                 if !std::path::Path::new(&self.config.restore.path).is_dir() {
                     self.error = Some(Error::RestorationSourceInvalid);
@@ -358,6 +381,97 @@ impl Application for App {
     }
 
     fn view(&mut self) -> Element<Message> {
+        if let Some(m) = &self.modal {
+            return Container::new(
+                Column::new()
+                    .padding(20)
+                    .align_items(Align::Center)
+                    .push(
+                        Row::new()
+                            .padding(20)
+                            .spacing(20)
+                            .align_items(Align::Center)
+                            .push(
+                                Button::new(
+                                    &mut self.widgets.modal_positive_button,
+                                    Text::new(self.translator.continue_button())
+                                        .horizontal_alignment(HorizontalAlignment::Center),
+                                )
+                                .on_press(match m {
+                                    Modal::ConfirmBackup => Message::BackupStart,
+                                    Modal::ConfirmRestore => Message::RestoreStart,
+                                })
+                                .width(Length::Units(125))
+                                .style(style::Button::Primary),
+                            )
+                            .push(
+                                Button::new(
+                                    &mut self.widgets.modal_negative_button,
+                                    Text::new(self.translator.cancel_button())
+                                        .horizontal_alignment(HorizontalAlignment::Center),
+                                )
+                                .on_press(Message::Idle)
+                                .width(Length::Units(125))
+                                .style(style::Button::Negative),
+                            ),
+                    )
+                    .push(
+                        Row::new()
+                            .padding(20)
+                            .spacing(20)
+                            .align_items(Align::Center)
+                            .push(Text::new(match m {
+                                Modal::ConfirmBackup => self.translator.modal_confirm_backup(
+                                    &self.config.backup.path,
+                                    std::path::Path::new(&self.config.backup.path).exists(),
+                                ),
+                                Modal::ConfirmRestore => {
+                                    self.translator.modal_confirm_restore(&self.config.restore.path)
+                                }
+                            }))
+                            .width(Length::Units(640))
+                            .height(Length::Units(480)),
+                    ),
+            )
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .center_x()
+            .into();
+        }
+
+        if let Some(e) = &self.error {
+            return Container::new(
+                Column::new()
+                    .padding(20)
+                    .align_items(Align::Center)
+                    .push(
+                        Row::new().padding(20).spacing(20).align_items(Align::Center).push(
+                            Button::new(
+                                &mut self.widgets.modal_positive_button,
+                                Text::new(self.translator.okay_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::Idle)
+                            .width(Length::Units(125))
+                            .style(style::Button::Primary),
+                        ),
+                    )
+                    .push(
+                        Row::new()
+                            .padding(20)
+                            .spacing(20)
+                            .align_items(Align::Center)
+                            .push(Text::new(self.translator.handle_error(e)))
+                            .width(Length::Units(640))
+                            .height(Length::Units(480)),
+                    ),
+            )
+            .height(Length::Fill)
+            .width(Length::Fill)
+            .center_x()
+            .into();
+        }
+
         Container::new(
             Column::new()
                 .padding(20)
@@ -387,7 +501,7 @@ impl Application for App {
                                 Text::new(self.translator.backup_button())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::BackupStart)
+                            .on_press(Message::ConfirmBackupStart)
                             .width(Length::Units(125))
                             .style(if self.operation.is_some() {
                                 style::Button::Disabled
@@ -439,7 +553,7 @@ impl Application for App {
                                 Text::new(self.translator.restore_button())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::RestoreStart)
+                            .on_press(Message::ConfirmRestoreStart)
                             .width(Length::Units(125))
                             .style(if self.operation.is_some() {
                                 style::Button::Disabled
@@ -464,19 +578,6 @@ impl Application for App {
                         .align_items(Align::Center)
                         .push(Text::new(self.translator.processed_games(self.total_games)).size(50)),
                 )
-                .push({
-                    if self.error.is_some() {
-                        Row::new().padding(20).align_items(Align::Center).push(
-                            Text::new(match &self.error {
-                                Some(e) => self.translator.handle_error(e),
-                                _ => "".to_string(),
-                            })
-                            .size(20),
-                        )
-                    } else {
-                        Row::new()
-                    }
-                })
                 .push({
                     let mut row = Row::new().padding(20).align_items(Align::Center);
                     row = match self.screen {
@@ -654,5 +755,5 @@ mod style {
 }
 
 pub fn run_gui() {
-    App::run(Settings::default())
+    App::run(iced::Settings::default())
 }
