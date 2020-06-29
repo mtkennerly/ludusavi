@@ -2,7 +2,12 @@ use crate::manifest::Store;
 use crate::prelude::{app_dir, Error};
 
 const MANIFEST_URL: &str = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
-const BACKUP_PATH: &str = "./ludusavi-backup";
+
+fn default_backup_dir() -> String {
+    let mut path = dirs::home_dir().unwrap();
+    path.push("ludusavi-backup");
+    path.to_string_lossy().to_string()
+}
 
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Config {
@@ -46,7 +51,7 @@ impl Default for ManifestConfig {
 impl Default for BackupConfig {
     fn default() -> Self {
         Self {
-            path: BACKUP_PATH.to_string(),
+            path: default_backup_dir(),
         }
     }
 }
@@ -54,7 +59,7 @@ impl Default for BackupConfig {
 impl Default for RestoreConfig {
     fn default() -> Self {
         Self {
-            path: BACKUP_PATH.to_string(),
+            path: default_backup_dir(),
         }
     }
 }

@@ -320,7 +320,7 @@ impl Application for App {
                 Command::none()
             }
             Message::EditedRestoreSource(text) => {
-                self.config.backup.path = text;
+                self.config.restore.path = text;
                 Command::none()
             }
             Message::EditedRootPath(index, path) => {
@@ -499,7 +499,7 @@ impl Application for App {
                                 TextInput::new(
                                     &mut self.widgets.restore_source_input,
                                     "",
-                                    &self.config.backup.path,
+                                    &self.config.restore.path,
                                     Message::EditedRestoreSource,
                                 )
                                 .padding(5),
