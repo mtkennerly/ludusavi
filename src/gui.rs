@@ -2,7 +2,7 @@ use crate::config::{Config, RootsConfig};
 use crate::lang::Translator;
 use crate::manifest::{Manifest, Store};
 use crate::prelude::{
-    back_up_game, get_target_from_backup_file, prepare_backup_target, restore_game, scan_game_for_backup,
+    app_dir, back_up_game, get_target_from_backup_file, prepare_backup_target, restore_game, scan_game_for_backup,
     scan_game_for_restoration, Error, ScanInfo,
 };
 
@@ -158,7 +158,8 @@ impl Application for App {
                     let backup_path = self.config.backup.path.clone();
                     commands.push(Command::perform(
                         async move {
-                            let info = scan_game_for_backup(&game, &key, &roots, &".".to_string());
+                            let info =
+                                scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), game.steam_id);
                             back_up_game(&info, &backup_path, &key);
                             info
                         },
@@ -190,7 +191,9 @@ impl Application for App {
                     let roots = self.config.roots.clone();
                     let key2 = key.clone();
                     commands.push(Command::perform(
-                        async move { scan_game_for_backup(&game, &key, &roots, &".".to_string()) },
+                        async move {
+                            scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), game.steam_id)
+                        },
                         move |info| Message::BackupStep {
                             game: key2.clone(),
                             info,

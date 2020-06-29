@@ -57,6 +57,8 @@ pub struct Game {
     pub install_dir: Option<std::collections::HashMap<String, GameInstallDirConstraint>>,
     pub registry: Option<std::collections::HashMap<String, GameRegistryConstraint>>,
     pub tags: Option<Vec<Tag>>,
+    #[serde(rename = "steamId")]
+    pub steam_id: Option<u32>,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]

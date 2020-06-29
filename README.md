@@ -12,12 +12,13 @@ to that project.
 ## Features
 * Backup and restore for Steam as well as other game libraries.
 * Preview the backup/restore before actually performing it.
+* Support for Proton saves with Steam.
 
 Planned for the future:
 
-* (De)select specific games for backup/restore.
-* Restore to different locations.
-* Support for Proton saves with Steam.
+* (De)selecting specific games for backup/restore.
+* Restoring to different locations.
+* Backing up saves from the Windows registry.
 * CLI mode.
 
 ## Comparison with other tools
@@ -26,10 +27,11 @@ cross-platform and cross-store solution:
 
 * [GameSave Manager](https://www.gamesave-manager.com):
   * Only supports Windows and Steam.
-  * Closed source.
+  * Closed source, so the community cannot contribute improvements.
+  *
 * [Gaming Backup Multitool for Linux](https://supremesonicbrazil.gitlab.io/gbml-web)
   * Only supports Linux and Steam.
-  * Database is not actively updated (as of 2020-06-20).
+  * Database is not actively updated (as of 2020-06-20, the last update was 2018-06-05).
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).

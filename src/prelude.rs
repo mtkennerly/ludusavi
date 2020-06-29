@@ -57,29 +57,91 @@ pub fn get_os() -> Os {
     }
 }
 
-pub fn parse_path(path: &str, root: &RootsConfig, install_dir: &str) -> String {
-    let base = match root.store {
-        Store::Steam => format!("{}/steamapps/common/{}", root.path, install_dir),
-        Store::Other => format!("{}/**/{}", root.path, install_dir),
-    };
-    path.replace("<root>", &root.path)
-        .replace("<game>", &install_dir)
-        .replace("<base>", &base)
-        .replace(
-            "<home>",
-            &dirs::home_dir().unwrap_or_else(|| "<skip>".into()).to_string_lossy(),
-        )
-        .replace("<storeUserId>", "<skip>")
-        .replace("<osUserName>", "<skip>")
-        .replace("<winAppData>", "<skip>")
-        .replace("<winLocalAppData>", "<skip>")
-        .replace("<winPublic>", "<skip>")
-        .replace("<winProgramData>", "<skip>")
-        .replace("<winDir>", "<skip>")
-        .replace("<xdgData>", "<skip>")
-        .replace("<xdgConfig>", "<skip>")
-        .replace("<regHkcu>", "<skip>")
-        .replace("<regHklm>", "<skip>")
+fn check_path(path: Option<std::path::PathBuf>) -> String {
+    path.unwrap_or_else(|| "<skip>".into()).to_string_lossy().to_string()
+}
+
+fn check_windows_path(path: Option<std::path::PathBuf>) -> String {
+    match get_os() {
+        Os::Windows => check_path(path),
+        _ => "<skip>".to_string(),
+    }
+}
+
+fn check_nonwindows_path(path: Option<std::path::PathBuf>) -> String {
+    match get_os() {
+        Os::Windows => "<skip>".to_string(),
+        _ => check_path(path),
+    }
+}
+
+pub fn parse_paths(
+    path: &str,
+    root: &RootsConfig,
+    install_dirs: &[&String],
+    steam_id: &Option<u32>,
+) -> std::collections::HashSet<String> {
+    let mut paths = std::collections::HashSet::new();
+
+    for install_dir in install_dirs {
+        paths.insert(
+            path.replace("<root>", &root.path)
+                .replace("<game>", &install_dir)
+                .replace(
+                    "<base>",
+                    &match root.store {
+                        Store::Steam => format!("{}/steamapps/common/{}", root.path, install_dir),
+                        Store::Other => format!("{}/**/{}", root.path, install_dir),
+                    },
+                )
+                .replace(
+                    "<home>",
+                    &dirs::home_dir().unwrap_or_else(|| "<skip>".into()).to_string_lossy(),
+                )
+                .replace("<storeUserId>", "*")
+                .replace("<osUserName>", &whoami::username())
+                .replace("<winAppData>", &check_windows_path(dirs::data_dir()))
+                .replace("<winLocalAppData>", &check_windows_path(dirs::data_local_dir()))
+                .replace("<winPublic>", &check_windows_path(dirs::public_dir()))
+                .replace(
+                    "<winProgramData>",
+                    &check_windows_path(Some(std::path::PathBuf::from("C:/Windows/ProgramData"))),
+                )
+                .replace(
+                    "<winDir>",
+                    &check_windows_path(Some(std::path::PathBuf::from("C:/Windows"))),
+                )
+                .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
+                .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
+                .replace("<regHkcu>", "<skip>")
+                .replace("<regHklm>", "<skip>"),
+        );
+        if get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some() {
+            let prefix = format!("{}/steamapps/compatdata/{}/pfx/drive_c", root.path, steam_id.unwrap());
+            paths.insert(
+                path.replace("<root>", &root.path)
+                    .replace("<game>", &install_dir)
+                    .replace("<base>", &format!("{}/steamapps/common/{}", root.path, install_dir))
+                    .replace("<home>", &format!("{}/users/steamuser", prefix))
+                    .replace("<storeUserId>", "*")
+                    .replace("<osUserName>", "steamuser")
+                    .replace("<winAppData>", &format!("{}/users/steamuser/AppData/Roaming", prefix))
+                    .replace(
+                        "<winLocalAppData>",
+                        &format!("{}/users/steamuser/AppData/Local", prefix),
+                    )
+                    .replace("<winPublic>", &format!("{}/users/Public", prefix))
+                    .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
+                    .replace("<winDir>", &format!("{}/windows", prefix))
+                    .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
+                    .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
+                    .replace("<regHkcu>", "<skip>")
+                    .replace("<regHklm>", "<skip>"),
+            );
+        }
+    }
+
+    paths
 }
 
 fn glob_any(path: &str, base: &str) -> Result<glob::Paths, ()> {
@@ -95,21 +157,31 @@ fn glob_any(path: &str, base: &str) -> Result<glob::Paths, ()> {
     Ok(entries)
 }
 
-pub fn scan_game_for_backup(game: &Game, name: &str, roots: &[RootsConfig], manifest_dir: &str) -> ScanInfo {
+pub fn scan_game_for_backup(
+    game: &Game,
+    name: &str,
+    roots: &[RootsConfig],
+    manifest_dir: &str,
+    steam_id: Option<u32>,
+) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     let found_registry = false;
+
+    // Add a dummy root for checking paths without `<root>`.
     let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig {
         path: "<skip>".to_string(),
         store: Store::Other,
     }];
     roots_to_check.extend(roots.iter().cloned());
-    let mut paths_to_check: Vec<String> = vec![];
+
+    let mut paths_to_check = std::collections::HashSet::<String>::new();
 
     for root in roots_to_check {
         if root.path.trim().is_empty() {
             continue;
         }
         if let Some(files) = &game.files {
+            let maybe_proton = get_os() == Os::Linux && root.store == Store::Steam && game.steam_id.is_some();
             let default_install_dir = name.to_string();
             let install_dirs: Vec<_> = match &game.install_dir {
                 Some(x) => x.keys().collect(),
@@ -117,7 +189,7 @@ pub fn scan_game_for_backup(game: &Game, name: &str, roots: &[RootsConfig], mani
             };
             for (raw_path, constraint) in files {
                 if let Some(os) = &constraint.os {
-                    if os != &get_os() {
+                    if os != &get_os() && !maybe_proton {
                         continue;
                     }
                 }
@@ -126,14 +198,17 @@ pub fn scan_game_for_backup(game: &Game, name: &str, roots: &[RootsConfig], mani
                         continue;
                     }
                 }
-                for install_dir in &install_dirs {
-                    let path = parse_path(raw_path, &root, install_dir);
-                    if path.contains("<skip>") {
+                let candidates = parse_paths(raw_path, &root, &install_dirs, &steam_id);
+                for candidate in candidates {
+                    if candidate.contains("<skip>") {
                         continue;
                     }
-                    paths_to_check.push(path);
+                    paths_to_check.insert(candidate);
                 }
             }
+        }
+        if root.store == Store::Steam && steam_id.is_some() {
+            paths_to_check.insert(format!("{}/userdata/*/{}/remote/", root.path, steam_id.unwrap()));
         }
     }
 
