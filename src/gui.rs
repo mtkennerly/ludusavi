@@ -1,6 +1,6 @@
 use crate::config::{Config, RootsConfig};
 use crate::lang::Translator;
-use crate::manifest::{Manifest, Store};
+use crate::manifest::{Manifest, SteamMetadata, Store};
 use crate::prelude::{
     app_dir, back_up_game, get_target_from_backup_file, prepare_backup_target, restore_game, scan_game_for_backup,
     scan_game_for_restoration, Error, ScanInfo,
@@ -37,6 +37,7 @@ struct App {
     translator: Translator,
     operation: Option<OngoingOperation>,
     screen: Screen,
+    original_working_dir: std::path::PathBuf,
 }
 
 #[derive(Debug, Clone)]
@@ -115,6 +116,7 @@ impl Application for App {
                 config,
                 manifest,
                 widgets,
+                original_working_dir: std::env::current_dir().unwrap(),
                 ..Self::default()
             },
             Command::none(),
@@ -129,6 +131,7 @@ impl Application for App {
         match message {
             Message::Idle => {
                 self.operation = None;
+                std::env::set_current_dir(&self.original_working_dir).unwrap();
                 Command::none()
             }
             Message::BackupStart => {
@@ -145,22 +148,32 @@ impl Application for App {
                     return Command::none();
                 }
 
+                let backup_path = match std::fs::canonicalize(&self.config.backup.path) {
+                    Err(_) => {
+                        self.error = Some(Error::CannotPrepareBackupTarget);
+                        return Command::none();
+                    }
+                    Ok(x) => x.as_path().display().to_string(),
+                };
+
                 self.config.save();
                 self.operation = Some(OngoingOperation::Backup);
 
                 self.log.push(self.translator.start_of_backup());
+                std::env::set_current_dir(app_dir()).unwrap();
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
                     let game = self.manifest.0[&key].clone();
                     let roots = self.config.roots.clone();
                     let key2 = key.clone();
-                    let backup_path = self.config.backup.path.clone();
+                    let backup_path2 = backup_path.clone();
+                    let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
                     commands.push(Command::perform(
                         async move {
                             let info =
-                                scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), game.steam_id);
-                            back_up_game(&info, &backup_path, &key);
+                                scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), &steam_id);
+                            back_up_game(&info, &backup_path2, &key);
                             info
                         },
                         move |info| Message::BackupStep {
@@ -184,15 +197,17 @@ impl Application for App {
                 self.error = None;
 
                 self.log.push(self.translator.start_of_backup_preview());
+                std::env::set_current_dir(app_dir()).unwrap();
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
                     let game = self.manifest.0[&key].clone();
                     let roots = self.config.roots.clone();
                     let key2 = key.clone();
+                    let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
                     commands.push(Command::perform(
                         async move {
-                            scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), game.steam_id)
+                            scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), &steam_id)
                         },
                         move |info| Message::BackupStep {
                             game: key2.clone(),
@@ -282,7 +297,7 @@ impl Application for App {
                 if !info.found_files.is_empty() {
                     self.total_games += 1;
                     self.log.push(game);
-                    for file in info.found_files {
+                    for file in itertools::sorted(info.found_files) {
                         self.log.push(format!(". . . . . {}", file));
                     }
                 }
@@ -292,7 +307,7 @@ impl Application for App {
                 if !info.found_files.is_empty() {
                     self.total_games += 1;
                     self.log.push(game);
-                    for file in info.found_files {
+                    for file in itertools::sorted(info.found_files) {
                         if let Ok(target) = get_target_from_backup_file(&file) {
                             self.log.push(format!(". . . . . {}", target));
                         }
