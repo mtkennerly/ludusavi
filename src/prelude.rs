@@ -16,10 +16,10 @@ pub enum Error {
     ConfigInvalid { why: String },
 
     #[error("Cannot prepare the backup target")]
-    CannotPrepareBackupTarget,
+    CannotPrepareBackupTarget { path: String },
 
     #[error("Cannot prepare the backup target")]
-    RestorationSourceInvalid,
+    RestorationSourceInvalid { path: String },
 }
 
 #[derive(Clone, Debug, thiserror::Error)]
@@ -275,11 +275,17 @@ pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
 pub fn prepare_backup_target(target: &str) -> Result<(), Error> {
     let p = std::path::Path::new(target);
     if p.is_file() {
-        std::fs::remove_file(p).map_err(|_| Error::CannotPrepareBackupTarget)?;
+        std::fs::remove_file(p).map_err(|_| Error::CannotPrepareBackupTarget {
+            path: target.to_string(),
+        })?;
     } else if p.is_dir() {
-        std::fs::remove_dir_all(p).map_err(|_| Error::CannotPrepareBackupTarget)?;
+        std::fs::remove_dir_all(p).map_err(|_| Error::CannotPrepareBackupTarget {
+            path: target.to_string(),
+        })?;
     }
-    std::fs::create_dir_all(p).map_err(|_| Error::CannotPrepareBackupTarget)?;
+    std::fs::create_dir_all(p).map_err(|_| Error::CannotPrepareBackupTarget {
+        path: target.to_string(),
+    })?;
 
     Ok(())
 }

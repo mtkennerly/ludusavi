@@ -165,18 +165,11 @@ impl Application for App {
                 self.error = None;
                 self.modal = None;
 
-                if let Err(e) = prepare_backup_target(&self.config.backup.path) {
+                let backup_path = crate::path::absolute(&self.config.backup.path);
+                if let Err(e) = prepare_backup_target(&backup_path) {
                     self.error = Some(e);
                     return Command::none();
                 }
-
-                let backup_path = match std::fs::canonicalize(&self.config.backup.path) {
-                    Err(_) => {
-                        self.error = Some(Error::CannotPrepareBackupTarget);
-                        return Command::none();
-                    }
-                    Ok(x) => x.as_path().display().to_string(),
-                };
 
                 self.config.save();
                 self.operation = Some(OngoingOperation::Backup);
@@ -251,8 +244,9 @@ impl Application for App {
                 self.error = None;
                 self.modal = None;
 
-                if !std::path::Path::new(&self.config.restore.path).is_dir() {
-                    self.error = Some(Error::RestorationSourceInvalid);
+                let restore_path = crate::path::normalize(&self.config.restore.path);
+                if !crate::path::is_dir(&restore_path) {
+                    self.error = Some(Error::RestorationSourceInvalid { path: restore_path });
                     return Command::none();
                 }
 
@@ -263,7 +257,7 @@ impl Application for App {
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
-                    let source = self.config.restore.path.clone();
+                    let source = restore_path.clone();
                     let key2 = key.clone();
                     commands.push(Command::perform(
                         async move {
@@ -290,8 +284,9 @@ impl Application for App {
                 self.log.clear();
                 self.error = None;
 
-                if !std::path::Path::new(&self.config.restore.path).is_dir() {
-                    self.error = Some(Error::RestorationSourceInvalid);
+                let restore_path = crate::path::normalize(&self.config.restore.path);
+                if !crate::path::is_dir(&restore_path) {
+                    self.error = Some(Error::RestorationSourceInvalid { path: restore_path });
                     return Command::none();
                 }
 
@@ -302,7 +297,7 @@ impl Application for App {
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
-                    let source = self.config.restore.path.clone();
+                    let source = restore_path.clone();
                     let key2 = key.clone();
                     commands.push(Command::perform(
                         async move { scan_game_for_restoration(&key, &source) },
@@ -422,12 +417,12 @@ impl Application for App {
                             .align_items(Align::Center)
                             .push(Text::new(match m {
                                 Modal::ConfirmBackup => self.translator.modal_confirm_backup(
-                                    &self.config.backup.path,
-                                    std::path::Path::new(&self.config.backup.path).exists(),
+                                    &crate::path::absolute(&self.config.backup.path),
+                                    crate::path::exists(&self.config.backup.path),
                                 ),
-                                Modal::ConfirmRestore => {
-                                    self.translator.modal_confirm_restore(&self.config.restore.path)
-                                }
+                                Modal::ConfirmRestore => self
+                                    .translator
+                                    .modal_confirm_restore(&crate::path::absolute(&self.config.restore.path)),
                             }))
                             .height(Length::Fill),
                     ),

@@ -27,8 +27,8 @@ impl Translator {
             Error::ConfigInvalid { why } => self.config_is_invalid(why),
             Error::ManifestInvalid { why } => self.manifest_is_invalid(why),
             Error::ManifestCannotBeUpdated => self.manifest_cannot_be_updated(),
-            Error::CannotPrepareBackupTarget => self.cannot_prepare_backup_target(),
-            Error::RestorationSourceInvalid => self.restoration_source_is_invalid(),
+            Error::CannotPrepareBackupTarget { path } => self.cannot_prepare_backup_target(path),
+            Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
         }
     }
 
@@ -128,20 +128,18 @@ impl Translator {
         .into()
     }
 
-    pub fn cannot_prepare_backup_target(&self) -> String {
+    pub fn cannot_prepare_backup_target(&self, target: &str) -> String {
         match self.language {
-            Language::English => "Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it.",
+            Language::English => format!("Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: {}", target),
         }
-        .into()
     }
 
-    pub fn restoration_source_is_invalid(&self) -> String {
+    pub fn restoration_source_is_invalid(&self, source: &str) -> String {
         match self.language {
             Language::English => {
-                "Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location."
+                format!("Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: {}", source)
             }
         }
-        .into()
     }
 
     pub fn processed_games(&self, total: usize) -> String {
