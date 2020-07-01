@@ -72,10 +72,10 @@ impl Hives {
                 info.found = true;
                 self.0
                     .entry(hive_name.to_string())
-                    .or_insert_with(|| Default::default())
+                    .or_insert_with(Default::default)
                     .0
                     .entry(key.to_string())
-                    .or_insert_with(|| Default::default())
+                    .or_insert_with(Default::default)
                     .0
                     .entry(name.to_string())
                     .or_insert_with(|| entry);
@@ -84,11 +84,8 @@ impl Hives {
 
         let mut failed = false;
         for name in subkey.enum_keys().filter_map(|x| x.ok()) {
-            match self.store_key(hive, hive_name, &format!("{}\\{}", key, name)) {
-                Err(_) => {
-                    failed = true;
-                }
-                _ => {}
+            if self.store_key(hive, hive_name, &format!("{}\\{}", key, name)).is_err() {
+                failed = true;
             }
         }
 
@@ -202,4 +199,11 @@ fn get_hkey_from_name(name: &str) -> Option<winreg::HKEY> {
         "HKEY_LOCAL_MACHINE" => Some(winreg::enums::HKEY_LOCAL_MACHINE),
         _ => None,
     }
+}
+
+pub fn game_registry_backup_file(start: &str, game: &str) -> std::path::PathBuf {
+    let mut path = crate::prelude::game_backup_dir(&start, &game);
+    path.push("other");
+    path.push("registry.yaml");
+    path
 }

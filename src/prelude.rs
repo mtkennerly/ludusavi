@@ -24,6 +24,7 @@ pub enum Error {
     #[error("Cannot prepare the backup target")]
     RestorationSourceInvalid { path: String },
 
+    #[allow(dead_code)]
     #[error("Error while working with the registry")]
     RegistryIssue,
 }
@@ -64,13 +65,6 @@ pub fn game_backup_dir(start: &str, game: &str) -> std::path::PathBuf {
 pub fn game_file_backup_target(start: &str, game: &str, original_path: &str) -> std::path::PathBuf {
     let mut path = game_backup_dir(&start, &game);
     path.push(base64::encode(original_path));
-    path
-}
-
-pub fn game_registry_backup_file(start: &str, game: &str) -> std::path::PathBuf {
-    let mut path = game_backup_dir(&start, &game);
-    path.push("other");
-    path.push("registry.yaml");
     path
 }
 
@@ -201,6 +195,7 @@ pub fn scan_game_for_backup(
     steam_id: &Option<u32>,
 ) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
+    #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
 
     // Add a dummy root for checking paths without `<root>`.
@@ -287,7 +282,8 @@ pub fn scan_game_for_backup(
         }
     }
 
-    if WINDOWS {
+    #[cfg(target_os = "windows")]
+    {
         let mut hives = crate::registry::Hives::default();
         if let Some(registry) = &game.registry {
             let stores: &Vec<_> = &roots_to_check.iter().map(|x| x.store).collect();
@@ -315,7 +311,9 @@ pub fn scan_game_for_backup(
 
 pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
+    #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
+    #[allow(unused_mut)]
     let mut registry_file = None;
 
     let target_game = game_backup_dir(&source, &name);
@@ -332,9 +330,10 @@ pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
         }
     }
 
-    if WINDOWS {
-        if let Some(hives) = crate::registry::Hives::load(&game_registry_backup_file(&source, &name)) {
-            registry_file = Some(game_registry_backup_file(&source, &name));
+    #[cfg(target_os = "windows")]
+    {
+        if let Some(hives) = crate::registry::Hives::load(&crate::registry::game_registry_backup_file(&source, &name)) {
+            registry_file = Some(crate::registry::game_registry_backup_file(&source, &name));
             for (hive_name, keys) in hives.0.iter() {
                 for (key_name, _) in keys.0.iter() {
                     found_registry_keys.insert(format!("{}/{}", hive_name, key_name).replace("\\", "/"));
@@ -370,6 +369,7 @@ pub fn prepare_backup_target(target: &str) -> Result<(), Error> {
 
 pub fn back_up_game(info: &ScanInfo, target: &str, name: &str) -> BackupInfo {
     let mut failed_files = std::collections::HashSet::new();
+    #[allow(unused_mut)]
     let mut failed_registry = std::collections::HashSet::new();
 
     for file in &info.found_files {
@@ -386,7 +386,8 @@ pub fn back_up_game(info: &ScanInfo, target: &str, name: &str) -> BackupInfo {
         }
     }
 
-    if WINDOWS {
+    #[cfg(target_os = "windows")]
+    {
         for reg_path in &info.found_registry_keys {
             let mut hives = crate::registry::Hives::default();
             match hives.store_key_from_full_path(&reg_path) {
@@ -397,7 +398,7 @@ pub fn back_up_game(info: &ScanInfo, target: &str, name: &str) -> BackupInfo {
                     failed_registry.insert(reg_path.to_string());
                 }
                 _ => {
-                    hives.save(&game_registry_backup_file(&target, &name));
+                    hives.save(&crate::registry::game_registry_backup_file(&target, &name));
                 }
             }
         }
@@ -434,7 +435,8 @@ pub fn restore_game(info: &ScanInfo) -> BackupInfo {
         }
     }
 
-    if WINDOWS {
+    #[cfg(target_os = "windows")]
+    {
         if let Some(registry_file) = &info.registry_file {
             if let Some(hives) = crate::registry::Hives::load(&registry_file) {
                 // TODO: Track failed keys.

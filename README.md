@@ -1,4 +1,7 @@
 # Ludusavi
+[![Version](https://img.shields.io/crates/v/ludusavi)](https://crates.io/crates/ludusavi)
+[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Ludusavi is a tool for backing up your PC video game save data, written in Rust.
 It is cross-platform and supports multiple game stores.
 
@@ -21,6 +24,13 @@ Planned for the future:
 * CLI mode.
 
 ## Usage
+### Installation
+* Download the executable for your operating system.
+* If you are on Windows, when you first run Ludusavi, you may see a popup
+  that says "Windows protected your PC", because Windows does not recognize
+  the program's publisher. Click "more info" and then "run anyway" to start
+  the program.
+
 ### Backup mode
 > ![Ludusavi in backup mode](./docs/backup.png)
 
