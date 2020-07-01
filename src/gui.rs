@@ -2,7 +2,7 @@ use crate::config::{Config, RootsConfig};
 use crate::lang::Translator;
 use crate::manifest::{Manifest, SteamMetadata, Store};
 use crate::prelude::{
-    app_dir, back_up_game, get_target_from_backup_file, prepare_backup_target, restore_game, scan_game_for_backup,
+    app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
     scan_game_for_restoration, Error, ScanInfo,
 };
 
@@ -312,23 +312,29 @@ impl Application for App {
                 Command::batch(commands)
             }
             Message::BackupStep { game, info } => {
-                if !info.found_files.is_empty() {
+                if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
                     self.total_games += 1;
                     self.log.push(game);
                     for file in itertools::sorted(info.found_files) {
                         self.log.push(format!(". . . . . {}", file));
                     }
+                    for reg_path in itertools::sorted(info.found_registry_keys) {
+                        self.log.push(format!(". . . . . {}", reg_path));
+                    }
                 }
                 Command::none()
             }
             Message::RestoreStep { game, info } => {
-                if !info.found_files.is_empty() {
+                if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
                     self.total_games += 1;
                     self.log.push(game);
                     for file in itertools::sorted(info.found_files) {
-                        if let Ok(target) = get_target_from_backup_file(&file) {
+                        if let Ok(target) = game_file_restoration_target(&file) {
                             self.log.push(format!(". . . . . {}", target));
                         }
+                    }
+                    for reg_path in itertools::sorted(info.found_registry_keys) {
+                        self.log.push(format!(". . . . . {}", reg_path));
                     }
                 }
                 Command::none()

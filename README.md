@@ -12,12 +12,12 @@ so you are encouraged to contribute any new or fixed data back to the wiki itsel
 * Backup and restore for Steam as well as other game libraries.
 * Preview the backup/restore before actually performing it.
 * Support for Proton saves with Steam.
+* Support for saves in the Windows registry.
 
 Planned for the future:
 
 * (De)selecting specific games for backup/restore.
 * Restoring to different locations.
-* Backing up saves from the Windows registry.
 * CLI mode.
 
 ## Usage
@@ -33,10 +33,14 @@ Planned for the future:
   * Within the target folder, for every game with data to back up,
     a subfolder will be created with the game's name encoded as base 64.
     For example, files for `Celeste` would go into a folder named `Q2VsZXN0ZQ==`.
-  * Within each game's folder, any relevant files will be stored with their
-    name as the base 64 encoding of the full path to the original file.
+  * Within each game's backup folder, any relevant files will be stored with
+    their name as the base 64 encoding of the full path to the original file.
     For example, `D:/Steam/steamapps/common/Celeste/Saves/0.celeste` would be
     backed up as `RDovU3RlYW0vc3RlYW1hcHBzL2NvbW1vbi9DZWxlc3RlL1NhdmVzLzAuY2VsZXN0ZQ==`.
+  * If the game has save data in the registry and you are using Windows, then
+    the game's backup folder will also contain an `other/registry.yaml` file.
+    If you are using Steam and Proton instead of Windows, then the Proton `*.reg`
+    files will be backed up like other game files.
 * By default, no roots are configured. Roots are folders that Ludusavi can
   check for additional game data. You can click `add root` and configure
   as many as you need, along with its type:

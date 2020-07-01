@@ -21,7 +21,11 @@ pub fn exists(path: &str) -> bool {
 
 pub fn absolute(path: &str) -> String {
     match std::fs::canonicalize(&normalize(path)) {
-        Ok(x) => x.as_path().display().to_string().replace("\\\\?\\", ""),
+        Ok(x) => render_pathbuf(&x).replace("\\\\?\\", ""),
         Err(_) => normalize(path),
     }
+}
+
+pub fn render_pathbuf(value: &std::path::PathBuf) -> String {
+    value.as_path().display().to_string()
 }

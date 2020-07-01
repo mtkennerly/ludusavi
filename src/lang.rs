@@ -29,6 +29,7 @@ impl Translator {
             Error::ManifestCannotBeUpdated => self.manifest_cannot_be_updated(),
             Error::CannotPrepareBackupTarget { path } => self.cannot_prepare_backup_target(path),
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
+            Error::RegistryIssue => self.registry_issue(),
         }
     }
 
@@ -140,6 +141,13 @@ impl Translator {
                 format!("Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: {}", source)
             }
         }
+    }
+
+    pub fn registry_issue(&self) -> String {
+        match self.language {
+            Language::English => "Error: Some registry entries were skipped.",
+        }
+        .into()
     }
 
     pub fn processed_games(&self, total: usize) -> String {
