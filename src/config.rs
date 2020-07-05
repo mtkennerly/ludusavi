@@ -74,15 +74,12 @@ impl Config {
     pub fn save(&self) {
         let new_content = serde_yaml::to_string(&self).unwrap();
 
-        match Self::load() {
-            Ok(old) => {
-                let old_content = serde_yaml::to_string(&old).unwrap();
-                if old_content == new_content {
-                    return;
-                }
+        if let Ok(old) = Self::load() {
+            let old_content = serde_yaml::to_string(&old).unwrap();
+            if old_content == new_content {
+                return;
             }
-            _ => {}
-        };
+        }
 
         if std::fs::create_dir_all(app_dir()).is_ok() {
             std::fs::write(Self::file(), new_content.as_bytes()).unwrap();

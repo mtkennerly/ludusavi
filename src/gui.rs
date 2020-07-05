@@ -153,23 +153,45 @@ struct GameListEntry {
 }
 
 impl GameListEntry {
-    fn view(&mut self, restoring: bool) -> Text {
-        let mut lines = vec![self.name.clone()];
+    fn view(&mut self, restoring: bool) -> Container<Message> {
+        let mut lines = Vec::<String>::new();
 
         for item in itertools::sorted(&self.files) {
             if restoring {
                 if let Ok(target) = game_file_restoration_target(&item) {
-                    lines.push(format!(". . . . . {}", target));
+                    lines.push(target);
                 }
             } else {
-                lines.push(format!(". . . . . {}", item));
+                lines.push(item.clone());
             }
         }
         for item in itertools::sorted(&self.registry_keys) {
-            lines.push(format!(". . . . . {}", item));
+            lines.push(item.clone());
         }
 
-        Text::new(lines.join("\n"))
+        Container::new(
+            Column::new()
+                .padding(5)
+                .spacing(5)
+                .align_items(Align::Center)
+                .push(
+                    Row::new().push(
+                        Container::new(Text::new(self.name.clone()))
+                            .align_x(Align::Center)
+                            .width(Length::Fill)
+                            .padding(2)
+                            .style(style::Container::GameListEntryTitle),
+                    ),
+                )
+                .push(
+                    Row::new().push(
+                        Container::new(Text::new(lines.join("\n")))
+                            .width(Length::Fill)
+                            .style(style::Container::GameListEntryBody),
+                    ),
+                ),
+        )
+        .style(style::Container::GameListEntry)
     }
 }
 
@@ -181,13 +203,15 @@ struct GameList {
 
 impl GameList {
     fn view(&mut self, restoring: bool) -> Container<Message> {
+        self.entries.sort_by_key(|x| x.name.clone());
         Container::new({
-            self.entries.sort_by_key(|x| x.name.clone());
             self.entries.iter_mut().enumerate().fold(
-                Scrollable::new(&mut self.scroll)
-                    .width(Length::Fill)
-                    .style(style::Scrollable),
-                |parent: Scrollable<'_, Message>, (_i, x)| parent.push(x.view(restoring)),
+                Scrollable::new(&mut self.scroll).width(Length::Fill).padding(10),
+                |parent: Scrollable<'_, Message>, (_i, x)| {
+                    parent
+                        .push(x.view(restoring))
+                        .push(Space::new(Length::Units(0), Length::Units(10)))
+                },
             )
         })
     }
@@ -207,10 +231,7 @@ impl RootEditor {
         } else {
             Container::new({
                 self.rows.iter_mut().enumerate().fold(
-                    Scrollable::new(&mut self.scroll)
-                        .width(Length::Fill)
-                        .max_height(100)
-                        .style(style::Scrollable),
+                    Scrollable::new(&mut self.scroll).width(Length::Fill).max_height(100),
                     |parent: Scrollable<'_, Message>, (i, x)| {
                         parent
                             .push(
@@ -757,7 +778,7 @@ impl Application for App {
 }
 
 mod style {
-    use iced::{button, scrollable, Background, Color, Vector};
+    use iced::{button, container, Background, Color, Vector};
 
     pub enum Button {
         Primary,
@@ -790,33 +811,32 @@ mod style {
         }
     }
 
-    pub struct Scrollable;
-    impl scrollable::StyleSheet for Scrollable {
-        fn active(&self) -> scrollable::Scrollbar {
-            scrollable::Scrollbar {
-                background: Some(Background::Color([0.0, 0.0, 0.0, 0.3].into())),
-                border_radius: 5,
-                border_width: 0,
-                border_color: Color::TRANSPARENT,
-                scroller: scrollable::Scroller {
-                    color: [0.0, 0.0, 0.0, 0.7].into(),
-                    border_radius: 5,
-                    border_width: 0,
-                    border_color: Color::TRANSPARENT,
-                },
-            }
-        }
+    pub enum Container {
+        GameListEntry,
+        GameListEntryTitle,
+        GameListEntryBody,
+    }
 
-        fn hovered(&self) -> scrollable::Scrollbar {
-            let active = self.active();
-
-            scrollable::Scrollbar {
-                background: Some(Background::Color([0.0, 0.0, 0.0, 0.4].into())),
-                scroller: scrollable::Scroller {
-                    color: [0.0, 0.0, 0.0, 0.8].into(),
-                    ..active.scroller
+    impl container::StyleSheet for Container {
+        fn style(&self) -> container::Style {
+            container::Style {
+                background: match self {
+                    Container::GameListEntryTitle => Some(Background::Color(Color::from_rgb8(230, 230, 230))),
+                    _ => None,
                 },
-                ..active
+                border_color: match self {
+                    Container::GameListEntry => Color::from_rgb8(230, 230, 230),
+                    _ => Color::BLACK,
+                },
+                border_width: match self {
+                    Container::GameListEntry => 1,
+                    _ => 0,
+                },
+                border_radius: match self {
+                    Container::GameListEntry | Container::GameListEntryTitle => 10,
+                    _ => 0,
+                },
+                ..container::Style::default()
             }
         }
     }
