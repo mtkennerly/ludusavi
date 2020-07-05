@@ -180,34 +180,6 @@ impl Translator {
         .into()
     }
 
-    pub fn start_of_backup(&self) -> String {
-        match self.language {
-            Language::English => "[ Backup ]",
-        }
-        .into()
-    }
-
-    pub fn start_of_backup_preview(&self) -> String {
-        match self.language {
-            Language::English => "[ Backup Preview ]",
-        }
-        .into()
-    }
-
-    pub fn start_of_restore(&self) -> String {
-        match self.language {
-            Language::English => "[ Restore ]",
-        }
-        .into()
-    }
-
-    pub fn start_of_restore_preview(&self) -> String {
-        match self.language {
-            Language::English => "[ Restore Preview ]",
-        }
-        .into()
-    }
-
     pub fn modal_confirm_backup(&self, target: &str, target_exists: bool) -> String {
         match (self.language, target_exists) {
             (Language::English, false) => format!("Are you sure you want to proceed with the backup? The target folder does not already exist, so it will be created: {}", target),

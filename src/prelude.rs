@@ -7,7 +7,7 @@ const LINUX: bool = cfg!(target_os = "linux");
 const CASE_INSENSITIVE_OS: bool = WINDOWS || MAC;
 const SKIP: &str = "<skip>";
 
-#[derive(Clone, Debug, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, thiserror::Error)]
 pub enum Error {
     #[error("The manifest file is invalid: {why:?}")]
     ManifestInvalid { why: String },
@@ -157,10 +157,10 @@ pub fn parse_paths(
                     .replace("<home>", &format!("{}/users/steamuser", prefix))
                     .replace("<storeUserId>", "*")
                     .replace("<osUserName>", "steamuser")
-                    .replace("<winAppData>", &format!("{}/users/steamuser/AppData/Roaming", prefix))
+                    .replace("<winAppData>", &format!("{}/users/steamuser/Application Data", prefix))
                     .replace(
                         "<winLocalAppData>",
-                        &format!("{}/users/steamuser/AppData/Local", prefix),
+                        &format!("{}/users/steamuser/Application Data", prefix),
                     )
                     .replace("<winDocuments>", &format!("{}/users/steamuser/My Documents", prefix))
                     .replace("<winPublic>", &format!("{}/users/Public", prefix))

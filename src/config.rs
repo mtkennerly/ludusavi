@@ -9,7 +9,7 @@ fn default_backup_dir() -> String {
     path.to_string_lossy().to_string()
 }
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub manifest: ManifestConfig,
     pub roots: Vec<RootsConfig>,
@@ -17,7 +17,7 @@ pub struct Config {
     pub restore: RestoreConfig,
 }
 
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct ManifestConfig {
     pub url: String,
     pub etag: Option<String>,
@@ -72,8 +72,20 @@ impl Config {
     }
 
     pub fn save(&self) {
+        let new_content = serde_yaml::to_string(&self).unwrap();
+
+        match Self::load() {
+            Ok(old) => {
+                let old_content = serde_yaml::to_string(&old).unwrap();
+                if old_content == new_content {
+                    return;
+                }
+            }
+            _ => {}
+        };
+
         if std::fs::create_dir_all(app_dir()).is_ok() {
-            std::fs::write(Self::file(), serde_yaml::to_string(self).unwrap().as_bytes()).unwrap();
+            std::fs::write(Self::file(), new_content.as_bytes()).unwrap();
         }
     }
 

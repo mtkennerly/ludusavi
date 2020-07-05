@@ -12,35 +12,17 @@ use iced::{
 };
 
 #[derive(Default)]
-struct WidgetState {
-    log_scroll: scrollable::State,
-    roots_scroll: scrollable::State,
-    backup_button: button::State,
-    restore_button: button::State,
-    preview_button: button::State,
-    nav_backup_button: button::State,
-    nav_restore_button: button::State,
-    add_root_button: button::State,
-    modal_positive_button: button::State,
-    modal_negative_button: button::State,
-    backup_target_input: text_input::State,
-    restore_source_input: text_input::State,
-    root_rows: Vec<(button::State, text_input::State)>,
-}
-
-#[derive(Default)]
 struct App {
-    total_games: usize,
-    log: Vec<String>,
-    error: Option<Error>,
-    widgets: WidgetState,
     config: Config,
     manifest: Manifest,
     translator: Translator,
     operation: Option<OngoingOperation>,
     screen: Screen,
-    modal: Option<Modal>,
+    modal_theme: Option<ModalTheme>,
     original_working_dir: std::path::PathBuf,
+    modal: ModalComponent,
+    backup_screen: BackupScreenComponent,
+    restore_screen: RestoreScreenComponent,
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +61,8 @@ enum Screen {
 }
 
 #[derive(Debug, Clone, PartialEq)]
-enum Modal {
+enum ModalTheme {
+    Error { variant: Error },
     ConfirmBackup,
     ConfirmRestore,
 }
@@ -90,6 +73,400 @@ impl Default for Screen {
     }
 }
 
+#[derive(Default)]
+struct ModalComponent {
+    positive_button: button::State,
+    negative_button: button::State,
+}
+
+impl ModalComponent {
+    fn view(&mut self, theme: &ModalTheme, translator: &Translator, config: &Config) -> Container<Message> {
+        let positive_button = Button::new(
+            &mut self.positive_button,
+            Text::new(match theme {
+                ModalTheme::Error { .. } => translator.okay_button(),
+                _ => translator.continue_button(),
+            })
+            .horizontal_alignment(HorizontalAlignment::Center),
+        )
+        .on_press(match theme {
+            ModalTheme::Error { .. } => Message::Idle,
+            ModalTheme::ConfirmBackup => Message::BackupStart,
+            ModalTheme::ConfirmRestore => Message::RestoreStart,
+        })
+        .width(Length::Units(125))
+        .style(style::Button::Primary);
+
+        let negative_button = Button::new(
+            &mut self.negative_button,
+            Text::new(translator.cancel_button()).horizontal_alignment(HorizontalAlignment::Center),
+        )
+        .on_press(Message::Idle)
+        .width(Length::Units(125))
+        .style(style::Button::Negative);
+
+        Container::new(
+            Column::new()
+                .padding(5)
+                .align_items(Align::Center)
+                .push(match theme {
+                    ModalTheme::Error { .. } => Row::new()
+                        .padding(20)
+                        .spacing(20)
+                        .align_items(Align::Center)
+                        .push(positive_button),
+                    _ => Row::new()
+                        .padding(20)
+                        .spacing(20)
+                        .align_items(Align::Center)
+                        .push(positive_button)
+                        .push(negative_button),
+                })
+                .push(
+                    Row::new()
+                        .padding(20)
+                        .spacing(20)
+                        .align_items(Align::Center)
+                        .push(Text::new(match theme {
+                            ModalTheme::Error { variant } => translator.handle_error(variant),
+                            ModalTheme::ConfirmBackup => translator.modal_confirm_backup(
+                                &crate::path::absolute(&config.backup.path),
+                                crate::path::exists(&config.backup.path),
+                            ),
+                            ModalTheme::ConfirmRestore => {
+                                translator.modal_confirm_restore(&crate::path::absolute(&config.restore.path))
+                            }
+                        }))
+                        .height(Length::Fill),
+                ),
+        )
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .center_x()
+    }
+}
+
+struct GameListEntry {
+    name: String,
+    files: std::collections::HashSet<String>,
+    registry_keys: std::collections::HashSet<String>,
+}
+
+impl GameListEntry {
+    fn view(&mut self, restoring: bool) -> Text {
+        let mut lines = vec![self.name.clone()];
+
+        for item in itertools::sorted(&self.files) {
+            if restoring {
+                if let Ok(target) = game_file_restoration_target(&item) {
+                    lines.push(format!(". . . . . {}", target));
+                }
+            } else {
+                lines.push(format!(". . . . . {}", item));
+            }
+        }
+        for item in itertools::sorted(&self.registry_keys) {
+            lines.push(format!(". . . . . {}", item));
+        }
+
+        Text::new(lines.join("\n"))
+    }
+}
+
+#[derive(Default)]
+struct GameList {
+    entries: Vec<GameListEntry>,
+    scroll: scrollable::State,
+}
+
+impl GameList {
+    fn view(&mut self, restoring: bool) -> Container<Message> {
+        Container::new({
+            self.entries.sort_by_key(|x| x.name.clone());
+            self.entries.iter_mut().enumerate().fold(
+                Scrollable::new(&mut self.scroll)
+                    .width(Length::Fill)
+                    .style(style::Scrollable),
+                |parent: Scrollable<'_, Message>, (_i, x)| parent.push(x.view(restoring)),
+            )
+        })
+    }
+}
+
+#[derive(Default)]
+struct RootEditor {
+    scroll: scrollable::State,
+    rows: Vec<(button::State, text_input::State)>,
+}
+
+impl RootEditor {
+    fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+        let roots = config.roots.clone();
+        if roots.is_empty() {
+            Container::new(Text::new(translator.no_roots_are_configured()))
+        } else {
+            Container::new({
+                self.rows.iter_mut().enumerate().fold(
+                    Scrollable::new(&mut self.scroll)
+                        .width(Length::Fill)
+                        .max_height(100)
+                        .style(style::Scrollable),
+                    |parent: Scrollable<'_, Message>, (i, x)| {
+                        parent
+                            .push(
+                                Row::new()
+                                    .push(
+                                        Button::new(
+                                            &mut x.0,
+                                            Text::new(translator.remove_root_button())
+                                                .horizontal_alignment(HorizontalAlignment::Center)
+                                                .size(14),
+                                        )
+                                        .on_press(Message::RemoveRoot(i))
+                                        .style(style::Button::Negative),
+                                    )
+                                    .push(Space::new(Length::Units(20), Length::Units(0)))
+                                    .push(
+                                        TextInput::new(&mut x.1, "", &roots[i].path, move |v| {
+                                            Message::EditedRootPath(i, v)
+                                        })
+                                        .width(Length::FillPortion(3))
+                                        .padding(5),
+                                    )
+                                    .push(Space::new(Length::Units(20), Length::Units(0)))
+                                    .push({
+                                        Radio::new(
+                                            Store::Steam,
+                                            translator.store(&Store::Steam),
+                                            Some(roots[i].store),
+                                            move |v| Message::EditedRootStore(i, v),
+                                        )
+                                    })
+                                    .push({
+                                        Radio::new(
+                                            Store::Other,
+                                            translator.store(&Store::Other),
+                                            Some(roots[i].store),
+                                            move |v| Message::EditedRootStore(i, v),
+                                        )
+                                    }),
+                            )
+                            .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
+                    },
+                )
+            })
+        }
+    }
+}
+
+#[derive(Default)]
+struct BackupScreenComponent {
+    total_games: usize,
+    log: GameList,
+    start_button: button::State,
+    preview_button: button::State,
+    nav_button: button::State,
+    add_root_button: button::State,
+    backup_target_input: text_input::State,
+    root_editor: RootEditor,
+}
+
+impl BackupScreenComponent {
+    fn new(config: &Config) -> Self {
+        let mut root_editor = RootEditor::default();
+        while root_editor.rows.len() < config.roots.len() {
+            root_editor
+                .rows
+                .push((button::State::default(), text_input::State::default()));
+        }
+
+        Self {
+            root_editor,
+            ..Default::default()
+        }
+    }
+
+    fn view(&mut self, config: &Config, translator: &Translator, allow_input: bool) -> Container<Message> {
+        Container::new(
+            Column::new()
+                .padding(5)
+                .align_items(Align::Center)
+                .push(
+                    Row::new()
+                        .padding(20)
+                        .spacing(20)
+                        .align_items(Align::Center)
+                        .push(
+                            Button::new(
+                                &mut self.preview_button,
+                                Text::new(translator.preview_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::PreviewBackupStart)
+                            .width(Length::Units(125))
+                            .style(if !allow_input {
+                                style::Button::Disabled
+                            } else {
+                                style::Button::Primary
+                            }),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.start_button,
+                                Text::new(translator.backup_button()).horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::ConfirmBackupStart)
+                            .width(Length::Units(125))
+                            .style(if !allow_input {
+                                style::Button::Disabled
+                            } else {
+                                style::Button::Primary
+                            }),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.add_root_button,
+                                Text::new(translator.add_root_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::AddRoot)
+                            .width(Length::Units(125))
+                            .style(style::Button::Primary),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.nav_button,
+                                Text::new(translator.nav_restore_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::SwitchScreenToRestore)
+                            .width(Length::Units(125))
+                            .style(style::Button::Navigation),
+                        ),
+                )
+                .push(
+                    Row::new()
+                        .padding(20)
+                        .align_items(Align::Center)
+                        .push(Text::new(translator.processed_games(self.total_games)).size(50)),
+                )
+                .push(
+                    Row::new()
+                        .padding(20)
+                        .align_items(Align::Center)
+                        .push(Text::new(translator.backup_target_label()))
+                        .push(Space::new(Length::Units(20), Length::Units(0)))
+                        .push(
+                            TextInput::new(
+                                &mut self.backup_target_input,
+                                "",
+                                &config.backup.path,
+                                Message::EditedBackupTarget,
+                            )
+                            .padding(5),
+                        ),
+                )
+                .push(self.root_editor.view(&config, &translator))
+                .push(Space::new(Length::Units(0), Length::Units(30)))
+                .push(self.log.view(false)),
+        )
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .center_x()
+    }
+}
+
+#[derive(Default)]
+struct RestoreScreenComponent {
+    total_games: usize,
+    log: GameList,
+    start_button: button::State,
+    preview_button: button::State,
+    nav_button: button::State,
+    restore_source_input: text_input::State,
+}
+
+impl RestoreScreenComponent {
+    fn view(&mut self, config: &Config, translator: &Translator, allow_input: bool) -> Container<Message> {
+        Container::new(
+            Column::new()
+                .padding(5)
+                .align_items(Align::Center)
+                .push(
+                    Row::new()
+                        .padding(20)
+                        .spacing(20)
+                        .align_items(Align::Center)
+                        .push(
+                            Button::new(
+                                &mut self.preview_button,
+                                Text::new(translator.preview_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::PreviewRestoreStart)
+                            .width(Length::Units(125))
+                            .style(if !allow_input {
+                                style::Button::Disabled
+                            } else {
+                                style::Button::Primary
+                            }),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.start_button,
+                                Text::new(translator.restore_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::ConfirmRestoreStart)
+                            .width(Length::Units(125))
+                            .style(if !allow_input {
+                                style::Button::Disabled
+                            } else {
+                                style::Button::Primary
+                            }),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.nav_button,
+                                Text::new(translator.nav_backup_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::SwitchScreenToBackup)
+                            .width(Length::Units(125))
+                            .style(style::Button::Navigation),
+                        ),
+                )
+                .push(
+                    Row::new()
+                        .padding(20)
+                        .align_items(Align::Center)
+                        .push(Text::new(translator.processed_games(self.total_games)).size(50)),
+                )
+                .push(
+                    Row::new()
+                        .padding(20)
+                        .align_items(Align::Center)
+                        .push(Text::new(translator.restore_source_label()))
+                        .push(Space::new(Length::Units(20), Length::Units(0)))
+                        .push(
+                            TextInput::new(
+                                &mut self.restore_source_input,
+                                "",
+                                &config.restore.path,
+                                Message::EditedRestoreSource,
+                            )
+                            .padding(5),
+                        ),
+                )
+                .push(Space::new(Length::Units(0), Length::Units(30)))
+                .push(self.log.view(true)),
+        )
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .center_x()
+    }
+}
+
 impl Application for App {
     type Executor = executor::Default;
     type Message = Message;
@@ -97,37 +474,30 @@ impl Application for App {
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let translator = Translator::default();
-        let mut error: Option<Error> = None;
+        let mut modal_theme: Option<ModalTheme> = None;
         let mut config = match Config::load() {
             Ok(x) => x,
             Err(x) => {
-                error = Some(x);
+                modal_theme = Some(ModalTheme::Error { variant: x });
                 Config::default()
             }
         };
         let manifest = match Manifest::load(&mut config) {
             Ok(x) => x,
             Err(x) => {
-                error = Some(x);
+                modal_theme = Some(ModalTheme::Error { variant: x });
                 Manifest::default()
             }
         };
 
-        let mut widgets = WidgetState::default();
-        while widgets.root_rows.len() < config.roots.len() {
-            widgets
-                .root_rows
-                .push((button::State::default(), text_input::State::default()));
-        }
-
         (
             Self {
+                backup_screen: BackupScreenComponent::new(&config),
                 translator,
-                error,
                 config,
                 manifest,
-                widgets,
                 original_working_dir: std::env::current_dir().unwrap(),
+                modal_theme,
                 ..Self::default()
             },
             Command::none(),
@@ -142,17 +512,16 @@ impl Application for App {
         match message {
             Message::Idle => {
                 self.operation = None;
-                self.error = None;
-                self.modal = None;
+                self.modal_theme = None;
                 std::env::set_current_dir(&self.original_working_dir).unwrap();
                 Command::none()
             }
             Message::ConfirmBackupStart => {
-                self.modal = Some(Modal::ConfirmBackup);
+                self.modal_theme = Some(ModalTheme::ConfirmBackup);
                 Command::none()
             }
             Message::ConfirmRestoreStart => {
-                self.modal = Some(Modal::ConfirmRestore);
+                self.modal_theme = Some(ModalTheme::ConfirmRestore);
                 Command::none()
             }
             Message::BackupStart => {
@@ -160,21 +529,19 @@ impl Application for App {
                     return Command::none();
                 }
 
-                self.total_games = 0;
-                self.log.clear();
-                self.error = None;
-                self.modal = None;
+                self.backup_screen.total_games = 0;
+                self.backup_screen.log.entries.clear();
+                self.modal_theme = None;
 
                 let backup_path = crate::path::absolute(&self.config.backup.path);
                 if let Err(e) = prepare_backup_target(&backup_path) {
-                    self.error = Some(e);
+                    self.modal_theme = Some(ModalTheme::Error { variant: e });
                     return Command::none();
                 }
 
                 self.config.save();
                 self.operation = Some(OngoingOperation::Backup);
 
-                self.log.push(self.translator.start_of_backup());
                 std::env::set_current_dir(app_dir()).unwrap();
 
                 let mut commands: Vec<Command<Message>> = vec![];
@@ -207,11 +574,9 @@ impl Application for App {
                 }
                 self.config.save();
                 self.operation = Some(OngoingOperation::PreviewBackup);
-                self.total_games = 0;
-                self.log.clear();
-                self.error = None;
+                self.backup_screen.total_games = 0;
+                self.backup_screen.log.entries.clear();
 
-                self.log.push(self.translator.start_of_backup_preview());
                 std::env::set_current_dir(app_dir()).unwrap();
 
                 let mut commands: Vec<Command<Message>> = vec![];
@@ -239,21 +604,20 @@ impl Application for App {
                     return Command::none();
                 }
 
-                self.total_games = 0;
-                self.log.clear();
-                self.error = None;
-                self.modal = None;
+                self.restore_screen.total_games = 0;
+                self.restore_screen.log.entries.clear();
+                self.modal_theme = None;
 
                 let restore_path = crate::path::normalize(&self.config.restore.path);
                 if !crate::path::is_dir(&restore_path) {
-                    self.error = Some(Error::RestorationSourceInvalid { path: restore_path });
+                    self.modal_theme = Some(ModalTheme::Error {
+                        variant: Error::RestorationSourceInvalid { path: restore_path },
+                    });
                     return Command::none();
                 }
 
                 self.config.save();
                 self.operation = Some(OngoingOperation::Restore);
-
-                self.log.push(self.translator.start_of_restore());
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
@@ -280,20 +644,19 @@ impl Application for App {
                     return Command::none();
                 }
 
-                self.total_games = 0;
-                self.log.clear();
-                self.error = None;
+                self.restore_screen.total_games = 0;
+                self.restore_screen.log.entries.clear();
 
                 let restore_path = crate::path::normalize(&self.config.restore.path);
                 if !crate::path::is_dir(&restore_path) {
-                    self.error = Some(Error::RestorationSourceInvalid { path: restore_path });
+                    self.modal_theme = Some(ModalTheme::Error {
+                        variant: Error::RestorationSourceInvalid { path: restore_path },
+                    });
                     return Command::none();
                 }
 
                 self.config.save();
                 self.operation = Some(OngoingOperation::PreviewRestore);
-
-                self.log.push(self.translator.start_of_restore_preview());
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
@@ -313,29 +676,23 @@ impl Application for App {
             }
             Message::BackupStep { game, info } => {
                 if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
-                    self.total_games += 1;
-                    self.log.push(game);
-                    for file in itertools::sorted(info.found_files) {
-                        self.log.push(format!(". . . . . {}", file));
-                    }
-                    for reg_path in itertools::sorted(info.found_registry_keys) {
-                        self.log.push(format!(". . . . . {}", reg_path));
-                    }
+                    self.backup_screen.total_games += 1;
+                    self.backup_screen.log.entries.push(GameListEntry {
+                        name: game,
+                        files: info.found_files,
+                        registry_keys: info.found_registry_keys,
+                    });
                 }
                 Command::none()
             }
             Message::RestoreStep { game, info } => {
                 if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
-                    self.total_games += 1;
-                    self.log.push(game);
-                    for file in itertools::sorted(info.found_files) {
-                        if let Ok(target) = game_file_restoration_target(&file) {
-                            self.log.push(format!(". . . . . {}", target));
-                        }
-                    }
-                    for reg_path in itertools::sorted(info.found_registry_keys) {
-                        self.log.push(format!(". . . . . {}", reg_path));
-                    }
+                    self.restore_screen.total_games += 1;
+                    self.restore_screen.log.entries.push(GameListEntry {
+                        name: game,
+                        files: info.found_files,
+                        registry_keys: info.found_registry_keys,
+                    });
                 }
                 Command::none()
             }
@@ -356,8 +713,9 @@ impl Application for App {
                 Command::none()
             }
             Message::AddRoot => {
-                self.widgets
-                    .root_rows
+                self.backup_screen
+                    .root_editor
+                    .rows
                     .push((button::State::default(), text_input::State::default()));
                 self.config.roots.push(RootsConfig {
                     path: "".into(),
@@ -366,7 +724,7 @@ impl Application for App {
                 Command::none()
             }
             Message::RemoveRoot(index) => {
-                self.widgets.root_rows.remove(index);
+                self.backup_screen.root_editor.rows.remove(index);
                 self.config.roots.remove(index);
                 Command::none()
             }
@@ -382,308 +740,18 @@ impl Application for App {
     }
 
     fn view(&mut self) -> Element<Message> {
-        if let Some(m) = &self.modal {
-            return Container::new(
-                Column::new()
-                    .padding(5)
-                    .align_items(Align::Center)
-                    .push(
-                        Row::new()
-                            .padding(20)
-                            .spacing(20)
-                            .align_items(Align::Center)
-                            .push(
-                                Button::new(
-                                    &mut self.widgets.modal_positive_button,
-                                    Text::new(self.translator.continue_button())
-                                        .horizontal_alignment(HorizontalAlignment::Center),
-                                )
-                                .on_press(match m {
-                                    Modal::ConfirmBackup => Message::BackupStart,
-                                    Modal::ConfirmRestore => Message::RestoreStart,
-                                })
-                                .width(Length::Units(125))
-                                .style(style::Button::Primary),
-                            )
-                            .push(
-                                Button::new(
-                                    &mut self.widgets.modal_negative_button,
-                                    Text::new(self.translator.cancel_button())
-                                        .horizontal_alignment(HorizontalAlignment::Center),
-                                )
-                                .on_press(Message::Idle)
-                                .width(Length::Units(125))
-                                .style(style::Button::Negative),
-                            ),
-                    )
-                    .push(
-                        Row::new()
-                            .padding(20)
-                            .spacing(20)
-                            .align_items(Align::Center)
-                            .push(Text::new(match m {
-                                Modal::ConfirmBackup => self.translator.modal_confirm_backup(
-                                    &crate::path::absolute(&self.config.backup.path),
-                                    crate::path::exists(&self.config.backup.path),
-                                ),
-                                Modal::ConfirmRestore => self
-                                    .translator
-                                    .modal_confirm_restore(&crate::path::absolute(&self.config.restore.path)),
-                            }))
-                            .height(Length::Fill),
-                    ),
-            )
-            .height(Length::Fill)
-            .width(Length::Fill)
-            .center_x()
-            .into();
+        if let Some(m) = &self.modal_theme {
+            return self.modal.view(m, &self.translator, &self.config).into();
         }
 
-        if let Some(e) = &self.error {
-            return Container::new(
-                Column::new()
-                    .padding(5)
-                    .align_items(Align::Center)
-                    .push(
-                        Row::new().padding(20).spacing(20).align_items(Align::Center).push(
-                            Button::new(
-                                &mut self.widgets.modal_positive_button,
-                                Text::new(self.translator.okay_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::Idle)
-                            .width(Length::Units(125))
-                            .style(style::Button::Primary),
-                        ),
-                    )
-                    .push(
-                        Row::new()
-                            .padding(20)
-                            .spacing(20)
-                            .align_items(Align::Center)
-                            .push(Text::new(self.translator.handle_error(e)))
-                            .width(Length::Units(640))
-                            .height(Length::Units(480)),
-                    ),
-            )
-            .height(Length::Fill)
-            .width(Length::Fill)
-            .center_x()
-            .into();
+        match self.screen {
+            Screen::Backup => self
+                .backup_screen
+                .view(&self.config, &self.translator, self.operation.is_none()),
+            Screen::Restore => self
+                .restore_screen
+                .view(&self.config, &self.translator, self.operation.is_none()),
         }
-
-        Container::new(
-            Column::new()
-                .padding(5)
-                .align_items(Align::Center)
-                .push(match self.screen {
-                    Screen::Backup => Row::new()
-                        .padding(20)
-                        .spacing(20)
-                        .align_items(Align::Center)
-                        .push(
-                            Button::new(
-                                &mut self.widgets.preview_button,
-                                Text::new(self.translator.preview_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::PreviewBackupStart)
-                            .width(Length::Units(125))
-                            .style(if self.operation.is_some() {
-                                style::Button::Disabled
-                            } else {
-                                style::Button::Primary
-                            }),
-                        )
-                        .push(
-                            Button::new(
-                                &mut self.widgets.backup_button,
-                                Text::new(self.translator.backup_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::ConfirmBackupStart)
-                            .width(Length::Units(125))
-                            .style(if self.operation.is_some() {
-                                style::Button::Disabled
-                            } else {
-                                style::Button::Primary
-                            }),
-                        )
-                        .push(
-                            Button::new(
-                                &mut self.widgets.add_root_button,
-                                Text::new(self.translator.add_root_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::AddRoot)
-                            .width(Length::Units(125))
-                            .style(style::Button::Primary),
-                        )
-                        .push(
-                            Button::new(
-                                &mut self.widgets.nav_restore_button,
-                                Text::new(self.translator.nav_restore_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::SwitchScreenToRestore)
-                            .width(Length::Units(125))
-                            .style(style::Button::Navigation),
-                        ),
-                    Screen::Restore => Row::new()
-                        .padding(20)
-                        .spacing(20)
-                        .align_items(Align::Center)
-                        .push(
-                            Button::new(
-                                &mut self.widgets.preview_button,
-                                Text::new(self.translator.preview_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::PreviewRestoreStart)
-                            .width(Length::Units(125))
-                            .style(if self.operation.is_some() {
-                                style::Button::Disabled
-                            } else {
-                                style::Button::Primary
-                            }),
-                        )
-                        .push(
-                            Button::new(
-                                &mut self.widgets.restore_button,
-                                Text::new(self.translator.restore_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::ConfirmRestoreStart)
-                            .width(Length::Units(125))
-                            .style(if self.operation.is_some() {
-                                style::Button::Disabled
-                            } else {
-                                style::Button::Primary
-                            }),
-                        )
-                        .push(
-                            Button::new(
-                                &mut self.widgets.nav_backup_button,
-                                Text::new(self.translator.nav_backup_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::SwitchScreenToBackup)
-                            .width(Length::Units(125))
-                            .style(style::Button::Navigation),
-                        ),
-                })
-                .push(
-                    Row::new()
-                        .padding(20)
-                        .align_items(Align::Center)
-                        .push(Text::new(self.translator.processed_games(self.total_games)).size(50)),
-                )
-                .push({
-                    let mut row = Row::new().padding(20).align_items(Align::Center);
-                    row = match self.screen {
-                        Screen::Backup => row
-                            .push(Text::new(self.translator.backup_target_label()))
-                            .push(Space::new(Length::Units(20), Length::Units(0)))
-                            .push(
-                                TextInput::new(
-                                    &mut self.widgets.backup_target_input,
-                                    "",
-                                    &self.config.backup.path,
-                                    Message::EditedBackupTarget,
-                                )
-                                .padding(5),
-                            ),
-                        Screen::Restore => row
-                            .push(Text::new(self.translator.restore_source_label()))
-                            .push(Space::new(Length::Units(20), Length::Units(0)))
-                            .push(
-                                TextInput::new(
-                                    &mut self.widgets.restore_source_input,
-                                    "",
-                                    &self.config.restore.path,
-                                    Message::EditedRestoreSource,
-                                )
-                                .padding(5),
-                            ),
-                    };
-                    row
-                })
-                .push({
-                    match self.screen {
-                        Screen::Backup => {
-                            let translator = self.translator;
-                            let roots = self.config.roots.clone();
-                            if roots.is_empty() {
-                                Container::new(Text::new(translator.no_roots_are_configured()))
-                            } else {
-                                Container::new({
-                                    self.widgets.root_rows.iter_mut().enumerate().fold(
-                                        Scrollable::new(&mut self.widgets.roots_scroll)
-                                            .width(Length::Fill)
-                                            .max_height(100)
-                                            .style(style::Scrollable),
-                                        |parent: Scrollable<'_, Message>, (i, x)| {
-                                            parent
-                                                .push(
-                                                    Row::new()
-                                                        .push(
-                                                            Button::new(
-                                                                &mut x.0,
-                                                                Text::new(translator.remove_root_button())
-                                                                    .horizontal_alignment(HorizontalAlignment::Center)
-                                                                    .size(14),
-                                                            )
-                                                            .on_press(Message::RemoveRoot(i))
-                                                            .style(style::Button::Negative),
-                                                        )
-                                                        .push(Space::new(Length::Units(20), Length::Units(0)))
-                                                        .push(
-                                                            TextInput::new(&mut x.1, "", &roots[i].path, move |v| {
-                                                                Message::EditedRootPath(i, v)
-                                                            })
-                                                            .width(Length::FillPortion(3))
-                                                            .padding(5),
-                                                        )
-                                                        .push(Space::new(Length::Units(20), Length::Units(0)))
-                                                        .push({
-                                                            Radio::new(
-                                                                Store::Steam,
-                                                                translator.store(&Store::Steam),
-                                                                Some(roots[i].store),
-                                                                move |v| Message::EditedRootStore(i, v),
-                                                            )
-                                                        })
-                                                        .push({
-                                                            Radio::new(
-                                                                Store::Other,
-                                                                translator.store(&Store::Other),
-                                                                Some(roots[i].store),
-                                                                move |v| Message::EditedRootStore(i, v),
-                                                            )
-                                                        }),
-                                                )
-                                                .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
-                                        },
-                                    )
-                                })
-                            }
-                        }
-                        Screen::Restore => Container::new(Row::new()),
-                    }
-                })
-                .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(Container::new({
-                    self.log.iter_mut().enumerate().fold(
-                        Scrollable::new(&mut self.widgets.log_scroll)
-                            .width(Length::Fill)
-                            .style(style::Scrollable),
-                        |parent: Scrollable<'_, Message>, (_i, x)| parent.push(Text::new(x.to_string())),
-                    )
-                })),
-        )
-        .height(Length::Fill)
-        .width(Length::Fill)
-        .center_x()
         .into()
     }
 }
