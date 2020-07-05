@@ -96,6 +96,13 @@ impl Translator {
         .into()
     }
 
+    pub fn cancelling_button(&self) -> String {
+        match self.language {
+            Language::English => "Cancelling...",
+        }
+        .into()
+    }
+
     pub fn okay_button(&self) -> String {
         match self.language {
             Language::English => "Okay",

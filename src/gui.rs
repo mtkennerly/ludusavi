@@ -23,17 +23,20 @@ struct App {
     modal: ModalComponent,
     backup_screen: BackupScreenComponent,
     restore_screen: RestoreScreenComponent,
+    operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
 }
 
 #[derive(Debug, Clone)]
 enum Message {
     Idle,
+    Ignore,
     ConfirmBackupStart,
     BackupStart { preview: bool },
     ConfirmRestoreStart,
     RestoreStart { preview: bool },
-    BackupStep { info: ScanInfo },
-    RestoreStep { info: ScanInfo },
+    BackupStep { info: Option<ScanInfo> },
+    RestoreStep { info: Option<ScanInfo> },
+    CancelOperation,
     EditedBackupTarget(String),
     EditedRestoreSource(String),
     EditedRootPath(usize, String),
@@ -47,9 +50,13 @@ enum Message {
 #[derive(Debug, Clone, PartialEq)]
 enum OngoingOperation {
     Backup,
+    CancelBackup,
     PreviewBackup,
+    CancelPreviewBackup,
     Restore,
+    CancelRestore,
     PreviewRestore,
+    CancelPreviewRestore,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -78,7 +85,7 @@ struct ModalComponent {
 }
 
 impl ModalComponent {
-    fn view(&mut self, theme: &ModalTheme, translator: &Translator, config: &Config) -> Container<Message> {
+    fn view(&mut self, theme: &ModalTheme, config: &Config, translator: &Translator) -> Container<Message> {
         let positive_button = Button::new(
             &mut self.positive_button,
             Text::new(match theme {
@@ -323,7 +330,12 @@ impl BackupScreenComponent {
         }
     }
 
-    fn view(&mut self, config: &Config, translator: &Translator, allow_input: bool) -> Container<Message> {
+    fn view(
+        &mut self,
+        config: &Config,
+        translator: &Translator,
+        operation: &Option<OngoingOperation>,
+    ) -> Container<Message> {
         Container::new(
             Column::new()
                 .padding(5)
@@ -336,28 +348,45 @@ impl BackupScreenComponent {
                         .push(
                             Button::new(
                                 &mut self.preview_button,
-                                Text::new(translator.preview_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
+                                Text::new(match operation {
+                                    Some(OngoingOperation::PreviewBackup) => translator.cancel_button(),
+                                    Some(OngoingOperation::CancelPreviewBackup) => translator.cancelling_button(),
+                                    _ => translator.preview_button(),
+                                })
+                                .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::BackupStart { preview: true })
+                            .on_press(match operation {
+                                None => Message::BackupStart { preview: true },
+                                Some(OngoingOperation::PreviewBackup) => Message::CancelOperation,
+                                _ => Message::Ignore,
+                            })
                             .width(Length::Units(125))
-                            .style(if !allow_input {
-                                style::Button::Disabled
-                            } else {
-                                style::Button::Primary
+                            .style(match operation {
+                                None => style::Button::Primary,
+                                Some(OngoingOperation::PreviewBackup) => style::Button::Negative,
+                                _ => style::Button::Disabled,
                             }),
                         )
                         .push(
                             Button::new(
                                 &mut self.start_button,
-                                Text::new(translator.backup_button()).horizontal_alignment(HorizontalAlignment::Center),
+                                Text::new(match operation {
+                                    Some(OngoingOperation::Backup) => translator.cancel_button(),
+                                    Some(OngoingOperation::CancelBackup) => translator.cancelling_button(),
+                                    _ => translator.backup_button(),
+                                })
+                                .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::ConfirmBackupStart)
+                            .on_press(match operation {
+                                None => Message::ConfirmBackupStart,
+                                Some(OngoingOperation::Backup) => Message::CancelOperation,
+                                _ => Message::Ignore,
+                            })
                             .width(Length::Units(125))
-                            .style(if !allow_input {
-                                style::Button::Disabled
-                            } else {
-                                style::Button::Primary
+                            .style(match operation {
+                                None => style::Button::Primary,
+                                Some(OngoingOperation::Backup) => style::Button::Negative,
+                                _ => style::Button::Disabled,
                             }),
                         )
                         .push(
@@ -426,7 +455,12 @@ struct RestoreScreenComponent {
 }
 
 impl RestoreScreenComponent {
-    fn view(&mut self, config: &Config, translator: &Translator, allow_input: bool) -> Container<Message> {
+    fn view(
+        &mut self,
+        config: &Config,
+        translator: &Translator,
+        operation: &Option<OngoingOperation>,
+    ) -> Container<Message> {
         Container::new(
             Column::new()
                 .padding(5)
@@ -439,29 +473,45 @@ impl RestoreScreenComponent {
                         .push(
                             Button::new(
                                 &mut self.preview_button,
-                                Text::new(translator.preview_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
+                                Text::new(match operation {
+                                    Some(OngoingOperation::PreviewRestore) => translator.cancel_button(),
+                                    Some(OngoingOperation::CancelPreviewRestore) => translator.cancelling_button(),
+                                    _ => translator.preview_button(),
+                                })
+                                .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::RestoreStart { preview: true })
+                            .on_press(match operation {
+                                None => Message::RestoreStart { preview: true },
+                                Some(OngoingOperation::PreviewRestore) => Message::CancelOperation,
+                                _ => Message::Ignore,
+                            })
                             .width(Length::Units(125))
-                            .style(if !allow_input {
-                                style::Button::Disabled
-                            } else {
-                                style::Button::Primary
+                            .style(match operation {
+                                None => style::Button::Primary,
+                                Some(OngoingOperation::PreviewRestore) => style::Button::Negative,
+                                _ => style::Button::Disabled,
                             }),
                         )
                         .push(
                             Button::new(
                                 &mut self.start_button,
-                                Text::new(translator.restore_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
+                                Text::new(match operation {
+                                    Some(OngoingOperation::Restore) => translator.cancel_button(),
+                                    Some(OngoingOperation::CancelRestore) => translator.cancelling_button(),
+                                    _ => translator.restore_button(),
+                                })
+                                .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::ConfirmRestoreStart)
+                            .on_press(match operation {
+                                None => Message::ConfirmRestoreStart,
+                                Some(OngoingOperation::Restore) => Message::CancelOperation,
+                                _ => Message::Ignore,
+                            })
                             .width(Length::Units(125))
-                            .style(if !allow_input {
-                                style::Button::Disabled
-                            } else {
-                                style::Button::Primary
+                            .style(match operation {
+                                None => style::Button::Primary,
+                                Some(OngoingOperation::Restore) => style::Button::Negative,
+                                _ => style::Button::Disabled,
                             }),
                         )
                         .push(
@@ -555,9 +605,12 @@ impl Application for App {
                 self.modal_theme = None;
                 self.backup_screen.progress.current = 0.0;
                 self.restore_screen.progress.current = 0.0;
+                self.operation_should_cancel
+                    .swap(false, std::sync::atomic::Ordering::Relaxed);
                 std::env::set_current_dir(&self.original_working_dir).unwrap();
                 Command::none()
             }
+            Message::Ignore => Command::none(),
             Message::ConfirmBackupStart => {
                 self.modal_theme = Some(ModalTheme::ConfirmBackup);
                 Command::none()
@@ -600,14 +653,18 @@ impl Application for App {
                     let roots = self.config.roots.clone();
                     let backup_path2 = backup_path.clone();
                     let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
+                    let cancel_flag = self.operation_should_cancel.clone();
                     commands.push(Command::perform(
                         async move {
+                            if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                                return None;
+                            }
                             let info =
                                 scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), &steam_id);
                             if !preview {
                                 back_up_game(&info, &backup_path2, &key);
                             }
-                            info
+                            Some(info)
                         },
                         move |info| Message::BackupStep { info },
                     ));
@@ -649,13 +706,17 @@ impl Application for App {
                     .skip(1) // the restore path itself
                     .filter_map(|e| e.ok())
                 {
+                    let cancel_flag = self.operation_should_cancel.clone();
                     commands.push(Command::perform(
                         async move {
+                            if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                                return None;
+                            }
                             let info = scan_dir_for_restoration(&subdir.path().to_string_lossy());
                             if !preview {
                                 restore_game(&info);
                             }
-                            info
+                            Some(info)
                         },
                         move |info| Message::RestoreStep { info },
                     ));
@@ -665,13 +726,15 @@ impl Application for App {
             }
             Message::BackupStep { info } => {
                 self.backup_screen.progress.current += 1.0;
-                if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
-                    self.backup_screen.total_games += 1;
-                    self.backup_screen.log.entries.push(GameListEntry {
-                        name: info.game_name,
-                        files: info.found_files,
-                        registry_keys: info.found_registry_keys,
-                    });
+                if let Some(info) = info {
+                    if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
+                        self.backup_screen.total_games += 1;
+                        self.backup_screen.log.entries.push(GameListEntry {
+                            name: info.game_name,
+                            files: info.found_files,
+                            registry_keys: info.found_registry_keys,
+                        });
+                    }
                 }
                 if self.backup_screen.progress.complete() {
                     return Command::perform(async move {}, move |_| Message::Idle);
@@ -680,17 +743,39 @@ impl Application for App {
             }
             Message::RestoreStep { info } => {
                 self.restore_screen.progress.current += 1.0;
-                if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
-                    self.restore_screen.total_games += 1;
-                    self.restore_screen.log.entries.push(GameListEntry {
-                        name: info.game_name,
-                        files: info.found_files,
-                        registry_keys: info.found_registry_keys,
-                    });
+                if let Some(info) = info {
+                    if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
+                        self.restore_screen.total_games += 1;
+                        self.restore_screen.log.entries.push(GameListEntry {
+                            name: info.game_name,
+                            files: info.found_files,
+                            registry_keys: info.found_registry_keys,
+                        });
+                    }
                 }
                 if self.restore_screen.progress.complete() {
                     return Command::perform(async move {}, move |_| Message::Idle);
                 }
+                Command::none()
+            }
+            Message::CancelOperation => {
+                self.operation_should_cancel
+                    .swap(true, std::sync::atomic::Ordering::Relaxed);
+                match self.operation {
+                    Some(OngoingOperation::Backup) => {
+                        self.operation = Some(OngoingOperation::CancelBackup);
+                    }
+                    Some(OngoingOperation::PreviewBackup) => {
+                        self.operation = Some(OngoingOperation::CancelPreviewBackup);
+                    }
+                    Some(OngoingOperation::Restore) => {
+                        self.operation = Some(OngoingOperation::CancelRestore);
+                    }
+                    Some(OngoingOperation::PreviewRestore) => {
+                        self.operation = Some(OngoingOperation::CancelPreviewRestore);
+                    }
+                    _ => {}
+                };
                 Command::none()
             }
             Message::EditedBackupTarget(text) => {
@@ -738,16 +823,14 @@ impl Application for App {
 
     fn view(&mut self) -> Element<Message> {
         if let Some(m) = &self.modal_theme {
-            return self.modal.view(m, &self.translator, &self.config).into();
+            return self.modal.view(m, &self.config, &self.translator).into();
         }
 
         match self.screen {
-            Screen::Backup => self
-                .backup_screen
-                .view(&self.config, &self.translator, self.operation.is_none()),
+            Screen::Backup => self.backup_screen.view(&self.config, &self.translator, &self.operation),
             Screen::Restore => self
                 .restore_screen
-                .view(&self.config, &self.translator, self.operation.is_none()),
+                .view(&self.config, &self.translator, &self.operation),
         }
         .into()
     }
