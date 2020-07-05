@@ -2,13 +2,13 @@ use crate::config::{Config, RootsConfig};
 use crate::lang::Translator;
 use crate::manifest::{Manifest, SteamMetadata, Store};
 use crate::prelude::{
-    app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
-    scan_game_for_restoration, Error, ScanInfo,
+    app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_dir_for_restoration,
+    scan_game_for_backup, Error, ScanInfo,
 };
 
 use iced::{
     button, executor, scrollable, text_input, Align, Application, Button, Column, Command, Container, Element,
-    HorizontalAlignment, Length, Radio, Row, Scrollable, Space, Text, TextInput,
+    HorizontalAlignment, Length, ProgressBar, Radio, Row, Scrollable, Space, Text, TextInput,
 };
 
 #[derive(Default)]
@@ -29,13 +29,11 @@ struct App {
 enum Message {
     Idle,
     ConfirmBackupStart,
-    BackupStart,
+    BackupStart { preview: bool },
     ConfirmRestoreStart,
-    RestoreStart,
-    PreviewBackupStart,
-    PreviewRestoreStart,
-    BackupStep { game: String, info: ScanInfo },
-    RestoreStep { game: String, info: ScanInfo },
+    RestoreStart { preview: bool },
+    BackupStep { info: ScanInfo },
+    RestoreStep { info: ScanInfo },
     EditedBackupTarget(String),
     EditedRestoreSource(String),
     EditedRootPath(usize, String),
@@ -91,8 +89,8 @@ impl ModalComponent {
         )
         .on_press(match theme {
             ModalTheme::Error { .. } => Message::Idle,
-            ModalTheme::ConfirmBackup => Message::BackupStart,
-            ModalTheme::ConfirmRestore => Message::RestoreStart,
+            ModalTheme::ConfirmBackup => Message::BackupStart { preview: false },
+            ModalTheme::ConfirmRestore => Message::RestoreStart { preview: false },
         })
         .width(Length::Units(125))
         .style(style::Button::Primary);
@@ -281,6 +279,23 @@ impl RootEditor {
 }
 
 #[derive(Default)]
+struct DisappearingProgress {
+    max: f32,
+    current: f32,
+}
+
+impl DisappearingProgress {
+    fn view(&mut self) -> ProgressBar {
+        let visible = self.current > 0.0 && self.current < self.max;
+        ProgressBar::new(0.0..=self.max, self.current).height(Length::FillPortion(if visible { 200 } else { 1 }))
+    }
+
+    fn complete(&self) -> bool {
+        self.current >= self.max
+    }
+}
+
+#[derive(Default)]
 struct BackupScreenComponent {
     total_games: usize,
     log: GameList,
@@ -290,6 +305,7 @@ struct BackupScreenComponent {
     add_root_button: button::State,
     backup_target_input: text_input::State,
     root_editor: RootEditor,
+    progress: DisappearingProgress,
 }
 
 impl BackupScreenComponent {
@@ -323,7 +339,7 @@ impl BackupScreenComponent {
                                 Text::new(translator.preview_button())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::PreviewBackupStart)
+                            .on_press(Message::BackupStart { preview: true })
                             .width(Length::Units(125))
                             .style(if !allow_input {
                                 style::Button::Disabled
@@ -389,7 +405,8 @@ impl BackupScreenComponent {
                 )
                 .push(self.root_editor.view(&config, &translator))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(self.log.view(false)),
+                .push(self.log.view(false).height(Length::FillPortion(10_000)))
+                .push(self.progress.view()),
         )
         .height(Length::Fill)
         .width(Length::Fill)
@@ -405,6 +422,7 @@ struct RestoreScreenComponent {
     preview_button: button::State,
     nav_button: button::State,
     restore_source_input: text_input::State,
+    progress: DisappearingProgress,
 }
 
 impl RestoreScreenComponent {
@@ -424,7 +442,7 @@ impl RestoreScreenComponent {
                                 Text::new(translator.preview_button())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::PreviewRestoreStart)
+                            .on_press(Message::RestoreStart { preview: true })
                             .width(Length::Units(125))
                             .style(if !allow_input {
                                 style::Button::Disabled
@@ -480,7 +498,8 @@ impl RestoreScreenComponent {
                         ),
                 )
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(self.log.view(true)),
+                .push(self.log.view(true).height(Length::FillPortion(10_000)))
+                .push(self.progress.view()),
         )
         .height(Length::Fill)
         .width(Length::Fill)
@@ -534,6 +553,8 @@ impl Application for App {
             Message::Idle => {
                 self.operation = None;
                 self.modal_theme = None;
+                self.backup_screen.progress.current = 0.0;
+                self.restore_screen.progress.current = 0.0;
                 std::env::set_current_dir(&self.original_working_dir).unwrap();
                 Command::none()
             }
@@ -545,7 +566,7 @@ impl Application for App {
                 self.modal_theme = Some(ModalTheme::ConfirmRestore);
                 Command::none()
             }
-            Message::BackupStart => {
+            Message::BackupStart { preview } => {
                 if self.operation.is_some() {
                     return Command::none();
                 }
@@ -553,15 +574,23 @@ impl Application for App {
                 self.backup_screen.total_games = 0;
                 self.backup_screen.log.entries.clear();
                 self.modal_theme = None;
+                self.backup_screen.progress.current = 0.0;
+                self.backup_screen.progress.max = self.manifest.0.len() as f32;
 
                 let backup_path = crate::path::absolute(&self.config.backup.path);
-                if let Err(e) = prepare_backup_target(&backup_path) {
-                    self.modal_theme = Some(ModalTheme::Error { variant: e });
-                    return Command::none();
+                if !preview {
+                    if let Err(e) = prepare_backup_target(&backup_path) {
+                        self.modal_theme = Some(ModalTheme::Error { variant: e });
+                        return Command::none();
+                    }
                 }
 
                 self.config.save();
-                self.operation = Some(OngoingOperation::Backup);
+                self.operation = Some(if preview {
+                    OngoingOperation::PreviewBackup
+                } else {
+                    OngoingOperation::Backup
+                });
 
                 std::env::set_current_dir(app_dir()).unwrap();
 
@@ -569,58 +598,24 @@ impl Application for App {
                 for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
                     let game = self.manifest.0[&key].clone();
                     let roots = self.config.roots.clone();
-                    let key2 = key.clone();
                     let backup_path2 = backup_path.clone();
                     let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
                     commands.push(Command::perform(
                         async move {
                             let info =
                                 scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), &steam_id);
-                            back_up_game(&info, &backup_path2, &key);
+                            if !preview {
+                                back_up_game(&info, &backup_path2, &key);
+                            }
                             info
                         },
-                        move |info| Message::BackupStep {
-                            game: key2.clone(),
-                            info,
-                        },
+                        move |info| Message::BackupStep { info },
                     ));
                 }
 
-                commands.push(Command::perform(async move {}, move |_| Message::Idle));
                 Command::batch(commands)
             }
-            Message::PreviewBackupStart => {
-                if self.operation.is_some() {
-                    return Command::none();
-                }
-                self.config.save();
-                self.operation = Some(OngoingOperation::PreviewBackup);
-                self.backup_screen.total_games = 0;
-                self.backup_screen.log.entries.clear();
-
-                std::env::set_current_dir(app_dir()).unwrap();
-
-                let mut commands: Vec<Command<Message>> = vec![];
-                for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
-                    let game = self.manifest.0[&key].clone();
-                    let roots = self.config.roots.clone();
-                    let key2 = key.clone();
-                    let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
-                    commands.push(Command::perform(
-                        async move {
-                            scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), &steam_id)
-                        },
-                        move |info| Message::BackupStep {
-                            game: key2.clone(),
-                            info,
-                        },
-                    ));
-                }
-
-                commands.push(Command::perform(async move {}, move |_| Message::Idle));
-                Command::batch(commands)
-            }
-            Message::RestoreStart => {
+            Message::RestoreStart { preview } => {
                 if self.operation.is_some() {
                     return Command::none();
                 }
@@ -638,82 +633,63 @@ impl Application for App {
                 }
 
                 self.config.save();
-                self.operation = Some(OngoingOperation::Restore);
+                self.operation = Some(if preview {
+                    OngoingOperation::PreviewRestore
+                } else {
+                    OngoingOperation::Restore
+                });
+                self.restore_screen.progress.current = 0.0;
+                self.restore_screen.progress.max = crate::path::count_subdirectories(&self.config.restore.path) as f32;
 
                 let mut commands: Vec<Command<Message>> = vec![];
-                for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
-                    let source = restore_path.clone();
-                    let key2 = key.clone();
+                for subdir in walkdir::WalkDir::new(crate::path::normalize(&restore_path))
+                    .max_depth(1)
+                    .follow_links(false)
+                    .into_iter()
+                    .skip(1) // the restore path itself
+                    .filter_map(|e| e.ok())
+                {
                     commands.push(Command::perform(
                         async move {
-                            let info = scan_game_for_restoration(&key, &source);
-                            restore_game(&info);
+                            let info = scan_dir_for_restoration(&subdir.path().to_string_lossy());
+                            if !preview {
+                                restore_game(&info);
+                            }
                             info
                         },
-                        move |info| Message::RestoreStep {
-                            game: key2.clone(),
-                            info,
-                        },
+                        move |info| Message::RestoreStep { info },
                     ));
                 }
 
-                commands.push(Command::perform(async move {}, move |_| Message::Idle));
                 Command::batch(commands)
             }
-            Message::PreviewRestoreStart => {
-                if self.operation.is_some() {
-                    return Command::none();
-                }
-
-                self.restore_screen.total_games = 0;
-                self.restore_screen.log.entries.clear();
-
-                let restore_path = crate::path::normalize(&self.config.restore.path);
-                if !crate::path::is_dir(&restore_path) {
-                    self.modal_theme = Some(ModalTheme::Error {
-                        variant: Error::RestorationSourceInvalid { path: restore_path },
-                    });
-                    return Command::none();
-                }
-
-                self.config.save();
-                self.operation = Some(OngoingOperation::PreviewRestore);
-
-                let mut commands: Vec<Command<Message>> = vec![];
-                for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
-                    let source = restore_path.clone();
-                    let key2 = key.clone();
-                    commands.push(Command::perform(
-                        async move { scan_game_for_restoration(&key, &source) },
-                        move |info| Message::RestoreStep {
-                            game: key2.clone(),
-                            info,
-                        },
-                    ));
-                }
-
-                commands.push(Command::perform(async move {}, move |_| Message::Idle));
-                Command::batch(commands)
-            }
-            Message::BackupStep { game, info } => {
+            Message::BackupStep { info } => {
+                self.backup_screen.progress.current += 1.0;
                 if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
                     self.backup_screen.total_games += 1;
                     self.backup_screen.log.entries.push(GameListEntry {
-                        name: game,
+                        name: info.game_name,
                         files: info.found_files,
                         registry_keys: info.found_registry_keys,
                     });
                 }
+                if self.backup_screen.progress.complete() {
+                    return Command::perform(async move {}, move |_| Message::Idle);
+                }
                 Command::none()
             }
-            Message::RestoreStep { game, info } => {
+            Message::RestoreStep { info } => {
+                self.restore_screen.progress.current += 1.0;
                 if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
                     self.restore_screen.total_games += 1;
                     self.restore_screen.log.entries.push(GameListEntry {
-                        name: game,
+                        name: info.game_name,
                         files: info.found_files,
                         registry_keys: info.found_registry_keys,
                     });
+                }
+                if self.restore_screen.progress.complete() {
+                    return Command::perform(async move {}, move |_| Message::Idle);
                 }
                 Command::none()
             }

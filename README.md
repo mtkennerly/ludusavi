@@ -14,8 +14,9 @@ so you are encouraged to contribute any new or fixed data back to the wiki itsel
 ## Features
 * Backup and restore for Steam as well as other game libraries.
 * Preview of the backup/restore before actually performing it.
+* Support for saves that are stored as files and in the Windows registry.
 * Support for Proton saves with Steam.
-* Support for saves in the Windows registry.
+* Support for Steam screenshots.
 
 ## Usage
 ### Installation

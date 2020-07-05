@@ -35,8 +35,9 @@ pub enum OtherError {
     BadRestorationTarget,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ScanInfo {
+    pub game_name: String,
     pub found_files: std::collections::HashSet<String>,
     pub found_registry_keys: std::collections::HashSet<String>,
     pub registry_file: Option<std::path::PathBuf>,
@@ -303,10 +304,34 @@ pub fn scan_game_for_backup(
     }
 
     ScanInfo {
+        game_name: name.to_string(),
         found_files,
         found_registry_keys,
         registry_file: None,
     }
+}
+
+pub fn scan_dir_for_restoration(source: &str) -> ScanInfo {
+    let path = std::path::Path::new(source);
+    let base_name = match path.file_name() {
+        None => return Default::default(),
+        Some(x) => x,
+    };
+    let parent = match path.parent() {
+        None => return Default::default(),
+        Some(x) => x.to_string_lossy(),
+    };
+
+    let decoded_base_name = match base64::decode(base_name.to_string_lossy().as_bytes()) {
+        Err(_) => return Default::default(),
+        Ok(x) => x,
+    };
+    let name = match std::str::from_utf8(&decoded_base_name) {
+        Err(_) => return Default::default(),
+        Ok(x) => x.to_string(),
+    };
+
+    scan_game_for_restoration(&name, &parent)
 }
 
 pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
@@ -343,6 +368,7 @@ pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
     }
 
     ScanInfo {
+        game_name: name.to_string(),
         found_files,
         found_registry_keys,
         registry_file,

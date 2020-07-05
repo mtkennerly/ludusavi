@@ -29,3 +29,19 @@ pub fn absolute(path: &str) -> String {
 pub fn render_pathbuf(value: &std::path::PathBuf) -> String {
     value.as_path().display().to_string()
 }
+
+pub fn count_subdirectories(path: &str) -> usize {
+    let count = walkdir::WalkDir::new(normalize(path))
+        .max_depth(1)
+        .follow_links(false)
+        .into_iter()
+        .filter_map(|e| e.ok())
+        .filter(|x| x.file_type().is_dir())
+        .count();
+    if count > 0 {
+        // The base path is included in the count.
+        count - 1
+    } else {
+        0
+    }
+}
