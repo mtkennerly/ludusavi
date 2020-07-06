@@ -52,12 +52,26 @@ pub struct Manifest(pub std::collections::HashMap<String, Game>);
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Game {
-    pub files: Option<std::collections::HashMap<String, GameFileConstraint>>,
+    pub files: Option<std::collections::HashMap<String, GameFileEntry>>,
     #[serde(rename = "installDir")]
-    pub install_dir: Option<std::collections::HashMap<String, GameInstallDirConstraint>>,
-    pub registry: Option<std::collections::HashMap<String, GameRegistryConstraint>>,
-    pub tags: Option<Vec<Tag>>,
+    pub install_dir: Option<std::collections::HashMap<String, GameInstallDirEntry>>,
+    pub registry: Option<std::collections::HashMap<String, GameRegistryEntry>>,
     pub steam: Option<SteamMetadata>,
+}
+
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct GameFileEntry {
+    pub tags: Option<Vec<Tag>>,
+    pub when: Option<Vec<GameFileConstraint>>,
+}
+
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct GameInstallDirEntry {}
+
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct GameRegistryEntry {
+    pub tags: Option<Vec<Tag>>,
+    pub when: Option<Vec<GameRegistryConstraint>>,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -65,9 +79,6 @@ pub struct GameFileConstraint {
     pub os: Option<Os>,
     pub store: Option<Store>,
 }
-
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
-pub struct GameInstallDirConstraint {}
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct GameRegistryConstraint {

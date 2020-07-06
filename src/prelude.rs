@@ -213,23 +213,12 @@ pub fn scan_game_for_backup(
             continue;
         }
         if let Some(files) = &game.files {
-            let maybe_proton = get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some();
             let default_install_dir = name.to_string();
             let install_dirs: Vec<_> = match &game.install_dir {
                 Some(x) => x.keys().collect(),
                 _ => vec![&default_install_dir],
             };
-            for (raw_path, constraint) in files {
-                if let Some(os) = &constraint.os {
-                    if os != &get_os() && !maybe_proton {
-                        continue;
-                    }
-                }
-                if let Some(store) = &constraint.store {
-                    if store != &root.store {
-                        continue;
-                    }
-                }
+            for (raw_path, _) in files {
                 let candidates = parse_paths(raw_path, &root, &install_dirs, &steam_id);
                 for candidate in candidates {
                     if candidate.contains(SKIP) {
@@ -287,13 +276,7 @@ pub fn scan_game_for_backup(
     {
         let mut hives = crate::registry::Hives::default();
         if let Some(registry) = &game.registry {
-            let stores: &Vec<_> = &roots_to_check.iter().map(|x| x.store).collect();
-            for (key, constraint) in registry {
-                if let Some(store) = constraint.store {
-                    if !stores.contains(&store) {
-                        continue;
-                    }
-                }
+            for (key, _) in registry {
                 if let Ok(info) = hives.store_key_from_full_path(&key) {
                     if info.found {
                         found_registry_keys.insert(key.to_string());
