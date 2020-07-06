@@ -97,39 +97,52 @@ impl Config {
     }
 
     pub fn add_common_roots(&mut self) {
+        let mut pf32 = "C:/Program Files (x86)".to_string();
+        let mut pf64 = "C:/Program Files".to_string();
+        if let Ok(x) = std::env::var("ProgramFiles(x86)") {
+            pf32 = x.trim_end_matches("[\\/]").to_string();
+        } else if let Ok(x) = std::env::var("PROGRAMFILES") {
+            pf32 = x.trim_end_matches("[\\/]").to_string();
+        }
+        if let Ok(x) = std::env::var("ProgramW6432") {
+            pf64 = x.trim_end_matches("[\\/]").to_string();
+        }
+
         let candidates = vec![
             // Steam:
-            ("C:/Program Files/Steam", Store::Steam),
-            ("C:/Program Files (x86)/Steam", Store::Steam),
-            ("~/.steam/steam", Store::Steam),
-            ("~/Library/Application Support/Steam", Store::Steam),
+            (format!("{}/Steam", pf32), Store::Steam),
+            (format!("{}/Steam", pf64), Store::Steam),
+            ("~/.steam/steam".to_string(), Store::Steam),
+            ("~/Library/Application Support/Steam".to_string(), Store::Steam),
             // Epic:
-            ("C:/Program Files/Epic Games", Store::Other),
-            ("C:/Program Files (x86)/Epic Games", Store::Other),
+            (format!("{}/Epic Games", pf32), Store::Other),
+            (format!("{}/Epic Games", pf64), Store::Other),
             // GOG:
-            ("C:/GOG Games", Store::Other),
-            ("~/GOG Games", Store::Other),
+            ("C:/GOG Games".to_string(), Store::Other),
+            ("~/GOG Games".to_string(), Store::Other),
             // Uplay:
-            ("C:/Program Files/Ubisoft/Ubisoft Game Launcher/games", Store::Other),
-            (
-                "C:/Program Files (x86)/Ubisoft/Ubisoft Game Launcher/games",
-                Store::Other,
-            ),
+            (format!("{}/Ubisoft/Ubisoft Game Launcher/games", pf32), Store::Other),
+            (format!("{}/Ubisoft/Ubisoft Game Launcher/games", pf64), Store::Other),
             // Origin:
-            ("C:/Program Files/Origin Games", Store::Other),
-            ("C:/Program Files (x86)/Origin Games", Store::Other),
+            (format!("{}/Origin Games", pf32), Store::Other),
+            (format!("{}/Origin Games", pf64), Store::Other),
             // Microsoft:
-            ("C:/Program Files/WindowsApps", Store::Other),
-            ("C:/Program Files (x86)/WindowsApps", Store::Other),
+            (format!("{}/WindowsApps", pf32), Store::Other),
+            (format!("{}/WindowsApps", pf64), Store::Other),
         ];
 
+        let mut checked = std::collections::HashSet::<String>::new();
         for (path, store) in candidates {
+            if checked.contains(&path) {
+                continue;
+            }
             if crate::path::is_dir(&path) {
                 self.roots.push(RootsConfig {
-                    path: crate::path::normalize(path),
+                    path: crate::path::normalize(&path),
                     store,
                 });
             }
+            checked.insert(path);
         }
     }
 }
