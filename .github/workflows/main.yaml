@@ -42,7 +42,7 @@ jobs:
           path: target/release/ludusavi.exe
 
   build-linux:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-16.04
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1

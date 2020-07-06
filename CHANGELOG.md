@@ -1,5 +1,11 @@
+## Unreleased
+
+* Added core backup/restore functionality.
+* Added support for saves in the Windows registry.
+* Added support for Steam + Proton saves.
+* Added support for Steam screenshots.
+
 ## v0.1.0 (2020-06-20)
 
 * Initial release.
-* This is still just a prototype and is not yet functional.
-  The purpose of this release is mainly name reservation.
+* Just a prototype/mock-up and not yet functional.

@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 mod config;
 mod gui;
 mod lang;
