@@ -112,7 +112,7 @@ impl Translator {
 
     pub fn no_roots_are_configured(&self) -> String {
         match self.language {
-            Language::English => "Add some roots (e.g., Steam installation directory) to back up more data.",
+            Language::English => "Add some roots to back up even more data.",
         }
         .into()
     }

@@ -88,9 +88,48 @@ impl Config {
 
     pub fn load() -> Result<Self, Error> {
         if !std::path::Path::new(&Self::file()).exists() {
-            return Ok(Self::default());
+            let mut starter = Self::default();
+            starter.add_common_roots();
+            return Ok(starter);
         }
         let content = std::fs::read_to_string(Self::file()).unwrap();
         serde_yaml::from_str(&content).map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
+    }
+
+    pub fn add_common_roots(&mut self) {
+        let candidates = vec![
+            // Steam:
+            ("C:/Program Files/Steam", Store::Steam),
+            ("C:/Program Files (x86)/Steam", Store::Steam),
+            ("~/.steam/steam", Store::Steam),
+            ("~/Library/Application Support/Steam", Store::Steam),
+            // Epic:
+            ("C:/Program Files/Epic Games", Store::Other),
+            ("C:/Program Files (x86)/Epic Games", Store::Other),
+            // GOG:
+            ("C:/GOG Games", Store::Other),
+            ("~/GOG Games", Store::Other),
+            // Uplay:
+            ("C:/Program Files/Ubisoft/Ubisoft Game Launcher/games", Store::Other),
+            (
+                "C:/Program Files (x86)/Ubisoft/Ubisoft Game Launcher/games",
+                Store::Other,
+            ),
+            // Origin:
+            ("C:/Program Files/Origin Games", Store::Other),
+            ("C:/Program Files (x86)/Origin Games", Store::Other),
+            // Microsoft:
+            ("C:/Program Files/WindowsApps", Store::Other),
+            ("C:/Program Files (x86)/WindowsApps", Store::Other),
+        ];
+
+        for (path, store) in candidates {
+            if crate::path::is_dir(&path) {
+                self.roots.push(RootsConfig {
+                    path: crate::path::normalize(path),
+                    store,
+                });
+            }
+        }
     }
 }

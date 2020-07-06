@@ -46,12 +46,12 @@ so you are encouraged to contribute any new or fixed data back to the wiki itsel
     the game's backup folder will also contain an `other/registry.yaml` file.
     If you are using Steam and Proton instead of Windows, then the Proton `*.reg`
     files will be backed up like other game files.
-* By default, no roots are configured. Roots are folders that Ludusavi can
-  check for additional game data. You can click `add root` and configure
-  as many as you need, along with its type:
+* Roots are folders that Ludusavi can check for additional game data. When you
+  first run Ludusavi, it will try to find some common roots on your system, but
+  you may end up without any configured. You can click `add root` to configure
+  as many as you need, along with the root's type:
   * For a Steam root, this should be the folder containing the `steamapps` and
-    `userdata` subdirectories. Here are some common/standard locations, if you
-    haven't chosen a custom place:
+    `userdata` subdirectories. Here are some common/standard locations:
     * Windows: `C:/Program Files (x86)/Steam`
     * Linux: `~/.steam/steam`
   * For the "other" root type, it should be a folder whose direct children are
