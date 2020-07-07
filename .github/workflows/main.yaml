@@ -20,7 +20,7 @@ jobs:
           args: --release
       - uses: actions/upload-artifact@v1
         with:
-          name: Executable (Windows 64-bit)
+          name: ludusavi-win64
           path: target/release/ludusavi.exe
 
   build-windows-32bit:
@@ -38,7 +38,7 @@ jobs:
           args: --release
       - uses: actions/upload-artifact@v1
         with:
-          name: Executable (Windows 32-bit)
+          name: ludusavi-win32
           path: target/release/ludusavi.exe
 
   build-linux:
@@ -56,7 +56,7 @@ jobs:
           args: --release
       - uses: actions/upload-artifact@v1
         with:
-          name: Executable (Linux)
+          name: ludusavi-linux
           path: target/release/ludusavi
 
   build-mac:
@@ -74,7 +74,7 @@ jobs:
           args: --release
       - uses: actions/upload-artifact@v1
         with:
-          name: Executable (Mac)
+          name: ludusavi-mac
           path: target/release/ludusavi
 
   test:

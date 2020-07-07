@@ -32,14 +32,20 @@ support one of these graphics systems: Vulkan, DirectX (11 or 12), or Metal.
 
   Alternatively, if you have Rust, you can run `cargo install ludusavi`
   to do the installation.
-* If you are on Windows, when you first run Ludusavi, you may see a popup
-  that says "Windows protected your PC", because Windows does not recognize
-  the program's publisher. Click "more info" and then "run anyway" to start
-  the program.
-* If you are on Mac, when you first run Ludusavi, you may see a popup that says
-  "Ludusavi can't be opened because it is from an unidentified developer".
-  To allow Ludusavi to run, please refer to [this article](https://support.apple.com/en-us/HT202491),
-  specifically the section on `How to open an app [...] from an unidentified developer`.
+* If you are on Windows:
+  * When you first run Ludusavi, you may see a popup that says
+    "Windows protected your PC", because Windows does not recognize the program's
+    publisher. Click "more info" and then "run anyway" to start the program.
+  * If you see an error like "VCRUNTIME140_1.dll was not found", you will need
+    to install or update the Microsoft Visual C++ Redistributable, which you can
+    find [on this support page](https://support.microsoft.com/en-us/help/2977003).
+    * For the 32-bit version of Ludusavi, you'll need the x86 redistributable.
+    * For the 64-bit version of Ludusavi, you'll need the x64 redistributable.
+* If you are on Mac:
+  * When you first run Ludusavi, you may see a popup that says
+    "Ludusavi can't be opened because it is from an unidentified developer".
+    To allow Ludusavi to run, please refer to [this article](https://support.apple.com/en-us/HT202491),
+    specifically the section on `How to open an app [...] from an unidentified developer`.
 
 ## Usage
 ### Backup mode
