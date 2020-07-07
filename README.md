@@ -96,7 +96,7 @@ There are other excellent backup tools available, but not a singular
 cross-platform and cross-store solution:
 
 * [GameSave Manager](https://www.gamesave-manager.com):
-  * Only supports Windows and Steam.
+  * Only supports Windows.
   * Closed source, so the community cannot contribute improvements.
   * Interface can be slow or unresponsive; e.g., when (de)selecting all checkboxes,
     it takes half a second per checkbox for them all to toggle.
