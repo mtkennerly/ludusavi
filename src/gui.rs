@@ -45,6 +45,7 @@ enum Message {
     RemoveRoot(usize),
     SwitchScreenToRestore,
     SwitchScreenToBackup,
+    ToggleGameListEntryExpanded { name: String },
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -151,27 +152,32 @@ impl ModalComponent {
     }
 }
 
+#[derive(Default)]
 struct GameListEntry {
     name: String,
     files: std::collections::HashSet<String>,
     registry_keys: std::collections::HashSet<String>,
+    button: button::State,
+    expanded: bool,
 }
 
 impl GameListEntry {
     fn view(&mut self, restoring: bool) -> Container<Message> {
         let mut lines = Vec::<String>::new();
 
-        for item in itertools::sorted(&self.files) {
-            if restoring {
-                if let Ok(target) = game_file_restoration_target(&item) {
-                    lines.push(target);
+        if self.expanded {
+            for item in itertools::sorted(&self.files) {
+                if restoring {
+                    if let Ok(target) = game_file_restoration_target(&item) {
+                        lines.push(target);
+                    }
+                } else {
+                    lines.push(item.clone());
                 }
-            } else {
+            }
+            for item in itertools::sorted(&self.registry_keys) {
                 lines.push(item.clone());
             }
-        }
-        for item in itertools::sorted(&self.registry_keys) {
-            lines.push(item.clone());
         }
 
         Container::new(
@@ -181,11 +187,16 @@ impl GameListEntry {
                 .align_items(Align::Center)
                 .push(
                     Row::new().push(
-                        Container::new(Text::new(self.name.clone()))
-                            .align_x(Align::Center)
-                            .width(Length::Fill)
-                            .padding(2)
-                            .style(style::Container::GameListEntryTitle),
+                        Button::new(
+                            &mut self.button,
+                            Text::new(self.name.clone()).horizontal_alignment(HorizontalAlignment::Center),
+                        )
+                        .on_press(Message::ToggleGameListEntryExpanded {
+                            name: self.name.clone(),
+                        })
+                        .style(style::Button::GameListEntryTitle)
+                        .width(Length::Fill)
+                        .padding(2),
                     ),
                 )
                 .push(
@@ -604,7 +615,9 @@ impl Application for App {
                 self.operation = None;
                 self.modal_theme = None;
                 self.backup_screen.progress.current = 0.0;
+                self.backup_screen.progress.max = 0.0;
                 self.restore_screen.progress.current = 0.0;
+                self.restore_screen.progress.max = 0.0;
                 self.operation_should_cancel
                     .swap(false, std::sync::atomic::Ordering::Relaxed);
                 std::env::set_current_dir(&self.original_working_dir).unwrap();
@@ -657,6 +670,8 @@ impl Application for App {
                     commands.push(Command::perform(
                         async move {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                                // TODO: https://github.com/hecrj/iced/issues/436
+                                std::thread::sleep(std::time::Duration::from_millis(1));
                                 return None;
                             }
                             let info =
@@ -710,6 +725,8 @@ impl Application for App {
                     commands.push(Command::perform(
                         async move {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                                // TODO: https://github.com/hecrj/iced/issues/436
+                                std::thread::sleep(std::time::Duration::from_millis(1));
                                 return None;
                             }
                             let info = scan_dir_for_restoration(&subdir.path().to_string_lossy());
@@ -733,6 +750,7 @@ impl Application for App {
                             name: info.game_name,
                             files: info.found_files,
                             registry_keys: info.found_registry_keys,
+                            ..Default::default()
                         });
                     }
                 }
@@ -750,6 +768,7 @@ impl Application for App {
                             name: info.game_name,
                             files: info.found_files,
                             registry_keys: info.found_registry_keys,
+                            ..Default::default()
                         });
                     }
                 }
@@ -818,6 +837,25 @@ impl Application for App {
                 self.screen = Screen::Restore;
                 Command::none()
             }
+            Message::ToggleGameListEntryExpanded { name } => {
+                match self.screen {
+                    Screen::Backup => {
+                        for entry in &mut self.backup_screen.log.entries {
+                            if entry.name == name {
+                                entry.expanded = !entry.expanded;
+                            }
+                        }
+                    }
+                    Screen::Restore => {
+                        for entry in &mut self.restore_screen.log.entries {
+                            if entry.name == name {
+                                entry.expanded = !entry.expanded;
+                            }
+                        }
+                    }
+                }
+                Command::none()
+            }
         }
     }
 
@@ -844,17 +882,22 @@ mod style {
         Disabled,
         Negative,
         Navigation,
+        GameListEntryTitle,
     }
     impl button::StyleSheet for Button {
         fn active(&self) -> button::Style {
             button::Style {
                 background: match self {
                     Button::Primary => Some(Background::Color(Color::from_rgb8(28, 107, 223))),
+                    Button::GameListEntryTitle => Some(Background::Color(Color::from_rgb8(77, 127, 201))),
                     Button::Disabled => Some(Background::Color(Color::from_rgb8(169, 169, 169))),
                     Button::Negative => Some(Background::Color(Color::from_rgb8(255, 0, 0))),
                     Button::Navigation => Some(Background::Color(Color::from_rgb8(136, 0, 219))),
                 },
-                border_radius: 4,
+                border_radius: match self {
+                    Button::GameListEntryTitle => 10,
+                    _ => 4,
+                },
                 shadow_offset: Vector::new(1.0, 1.0),
                 text_color: Color::from_rgb8(0xEE, 0xEE, 0xEE),
                 ..button::Style::default()

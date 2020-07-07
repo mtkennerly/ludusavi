@@ -1,6 +1,8 @@
 ## Development
 Rust 1.44.0 or newer is recommended.
 
+* Run program:
+  * `cargo run`
 * Run tests:
   * `cargo test`
 * Linting:

@@ -12,14 +12,16 @@ to that project. Data is ultimately sourced from [PCGamingWiki](https://www.pcga
 so you are encouraged to contribute any new or fixed data back to the wiki itself.
 
 ## Features
+* Ability to back up data from more than 7,000 games.
 * Backup and restore for Steam as well as other game libraries.
 * Preview of the backup/restore before actually performing it.
 * Support for saves that are stored as files and in the Windows registry.
 * Support for Proton saves with Steam.
 * Support for Steam screenshots.
 
-## Usage
-### Installation
+> ![Demo of previewing a backup](docs/demo.gif)
+
+## Installation
 Ludusavi is available for Windows, Linux, and Mac. However, your computer must
 support one of these graphics systems: Vulkan, DirectX (11 or 12), or Metal.
 
@@ -34,10 +36,13 @@ support one of these graphics systems: Vulkan, DirectX (11 or 12), or Metal.
   that says "Windows protected your PC", because Windows does not recognize
   the program's publisher. Click "more info" and then "run anyway" to start
   the program.
+* If you are on Mac, when you first run Ludusavi, you may see a popup that says
+  "Ludusavi can't be opened because it is from an unidentified developer".
+  To allow Ludusavi to run, please refer to [this article](https://support.apple.com/en-us/HT202491),
+  specifically the section on `How to open an app [...] from an unidentified developer`.
 
+## Usage
 ### Backup mode
-> ![Ludusavi in backup mode](./docs/backup.png)
-
 * This is the default mode when you open the program.
 * You can press `preview` to see what the backup will include,
   without actually performing it.
@@ -70,8 +75,6 @@ support one of these graphics systems: Vulkan, DirectX (11 or 12), or Metal.
     would be `D:/Epic`).
 
 ### Restore mode
-> ![Ludusavi in restore mode](./docs/restore.png)
-
 * Switch to restore mode by clicking the `=> restore` button.
 * You can press `preview` to see what the restore will include,
   without actually performing it.
