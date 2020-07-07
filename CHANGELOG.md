@@ -1,4 +1,4 @@
-## Unreleased
+## v0.2.0 (2020-07-06)
 
 * Added core backup/restore functionality.
 * Added support for saves in the Windows registry.
