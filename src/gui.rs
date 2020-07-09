@@ -222,7 +222,10 @@ impl GameList {
         self.entries.sort_by_key(|x| x.name.clone());
         Container::new({
             self.entries.iter_mut().enumerate().fold(
-                Scrollable::new(&mut self.scroll).width(Length::Fill).padding(10),
+                Scrollable::new(&mut self.scroll)
+                    .width(Length::Fill)
+                    .padding(10)
+                    .style(style::Scrollable),
                 |parent: Scrollable<'_, Message>, (_i, x)| {
                     parent
                         .push(x.view(restoring))
@@ -247,7 +250,10 @@ impl RootEditor {
         } else {
             Container::new({
                 self.rows.iter_mut().enumerate().fold(
-                    Scrollable::new(&mut self.scroll).width(Length::Fill).max_height(100),
+                    Scrollable::new(&mut self.scroll)
+                        .width(Length::Fill)
+                        .max_height(100)
+                        .style(style::Scrollable),
                     |parent: Scrollable<'_, Message>, (i, x)| {
                         parent
                             .push(
@@ -875,7 +881,7 @@ impl Application for App {
 }
 
 mod style {
-    use iced::{button, container, Background, Color, Vector};
+    use iced::{button, container, scrollable, Background, Color, Vector};
 
     pub enum Button {
         Primary,
@@ -939,6 +945,37 @@ mod style {
                     _ => 0,
                 },
                 ..container::Style::default()
+            }
+        }
+    }
+
+    pub struct Scrollable;
+    impl scrollable::StyleSheet for Scrollable {
+        fn active(&self) -> scrollable::Scrollbar {
+            scrollable::Scrollbar {
+                background: Some(Background::Color(Color::TRANSPARENT)),
+                border_radius: 5,
+                border_width: 0,
+                border_color: Color::TRANSPARENT,
+                scroller: scrollable::Scroller {
+                    color: Color::from_rgba8(0, 0, 0, 0.7),
+                    border_radius: 5,
+                    border_width: 0,
+                    border_color: Color::TRANSPARENT,
+                },
+            }
+        }
+
+        fn hovered(&self) -> scrollable::Scrollbar {
+            let active = self.active();
+
+            scrollable::Scrollbar {
+                background: Some(Background::Color(Color::from_rgba8(0, 0, 0, 0.4))),
+                scroller: scrollable::Scroller {
+                    color: Color::from_rgba8(0, 0, 0, 0.8),
+                    ..active.scroller
+                },
+                ..active
             }
         }
     }

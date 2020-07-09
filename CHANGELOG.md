@@ -1,6 +1,7 @@
 ## Unreleased
 
 * Added common roots for GOG Galaxy on Windows.
+* Changed scrollbar style so that it's more obvious what's scrollable.
 
 ## v0.2.0 (2020-07-06)
 
