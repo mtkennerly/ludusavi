@@ -1,3 +1,7 @@
+## Unreleased
+
+* Added common roots for GOG Galaxy on Windows.
+
 ## v0.2.0 (2020-07-06)
 
 * Added core backup/restore functionality.

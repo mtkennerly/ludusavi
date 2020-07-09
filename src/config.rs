@@ -120,6 +120,9 @@ impl Config {
             // GOG:
             ("C:/GOG Games".to_string(), Store::Other),
             ("~/GOG Games".to_string(), Store::Other),
+            // GOG Galaxy:
+            (format!("{}/GOG Galaxy/Games", pf32), Store::Other),
+            (format!("{}/GOG Galaxy/Games", pf64), Store::Other),
             // Uplay:
             (format!("{}/Ubisoft/Ubisoft Game Launcher/games", pf32), Store::Other),
             (format!("{}/Ubisoft/Ubisoft Game Launcher/games", pf64), Store::Other),
