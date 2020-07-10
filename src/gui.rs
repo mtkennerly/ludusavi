@@ -5,10 +5,11 @@ use crate::prelude::{
     app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_dir_for_restoration,
     scan_game_for_backup, Error, ScanInfo,
 };
+use crate::shortcuts::{Shortcut, TextHistory};
 
 use iced::{
     button, executor, scrollable, text_input, Align, Application, Button, Column, Command, Container, Element,
-    HorizontalAlignment, Length, ProgressBar, Radio, Row, Scrollable, Space, Text, TextInput,
+    HorizontalAlignment, Length, ProgressBar, Radio, Row, Scrollable, Space, Subscription, Text, TextInput,
 };
 
 #[derive(Default)]
@@ -46,6 +47,7 @@ enum Message {
     SwitchScreenToRestore,
     SwitchScreenToBackup,
     ToggleGameListEntryExpanded { name: String },
+    SubscribedEvent(iced_native::Event),
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -237,9 +239,25 @@ impl GameList {
 }
 
 #[derive(Default)]
+struct RootEditorRow {
+    button_state: button::State,
+    text_state: text_input::State,
+    text_history: TextHistory,
+}
+
+impl RootEditorRow {
+    fn new(initial_text: &str) -> Self {
+        Self {
+            text_history: TextHistory::new(initial_text, 100),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Default)]
 struct RootEditor {
     scroll: scrollable::State,
-    rows: Vec<(button::State, text_input::State)>,
+    rows: Vec<RootEditorRow>,
 }
 
 impl RootEditor {
@@ -260,7 +278,7 @@ impl RootEditor {
                                 Row::new()
                                     .push(
                                         Button::new(
-                                            &mut x.0,
+                                            &mut x.button_state,
                                             Text::new(translator.remove_root_button())
                                                 .horizontal_alignment(HorizontalAlignment::Center)
                                                 .size(14),
@@ -270,7 +288,7 @@ impl RootEditor {
                                     )
                                     .push(Space::new(Length::Units(20), Length::Units(0)))
                                     .push(
-                                        TextInput::new(&mut x.1, "", &roots[i].path, move |v| {
+                                        TextInput::new(&mut x.text_state, "", &roots[i].path, move |v| {
                                             Message::EditedRootPath(i, v)
                                         })
                                         .width(Length::FillPortion(3))
@@ -328,6 +346,7 @@ struct BackupScreenComponent {
     nav_button: button::State,
     add_root_button: button::State,
     backup_target_input: text_input::State,
+    backup_target_history: TextHistory,
     root_editor: RootEditor,
     progress: DisappearingProgress,
 }
@@ -335,14 +354,13 @@ struct BackupScreenComponent {
 impl BackupScreenComponent {
     fn new(config: &Config) -> Self {
         let mut root_editor = RootEditor::default();
-        while root_editor.rows.len() < config.roots.len() {
-            root_editor
-                .rows
-                .push((button::State::default(), text_input::State::default()));
+        for root in &config.roots {
+            root_editor.rows.push(RootEditorRow::new(&root.path))
         }
 
         Self {
             root_editor,
+            backup_target_history: TextHistory::new(&config.backup.path, 100),
             ..Default::default()
         }
     }
@@ -468,10 +486,18 @@ struct RestoreScreenComponent {
     preview_button: button::State,
     nav_button: button::State,
     restore_source_input: text_input::State,
+    restore_source_history: TextHistory,
     progress: DisappearingProgress,
 }
 
 impl RestoreScreenComponent {
+    fn new(config: &Config) -> Self {
+        Self {
+            restore_source_history: TextHistory::new(&config.backup.path, 100),
+            ..Default::default()
+        }
+    }
+
     fn view(
         &mut self,
         config: &Config,
@@ -600,6 +626,7 @@ impl Application for App {
         (
             Self {
                 backup_screen: BackupScreenComponent::new(&config),
+                restore_screen: RestoreScreenComponent::new(&config),
                 translator,
                 config,
                 manifest,
@@ -804,14 +831,17 @@ impl Application for App {
                 Command::none()
             }
             Message::EditedBackupTarget(text) => {
+                self.backup_screen.backup_target_history.push(&text);
                 self.config.backup.path = text;
                 Command::none()
             }
             Message::EditedRestoreSource(text) => {
+                self.restore_screen.restore_source_history.push(&text);
                 self.config.restore.path = text;
                 Command::none()
             }
             Message::EditedRootPath(index, path) => {
+                self.backup_screen.root_editor.rows[index].text_history.push(&path);
                 self.config.roots[index].path = path;
                 Command::none()
             }
@@ -820,10 +850,7 @@ impl Application for App {
                 Command::none()
             }
             Message::AddRoot => {
-                self.backup_screen
-                    .root_editor
-                    .rows
-                    .push((button::State::default(), text_input::State::default()));
+                self.backup_screen.root_editor.rows.push(RootEditorRow::default());
                 self.config.roots.push(RootsConfig {
                     path: "".into(),
                     store: Store::Other,
@@ -862,7 +889,141 @@ impl Application for App {
                 }
                 Command::none()
             }
+            Message::SubscribedEvent(event) => {
+                if let iced_native::Event::Keyboard(key) = event {
+                    if let iced_native::input::keyboard::Event::Input {
+                        state,
+                        key_code,
+                        modifiers,
+                    } = key
+                    {
+                        let activated = if cfg!(target_os = "mac") {
+                            modifiers.logo || modifiers.control
+                        } else {
+                            modifiers.control
+                        };
+                        let shortcut = match (key_code, state, activated, modifiers.shift) {
+                            (
+                                iced_native::input::keyboard::KeyCode::Z,
+                                iced_native::input::ButtonState::Pressed,
+                                true,
+                                false,
+                            ) => Some(Shortcut::Undo),
+                            (
+                                iced_native::input::keyboard::KeyCode::Y,
+                                iced_native::input::ButtonState::Pressed,
+                                true,
+                                false,
+                            )
+                            | (
+                                iced_native::input::keyboard::KeyCode::Z,
+                                iced_native::input::ButtonState::Pressed,
+                                true,
+                                true,
+                            ) => Some(Shortcut::Redo),
+                            (
+                                iced_native::input::keyboard::KeyCode::C,
+                                iced_native::input::ButtonState::Pressed,
+                                true,
+                                false,
+                            ) => Some(Shortcut::ClipboardCopy),
+                            (
+                                iced_native::input::keyboard::KeyCode::X,
+                                iced_native::input::ButtonState::Pressed,
+                                true,
+                                false,
+                            ) => Some(Shortcut::ClipboardCut),
+                            _ => None,
+                        };
+
+                        if let Some(shortcut) = shortcut {
+                            if self.backup_screen.backup_target_input.is_focused() {
+                                match shortcut {
+                                    Shortcut::Undo => {
+                                        self.config.backup.path = self.backup_screen.backup_target_history.undo();
+                                    }
+                                    Shortcut::Redo => {
+                                        self.config.backup.path = self.backup_screen.backup_target_history.redo();
+                                    }
+                                    Shortcut::ClipboardCopy => {
+                                        crate::shortcuts::copy_to_clipboard_from_iced(
+                                            &self.config.backup.path,
+                                            &self.backup_screen.backup_target_input.cursor(),
+                                        );
+                                    }
+                                    Shortcut::ClipboardCut => {
+                                        self.config.backup.path = crate::shortcuts::cut_to_clipboard_from_iced(
+                                            &self.config.backup.path,
+                                            &self.backup_screen.backup_target_input.cursor(),
+                                        );
+                                        self.backup_screen.backup_target_history.push(&self.config.backup.path);
+                                    }
+                                }
+                            } else if self.restore_screen.restore_source_input.is_focused() {
+                                match shortcut {
+                                    Shortcut::Undo => {
+                                        self.config.restore.path = self.restore_screen.restore_source_history.undo();
+                                    }
+                                    Shortcut::Redo => {
+                                        self.config.restore.path = self.restore_screen.restore_source_history.redo();
+                                    }
+                                    Shortcut::ClipboardCopy => {
+                                        crate::shortcuts::copy_to_clipboard_from_iced(
+                                            &self.config.restore.path,
+                                            &self.restore_screen.restore_source_input.cursor(),
+                                        );
+                                    }
+                                    Shortcut::ClipboardCut => {
+                                        self.config.restore.path = crate::shortcuts::cut_to_clipboard_from_iced(
+                                            &self.config.restore.path,
+                                            &self.restore_screen.restore_source_input.cursor(),
+                                        );
+                                        self.restore_screen
+                                            .restore_source_history
+                                            .push(&self.config.restore.path);
+                                    }
+                                }
+                            } else {
+                                for (i, root) in self.backup_screen.root_editor.rows.iter_mut().enumerate() {
+                                    if root.text_state.is_focused() {
+                                        match shortcut {
+                                            Shortcut::Undo => {
+                                                self.config.roots[i].path = root.text_history.undo();
+                                            }
+                                            Shortcut::Redo => {
+                                                self.config.roots[i].path = root.text_history.redo();
+                                            }
+                                            Shortcut::ClipboardCopy => {
+                                                crate::shortcuts::copy_to_clipboard_from_iced(
+                                                    &self.config.roots[i].path,
+                                                    &root.text_state.cursor(),
+                                                );
+                                            }
+                                            Shortcut::ClipboardCut => {
+                                                self.config.roots[i].path =
+                                                    crate::shortcuts::cut_to_clipboard_from_iced(
+                                                        &self.config.roots[i].path,
+                                                        &root.text_state.cursor(),
+                                                    );
+                                                self.backup_screen.root_editor.rows[i]
+                                                    .text_history
+                                                    .push(&self.config.roots[i].path);
+                                            }
+                                        }
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+                Command::none()
+            }
         }
+    }
+
+    fn subscription(&self) -> Subscription<Message> {
+        iced_native::subscription::events().map(Message::SubscribedEvent)
     }
 
     fn view(&mut self) -> Element<Message> {

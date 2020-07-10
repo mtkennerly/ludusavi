@@ -2,6 +2,8 @@
 
 * Added common roots for GOG Galaxy on Windows.
 * Changed scrollbar style so that it's more obvious what's scrollable.
+* Added copy/undo/redo shortcuts in text fields. Cutting is not yet supported
+  because of some limitations in the GUI library.
 
 ## v0.2.0 (2020-07-06)
 

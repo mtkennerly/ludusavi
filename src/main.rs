@@ -6,6 +6,7 @@ mod lang;
 mod manifest;
 mod path;
 mod prelude;
+mod shortcuts;
 
 #[cfg(target_os = "windows")]
 mod registry;
