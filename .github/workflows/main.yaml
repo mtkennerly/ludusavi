@@ -5,78 +5,53 @@ on:
 name: Main
 
 jobs:
-  build-windows-64bit:
-    runs-on: windows-latest
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            rust-target: x86_64-pc-windows-msvc
+            artifact-name: win64
+            artifact-file: ludusavi.exe
+          - os: windows-latest
+            rust-target: i686-pc-windows-msvc
+            artifact-name: win32
+            artifact-file: ludusavi.exe
+          - os: ubuntu-16.04
+            rust-target: x86_64-unknown-linux-gnu
+            artifact-name: linux
+            artifact-file: ludusavi
+          - os: macos-latest
+            rust-target: x86_64-apple-darwin
+            artifact-name: mac
+            artifact-file: ludusavi
+    runs-on: ${{ matrix.os }}
     steps:
+      - uses: actions/setup-python@v2
+        with:
+          python-version: '3.7'
       - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - uses: mtkennerly/dunamai-action@v1
+        with:
+          env-var: LUDUSAVI_VERSION
+          args: --style semver
       - uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
-          target: x86_64-pc-windows-msvc
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
-      - uses: actions/upload-artifact@v1
-        with:
-          name: ludusavi-win64
-          path: target/release/ludusavi.exe
-
-  build-windows-32bit:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: i686-pc-windows-msvc
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
-      - uses: actions/upload-artifact@v1
-        with:
-          name: ludusavi-win32
-          path: target/release/ludusavi.exe
-
-  build-linux:
-    runs-on: ubuntu-16.04
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-unknown-linux-gnu
+          target: ${{ matrix.rust-target }}
           override: true
       - run: sudo apt-get update && sudo apt-get install -y gcc libxcb-composite0-dev
+        if: ${{ matrix.os == 'ubuntu-16.04' }}
       - uses: actions-rs/cargo@v1
         with:
           command: build
           args: --release
       - uses: actions/upload-artifact@v1
         with:
-          name: ludusavi-linux
-          path: target/release/ludusavi
-
-  build-mac:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          target: x86_64-apple-darwin
-          override: true
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
-      - uses: actions/upload-artifact@v1
-        with:
-          name: ludusavi-mac
-          path: target/release/ludusavi
+          name: ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}
+          path: target/release/${{ matrix.artifact-file }}
 
   test:
     runs-on: ubuntu-latest
@@ -92,27 +67,13 @@ jobs:
         with:
           command: test
 
-  lint-windows:
-    runs-on: windows-latest
-    steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
-          components: rustfmt, clippy
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
-
-  lint-linux:
-    runs-on: ubuntu-latest
+  lint:
+    strategy:
+      matrix:
+        os:
+          - windows-latest
+          - ubuntu-latest
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v2
       - uses: actions-rs/toolchain@v1

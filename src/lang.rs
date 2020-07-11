@@ -19,7 +19,11 @@ pub struct Translator {
 
 impl Translator {
     pub fn window_title(&self) -> String {
-        format!("Ludusavi v{}", env!("CARGO_PKG_VERSION"))
+        let version = option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
+        match option_env!("LUDUSAVI_VARIANT") {
+            Some(variant) => format!("Ludusavi v{} ({})", version, variant),
+            None => format!("Ludusavi v{}", version),
+        }
     }
 
     pub fn handle_error(&self, error: &Error) -> String {
