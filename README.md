@@ -46,11 +46,6 @@ if the standard builds don't work on your system.)
   * When you first run Ludusavi, you may see a popup that says
     "Windows protected your PC", because Windows does not recognize the program's
     publisher. Click "more info" and then "run anyway" to start the program.
-  * If you see an error like "VCRUNTIME140_1.dll was not found", you will need
-    to install or update the Microsoft Visual C++ Redistributable, which you can
-    find [on this support page](https://support.microsoft.com/en-us/help/2977003).
-    * For the 32-bit version of Ludusavi, you'll need the x86 redistributable.
-    * For the 64-bit version of Ludusavi, you'll need the x64 redistributable.
 * If you are on Mac:
   * When you first run Ludusavi, you may see a popup that says
     "Ludusavi can't be opened because it is from an unidentified developer".
@@ -104,6 +99,46 @@ Run `ludusavi --help` for the full usage information.
     parent directories will be created as well before the copy, but if the
     directories already exist, their current files will be left alone (other
     than overwriting the ones that are being restored from the backup).
+
+### Configuration
+Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<your-name>/.config/ludusavi`).
+If you're using the GUI, you don't need to worry about this at all,
+since the GUI will automatically update the config file as needed.
+However, if you're using the CLI, you'll need to edit `config.yaml` directly.
+Here are the available settings (all are required):
+
+* `manifest` (map):
+  * `url` (string): Where to download the primary manifest.
+  * `etag` (string or null): An identifier for the current version of the manifest.
+    This is generated automatically when the manifest is updated.
+* `roots` (list):
+  * Each entry in the list should be a map with these fields:
+    * `path` (string): Where the root is located on your system.
+    * `store` (string): Game store associated with the root.
+      Valid options: `steam`, `other`
+* `backup` (map):
+  * `path` (string): Full path to a directory in which to save backups.
+* `restore` (map):
+  * `path` (string): Full path to a directory from which to restore data.
+
+Example:
+
+```yaml
+manifest:
+  url: "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"
+  etag: null
+roots:
+  - path: "D:/Steam"
+    store: steam
+backup:
+  path: ~/ludusavi-backup
+restore:
+  path: ~/ludusavi-backup
+```
+
+Ludusavi also stores `manifest.yaml` (info on what to back up) here.
+You should not modify that file, because Ludusavi will overwrite your changes
+whenever it downloads a new copy.
 
 ## Comparison with other tools
 There are other excellent backup tools available, but not a singular
