@@ -24,6 +24,8 @@ so you are encouraged to contribute any new or fixed data back to the wiki itsel
 ## Installation
 Ludusavi is available for Windows, Linux, and Mac. However, your computer must
 support one of these graphics systems: Vulkan, DirectX (11 or 12), or Metal.
+(Experimental builds with OpenGL support are also available - give them a try
+if the standard builds don't work on your system.)
 
 * Download the executable for your operating system from the
   [releases page](https://github.com/mtkennerly/ludusavi/releases).
@@ -31,7 +33,8 @@ support one of these graphics systems: Vulkan, DirectX (11 or 12), or Metal.
   on your system.
 
   Alternatively, if you have Rust, you can run `cargo install ludusavi`
-  to do the installation.
+  to do the installation. (On Linux, this requires the `gcc` and `libxcb-composite0-dev`
+  system packages, or the equivalents for your distribution.)
 * If you are on Windows:
   * When you first run Ludusavi, you may see a popup that says
     "Windows protected your PC", because Windows does not recognize the program's

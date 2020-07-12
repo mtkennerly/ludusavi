@@ -20,3 +20,11 @@ support:
   pip install --user pre-commit
   pre-commit install
   ```
+
+### Environment variables
+* `LUDUSAVI_VERSION`:
+  * If set, shown in the window title instead of the Cargo.toml version.
+  * Intended for CI.
+* `LUDUSAVI_VARIANT`:
+  * If set, shown in the window title in parentheses.
+  * Intended for alternative builds, such as for OpenGL support.
