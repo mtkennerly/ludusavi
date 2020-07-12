@@ -130,9 +130,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             if !preview {
                 if !force && crate::path::exists(&backup_dir) {
-                    return Err(crate::prelude::Error::CliBackupTargetExists {
-                        path: backup_dir.to_owned(),
-                    });
+                    return Err(crate::prelude::Error::CliBackupTargetExists { path: backup_dir });
                 } else if let Err(e) = prepare_backup_target(&backup_dir) {
                     return Err(e);
                 }
@@ -156,7 +154,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let mut subjects: Vec<_> = if !&games.is_empty() {
                 games
             } else {
-                manifest.0.keys().map(|k| k.clone()).collect()
+                manifest.0.keys().cloned().collect()
             };
             subjects.sort();
 
@@ -179,14 +177,11 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             let mut total_games = 0;
             for (name, scan_info, backup_info) in info {
-                match show_outcome(&translator, &name, &scan_info, &backup_info, false) {
-                    Some(successful) => {
-                        total_games += 1;
-                        if !successful {
-                            failed = true;
-                        }
+                if let Some(successful) = show_outcome(&translator, &name, &scan_info, &backup_info, false) {
+                    total_games += 1;
+                    if !successful {
+                        failed = true;
                     }
-                    _ => {}
                 };
             }
             eprintln!("{}", translator.cli_summary(total_games, &backup_dir));
@@ -254,14 +249,11 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             let mut total_games = 0;
             for (name, scan_info, backup_info) in info {
-                match show_outcome(&translator, &name, &scan_info, &backup_info, true) {
-                    Some(successful) => {
-                        total_games += 1;
-                        if !successful {
-                            failed = true;
-                        }
+                if let Some(successful) = show_outcome(&translator, &name, &scan_info, &backup_info, true) {
+                    total_games += 1;
+                    if !successful {
+                        failed = true;
                     }
-                    _ => {}
                 };
             }
             eprintln!("{}", translator.cli_summary(total_games, &restore_dir));

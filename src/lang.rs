@@ -46,7 +46,7 @@ impl Translator {
         }
     }
 
-    pub fn cli_unrecognized_games(&self, games: &Vec<String>) -> String {
+    pub fn cli_unrecognized_games(&self, games: &[String]) -> String {
         let prefix = match self.language {
             Language::English => "Unrecognized games:",
         };
