@@ -1,5 +1,7 @@
-use crate::config::RootsConfig;
-use crate::manifest::{Game, Os, Store};
+use crate::{
+    config::RootsConfig,
+    manifest::{Game, Os, Store},
+};
 
 const WINDOWS: bool = cfg!(target_os = "windows");
 const MAC: bool = cfg!(target_os = "macos");
@@ -17,6 +19,18 @@ pub enum Error {
 
     #[error("The config file is invalid: {why:?}")]
     ConfigInvalid { why: String },
+
+    #[error("Target already exists")]
+    CliBackupTargetExists { path: String },
+
+    #[error("Target already exists")]
+    CliUnrecognizedGames { games: Vec<String> },
+
+    #[error("Unable to request confirmation")]
+    CliUnableToRequestConfirmation,
+
+    #[error("Some entries failed")]
+    CliSomeEntriesFailed,
 
     #[error("Cannot prepare the backup target")]
     CannotPrepareBackupTarget { path: String },
@@ -43,7 +57,7 @@ pub struct ScanInfo {
     pub registry_file: Option<std::path::PathBuf>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct BackupInfo {
     pub failed_files: std::collections::HashSet<String>,
     pub failed_registry: std::collections::HashSet<String>,
@@ -292,6 +306,36 @@ pub fn scan_game_for_backup(
         found_registry_keys,
         registry_file: None,
     }
+}
+
+pub fn scan_dir_for_restorable_games(source: &str) -> Vec<(String, String)> {
+    let mut games = vec![];
+    dbg!(&source);
+    for subdir in walkdir::WalkDir::new(crate::path::normalize(&source))
+        .max_depth(1)
+        .follow_links(false)
+        .into_iter()
+        .skip(1) // the restore path itself
+        .filter_map(|e| e.ok())
+    {
+        let path = &subdir.path();
+        let base_name = match path.file_name() {
+            None => continue,
+            Some(x) => x,
+        };
+
+        let decoded_base_name = match base64::decode(base_name.to_string_lossy().as_bytes()) {
+            Err(_) => continue,
+            Ok(x) => x,
+        };
+        let name = match std::str::from_utf8(&decoded_base_name) {
+            Err(_) => continue,
+            Ok(x) => x.to_string(),
+        };
+
+        games.push((name, subdir.path().to_string_lossy().to_string()));
+    }
+    games
 }
 
 pub fn scan_dir_for_restoration(source: &str) -> ScanInfo {

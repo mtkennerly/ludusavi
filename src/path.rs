@@ -1,7 +1,7 @@
 pub fn normalize(path: &str) -> String {
     if path.starts_with('~') {
-        path.replace("\\", "/")
-            .replacen("~", &dirs::home_dir().unwrap().to_string_lossy(), 1)
+        path.replacen("~", &dirs::home_dir().unwrap().to_string_lossy(), 1)
+            .replace("\\", "/")
     } else {
         path.replace("\\", "/")
     }

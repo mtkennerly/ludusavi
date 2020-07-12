@@ -1,5 +1,7 @@
-use crate::manifest::Store;
-use crate::prelude::{app_dir, Error};
+use crate::{
+    manifest::Store,
+    prelude::{app_dir, Error},
+};
 
 const MANIFEST_URL: &str = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
 

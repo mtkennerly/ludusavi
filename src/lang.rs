@@ -1,5 +1,4 @@
-use crate::manifest::Store;
-use crate::prelude::Error;
+use crate::{manifest::Store, prelude::Error};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Language {
@@ -31,9 +30,68 @@ impl Translator {
             Error::ConfigInvalid { why } => self.config_is_invalid(why),
             Error::ManifestInvalid { why } => self.manifest_is_invalid(why),
             Error::ManifestCannotBeUpdated => self.manifest_cannot_be_updated(),
+            Error::CliBackupTargetExists { path } => self.cli_backup_target_exists(path),
+            Error::CliUnrecognizedGames { games } => self.cli_unrecognized_games(games),
+            Error::CliUnableToRequestConfirmation => self.cli_unable_to_request_confirmation(),
+            Error::CliSomeEntriesFailed => self.cli_some_entries_failed(),
             Error::CannotPrepareBackupTarget { path } => self.cannot_prepare_backup_target(path),
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
             Error::RegistryIssue => self.registry_issue(),
+        }
+    }
+
+    pub fn cli_backup_target_exists(&self, path: &str) -> String {
+        match self.language {
+            Language::English => format!("The backup target already exists ( {} ). Either choose a different --target or delete it with --force.", path),
+        }
+    }
+
+    pub fn cli_unrecognized_games(&self, games: &Vec<String>) -> String {
+        let prefix = match self.language {
+            Language::English => "Unrecognized games:",
+        };
+        let lines: Vec<_> = games.iter().map(|x| format!("  - {}", x)).collect();
+        format!("{}\n{}", prefix, lines.join("\n"))
+    }
+
+    pub fn cli_confirm_restoration(&self, path: &str) -> String {
+        match self.language {
+            Language::English => format!("Do you want to restore from {}?", path),
+        }
+    }
+
+    pub fn cli_unable_to_request_confirmation(&self) -> String {
+        #[cfg(target_os = "windows")]
+        let extra_note: String = match self.language {
+            Language::English => "If you are using a Bash emulator (like Git Bash), try running winpty.",
+        }
+        .into();
+
+        #[cfg(not(target_os = "windows"))]
+        let extra_note = "";
+
+        match self.language {
+            Language::English => format!("Unable to request confirmation. {}", extra_note),
+        }
+    }
+
+    pub fn cli_some_entries_failed(&self) -> String {
+        match self.language {
+            Language::English => "Some entries failed to process. See the output above for details.",
+        }
+        .into()
+    }
+
+    pub fn cli_label_failed(&self) -> String {
+        match self.language {
+            Language::English => "[FAILED]",
+        }
+        .into()
+    }
+
+    pub fn cli_summary(&self, total_games: i32, location: &str) -> String {
+        match self.language {
+            Language::English => format!("\nOverall:\n  Games: {}\n  Location: {}", total_games, location),
         }
     }
 

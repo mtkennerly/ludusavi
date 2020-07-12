@@ -1,5 +1,7 @@
-use crate::config::Config;
-use crate::prelude::{app_dir, Error};
+use crate::{
+    config::Config,
+    prelude::{app_dir, Error},
+};
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Os {
@@ -97,8 +99,10 @@ impl Manifest {
         path
     }
 
-    pub fn load(config: &mut Config) -> Result<Self, Error> {
-        Self::update(config)?;
+    pub fn load(config: &mut Config, update: bool) -> Result<Self, Error> {
+        if update || !crate::path::exists(&crate::path::render_pathbuf(&Self::file())) {
+            Self::update(config)?;
+        }
         let content = std::fs::read_to_string(Self::file()).unwrap();
         serde_yaml::from_str(&content).map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })
     }

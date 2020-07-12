@@ -1,11 +1,13 @@
-use crate::config::{Config, RootsConfig};
-use crate::lang::Translator;
-use crate::manifest::{Manifest, SteamMetadata, Store};
-use crate::prelude::{
-    app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_dir_for_restoration,
-    scan_game_for_backup, Error, ScanInfo,
+use crate::{
+    config::{Config, RootsConfig},
+    lang::Translator,
+    manifest::{Manifest, SteamMetadata, Store},
+    prelude::{
+        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
+        scan_dir_for_restoration, scan_game_for_backup, Error, ScanInfo,
+    },
+    shortcuts::{Shortcut, TextHistory},
 };
-use crate::shortcuts::{Shortcut, TextHistory};
 
 use iced::{
     button, executor, scrollable, text_input, Align, Application, Button, Column, Command, Container, Element,
@@ -615,7 +617,7 @@ impl Application for App {
                 Config::default()
             }
         };
-        let manifest = match Manifest::load(&mut config) {
+        let manifest = match Manifest::load(&mut config, true) {
             Ok(x) => x,
             Err(x) => {
                 modal_theme = Some(ModalTheme::Error { variant: x });

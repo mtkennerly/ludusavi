@@ -15,11 +15,18 @@ so you are encouraged to contribute any new or fixed data back to the wiki itsel
 * Ability to back up data from more than 7,000 games.
 * Backup and restore for Steam as well as other game libraries.
 * Preview of the backup/restore before actually performing it.
-* Support for saves that are stored as files and in the Windows registry.
-* Support for Proton saves with Steam.
-* Support for Steam screenshots.
+* Both a graphical interface and command line interface for scripting.
+* Support for:
+  * Saves that are stored as files and in the Windows registry.
+  * Proton saves with Steam.
+  * Steam screenshots.
 
-> ![Demo of previewing a backup](docs/demo.gif)
+## Demo
+### GUI
+> ![GUI demo of previewing a backup](docs/demo-gui.gif)
+
+### CLI
+> ![CLI demo of previewing a backup](docs/demo-cli.gif)
 
 ## Installation
 Ludusavi is available for Windows, Linux, and Mac. However, your computer must
@@ -51,7 +58,11 @@ if the standard builds don't work on your system.)
     specifically the section on `How to open an app [...] from an unidentified developer`.
 
 ## Usage
-### Backup mode
+### CLI
+Run `ludusavi --help` for the full usage information.
+
+### GUI
+#### Backup mode
 * This is the default mode when you open the program.
 * You can press `preview` to see what the backup will include,
   without actually performing it.
@@ -83,7 +94,7 @@ if the standard builds don't work on your system.)
     `D:/Epic` and it creates a subfolder for `D:/Epic/Celeste`, then the root
     would be `D:/Epic`).
 
-### Restore mode
+#### Restore mode
 * Switch to restore mode by clicking the `=> restore` button.
 * You can press `preview` to see what the restore will include,
   without actually performing it.
@@ -98,14 +109,16 @@ if the standard builds don't work on your system.)
 There are other excellent backup tools available, but not a singular
 cross-platform and cross-store solution:
 
-* [GameSave Manager](https://www.gamesave-manager.com):
+* [GameSave Manager](https://www.gamesave-manager.com) (as of v3.1.471.0):
   * Only supports Windows.
   * Closed source, so the community cannot contribute improvements.
   * Interface can be slow or unresponsive; e.g., when (de)selecting all checkboxes,
     it takes half a second per checkbox for them all to toggle.
-* [Gaming Backup Multitool for Linux](https://supremesonicbrazil.gitlab.io/gbml-web)
+  * No command line interface.
+* [Gaming Backup Multitool for Linux](https://supremesonicbrazil.gitlab.io/gbml-web) (as of v1.4.0.0):
   * Only supports Linux and Steam.
   * Database is not actively updated (as of 2020-06-20, the last update was 2018-06-05).
+  * No command line interface.
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
