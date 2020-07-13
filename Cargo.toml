@@ -14,8 +14,8 @@ copypasta = "0.7.0"
 dialoguer = "0.6.2"
 dirs = "3.0.0"
 glob = "0.3.0"
-iced = "0.1.1"
-iced_native = "0.2.2"
+iced = { version = "0.1.1", git = "https://github.com/hecrj/iced", rev = "62ec03a0afe8566a8f0b06675990a83fd65de1a9", features = ["glow"] }
+iced_native = { version = "0.2.2", git = "https://github.com/hecrj/iced", rev = "62ec03a0afe8566a8f0b06675990a83fd65de1a9" }
 indicatif = { version = "0.15.0", features = ["rayon"] }
 itertools = "0.9.0"
 rayon = "1.3.1"

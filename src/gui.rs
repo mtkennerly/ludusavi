@@ -893,48 +893,18 @@ impl Application for App {
             }
             Message::SubscribedEvent(event) => {
                 if let iced_native::Event::Keyboard(key) = event {
-                    if let iced_native::input::keyboard::Event::Input {
-                        state,
-                        key_code,
-                        modifiers,
-                    } = key
-                    {
+                    if let iced_native::keyboard::Event::KeyPressed { key_code, modifiers } = key {
                         let activated = if cfg!(target_os = "mac") {
                             modifiers.logo || modifiers.control
                         } else {
                             modifiers.control
                         };
-                        let shortcut = match (key_code, state, activated, modifiers.shift) {
-                            (
-                                iced_native::input::keyboard::KeyCode::Z,
-                                iced_native::input::ButtonState::Pressed,
-                                true,
-                                false,
-                            ) => Some(Shortcut::Undo),
-                            (
-                                iced_native::input::keyboard::KeyCode::Y,
-                                iced_native::input::ButtonState::Pressed,
-                                true,
-                                false,
-                            )
-                            | (
-                                iced_native::input::keyboard::KeyCode::Z,
-                                iced_native::input::ButtonState::Pressed,
-                                true,
-                                true,
-                            ) => Some(Shortcut::Redo),
-                            (
-                                iced_native::input::keyboard::KeyCode::C,
-                                iced_native::input::ButtonState::Pressed,
-                                true,
-                                false,
-                            ) => Some(Shortcut::ClipboardCopy),
-                            (
-                                iced_native::input::keyboard::KeyCode::X,
-                                iced_native::input::ButtonState::Pressed,
-                                true,
-                                false,
-                            ) => Some(Shortcut::ClipboardCut),
+                        let shortcut = match (key_code, activated, modifiers.shift) {
+                            (iced_native::keyboard::KeyCode::Z, true, false) => Some(Shortcut::Undo),
+                            (iced_native::keyboard::KeyCode::Y, true, false)
+                            | (iced_native::keyboard::KeyCode::Z, true, true) => Some(Shortcut::Redo),
+                            (iced_native::keyboard::KeyCode::C, true, false) => Some(Shortcut::ClipboardCopy),
+                            (iced_native::keyboard::KeyCode::X, true, false) => Some(Shortcut::ClipboardCut),
                             _ => None,
                         };
 
