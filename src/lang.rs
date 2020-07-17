@@ -37,6 +37,7 @@ impl Translator {
             Error::CannotPrepareBackupTarget { path } => self.cannot_prepare_backup_target(path),
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
             Error::RegistryIssue => self.registry_issue(),
+            Error::UnableToBrowseFileSystem => self.unable_to_browse_file_system(),
         }
     }
 
@@ -165,6 +166,13 @@ impl Translator {
         .into()
     }
 
+    pub fn browse_button(&self) -> String {
+        match self.language {
+            Language::English => "Browse",
+        }
+        .into()
+    }
+
     pub fn okay_button(&self) -> String {
         match self.language {
             Language::English => "Okay",
@@ -215,6 +223,13 @@ impl Translator {
     pub fn registry_issue(&self) -> String {
         match self.language {
             Language::English => "Error: Some registry entries were skipped.",
+        }
+        .into()
+    }
+
+    pub fn unable_to_browse_file_system(&self) -> String {
+        match self.language {
+            Language::English => "Error: Unable to browse on your system.",
         }
         .into()
     }

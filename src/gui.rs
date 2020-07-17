@@ -13,6 +13,7 @@ use iced::{
     button, executor, scrollable, text_input, Align, Application, Button, Column, Command, Container, Element,
     HorizontalAlignment, Length, ProgressBar, Radio, Row, Scrollable, Space, Subscription, Text, TextInput,
 };
+use native_dialog::Dialog;
 
 #[derive(Default)]
 struct App {
@@ -49,6 +50,9 @@ enum Message {
     SwitchScreenToRestore,
     SwitchScreenToBackup,
     ToggleGameListEntryExpanded { name: String },
+    BrowseBackupTarget,
+    BrowseRestoreSource,
+    BrowseDirFailure,
     SubscribedEvent(iced_native::Event),
 }
 
@@ -349,6 +353,7 @@ struct BackupScreenComponent {
     add_root_button: button::State,
     backup_target_input: text_input::State,
     backup_target_history: TextHistory,
+    backup_target_browse_button: button::State,
     root_editor: RootEditor,
     progress: DisappearingProgress,
 }
@@ -456,9 +461,9 @@ impl BackupScreenComponent {
                 .push(
                     Row::new()
                         .padding(20)
+                        .spacing(20)
                         .align_items(Align::Center)
                         .push(Text::new(translator.backup_target_label()))
-                        .push(Space::new(Length::Units(20), Length::Units(0)))
                         .push(
                             TextInput::new(
                                 &mut self.backup_target_input,
@@ -467,6 +472,21 @@ impl BackupScreenComponent {
                                 Message::EditedBackupTarget,
                             )
                             .padding(5),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.backup_target_browse_button,
+                                Text::new(translator.browse_button()).horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(match operation {
+                                None => Message::BrowseBackupTarget,
+                                Some(_) => Message::Ignore,
+                            })
+                            .width(Length::Units(125))
+                            .style(match operation {
+                                None => style::Button::Primary,
+                                Some(_) => style::Button::Disabled,
+                            }),
                         ),
                 )
                 .push(self.root_editor.view(&config, &translator))
@@ -489,6 +509,7 @@ struct RestoreScreenComponent {
     nav_button: button::State,
     restore_source_input: text_input::State,
     restore_source_history: TextHistory,
+    restore_source_browse_button: button::State,
     progress: DisappearingProgress,
 }
 
@@ -579,9 +600,9 @@ impl RestoreScreenComponent {
                 .push(
                     Row::new()
                         .padding(20)
+                        .spacing(20)
                         .align_items(Align::Center)
                         .push(Text::new(translator.restore_source_label()))
-                        .push(Space::new(Length::Units(20), Length::Units(0)))
                         .push(
                             TextInput::new(
                                 &mut self.restore_source_input,
@@ -590,6 +611,21 @@ impl RestoreScreenComponent {
                                 Message::EditedRestoreSource,
                             )
                             .padding(5),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.restore_source_browse_button,
+                                Text::new(translator.browse_button()).horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(match operation {
+                                None => Message::BrowseRestoreSource,
+                                Some(_) => Message::Ignore,
+                            })
+                            .width(Length::Units(125))
+                            .style(match operation {
+                                None => style::Button::Primary,
+                                Some(_) => style::Button::Disabled,
+                            }),
                         ),
                 )
                 .push(Space::new(Length::Units(0), Length::Units(30)))
@@ -889,6 +925,28 @@ impl Application for App {
                         }
                     }
                 }
+                Command::none()
+            }
+            Message::BrowseBackupTarget => Command::perform(
+                async move { native_dialog::OpenSingleDir { dir: None }.show() },
+                |choice| match choice {
+                    Ok(Some(path)) => Message::EditedBackupTarget(path),
+                    Ok(None) => Message::Ignore,
+                    Err(_) => Message::BrowseDirFailure,
+                },
+            ),
+            Message::BrowseRestoreSource => Command::perform(
+                async move { native_dialog::OpenSingleDir { dir: None }.show() },
+                |choice| match choice {
+                    Ok(Some(path)) => Message::EditedRestoreSource(path),
+                    Ok(None) => Message::Ignore,
+                    Err(_) => Message::BrowseDirFailure,
+                },
+            ),
+            Message::BrowseDirFailure => {
+                self.modal_theme = Some(ModalTheme::Error {
+                    variant: Error::UnableToBrowseFileSystem,
+                });
                 Command::none()
             }
             Message::SubscribedEvent(event) => {

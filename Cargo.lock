@@ -1389,6 +1389,7 @@ dependencies = [
  "iced_native",
  "indicatif",
  "itertools",
+ "native-dialog",
  "rayon",
  "reqwest",
  "serde",
@@ -1539,6 +1540,20 @@ dependencies = [
  "net2",
  "winapi 0.2.8",
  "ws2_32-sys",
+]
+
+[[package]]
+name = "native-dialog"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5a9a63b870dd16781bf3cde0ce248a0f95f7fba14600f2a4eb9dc7d3556d179f"
+dependencies = [
+ "osascript",
+ "serde",
+ "thiserror",
+ "wfd",
+ "which",
+ "winapi 0.3.9",
 ]
 
 [[package]]
@@ -1724,6 +1739,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3741934be594d77de1c8461ebcbbe866f585ea616a9753aa78f2bdc69f0e4579"
 dependencies = [
  "num-traits",
+]
+
+[[package]]
+name = "osascript"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "38731fa859ef679f1aec66ca9562165926b442f298467f76f5990f431efe87dc"
+dependencies = [
+ "serde",
+ "serde_derive",
+ "serde_json",
 ]
 
 [[package]]
@@ -3048,6 +3074,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "wfd"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4aaa0bb6b0ffd1eb2c9d6ebe93536cdb7499d8cffe57cf8355b8b2b511596c2c"
+dependencies = [
+ "libc",
+ "winapi 0.3.9",
+]
+
+[[package]]
 name = "wgpu"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3094,6 +3130,16 @@ dependencies = [
  "glyph_brush",
  "log",
  "wgpu",
+]
+
+[[package]]
+name = "which"
+version = "4.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b5fe1a9cb33fe7cf77d431070d0223e544b1e4e7f7764bad0a3e691a6678a131"
+dependencies = [
+ "libc",
+ "thiserror",
 ]
 
 [[package]]

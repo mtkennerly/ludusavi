@@ -41,6 +41,9 @@ pub enum Error {
     #[allow(dead_code)]
     #[error("Error while working with the registry")]
     RegistryIssue,
+
+    #[error("Unable to browse file system")]
+    UnableToBrowseFileSystem,
 }
 
 #[derive(Clone, Debug, thiserror::Error)]
