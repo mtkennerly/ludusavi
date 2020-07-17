@@ -1,3 +1,7 @@
+## Unreleased
+
+* Added a browse button for folders.
+
 ## v0.3.0 (2020-07-12)
 
 * Added command line interface.

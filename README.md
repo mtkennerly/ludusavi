@@ -34,14 +34,20 @@ support one of these graphics systems: Vulkan, DirectX (11 or 12), or Metal.
 (Experimental builds with OpenGL support are also available - give them a try
 if the standard builds don't work on your system.)
 
+You can install Ludusavi one of these ways:
+
 * Download the executable for your operating system from the
   [releases page](https://github.com/mtkennerly/ludusavi/releases).
   It's portable, so you can simply download it and put it anywhere
   on your system.
+  **If you're unsure, choose this option.**
 
-  Alternatively, if you have Rust, you can run `cargo install ludusavi`
-  to do the installation. (On Linux, this requires the `gcc` and `libxcb-composite0-dev`
-  system packages, or the equivalents for your distribution.)
+* If you have Rust, you can run `cargo install ludusavi`. On Linux, this requires
+  the following system packages, or their equivalents for your distribution:
+    * Ubuntu: `sudo apt-get install -y gcc cmake libx11-dev libxcb-composite0-dev libfreetype6-dev libexpat1-dev libfontconfig1-dev`
+
+Some things to look out for:
+
 * If you are on Windows:
   * When you first run Ludusavi, you may see a popup that says
     "Windows protected your PC", because Windows does not recognize the program's
