@@ -1,6 +1,9 @@
 ## Unreleased
 
 * Added a browse button for folders.
+* Replaced the "=> Restore" and "=> Backup" buttons with a navigation bar.
+* Redesigned confirmation and error screens so that the buttons are shown below
+  the text, which helps to prevent any accidental clicks before reading.
 
 ## v0.3.0 (2020-07-12)
 

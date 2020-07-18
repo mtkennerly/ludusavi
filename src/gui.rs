@@ -146,36 +146,50 @@ impl ModalComponent {
         Container::new(
             Column::new()
                 .padding(5)
+                .width(Length::Fill)
                 .align_items(Align::Center)
-                .push(match theme {
-                    ModalTheme::Error { .. } => Row::new()
-                        .padding(20)
-                        .spacing(20)
-                        .align_items(Align::Center)
-                        .push(positive_button),
-                    _ => Row::new()
-                        .padding(20)
-                        .spacing(20)
-                        .align_items(Align::Center)
-                        .push(positive_button)
-                        .push(negative_button),
-                })
                 .push(
-                    Row::new()
-                        .padding(20)
-                        .spacing(20)
+                    Container::new(Space::new(Length::Shrink, Length::Shrink))
+                        .width(Length::Fill)
+                        .height(Length::FillPortion(1))
+                        .style(style::Container::ModalBackground),
+                )
+                .push(
+                    Column::new()
+                        .height(Length::FillPortion(2))
                         .align_items(Align::Center)
-                        .push(Text::new(match theme {
-                            ModalTheme::Error { variant } => translator.handle_error(variant),
-                            ModalTheme::ConfirmBackup => translator.modal_confirm_backup(
-                                &crate::path::absolute(&config.backup.path),
-                                crate::path::exists(&config.backup.path),
-                            ),
-                            ModalTheme::ConfirmRestore => {
-                                translator.modal_confirm_restore(&crate::path::absolute(&config.restore.path))
+                        .push(
+                            Row::new()
+                                .padding(20)
+                                .align_items(Align::Center)
+                                .push(Text::new(match theme {
+                                    ModalTheme::Error { variant } => translator.handle_error(variant),
+                                    ModalTheme::ConfirmBackup => translator.modal_confirm_backup(
+                                        &crate::path::absolute(&config.backup.path),
+                                        crate::path::exists(&config.backup.path),
+                                    ),
+                                    ModalTheme::ConfirmRestore => {
+                                        translator.modal_confirm_restore(&crate::path::absolute(&config.restore.path))
+                                    }
+                                }))
+                                .height(Length::Fill),
+                        )
+                        .push(
+                            match theme {
+                                ModalTheme::Error { .. } => Row::new().push(positive_button),
+                                _ => Row::new().push(positive_button).push(negative_button),
                             }
-                        }))
-                        .height(Length::Fill),
+                            .padding(20)
+                            .spacing(20)
+                            .height(Length::Fill)
+                            .align_items(Align::Center),
+                        ),
+                )
+                .push(
+                    Container::new(Space::new(Length::Shrink, Length::Shrink))
+                        .width(Length::Fill)
+                        .height(Length::FillPortion(1))
+                        .style(style::Container::ModalBackground),
                 ),
         )
         .height(Length::Fill)
@@ -1178,6 +1192,7 @@ mod style {
     }
 
     pub enum Container {
+        ModalBackground,
         GameListEntry,
         GameListEntryTitle,
         GameListEntryBody,
@@ -1187,6 +1202,7 @@ mod style {
         fn style(&self) -> container::Style {
             container::Style {
                 background: match self {
+                    Container::ModalBackground => Some(Background::Color(Color::from_rgb8(230, 230, 230))),
                     Container::GameListEntryTitle => Some(Background::Color(Color::from_rgb8(230, 230, 230))),
                     _ => None,
                 },
