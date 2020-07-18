@@ -10,10 +10,32 @@ use crate::{
 };
 
 use iced::{
-    button, executor, scrollable, text_input, Align, Application, Button, Column, Command, Container, Element,
-    HorizontalAlignment, Length, ProgressBar, Radio, Row, Scrollable, Space, Subscription, Text, TextInput,
+    button, executor,
+    keyboard::{KeyCode, ModifiersState},
+    scrollable, text_input, Align, Application, Button, Column, Command, Container, Element, HorizontalAlignment,
+    Length, ProgressBar, Radio, Row, Scrollable, Space, Subscription, Text, TextInput,
 };
 use native_dialog::Dialog;
+
+#[realia::dep_from_registry("ludusavi", "iced_native")]
+fn get_key_pressed(event: iced_native::input::keyboard::Event) -> Option<(KeyCode, ModifiersState)> {
+    match event {
+        iced_native::input::keyboard::Event::Input {
+            state,
+            key_code,
+            modifiers,
+        } if state == iced_native::input::ButtonState::Pressed => Some((key_code, modifiers)),
+        _ => None,
+    }
+}
+
+#[realia::not(dep_from_registry("ludusavi", "iced_native"))]
+fn get_key_pressed(event: iced_native::keyboard::Event) -> Option<(KeyCode, ModifiersState)> {
+    match event {
+        iced_native::keyboard::Event::KeyPressed { key_code, modifiers } => Some((key_code, modifiers)),
+        _ => None,
+    }
+}
 
 #[derive(Default)]
 struct App {
@@ -282,6 +304,8 @@ impl RootEditor {
                         parent
                             .push(
                                 Row::new()
+                                    .spacing(20)
+                                    .push(Space::new(Length::Units(0), Length::Units(0)))
                                     .push(
                                         Button::new(
                                             &mut x.button_state,
@@ -292,7 +316,6 @@ impl RootEditor {
                                         .on_press(Message::RemoveRoot(i))
                                         .style(style::Button::Negative),
                                     )
-                                    .push(Space::new(Length::Units(20), Length::Units(0)))
                                     .push(
                                         TextInput::new(&mut x.text_state, "", &roots[i].path, move |v| {
                                             Message::EditedRootPath(i, v)
@@ -300,7 +323,6 @@ impl RootEditor {
                                         .width(Length::FillPortion(3))
                                         .padding(5),
                                     )
-                                    .push(Space::new(Length::Units(20), Length::Units(0)))
                                     .push({
                                         Radio::new(
                                             Store::Steam,
@@ -316,7 +338,8 @@ impl RootEditor {
                                             Some(roots[i].store),
                                             move |v| Message::EditedRootStore(i, v),
                                         )
-                                    }),
+                                    })
+                                    .push(Space::new(Length::Units(0), Length::Units(0))),
                             )
                             .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
                     },
@@ -951,48 +974,17 @@ impl Application for App {
             }
             Message::SubscribedEvent(event) => {
                 if let iced_native::Event::Keyboard(key) = event {
-                    if let iced_native::input::keyboard::Event::Input {
-                        state,
-                        key_code,
-                        modifiers,
-                    } = key
-                    {
+                    if let Some((key_code, modifiers)) = get_key_pressed(key) {
                         let activated = if cfg!(target_os = "mac") {
                             modifiers.logo || modifiers.control
                         } else {
                             modifiers.control
                         };
-                        let shortcut = match (key_code, state, activated, modifiers.shift) {
-                            (
-                                iced_native::input::keyboard::KeyCode::Z,
-                                iced_native::input::ButtonState::Pressed,
-                                true,
-                                false,
-                            ) => Some(Shortcut::Undo),
-                            (
-                                iced_native::input::keyboard::KeyCode::Y,
-                                iced_native::input::ButtonState::Pressed,
-                                true,
-                                false,
-                            )
-                            | (
-                                iced_native::input::keyboard::KeyCode::Z,
-                                iced_native::input::ButtonState::Pressed,
-                                true,
-                                true,
-                            ) => Some(Shortcut::Redo),
-                            (
-                                iced_native::input::keyboard::KeyCode::C,
-                                iced_native::input::ButtonState::Pressed,
-                                true,
-                                false,
-                            ) => Some(Shortcut::ClipboardCopy),
-                            (
-                                iced_native::input::keyboard::KeyCode::X,
-                                iced_native::input::ButtonState::Pressed,
-                                true,
-                                false,
-                            ) => Some(Shortcut::ClipboardCut),
+                        let shortcut = match (key_code, activated, modifiers.shift) {
+                            (KeyCode::Z, true, false) => Some(Shortcut::Undo),
+                            (KeyCode::Y, true, false) | (KeyCode::Z, true, true) => Some(Shortcut::Redo),
+                            (KeyCode::C, true, false) => Some(Shortcut::ClipboardCopy),
+                            (KeyCode::X, true, false) => Some(Shortcut::ClipboardCut),
                             _ => None,
                         };
 
