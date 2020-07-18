@@ -47,6 +47,8 @@ struct App {
     modal_theme: Option<ModalTheme>,
     original_working_dir: std::path::PathBuf,
     modal: ModalComponent,
+    nav_to_backup_button: button::State,
+    nav_to_restore_button: button::State,
     backup_screen: BackupScreenComponent,
     restore_screen: RestoreScreenComponent,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -372,7 +374,6 @@ struct BackupScreenComponent {
     log: GameList,
     start_button: button::State,
     preview_button: button::State,
-    nav_button: button::State,
     add_root_button: button::State,
     backup_target_input: text_input::State,
     backup_target_history: TextHistory,
@@ -463,16 +464,6 @@ impl BackupScreenComponent {
                             .on_press(Message::AddRoot)
                             .width(Length::Units(125))
                             .style(style::Button::Primary),
-                        )
-                        .push(
-                            Button::new(
-                                &mut self.nav_button,
-                                Text::new(translator.nav_restore_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::SwitchScreenToRestore)
-                            .width(Length::Units(125))
-                            .style(style::Button::Navigation),
                         ),
                 )
                 .push(
@@ -529,7 +520,6 @@ struct RestoreScreenComponent {
     log: GameList,
     start_button: button::State,
     preview_button: button::State,
-    nav_button: button::State,
     restore_source_input: text_input::State,
     restore_source_history: TextHistory,
     restore_source_browse_button: button::State,
@@ -602,16 +592,6 @@ impl RestoreScreenComponent {
                                 Some(OngoingOperation::Restore) => style::Button::Negative,
                                 _ => style::Button::Disabled,
                             }),
-                        )
-                        .push(
-                            Button::new(
-                                &mut self.nav_button,
-                                Text::new(translator.nav_backup_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::SwitchScreenToBackup)
-                            .width(Length::Units(125))
-                            .style(style::Button::Navigation),
                         ),
                 )
                 .push(
@@ -1083,13 +1063,47 @@ impl Application for App {
             return self.modal.view(m, &self.config, &self.translator).into();
         }
 
-        match self.screen {
-            Screen::Backup => self.backup_screen.view(&self.config, &self.translator, &self.operation),
-            Screen::Restore => self
-                .restore_screen
-                .view(&self.config, &self.translator, &self.operation),
-        }
-        .into()
+        Column::new()
+            .align_items(Align::Center)
+            .push(
+                Row::new()
+                    .spacing(20)
+                    .push(
+                        Button::new(
+                            &mut self.nav_to_backup_button,
+                            Text::new(self.translator.nav_backup_button())
+                                .size(16)
+                                .horizontal_alignment(HorizontalAlignment::Center),
+                        )
+                        .on_press(Message::SwitchScreenToBackup)
+                        .width(Length::Units(200))
+                        .style(match self.screen {
+                            Screen::Backup => style::NavButton::Active,
+                            _ => style::NavButton::Inactive,
+                        }),
+                    )
+                    .push(
+                        Button::new(
+                            &mut self.nav_to_restore_button,
+                            Text::new(self.translator.nav_restore_button())
+                                .size(16)
+                                .horizontal_alignment(HorizontalAlignment::Center),
+                        )
+                        .on_press(Message::SwitchScreenToRestore)
+                        .width(Length::Units(200))
+                        .style(match self.screen {
+                            Screen::Restore => style::NavButton::Active,
+                            _ => style::NavButton::Inactive,
+                        }),
+                    ),
+            )
+            .push(match self.screen {
+                Screen::Backup => self.backup_screen.view(&self.config, &self.translator, &self.operation),
+                Screen::Restore => self
+                    .restore_screen
+                    .view(&self.config, &self.translator, &self.operation),
+            })
+            .into()
     }
 }
 
@@ -1100,7 +1114,6 @@ mod style {
         Primary,
         Disabled,
         Negative,
-        Navigation,
         GameListEntryTitle,
     }
     impl button::StyleSheet for Button {
@@ -1111,7 +1124,6 @@ mod style {
                     Button::GameListEntryTitle => Some(Background::Color(Color::from_rgb8(77, 127, 201))),
                     Button::Disabled => Some(Background::Color(Color::from_rgb8(169, 169, 169))),
                     Button::Negative => Some(Background::Color(Color::from_rgb8(255, 0, 0))),
-                    Button::Navigation => Some(Background::Color(Color::from_rgb8(136, 0, 219))),
                 },
                 border_radius: match self {
                     Button::GameListEntryTitle => 10,
@@ -1127,6 +1139,39 @@ mod style {
             button::Style {
                 text_color: Color::WHITE,
                 shadow_offset: Vector::new(1.0, 2.0),
+                ..self.active()
+            }
+        }
+    }
+
+    pub enum NavButton {
+        Active,
+        Inactive,
+    }
+    impl button::StyleSheet for NavButton {
+        fn active(&self) -> button::Style {
+            button::Style {
+                background: match self {
+                    Self::Active => Some(Background::Color(Color::from_rgba8(136, 0, 219, 0.9))),
+                    Self::Inactive => Some(Background::Color(Color::TRANSPARENT)),
+                },
+                border_radius: 10,
+                border_width: 1,
+                border_color: Color::from_rgb8(136, 0, 219),
+                text_color: match self {
+                    Self::Active => Color::WHITE,
+                    Self::Inactive => Color::BLACK,
+                },
+                ..button::Style::default()
+            }
+        }
+
+        fn hovered(&self) -> button::Style {
+            button::Style {
+                background: match self {
+                    Self::Active => Some(Background::Color(Color::from_rgba8(136, 0, 219, 0.95))),
+                    Self::Inactive => Some(Background::Color(Color::from_rgba8(136, 0, 219, 0.2))),
+                },
                 ..self.active()
             }
         }

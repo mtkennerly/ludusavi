@@ -119,14 +119,14 @@ impl Translator {
 
     pub fn nav_backup_button(&self) -> String {
         match self.language {
-            Language::English => "=> Backup",
+            Language::English => "BACKUP MODE",
         }
         .into()
     }
 
     pub fn nav_restore_button(&self) -> String {
         match self.language {
-            Language::English => "=> Restore",
+            Language::English => "RESTORE MODE",
         }
         .into()
     }
