@@ -52,17 +52,23 @@ pub enum OtherError {
     BadRestorationTarget,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct ScannedFile {
+    pub path: String,
+    pub size: u64,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ScanInfo {
     pub game_name: String,
-    pub found_files: std::collections::HashSet<String>,
+    pub found_files: std::collections::HashSet<ScannedFile>,
     pub found_registry_keys: std::collections::HashSet<String>,
     pub registry_file: Option<std::path::PathBuf>,
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct BackupInfo {
-    pub failed_files: std::collections::HashSet<String>,
+    pub failed_files: std::collections::HashSet<ScannedFile>,
     pub failed_registry: std::collections::HashSet<String>,
 }
 
@@ -273,7 +279,13 @@ pub fn scan_game_for_backup(
             let plain = entry.to_string_lossy().to_string().replace("\\", "/");
             let p = std::path::Path::new(&plain);
             if p.is_file() {
-                found_files.insert(plain);
+                found_files.insert(ScannedFile {
+                    path: plain.clone(),
+                    size: match p.metadata() {
+                        Ok(m) => m.len(),
+                        _ => 0,
+                    },
+                });
             } else if p.is_dir() {
                 for child in walkdir::WalkDir::new(p)
                     .max_depth(100)
@@ -282,7 +294,13 @@ pub fn scan_game_for_backup(
                     .filter_map(|e| e.ok())
                 {
                     if child.file_type().is_file() {
-                        found_files.insert(child.path().display().to_string().replace("\\", "/"));
+                        found_files.insert(ScannedFile {
+                            path: child.path().display().to_string().replace("\\", "/"),
+                            size: match child.metadata() {
+                                Ok(m) => m.len(),
+                                _ => 0,
+                            },
+                        });
                     }
                 }
             }
@@ -313,7 +331,6 @@ pub fn scan_game_for_backup(
 
 pub fn scan_dir_for_restorable_games(source: &str) -> Vec<(String, String)> {
     let mut games = vec![];
-    dbg!(&source);
     for subdir in walkdir::WalkDir::new(crate::path::normalize(&source))
         .max_depth(1)
         .follow_links(false)
@@ -380,7 +397,13 @@ pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
         {
             if child.file_type().is_file() {
                 let source = child.path().display().to_string().replace("\\", "/");
-                found_files.insert(source);
+                found_files.insert(ScannedFile {
+                    path: source,
+                    size: match child.metadata() {
+                        Ok(m) => m.len(),
+                        _ => 0,
+                    },
+                });
             }
         }
     }
@@ -431,13 +454,13 @@ pub fn back_up_game(info: &ScanInfo, target: &str, name: &str) -> BackupInfo {
     for file in &info.found_files {
         let target_game = game_backup_dir(&target, &name);
         if !target_game.as_path().is_dir() && std::fs::create_dir(target_game).is_err() {
-            failed_files.insert(file.to_string());
+            failed_files.insert(file.clone());
             continue;
         }
 
-        let target_file = game_file_backup_target(&target, &name, &file);
-        if std::fs::copy(&file, &target_file).is_err() {
-            failed_files.insert(file.to_string());
+        let target_file = game_file_backup_target(&target, &name, &file.path);
+        if std::fs::copy(&file.path, &target_file).is_err() {
+            failed_files.insert(file.clone());
             continue;
         }
     }
@@ -471,20 +494,20 @@ pub fn restore_game(info: &ScanInfo) -> BackupInfo {
     let failed_registry = std::collections::HashSet::new();
 
     for file in &info.found_files {
-        match game_file_restoration_target(&file) {
+        match game_file_restoration_target(&file.path) {
             Err(_) => {
-                failed_files.insert(file.to_string());
+                failed_files.insert(file.clone());
                 continue;
             }
             Ok(target) => {
                 let mut p = std::path::PathBuf::from(&target);
                 p.pop();
                 if std::fs::create_dir_all(&p.as_path().display().to_string()).is_err() {
-                    failed_files.insert(file.to_string());
+                    failed_files.insert(file.clone());
                     continue;
                 }
-                if std::fs::copy(file, target).is_err() {
-                    failed_files.insert(file.to_string());
+                if std::fs::copy(&file.path, target).is_err() {
+                    failed_files.insert(file.clone());
                     continue;
                 }
             }

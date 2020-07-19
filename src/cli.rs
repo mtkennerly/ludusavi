@@ -85,12 +85,16 @@ fn show_outcome(
     }
 
     let mut successful = true;
-    println!("{}:", &name);
+    println!(
+        "{} [{}]:",
+        &name,
+        translator.mib(scan_info.found_files.iter().map(|x| x.size).sum::<u64>(), false)
+    );
     for entry in itertools::sorted(&scan_info.found_files) {
         let readable = if restoring {
-            game_file_restoration_target(entry).unwrap()
+            game_file_restoration_target(&entry.path).unwrap()
         } else {
-            entry.to_owned()
+            entry.path.to_owned()
         };
         if backup_info.failed_files.contains(entry) {
             successful = false;
@@ -176,15 +180,17 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .collect();
 
             let mut total_games = 0;
+            let mut total_bytes = 0;
             for (name, scan_info, backup_info) in info {
                 if let Some(successful) = show_outcome(&translator, &name, &scan_info, &backup_info, false) {
                     total_games += 1;
+                    total_bytes += scan_info.found_files.iter().map(|x| x.size).sum::<u64>();
                     if !successful {
                         failed = true;
                     }
                 };
             }
-            eprintln!("{}", translator.cli_summary(total_games, &backup_dir));
+            eprintln!("{}", translator.cli_summary(total_games, total_bytes, &backup_dir));
         }
         Subcommand::Restore {
             preview,
@@ -248,15 +254,17 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .collect();
 
             let mut total_games = 0;
+            let mut total_bytes = 0;
             for (name, scan_info, backup_info) in info {
                 if let Some(successful) = show_outcome(&translator, &name, &scan_info, &backup_info, true) {
                     total_games += 1;
+                    total_bytes += scan_info.found_files.iter().map(|x| x.size).sum::<u64>();
                     if !successful {
                         failed = true;
                     }
                 };
             }
-            eprintln!("{}", translator.cli_summary(total_games, &restore_dir));
+            eprintln!("{}", translator.cli_summary(total_games, total_bytes, &restore_dir));
         }
     }
 

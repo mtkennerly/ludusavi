@@ -32,7 +32,7 @@ fn main() {
         Some(sub) => {
             if let Err(e) = cli::run_cli(sub) {
                 let translator = crate::lang::Translator::default();
-                eprintln!("{}", translator.handle_error(&e));
+                eprintln!("\n{}", translator.handle_error(&e));
                 std::process::exit(1);
             }
         }

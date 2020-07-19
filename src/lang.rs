@@ -78,9 +78,8 @@ impl Translator {
 
     pub fn cli_some_entries_failed(&self) -> String {
         match self.language {
-            Language::English => "Some entries failed to process. See the output above for details.",
+            Language::English => format!("Some entries failed to process; look for {} in the output above for details. Double check whether you can access those files or whether their paths are very long.", self.cli_label_failed()),
         }
-        .into()
     }
 
     pub fn cli_label_failed(&self) -> String {
@@ -90,9 +89,14 @@ impl Translator {
         .into()
     }
 
-    pub fn cli_summary(&self, total_games: i32, location: &str) -> String {
+    pub fn cli_summary(&self, total_games: i32, total_bytes: u64, location: &str) -> String {
         match self.language {
-            Language::English => format!("\nOverall:\n  Games: {}\n  Location: {}", total_games, location),
+            Language::English => format!(
+                "\nOverall:\n  Games: {}\n  Size: {}\n  Location: {}",
+                total_games,
+                self.mib(total_bytes, true),
+                location
+            ),
         }
     }
 
@@ -234,9 +238,19 @@ impl Translator {
         .into()
     }
 
-    pub fn processed_games(&self, total: usize) -> String {
+    pub fn mib(&self, bytes: u64, allow_zero: bool) -> String {
+        let mut mib = format!("{:.2}", bytes as f64 / 1024.0 / 1024.0);
+        if !allow_zero && &mib == "0.00" {
+            mib = "< 0.01".to_owned()
+        }
         match self.language {
-            Language::English => format!("{} games", total),
+            Language::English => format!("{} MiB", mib),
+        }
+    }
+
+    pub fn processed_games(&self, total_games: usize, total_bytes: u64) -> String {
+        match self.language {
+            Language::English => format!("{} games | {}", total_games, self.mib(total_bytes, true)),
         }
     }
 

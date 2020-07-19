@@ -4,7 +4,7 @@ use crate::{
     manifest::{Manifest, SteamMetadata, Store},
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
-        scan_dir_for_restoration, scan_game_for_backup, Error, ScanInfo,
+        scan_dir_for_restoration, scan_game_for_backup, Error, ScanInfo, ScannedFile,
     },
     shortcuts::{Shortcut, TextHistory},
 };
@@ -201,24 +201,24 @@ impl ModalComponent {
 #[derive(Default)]
 struct GameListEntry {
     name: String,
-    files: std::collections::HashSet<String>,
+    files: std::collections::HashSet<ScannedFile>,
     registry_keys: std::collections::HashSet<String>,
     button: button::State,
     expanded: bool,
 }
 
 impl GameListEntry {
-    fn view(&mut self, restoring: bool) -> Container<Message> {
+    fn view(&mut self, restoring: bool, translator: &Translator) -> Container<Message> {
         let mut lines = Vec::<String>::new();
 
         if self.expanded {
             for item in itertools::sorted(&self.files) {
                 if restoring {
-                    if let Ok(target) = game_file_restoration_target(&item) {
+                    if let Ok(target) = game_file_restoration_target(&item.path) {
                         lines.push(target);
                     }
                 } else {
-                    lines.push(item.clone());
+                    lines.push(item.path.clone());
                 }
             }
             for item in itertools::sorted(&self.registry_keys) {
@@ -232,18 +232,26 @@ impl GameListEntry {
                 .spacing(5)
                 .align_items(Align::Center)
                 .push(
-                    Row::new().push(
-                        Button::new(
-                            &mut self.button,
-                            Text::new(self.name.clone()).horizontal_alignment(HorizontalAlignment::Center),
+                    Row::new()
+                        .push(
+                            Button::new(
+                                &mut self.button,
+                                Text::new(self.name.clone()).horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::ToggleGameListEntryExpanded {
+                                name: self.name.clone(),
+                            })
+                            .style(style::Button::GameListEntryTitle)
+                            .width(Length::Fill)
+                            .padding(2),
                         )
-                        .on_press(Message::ToggleGameListEntryExpanded {
-                            name: self.name.clone(),
-                        })
-                        .style(style::Button::GameListEntryTitle)
-                        .width(Length::Fill)
-                        .padding(2),
-                    ),
+                        .push(
+                            Container::new(Text::new(
+                                translator.mib(self.files.iter().map(|x| x.size).sum::<u64>(), false),
+                            ))
+                            .width(Length::Units(115))
+                            .center_x(),
+                        ),
                 )
                 .push(
                     Row::new().push(
@@ -264,7 +272,7 @@ struct GameList {
 }
 
 impl GameList {
-    fn view(&mut self, restoring: bool) -> Container<Message> {
+    fn view(&mut self, restoring: bool, translator: &Translator) -> Container<Message> {
         self.entries.sort_by_key(|x| x.name.clone());
         Container::new({
             self.entries.iter_mut().enumerate().fold(
@@ -274,7 +282,7 @@ impl GameList {
                     .style(style::Scrollable),
                 |parent: Scrollable<'_, Message>, (_i, x)| {
                     parent
-                        .push(x.view(restoring))
+                        .push(x.view(restoring, translator))
                         .push(Space::new(Length::Units(0), Length::Units(10)))
                 },
             )
@@ -385,6 +393,7 @@ impl DisappearingProgress {
 #[derive(Default)]
 struct BackupScreenComponent {
     total_games: usize,
+    total_bytes: u64,
     log: GameList,
     start_button: button::State,
     preview_button: button::State,
@@ -484,7 +493,7 @@ impl BackupScreenComponent {
                     Row::new()
                         .padding(20)
                         .align_items(Align::Center)
-                        .push(Text::new(translator.processed_games(self.total_games)).size(50)),
+                        .push(Text::new(translator.processed_games(self.total_games, self.total_bytes)).size(50)),
                 )
                 .push(
                     Row::new()
@@ -519,7 +528,7 @@ impl BackupScreenComponent {
                 )
                 .push(self.root_editor.view(&config, &translator))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(self.log.view(false).height(Length::FillPortion(10_000)))
+                .push(self.log.view(false, translator).height(Length::FillPortion(10_000)))
                 .push(self.progress.view()),
         )
         .height(Length::Fill)
@@ -531,6 +540,7 @@ impl BackupScreenComponent {
 #[derive(Default)]
 struct RestoreScreenComponent {
     total_games: usize,
+    total_bytes: u64,
     log: GameList,
     start_button: button::State,
     preview_button: button::State,
@@ -612,7 +622,7 @@ impl RestoreScreenComponent {
                     Row::new()
                         .padding(20)
                         .align_items(Align::Center)
-                        .push(Text::new(translator.processed_games(self.total_games)).size(50)),
+                        .push(Text::new(translator.processed_games(self.total_games, self.total_bytes)).size(50)),
                 )
                 .push(
                     Row::new()
@@ -646,7 +656,7 @@ impl RestoreScreenComponent {
                         ),
                 )
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(self.log.view(true).height(Length::FillPortion(10_000)))
+                .push(self.log.view(true, translator).height(Length::FillPortion(10_000)))
                 .push(self.progress.view()),
         )
         .height(Length::Fill)
@@ -726,6 +736,7 @@ impl Application for App {
                 }
 
                 self.backup_screen.total_games = 0;
+                self.backup_screen.total_bytes = 0;
                 self.backup_screen.log.entries.clear();
                 self.modal_theme = None;
                 self.backup_screen.progress.current = 0.0;
@@ -781,6 +792,7 @@ impl Application for App {
                 }
 
                 self.restore_screen.total_games = 0;
+                self.restore_screen.total_bytes = 0;
                 self.restore_screen.log.entries.clear();
                 self.modal_theme = None;
 
@@ -834,6 +846,7 @@ impl Application for App {
                 if let Some(info) = info {
                     if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
                         self.backup_screen.total_games += 1;
+                        self.backup_screen.total_bytes += info.found_files.iter().map(|x| x.size).sum::<u64>();
                         self.backup_screen.log.entries.push(GameListEntry {
                             name: info.game_name,
                             files: info.found_files,
@@ -852,6 +865,7 @@ impl Application for App {
                 if let Some(info) = info {
                     if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
                         self.restore_screen.total_games += 1;
+                        self.restore_screen.total_bytes += info.found_files.iter().map(|x| x.size).sum::<u64>();
                         self.restore_screen.log.entries.push(GameListEntry {
                             name: info.game_name,
                             files: info.found_files,
