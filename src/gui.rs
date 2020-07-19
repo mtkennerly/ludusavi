@@ -4,7 +4,7 @@ use crate::{
     manifest::{Manifest, SteamMetadata, Store},
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
-        scan_dir_for_restoration, scan_game_for_backup, Error, ScanInfo, ScannedFile,
+        scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error, ScanInfo,
     },
     shortcuts::{Shortcut, TextHistory},
 };
@@ -59,11 +59,21 @@ enum Message {
     Idle,
     Ignore,
     ConfirmBackupStart,
-    BackupStart { preview: bool },
+    BackupStart {
+        preview: bool,
+    },
     ConfirmRestoreStart,
-    RestoreStart { preview: bool },
-    BackupStep { info: Option<ScanInfo> },
-    RestoreStep { info: Option<ScanInfo> },
+    RestoreStart {
+        preview: bool,
+    },
+    BackupStep {
+        scan_info: Option<ScanInfo>,
+        backup_info: Option<BackupInfo>,
+    },
+    RestoreStep {
+        scan_info: Option<ScanInfo>,
+        backup_info: Option<BackupInfo>,
+    },
     CancelOperation,
     EditedBackupTarget(String),
     EditedRestoreSource(String),
@@ -73,7 +83,9 @@ enum Message {
     RemoveRoot(usize),
     SwitchScreenToRestore,
     SwitchScreenToBackup,
-    ToggleGameListEntryExpanded { name: String },
+    ToggleGameListEntryExpanded {
+        name: String,
+    },
     BrowseBackupTarget,
     BrowseRestoreSource,
     BrowseDirFailure,
@@ -200,9 +212,8 @@ impl ModalComponent {
 
 #[derive(Default)]
 struct GameListEntry {
-    name: String,
-    files: std::collections::HashSet<ScannedFile>,
-    registry_keys: std::collections::HashSet<String>,
+    scan_info: ScanInfo,
+    backup_info: Option<BackupInfo>,
     button: button::State,
     expanded: bool,
 }
@@ -212,16 +223,21 @@ impl GameListEntry {
         let mut lines = Vec::<String>::new();
 
         if self.expanded {
-            for item in itertools::sorted(&self.files) {
+            for item in itertools::sorted(&self.scan_info.found_files) {
+                let mut line = item.path.clone();
                 if restoring {
                     if let Ok(target) = game_file_restoration_target(&item.path) {
-                        lines.push(target);
+                        line = target;
                     }
-                } else {
-                    lines.push(item.path.clone());
                 }
+                if let Some(backup_info) = &self.backup_info {
+                    if backup_info.failed_files.contains(&item) {
+                        line = translator.failed_file_entry_line(&item.path);
+                    }
+                }
+                lines.push(line);
             }
-            for item in itertools::sorted(&self.registry_keys) {
+            for item in itertools::sorted(&self.scan_info.found_registry_keys) {
                 lines.push(item.clone());
             }
         }
@@ -236,10 +252,11 @@ impl GameListEntry {
                         .push(
                             Button::new(
                                 &mut self.button,
-                                Text::new(self.name.clone()).horizontal_alignment(HorizontalAlignment::Center),
+                                Text::new(self.scan_info.game_name.clone())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(Message::ToggleGameListEntryExpanded {
-                                name: self.name.clone(),
+                                name: self.scan_info.game_name.clone(),
                             })
                             .style(style::Button::GameListEntryTitle)
                             .width(Length::Fill)
@@ -247,7 +264,7 @@ impl GameListEntry {
                         )
                         .push(
                             Container::new(Text::new(
-                                translator.mib(self.files.iter().map(|x| x.size).sum::<u64>(), false),
+                                translator.mib(self.scan_info.sum_bytes(&self.backup_info), false),
                             ))
                             .width(Length::Units(115))
                             .center_x(),
@@ -273,7 +290,7 @@ struct GameList {
 
 impl GameList {
     fn view(&mut self, restoring: bool, translator: &Translator) -> Container<Message> {
-        self.entries.sort_by_key(|x| x.name.clone());
+        self.entries.sort_by_key(|x| x.scan_info.game_name.clone());
         Container::new({
             self.entries.iter_mut().enumerate().fold(
                 Scrollable::new(&mut self.scroll)
@@ -771,16 +788,18 @@ impl Application for App {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                                 // TODO: https://github.com/hecrj/iced/issues/436
                                 std::thread::sleep(std::time::Duration::from_millis(1));
-                                return None;
+                                return (None, None);
                             }
-                            let info =
+                            let scan_info =
                                 scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), &steam_id);
-                            if !preview {
-                                back_up_game(&info, &backup_path2, &key);
-                            }
-                            Some(info)
+                            let backup_info = if !preview {
+                                Some(back_up_game(&scan_info, &backup_path2, &key))
+                            } else {
+                                None
+                            };
+                            (Some(scan_info), backup_info)
                         },
-                        move |info| Message::BackupStep { info },
+                        move |(scan_info, backup_info)| Message::BackupStep { scan_info, backup_info },
                     ));
                 }
 
@@ -827,30 +846,27 @@ impl Application for App {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                                 // TODO: https://github.com/hecrj/iced/issues/436
                                 std::thread::sleep(std::time::Duration::from_millis(1));
-                                return None;
+                                return (None, None);
                             }
-                            let info = scan_dir_for_restoration(&subdir.path().to_string_lossy());
-                            if !preview {
-                                restore_game(&info);
-                            }
-                            Some(info)
+                            let scan_info = scan_dir_for_restoration(&subdir.path().to_string_lossy());
+                            let backup_info = if !preview { Some(restore_game(&scan_info)) } else { None };
+                            (Some(scan_info), backup_info)
                         },
-                        move |info| Message::RestoreStep { info },
+                        move |(scan_info, backup_info)| Message::RestoreStep { scan_info, backup_info },
                     ));
                 }
 
                 Command::batch(commands)
             }
-            Message::BackupStep { info } => {
+            Message::BackupStep { scan_info, backup_info } => {
                 self.backup_screen.progress.current += 1.0;
-                if let Some(info) = info {
-                    if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
+                if let Some(scan_info) = scan_info {
+                    if !scan_info.found_files.is_empty() || !scan_info.found_registry_keys.is_empty() {
                         self.backup_screen.total_games += 1;
-                        self.backup_screen.total_bytes += info.found_files.iter().map(|x| x.size).sum::<u64>();
+                        self.backup_screen.total_bytes += scan_info.sum_bytes(&backup_info);
                         self.backup_screen.log.entries.push(GameListEntry {
-                            name: info.game_name,
-                            files: info.found_files,
-                            registry_keys: info.found_registry_keys,
+                            scan_info,
+                            backup_info,
                             ..Default::default()
                         });
                     }
@@ -860,16 +876,15 @@ impl Application for App {
                 }
                 Command::none()
             }
-            Message::RestoreStep { info } => {
+            Message::RestoreStep { scan_info, backup_info } => {
                 self.restore_screen.progress.current += 1.0;
-                if let Some(info) = info {
-                    if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
+                if let Some(scan_info) = scan_info {
+                    if !scan_info.found_files.is_empty() || !scan_info.found_registry_keys.is_empty() {
                         self.restore_screen.total_games += 1;
-                        self.restore_screen.total_bytes += info.found_files.iter().map(|x| x.size).sum::<u64>();
+                        self.restore_screen.total_bytes += scan_info.sum_bytes(&backup_info);
                         self.restore_screen.log.entries.push(GameListEntry {
-                            name: info.game_name,
-                            files: info.found_files,
-                            registry_keys: info.found_registry_keys,
+                            scan_info,
+                            backup_info,
                             ..Default::default()
                         });
                     }
@@ -943,14 +958,14 @@ impl Application for App {
                 match self.screen {
                     Screen::Backup => {
                         for entry in &mut self.backup_screen.log.entries {
-                            if entry.name == name {
+                            if entry.scan_info.game_name == name {
                                 entry.expanded = !entry.expanded;
                             }
                         }
                     }
                     Screen::Restore => {
                         for entry in &mut self.restore_screen.log.entries {
-                            if entry.name == name {
+                            if entry.scan_info.game_name == name {
                                 entry.expanded = !entry.expanded;
                             }
                         }

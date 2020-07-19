@@ -66,6 +66,18 @@ pub struct ScanInfo {
     pub registry_file: Option<std::path::PathBuf>,
 }
 
+impl ScanInfo {
+    pub fn sum_bytes(&self, backup_info: &Option<BackupInfo>) -> u64 {
+        let successful_bytes = self.found_files.iter().map(|x| x.size).sum::<u64>();
+        let failed_bytes = if let Some(backup_info) = &backup_info {
+            backup_info.failed_files.iter().map(|x| x.size).sum::<u64>()
+        } else {
+            0
+        };
+        successful_bytes - failed_bytes
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct BackupInfo {
     pub failed_files: std::collections::HashSet<ScannedFile>,

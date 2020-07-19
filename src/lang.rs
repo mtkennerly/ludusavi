@@ -78,15 +78,33 @@ impl Translator {
 
     pub fn cli_some_entries_failed(&self) -> String {
         match self.language {
-            Language::English => format!("Some entries failed to process; look for {} in the output above for details. Double check whether you can access those files or whether their paths are very long.", self.cli_label_failed()),
+            Language::English => format!("Some entries failed to process; look for {} in the output above for details. Double check whether you can access those files or whether their paths are very long.", self.label_failed()),
         }
     }
 
-    pub fn cli_label_failed(&self) -> String {
+    pub fn label_failed(&self) -> String {
         match self.language {
             Language::English => "[FAILED]",
         }
         .into()
+    }
+
+    pub fn cli_game_header(&self, name: &str, bytes: u64) -> String {
+        match self.language {
+            Language::English => format!("{} [{}]:", name, self.mib(bytes, false)),
+        }
+    }
+
+    pub fn cli_game_line_item_successful(&self, item: &str) -> String {
+        match self.language {
+            Language::English => format!("  - {}", item),
+        }
+    }
+
+    pub fn cli_game_line_item_failed(&self, item: &str) -> String {
+        match self.language {
+            Language::English => format!("  - {} {}", self.label_failed(), item),
+        }
     }
 
     pub fn cli_summary(&self, total_games: i32, total_bytes: u64, location: &str) -> String {
@@ -97,6 +115,12 @@ impl Translator {
                 self.mib(total_bytes, true),
                 location
             ),
+        }
+    }
+
+    pub fn failed_file_entry_line(&self, path: &str) -> String {
+        match self.language {
+            Language::English => format!("{} {}", self.label_failed(), path),
         }
     }
 

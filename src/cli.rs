@@ -86,9 +86,8 @@ fn show_outcome(
 
     let mut successful = true;
     println!(
-        "{} [{}]:",
-        &name,
-        translator.mib(scan_info.found_files.iter().map(|x| x.size).sum::<u64>(), false)
+        "{}",
+        translator.cli_game_header(&name, scan_info.sum_bytes(&Some(backup_info.to_owned())))
     );
     for entry in itertools::sorted(&scan_info.found_files) {
         let readable = if restoring {
@@ -98,17 +97,17 @@ fn show_outcome(
         };
         if backup_info.failed_files.contains(entry) {
             successful = false;
-            println!("  - {} {}", translator.cli_label_failed(), readable);
+            println!("{}", translator.cli_game_line_item_failed(&readable));
         } else {
-            println!("  - {}", readable);
+            println!("{}", translator.cli_game_line_item_successful(&readable));
         }
     }
     for entry in itertools::sorted(&scan_info.found_registry_keys) {
         if backup_info.failed_registry.contains(entry) {
             successful = false;
-            println!("  - {} {}", translator.cli_label_failed(), entry);
+            println!("{}", translator.cli_game_line_item_failed(entry));
         } else {
-            println!("  - {}", entry);
+            println!("{}", translator.cli_game_line_item_successful(entry));
         }
     }
     Some(successful)
@@ -184,7 +183,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             for (name, scan_info, backup_info) in info {
                 if let Some(successful) = show_outcome(&translator, &name, &scan_info, &backup_info, false) {
                     total_games += 1;
-                    total_bytes += scan_info.found_files.iter().map(|x| x.size).sum::<u64>();
+                    total_bytes += scan_info.sum_bytes(&Some(backup_info));
                     if !successful {
                         failed = true;
                     }
@@ -258,7 +257,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             for (name, scan_info, backup_info) in info {
                 if let Some(successful) = show_outcome(&translator, &name, &scan_info, &backup_info, true) {
                     total_games += 1;
-                    total_bytes += scan_info.found_files.iter().map(|x| x.size).sum::<u64>();
+                    total_bytes += scan_info.sum_bytes(&Some(backup_info));
                     if !successful {
                         failed = true;
                     }
