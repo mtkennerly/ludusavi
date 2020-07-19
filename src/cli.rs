@@ -80,7 +80,7 @@ fn show_outcome(
     backup_info: &BackupInfo,
     restoring: bool,
 ) -> Option<bool> {
-    if scan_info.found_files.is_empty() && scan_info.found_registry_keys.is_empty() {
+    if !scan_info.found_anything() {
         return None;
     }
 
@@ -268,7 +268,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
     }
 
     if failed {
-        Err(crate::prelude::Error::CliSomeEntriesFailed)
+        Err(crate::prelude::Error::SomeEntriesFailed)
     } else {
         Ok(())
     }

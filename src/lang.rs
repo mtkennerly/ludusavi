@@ -33,7 +33,7 @@ impl Translator {
             Error::CliBackupTargetExists { path } => self.cli_backup_target_exists(path),
             Error::CliUnrecognizedGames { games } => self.cli_unrecognized_games(games),
             Error::CliUnableToRequestConfirmation => self.cli_unable_to_request_confirmation(),
-            Error::CliSomeEntriesFailed => self.cli_some_entries_failed(),
+            Error::SomeEntriesFailed => self.some_entries_failed(),
             Error::CannotPrepareBackupTarget { path } => self.cannot_prepare_backup_target(path),
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
             Error::RegistryIssue => self.registry_issue(),
@@ -76,9 +76,9 @@ impl Translator {
         }
     }
 
-    pub fn cli_some_entries_failed(&self) -> String {
+    pub fn some_entries_failed(&self) -> String {
         match self.language {
-            Language::English => format!("Some entries failed to process; look for {} in the output above for details. Double check whether you can access those files or whether their paths are very long.", self.label_failed()),
+            Language::English => format!("Some entries failed to process; look for {} in the output for details. Double check whether you can access those files or whether their paths are very long.", self.label_failed()),
         }
     }
 
@@ -115,6 +115,12 @@ impl Translator {
                 self.mib(total_bytes, true),
                 location
             ),
+        }
+    }
+
+    pub fn game_list_entry_title_failed(&self, name: &str) -> String {
+        match self.language {
+            Language::English => format!("{} {}", name, self.label_failed()),
         }
     }
 
@@ -262,13 +268,17 @@ impl Translator {
         .into()
     }
 
-    pub fn mib(&self, bytes: u64, allow_zero: bool) -> String {
-        let mut mib = format!("{:.2}", bytes as f64 / 1024.0 / 1024.0);
-        if !allow_zero && &mib == "0.00" {
-            mib = "< 0.01".to_owned()
-        }
-        match self.language {
-            Language::English => format!("{} MiB", mib),
+    pub fn mib(&self, bytes: u64, show_zero: bool) -> String {
+        let mib = format!("{:.2}", bytes as f64 / 1024.0 / 1024.0);
+        if !show_zero && mib == "0.00" {
+            match self.language {
+                Language::English => "~ 0",
+            }
+            .into()
+        } else {
+            match self.language {
+                Language::English => format!("{} MiB", mib),
+            }
         }
     }
 

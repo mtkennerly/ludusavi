@@ -75,6 +75,8 @@ enum Message {
         backup_info: Option<BackupInfo>,
     },
     CancelOperation,
+    BackupComplete,
+    RestoreComplete,
     EditedBackupTarget(String),
     EditedRestoreSource(String),
     EditedRootPath(usize, String),
@@ -221,6 +223,10 @@ struct GameListEntry {
 impl GameListEntry {
     fn view(&mut self, restoring: bool, translator: &Translator) -> Container<Message> {
         let mut lines = Vec::<String>::new();
+        let successful = match &self.backup_info {
+            Some(x) => x.successful(),
+            _ => true,
+        };
 
         if self.expanded {
             for item in itertools::sorted(&self.scan_info.found_files) {
@@ -232,7 +238,7 @@ impl GameListEntry {
                 }
                 if let Some(backup_info) = &self.backup_info {
                     if backup_info.failed_files.contains(&item) {
-                        line = translator.failed_file_entry_line(&item.path);
+                        line = translator.failed_file_entry_line(&line);
                     }
                 }
                 lines.push(line);
@@ -252,13 +258,21 @@ impl GameListEntry {
                         .push(
                             Button::new(
                                 &mut self.button,
-                                Text::new(self.scan_info.game_name.clone())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
+                                Text::new(if successful {
+                                    self.scan_info.game_name.clone()
+                                } else {
+                                    translator.game_list_entry_title_failed(&self.scan_info.game_name)
+                                })
+                                .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(Message::ToggleGameListEntryExpanded {
                                 name: self.scan_info.game_name.clone(),
                             })
-                            .style(style::Button::GameListEntryTitle)
+                            .style(if successful {
+                                style::Button::GameListEntryTitle
+                            } else {
+                                style::Button::GameListEntryTitleFailed
+                            })
                             .width(Length::Fill)
                             .padding(2),
                         )
@@ -861,7 +875,7 @@ impl Application for App {
             Message::BackupStep { scan_info, backup_info } => {
                 self.backup_screen.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
-                    if !scan_info.found_files.is_empty() || !scan_info.found_registry_keys.is_empty() {
+                    if scan_info.found_anything() {
                         self.backup_screen.total_games += 1;
                         self.backup_screen.total_bytes += scan_info.sum_bytes(&backup_info);
                         self.backup_screen.log.entries.push(GameListEntry {
@@ -872,14 +886,15 @@ impl Application for App {
                     }
                 }
                 if self.backup_screen.progress.complete() {
-                    return Command::perform(async move {}, move |_| Message::Idle);
+                    Command::perform(async move {}, move |_| Message::BackupComplete)
+                } else {
+                    Command::none()
                 }
-                Command::none()
             }
             Message::RestoreStep { scan_info, backup_info } => {
                 self.restore_screen.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
-                    if !scan_info.found_files.is_empty() || !scan_info.found_registry_keys.is_empty() {
+                    if scan_info.found_anything() {
                         self.restore_screen.total_games += 1;
                         self.restore_screen.total_bytes += scan_info.sum_bytes(&backup_info);
                         self.restore_screen.log.entries.push(GameListEntry {
@@ -890,9 +905,10 @@ impl Application for App {
                     }
                 }
                 if self.restore_screen.progress.complete() {
-                    return Command::perform(async move {}, move |_| Message::Idle);
+                    Command::perform(async move {}, move |_| Message::RestoreComplete)
+                } else {
+                    Command::none()
                 }
-                Command::none()
             }
             Message::CancelOperation => {
                 self.operation_should_cancel
@@ -913,6 +929,32 @@ impl Application for App {
                     _ => {}
                 };
                 Command::none()
+            }
+            Message::BackupComplete => {
+                for entry in &self.backup_screen.log.entries {
+                    if let Some(backup_info) = &entry.backup_info {
+                        if !backup_info.successful() {
+                            self.modal_theme = Some(ModalTheme::Error {
+                                variant: Error::SomeEntriesFailed,
+                            });
+                            return Command::none();
+                        }
+                    }
+                }
+                Command::perform(async move {}, move |_| Message::Idle)
+            }
+            Message::RestoreComplete => {
+                for entry in &self.restore_screen.log.entries {
+                    if let Some(backup_info) = &entry.backup_info {
+                        if !backup_info.successful() {
+                            self.modal_theme = Some(ModalTheme::Error {
+                                variant: Error::SomeEntriesFailed,
+                            });
+                            return Command::none();
+                        }
+                    }
+                }
+                Command::perform(async move {}, move |_| Message::Idle)
             }
             Message::EditedBackupTarget(text) => {
                 self.backup_screen.backup_target_history.push(&text);
@@ -1158,6 +1200,7 @@ mod style {
         Disabled,
         Negative,
         GameListEntryTitle,
+        GameListEntryTitleFailed,
     }
     impl button::StyleSheet for Button {
         fn active(&self) -> button::Style {
@@ -1165,11 +1208,12 @@ mod style {
                 background: match self {
                     Button::Primary => Some(Background::Color(Color::from_rgb8(28, 107, 223))),
                     Button::GameListEntryTitle => Some(Background::Color(Color::from_rgb8(77, 127, 201))),
+                    Button::GameListEntryTitleFailed => Some(Background::Color(Color::from_rgb8(201, 77, 77))),
                     Button::Disabled => Some(Background::Color(Color::from_rgb8(169, 169, 169))),
                     Button::Negative => Some(Background::Color(Color::from_rgb8(255, 0, 0))),
                 },
                 border_radius: match self {
-                    Button::GameListEntryTitle => 10,
+                    Button::GameListEntryTitle | Button::GameListEntryTitleFailed => 10,
                     _ => 4,
                 },
                 shadow_offset: Vector::new(1.0, 1.0),

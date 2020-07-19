@@ -30,7 +30,7 @@ pub enum Error {
     CliUnableToRequestConfirmation,
 
     #[error("Some entries failed")]
-    CliSomeEntriesFailed,
+    SomeEntriesFailed,
 
     #[error("Cannot prepare the backup target")]
     CannotPrepareBackupTarget { path: String },
@@ -76,12 +76,22 @@ impl ScanInfo {
         };
         successful_bytes - failed_bytes
     }
+
+    pub fn found_anything(&self) -> bool {
+        !self.found_files.is_empty() || !self.found_registry_keys.is_empty()
+    }
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct BackupInfo {
     pub failed_files: std::collections::HashSet<ScannedFile>,
     pub failed_registry: std::collections::HashSet<String>,
+}
+
+impl BackupInfo {
+    pub fn successful(&self) -> bool {
+        self.failed_files.is_empty() && self.failed_registry.is_empty()
+    }
 }
 
 pub fn app_dir() -> std::path::PathBuf {
@@ -505,7 +515,7 @@ pub fn restore_game(info: &ScanInfo) -> BackupInfo {
     let mut failed_files = std::collections::HashSet::new();
     let failed_registry = std::collections::HashSet::new();
 
-    for file in &info.found_files {
+    'outer: for file in &info.found_files {
         match game_file_restoration_target(&file.path) {
             Err(_) => {
                 failed_files.insert(file.clone());
@@ -518,10 +528,15 @@ pub fn restore_game(info: &ScanInfo) -> BackupInfo {
                     failed_files.insert(file.clone());
                     continue;
                 }
-                if std::fs::copy(&file.path, target).is_err() {
-                    failed_files.insert(file.clone());
-                    continue;
+                for i in 0..99 {
+                    if std::fs::copy(&file.path, &target).is_ok() {
+                        continue 'outer;
+                    }
+                    // File might be busy, especially if multiple games share a file,
+                    // like in a collection, so retry after a delay:
+                    std::thread::sleep(std::time::Duration::from_millis(i * info.game_name.len() as u64));
                 }
+                failed_files.insert(file.clone());
             }
         }
     }
