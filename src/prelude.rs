@@ -175,7 +175,13 @@ pub fn parse_paths(
                     "<home>",
                     &dirs::home_dir().unwrap_or_else(|| SKIP.into()).to_string_lossy(),
                 )
-                .replace("<storeUserId>", "*")
+                .replace(
+                    "<storeUserId>",
+                    match root.store {
+                        Store::Steam => "[0-9]*",
+                        Store::Other => "*",
+                    },
+                )
                 .replace("<osUserName>", &whoami::username())
                 .replace("<winAppData>", &check_windows_path(dirs::data_dir()))
                 .replace("<winLocalAppData>", &check_windows_path(dirs::data_local_dir()))
