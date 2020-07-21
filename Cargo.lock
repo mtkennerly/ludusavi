@@ -213,7 +213,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c2be76f06820200669a77ae59a8328c6b8fe4496e8fb7fed02f2806a442c5ff"
 dependencies = [
- "smallvec 1.4.1",
+ "smallvec",
 ]
 
 [[package]]
@@ -612,16 +612,6 @@ dependencies = [
 
 [[package]]
 name = "euclid"
-version = "0.19.9"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "596b99621b9477e7a5f94d2d8dd13a9c5c302ac358b822c67a42b6f1054450e1"
-dependencies = [
- "euclid_macros",
- "num-traits",
-]
-
-[[package]]
-name = "euclid"
 version = "0.20.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2bb7ef65b3777a325d1eeefefab5b6d4959da54747e33bd6258e789640f307ad"
@@ -664,7 +654,6 @@ dependencies = [
  "core-text",
  "dirs 2.0.2",
  "dwrote",
- "euclid 0.20.14",
  "float-ord",
  "freetype",
  "lazy_static",
@@ -1273,7 +1262,7 @@ dependencies = [
 [[package]]
 name = "iced"
 version = "0.1.1"
-source = "git+https://github.com/hecrj/iced?rev=62ec03a0afe8566a8f0b06675990a83fd65de1a9#62ec03a0afe8566a8f0b06675990a83fd65de1a9"
+source = "git+https://github.com/hecrj/iced?rev=9b778006ce7a56b129cc779b5bad31931d5faf12#9b778006ce7a56b129cc779b5bad31931d5faf12"
 dependencies = [
  "iced_core",
  "iced_futures",
@@ -1287,12 +1276,12 @@ dependencies = [
 [[package]]
 name = "iced_core"
 version = "0.2.1"
-source = "git+https://github.com/hecrj/iced?rev=62ec03a0afe8566a8f0b06675990a83fd65de1a9#62ec03a0afe8566a8f0b06675990a83fd65de1a9"
+source = "git+https://github.com/hecrj/iced?rev=9b778006ce7a56b129cc779b5bad31931d5faf12#9b778006ce7a56b129cc779b5bad31931d5faf12"
 
 [[package]]
 name = "iced_futures"
 version = "0.1.2"
-source = "git+https://github.com/hecrj/iced?rev=62ec03a0afe8566a8f0b06675990a83fd65de1a9#62ec03a0afe8566a8f0b06675990a83fd65de1a9"
+source = "git+https://github.com/hecrj/iced?rev=9b778006ce7a56b129cc779b5bad31931d5faf12#9b778006ce7a56b129cc779b5bad31931d5faf12"
 dependencies = [
  "futures",
  "log",
@@ -1302,7 +1291,7 @@ dependencies = [
 [[package]]
 name = "iced_glow"
 version = "0.1.0"
-source = "git+https://github.com/hecrj/iced?rev=62ec03a0afe8566a8f0b06675990a83fd65de1a9#62ec03a0afe8566a8f0b06675990a83fd65de1a9"
+source = "git+https://github.com/hecrj/iced?rev=9b778006ce7a56b129cc779b5bad31931d5faf12#9b778006ce7a56b129cc779b5bad31931d5faf12"
 dependencies = [
  "bytemuck",
  "euclid",
@@ -1318,7 +1307,7 @@ dependencies = [
 [[package]]
 name = "iced_glutin"
 version = "0.1.0"
-source = "git+https://github.com/hecrj/iced?rev=62ec03a0afe8566a8f0b06675990a83fd65de1a9#62ec03a0afe8566a8f0b06675990a83fd65de1a9"
+source = "git+https://github.com/hecrj/iced?rev=9b778006ce7a56b129cc779b5bad31931d5faf12#9b778006ce7a56b129cc779b5bad31931d5faf12"
 dependencies = [
  "glutin",
  "iced_graphics",
@@ -1329,7 +1318,7 @@ dependencies = [
 [[package]]
 name = "iced_graphics"
 version = "0.1.0"
-source = "git+https://github.com/hecrj/iced?rev=62ec03a0afe8566a8f0b06675990a83fd65de1a9#62ec03a0afe8566a8f0b06675990a83fd65de1a9"
+source = "git+https://github.com/hecrj/iced?rev=9b778006ce7a56b129cc779b5bad31931d5faf12#9b778006ce7a56b129cc779b5bad31931d5faf12"
 dependencies = [
  "bytemuck",
  "font-kit",
@@ -1342,7 +1331,7 @@ dependencies = [
 [[package]]
 name = "iced_native"
 version = "0.2.2"
-source = "git+https://github.com/hecrj/iced?rev=62ec03a0afe8566a8f0b06675990a83fd65de1a9#62ec03a0afe8566a8f0b06675990a83fd65de1a9"
+source = "git+https://github.com/hecrj/iced?rev=9b778006ce7a56b129cc779b5bad31931d5faf12#9b778006ce7a56b129cc779b5bad31931d5faf12"
 dependencies = [
  "iced_core",
  "iced_futures",
@@ -1354,7 +1343,7 @@ dependencies = [
 [[package]]
 name = "iced_style"
 version = "0.1.0"
-source = "git+https://github.com/hecrj/iced?rev=62ec03a0afe8566a8f0b06675990a83fd65de1a9#62ec03a0afe8566a8f0b06675990a83fd65de1a9"
+source = "git+https://github.com/hecrj/iced?rev=9b778006ce7a56b129cc779b5bad31931d5faf12#9b778006ce7a56b129cc779b5bad31931d5faf12"
 dependencies = [
  "iced_core",
 ]
@@ -1362,7 +1351,7 @@ dependencies = [
 [[package]]
 name = "iced_web"
 version = "0.2.1"
-source = "git+https://github.com/hecrj/iced?rev=62ec03a0afe8566a8f0b06675990a83fd65de1a9#62ec03a0afe8566a8f0b06675990a83fd65de1a9"
+source = "git+https://github.com/hecrj/iced?rev=9b778006ce7a56b129cc779b5bad31931d5faf12#9b778006ce7a56b129cc779b5bad31931d5faf12"
 dependencies = [
  "dodrio",
  "iced_core",
@@ -1378,7 +1367,7 @@ dependencies = [
 [[package]]
 name = "iced_wgpu"
 version = "0.2.2"
-source = "git+https://github.com/hecrj/iced?rev=62ec03a0afe8566a8f0b06675990a83fd65de1a9#62ec03a0afe8566a8f0b06675990a83fd65de1a9"
+source = "git+https://github.com/hecrj/iced?rev=9b778006ce7a56b129cc779b5bad31931d5faf12#9b778006ce7a56b129cc779b5bad31931d5faf12"
 dependencies = [
  "bytemuck",
  "gfx-memory",
@@ -1397,7 +1386,7 @@ dependencies = [
 [[package]]
 name = "iced_winit"
 version = "0.1.1"
-source = "git+https://github.com/hecrj/iced?rev=62ec03a0afe8566a8f0b06675990a83fd65de1a9#62ec03a0afe8566a8f0b06675990a83fd65de1a9"
+source = "git+https://github.com/hecrj/iced?rev=9b778006ce7a56b129cc779b5bad31931d5faf12#9b778006ce7a56b129cc779b5bad31931d5faf12"
 dependencies = [
  "iced_graphics",
  "iced_native",
@@ -1613,26 +1602,6 @@ dependencies = [
  "whoami",
  "winapi 0.3.9",
  "winreg",
-]
-
-[[package]]
-name = "lyon_geom"
-version = "0.14.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ca04310c9807612a311506106000b6eccb2e27bca9bfb594ce80fb8a31231f9d"
-dependencies = [
- "arrayvec 0.4.12",
- "euclid 0.20.14",
- "num-traits",
-]
-
-[[package]]
-name = "lyon_path"
-version = "0.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0bcb57ac24a5428539e2c7c0592766d5933c937d703f430990c669c00de96862"
-dependencies = [
- "lyon_geom",
 ]
 
 [[package]]
@@ -1960,8 +1929,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "parking_lot"
-version = "0.9.0"
+name = "osmesa-sys"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "88cfece6e95d2e717e0872a7f53a8684712ad13822a7979bc760b9c77ec0013b"
 dependencies = [
@@ -2007,12 +1976,39 @@ version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b7b7e7b4ea703700ce73ebf128e1450eb69c3a8329199ffbfb9b2a0418e5ad3"
 dependencies = [
- "cfg-if",
- "cloudabi",
- "libc",
- "redox_syscall",
- "smallvec 1.4.1",
- "winapi 0.3.9",
+ "log",
+ "pathfinder_simd",
+]
+
+[[package]]
+name = "pathfinder_simd"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b451513912d6b3440e443aa75a73ab22203afedc4a90df8526d008c0f86f7cb3"
+dependencies = [
+ "rustc_version",
+]
+
+[[package]]
+name = "peek-poke"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d93fd6a575ebf1ac2668d08443c97a22872cfb463fd8b7ddd141e9f6be59af2f"
+dependencies = [
+ "peek-poke-derive",
+]
+
+[[package]]
+name = "peek-poke-derive"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fb44a25c5bba983be0fc8592dfaf3e6d0935ce8be0c6b15b2a39507af34a926"
+dependencies = [
+ "proc-macro2 1.0.18",
+ "quote 1.0.7",
+ "syn",
+ "synstructure",
+ "unicode-xid 0.2.1",
 ]
 
 [[package]]
@@ -2240,7 +2236,7 @@ dependencies = [
  "proc-macro2 1.0.18",
  "quote 1.0.7",
  "serde_json",
- "syn 1.0.33",
+ "syn",
  "target-spec",
  "version-compare",
  "which",
@@ -3146,7 +3142,7 @@ checksum = "13f95a427cf36b19d2cd678f53634caba01f497294eed7726993cce086e6247f"
 dependencies = [
  "nix 0.17.0",
  "once_cell",
- "smallvec 1.4.1",
+ "smallvec",
  "wayland-sys 0.26.6",
 ]
 
