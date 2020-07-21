@@ -94,6 +94,43 @@ impl BackupInfo {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct OperationStatus {
+    pub total_games: usize,
+    pub total_bytes: u64,
+    pub processed_games: usize,
+    pub processed_bytes: u64,
+}
+
+impl OperationStatus {
+    pub fn clear(&mut self) {
+        self.total_games = 0;
+        self.total_bytes = 0;
+        self.processed_games = 0;
+        self.processed_bytes = 0;
+    }
+
+    pub fn add_game(&mut self, scan_info: &ScanInfo, backup_info: &Option<BackupInfo>, processed: bool) {
+        self.total_games += 1;
+        self.total_bytes += scan_info.sum_bytes(&None);
+        if processed {
+            self.processed_games += 1;
+            self.processed_bytes += scan_info.sum_bytes(&backup_info);
+        }
+    }
+
+    pub fn completed(&self) -> bool {
+        self.total_games == self.processed_games && self.total_bytes == self.processed_bytes
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OperationStepDecision {
+    Processed,
+    Cancelled,
+    Ignored,
+}
+
 pub fn app_dir() -> std::path::PathBuf {
     let mut path = dirs::home_dir().unwrap();
     path.push(".config");
@@ -386,27 +423,34 @@ pub fn scan_dir_for_restorable_games(source: &str) -> Vec<(String, String)> {
     games
 }
 
-pub fn scan_dir_for_restoration(source: &str) -> ScanInfo {
+pub fn get_restore_name_and_parent(source: &str) -> Option<(String, String)> {
     let path = std::path::Path::new(source);
     let base_name = match path.file_name() {
-        None => return Default::default(),
+        None => return None,
         Some(x) => x,
     };
     let parent = match path.parent() {
-        None => return Default::default(),
+        None => return None,
         Some(x) => x.to_string_lossy(),
     };
 
     let decoded_base_name = match base64::decode(base_name.to_string_lossy().as_bytes()) {
-        Err(_) => return Default::default(),
+        Err(_) => return None,
         Ok(x) => x,
     };
     let name = match std::str::from_utf8(&decoded_base_name) {
-        Err(_) => return Default::default(),
+        Err(_) => return None,
         Ok(x) => x.to_string(),
     };
 
-    scan_game_for_restoration(&name, &parent)
+    Some((name, parent.to_string()))
+}
+
+pub fn scan_dir_for_restoration(source: &str) -> ScanInfo {
+    match get_restore_name_and_parent(&source) {
+        None => ScanInfo::default(),
+        Some((name, parent)) => scan_game_for_restoration(&name, &parent),
+    }
 }
 
 pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {

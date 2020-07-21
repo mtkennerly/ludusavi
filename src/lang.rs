@@ -1,4 +1,7 @@
-use crate::{manifest::Store, prelude::Error};
+use crate::{
+    manifest::Store,
+    prelude::{Error, OperationStatus},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Language {
@@ -49,7 +52,7 @@ impl Translator {
 
     pub fn cli_unrecognized_games(&self, games: &[String]) -> String {
         let prefix = match self.language {
-            Language::English => "Unrecognized games:",
+            Language::English => "No info for these games:",
         };
         let lines: Vec<_> = games.iter().map(|x| format!("  - {}", x)).collect();
         format!("{}\n{}", prefix, lines.join("\n"))
@@ -107,14 +110,27 @@ impl Translator {
         }
     }
 
-    pub fn cli_summary(&self, total_games: i32, total_bytes: u64, location: &str) -> String {
-        match self.language {
-            Language::English => format!(
-                "\nOverall:\n  Games: {}\n  Size: {}\n  Location: {}",
-                total_games,
-                self.mib(total_bytes, true),
-                location
-            ),
+    pub fn cli_summary(&self, status: &OperationStatus, location: &str) -> String {
+        if status.completed() {
+            match self.language {
+                Language::English => format!(
+                    "\nOverall:\n  Games: {}\n  Size: {}\n  Location: {}",
+                    status.total_games,
+                    self.mib(status.total_bytes, true),
+                    location
+                ),
+            }
+        } else {
+            match self.language {
+                Language::English => format!(
+                    "\nOverall:\n  Games: {} of {}\n  Size: {} of {}\n  Location: {}",
+                    status.processed_games,
+                    status.total_games,
+                    self.mib_unlabelled(status.processed_bytes),
+                    self.mib(status.total_bytes, true),
+                    location
+                ),
+            }
         }
     }
 
@@ -214,6 +230,20 @@ impl Translator {
         .into()
     }
 
+    pub fn select_all_button(&self) -> String {
+        match self.language {
+            Language::English => "Select all",
+        }
+        .into()
+    }
+
+    pub fn deselect_all_button(&self) -> String {
+        match self.language {
+            Language::English => "Deselect all",
+        }
+        .into()
+    }
+
     pub fn no_roots_are_configured(&self) -> String {
         match self.language {
             Language::English => "Add some roots to back up even more data.",
@@ -269,7 +299,7 @@ impl Translator {
     }
 
     pub fn mib(&self, bytes: u64, show_zero: bool) -> String {
-        let mib = format!("{:.2}", bytes as f64 / 1024.0 / 1024.0);
+        let mib = self.mib_unlabelled(bytes);
         if !show_zero && mib == "0.00" {
             match self.language {
                 Language::English => "~ 0",
@@ -282,9 +312,25 @@ impl Translator {
         }
     }
 
-    pub fn processed_games(&self, total_games: usize, total_bytes: u64) -> String {
-        match self.language {
-            Language::English => format!("{} games | {}", total_games, self.mib(total_bytes, true)),
+    pub fn mib_unlabelled(&self, bytes: u64) -> String {
+        format!("{:.2}", bytes as f64 / 1024.0 / 1024.0)
+    }
+
+    pub fn processed_games(&self, status: &OperationStatus) -> String {
+        if status.completed() {
+            match self.language {
+                Language::English => format!("{} games | {}", status.total_games, self.mib(status.total_bytes, true)),
+            }
+        } else {
+            match self.language {
+                Language::English => format!(
+                    "{} of {} games | {} of {}",
+                    status.processed_games,
+                    status.total_games,
+                    self.mib_unlabelled(status.processed_bytes),
+                    self.mib(status.total_bytes, true)
+                ),
+            }
         }
     }
 

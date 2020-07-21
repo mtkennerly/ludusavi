@@ -111,7 +111,7 @@ Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<y
 If you're using the GUI, you don't need to worry about this at all,
 since the GUI will automatically update the config file as needed.
 However, if you're using the CLI, you'll need to edit `config.yaml` directly.
-Here are the available settings (all are required):
+Here are the available settings (all are required unless otherwise noted):
 
 * `manifest` (map):
   * `url` (string): Where to download the primary manifest.
@@ -124,8 +124,14 @@ Here are the available settings (all are required):
       Valid options: `steam`, `other`
 * `backup` (map):
   * `path` (string): Full path to a directory in which to save backups.
+    This can be overridden in the CLI with `--path`.
+  * `ignoredGames` (optional, array of strings): Names of games to skip when backing up.
+    This can be overridden in the CLI by passing a list of games.
 * `restore` (map):
   * `path` (string): Full path to a directory from which to restore data.
+    This can be overridden in the CLI with `--path`.
+  * `ignoredGames` (optional, array of strings): Names of games to skip when restoring.
+    This can be overridden in the CLI by passing a list of games.
 
 Example:
 

@@ -3,8 +3,9 @@ use crate::{
     lang::Translator,
     manifest::{Manifest, SteamMetadata, Store},
     prelude::{
-        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
-        scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error, ScanInfo,
+        app_dir, back_up_game, game_file_restoration_target, get_restore_name_and_parent, prepare_backup_target,
+        restore_game, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error, OperationStatus,
+        OperationStepDecision, ScanInfo,
     },
     shortcuts::{Shortcut, TextHistory},
 };
@@ -12,8 +13,8 @@ use crate::{
 use iced::{
     button, executor,
     keyboard::{KeyCode, ModifiersState},
-    scrollable, text_input, Align, Application, Button, Column, Command, Container, Element, HorizontalAlignment,
-    Length, ProgressBar, Radio, Row, Scrollable, Space, Subscription, Text, TextInput,
+    scrollable, text_input, Align, Application, Button, Checkbox, Column, Command, Container, Element,
+    HorizontalAlignment, Length, ProgressBar, Radio, Row, Scrollable, Space, Subscription, Text, TextInput,
 };
 use native_dialog::Dialog;
 
@@ -69,10 +70,12 @@ enum Message {
     BackupStep {
         scan_info: Option<ScanInfo>,
         backup_info: Option<BackupInfo>,
+        decision: OperationStepDecision,
     },
     RestoreStep {
         scan_info: Option<ScanInfo>,
         backup_info: Option<BackupInfo>,
+        decision: OperationStepDecision,
     },
     CancelOperation,
     BackupComplete,
@@ -88,9 +91,20 @@ enum Message {
     ToggleGameListEntryExpanded {
         name: String,
     },
+    ToggleGameListEntryEnabled {
+        name: String,
+        enabled: bool,
+        restoring: bool,
+    },
     BrowseBackupTarget,
     BrowseRestoreSource,
     BrowseDirFailure,
+    SelectAllGames {
+        restoring: bool,
+    },
+    DeselectAllGames {
+        restoring: bool,
+    },
     SubscribedEvent(iced_native::Event),
 }
 
@@ -221,7 +235,7 @@ struct GameListEntry {
 }
 
 impl GameListEntry {
-    fn view(&mut self, restoring: bool, translator: &Translator) -> Container<Message> {
+    fn view(&mut self, restoring: bool, translator: &Translator, config: &Config) -> Container<Message> {
         let mut lines = Vec::<String>::new();
         let successful = match &self.backup_info {
             Some(x) => x.successful(),
@@ -248,6 +262,13 @@ impl GameListEntry {
             }
         }
 
+        let enabled = if restoring {
+            config.is_game_enabled_for_restore(&self.scan_info.game_name)
+        } else {
+            config.is_game_enabled_for_backup(&self.scan_info.game_name)
+        };
+        let name_for_checkbox = self.scan_info.game_name.clone();
+
         Container::new(
             Column::new()
                 .padding(5)
@@ -255,6 +276,13 @@ impl GameListEntry {
                 .align_items(Align::Center)
                 .push(
                     Row::new()
+                        .push(Checkbox::new(enabled, "", move |enabled| {
+                            Message::ToggleGameListEntryEnabled {
+                                name: name_for_checkbox.clone(),
+                                enabled,
+                                restoring,
+                            }
+                        }))
                         .push(
                             Button::new(
                                 &mut self.button,
@@ -268,7 +296,9 @@ impl GameListEntry {
                             .on_press(Message::ToggleGameListEntryExpanded {
                                 name: self.scan_info.game_name.clone(),
                             })
-                            .style(if successful {
+                            .style(if !enabled {
+                                style::Button::GameListEntryTitleDisabled
+                            } else if successful {
                                 style::Button::GameListEntryTitle
                             } else {
                                 style::Button::GameListEntryTitleFailed
@@ -303,7 +333,7 @@ struct GameList {
 }
 
 impl GameList {
-    fn view(&mut self, restoring: bool, translator: &Translator) -> Container<Message> {
+    fn view(&mut self, restoring: bool, translator: &Translator, config: &Config) -> Container<Message> {
         self.entries.sort_by_key(|x| x.scan_info.game_name.clone());
         Container::new({
             self.entries.iter_mut().enumerate().fold(
@@ -313,10 +343,20 @@ impl GameList {
                     .style(style::Scrollable),
                 |parent: Scrollable<'_, Message>, (_i, x)| {
                     parent
-                        .push(x.view(restoring, translator))
+                        .push(x.view(restoring, translator, &config))
                         .push(Space::new(Length::Units(0), Length::Units(10)))
                 },
             )
+        })
+    }
+
+    fn all_entries_selected(&self, config: &Config, restoring: bool) -> bool {
+        self.entries.iter().all(|x| {
+            if restoring {
+                config.is_game_enabled_for_restore(&x.scan_info.game_name)
+            } else {
+                config.is_game_enabled_for_backup(&x.scan_info.game_name)
+            }
         })
     }
 }
@@ -423,12 +463,12 @@ impl DisappearingProgress {
 
 #[derive(Default)]
 struct BackupScreenComponent {
-    total_games: usize,
-    total_bytes: u64,
+    status: OperationStatus,
     log: GameList,
     start_button: button::State,
     preview_button: button::State,
     add_root_button: button::State,
+    select_all_button: button::State,
     backup_target_input: text_input::State,
     backup_target_history: TextHistory,
     backup_target_browse_button: button::State,
@@ -518,13 +558,32 @@ impl BackupScreenComponent {
                             .on_press(Message::AddRoot)
                             .width(Length::Units(125))
                             .style(style::Button::Primary),
-                        ),
+                        )
+                        .push({
+                            let restoring = false;
+                            Button::new(
+                                &mut self.select_all_button,
+                                Text::new(if self.log.all_entries_selected(&config, restoring) {
+                                    translator.deselect_all_button()
+                                } else {
+                                    translator.select_all_button()
+                                })
+                                .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(if self.log.all_entries_selected(&config, restoring) {
+                                Message::DeselectAllGames { restoring }
+                            } else {
+                                Message::SelectAllGames { restoring }
+                            })
+                            .width(Length::Units(125))
+                            .style(style::Button::Primary)
+                        }),
                 )
                 .push(
                     Row::new()
                         .padding(20)
                         .align_items(Align::Center)
-                        .push(Text::new(translator.processed_games(self.total_games, self.total_bytes)).size(50)),
+                        .push(Text::new(translator.processed_games(&self.status)).size(40)),
                 )
                 .push(
                     Row::new()
@@ -559,7 +618,11 @@ impl BackupScreenComponent {
                 )
                 .push(self.root_editor.view(&config, &translator))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(self.log.view(false, translator).height(Length::FillPortion(10_000)))
+                .push(
+                    self.log
+                        .view(false, translator, &config)
+                        .height(Length::FillPortion(10_000)),
+                )
                 .push(self.progress.view()),
         )
         .height(Length::Fill)
@@ -570,11 +633,11 @@ impl BackupScreenComponent {
 
 #[derive(Default)]
 struct RestoreScreenComponent {
-    total_games: usize,
-    total_bytes: u64,
+    status: OperationStatus,
     log: GameList,
     start_button: button::State,
     preview_button: button::State,
+    select_all_button: button::State,
     restore_source_input: text_input::State,
     restore_source_history: TextHistory,
     restore_source_browse_button: button::State,
@@ -647,13 +710,32 @@ impl RestoreScreenComponent {
                                 Some(OngoingOperation::Restore) => style::Button::Negative,
                                 _ => style::Button::Disabled,
                             }),
-                        ),
+                        )
+                        .push({
+                            let restoring = true;
+                            Button::new(
+                                &mut self.select_all_button,
+                                Text::new(if self.log.all_entries_selected(&config, restoring) {
+                                    translator.deselect_all_button()
+                                } else {
+                                    translator.select_all_button()
+                                })
+                                .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(if self.log.all_entries_selected(&config, restoring) {
+                                Message::DeselectAllGames { restoring }
+                            } else {
+                                Message::SelectAllGames { restoring }
+                            })
+                            .width(Length::Units(125))
+                            .style(style::Button::Primary)
+                        }),
                 )
                 .push(
                     Row::new()
                         .padding(20)
                         .align_items(Align::Center)
-                        .push(Text::new(translator.processed_games(self.total_games, self.total_bytes)).size(50)),
+                        .push(Text::new(translator.processed_games(&self.status)).size(40)),
                 )
                 .push(
                     Row::new()
@@ -687,7 +769,11 @@ impl RestoreScreenComponent {
                         ),
                 )
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(self.log.view(true, translator).height(Length::FillPortion(10_000)))
+                .push(
+                    self.log
+                        .view(true, translator, &config)
+                        .height(Length::FillPortion(10_000)),
+                )
                 .push(self.progress.view()),
         )
         .height(Length::Fill)
@@ -766,8 +852,7 @@ impl Application for App {
                     return Command::none();
                 }
 
-                self.backup_screen.total_games = 0;
-                self.backup_screen.total_bytes = 0;
+                self.backup_screen.status.clear();
                 self.backup_screen.log.entries.clear();
                 self.modal_theme = None;
                 self.backup_screen.progress.current = 0.0;
@@ -797,23 +882,33 @@ impl Application for App {
                     let backup_path2 = backup_path.clone();
                     let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
                     let cancel_flag = self.operation_should_cancel.clone();
+                    let ignored = !self.config.is_game_enabled_for_backup(&key);
                     commands.push(Command::perform(
                         async move {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                                 // TODO: https://github.com/hecrj/iced/issues/436
                                 std::thread::sleep(std::time::Duration::from_millis(1));
-                                return (None, None);
+                                return (None, None, OperationStepDecision::Cancelled);
                             }
+
                             let scan_info =
                                 scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), &steam_id);
+                            if ignored {
+                                return (Some(scan_info), None, OperationStepDecision::Ignored);
+                            }
+
                             let backup_info = if !preview {
                                 Some(back_up_game(&scan_info, &backup_path2, &key))
                             } else {
                                 None
                             };
-                            (Some(scan_info), backup_info)
+                            (Some(scan_info), backup_info, OperationStepDecision::Processed)
                         },
-                        move |(scan_info, backup_info)| Message::BackupStep { scan_info, backup_info },
+                        move |(scan_info, backup_info, decision)| Message::BackupStep {
+                            scan_info,
+                            backup_info,
+                            decision,
+                        },
                     ));
                 }
 
@@ -824,8 +919,7 @@ impl Application for App {
                     return Command::none();
                 }
 
-                self.restore_screen.total_games = 0;
-                self.restore_screen.total_bytes = 0;
+                self.restore_screen.status.clear();
                 self.restore_screen.log.entries.clear();
                 self.modal_theme = None;
 
@@ -837,6 +931,11 @@ impl Application for App {
                     return Command::none();
                 }
 
+                let total_subdirs = crate::path::count_subdirectories(&self.config.restore.path);
+                if total_subdirs == 0 {
+                    return Command::none();
+                }
+
                 self.config.save();
                 self.operation = Some(if preview {
                     OngoingOperation::PreviewRestore
@@ -844,7 +943,7 @@ impl Application for App {
                     OngoingOperation::Restore
                 });
                 self.restore_screen.progress.current = 0.0;
-                self.restore_screen.progress.max = crate::path::count_subdirectories(&self.config.restore.path) as f32;
+                self.restore_screen.progress.max = total_subdirs as f32;
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for subdir in walkdir::WalkDir::new(crate::path::normalize(&restore_path))
@@ -854,30 +953,51 @@ impl Application for App {
                     .skip(1) // the restore path itself
                     .filter_map(|e| e.ok())
                 {
+                    let source = get_restore_name_and_parent(&subdir.path().to_string_lossy());
                     let cancel_flag = self.operation_should_cancel.clone();
+                    let ignored = match source {
+                        None => true,
+                        Some((name, _)) => !self.config.is_game_enabled_for_restore(&name),
+                    };
                     commands.push(Command::perform(
                         async move {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                                 // TODO: https://github.com/hecrj/iced/issues/436
                                 std::thread::sleep(std::time::Duration::from_millis(1));
-                                return (None, None);
+                                return (None, None, OperationStepDecision::Cancelled);
                             }
+
                             let scan_info = scan_dir_for_restoration(&subdir.path().to_string_lossy());
+                            if ignored {
+                                return (Some(scan_info), None, OperationStepDecision::Ignored);
+                            }
+
                             let backup_info = if !preview { Some(restore_game(&scan_info)) } else { None };
-                            (Some(scan_info), backup_info)
+                            (Some(scan_info), backup_info, OperationStepDecision::Processed)
                         },
-                        move |(scan_info, backup_info)| Message::RestoreStep { scan_info, backup_info },
+                        move |(scan_info, backup_info, decision)| Message::RestoreStep {
+                            scan_info,
+                            backup_info,
+                            decision,
+                        },
                     ));
                 }
 
                 Command::batch(commands)
             }
-            Message::BackupStep { scan_info, backup_info } => {
+            Message::BackupStep {
+                scan_info,
+                backup_info,
+                decision,
+            } => {
                 self.backup_screen.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
-                        self.backup_screen.total_games += 1;
-                        self.backup_screen.total_bytes += scan_info.sum_bytes(&backup_info);
+                        self.backup_screen.status.add_game(
+                            &scan_info,
+                            &backup_info,
+                            decision == OperationStepDecision::Processed,
+                        );
                         self.backup_screen.log.entries.push(GameListEntry {
                             scan_info,
                             backup_info,
@@ -891,12 +1011,19 @@ impl Application for App {
                     Command::none()
                 }
             }
-            Message::RestoreStep { scan_info, backup_info } => {
+            Message::RestoreStep {
+                scan_info,
+                backup_info,
+                decision,
+            } => {
                 self.restore_screen.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
-                        self.restore_screen.total_games += 1;
-                        self.restore_screen.total_bytes += scan_info.sum_bytes(&backup_info);
+                        self.restore_screen.status.add_game(
+                            &scan_info,
+                            &backup_info,
+                            decision == OperationStepDecision::Processed,
+                        );
                         self.restore_screen.log.entries.push(GameListEntry {
                             scan_info,
                             backup_info,
@@ -1015,6 +1142,20 @@ impl Application for App {
                 }
                 Command::none()
             }
+            Message::ToggleGameListEntryEnabled {
+                name,
+                enabled,
+                restoring,
+            } => {
+                match (restoring, enabled) {
+                    (false, false) => self.config.disable_game_for_backup(&name),
+                    (false, true) => self.config.enable_game_for_backup(&name),
+                    (true, false) => self.config.disable_game_for_restore(&name),
+                    (true, true) => self.config.enable_game_for_restore(&name),
+                };
+                self.config.save();
+                Command::none()
+            }
             Message::BrowseBackupTarget => Command::perform(
                 async move { native_dialog::OpenSingleDir { dir: None }.show() },
                 |choice| match choice {
@@ -1035,6 +1176,32 @@ impl Application for App {
                 self.modal_theme = Some(ModalTheme::Error {
                     variant: Error::UnableToBrowseFileSystem,
                 });
+                Command::none()
+            }
+            Message::SelectAllGames { restoring } => {
+                if restoring {
+                    for entry in &self.restore_screen.log.entries {
+                        self.config.enable_game_for_restore(&entry.scan_info.game_name);
+                    }
+                } else {
+                    for entry in &self.backup_screen.log.entries {
+                        self.config.enable_game_for_backup(&entry.scan_info.game_name);
+                    }
+                }
+                self.config.save();
+                Command::none()
+            }
+            Message::DeselectAllGames { restoring } => {
+                if restoring {
+                    for entry in &self.restore_screen.log.entries {
+                        self.config.disable_game_for_restore(&entry.scan_info.game_name);
+                    }
+                } else {
+                    for entry in &self.backup_screen.log.entries {
+                        self.config.disable_game_for_backup(&entry.scan_info.game_name);
+                    }
+                }
+                self.config.save();
                 Command::none()
             }
             Message::SubscribedEvent(event) => {
@@ -1201,30 +1368,38 @@ mod style {
         Negative,
         GameListEntryTitle,
         GameListEntryTitleFailed,
+        GameListEntryTitleDisabled,
     }
     impl button::StyleSheet for Button {
         fn active(&self) -> button::Style {
             button::Style {
                 background: match self {
-                    Button::Primary => Some(Background::Color(Color::from_rgb8(28, 107, 223))),
-                    Button::GameListEntryTitle => Some(Background::Color(Color::from_rgb8(77, 127, 201))),
-                    Button::GameListEntryTitleFailed => Some(Background::Color(Color::from_rgb8(201, 77, 77))),
-                    Button::Disabled => Some(Background::Color(Color::from_rgb8(169, 169, 169))),
-                    Button::Negative => Some(Background::Color(Color::from_rgb8(255, 0, 0))),
+                    Self::Primary => Some(Background::Color(Color::from_rgb8(28, 107, 223))),
+                    Self::GameListEntryTitle => Some(Background::Color(Color::from_rgb8(77, 127, 201))),
+                    Self::GameListEntryTitleFailed => Some(Background::Color(Color::from_rgb8(201, 77, 77))),
+                    Self::GameListEntryTitleDisabled => Some(Background::Color(Color::from_rgb8(230, 230, 230))),
+                    Self::Disabled => Some(Background::Color(Color::from_rgb8(169, 169, 169))),
+                    Self::Negative => Some(Background::Color(Color::from_rgb8(255, 0, 0))),
                 },
                 border_radius: match self {
-                    Button::GameListEntryTitle | Button::GameListEntryTitleFailed => 10,
+                    Self::GameListEntryTitle | Self::GameListEntryTitleFailed | Self::GameListEntryTitleDisabled => 10,
                     _ => 4,
                 },
                 shadow_offset: Vector::new(1.0, 1.0),
-                text_color: Color::from_rgb8(0xEE, 0xEE, 0xEE),
+                text_color: match self {
+                    Self::GameListEntryTitleDisabled => Color::from_rgb8(0x44, 0x44, 0x44),
+                    _ => Color::from_rgb8(0xEE, 0xEE, 0xEE),
+                },
                 ..button::Style::default()
             }
         }
 
         fn hovered(&self) -> button::Style {
             button::Style {
-                text_color: Color::WHITE,
+                text_color: match self {
+                    Self::GameListEntryTitleDisabled => Color::BLACK,
+                    _ => Color::WHITE,
+                },
                 shadow_offset: Vector::new(1.0, 2.0),
                 ..self.active()
             }
@@ -1267,7 +1442,6 @@ mod style {
     pub enum Container {
         ModalBackground,
         GameListEntry,
-        GameListEntryTitle,
         GameListEntryBody,
     }
 
@@ -1275,20 +1449,19 @@ mod style {
         fn style(&self) -> container::Style {
             container::Style {
                 background: match self {
-                    Container::ModalBackground => Some(Background::Color(Color::from_rgb8(230, 230, 230))),
-                    Container::GameListEntryTitle => Some(Background::Color(Color::from_rgb8(230, 230, 230))),
+                    Self::ModalBackground => Some(Background::Color(Color::from_rgb8(230, 230, 230))),
                     _ => None,
                 },
                 border_color: match self {
-                    Container::GameListEntry => Color::from_rgb8(230, 230, 230),
+                    Self::GameListEntry => Color::from_rgb8(230, 230, 230),
                     _ => Color::BLACK,
                 },
                 border_width: match self {
-                    Container::GameListEntry => 1,
+                    Self::GameListEntry => 1,
                     _ => 0,
                 },
                 border_radius: match self {
-                    Container::GameListEntry | Container::GameListEntryTitle => 10,
+                    Self::GameListEntry => 10,
                     _ => 0,
                 },
                 ..container::Style::default()
