@@ -1,4 +1,7 @@
-use crate::{manifest::Store, prelude::Error};
+use crate::{
+    manifest::Store,
+    prelude::{Error, OperationStatus, OperationStepDecision},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum Language {
@@ -33,10 +36,11 @@ impl Translator {
             Error::CliBackupTargetExists { path } => self.cli_backup_target_exists(path),
             Error::CliUnrecognizedGames { games } => self.cli_unrecognized_games(games),
             Error::CliUnableToRequestConfirmation => self.cli_unable_to_request_confirmation(),
-            Error::CliSomeEntriesFailed => self.cli_some_entries_failed(),
+            Error::SomeEntriesFailed => self.some_entries_failed(),
             Error::CannotPrepareBackupTarget { path } => self.cannot_prepare_backup_target(path),
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
             Error::RegistryIssue => self.registry_issue(),
+            Error::UnableToBrowseFileSystem => self.unable_to_browse_file_system(),
         }
     }
 
@@ -48,7 +52,7 @@ impl Translator {
 
     pub fn cli_unrecognized_games(&self, games: &[String]) -> String {
         let prefix = match self.language {
-            Language::English => "Unrecognized games:",
+            Language::English => "No info for these games:",
         };
         let lines: Vec<_> = games.iter().map(|x| format!("  - {}", x)).collect();
         format!("{}\n{}", prefix, lines.join("\n"))
@@ -75,23 +79,95 @@ impl Translator {
         }
     }
 
-    pub fn cli_some_entries_failed(&self) -> String {
+    pub fn some_entries_failed(&self) -> String {
         match self.language {
-            Language::English => "Some entries failed to process. See the output above for details.",
+            Language::English => format!("Some entries failed to process; look for {} in the output for details. Double check whether you can access those files or whether their paths are very long.", self.label_failed()),
         }
-        .into()
     }
 
-    pub fn cli_label_failed(&self) -> String {
+    pub fn label_failed(&self) -> String {
         match self.language {
             Language::English => "[FAILED]",
         }
         .into()
     }
 
-    pub fn cli_summary(&self, total_games: i32, location: &str) -> String {
+    pub fn label_ignored(&self) -> String {
         match self.language {
-            Language::English => format!("\nOverall:\n  Games: {}\n  Location: {}", total_games, location),
+            Language::English => "[IGNORED]",
+        }
+        .into()
+    }
+
+    pub fn cli_game_header(&self, name: &str, bytes: u64, decision: &OperationStepDecision) -> String {
+        if *decision == OperationStepDecision::Processed {
+            match self.language {
+                Language::English => format!("{} [{}]:", name, self.mib(bytes, false)),
+            }
+        } else {
+            match self.language {
+                Language::English => format!("{} [{}] {}:", name, self.mib(bytes, false), self.label_ignored()),
+            }
+        }
+    }
+
+    pub fn cli_game_line_item_successful(&self, item: &str) -> String {
+        match self.language {
+            Language::English => format!("  - {}", item),
+        }
+    }
+
+    pub fn cli_game_line_item_failed(&self, item: &str) -> String {
+        match self.language {
+            Language::English => format!("  - {} {}", self.label_failed(), item),
+        }
+    }
+
+    pub fn cli_game_line_item_redirected(&self, item: &str) -> String {
+        match self.language {
+            Language::English => format!("    - Redirected from: {}", item),
+        }
+    }
+
+    pub fn cli_summary(&self, status: &OperationStatus, location: &str) -> String {
+        if status.completed() {
+            match self.language {
+                Language::English => format!(
+                    "\nOverall:\n  Games: {}\n  Size: {}\n  Location: {}",
+                    status.total_games,
+                    self.mib(status.total_bytes, true),
+                    location
+                ),
+            }
+        } else {
+            match self.language {
+                Language::English => format!(
+                    "\nOverall:\n  Games: {} of {}\n  Size: {} of {}\n  Location: {}",
+                    status.processed_games,
+                    status.total_games,
+                    self.mib_unlabelled(status.processed_bytes),
+                    self.mib(status.total_bytes, true),
+                    location
+                ),
+            }
+        }
+    }
+
+    pub fn game_list_entry_title_failed(&self, name: &str) -> String {
+        match self.language {
+            Language::English => format!("{} {}", name, self.label_failed()),
+        }
+    }
+
+    pub fn failed_file_entry_line(&self, path: &str) -> String {
+        match self.language {
+            Language::English => format!("{} {}", self.label_failed(), path),
+        }
+    }
+
+    pub fn redirected_file_entry_line(&self, path: &str) -> String {
+        match self.language {
+            Language::English => format!(". . . . . Redirected from: {}", path),
         }
     }
 
@@ -118,14 +194,14 @@ impl Translator {
 
     pub fn nav_backup_button(&self) -> String {
         match self.language {
-            Language::English => "=> Backup",
+            Language::English => "BACKUP MODE",
         }
         .into()
     }
 
     pub fn nav_restore_button(&self) -> String {
         match self.language {
-            Language::English => "=> Restore",
+            Language::English => "RESTORE MODE",
         }
         .into()
     }
@@ -137,7 +213,14 @@ impl Translator {
         .into()
     }
 
-    pub fn remove_root_button(&self) -> String {
+    pub fn add_redirect_button(&self) -> String {
+        match self.language {
+            Language::English => "Add redirect",
+        }
+        .into()
+    }
+
+    pub fn remove_button(&self) -> String {
         match self.language {
             Language::English => "Remove",
         }
@@ -165,9 +248,30 @@ impl Translator {
         .into()
     }
 
+    pub fn browse_button(&self) -> String {
+        match self.language {
+            Language::English => "Browse",
+        }
+        .into()
+    }
+
     pub fn okay_button(&self) -> String {
         match self.language {
             Language::English => "Okay",
+        }
+        .into()
+    }
+
+    pub fn select_all_button(&self) -> String {
+        match self.language {
+            Language::English => "Select all",
+        }
+        .into()
+    }
+
+    pub fn deselect_all_button(&self) -> String {
+        match self.language {
+            Language::English => "Deselect all",
         }
         .into()
     }
@@ -219,9 +323,46 @@ impl Translator {
         .into()
     }
 
-    pub fn processed_games(&self, total: usize) -> String {
+    pub fn unable_to_browse_file_system(&self) -> String {
         match self.language {
-            Language::English => format!("{} games", total),
+            Language::English => "Error: Unable to browse on your system.",
+        }
+        .into()
+    }
+
+    pub fn mib(&self, bytes: u64, show_zero: bool) -> String {
+        let mib = self.mib_unlabelled(bytes);
+        if !show_zero && mib == "0.00" {
+            match self.language {
+                Language::English => "~ 0",
+            }
+            .into()
+        } else {
+            match self.language {
+                Language::English => format!("{} MiB", mib),
+            }
+        }
+    }
+
+    pub fn mib_unlabelled(&self, bytes: u64) -> String {
+        format!("{:.2}", bytes as f64 / 1024.0 / 1024.0)
+    }
+
+    pub fn processed_games(&self, status: &OperationStatus) -> String {
+        if status.completed() {
+            match self.language {
+                Language::English => format!("{} games | {}", status.total_games, self.mib(status.total_bytes, true)),
+            }
+        } else {
+            match self.language {
+                Language::English => format!(
+                    "{} of {} games | {} of {}",
+                    status.processed_games,
+                    status.total_games,
+                    self.mib_unlabelled(status.processed_bytes),
+                    self.mib(status.total_bytes, true)
+                ),
+            }
         }
     }
 
@@ -245,6 +386,20 @@ impl Translator {
                 Store::Steam => "Steam",
                 Store::Other => "Other",
             },
+        }
+        .into()
+    }
+
+    pub fn redirect_source_placeholder(&self) -> String {
+        match self.language {
+            Language::English => "Source (original location)",
+        }
+        .into()
+    }
+
+    pub fn redirect_target_placeholder(&self) -> String {
+        match self.language {
+            Language::English => "Target (new location)",
         }
         .into()
     }

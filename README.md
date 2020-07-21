@@ -34,14 +34,20 @@ support one of these graphics systems: Vulkan, DirectX (11 or 12), or Metal.
 (Experimental builds with OpenGL support are also available - give them a try
 if the standard builds don't work on your system.)
 
+You can install Ludusavi one of these ways:
+
 * Download the executable for your operating system from the
   [releases page](https://github.com/mtkennerly/ludusavi/releases).
   It's portable, so you can simply download it and put it anywhere
   on your system.
+  **If you're unsure, choose this option.**
 
-  Alternatively, if you have Rust, you can run `cargo install ludusavi`
-  to do the installation. (On Linux, this requires the `gcc` and `libxcb-composite0-dev`
-  system packages, or the equivalents for your distribution.)
+* If you have Rust, you can run `cargo install ludusavi`. On Linux, this requires
+  the following system packages, or their equivalents for your distribution:
+    * Ubuntu: `sudo apt-get install -y gcc cmake libx11-dev libxcb-composite0-dev libfreetype6-dev libexpat1-dev libfontconfig1-dev`
+
+Some things to look out for:
+
 * If you are on Windows:
   * When you first run Ludusavi, you may see a popup that says
     "Windows protected your PC", because Windows does not recognize the program's
@@ -88,9 +94,14 @@ Run `ludusavi --help` for the full usage information.
     what you choose as the "install location" for your games (e.g., if you choose
     `D:/Epic` and it creates a subfolder for `D:/Epic/Celeste`, then the root
     would be `D:/Epic`).
+* To select/deselect specific games, you can run a preview, then click the
+  checkboxes by each game. You can also press the `deselect all` button
+  (when all games are selected) or the `select all` button (when at least
+  one game is deselected) to quickly toggle all of them at once.
+  Ludusavi will remember your most recent checkbox settings.
 
 #### Restore mode
-* Switch to restore mode by clicking the `=> restore` button.
+* Switch to restore mode by clicking the `restore mode` button.
 * You can press `preview` to see what the restore will include,
   without actually performing it.
 * You can press `restore` to perform the restore for real.
@@ -99,13 +110,23 @@ Run `ludusavi --help` for the full usage information.
     parent directories will be created as well before the copy, but if the
     directories already exist, their current files will be left alone (other
     than overwriting the ones that are being restored from the backup).
+* You can use redirects to restore to a different location than the original file.
+  Click `add redirect`, and then enter both the old and new location. For example,
+  if you backed up some saves from `C:/Games`, but then you moved it to `D:/Games`,
+  then you would put `C:/Games` as the source and `D:/Games` as the target.
+
+  Tip: As you're editing your redirects, try running a preview and expanding some
+  games' file lists. This will show you in real time what effect your redirects
+  will have when you perform the restore for real.
+* You can select/deselect specific games in restore mode just like you can in
+  backup mode. The checkbox settings are remembered separately for both modes.
 
 ### Configuration
 Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<your-name>/.config/ludusavi`).
 If you're using the GUI, you don't need to worry about this at all,
 since the GUI will automatically update the config file as needed.
 However, if you're using the CLI, you'll need to edit `config.yaml` directly.
-Here are the available settings (all are required):
+Here are the available settings (all are required unless otherwise noted):
 
 * `manifest` (map):
   * `url` (string): Where to download the primary manifest.
@@ -118,8 +139,18 @@ Here are the available settings (all are required):
       Valid options: `steam`, `other`
 * `backup` (map):
   * `path` (string): Full path to a directory in which to save backups.
+    This can be overridden in the CLI with `--path`.
+  * `ignoredGames` (optional, array of strings): Names of games to skip when backing up.
+    This can be overridden in the CLI by passing a list of games.
 * `restore` (map):
   * `path` (string): Full path to a directory from which to restore data.
+    This can be overridden in the CLI with `--path`.
+  * `ignoredGames` (optional, list of strings): Names of games to skip when restoring.
+    This can be overridden in the CLI by passing a list of games.
+  * `redirects` (optional, list):
+    * Each entry in the list should be a map with these fields:
+      * `source` (string): The original location when the backup was performed.
+      * `target` (string): The new location.
 
 Example:
 

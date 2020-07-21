@@ -1,5 +1,5 @@
 use crate::{
-    config::RootsConfig,
+    config::{RedirectConfig, RootsConfig},
     manifest::{Game, Os, Store},
 };
 
@@ -30,7 +30,7 @@ pub enum Error {
     CliUnableToRequestConfirmation,
 
     #[error("Some entries failed")]
-    CliSomeEntriesFailed,
+    SomeEntriesFailed,
 
     #[error("Cannot prepare the backup target")]
     CannotPrepareBackupTarget { path: String },
@@ -41,6 +41,9 @@ pub enum Error {
     #[allow(dead_code)]
     #[error("Error while working with the registry")]
     RegistryIssue,
+
+    #[error("Unable to browse file system")]
+    UnableToBrowseFileSystem,
 }
 
 #[derive(Clone, Debug, thiserror::Error)]
@@ -49,18 +52,83 @@ pub enum OtherError {
     BadRestorationTarget,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct ScannedFile {
+    pub path: String,
+    pub size: u64,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct ScanInfo {
     pub game_name: String,
-    pub found_files: std::collections::HashSet<String>,
+    pub found_files: std::collections::HashSet<ScannedFile>,
     pub found_registry_keys: std::collections::HashSet<String>,
     pub registry_file: Option<std::path::PathBuf>,
 }
 
+impl ScanInfo {
+    pub fn sum_bytes(&self, backup_info: &Option<BackupInfo>) -> u64 {
+        let successful_bytes = self.found_files.iter().map(|x| x.size).sum::<u64>();
+        let failed_bytes = if let Some(backup_info) = &backup_info {
+            backup_info.failed_files.iter().map(|x| x.size).sum::<u64>()
+        } else {
+            0
+        };
+        successful_bytes - failed_bytes
+    }
+
+    pub fn found_anything(&self) -> bool {
+        !self.found_files.is_empty() || !self.found_registry_keys.is_empty()
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct BackupInfo {
-    pub failed_files: std::collections::HashSet<String>,
+    pub failed_files: std::collections::HashSet<ScannedFile>,
     pub failed_registry: std::collections::HashSet<String>,
+}
+
+impl BackupInfo {
+    pub fn successful(&self) -> bool {
+        self.failed_files.is_empty() && self.failed_registry.is_empty()
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct OperationStatus {
+    pub total_games: usize,
+    pub total_bytes: u64,
+    pub processed_games: usize,
+    pub processed_bytes: u64,
+}
+
+impl OperationStatus {
+    pub fn clear(&mut self) {
+        self.total_games = 0;
+        self.total_bytes = 0;
+        self.processed_games = 0;
+        self.processed_bytes = 0;
+    }
+
+    pub fn add_game(&mut self, scan_info: &ScanInfo, backup_info: &Option<BackupInfo>, processed: bool) {
+        self.total_games += 1;
+        self.total_bytes += scan_info.sum_bytes(&None);
+        if processed {
+            self.processed_games += 1;
+            self.processed_bytes += scan_info.sum_bytes(&backup_info);
+        }
+    }
+
+    pub fn completed(&self) -> bool {
+        self.total_games == self.processed_games && self.total_bytes == self.processed_bytes
+    }
+}
+
+#[derive(Debug, Clone, PartialEq)]
+pub enum OperationStepDecision {
+    Processed,
+    Cancelled,
+    Ignored,
 }
 
 pub fn app_dir() -> std::path::PathBuf {
@@ -83,12 +151,26 @@ pub fn game_file_backup_target(start: &str, game: &str, original_path: &str) -> 
     path
 }
 
-pub fn game_file_restoration_target(file: &str) -> Result<String, Box<dyn std::error::Error>> {
+pub fn game_file_restoration_target(
+    file: &str,
+    redirects: &[RedirectConfig],
+) -> Result<(String, String), Box<dyn std::error::Error>> {
     let base_name = std::path::Path::new(file)
         .file_name()
         .ok_or(OtherError::BadRestorationTarget)?;
     let decoded = base64::decode(base_name.to_string_lossy().as_bytes())?;
-    Ok(std::str::from_utf8(&decoded)?.to_string())
+    let original_target = std::str::from_utf8(&decoded)?.to_string();
+
+    let mut redirected_target = original_target.clone();
+    for redirect in redirects {
+        let source = redirect.source.replace("\\", "/");
+        let target = redirect.target.replace("\\", "/");
+        if !source.is_empty() && !target.is_empty() && redirected_target.starts_with(&source) {
+            redirected_target = redirected_target.replacen(&source, &target, 1);
+        }
+    }
+
+    Ok((original_target, redirected_target))
 }
 
 pub fn get_os() -> Os {
@@ -144,7 +226,13 @@ pub fn parse_paths(
                     "<home>",
                     &dirs::home_dir().unwrap_or_else(|| SKIP.into()).to_string_lossy(),
                 )
-                .replace("<storeUserId>", "*")
+                .replace(
+                    "<storeUserId>",
+                    match root.store {
+                        Store::Steam => "[0-9]*",
+                        Store::Other => "*",
+                    },
+                )
                 .replace("<osUserName>", &whoami::username())
                 .replace("<winAppData>", &check_windows_path(dirs::data_dir()))
                 .replace("<winLocalAppData>", &check_windows_path(dirs::data_local_dir()))
@@ -270,7 +358,13 @@ pub fn scan_game_for_backup(
             let plain = entry.to_string_lossy().to_string().replace("\\", "/");
             let p = std::path::Path::new(&plain);
             if p.is_file() {
-                found_files.insert(plain);
+                found_files.insert(ScannedFile {
+                    path: plain.clone(),
+                    size: match p.metadata() {
+                        Ok(m) => m.len(),
+                        _ => 0,
+                    },
+                });
             } else if p.is_dir() {
                 for child in walkdir::WalkDir::new(p)
                     .max_depth(100)
@@ -279,7 +373,13 @@ pub fn scan_game_for_backup(
                     .filter_map(|e| e.ok())
                 {
                     if child.file_type().is_file() {
-                        found_files.insert(child.path().display().to_string().replace("\\", "/"));
+                        found_files.insert(ScannedFile {
+                            path: child.path().display().to_string().replace("\\", "/"),
+                            size: match child.metadata() {
+                                Ok(m) => m.len(),
+                                _ => 0,
+                            },
+                        });
                     }
                 }
             }
@@ -310,7 +410,6 @@ pub fn scan_game_for_backup(
 
 pub fn scan_dir_for_restorable_games(source: &str) -> Vec<(String, String)> {
     let mut games = vec![];
-    dbg!(&source);
     for subdir in walkdir::WalkDir::new(crate::path::normalize(&source))
         .max_depth(1)
         .follow_links(false)
@@ -338,27 +437,34 @@ pub fn scan_dir_for_restorable_games(source: &str) -> Vec<(String, String)> {
     games
 }
 
-pub fn scan_dir_for_restoration(source: &str) -> ScanInfo {
+pub fn get_restore_name_and_parent(source: &str) -> Option<(String, String)> {
     let path = std::path::Path::new(source);
     let base_name = match path.file_name() {
-        None => return Default::default(),
+        None => return None,
         Some(x) => x,
     };
     let parent = match path.parent() {
-        None => return Default::default(),
+        None => return None,
         Some(x) => x.to_string_lossy(),
     };
 
     let decoded_base_name = match base64::decode(base_name.to_string_lossy().as_bytes()) {
-        Err(_) => return Default::default(),
+        Err(_) => return None,
         Ok(x) => x,
     };
     let name = match std::str::from_utf8(&decoded_base_name) {
-        Err(_) => return Default::default(),
+        Err(_) => return None,
         Ok(x) => x.to_string(),
     };
 
-    scan_game_for_restoration(&name, &parent)
+    Some((name, parent.to_string()))
+}
+
+pub fn scan_dir_for_restoration(source: &str) -> ScanInfo {
+    match get_restore_name_and_parent(&source) {
+        None => ScanInfo::default(),
+        Some((name, parent)) => scan_game_for_restoration(&name, &parent),
+    }
 }
 
 pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
@@ -377,7 +483,13 @@ pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
         {
             if child.file_type().is_file() {
                 let source = child.path().display().to_string().replace("\\", "/");
-                found_files.insert(source);
+                found_files.insert(ScannedFile {
+                    path: source,
+                    size: match child.metadata() {
+                        Ok(m) => m.len(),
+                        _ => 0,
+                    },
+                });
             }
         }
     }
@@ -428,13 +540,13 @@ pub fn back_up_game(info: &ScanInfo, target: &str, name: &str) -> BackupInfo {
     for file in &info.found_files {
         let target_game = game_backup_dir(&target, &name);
         if !target_game.as_path().is_dir() && std::fs::create_dir(target_game).is_err() {
-            failed_files.insert(file.to_string());
+            failed_files.insert(file.clone());
             continue;
         }
 
-        let target_file = game_file_backup_target(&target, &name, &file);
-        if std::fs::copy(&file, &target_file).is_err() {
-            failed_files.insert(file.to_string());
+        let target_file = game_file_backup_target(&target, &name, &file.path);
+        if std::fs::copy(&file.path, &target_file).is_err() {
+            failed_files.insert(file.clone());
             continue;
         }
     }
@@ -463,27 +575,32 @@ pub fn back_up_game(info: &ScanInfo, target: &str, name: &str) -> BackupInfo {
     }
 }
 
-pub fn restore_game(info: &ScanInfo) -> BackupInfo {
+pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo {
     let mut failed_files = std::collections::HashSet::new();
     let failed_registry = std::collections::HashSet::new();
 
-    for file in &info.found_files {
-        match game_file_restoration_target(&file) {
+    'outer: for file in &info.found_files {
+        match game_file_restoration_target(&file.path, &redirects) {
             Err(_) => {
-                failed_files.insert(file.to_string());
+                failed_files.insert(file.clone());
                 continue;
             }
-            Ok(target) => {
+            Ok((_, target)) => {
                 let mut p = std::path::PathBuf::from(&target);
                 p.pop();
                 if std::fs::create_dir_all(&p.as_path().display().to_string()).is_err() {
-                    failed_files.insert(file.to_string());
+                    failed_files.insert(file.clone());
                     continue;
                 }
-                if std::fs::copy(file, target).is_err() {
-                    failed_files.insert(file.to_string());
-                    continue;
+                for i in 0..99 {
+                    if std::fs::copy(&file.path, &target).is_ok() {
+                        continue 'outer;
+                    }
+                    // File might be busy, especially if multiple games share a file,
+                    // like in a collection, so retry after a delay:
+                    std::thread::sleep(std::time::Duration::from_millis(i * info.game_name.len() as u64));
                 }
+                failed_files.insert(file.clone());
             }
         }
     }
