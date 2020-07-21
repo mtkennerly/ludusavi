@@ -31,6 +31,12 @@ pub struct RootsConfig {
     pub store: Store,
 }
 
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct RedirectConfig {
+    pub source: String,
+    pub target: String,
+}
+
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BackupConfig {
     pub path: String,
@@ -43,6 +49,7 @@ pub struct RestoreConfig {
     pub path: String,
     #[serde(rename = "ignoredGames")]
     pub ignored_games: Option<std::collections::HashSet<String>>,
+    pub redirects: Option<Vec<RedirectConfig>>,
 }
 
 impl Default for ManifestConfig {
@@ -68,6 +75,7 @@ impl Default for RestoreConfig {
         Self {
             path: default_backup_dir(),
             ignored_games: None,
+            redirects: None,
         }
     }
 }
@@ -212,6 +220,28 @@ impl Config {
             Some(games) => {
                 games.insert(name.to_owned());
             }
+        }
+    }
+
+    pub fn add_redirect(&mut self, source: &str, target: &str) {
+        let redirect = RedirectConfig {
+            source: source.to_string(),
+            target: target.to_string(),
+        };
+        match &mut self.restore.redirects {
+            None => {
+                self.restore.redirects = Some(vec![redirect]);
+            }
+            Some(redirects) => {
+                redirects.push(redirect);
+            }
+        }
+    }
+
+    pub fn get_redirects(&self) -> Vec<RedirectConfig> {
+        match &self.restore.redirects {
+            None => vec![],
+            Some(redirects) => redirects.to_vec(),
         }
     }
 }

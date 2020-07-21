@@ -86,6 +86,10 @@ enum Message {
     EditedRootStore(usize, Store),
     AddRoot,
     RemoveRoot(usize),
+    EditedRedirectSource(usize, String),
+    EditedRedirectTarget(usize, String),
+    AddRedirect,
+    RemoveRedirect(usize),
     SwitchScreenToRestore,
     SwitchScreenToBackup,
     ToggleGameListEntryExpanded {
@@ -244,10 +248,16 @@ impl GameListEntry {
 
         if self.expanded {
             for item in itertools::sorted(&self.scan_info.found_files) {
+                let mut redirected_from = None;
                 let mut line = item.path.clone();
                 if restoring {
-                    if let Ok(target) = game_file_restoration_target(&item.path) {
-                        line = target;
+                    if let Ok((original_target, redirected_target)) =
+                        game_file_restoration_target(&item.path, &config.get_redirects())
+                    {
+                        if original_target != redirected_target {
+                            redirected_from = Some(original_target);
+                        }
+                        line = redirected_target;
                     }
                 }
                 if let Some(backup_info) = &self.backup_info {
@@ -256,6 +266,9 @@ impl GameListEntry {
                     }
                 }
                 lines.push(line);
+                if let Some(redirected_from) = redirected_from {
+                    lines.push(translator.redirected_file_entry_line(&redirected_from));
+                }
             }
             for item in itertools::sorted(&self.scan_info.found_registry_keys) {
                 lines.push(item.clone());
@@ -404,7 +417,7 @@ impl RootEditor {
                                     .push(
                                         Button::new(
                                             &mut x.button_state,
-                                            Text::new(translator.remove_root_button())
+                                            Text::new(translator.remove_button())
                                                 .horizontal_alignment(HorizontalAlignment::Center)
                                                 .size(14),
                                         )
@@ -434,6 +447,89 @@ impl RootEditor {
                                             move |v| Message::EditedRootStore(i, v),
                                         )
                                     })
+                                    .push(Space::new(Length::Units(0), Length::Units(0))),
+                            )
+                            .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
+                    },
+                )
+            })
+        }
+    }
+}
+
+#[derive(Default)]
+struct RedirectEditorRow {
+    button_state: button::State,
+    source_text_state: text_input::State,
+    source_text_history: TextHistory,
+    target_text_state: text_input::State,
+    target_text_history: TextHistory,
+}
+
+impl RedirectEditorRow {
+    fn new(initial_source: &str, initial_target: &str) -> Self {
+        Self {
+            source_text_history: TextHistory::new(initial_source, 100),
+            target_text_history: TextHistory::new(initial_target, 100),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Default)]
+struct RedirectEditor {
+    scroll: scrollable::State,
+    rows: Vec<RedirectEditorRow>,
+}
+
+impl RedirectEditor {
+    fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+        let redirects = config.get_redirects();
+        if redirects.is_empty() {
+            Container::new(Space::new(Length::Units(0), Length::Units(0)))
+        } else {
+            Container::new({
+                self.rows.iter_mut().enumerate().fold(
+                    Scrollable::new(&mut self.scroll)
+                        .width(Length::Fill)
+                        .max_height(100)
+                        .style(style::Scrollable),
+                    |parent: Scrollable<'_, Message>, (i, x)| {
+                        parent
+                            .push(
+                                Row::new()
+                                    .spacing(20)
+                                    .push(Space::new(Length::Units(0), Length::Units(0)))
+                                    .push(
+                                        Button::new(
+                                            &mut x.button_state,
+                                            Text::new(translator.remove_button())
+                                                .horizontal_alignment(HorizontalAlignment::Center)
+                                                .size(14),
+                                        )
+                                        .on_press(Message::RemoveRedirect(i))
+                                        .style(style::Button::Negative),
+                                    )
+                                    .push(
+                                        TextInput::new(
+                                            &mut x.source_text_state,
+                                            &translator.redirect_source_placeholder(),
+                                            &redirects[i].source,
+                                            move |v| Message::EditedRedirectSource(i, v),
+                                        )
+                                        .width(Length::FillPortion(3))
+                                        .padding(5),
+                                    )
+                                    .push(
+                                        TextInput::new(
+                                            &mut x.target_text_state,
+                                            &translator.redirect_target_placeholder(),
+                                            &redirects[i].target,
+                                            move |v| Message::EditedRedirectTarget(i, v),
+                                        )
+                                        .width(Length::FillPortion(3))
+                                        .padding(5),
+                                    )
                                     .push(Space::new(Length::Units(0), Length::Units(0))),
                             )
                             .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
@@ -637,17 +733,27 @@ struct RestoreScreenComponent {
     log: GameList,
     start_button: button::State,
     preview_button: button::State,
+    add_redirect_button: button::State,
     select_all_button: button::State,
     restore_source_input: text_input::State,
     restore_source_history: TextHistory,
     restore_source_browse_button: button::State,
+    redirect_editor: RedirectEditor,
     progress: DisappearingProgress,
 }
 
 impl RestoreScreenComponent {
     fn new(config: &Config) -> Self {
+        let mut redirect_editor = RedirectEditor::default();
+        for redirect in &config.get_redirects() {
+            redirect_editor
+                .rows
+                .push(RedirectEditorRow::new(&redirect.source, &redirect.target))
+        }
+
         Self {
             restore_source_history: TextHistory::new(&config.backup.path, 100),
+            redirect_editor,
             ..Default::default()
         }
     }
@@ -711,6 +817,16 @@ impl RestoreScreenComponent {
                                 _ => style::Button::Disabled,
                             }),
                         )
+                        .push(
+                            Button::new(
+                                &mut self.add_redirect_button,
+                                Text::new(translator.add_redirect_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::AddRedirect)
+                            .width(Length::Units(125))
+                            .style(style::Button::Primary),
+                        )
                         .push({
                             let restoring = true;
                             Button::new(
@@ -768,6 +884,7 @@ impl RestoreScreenComponent {
                             }),
                         ),
                 )
+                .push(self.redirect_editor.view(&config, &translator))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
                 .push(
                     self.log
@@ -954,6 +1071,7 @@ impl Application for App {
                     .filter_map(|e| e.ok())
                 {
                     let source = get_restore_name_and_parent(&subdir.path().to_string_lossy());
+                    let redirects = self.config.get_redirects();
                     let cancel_flag = self.operation_should_cancel.clone();
                     let ignored = match source {
                         None => true,
@@ -972,7 +1090,11 @@ impl Application for App {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);
                             }
 
-                            let backup_info = if !preview { Some(restore_game(&scan_info)) } else { None };
+                            let backup_info = if !preview {
+                                Some(restore_game(&scan_info, &redirects))
+                            } else {
+                                None
+                            };
                             (Some(scan_info), backup_info, OperationStepDecision::Processed)
                         },
                         move |(scan_info, backup_info, decision)| Message::RestoreStep {
@@ -1113,6 +1235,35 @@ impl Application for App {
             Message::RemoveRoot(index) => {
                 self.backup_screen.root_editor.rows.remove(index);
                 self.config.roots.remove(index);
+                Command::none()
+            }
+            Message::EditedRedirectSource(index, source) => {
+                self.restore_screen.redirect_editor.rows[index]
+                    .source_text_history
+                    .push(&source);
+                self.config.restore.redirects.as_mut().unwrap()[index].source = source;
+                Command::none()
+            }
+            Message::EditedRedirectTarget(index, target) => {
+                self.restore_screen.redirect_editor.rows[index]
+                    .target_text_history
+                    .push(&target);
+                self.config.restore.redirects.as_mut().unwrap()[index].target = target;
+                Command::none()
+            }
+            Message::AddRedirect => {
+                self.restore_screen
+                    .redirect_editor
+                    .rows
+                    .push(RedirectEditorRow::default());
+                self.config.add_redirect("", "");
+                Command::none()
+            }
+            Message::RemoveRedirect(index) => {
+                self.restore_screen.redirect_editor.rows.remove(index);
+                if let Some(redirects) = &mut self.config.restore.redirects {
+                    redirects.remove(index);
+                }
                 Command::none()
             }
             Message::SwitchScreenToBackup => {

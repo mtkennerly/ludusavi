@@ -1,6 +1,6 @@
 use crate::{
     manifest::Store,
-    prelude::{Error, OperationStatus},
+    prelude::{Error, OperationStatus, OperationStepDecision},
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -92,9 +92,22 @@ impl Translator {
         .into()
     }
 
-    pub fn cli_game_header(&self, name: &str, bytes: u64) -> String {
+    pub fn label_ignored(&self) -> String {
         match self.language {
-            Language::English => format!("{} [{}]:", name, self.mib(bytes, false)),
+            Language::English => "[IGNORED]",
+        }
+        .into()
+    }
+
+    pub fn cli_game_header(&self, name: &str, bytes: u64, decision: &OperationStepDecision) -> String {
+        if *decision == OperationStepDecision::Processed {
+            match self.language {
+                Language::English => format!("{} [{}]:", name, self.mib(bytes, false)),
+            }
+        } else {
+            match self.language {
+                Language::English => format!("{} [{}] {}:", name, self.mib(bytes, false), self.label_ignored()),
+            }
         }
     }
 
@@ -107,6 +120,12 @@ impl Translator {
     pub fn cli_game_line_item_failed(&self, item: &str) -> String {
         match self.language {
             Language::English => format!("  - {} {}", self.label_failed(), item),
+        }
+    }
+
+    pub fn cli_game_line_item_redirected(&self, item: &str) -> String {
+        match self.language {
+            Language::English => format!("    - Redirected from: {}", item),
         }
     }
 
@@ -143,6 +162,12 @@ impl Translator {
     pub fn failed_file_entry_line(&self, path: &str) -> String {
         match self.language {
             Language::English => format!("{} {}", self.label_failed(), path),
+        }
+    }
+
+    pub fn redirected_file_entry_line(&self, path: &str) -> String {
+        match self.language {
+            Language::English => format!(". . . . . Redirected from: {}", path),
         }
     }
 
@@ -188,7 +213,14 @@ impl Translator {
         .into()
     }
 
-    pub fn remove_root_button(&self) -> String {
+    pub fn add_redirect_button(&self) -> String {
+        match self.language {
+            Language::English => "Add redirect",
+        }
+        .into()
+    }
+
+    pub fn remove_button(&self) -> String {
         match self.language {
             Language::English => "Remove",
         }
@@ -354,6 +386,20 @@ impl Translator {
                 Store::Steam => "Steam",
                 Store::Other => "Other",
             },
+        }
+        .into()
+    }
+
+    pub fn redirect_source_placeholder(&self) -> String {
+        match self.language {
+            Language::English => "Source (original location)",
+        }
+        .into()
+    }
+
+    pub fn redirect_target_placeholder(&self) -> String {
+        match self.language {
+            Language::English => "Target (new location)",
         }
         .into()
     }

@@ -1,6 +1,7 @@
 ## Unreleased
 
 * Added the ability to select and deselect specific games.
+* Added the ability to restore to different folders via redirects.
 * Added indicators for how much disk space is used by the files.
 * Added indicators in the GUI when files fail to process.
 * Added a browse button for folders.

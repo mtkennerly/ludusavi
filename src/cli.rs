@@ -1,5 +1,5 @@
 use crate::{
-    config::Config,
+    config::{Config, RedirectConfig},
     lang::Translator,
     manifest::{Manifest, SteamMetadata},
     prelude::{
@@ -80,6 +80,8 @@ fn show_outcome(
     scan_info: &ScanInfo,
     backup_info: &BackupInfo,
     restoring: bool,
+    decision: &OperationStepDecision,
+    redirects: &[RedirectConfig],
 ) -> Option<bool> {
     if !scan_info.found_anything() {
         return None;
@@ -88,11 +90,16 @@ fn show_outcome(
     let mut successful = true;
     println!(
         "{}",
-        translator.cli_game_header(&name, scan_info.sum_bytes(&Some(backup_info.to_owned())))
+        translator.cli_game_header(&name, scan_info.sum_bytes(&Some(backup_info.to_owned())), &decision)
     );
     for entry in itertools::sorted(&scan_info.found_files) {
+        let mut redirected_from = None;
         let readable = if restoring {
-            game_file_restoration_target(&entry.path).unwrap()
+            let (original_target, redirected_target) = game_file_restoration_target(&entry.path, &redirects).unwrap();
+            if original_target != redirected_target {
+                redirected_from = Some(original_target);
+            }
+            redirected_target
         } else {
             entry.path.to_owned()
         };
@@ -101,6 +108,9 @@ fn show_outcome(
             println!("{}", translator.cli_game_line_item_failed(&readable));
         } else {
             println!("{}", translator.cli_game_line_item_successful(&readable));
+        }
+        if let Some(redirected_from) = redirected_from {
+            println!("{}", translator.cli_game_line_item_redirected(&redirected_from));
         }
     }
     for entry in itertools::sorted(&scan_info.found_registry_keys) {
@@ -140,7 +150,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 }
             }
 
-            let games_specified = games.is_empty();
+            let games_specified = !games.is_empty();
             let mut invalid_games: Vec<_> = games
                 .iter()
                 .filter_map(|game| {
@@ -188,7 +198,9 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             let mut status = OperationStatus::default();
             for (name, scan_info, backup_info, decision) in info {
-                if let Some(successful) = show_outcome(&translator, &name, &scan_info, &backup_info, false) {
+                if let Some(successful) =
+                    show_outcome(&translator, &name, &scan_info, &backup_info, false, &decision, &[])
+                {
                     status.add_game(
                         &scan_info,
                         &Some(backup_info),
@@ -199,7 +211,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     }
                 };
             }
-            eprintln!("{}", translator.cli_summary(&status, &backup_dir));
+            println!("{}", translator.cli_summary(&status, &backup_dir));
         }
         Subcommand::Restore {
             preview,
@@ -223,7 +235,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let restorables = scan_dir_for_restorable_games(&restore_dir);
             let restorable_names: Vec<_> = restorables.iter().map(|(name, _)| name.to_owned()).collect();
 
-            let games_specified = games.is_empty();
+            let games_specified = !games.is_empty();
             let mut invalid_games: Vec<_> = games
                 .iter()
                 .filter_map(|game| {
@@ -263,7 +275,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let restore_info = if preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
-                        restore_game(&scan_info)
+                        restore_game(&scan_info, &config.get_redirects())
                     };
                     (name, scan_info, restore_info, decision)
                 })
@@ -271,7 +283,15 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             let mut status = OperationStatus::default();
             for (name, scan_info, backup_info, decision) in info {
-                if let Some(successful) = show_outcome(&translator, &name, &scan_info, &backup_info, true) {
+                if let Some(successful) = show_outcome(
+                    &translator,
+                    &name,
+                    &scan_info,
+                    &backup_info,
+                    true,
+                    &decision,
+                    &config.get_redirects(),
+                ) {
                     status.add_game(
                         &scan_info,
                         &Some(backup_info),
@@ -282,7 +302,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     }
                 };
             }
-            eprintln!("{}", translator.cli_summary(&status, &restore_dir));
+            println!("{}", translator.cli_summary(&status, &restore_dir));
         }
     }
 

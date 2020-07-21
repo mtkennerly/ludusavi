@@ -1,5 +1,5 @@
 use crate::{
-    config::RootsConfig,
+    config::{RedirectConfig, RootsConfig},
     manifest::{Game, Os, Store},
 };
 
@@ -151,12 +151,26 @@ pub fn game_file_backup_target(start: &str, game: &str, original_path: &str) -> 
     path
 }
 
-pub fn game_file_restoration_target(file: &str) -> Result<String, Box<dyn std::error::Error>> {
+pub fn game_file_restoration_target(
+    file: &str,
+    redirects: &[RedirectConfig],
+) -> Result<(String, String), Box<dyn std::error::Error>> {
     let base_name = std::path::Path::new(file)
         .file_name()
         .ok_or(OtherError::BadRestorationTarget)?;
     let decoded = base64::decode(base_name.to_string_lossy().as_bytes())?;
-    Ok(std::str::from_utf8(&decoded)?.to_string())
+    let original_target = std::str::from_utf8(&decoded)?.to_string();
+
+    let mut redirected_target = original_target.clone();
+    for redirect in redirects {
+        let source = redirect.source.replace("\\", "/");
+        let target = redirect.target.replace("\\", "/");
+        if !source.is_empty() && !target.is_empty() && redirected_target.starts_with(&source) {
+            redirected_target = redirected_target.replacen(&source, &target, 1);
+        }
+    }
+
+    Ok((original_target, redirected_target))
 }
 
 pub fn get_os() -> Os {
@@ -561,17 +575,17 @@ pub fn back_up_game(info: &ScanInfo, target: &str, name: &str) -> BackupInfo {
     }
 }
 
-pub fn restore_game(info: &ScanInfo) -> BackupInfo {
+pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo {
     let mut failed_files = std::collections::HashSet::new();
     let failed_registry = std::collections::HashSet::new();
 
     'outer: for file in &info.found_files {
-        match game_file_restoration_target(&file.path) {
+        match game_file_restoration_target(&file.path, &redirects) {
             Err(_) => {
                 failed_files.insert(file.clone());
                 continue;
             }
-            Ok(target) => {
+            Ok((_, target)) => {
                 let mut p = std::path::PathBuf::from(&target);
                 p.pop();
                 if std::fs::create_dir_all(&p.as_path().display().to_string()).is_err() {
