@@ -1,4 +1,4 @@
-## Unreleased
+## v0.4.0 (2020-07-21)
 
 * Added the ability to select and deselect specific games.
 * Added the ability to restore to different folders via redirects.
@@ -6,8 +6,8 @@
 * Added indicators in the GUI when files fail to process.
 * Added a browse button for folders.
 * Replaced the "=> Restore" and "=> Backup" buttons with a navigation bar.
-* Redesigned confirmation and error screens so that the buttons are shown below
-  the text, which helps to prevent any accidental clicks before reading.
+* Redesigned the confirmation and error screens so that the buttons are shown
+  below the text, which helps to prevent any accidental clicks before reading.
 * Narrowed how Steam IDs are substituted in paths to avoid false positives.
 * Fixed an issue where restore mode in the GUI would get stuck showing an
   "in progress" state if the source path had no subdirectories.

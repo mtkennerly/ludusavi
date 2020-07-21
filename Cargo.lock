@@ -194,7 +194,7 @@ version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6c2be76f06820200669a77ae59a8328c6b8fe4496e8fb7fed02f2806a442c5ff"
 dependencies = [
- "smallvec 1.4.0",
+ "smallvec 1.4.1",
 ]
 
 [[package]]
@@ -1405,7 +1405,7 @@ dependencies = [
 
 [[package]]
 name = "ludusavi"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "base64 0.12.3",
  "copypasta",
@@ -1826,7 +1826,7 @@ dependencies = [
  "cloudabi",
  "libc",
  "redox_syscall",
- "smallvec 1.4.0",
+ "smallvec 1.4.1",
  "winapi 0.3.9",
 ]
 
@@ -2426,9 +2426,9 @@ dependencies = [
 
 [[package]]
 name = "smallvec"
-version = "1.4.0"
+version = "1.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c7cb5678e1615754284ec264d9bb5b4c27d2018577fd90ac0ceb578591ed5ee4"
+checksum = "3757cb9d89161a2f24e1cf78efa0c1fcff485d18e3f55e0aa3480824ddaa0f3f"
 
 [[package]]
 name = "smithay-client-toolkit"
@@ -3024,7 +3024,7 @@ checksum = "13f95a427cf36b19d2cd678f53634caba01f497294eed7726993cce086e6247f"
 dependencies = [
  "nix 0.17.0",
  "once_cell",
- "smallvec 1.4.0",
+ "smallvec 1.4.1",
  "wayland-sys 0.26.6",
 ]
 
