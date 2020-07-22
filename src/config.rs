@@ -1,14 +1,14 @@
 use crate::{
     manifest::Store,
-    prelude::{app_dir, Error},
+    prelude::{app_dir, Error, StrictPath},
 };
 
 const MANIFEST_URL: &str = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
 
-fn default_backup_dir() -> String {
+fn default_backup_dir() -> StrictPath {
     let mut path = dirs::home_dir().unwrap();
     path.push("ludusavi-backup");
-    path.to_string_lossy().to_string()
+    StrictPath::from_std_path_buf(&path)
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -27,26 +27,26 @@ pub struct ManifestConfig {
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct RootsConfig {
-    pub path: String,
+    pub path: StrictPath,
     pub store: Store,
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct RedirectConfig {
-    pub source: String,
-    pub target: String,
+    pub source: StrictPath,
+    pub target: StrictPath,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BackupConfig {
-    pub path: String,
+    pub path: StrictPath,
     #[serde(rename = "ignoredGames")]
     pub ignored_games: Option<std::collections::HashSet<String>>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RestoreConfig {
-    pub path: String,
+    pub path: StrictPath,
     #[serde(rename = "ignoredGames")]
     pub ignored_games: Option<std::collections::HashSet<String>>,
     pub redirects: Option<Vec<RedirectConfig>>,
@@ -150,18 +150,19 @@ impl Config {
             (format!("{}/WindowsApps", pf64), Store::Other),
         ];
 
-        let mut checked = std::collections::HashSet::<String>::new();
+        let mut checked = std::collections::HashSet::<StrictPath>::new();
         for (path, store) in candidates {
-            if checked.contains(&path) {
+            let sp = StrictPath::new(path);
+            if checked.contains(&sp) {
                 continue;
             }
-            if crate::path::is_dir(&path) {
+            if sp.is_dir() {
                 self.roots.push(RootsConfig {
-                    path: crate::path::normalize(&path),
+                    path: sp.clone(),
                     store,
                 });
             }
-            checked.insert(path);
+            checked.insert(sp);
         }
     }
 
@@ -223,10 +224,10 @@ impl Config {
         }
     }
 
-    pub fn add_redirect(&mut self, source: &str, target: &str) {
+    pub fn add_redirect(&mut self, source: &StrictPath, target: &StrictPath) {
         let redirect = RedirectConfig {
-            source: source.to_string(),
-            target: target.to_string(),
+            source: source.clone(),
+            target: target.clone(),
         };
         match &mut self.restore.redirects {
             None => {

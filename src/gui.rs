@@ -5,7 +5,7 @@ use crate::{
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, get_restore_name_and_parent, prepare_backup_target,
         restore_game, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error, OperationStatus,
-        OperationStepDecision, ScanInfo,
+        OperationStepDecision, ScanInfo, StrictPath,
     },
     shortcuts::{Shortcut, TextHistory},
 };
@@ -196,12 +196,10 @@ impl ModalComponent {
                                 .align_items(Align::Center)
                                 .push(Text::new(match theme {
                                     ModalTheme::Error { variant } => translator.handle_error(variant),
-                                    ModalTheme::ConfirmBackup => translator.modal_confirm_backup(
-                                        &crate::path::absolute(&config.backup.path),
-                                        crate::path::exists(&config.backup.path),
-                                    ),
+                                    ModalTheme::ConfirmBackup => translator
+                                        .modal_confirm_backup(&config.backup.path, config.backup.path.exists()),
                                     ModalTheme::ConfirmRestore => {
-                                        translator.modal_confirm_restore(&crate::path::absolute(&config.restore.path))
+                                        translator.modal_confirm_restore(&config.restore.path)
                                     }
                                 }))
                                 .height(Length::Fill),
@@ -249,7 +247,7 @@ impl GameListEntry {
         if self.expanded {
             for item in itertools::sorted(&self.scan_info.found_files) {
                 let mut redirected_from = None;
-                let mut line = item.path.clone();
+                let mut line = item.path.render();
                 if restoring {
                     if let Ok((original_target, redirected_target)) =
                         game_file_restoration_target(&item.path, &config.get_redirects())
@@ -257,7 +255,7 @@ impl GameListEntry {
                         if original_target != redirected_target {
                             redirected_from = Some(original_target);
                         }
-                        line = redirected_target;
+                        line = redirected_target.render();
                     }
                 }
                 if let Some(backup_info) = &self.backup_info {
@@ -425,7 +423,7 @@ impl RootEditor {
                                         .style(style::Button::Negative),
                                     )
                                     .push(
-                                        TextInput::new(&mut x.text_state, "", &roots[i].path, move |v| {
+                                        TextInput::new(&mut x.text_state, "", &roots[i].path.raw(), move |v| {
                                             Message::EditedRootPath(i, v)
                                         })
                                         .width(Length::FillPortion(3))
@@ -514,7 +512,7 @@ impl RedirectEditor {
                                         TextInput::new(
                                             &mut x.source_text_state,
                                             &translator.redirect_source_placeholder(),
-                                            &redirects[i].source,
+                                            &redirects[i].source.raw(),
                                             move |v| Message::EditedRedirectSource(i, v),
                                         )
                                         .width(Length::FillPortion(3))
@@ -524,7 +522,7 @@ impl RedirectEditor {
                                         TextInput::new(
                                             &mut x.target_text_state,
                                             &translator.redirect_target_placeholder(),
-                                            &redirects[i].target,
+                                            &redirects[i].target.raw(),
                                             move |v| Message::EditedRedirectTarget(i, v),
                                         )
                                         .width(Length::FillPortion(3))
@@ -576,12 +574,12 @@ impl BackupScreenComponent {
     fn new(config: &Config) -> Self {
         let mut root_editor = RootEditor::default();
         for root in &config.roots {
-            root_editor.rows.push(RootEditorRow::new(&root.path))
+            root_editor.rows.push(RootEditorRow::new(&root.path.raw()))
         }
 
         Self {
             root_editor,
-            backup_target_history: TextHistory::new(&config.backup.path, 100),
+            backup_target_history: TextHistory::new(&config.backup.path.raw(), 100),
             ..Default::default()
         }
     }
@@ -691,7 +689,7 @@ impl BackupScreenComponent {
                             TextInput::new(
                                 &mut self.backup_target_input,
                                 "",
-                                &config.backup.path,
+                                &config.backup.path.raw(),
                                 Message::EditedBackupTarget,
                             )
                             .padding(5),
@@ -748,11 +746,11 @@ impl RestoreScreenComponent {
         for redirect in &config.get_redirects() {
             redirect_editor
                 .rows
-                .push(RedirectEditorRow::new(&redirect.source, &redirect.target))
+                .push(RedirectEditorRow::new(&redirect.source.raw(), &redirect.target.raw()))
         }
 
         Self {
-            restore_source_history: TextHistory::new(&config.backup.path, 100),
+            restore_source_history: TextHistory::new(&config.backup.path.raw(), 100),
             redirect_editor,
             ..Default::default()
         }
@@ -863,7 +861,7 @@ impl RestoreScreenComponent {
                             TextInput::new(
                                 &mut self.restore_source_input,
                                 "",
-                                &config.restore.path,
+                                &config.restore.path.raw(),
                                 Message::EditedRestoreSource,
                             )
                             .padding(5),
@@ -975,7 +973,7 @@ impl Application for App {
                 self.backup_screen.progress.current = 0.0;
                 self.backup_screen.progress.max = self.manifest.0.len() as f32;
 
-                let backup_path = crate::path::absolute(&self.config.backup.path);
+                let backup_path = &self.config.backup.path;
                 if !preview {
                     if let Err(e) = prepare_backup_target(&backup_path) {
                         self.modal_theme = Some(ModalTheme::Error { variant: e });
@@ -1008,8 +1006,13 @@ impl Application for App {
                                 return (None, None, OperationStepDecision::Cancelled);
                             }
 
-                            let scan_info =
-                                scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), &steam_id);
+                            let scan_info = scan_game_for_backup(
+                                &game,
+                                &key,
+                                &roots,
+                                &StrictPath::from_std_path_buf(&app_dir()),
+                                &steam_id,
+                            );
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);
                             }
@@ -1040,15 +1043,17 @@ impl Application for App {
                 self.restore_screen.log.entries.clear();
                 self.modal_theme = None;
 
-                let restore_path = crate::path::normalize(&self.config.restore.path);
-                if !crate::path::is_dir(&restore_path) {
+                let restore_path = &self.config.restore.path;
+                if !restore_path.is_dir() {
                     self.modal_theme = Some(ModalTheme::Error {
-                        variant: Error::RestorationSourceInvalid { path: restore_path },
+                        variant: Error::RestorationSourceInvalid {
+                            path: restore_path.clone(),
+                        },
                     });
                     return Command::none();
                 }
 
-                let total_subdirs = crate::path::count_subdirectories(&self.config.restore.path);
+                let total_subdirs = self.config.restore.path.count_subdirectories();
                 if total_subdirs == 0 {
                     return Command::none();
                 }
@@ -1063,14 +1068,15 @@ impl Application for App {
                 self.restore_screen.progress.max = total_subdirs as f32;
 
                 let mut commands: Vec<Command<Message>> = vec![];
-                for subdir in walkdir::WalkDir::new(crate::path::normalize(&restore_path))
+                for subdir in walkdir::WalkDir::new(restore_path.interpret())
                     .max_depth(1)
                     .follow_links(false)
                     .into_iter()
                     .skip(1) // the restore path itself
                     .filter_map(|e| e.ok())
                 {
-                    let source = get_restore_name_and_parent(&subdir.path().to_string_lossy());
+                    let strict_subdir = StrictPath::from_std_path_buf(&subdir.into_path());
+                    let source = get_restore_name_and_parent(&strict_subdir);
                     let redirects = self.config.get_redirects();
                     let cancel_flag = self.operation_should_cancel.clone();
                     let ignored = match source {
@@ -1085,7 +1091,7 @@ impl Application for App {
                                 return (None, None, OperationStepDecision::Cancelled);
                             }
 
-                            let scan_info = scan_dir_for_restoration(&subdir.path().to_string_lossy());
+                            let scan_info = scan_dir_for_restoration(&strict_subdir);
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);
                             }
@@ -1207,17 +1213,17 @@ impl Application for App {
             }
             Message::EditedBackupTarget(text) => {
                 self.backup_screen.backup_target_history.push(&text);
-                self.config.backup.path = text;
+                self.config.backup.path.reset(text);
                 Command::none()
             }
             Message::EditedRestoreSource(text) => {
                 self.restore_screen.restore_source_history.push(&text);
-                self.config.restore.path = text;
+                self.config.restore.path.reset(text);
                 Command::none()
             }
             Message::EditedRootPath(index, path) => {
                 self.backup_screen.root_editor.rows[index].text_history.push(&path);
-                self.config.roots[index].path = path;
+                self.config.roots[index].path.reset(path);
                 Command::none()
             }
             Message::EditedRootStore(index, store) => {
@@ -1227,7 +1233,7 @@ impl Application for App {
             Message::AddRoot => {
                 self.backup_screen.root_editor.rows.push(RootEditorRow::default());
                 self.config.roots.push(RootsConfig {
-                    path: "".into(),
+                    path: StrictPath::default(),
                     store: Store::Other,
                 });
                 Command::none()
@@ -1241,14 +1247,18 @@ impl Application for App {
                 self.restore_screen.redirect_editor.rows[index]
                     .source_text_history
                     .push(&source);
-                self.config.restore.redirects.as_mut().unwrap()[index].source = source;
+                self.config.restore.redirects.as_mut().unwrap()[index]
+                    .source
+                    .reset(source);
                 Command::none()
             }
             Message::EditedRedirectTarget(index, target) => {
                 self.restore_screen.redirect_editor.rows[index]
                     .target_text_history
                     .push(&target);
-                self.config.restore.redirects.as_mut().unwrap()[index].target = target;
+                self.config.restore.redirects.as_mut().unwrap()[index]
+                    .target
+                    .reset(target);
                 Command::none()
             }
             Message::AddRedirect => {
@@ -1256,7 +1266,7 @@ impl Application for App {
                     .redirect_editor
                     .rows
                     .push(RedirectEditorRow::default());
-                self.config.add_redirect("", "");
+                self.config.add_redirect(&StrictPath::default(), &StrictPath::default());
                 Command::none()
             }
             Message::RemoveRedirect(index) => {
@@ -1375,47 +1385,67 @@ impl Application for App {
                             if self.backup_screen.backup_target_input.is_focused() {
                                 match shortcut {
                                     Shortcut::Undo => {
-                                        self.config.backup.path = self.backup_screen.backup_target_history.undo();
+                                        self.config
+                                            .backup
+                                            .path
+                                            .reset(self.backup_screen.backup_target_history.undo());
                                     }
                                     Shortcut::Redo => {
-                                        self.config.backup.path = self.backup_screen.backup_target_history.redo();
+                                        self.config
+                                            .backup
+                                            .path
+                                            .reset(self.backup_screen.backup_target_history.redo());
                                     }
                                     Shortcut::ClipboardCopy => {
                                         crate::shortcuts::copy_to_clipboard_from_iced(
-                                            &self.config.backup.path,
+                                            &self.config.backup.path.raw(),
                                             &self.backup_screen.backup_target_input.cursor(),
                                         );
                                     }
                                     Shortcut::ClipboardCut => {
-                                        self.config.backup.path = crate::shortcuts::cut_to_clipboard_from_iced(
-                                            &self.config.backup.path,
-                                            &self.backup_screen.backup_target_input.cursor(),
-                                        );
-                                        self.backup_screen.backup_target_history.push(&self.config.backup.path);
+                                        self.config
+                                            .backup
+                                            .path
+                                            .reset(crate::shortcuts::cut_to_clipboard_from_iced(
+                                                &self.config.backup.path.raw(),
+                                                &self.backup_screen.backup_target_input.cursor(),
+                                            ));
+                                        self.backup_screen
+                                            .backup_target_history
+                                            .push(&self.config.backup.path.raw());
                                     }
                                 }
                             } else if self.restore_screen.restore_source_input.is_focused() {
                                 match shortcut {
                                     Shortcut::Undo => {
-                                        self.config.restore.path = self.restore_screen.restore_source_history.undo();
+                                        self.config
+                                            .restore
+                                            .path
+                                            .reset(self.restore_screen.restore_source_history.undo());
                                     }
                                     Shortcut::Redo => {
-                                        self.config.restore.path = self.restore_screen.restore_source_history.redo();
+                                        self.config
+                                            .restore
+                                            .path
+                                            .reset(self.restore_screen.restore_source_history.redo());
                                     }
                                     Shortcut::ClipboardCopy => {
                                         crate::shortcuts::copy_to_clipboard_from_iced(
-                                            &self.config.restore.path,
+                                            &self.config.restore.path.raw(),
                                             &self.restore_screen.restore_source_input.cursor(),
                                         );
                                     }
                                     Shortcut::ClipboardCut => {
-                                        self.config.restore.path = crate::shortcuts::cut_to_clipboard_from_iced(
-                                            &self.config.restore.path,
-                                            &self.restore_screen.restore_source_input.cursor(),
-                                        );
+                                        self.config
+                                            .restore
+                                            .path
+                                            .reset(crate::shortcuts::cut_to_clipboard_from_iced(
+                                                &self.config.restore.path.raw(),
+                                                &self.restore_screen.restore_source_input.cursor(),
+                                            ));
                                         self.restore_screen
                                             .restore_source_history
-                                            .push(&self.config.restore.path);
+                                            .push(&self.config.restore.path.raw());
                                     }
                                 }
                             } else {
@@ -1423,26 +1453,26 @@ impl Application for App {
                                     if root.text_state.is_focused() {
                                         match shortcut {
                                             Shortcut::Undo => {
-                                                self.config.roots[i].path = root.text_history.undo();
+                                                self.config.roots[i].path.reset(root.text_history.undo());
                                             }
                                             Shortcut::Redo => {
-                                                self.config.roots[i].path = root.text_history.redo();
+                                                self.config.roots[i].path.reset(root.text_history.redo());
                                             }
                                             Shortcut::ClipboardCopy => {
                                                 crate::shortcuts::copy_to_clipboard_from_iced(
-                                                    &self.config.roots[i].path,
+                                                    &self.config.roots[i].path.raw(),
                                                     &root.text_state.cursor(),
                                                 );
                                             }
                                             Shortcut::ClipboardCut => {
-                                                self.config.roots[i].path =
-                                                    crate::shortcuts::cut_to_clipboard_from_iced(
-                                                        &self.config.roots[i].path,
-                                                        &root.text_state.cursor(),
-                                                    );
+                                                let modified = crate::shortcuts::cut_to_clipboard_from_iced(
+                                                    &self.config.roots[i].path.raw(),
+                                                    &root.text_state.cursor(),
+                                                );
+                                                self.config.roots[i].path.reset(modified);
                                                 self.backup_screen.root_editor.rows[i]
                                                     .text_history
-                                                    .push(&self.config.roots[i].path);
+                                                    .push(&self.config.roots[i].path.raw());
                                             }
                                         }
                                         break;

@@ -1,6 +1,6 @@
 use crate::{
     config::Config,
-    prelude::{app_dir, Error},
+    prelude::{app_dir, Error, StrictPath},
 };
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -100,7 +100,7 @@ impl Manifest {
     }
 
     pub fn load(config: &mut Config, update: bool) -> Result<Self, Error> {
-        if update || !crate::path::exists(&crate::path::render_pathbuf(&Self::file())) {
+        if update || !StrictPath::from_std_path_buf(&Self::file()).exists() {
             Self::update(config)?;
         }
         let content = std::fs::read_to_string(Self::file()).unwrap();

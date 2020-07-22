@@ -5,15 +5,21 @@ use crate::{
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
         scan_dir_for_restorable_games, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error,
-        OperationStatus, OperationStepDecision, ScanInfo,
+        OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
     },
 };
 use indicatif::ParallelProgressIterator;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use structopt::StructOpt;
 
-fn parse_canonical_path(path: &str) -> Result<String, std::io::Error> {
-    Ok(std::fs::canonicalize(path)?.to_string_lossy().to_string())
+fn parse_strict_path(path: &str) -> StrictPath {
+    StrictPath::new(path.to_owned())
+}
+
+fn parse_existing_strict_path(path: &str) -> Result<StrictPath, std::io::Error> {
+    let sp = StrictPath::new(path.to_owned());
+    std::fs::canonicalize(sp.interpret())?;
+    Ok(sp)
 }
 
 #[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
@@ -27,8 +33,8 @@ pub enum Subcommand {
         /// Directory in which to create the backup. The directory must not
         /// already exist (unless you use --force), but it will be created if necessary.
         /// When unset, this defaults to the value from Ludusavi's config file.
-        #[structopt(long, parse(try_from_str = parse_canonical_path))]
-        path: Option<String>,
+        #[structopt(long, parse(from_str = parse_strict_path))]
+        path: Option<StrictPath>,
 
         /// Delete the target directory if it already exists.
         #[structopt(long)]
@@ -50,8 +56,8 @@ pub enum Subcommand {
 
         /// Directory containing a Ludusavi backup. When unset, this
         /// defaults to the value from Ludusavi's config file.
-        #[structopt(long, parse(try_from_str = parse_canonical_path))]
-        path: Option<String>,
+        #[structopt(long, parse(try_from_str = parse_existing_strict_path))]
+        path: Option<StrictPath>,
 
         /// Don't ask for confirmation.
         #[structopt(long)]
@@ -105,12 +111,15 @@ fn show_outcome(
         };
         if backup_info.failed_files.contains(entry) {
             successful = false;
-            println!("{}", translator.cli_game_line_item_failed(&readable));
+            println!("{}", translator.cli_game_line_item_failed(&readable.render()));
         } else {
-            println!("{}", translator.cli_game_line_item_successful(&readable));
+            println!("{}", translator.cli_game_line_item_successful(&readable.render()));
         }
         if let Some(redirected_from) = redirected_from {
-            println!("{}", translator.cli_game_line_item_redirected(&redirected_from));
+            println!(
+                "{}",
+                translator.cli_game_line_item_redirected(&redirected_from.render())
+            );
         }
     }
     for entry in itertools::sorted(&scan_info.found_registry_keys) {
@@ -139,11 +148,14 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
         } => {
             let manifest = Manifest::load(&mut config, update)?;
 
-            let backup_dir = crate::path::normalize(&path.unwrap_or_else(|| config.backup.path.to_owned()));
+            let backup_dir = match path {
+                None => config.backup.path.clone(),
+                Some(p) => p,
+            };
             let roots = &config.roots;
 
             if !preview {
-                if !force && crate::path::exists(&backup_dir) {
+                if !force && backup_dir.exists() {
                     return Err(crate::prelude::Error::CliBackupTargetExists { path: backup_dir });
                 } else if let Err(e) = prepare_backup_target(&backup_dir) {
                     return Err(e);
@@ -180,7 +192,13 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let game = &manifest.0[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
-                    let scan_info = scan_game_for_backup(&game, &name, &roots, &app_dir().to_string_lossy(), &steam_id);
+                    let scan_info = scan_game_for_backup(
+                        &game,
+                        &name,
+                        &roots,
+                        &StrictPath::from_std_path_buf(&app_dir()),
+                        &steam_id,
+                    );
                     let ignored = !&config.is_game_enabled_for_backup(&name) && !games_specified;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
@@ -219,7 +237,10 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             force,
             games,
         } => {
-            let restore_dir = crate::path::normalize(&path.unwrap_or_else(|| config.restore.path.to_owned()));
+            let restore_dir = match path {
+                None => config.restore.path.clone(),
+                Some(p) => p,
+            };
 
             if !preview && !force {
                 match dialoguer::Confirm::new()

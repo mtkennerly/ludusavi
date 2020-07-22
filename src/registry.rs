@@ -1,4 +1,4 @@
-use crate::prelude::Error;
+use crate::prelude::{Error, StrictPath};
 use winreg::types::{FromRegValue, ToRegValue};
 
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -27,7 +27,7 @@ pub struct RegistryInfo {
 
 impl Hives {
     pub fn load(file: &std::path::PathBuf) -> Option<Self> {
-        if crate::path::is_file(&crate::path::render_pathbuf(&file)) {
+        if StrictPath::from_std_path_buf(&file).is_file() {
             let content = std::fs::read_to_string(&file).ok()?;
             serde_yaml::from_str(&content).ok()
         } else {
@@ -201,7 +201,7 @@ fn get_hkey_from_name(name: &str) -> Option<winreg::HKEY> {
     }
 }
 
-pub fn game_registry_backup_file(start: &str, game: &str) -> std::path::PathBuf {
+pub fn game_registry_backup_file(start: &StrictPath, game: &str) -> std::path::PathBuf {
     let mut path = crate::prelude::game_backup_dir(&start, &game);
     path.push("other");
     path.push("registry.yaml");

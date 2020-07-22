@@ -1,3 +1,17 @@
+## Unreleased
+
+* Overhauled path handling:
+  * On Windows, long paths can now be backed up without issue.
+  * When backing up files, the Base64-encoded name now preserves the original
+    file's actual capitalization, rather than the expected capitalization
+    from the manifest.
+  * Fixed a rare issue related to the above point where some files could be
+    backed up twice, once with the original capitalization and once with the
+    expected capitalization.
+  * Fixed an issue where the CLI required the backup `--path` to already exist.
+  * Added support for `~` (user home directory) in redirects.
+  * Added support for `.` and `..` path segments when the path does not exist.
+
 ## v0.4.0 (2020-07-21)
 
 * Added the ability to select and deselect specific games.

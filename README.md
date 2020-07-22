@@ -71,10 +71,10 @@ Run `ludusavi --help` for the full usage information.
   * If the target folder already exists, it will be deleted first,
     then recreated.
   * Within the target folder, for every game with data to back up,
-    a subfolder will be created with the game's name encoded as base 64.
+    a subfolder will be created with the game's name encoded as Base64.
     For example, files for `Celeste` would go into a folder named `Q2VsZXN0ZQ==`.
   * Within each game's backup folder, any relevant files will be stored with
-    their name as the base 64 encoding of the full path to the original file.
+    their name as the Base64 encoding of the full path to the original file.
     For example, `D:/Steam/steamapps/common/Celeste/Saves/0.celeste` would be
     backed up as `RDovU3RlYW0vc3RlYW1hcHBzL2NvbW1vbi9DZWxlc3RlL1NhdmVzLzAuY2VsZXN0ZQ==`.
   * If the game has save data in the registry and you are using Windows, then
@@ -105,7 +105,7 @@ Run `ludusavi --help` for the full usage information.
 * You can press `preview` to see what the restore will include,
   without actually performing it.
 * You can press `restore` to perform the restore for real.
-  * For all the files in the source directory, they will be decoded as base 64
+  * For all the files in the source directory, they will be decoded as Base64
     to get the target path and then copied to that location. Any necessary
     parent directories will be created as well before the copy, but if the
     directories already exist, their current files will be left alone (other
