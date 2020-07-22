@@ -1,5 +1,6 @@
 ## Unreleased
 
+* Added an icon.
 * Overhauled path handling:
   * On Windows, long paths can now be backed up without issue.
   * When backing up files, the Base64-encoded name now preserves the original

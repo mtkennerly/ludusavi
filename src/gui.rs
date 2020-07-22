@@ -38,6 +38,26 @@ fn get_key_pressed(event: iced_native::keyboard::Event) -> Option<(KeyCode, Modi
     }
 }
 
+#[realia::dep_from_registry("ludusavi", "iced")]
+fn set_app_icon<T>(_settings: &mut iced::Settings<T>) {}
+
+#[realia::not(dep_from_registry("ludusavi", "iced"))]
+fn set_app_icon<T>(settings: &mut iced::Settings<T>) {
+    settings.window.icon = match image::load_from_memory(include_bytes!("../docs/icon-transparent.png")) {
+        Ok(buffer) => {
+            let buffer = buffer.to_rgba();
+            let width = buffer.width();
+            let height = buffer.height();
+            let dynamic_image = image::DynamicImage::ImageRgba8(buffer);
+            match iced::window::icon::Icon::from_rgba(dynamic_image.to_bytes(), width, height) {
+                Ok(icon) => Some(icon),
+                Err(_) => None,
+            }
+        }
+        Err(_) => None,
+    }
+}
+
 #[derive(Default)]
 struct App {
     config: Config,
@@ -1678,5 +1698,7 @@ mod style {
 }
 
 pub fn run_gui() {
-    App::run(iced::Settings::default())
+    let mut settings = iced::Settings::default();
+    set_app_icon(&mut settings);
+    App::run(settings)
 }
