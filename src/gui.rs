@@ -46,7 +46,6 @@ struct App {
     operation: Option<OngoingOperation>,
     screen: Screen,
     modal_theme: Option<ModalTheme>,
-    original_working_dir: std::path::PathBuf,
     modal: ModalComponent,
     nav_to_backup_button: button::State,
     nav_to_restore_button: button::State,
@@ -927,7 +926,6 @@ impl Application for App {
                 translator,
                 config,
                 manifest,
-                original_working_dir: std::env::current_dir().unwrap(),
                 modal_theme,
                 ..Self::default()
             },
@@ -950,7 +948,6 @@ impl Application for App {
                 self.restore_screen.progress.max = 0.0;
                 self.operation_should_cancel
                     .swap(false, std::sync::atomic::Ordering::Relaxed);
-                std::env::set_current_dir(&self.original_working_dir).unwrap();
                 Command::none()
             }
             Message::Ignore => Command::none(),
@@ -987,8 +984,6 @@ impl Application for App {
                 } else {
                     OngoingOperation::Backup
                 });
-
-                std::env::set_current_dir(app_dir()).unwrap();
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
