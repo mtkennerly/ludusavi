@@ -1,6 +1,11 @@
 ## Unreleased
 
 * Added an icon.
+  (Note: This requires a prerelease of Iced, so the crates.io release
+  will not show an icon, for now.)
+* Added support for cutting in text fields.
+  (Note: This requires a prerelease of Iced, so the crates.io release
+  will copy text instead of cutting it, for now.)
 * Overhauled path handling:
   * On Windows, long paths can now be backed up without issue.
   * When backing up files, the Base64-encoded name now preserves the original

@@ -33,18 +33,27 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), ()> {
     }
 }
 
+#[realia::dep_from_registry("ludusavi", "iced")]
+fn get_cut_result(original: &str, _modified: &str) -> String {
+    // Can't return the modified content yet because it can cause a panic
+    // in Iced. See here: https://github.com/hecrj/iced/issues/443
+    original.to_owned()
+}
+
+#[realia::not(dep_from_registry("ludusavi", "iced"))]
+fn get_cut_result(_original: &str, modified: &str) -> String {
+    // The panic has been fixed in Iced's latest code, so this is safe:
+    modified.to_owned()
+}
+
 pub fn cut_to_clipboard_from_iced(text: &str, cursor: &iced_native::text_input::Cursor) -> String {
     let value = iced_native::text_input::Value::new(text);
     match cursor.state(&value) {
         iced_native::text_input::cursor::State::Selection { start, end } => {
             match cut_to_clipboard(&text, std::cmp::min(start, end), std::cmp::max(start, end)) {
-                Ok(_remaining) => {
+                Ok(remaining) => {
                     // TODO: Clear the previous cursor selection.
-
-                    // TODO: Can't return the modified content yet because
-                    // it can cause a panic in Iced. See here:
-                    // https://github.com/hecrj/iced/issues/443
-                    text.to_owned()
+                    get_cut_result(&text, &remaining)
                 }
                 Err(_) => text.to_owned(),
             }
