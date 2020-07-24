@@ -17,6 +17,8 @@
   * Added support for `~` (user home directory) in redirects.
   * Added support for `.` and `..` path segments when the path does not exist.
 * Fixed an issue where keyboard shortcuts didn't work in redirect fields.
+* Made the configuration auto-save more predictable. Now, all config changes
+  are saved immediately.
 
 ## v0.4.0 (2020-07-21)
 

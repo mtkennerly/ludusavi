@@ -42,15 +42,15 @@ pub struct RedirectConfig {
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct BackupConfig {
     pub path: StrictPath,
-    #[serde(rename = "ignoredGames")]
-    pub ignored_games: Option<std::collections::HashSet<String>>,
+    #[serde(default, rename = "ignoredGames")]
+    pub ignored_games: std::collections::HashSet<String>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
 pub struct RestoreConfig {
     pub path: StrictPath,
-    #[serde(rename = "ignoredGames")]
-    pub ignored_games: Option<std::collections::HashSet<String>>,
+    #[serde(default, rename = "ignoredGames")]
+    pub ignored_games: std::collections::HashSet<String>,
     #[serde(default)]
     pub redirects: Vec<RedirectConfig>,
 }
@@ -77,7 +77,7 @@ impl Default for BackupConfig {
     fn default() -> Self {
         Self {
             path: default_backup_dir(),
-            ignored_games: None,
+            ignored_games: std::collections::HashSet::new(),
         }
     }
 }
@@ -86,7 +86,7 @@ impl Default for RestoreConfig {
     fn default() -> Self {
         Self {
             path: default_backup_dir(),
-            ignored_games: None,
+            ignored_games: std::collections::HashSet::new(),
             redirects: vec![],
         }
     }
@@ -179,61 +179,27 @@ impl Config {
     }
 
     pub fn is_game_enabled_for_backup(&self, name: &str) -> bool {
-        match &self.backup.ignored_games {
-            None => true,
-            Some(ignored) => !ignored.contains(name),
-        }
+        !self.backup.ignored_games.contains(name)
     }
 
     pub fn enable_game_for_backup(&mut self, name: &str) {
-        match &mut self.backup.ignored_games {
-            None => {}
-            Some(games) => {
-                games.remove(name);
-            }
-        }
+        self.backup.ignored_games.remove(name);
     }
 
     pub fn disable_game_for_backup(&mut self, name: &str) {
-        match &mut self.backup.ignored_games {
-            None => {
-                let mut set = std::collections::HashSet::new();
-                set.insert(name.to_owned());
-                self.backup.ignored_games = Some(set);
-            }
-            Some(games) => {
-                games.insert(name.to_owned());
-            }
-        }
+        self.backup.ignored_games.insert(name.to_owned());
     }
 
     pub fn is_game_enabled_for_restore(&self, name: &str) -> bool {
-        match &self.restore.ignored_games {
-            None => true,
-            Some(ignored) => !ignored.contains(name),
-        }
+        !self.restore.ignored_games.contains(name)
     }
 
     pub fn enable_game_for_restore(&mut self, name: &str) {
-        match &mut self.restore.ignored_games {
-            None => {}
-            Some(games) => {
-                games.remove(name);
-            }
-        }
+        self.restore.ignored_games.remove(name);
     }
 
     pub fn disable_game_for_restore(&mut self, name: &str) {
-        match &mut self.restore.ignored_games {
-            None => {
-                let mut set = std::collections::HashSet::new();
-                set.insert(name.to_owned());
-                self.restore.ignored_games = Some(set);
-            }
-            Some(games) => {
-                games.insert(name.to_owned());
-            }
-        }
+        self.restore.ignored_games.insert(name.to_owned());
     }
 
     pub fn add_redirect(&mut self, source: &StrictPath, target: &StrictPath) {
