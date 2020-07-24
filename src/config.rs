@@ -11,7 +11,7 @@ fn default_backup_dir() -> StrictPath {
     StrictPath::from_std_path_buf(&path)
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub manifest: ManifestConfig,
     pub roots: Vec<RootsConfig>,
@@ -21,32 +21,32 @@ pub struct Config {
     pub custom_games: Vec<CustomGame>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ManifestConfig {
     pub url: String,
     pub etag: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RootsConfig {
     pub path: StrictPath,
     pub store: Store,
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RedirectConfig {
     pub source: StrictPath,
     pub target: StrictPath,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BackupConfig {
     pub path: StrictPath,
     #[serde(default, rename = "ignoredGames")]
     pub ignored_games: std::collections::HashSet<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RestoreConfig {
     pub path: StrictPath,
     #[serde(default, rename = "ignoredGames")]
@@ -55,7 +55,7 @@ pub struct RestoreConfig {
     pub redirects: Vec<RedirectConfig>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CustomGame {
     pub name: String,
     #[serde(default)]
@@ -121,6 +121,10 @@ impl Config {
             return Ok(starter);
         }
         let content = std::fs::read_to_string(Self::file()).unwrap();
+        Self::load_from_string(&content)
+    }
+
+    fn load_from_string(content: &str) -> Result<Self, Error> {
         serde_yaml::from_str(&content).map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
     }
 
@@ -220,5 +224,146 @@ impl Config {
             files: vec![],
             registry: vec![],
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use maplit::hashset;
+
+    fn s(text: &str) -> String {
+        text.to_string()
+    }
+
+    #[test]
+    fn can_parse_minimal_config() {
+        let config = Config::load_from_string(
+            r#"
+            manifest:
+              url: example.com
+              etag: null
+            roots: []
+            backup:
+              path: ~/backup
+            restore:
+              path: ~/restore
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            config,
+            Config {
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    etag: None,
+                },
+                roots: vec![],
+                backup: BackupConfig {
+                    path: StrictPath::new(s("~/backup")),
+                    ignored_games: std::collections::HashSet::new(),
+                },
+                restore: RestoreConfig {
+                    path: StrictPath::new(s("~/restore")),
+                    ignored_games: std::collections::HashSet::new(),
+                    redirects: vec![],
+                },
+                custom_games: vec![],
+            }
+        );
+    }
+
+    #[test]
+    fn can_parse_optional_fields_when_present_in_config() {
+        let config = Config::load_from_string(
+            r#"
+            manifest:
+              url: example.com
+              etag: "foo"
+            roots:
+              - path: ~/steam
+                store: steam
+              - path: ~/other
+                store: other
+            backup:
+              path: ~/backup
+              ignoredGames:
+                - Backup Game 1
+                - Backup Game 2
+                - Backup Game 2
+            restore:
+              path: ~/restore
+              ignoredGames:
+                - Restore Game 1
+                - Restore Game 2
+                - Restore Game 2
+              redirects:
+                - source: ~/old
+                  target: ~/new
+            customGames:
+              - name: Custom Game 1
+              - name: Custom Game 2
+                files:
+                  - Custom File 1
+                  - Custom File 2
+                  - Custom File 2
+                registry:
+                  - Custom Registry 1
+                  - Custom Registry 2
+                  - Custom Registry 2
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            config,
+            Config {
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    etag: Some(s("foo")),
+                },
+                roots: vec![
+                    RootsConfig {
+                        path: StrictPath::new(s("~/steam")),
+                        store: Store::Steam,
+                    },
+                    RootsConfig {
+                        path: StrictPath::new(s("~/other")),
+                        store: Store::Other,
+                    },
+                ],
+                backup: BackupConfig {
+                    path: StrictPath::new(s("~/backup")),
+                    ignored_games: hashset! {
+                        s("Backup Game 1"),
+                        s("Backup Game 2"),
+                    },
+                },
+                restore: RestoreConfig {
+                    path: StrictPath::new(s("~/restore")),
+                    ignored_games: hashset! {
+                        s("Restore Game 1"),
+                        s("Restore Game 2"),
+                    },
+                    redirects: vec![RedirectConfig {
+                        source: StrictPath::new(s("~/old")),
+                        target: StrictPath::new(s("~/new")),
+                    },],
+                },
+                custom_games: vec![
+                    CustomGame {
+                        name: s("Custom Game 1"),
+                        files: vec![],
+                        registry: vec![],
+                    },
+                    CustomGame {
+                        name: s("Custom Game 2"),
+                        files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
+                        registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
+                    },
+                ],
+            }
+        );
     }
 }

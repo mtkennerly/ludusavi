@@ -124,6 +124,22 @@ Run `ludusavi --help` for the full usage information.
 <!--
 #### Custom games
 * Switch to this mode by clicking the `custom games` button.
+* You can click `add game` to add entries for as many games as you like.
+  Within each game's entry, you can click `add path` for files/directories
+  or `add registry` for registry keys.
+  * For paths, you can use the `browse` button to quickly select a folder.
+    The path can be a file too, but the browse button only lets you choose
+    folders at this time. You can just type in the file name afterwards.
+  * In addition to regular paths, you can also use
+    [globs](https://en.wikipedia.org/wiki/Glob_(programming))
+    (e.g., `C:/example/*.txt` selects all TXT files in that folder)
+    and the placeholders defined in the
+    [Ludusavi Manifest format](https://github.com/mtkennerly/ludusavi-manifest).
+* Make sure to give the game entry a name. Entries without names are ignored,
+  as are empty paths and empty registry keys.
+
+  If the game name matches one from Ludusavi's primary data set, then your
+  custom entry will override it.
 -->
 
 ### Configuration
@@ -160,11 +176,8 @@ Here are the available settings (all are required unless otherwise noted):
 * `customGames` (optional, list):
   * Each entry in the list should be a map with these fields:
     * `name` (string): Name of the game.
-    * `files` (optional, list of strings): Any files you want to back up.
-      In addition to regular paths, you can also use
-      [globs](https://en.wikipedia.org/wiki/Glob_(programming))
-      and the placeholders defined in the
-      [Ludusavi Manifest format](https://github.com/mtkennerly/ludusavi-manifest).
+    * `files` (optional, list of strings): Any files or directories you want
+      to back up.
     * `registry` (optional, list of strings): Any registry keys you want to back up.
 -->
 
