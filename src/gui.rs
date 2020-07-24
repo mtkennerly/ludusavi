@@ -118,8 +118,7 @@ enum Message {
         enabled: bool,
         restoring: bool,
     },
-    BrowseBackupTarget,
-    BrowseRestoreSource,
+    BrowseDir(BrowseSubject),
     BrowseDirFailure,
     SelectAllGames,
     DeselectAllGames,
@@ -158,10 +157,21 @@ enum EditAction {
     Change(usize, String),
     Remove(usize),
 }
+
 #[derive(Debug, Clone, PartialEq)]
 enum RedirectEditActionField {
     Source,
     Target,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum BrowseSubject {
+    BackupTarget,
+    RestoreSource,
+    Root(usize),
+    RedirectSource(usize),
+    RedirectTarget(usize),
+    CustomGameFile(usize, usize),
 }
 
 impl Default for Screen {
@@ -450,6 +460,7 @@ impl GameList {
 #[derive(Default)]
 struct RootEditorRow {
     button_state: button::State,
+    browse_button_state: button::State,
     text_state: text_input::State,
     text_history: TextHistory,
 }
@@ -470,7 +481,12 @@ struct RootEditor {
 }
 
 impl RootEditor {
-    fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+    fn view(
+        &mut self,
+        config: &Config,
+        translator: &Translator,
+        operation: &Option<OngoingOperation>,
+    ) -> Container<Message> {
         let roots = config.roots.clone();
         if roots.is_empty() {
             Container::new(Text::new(translator.no_roots_are_configured()))
@@ -504,6 +520,22 @@ impl RootEditor {
                                         .width(Length::FillPortion(3))
                                         .padding(5),
                                     )
+                                    .push(
+                                        Button::new(
+                                            &mut x.browse_button_state,
+                                            Text::new(translator.browse_button())
+                                                .horizontal_alignment(HorizontalAlignment::Center)
+                                                .size(14),
+                                        )
+                                        .on_press(match operation {
+                                            None => Message::BrowseDir(BrowseSubject::Root(i)),
+                                            Some(_) => Message::Ignore,
+                                        })
+                                        .style(match operation {
+                                            None => style::Button::Primary,
+                                            Some(_) => style::Button::Disabled,
+                                        }),
+                                    )
                                     .push({
                                         Radio::new(
                                             Store::Steam,
@@ -535,8 +567,10 @@ struct RedirectEditorRow {
     button_state: button::State,
     source_text_state: text_input::State,
     source_text_history: TextHistory,
+    source_browse_button_state: button::State,
     target_text_state: text_input::State,
     target_text_history: TextHistory,
+    target_browse_button_state: button::State,
 }
 
 impl RedirectEditorRow {
@@ -556,7 +590,12 @@ struct RedirectEditor {
 }
 
 impl RedirectEditor {
-    fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+    fn view(
+        &mut self,
+        config: &Config,
+        translator: &Translator,
+        operation: &Option<OngoingOperation>,
+    ) -> Container<Message> {
         let redirects = config.get_redirects();
         if redirects.is_empty() {
             Container::new(Space::new(Length::Units(0), Length::Units(0)))
@@ -599,6 +638,22 @@ impl RedirectEditor {
                                         .padding(5),
                                     )
                                     .push(
+                                        Button::new(
+                                            &mut x.source_browse_button_state,
+                                            Text::new(translator.browse_button())
+                                                .horizontal_alignment(HorizontalAlignment::Center)
+                                                .size(14),
+                                        )
+                                        .on_press(match operation {
+                                            None => Message::BrowseDir(BrowseSubject::RedirectSource(i)),
+                                            Some(_) => Message::Ignore,
+                                        })
+                                        .style(match operation {
+                                            None => style::Button::Primary,
+                                            Some(_) => style::Button::Disabled,
+                                        }),
+                                    )
+                                    .push(
                                         TextInput::new(
                                             &mut x.target_text_state,
                                             &translator.redirect_target_placeholder(),
@@ -612,6 +667,22 @@ impl RedirectEditor {
                                         )
                                         .width(Length::FillPortion(3))
                                         .padding(5),
+                                    )
+                                    .push(
+                                        Button::new(
+                                            &mut x.target_browse_button_state,
+                                            Text::new(translator.browse_button())
+                                                .horizontal_alignment(HorizontalAlignment::Center)
+                                                .size(14),
+                                        )
+                                        .on_press(match operation {
+                                            None => Message::BrowseDir(BrowseSubject::RedirectTarget(i)),
+                                            Some(_) => Message::Ignore,
+                                        })
+                                        .style(match operation {
+                                            None => style::Button::Primary,
+                                            Some(_) => style::Button::Disabled,
+                                        }),
                                     )
                                     .push(Space::new(Length::Units(0), Length::Units(0))),
                             )
@@ -628,6 +699,7 @@ struct CustomGamesEditorEntryRow {
     button_state: button::State,
     text_state: text_input::State,
     text_history: TextHistory,
+    browse_button_state: button::State,
 }
 
 impl CustomGamesEditorEntryRow {
@@ -666,7 +738,12 @@ struct CustomGamesEditor {
 }
 
 impl CustomGamesEditor {
-    fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+    fn view(
+        &mut self,
+        config: &Config,
+        translator: &Translator,
+        operation: &Option<OngoingOperation>,
+    ) -> Container<Message> {
         if config.custom_games.is_empty() {
             Container::new(Space::new(Length::Units(0), Length::Units(0)))
         } else {
@@ -752,6 +829,24 @@ impl CustomGamesEditor {
                                                             },
                                                         )
                                                         .padding(5),
+                                                    )
+                                                    .push(
+                                                        Button::new(
+                                                            &mut xx.browse_button_state,
+                                                            Text::new(translator.browse_button())
+                                                                .horizontal_alignment(HorizontalAlignment::Center)
+                                                                .size(14),
+                                                        )
+                                                        .on_press(match operation {
+                                                            None => {
+                                                                Message::BrowseDir(BrowseSubject::CustomGameFile(i, ii))
+                                                            }
+                                                            Some(_) => Message::Ignore,
+                                                        })
+                                                        .style(match operation {
+                                                            None => style::Button::Primary,
+                                                            Some(_) => style::Button::Disabled,
+                                                        }),
                                                     )
                                                     .push(
                                                         Button::new(
@@ -987,7 +1082,7 @@ impl BackupScreenComponent {
                                 Text::new(translator.browse_button()).horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(match operation {
-                                None => Message::BrowseBackupTarget,
+                                None => Message::BrowseDir(BrowseSubject::BackupTarget),
                                 Some(_) => Message::Ignore,
                             })
                             .width(Length::Units(125))
@@ -997,7 +1092,7 @@ impl BackupScreenComponent {
                             }),
                         ),
                 )
-                .push(self.root_editor.view(&config, &translator))
+                .push(self.root_editor.view(&config, &translator, &operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
                 .push(
                     self.log
@@ -1159,7 +1254,7 @@ impl RestoreScreenComponent {
                                 Text::new(translator.browse_button()).horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(match operation {
-                                None => Message::BrowseRestoreSource,
+                                None => Message::BrowseDir(BrowseSubject::RestoreSource),
                                 Some(_) => Message::Ignore,
                             })
                             .width(Length::Units(125))
@@ -1169,7 +1264,7 @@ impl RestoreScreenComponent {
                             }),
                         ),
                 )
-                .push(self.redirect_editor.view(&config, &translator))
+                .push(self.redirect_editor.view(&config, &translator, &operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
                 .push(
                     self.log
@@ -1210,7 +1305,12 @@ impl CustomGamesScreenComponent {
         }
     }
 
-    fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+    fn view(
+        &mut self,
+        config: &Config,
+        translator: &Translator,
+        operation: &Option<OngoingOperation>,
+    ) -> Container<Message> {
         Container::new(
             Column::new()
                 .padding(5)
@@ -1226,7 +1326,7 @@ impl CustomGamesScreenComponent {
                         .style(style::Button::Primary),
                     ),
                 )
-                .push(self.games_editor.view(&config, &translator)),
+                .push(self.games_editor.view(&config, &translator, &operation)),
         )
         .height(Length::Fill)
         .width(Length::Fill)
@@ -1730,18 +1830,23 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
-            Message::BrowseBackupTarget => Command::perform(
+            Message::BrowseDir(subject) => Command::perform(
                 async move { native_dialog::OpenSingleDir { dir: None }.show() },
-                |choice| match choice {
-                    Ok(Some(path)) => Message::EditedBackupTarget(path),
-                    Ok(None) => Message::Ignore,
-                    Err(_) => Message::BrowseDirFailure,
-                },
-            ),
-            Message::BrowseRestoreSource => Command::perform(
-                async move { native_dialog::OpenSingleDir { dir: None }.show() },
-                |choice| match choice {
-                    Ok(Some(path)) => Message::EditedRestoreSource(path),
+                move |choice| match choice {
+                    Ok(Some(path)) => match subject {
+                        BrowseSubject::BackupTarget => Message::EditedBackupTarget(path),
+                        BrowseSubject::RestoreSource => Message::EditedRestoreSource(path),
+                        BrowseSubject::Root(i) => Message::EditedRoot(EditAction::Change(i, path)),
+                        BrowseSubject::RedirectSource(i) => {
+                            Message::EditedRedirect(EditAction::Change(i, path), Some(RedirectEditActionField::Source))
+                        }
+                        BrowseSubject::RedirectTarget(i) => {
+                            Message::EditedRedirect(EditAction::Change(i, path), Some(RedirectEditActionField::Target))
+                        }
+                        BrowseSubject::CustomGameFile(i, j) => {
+                            Message::EditedCustomGameFile(i, EditAction::Change(j, path))
+                        }
+                    },
                     Ok(None) => Message::Ignore,
                     Err(_) => Message::BrowseDirFailure,
                 },
@@ -1970,7 +2075,9 @@ impl Application for App {
                 Screen::Restore => self
                     .restore_screen
                     .view(&self.config, &self.translator, &self.operation),
-                Screen::CustomGames => self.custom_games_screen.view(&self.config, &self.translator),
+                Screen::CustomGames => self
+                    .custom_games_screen
+                    .view(&self.config, &self.translator, &self.operation),
             })
             .into()
     }

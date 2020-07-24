@@ -5,6 +5,7 @@
   (Note: For now, the crates.io release will not show an icon.)
 * Added support for cutting in text fields.
   (Note: For now, the crates.io release will copy text instead of cutting it.)
+* Added more buttons for browsing folders.
 * Overhauled path handling:
   * On Windows, long paths can now be backed up without issue.
   * When backing up files, the Base64-encoded name now preserves the original

@@ -236,7 +236,7 @@ impl Translator {
 
     pub fn add_file_button(&self) -> String {
         match self.language {
-            Language::English => "Add file",
+            Language::English => "Add path",
         }
         .into()
     }
@@ -410,7 +410,7 @@ impl Translator {
 
     pub fn custom_files_label(&self) -> String {
         match self.language {
-            Language::English => "Files:",
+            Language::English => "Paths:",
         }
         .into()
     }
