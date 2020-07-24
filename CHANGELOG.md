@@ -1,11 +1,10 @@
 ## Unreleased
 
-* Added an icon.
-  (Note: This requires a prerelease of Iced, so the crates.io release
-  will not show an icon, for now.)
+* Added support for custom games.
+* Added an icon for Ludusavi.
+  (Note: For now, the crates.io release will not show an icon.)
 * Added support for cutting in text fields.
-  (Note: This requires a prerelease of Iced, so the crates.io release
-  will copy text instead of cutting it, for now.)
+  (Note: For now, the crates.io release will copy text instead of cutting it.)
 * Overhauled path handling:
   * On Windows, long paths can now be backed up without issue.
   * When backing up files, the Base64-encoded name now preserves the original
@@ -17,6 +16,7 @@
   * Fixed an issue where the CLI required the backup `--path` to already exist.
   * Added support for `~` (user home directory) in redirects.
   * Added support for `.` and `..` path segments when the path does not exist.
+* Fixed an issue where keyboard shortcuts didn't work in redirect fields.
 
 ## v0.4.0 (2020-07-21)
 

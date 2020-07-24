@@ -1,5 +1,5 @@
 use crate::{
-    config::Config,
+    config::{Config, CustomGame},
     prelude::{app_dir, Error, StrictPath},
 };
 
@@ -90,6 +90,26 @@ pub struct GameRegistryConstraint {
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct SteamMetadata {
     pub id: Option<u32>,
+}
+
+impl From<CustomGame> for Game {
+    fn from(item: CustomGame) -> Self {
+        let file_tuples = item.files.iter().map(|x| (x.to_string(), GameFileEntry::default()));
+        let files: std::collections::HashMap<_, _> = file_tuples.collect();
+
+        let registry_tuples = item
+            .registry
+            .iter()
+            .map(|x| (x.to_string(), GameRegistryEntry::default()));
+        let registry: std::collections::HashMap<_, _> = registry_tuples.collect();
+
+        Self {
+            files: Some(files),
+            install_dir: None,
+            registry: Some(registry),
+            steam: None,
+        }
+    }
 }
 
 impl Manifest {

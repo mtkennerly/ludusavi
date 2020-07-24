@@ -333,6 +333,9 @@ pub fn scan_game_for_backup(
                 _ => vec![&default_install_dir],
             };
             for raw_path in files.keys() {
+                if raw_path.trim().is_empty() {
+                    continue;
+                }
                 let candidates = parse_paths(raw_path, &root, &install_dirs, &steam_id, &manifest_dir);
                 for candidate in candidates {
                     if candidate.raw().contains(SKIP) {
@@ -416,6 +419,9 @@ pub fn scan_game_for_backup(
         let mut hives = crate::registry::Hives::default();
         if let Some(registry) = &game.registry {
             for key in registry.keys() {
+                if key.trim().is_empty() {
+                    continue;
+                }
                 if let Ok(info) = hives.store_key_from_full_path(&key) {
                     if info.found {
                         found_registry_keys.insert(key.to_string());

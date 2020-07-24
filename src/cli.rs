@@ -1,7 +1,7 @@
 use crate::{
     config::{Config, RedirectConfig},
     lang::Translator,
-    manifest::{Manifest, SteamMetadata},
+    manifest::{Game, Manifest, SteamMetadata},
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
         scan_dir_for_restorable_games, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error,
@@ -162,11 +162,16 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 }
             }
 
+            let mut all_games = manifest.0;
+            for custom_game in &config.custom_games {
+                all_games.insert(custom_game.name.clone(), Game::from(custom_game.to_owned()));
+            }
+
             let games_specified = !games.is_empty();
             let mut invalid_games: Vec<_> = games
                 .iter()
                 .filter_map(|game| {
-                    if !manifest.0.contains_key(game) {
+                    if !all_games.contains_key(game) {
                         Some(game.to_owned())
                     } else {
                         None
@@ -181,7 +186,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let mut subjects: Vec<_> = if !&games.is_empty() {
                 games
             } else {
-                manifest.0.keys().cloned().collect()
+                all_games.keys().cloned().collect()
             };
             subjects.sort();
 
@@ -189,7 +194,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .par_iter()
                 .progress_count(subjects.len() as u64)
                 .map(|name| {
-                    let game = &manifest.0[name];
+                    let game = &all_games[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
                     let scan_info = scan_game_for_backup(

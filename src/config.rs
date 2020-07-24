@@ -17,6 +17,8 @@ pub struct Config {
     pub roots: Vec<RootsConfig>,
     pub backup: BackupConfig,
     pub restore: RestoreConfig,
+    #[serde(default, rename = "customGames")]
+    pub custom_games: Vec<CustomGame>,
 }
 
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
@@ -49,7 +51,17 @@ pub struct RestoreConfig {
     pub path: StrictPath,
     #[serde(rename = "ignoredGames")]
     pub ignored_games: Option<std::collections::HashSet<String>>,
-    pub redirects: Option<Vec<RedirectConfig>>,
+    #[serde(default)]
+    pub redirects: Vec<RedirectConfig>,
+}
+
+#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+pub struct CustomGame {
+    pub name: String,
+    #[serde(default)]
+    pub files: Vec<String>,
+    #[serde(default)]
+    pub registry: Vec<String>,
 }
 
 impl Default for ManifestConfig {
@@ -75,7 +87,7 @@ impl Default for RestoreConfig {
         Self {
             path: default_backup_dir(),
             ignored_games: None,
-            redirects: None,
+            redirects: vec![],
         }
     }
 }
@@ -229,20 +241,18 @@ impl Config {
             source: source.clone(),
             target: target.clone(),
         };
-        match &mut self.restore.redirects {
-            None => {
-                self.restore.redirects = Some(vec![redirect]);
-            }
-            Some(redirects) => {
-                redirects.push(redirect);
-            }
-        }
+        self.restore.redirects.push(redirect);
     }
 
     pub fn get_redirects(&self) -> Vec<RedirectConfig> {
-        match &self.restore.redirects {
-            None => vec![],
-            Some(redirects) => redirects.to_vec(),
-        }
+        self.restore.redirects.to_vec()
+    }
+
+    pub fn add_custom_game(&mut self) {
+        self.custom_games.push(CustomGame {
+            name: "".to_string(),
+            files: vec![],
+            registry: vec![],
+        });
     }
 }

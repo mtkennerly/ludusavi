@@ -206,6 +206,13 @@ impl Translator {
         .into()
     }
 
+    pub fn nav_custom_games_button(&self) -> String {
+        match self.language {
+            Language::English => "CUSTOM GAMES",
+        }
+        .into()
+    }
+
     pub fn add_root_button(&self) -> String {
         match self.language {
             Language::English => "Add root",
@@ -216,6 +223,27 @@ impl Translator {
     pub fn add_redirect_button(&self) -> String {
         match self.language {
             Language::English => "Add redirect",
+        }
+        .into()
+    }
+
+    pub fn add_game_button(&self) -> String {
+        match self.language {
+            Language::English => "Add game",
+        }
+        .into()
+    }
+
+    pub fn add_file_button(&self) -> String {
+        match self.language {
+            Language::English => "Add file",
+        }
+        .into()
+    }
+
+    pub fn add_registry_button(&self) -> String {
+        match self.language {
+            Language::English => "Add registry",
         }
         .into()
     }
@@ -380,6 +408,20 @@ impl Translator {
         .into()
     }
 
+    pub fn custom_files_label(&self) -> String {
+        match self.language {
+            Language::English => "Files:",
+        }
+        .into()
+    }
+
+    pub fn custom_registry_label(&self) -> String {
+        match self.language {
+            Language::English => "Registry:",
+        }
+        .into()
+    }
+
     pub fn store(&self, store: &Store) -> String {
         match self.language {
             Language::English => match store {
@@ -400,6 +442,13 @@ impl Translator {
     pub fn redirect_target_placeholder(&self) -> String {
         match self.language {
             Language::English => "Target (new location)",
+        }
+        .into()
+    }
+
+    pub fn custom_game_name_placeholder(&self) -> String {
+        match self.language {
+            Language::English => "Name",
         }
         .into()
     }

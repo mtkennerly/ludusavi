@@ -12,7 +12,7 @@ to that project. Data is ultimately sourced from [PCGamingWiki](https://www.pcga
 so you are encouraged to contribute any new or fixed data back to the wiki itself.
 
 ## Features
-* Ability to back up data from more than 7,000 games.
+* Ability to back up data from more than 7,000 games<!-- plus your own custom entries -->.
 * Backup and restore for Steam as well as other game libraries.
 * Preview of the backup/restore before actually performing it.
 * Both a graphical interface and command line interface for scripting.
@@ -121,6 +121,11 @@ Run `ludusavi --help` for the full usage information.
 * You can select/deselect specific games in restore mode just like you can in
   backup mode. The checkbox settings are remembered separately for both modes.
 
+<!--
+#### Custom games
+* Switch to this mode by clicking the `custom games` button.
+-->
+
 ### Configuration
 Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<your-name>/.config/ludusavi`).
 If you're using the GUI, you don't need to worry about this at all,
@@ -151,6 +156,17 @@ Here are the available settings (all are required unless otherwise noted):
     * Each entry in the list should be a map with these fields:
       * `source` (string): The original location when the backup was performed.
       * `target` (string): The new location.
+<!--
+* `customGames` (optional, list):
+  * Each entry in the list should be a map with these fields:
+    * `name` (string): Name of the game.
+    * `files` (optional, list of strings): Any files you want to back up.
+      In addition to regular paths, you can also use
+      [globs](https://en.wikipedia.org/wiki/Glob_(programming))
+      and the placeholders defined in the
+      [Ludusavi Manifest format](https://github.com/mtkennerly/ludusavi-manifest).
+    * `registry` (optional, list of strings): Any registry keys you want to back up.
+-->
 
 Example:
 
