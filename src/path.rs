@@ -195,6 +195,10 @@ mod tests {
         whoami::username()
     }
 
+    fn home() -> String {
+        render_pathbuf(&dirs::home_dir().unwrap())
+    }
+
     mod strict_path {
         use super::*;
         use pretty_assertions::assert_eq;
@@ -202,25 +206,19 @@ mod tests {
         #[test]
         fn expands_relative_paths_from_working_dir_by_default() {
             let sp = StrictPath::new("README.md".to_owned());
-            #[cfg(target_os = "windows")]
-            {
+            if cfg!(target_os = "windows") {
                 assert_eq!(format!("\\\\?\\{}\\README.md", repo()), sp.interpret());
-            }
-            #[cfg(target_os = "linux")]
-            {
+            } else {
                 assert_eq!(format!("{}/README.md", repo()), sp.interpret());
             }
         }
 
         #[test]
         fn expands_relative_paths_from_specified_basis_dir() {
-            #[cfg(target_os = "windows")]
-            {
+            if cfg!(target_os = "windows") {
                 let sp = StrictPath::relative("README.md".to_owned(), Some("C:\\tmp".to_string()));
                 assert_eq!("\\\\?\\C:\\tmp\\README.md", sp.interpret());
-            }
-            #[cfg(target_os = "linux")]
-            {
+            } else {
                 let sp = StrictPath::relative("README.md".to_owned(), Some("/tmp".to_string()));
                 assert_eq!("/tmp/README.md", sp.interpret());
             }
@@ -308,13 +306,10 @@ mod tests {
 
         #[test]
         fn treats_absolute_paths_as_such() {
-            #[cfg(target_os = "windows")]
-            {
+            if cfg!(target_os = "windows") {
                 let sp = StrictPath::new("C:\\tmp\\README.md".to_owned());
                 assert_eq!("\\\\?\\C:\\tmp\\README.md", sp.interpret());
-            }
-            #[cfg(target_os = "linux")]
-            {
+            } else {
                 let sp = StrictPath::new("/tmp/README.md".to_owned());
                 assert_eq!("/tmp/README.md", sp.interpret());
             }
@@ -322,61 +317,49 @@ mod tests {
 
         #[test]
         fn converts_tilde_in_isolation() {
-            #[cfg(target_os = "windows")]
-            {
+            if cfg!(target_os = "windows") {
                 let sp = StrictPath::new("~".to_owned());
                 assert_eq!(format!("\\\\?\\C:\\Users\\{}", username()), sp.interpret());
                 assert_eq!(format!("C:/Users/{}", username()), sp.render());
-            }
-            #[cfg(target_os = "linux")]
-            {
+            } else {
                 let sp = StrictPath::new("~".to_owned());
-                assert_eq!(format!("/home/{}", username()), sp.interpret());
-                assert_eq!(format!("/home/{}", username()), sp.render());
+                assert_eq!(home(), sp.interpret());
+                assert_eq!(home(), sp.render());
             }
         }
 
         #[test]
         fn converts_tilde_before_forward_slash() {
-            #[cfg(target_os = "windows")]
-            {
+            if cfg!(target_os = "windows") {
                 let sp = StrictPath::new("~/~".to_owned());
                 assert_eq!(format!("\\\\?\\C:\\Users\\{}\\~", username()), sp.interpret());
                 assert_eq!(format!("C:/Users/{}/~", username()), sp.render());
-            }
-            #[cfg(target_os = "linux")]
-            {
+            } else {
                 let sp = StrictPath::new("~/~".to_owned());
-                assert_eq!(format!("/home/{}/~", username()), sp.interpret());
-                assert_eq!(format!("/home/{}/~", username()), sp.render());
+                assert_eq!(home(), sp.interpret());
+                assert_eq!(home(), sp.render());
             }
         }
 
         #[test]
         fn converts_tilde_before_backslash() {
-            #[cfg(target_os = "windows")]
-            {
+            if cfg!(target_os = "windows") {
                 let sp = StrictPath::new("~\\~".to_owned());
                 assert_eq!(format!("\\\\?\\C:\\Users\\{}\\~", username()), sp.interpret());
                 assert_eq!(format!("C:/Users/{}/~", username()), sp.render());
-            }
-            #[cfg(target_os = "linux")]
-            {
+            } else {
                 let sp = StrictPath::new("~\\~".to_owned());
-                assert_eq!(format!("/home/{}/~", username()), sp.interpret());
-                assert_eq!(format!("/home/{}/~", username()), sp.render());
+                assert_eq!(home(), sp.interpret());
+                assert_eq!(home(), sp.render());
             }
         }
 
         #[test]
         fn does_not_convert_tilde_before_a_nonslash_character() {
             let sp = StrictPath::new("~a".to_owned());
-            #[cfg(target_os = "windows")]
-            {
+            if cfg!(target_os = "windows") {
                 assert_eq!(format!("\\\\?\\{}\\~a", repo()), sp.interpret());
-            }
-            #[cfg(target_os = "linux")]
-            {
+            } else {
                 assert_eq!(format!("{}/~a", repo()), sp.interpret());
             }
         }

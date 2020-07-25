@@ -70,6 +70,8 @@ jobs:
           override: true
       - run: sudo apt-get update && sudo apt-get install -y gcc libxcb-composite0-dev
         if: ${{ matrix.os == 'ubuntu-latest' }}
+      - run: reg import tests/ludusavi.reg
+        if: ${{ matrix.os == 'windows-latest' }}
       - uses: actions-rs/cargo@v1
         with:
           command: test
