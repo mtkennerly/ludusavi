@@ -665,9 +665,8 @@ mod tests {
         reslashed(env!("CARGO_MANIFEST_DIR"))
     }
 
-    #[test]
-    fn can_scan_game_for_backup() {
-        let config = Config::load_from_string(&format!(
+    fn config() -> Config {
+        Config::load_from_string(&format!(
             r#"
             manifest:
               url: example.com
@@ -684,9 +683,11 @@ mod tests {
             "#,
             repo()
         ))
-        .unwrap();
+        .unwrap()
+    }
 
-        let manifest = Manifest::load_from_string(
+    fn manifest() -> Manifest {
+        Manifest::load_from_string(
             r#"
             game1:
               files:
@@ -697,18 +698,20 @@ mod tests {
                 <root>/<game>: {}
               installDir:
                 game2: {}
+            game3:
+              registry:
+                HKEY_CURRENT_USER/Software/Ludusavi/game3: {}
+                HKEY_CURRENT_USER/Software/Ludusavi/fake: {}
+            game3-outer:
+              registry:
+                HKEY_CURRENT_USER/Software/Ludusavi: {}
             "#,
         )
-        .unwrap();
+        .unwrap()
+    }
 
-        let scan_info = scan_game_for_backup(
-            &manifest.0["game1"],
-            "game1",
-            &config.roots,
-            &StrictPath::new(repo()),
-            &None,
-        );
-
+    #[test]
+    fn can_scan_game_for_backup_with_file_matches() {
         assert_eq!(
             ScanInfo {
                 game_name: s("game1"),
@@ -725,7 +728,78 @@ mod tests {
                 found_registry_keys: hashset! {},
                 registry_file: None,
             },
-            scan_info,
+            scan_game_for_backup(
+                &manifest().0["game1"],
+                "game1",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &None,
+            ),
+        );
+
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game 2"),
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/root2/game2/file1.txt", repo())),
+                        size: 1,
+                    },
+                },
+                found_registry_keys: hashset! {},
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game 2"],
+                "game 2",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &None,
+            ),
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn can_scan_game_for_backup_with_registry_matches_on_filled_leaf_key() {
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game3"),
+                found_files: hashset! {},
+                found_registry_keys: hashset! {
+                    s("HKEY_CURRENT_USER/Software/Ludusavi/game3")
+                },
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game3"],
+                "game3",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &None,
+            ),
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn can_scan_game_for_backup_with_registry_matches_on_empty_parent_key() {
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game3-outer"),
+                found_files: hashset! {},
+                found_registry_keys: hashset! {
+                    s("HKEY_CURRENT_USER/Software/Ludusavi")
+                },
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game3-outer"],
+                "game3-outer",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &None,
+            ),
         );
     }
 }

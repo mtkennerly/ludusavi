@@ -12,12 +12,15 @@ pub struct Entries(pub std::collections::HashMap<String, Entry>);
 
 #[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct Entry {
+    #[serde(skip_serializing_if = "Option::is_none")]
     sz: Option<String>,
-    #[serde(rename = "expandSz")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "expandSz")]
     expand_sz: Option<String>,
-    #[serde(rename = "multiSz")]
+    #[serde(skip_serializing_if = "Option::is_none", rename = "multiSz")]
     multi_sz: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     dword: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     qword: Option<u64>,
 }
 
@@ -65,11 +68,15 @@ impl Hives {
             .open_subkey(key)
             .map_err(|_| Error::RegistryIssue)?;
 
-        let mut info = RegistryInfo { found: false };
+        self.0
+            .entry(hive_name.to_string())
+            .or_insert_with(Default::default)
+            .0
+            .entry(key.to_string())
+            .or_insert_with(Default::default);
         for (name, value) in subkey.enum_values().filter_map(|x| x.ok()) {
             let entry = Entry::from(value);
             if entry.is_set() {
-                info.found = true;
                 self.0
                     .entry(hive_name.to_string())
                     .or_insert_with(Default::default)
@@ -93,7 +100,7 @@ impl Hives {
             return Err(Error::RegistryIssue);
         }
 
-        Ok(info)
+        Ok(RegistryInfo { found: true })
     }
 
     pub fn restore(&self) -> Result<(), Error> {

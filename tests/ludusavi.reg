@@ -1,0 +1,13 @@
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Ludusavi]
+
+[HKEY_CURRENT_USER\Software\Ludusavi\game3]
+"sz"="foo"
+"multiSz"=hex(7):62,00,61,00,72,00,00,00,00,00
+"expandSz"=hex(2):62,00,61,00,7a,00,00,00
+"dword"=dword:00000001
+"qword"=hex(b):02,00,00,00,00,00,00,00
+"binary"=hex:41
+
+[HKEY_CURRENT_USER\Software\Ludusavi\other]

@@ -1,25 +1,48 @@
 ## Unreleased
 
-* Added support for custom games.
-* Added an icon for Ludusavi.
-  (Note: For now, the crates.io release will not show an icon.)
-* Added support for cutting in text fields.
-  (Note: For now, the crates.io release will copy text instead of cutting it.)
-* Added more buttons for browsing folders.
-* Overhauled path handling:
+* Added
+  * Support for custom games.
+  * An icon for Ludusavi.
+    (Note: For now, the crates.io release will not show an icon.)
+  * Support for cutting in text fields.
+    (Note: For now, the crates.io release will copy text instead of cutting it.)
+  * More buttons for browsing folders.
+  * Support for `~` (user home directory) in redirects.
+  * Support for `.` and `..` path segments when the path does not exist.
+* Fixed:
   * On Windows, long paths can now be backed up without issue.
   * When backing up files, the Base64-encoded name now preserves the original
     file's actual capitalization, rather than the expected capitalization
     from the manifest.
-  * Fixed a rare issue related to the above point where some files could be
+  * There was a rare issue related to the above point where some files could be
     backed up twice, once with the original capitalization and once with the
     expected capitalization.
-  * Fixed an issue where the CLI required the backup `--path` to already exist.
-  * Added support for `~` (user home directory) in redirects.
-  * Added support for `.` and `..` path segments when the path does not exist.
-* Fixed an issue where keyboard shortcuts didn't work in redirect fields.
-* Made the configuration auto-save more predictable. Now, all config changes
-  are saved immediately.
+  * The CLI required the backup `--path` to already exist.
+  * Keyboard shortcuts didn't work in redirect fields.
+  * Registry keys were not backed up if the parent key had no values.
+* Changed
+  * The configuration auto-save is now more predictable. All config changes
+    are now saved immediately.
+  * When a game has registry data to back up, registry.yaml no longer includes
+    unnecessary fields.
+
+    Before:
+
+    ```yaml
+    value-name:
+      sz: this is a string value; the other fields don't apply
+      expandSz: ~
+      multiSz: ~
+      dword: ~
+      qword: ~
+    ```
+
+    Now:
+
+    ```yaml
+    value-name:
+      sz: this is a string value; the other fields don't apply
+    ```
 
 ## v0.4.0 (2020-07-21)
 

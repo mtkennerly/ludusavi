@@ -26,3 +26,6 @@ for the list.
 * `LUDUSAVI_VARIANT`:
   * If set, shown in the window title in parentheses.
   * Intended for alternative builds, such as for OpenGL support.
+
+### Registry
+On Windows, before running the tests, you need to import `tests/ludusavi.reg`.
