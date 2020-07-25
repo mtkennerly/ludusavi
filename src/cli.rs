@@ -288,7 +288,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     .filter_map(|x| if games.contains(&x.0) { Some(x.to_owned()) } else { None })
                     .collect()
             } else {
-                restorables
+                restorables.iter().cloned().collect()
             };
             subjects.sort();
 

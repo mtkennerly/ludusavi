@@ -444,8 +444,8 @@ pub fn scan_game_for_backup(
     }
 }
 
-pub fn scan_dir_for_restorable_games(source: &StrictPath) -> Vec<(String, StrictPath)> {
-    let mut games = vec![];
+pub fn scan_dir_for_restorable_games(source: &StrictPath) -> std::collections::HashSet<(String, StrictPath)> {
+    let mut games = std::collections::HashSet::new();
     for subdir in walkdir::WalkDir::new(source.interpret())
         .max_depth(1)
         .follow_links(false)
@@ -468,7 +468,7 @@ pub fn scan_dir_for_restorable_games(source: &StrictPath) -> Vec<(String, Strict
             Ok(x) => x.to_string(),
         };
 
-        games.push((name, StrictPath::from_std_path_buf(&subdir.into_path())));
+        games.insert((name, StrictPath::from_std_path_buf(&subdir.into_path())));
     }
     games
 }
@@ -814,7 +814,7 @@ mod tests {
         };
 
         assert_eq!(
-            vec![(s("game1"), make_path("Z2FtZTE=")), (s("game3"), make_path("Z2FtZTM=")),],
+            hashset! {(s("game1"), make_path("Z2FtZTE=")), (s("game3"), make_path("Z2FtZTM=")) },
             scan_dir_for_restorable_games(&StrictPath::new(format!("{}/tests/backup", repo())),),
         );
     }

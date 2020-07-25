@@ -1,6 +1,6 @@
 ## Unreleased
 
-* Added
+* Added:
   * Support for custom games.
   * An icon for Ludusavi.
     (Note: For now, the crates.io release will not show an icon.)
@@ -22,7 +22,7 @@
   * Registry keys were not backed up if the parent key had no values.
   * CLI mode would panic when restoring if a non-Base64-encoded file were
     present in the source folder. Now, such files will be reported as an error.
-* Changed
+* Changed:
   * The configuration auto-save is now more predictable. All config changes
     are now saved immediately.
   * When a game has registry data to back up, registry.yaml no longer includes
