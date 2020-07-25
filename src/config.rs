@@ -124,7 +124,7 @@ impl Config {
         Self::load_from_string(&content)
     }
 
-    fn load_from_string(content: &str) -> Result<Self, Error> {
+    pub fn load_from_string(content: &str) -> Result<Self, Error> {
         serde_yaml::from_str(&content).map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
     }
 
@@ -231,6 +231,7 @@ impl Config {
 mod tests {
     use super::*;
     use maplit::hashset;
+    use pretty_assertions::assert_eq;
 
     fn s(text: &str) -> String {
         text.to_string()
@@ -253,7 +254,6 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            config,
             Config {
                 manifest: ManifestConfig {
                     url: s("example.com"),
@@ -270,7 +270,8 @@ mod tests {
                     redirects: vec![],
                 },
                 custom_games: vec![],
-            }
+            },
+            config,
         );
     }
 
@@ -317,7 +318,6 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            config,
             Config {
                 manifest: ManifestConfig {
                     url: s("example.com"),
@@ -363,7 +363,8 @@ mod tests {
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
                 ],
-            }
+            },
+            config,
         );
     }
 }

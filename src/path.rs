@@ -114,31 +114,19 @@ fn count_subdirectories(path: &str) -> usize {
 pub struct StrictPath {
     raw: String,
     basis: Option<String>,
-    interpreted: String,
 }
 
 impl StrictPath {
     pub fn new(raw: String) -> Self {
-        let interpreted = interpret(&raw, &None);
-        Self {
-            raw,
-            basis: None,
-            interpreted,
-        }
+        Self { raw, basis: None }
     }
 
     pub fn relative(raw: String, basis: Option<String>) -> Self {
-        let interpreted = interpret(&raw, &basis);
-        Self {
-            raw,
-            basis,
-            interpreted,
-        }
+        Self { raw, basis }
     }
 
     pub fn reset(&mut self, raw: String) {
         self.raw = raw;
-        self.interpreted = interpret(&self.raw, &self.basis);
     }
 
     pub fn from_std_path_buf(path_buf: &std::path::PathBuf) -> Self {
@@ -154,19 +142,19 @@ impl StrictPath {
     }
 
     pub fn interpret(&self) -> String {
-        self.interpreted.to_string()
+        interpret(&self.raw, &self.basis)
     }
 
     pub fn render(&self) -> String {
-        render(self.interpreted.to_string())
+        render(self.interpret())
     }
 
     pub fn is_file(&self) -> bool {
-        std::path::Path::new(&self.interpreted).is_file()
+        std::path::Path::new(&self.interpret()).is_file()
     }
 
     pub fn is_dir(&self) -> bool {
-        std::path::Path::new(&self.interpreted).is_dir()
+        std::path::Path::new(&self.interpret()).is_dir()
     }
 
     pub fn exists(&self) -> bool {
@@ -175,9 +163,9 @@ impl StrictPath {
 
     pub fn remove(&self) -> Result<(), Box<dyn std::error::Error>> {
         if self.is_file() {
-            std::fs::remove_file(&self.interpreted)?;
+            std::fs::remove_file(&self.interpret())?;
         } else if self.is_dir() {
-            std::fs::remove_dir_all(&self.interpreted)?;
+            std::fs::remove_dir_all(&self.interpret())?;
         }
         Ok(())
     }
@@ -224,17 +212,18 @@ mod tests {
 
     mod strict_path {
         use super::*;
+        use pretty_assertions::assert_eq;
 
         #[test]
         fn expands_relative_paths_from_working_dir_by_default() {
             let sp = StrictPath::new("README.md".to_owned());
             #[cfg(target_os = "windows")]
             {
-                assert_eq!(sp.interpret(), format!("\\\\?\\{}\\README.md", repo()));
+                assert_eq!(format!("\\\\?\\{}\\README.md", repo()), sp.interpret());
             }
             #[cfg(target_os = "linux")]
             {
-                assert_eq!(sp.interpret(), format!("{}/README.md", repo()));
+                assert_eq!(format!("{}/README.md", repo()), sp.interpret());
             }
         }
 
@@ -243,92 +232,92 @@ mod tests {
             #[cfg(target_os = "windows")]
             {
                 let sp = StrictPath::relative("README.md".to_owned(), Some("C:\\tmp".to_string()));
-                assert_eq!(sp.interpret(), "\\\\?\\C:\\tmp\\README.md");
+                assert_eq!("\\\\?\\C:\\tmp\\README.md", sp.interpret());
             }
             #[cfg(target_os = "linux")]
             {
                 let sp = StrictPath::relative("README.md".to_owned(), Some("/tmp".to_string()));
-                assert_eq!(sp.interpret(), "/tmp/README.md");
+                assert_eq!("/tmp/README.md", sp.interpret());
             }
         }
 
         #[test]
         fn converts_single_dot_at_start_of_real_path() {
             assert_eq!(
+                format!("{}/README.md", repo()).replace("\\", "/"),
                 StrictPath::new("./README.md".to_owned()).render(),
-                format!("{}/README.md", repo()).replace("\\", "/")
             );
         }
 
         #[test]
         fn converts_single_dots_at_start_of_real_path() {
             assert_eq!(
+                format!("{}/README.md", repo()).replace("\\", "/"),
                 StrictPath::new("./././README.md".to_owned()).render(),
-                format!("{}/README.md", repo()).replace("\\", "/")
             );
         }
 
         #[test]
         fn converts_single_dot_at_start_of_fake_path() {
             assert_eq!(
+                format!("{}/fake/README.md", repo()).replace("\\", "/"),
                 StrictPath::relative("./README.md".to_owned(), Some(format!("{}/fake", repo()))).render(),
-                format!("{}/fake/README.md", repo()).replace("\\", "/")
             );
         }
 
         #[test]
         fn converts_single_dot_within_real_path() {
             assert_eq!(
+                format!("{}/README.md", repo()).replace("\\", "/"),
                 StrictPath::new(format!("{}/./README.md", repo())).render(),
-                format!("{}/README.md", repo()).replace("\\", "/")
             );
         }
 
         #[test]
         fn converts_single_dots_within_real_path() {
             assert_eq!(
+                format!("{}/README.md", repo()).replace("\\", "/"),
                 StrictPath::new(format!("{}/./././README.md", repo())).render(),
-                format!("{}/README.md", repo()).replace("\\", "/")
             );
         }
 
         #[test]
         fn converts_single_dot_within_fake_path() {
             assert_eq!(
+                format!("{}/fake/README.md", repo()).replace("\\", "/"),
                 StrictPath::new(format!("{}/fake/./README.md", repo())).render(),
-                format!("{}/fake/README.md", repo()).replace("\\", "/")
             );
         }
 
         #[test]
         fn converts_double_dots_at_start_of_real_path() {
             assert_eq!(
+                format!("{}/README.md", repo()).replace("\\", "/"),
                 StrictPath::relative("../README.md".to_owned(), Some(format!("{}/src", repo()))).render(),
-                format!("{}/README.md", repo()).replace("\\", "/")
             );
         }
 
         #[test]
         fn converts_double_dots_at_start_of_fake_path() {
             assert_eq!(
+                format!("{}/fake.md", repo()).replace("\\", "/"),
                 StrictPath::relative("../fake.md".to_owned(), Some(format!("{}/fake", repo()))).render(),
-                format!("{}/fake.md", repo()).replace("\\", "/")
             );
         }
 
         #[test]
         fn converts_double_dots_within_real_path() {
             assert_eq!(
+                format!("{}/README.md", repo()).replace("\\", "/"),
                 StrictPath::new(format!("{}/src/../README.md", repo())).render(),
-                format!("{}/README.md", repo()).replace("\\", "/")
             );
         }
 
         #[test]
         fn converts_double_dots_within_fake_path() {
             assert_eq!(
+                format!("{}/fake.md", repo()).replace("\\", "/"),
                 StrictPath::new(format!("{}/fake/../fake.md", repo())).render(),
-                format!("{}/fake.md", repo()).replace("\\", "/")
             );
         }
 
@@ -337,12 +326,12 @@ mod tests {
             #[cfg(target_os = "windows")]
             {
                 let sp = StrictPath::new("C:\\tmp\\README.md".to_owned());
-                assert_eq!(sp.interpret(), "\\\\?\\C:\\tmp\\README.md");
+                assert_eq!("\\\\?\\C:\\tmp\\README.md", sp.interpret());
             }
             #[cfg(target_os = "linux")]
             {
                 let sp = StrictPath::new("/tmp/README.md".to_owned());
-                assert_eq!(sp.interpret(), "/tmp/README.md");
+                assert_eq!("/tmp/README.md", sp.interpret());
             }
         }
 
@@ -351,14 +340,14 @@ mod tests {
             #[cfg(target_os = "windows")]
             {
                 let sp = StrictPath::new("~".to_owned());
-                assert_eq!(sp.interpret(), format!("\\\\?\\C:\\Users\\{}", username()));
-                assert_eq!(sp.render(), format!("C:/Users/{}", username()));
+                assert_eq!(format!("\\\\?\\C:\\Users\\{}", username()), sp.interpret());
+                assert_eq!(format!("C:/Users/{}", username()), sp.render());
             }
             #[cfg(target_os = "linux")]
             {
                 let sp = StrictPath::new("~".to_owned());
-                assert_eq!(sp.interpret(), format!("/home/{}", username()));
-                assert_eq!(sp.render(), format!("/home/{}", username()));
+                assert_eq!(format!("/home/{}", username()), sp.interpret());
+                assert_eq!(format!("/home/{}", username()), sp.render());
             }
         }
 
@@ -367,14 +356,14 @@ mod tests {
             #[cfg(target_os = "windows")]
             {
                 let sp = StrictPath::new("~/~".to_owned());
-                assert_eq!(sp.interpret(), format!("\\\\?\\C:\\Users\\{}\\~", username()));
-                assert_eq!(sp.render(), format!("C:/Users/{}/~", username()));
+                assert_eq!(format!("\\\\?\\C:\\Users\\{}\\~", username()), sp.interpret());
+                assert_eq!(format!("C:/Users/{}/~", username()), sp.render());
             }
             #[cfg(target_os = "linux")]
             {
                 let sp = StrictPath::new("~/~".to_owned());
-                assert_eq!(sp.interpret(), format!("/home/{}/~", username()));
-                assert_eq!(sp.render(), format!("/home/{}/~", username()));
+                assert_eq!(format!("/home/{}/~", username()), sp.interpret());
+                assert_eq!(format!("/home/{}/~", username()), sp.render());
             }
         }
 
@@ -383,14 +372,14 @@ mod tests {
             #[cfg(target_os = "windows")]
             {
                 let sp = StrictPath::new("~\\~".to_owned());
-                assert_eq!(sp.interpret(), format!("\\\\?\\C:\\Users\\{}\\~", username()));
-                assert_eq!(sp.render(), format!("C:/Users/{}/~", username()));
+                assert_eq!(format!("\\\\?\\C:\\Users\\{}\\~", username()), sp.interpret());
+                assert_eq!(format!("C:/Users/{}/~", username()), sp.render());
             }
             #[cfg(target_os = "linux")]
             {
                 let sp = StrictPath::new("~\\~".to_owned());
-                assert_eq!(sp.interpret(), format!("/home/{}/~", username()));
-                assert_eq!(sp.render(), format!("/home/{}/~", username()));
+                assert_eq!(format!("/home/{}/~", username()), sp.interpret());
+                assert_eq!(format!("/home/{}/~", username()), sp.render());
             }
         }
 
@@ -399,11 +388,11 @@ mod tests {
             let sp = StrictPath::new("~a".to_owned());
             #[cfg(target_os = "windows")]
             {
-                assert_eq!(sp.interpret(), format!("\\\\?\\{}\\~a", repo()));
+                assert_eq!(format!("\\\\?\\{}\\~a", repo()), sp.interpret());
             }
             #[cfg(target_os = "linux")]
             {
-                assert_eq!(sp.interpret(), format!("{}/~a", repo()));
+                assert_eq!(format!("{}/~a", repo()), sp.interpret());
             }
         }
 

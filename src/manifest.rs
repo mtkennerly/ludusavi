@@ -129,7 +129,7 @@ impl Manifest {
         Self::load_from_string(&content)
     }
 
-    fn load_from_string(content: &str) -> Result<Self, Error> {
+    pub fn load_from_string(content: &str) -> Result<Self, Error> {
         serde_yaml::from_str(&content).map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })
     }
 
@@ -167,6 +167,7 @@ impl Manifest {
 mod tests {
     use super::*;
     use maplit::hashmap;
+    use pretty_assertions::assert_eq;
 
     fn s(text: &str) -> String {
         text.to_string()
@@ -182,13 +183,13 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            manifest.0["game"],
             Game {
                 files: None,
                 install_dir: None,
                 registry: None,
                 steam: None,
             },
+            manifest.0["game"],
         );
     }
 
@@ -219,7 +220,6 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            manifest.0["game"],
             Game {
                 files: Some(hashmap! {
                     s("foo") => GameFileEntry {
@@ -247,6 +247,7 @@ mod tests {
                 }),
                 steam: Some(SteamMetadata { id: Some(123) }),
             },
+            manifest.0["game"],
         );
     }
 
@@ -296,8 +297,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            manifest.0["game"].files.as_ref().unwrap()["foo"].when.as_ref().unwrap()[0],
             GameFileConstraint { os: None, store: None },
+            manifest.0["game"].files.as_ref().unwrap()["foo"].when.as_ref().unwrap()[0],
         );
     }
 
@@ -379,11 +380,11 @@ mod tests {
         .unwrap();
 
         assert_eq!(
+            GameRegistryConstraint { store: None },
             manifest.0["game"].registry.as_ref().unwrap()["foo"]
                 .when
                 .as_ref()
                 .unwrap()[0],
-            GameRegistryConstraint { store: None },
         );
     }
 
@@ -416,6 +417,6 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(manifest.0["game"].steam.as_ref().unwrap(), &SteamMetadata { id: None },);
+        assert_eq!(&SteamMetadata { id: None }, manifest.0["game"].steam.as_ref().unwrap());
     }
 }

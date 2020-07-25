@@ -60,7 +60,7 @@ pub struct ScannedFile {
     pub size: u64,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ScanInfo {
     pub game_name: String,
     pub found_files: std::collections::HashSet<ScannedFile>,
@@ -131,6 +131,11 @@ pub enum OperationStepDecision {
     Processed,
     Cancelled,
     Ignored,
+}
+
+// This helps for unit tests when comparing StrictPaths.
+fn reslashed(path: &str) -> String {
+    path.replace("\\", "/")
 }
 
 pub fn app_dir() -> std::path::PathBuf {
@@ -387,7 +392,7 @@ pub fn scan_game_for_backup(
             let p = std::path::Path::new(&plain);
             if p.is_file() {
                 found_files.insert(ScannedFile {
-                    path: StrictPath::new(plain.clone()),
+                    path: StrictPath::new(reslashed(&plain)),
                     size: match p.metadata() {
                         Ok(m) => m.len(),
                         _ => 0,
@@ -402,7 +407,7 @@ pub fn scan_game_for_backup(
                 {
                     if child.file_type().is_file() {
                         found_files.insert(ScannedFile {
-                            path: StrictPath::new(child.path().display().to_string()),
+                            path: StrictPath::new(reslashed(&child.path().display().to_string())),
                             size: match child.metadata() {
                                 Ok(m) => m.len(),
                                 _ => 0,
@@ -641,5 +646,86 @@ pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo
     BackupInfo {
         failed_files,
         failed_registry,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+    use crate::manifest::Manifest;
+    use maplit::hashset;
+    use pretty_assertions::assert_eq;
+
+    fn s(text: &str) -> String {
+        text.to_string()
+    }
+
+    fn repo() -> String {
+        reslashed(env!("CARGO_MANIFEST_DIR"))
+    }
+
+    #[test]
+    fn can_scan_game_for_backup() {
+        let config = Config::load_from_string(&format!(
+            r#"
+            manifest:
+              url: example.com
+              etag: null
+            roots:
+              - path: {0}/tests/root1
+                store: other
+              - path: {0}/tests/root2
+                store: other
+            backup:
+              path: ~/backup
+            restore:
+              path: ~/restore
+            "#,
+            repo()
+        ))
+        .unwrap();
+
+        let manifest = Manifest::load_from_string(
+            r#"
+            game1:
+              files:
+                <base>/file1.txt: {}
+                <base>/subdir: {}
+            game 2:
+              files:
+                <root>/<game>: {}
+              installDir:
+                game2: {}
+            "#,
+        )
+        .unwrap();
+
+        let scan_info = scan_game_for_backup(
+            &manifest.0["game1"],
+            "game1",
+            &config.roots,
+            &StrictPath::new(repo()),
+            &None,
+        );
+
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game1"),
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo())),
+                        size: 2,
+                    },
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo())),
+                        size: 1,
+                    },
+                },
+                found_registry_keys: hashset! {},
+                registry_file: None,
+            },
+            scan_info,
+        );
     }
 }
