@@ -13,10 +13,35 @@ use crate::{
 use iced::{
     button, executor,
     keyboard::{KeyCode, ModifiersState},
-    scrollable, text_input, Align, Application, Button, Checkbox, Column, Command, Container, Element,
+    scrollable, text_input, Align, Application, Button, Checkbox, Column, Command, Container, Element, Font,
     HorizontalAlignment, Length, ProgressBar, Radio, Row, Scrollable, Space, Subscription, Text, TextInput,
 };
 use native_dialog::Dialog;
+
+const ICONS: Font = Font::External {
+    name: "Material Icons",
+    bytes: include_bytes!("../assets/MaterialIcons-Regular.ttf"),
+};
+
+enum Icon {
+    AddCircle,
+    RemoveCircle,
+    FolderOpen,
+}
+
+impl Icon {
+    fn as_text(&self) -> Text {
+        let character = match self {
+            Self::AddCircle => '\u{E147}',
+            Self::RemoveCircle => '\u{E15C}',
+            Self::FolderOpen => '\u{E2C8}',
+        };
+        Text::new(&character.to_string())
+            .font(ICONS)
+            .width(Length::Units(60))
+            .horizontal_alignment(HorizontalAlignment::Center)
+    }
+}
 
 #[realia::dep_from_registry("ludusavi", "iced_native")]
 fn get_key_pressed(event: iced_native::input::keyboard::Event) -> Option<(KeyCode, ModifiersState)> {
@@ -43,7 +68,7 @@ fn set_app_icon<T>(_settings: &mut iced::Settings<T>) {}
 
 #[realia::not(dep_from_registry("ludusavi", "iced"))]
 fn set_app_icon<T>(settings: &mut iced::Settings<T>) {
-    settings.window.icon = match image::load_from_memory(include_bytes!("../docs/icon-transparent.png")) {
+    settings.window.icon = match image::load_from_memory(include_bytes!("../assets/icon-transparent.png")) {
         Ok(buffer) => {
             let buffer = buffer.to_rgba();
             let width = buffer.width();
@@ -504,14 +529,9 @@ impl RootEditor {
                                     .spacing(20)
                                     .push(Space::new(Length::Units(0), Length::Units(0)))
                                     .push(
-                                        Button::new(
-                                            &mut x.button_state,
-                                            Text::new(translator.remove_button())
-                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                .size(14),
-                                        )
-                                        .on_press(Message::EditedRoot(EditAction::Remove(i)))
-                                        .style(style::Button::Negative),
+                                        Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())
+                                            .on_press(Message::EditedRoot(EditAction::Remove(i)))
+                                            .style(style::Button::Negative),
                                     )
                                     .push(
                                         TextInput::new(&mut x.text_state, "", &roots[i].path.raw(), move |v| {
@@ -519,22 +539,6 @@ impl RootEditor {
                                         })
                                         .width(Length::FillPortion(3))
                                         .padding(5),
-                                    )
-                                    .push(
-                                        Button::new(
-                                            &mut x.browse_button_state,
-                                            Text::new(translator.browse_button())
-                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                .size(14),
-                                        )
-                                        .on_press(match operation {
-                                            None => Message::BrowseDir(BrowseSubject::Root(i)),
-                                            Some(_) => Message::Ignore,
-                                        })
-                                        .style(match operation {
-                                            None => style::Button::Primary,
-                                            Some(_) => style::Button::Disabled,
-                                        }),
                                     )
                                     .push({
                                         Radio::new(
@@ -552,6 +556,17 @@ impl RootEditor {
                                             move |v| Message::SelectedRootStore(i, v),
                                         )
                                     })
+                                    .push(
+                                        Button::new(&mut x.browse_button_state, Icon::FolderOpen.as_text())
+                                            .on_press(match operation {
+                                                None => Message::BrowseDir(BrowseSubject::Root(i)),
+                                                Some(_) => Message::Ignore,
+                                            })
+                                            .style(match operation {
+                                                None => style::Button::Primary,
+                                                Some(_) => style::Button::Disabled,
+                                            }),
+                                    )
                                     .push(Space::new(Length::Units(0), Length::Units(0))),
                             )
                             .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
@@ -613,14 +628,9 @@ impl RedirectEditor {
                                     .spacing(20)
                                     .push(Space::new(Length::Units(0), Length::Units(0)))
                                     .push(
-                                        Button::new(
-                                            &mut x.button_state,
-                                            Text::new(translator.remove_button())
-                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                .size(14),
-                                        )
-                                        .on_press(Message::EditedRedirect(EditAction::Remove(i), None))
-                                        .style(style::Button::Negative),
+                                        Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())
+                                            .on_press(Message::EditedRedirect(EditAction::Remove(i), None))
+                                            .style(style::Button::Negative),
                                     )
                                     .push(
                                         TextInput::new(
@@ -638,20 +648,15 @@ impl RedirectEditor {
                                         .padding(5),
                                     )
                                     .push(
-                                        Button::new(
-                                            &mut x.source_browse_button_state,
-                                            Text::new(translator.browse_button())
-                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                .size(14),
-                                        )
-                                        .on_press(match operation {
-                                            None => Message::BrowseDir(BrowseSubject::RedirectSource(i)),
-                                            Some(_) => Message::Ignore,
-                                        })
-                                        .style(match operation {
-                                            None => style::Button::Primary,
-                                            Some(_) => style::Button::Disabled,
-                                        }),
+                                        Button::new(&mut x.source_browse_button_state, Icon::FolderOpen.as_text())
+                                            .on_press(match operation {
+                                                None => Message::BrowseDir(BrowseSubject::RedirectSource(i)),
+                                                Some(_) => Message::Ignore,
+                                            })
+                                            .style(match operation {
+                                                None => style::Button::Primary,
+                                                Some(_) => style::Button::Disabled,
+                                            }),
                                     )
                                     .push(
                                         TextInput::new(
@@ -669,20 +674,15 @@ impl RedirectEditor {
                                         .padding(5),
                                     )
                                     .push(
-                                        Button::new(
-                                            &mut x.target_browse_button_state,
-                                            Text::new(translator.browse_button())
-                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                .size(14),
-                                        )
-                                        .on_press(match operation {
-                                            None => Message::BrowseDir(BrowseSubject::RedirectTarget(i)),
-                                            Some(_) => Message::Ignore,
-                                        })
-                                        .style(match operation {
-                                            None => style::Button::Primary,
-                                            Some(_) => style::Button::Disabled,
-                                        }),
+                                        Button::new(&mut x.target_browse_button_state, Icon::FolderOpen.as_text())
+                                            .on_press(match operation {
+                                                None => Message::BrowseDir(BrowseSubject::RedirectTarget(i)),
+                                                Some(_) => Message::Ignore,
+                                            })
+                                            .style(match operation {
+                                                None => style::Button::Primary,
+                                                Some(_) => style::Button::Disabled,
+                                            }),
                                     )
                                     .push(Space::new(Length::Units(0), Length::Units(0))),
                             )
@@ -752,43 +752,19 @@ impl CustomGamesEditor {
                     Scrollable::new(&mut self.scroll)
                         .width(Length::Fill)
                         .height(Length::Fill)
-                        .spacing(2)
+                        .spacing(4)
                         .style(style::Scrollable),
                     |parent: Scrollable<'_, Message>, (i, x)| {
                         parent
                             .push(
                                 Row::new()
-                                    .spacing(20)
-                                    .push(Space::new(Length::Units(0), Length::Units(0)))
+                                    .push(Space::new(Length::Units(20), Length::Units(0)))
                                     .push(
-                                        Button::new(
-                                            &mut x.remove_button_state,
-                                            Text::new(translator.remove_button())
-                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                .size(14),
-                                        )
-                                        .on_press(Message::EditedCustomGame(EditAction::Remove(i)))
-                                        .style(style::Button::Negative),
-                                    )
-                                    .push(
-                                        Button::new(
-                                            &mut x.add_file_button_state,
-                                            Text::new(translator.add_file_button())
-                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                .size(14),
-                                        )
-                                        .on_press(Message::EditedCustomGameFile(i, EditAction::Add))
-                                        .style(style::Button::Primary),
-                                    )
-                                    .push(
-                                        Button::new(
-                                            &mut x.add_registry_button_state,
-                                            Text::new(translator.add_registry_button())
-                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                .size(14),
-                                        )
-                                        .on_press(Message::EditedCustomGameRegistry(i, EditAction::Add))
-                                        .style(style::Button::Primary),
+                                        Column::new().width(Length::Units(100)).push(
+                                            Button::new(&mut x.remove_button_state, Icon::RemoveCircle.as_text())
+                                                .on_press(Message::EditedCustomGame(EditAction::Remove(i)))
+                                                .style(style::Button::Negative),
+                                        ),
                                     )
                                     .push(
                                         TextInput::new(
@@ -800,7 +776,7 @@ impl CustomGamesEditor {
                                         .width(Length::FillPortion(3))
                                         .padding(5),
                                     )
-                                    .push(Space::new(Length::Units(0), Length::Units(0))),
+                                    .push(Space::new(Length::Units(20), Length::Units(0))),
                             )
                             .push(
                                 Row::new()
@@ -810,61 +786,64 @@ impl CustomGamesEditor {
                                             .width(Length::Units(100))
                                             .push(Text::new(translator.custom_files_label())),
                                     )
-                                    .push(x.files.iter_mut().enumerate().fold(
-                                        Column::new().spacing(2),
-                                        |column, (ii, xx)| {
-                                            column.push(
-                                                Row::new()
-                                                    .spacing(20)
-                                                    .push(
-                                                        TextInput::new(
-                                                            &mut xx.text_state,
-                                                            "",
-                                                            &config.custom_games[i].files[ii],
-                                                            move |v| {
-                                                                Message::EditedCustomGameFile(
-                                                                    i,
-                                                                    EditAction::Change(ii, v),
-                                                                )
-                                                            },
+                                    .push(
+                                        x.files
+                                            .iter_mut()
+                                            .enumerate()
+                                            .fold(Column::new().spacing(4), |column, (ii, xx)| {
+                                                column.push(
+                                                    Row::new()
+                                                        .spacing(20)
+                                                        .push(
+                                                            TextInput::new(
+                                                                &mut xx.text_state,
+                                                                "",
+                                                                &config.custom_games[i].files[ii],
+                                                                move |v| {
+                                                                    Message::EditedCustomGameFile(
+                                                                        i,
+                                                                        EditAction::Change(ii, v),
+                                                                    )
+                                                                },
+                                                            )
+                                                            .padding(5),
                                                         )
-                                                        .padding(5),
-                                                    )
-                                                    .push(
-                                                        Button::new(
-                                                            &mut xx.browse_button_state,
-                                                            Text::new(translator.browse_button())
-                                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                                .size(14),
+                                                        .push(
+                                                            Button::new(
+                                                                &mut xx.browse_button_state,
+                                                                Icon::FolderOpen.as_text(),
+                                                            )
+                                                            .on_press(match operation {
+                                                                None => Message::BrowseDir(
+                                                                    BrowseSubject::CustomGameFile(i, ii),
+                                                                ),
+                                                                Some(_) => Message::Ignore,
+                                                            })
+                                                            .style(match operation {
+                                                                None => style::Button::Primary,
+                                                                Some(_) => style::Button::Disabled,
+                                                            }),
                                                         )
-                                                        .on_press(match operation {
-                                                            None => {
-                                                                Message::BrowseDir(BrowseSubject::CustomGameFile(i, ii))
-                                                            }
-                                                            Some(_) => Message::Ignore,
-                                                        })
-                                                        .style(match operation {
-                                                            None => style::Button::Primary,
-                                                            Some(_) => style::Button::Disabled,
-                                                        }),
-                                                    )
-                                                    .push(
-                                                        Button::new(
-                                                            &mut xx.button_state,
-                                                            Text::new(translator.remove_button())
-                                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                                .size(14),
+                                                        .push(
+                                                            Button::new(
+                                                                &mut xx.button_state,
+                                                                Icon::RemoveCircle.as_text(),
+                                                            )
+                                                            .on_press(Message::EditedCustomGameFile(
+                                                                i,
+                                                                EditAction::Remove(ii),
+                                                            ))
+                                                            .style(style::Button::Negative),
                                                         )
-                                                        .on_press(Message::EditedCustomGameFile(
-                                                            i,
-                                                            EditAction::Remove(ii),
-                                                        ))
-                                                        .style(style::Button::Negative),
-                                                    )
-                                                    .push(Space::new(Length::Units(0), Length::Units(0))),
-                                            )
-                                        },
-                                    )),
+                                                        .push(Space::new(Length::Units(0), Length::Units(0))),
+                                                )
+                                            })
+                                            .push(
+                                                Button::new(&mut x.add_file_button_state, Icon::AddCircle.as_text())
+                                                    .on_press(Message::EditedCustomGameFile(i, EditAction::Add))
+                                                    .style(style::Button::Primary),
+                                            ),
+                                    ),
                             )
                             .push(
                                 Row::new()
@@ -874,43 +853,51 @@ impl CustomGamesEditor {
                                             .width(Length::Units(100))
                                             .push(Text::new(translator.custom_registry_label())),
                                     )
-                                    .push(x.registry.iter_mut().enumerate().fold(
-                                        Column::new().spacing(2),
-                                        |column, (ii, xx)| {
-                                            column.push(
-                                                Row::new()
-                                                    .spacing(20)
-                                                    .push(
-                                                        TextInput::new(
-                                                            &mut xx.text_state,
-                                                            "",
-                                                            &config.custom_games[i].registry[ii],
-                                                            move |v| {
-                                                                Message::EditedCustomGameRegistry(
-                                                                    i,
-                                                                    EditAction::Change(ii, v),
-                                                                )
-                                                            },
+                                    .push(
+                                        x.registry
+                                            .iter_mut()
+                                            .enumerate()
+                                            .fold(Column::new().spacing(4), |column, (ii, xx)| {
+                                                column.push(
+                                                    Row::new()
+                                                        .spacing(20)
+                                                        .push(
+                                                            TextInput::new(
+                                                                &mut xx.text_state,
+                                                                "",
+                                                                &config.custom_games[i].registry[ii],
+                                                                move |v| {
+                                                                    Message::EditedCustomGameRegistry(
+                                                                        i,
+                                                                        EditAction::Change(ii, v),
+                                                                    )
+                                                                },
+                                                            )
+                                                            .padding(5),
                                                         )
-                                                        .padding(5),
-                                                    )
-                                                    .push(
-                                                        Button::new(
-                                                            &mut xx.button_state,
-                                                            Text::new(translator.remove_button())
-                                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                                .size(14),
+                                                        .push(
+                                                            Button::new(
+                                                                &mut xx.button_state,
+                                                                Icon::RemoveCircle.as_text(),
+                                                            )
+                                                            .on_press(Message::EditedCustomGameRegistry(
+                                                                i,
+                                                                EditAction::Remove(ii),
+                                                            ))
+                                                            .style(style::Button::Negative),
                                                         )
-                                                        .on_press(Message::EditedCustomGameRegistry(
-                                                            i,
-                                                            EditAction::Remove(ii),
-                                                        ))
-                                                        .style(style::Button::Negative),
-                                                    )
-                                                    .push(Space::new(Length::Units(0), Length::Units(0))),
-                                            )
-                                        },
-                                    )),
+                                                        .push(Space::new(Length::Units(0), Length::Units(0))),
+                                                )
+                                            })
+                                            .push(
+                                                Button::new(
+                                                    &mut x.add_registry_button_state,
+                                                    Icon::AddCircle.as_text(),
+                                                )
+                                                .on_press(Message::EditedCustomGameRegistry(i, EditAction::Add))
+                                                .style(style::Button::Primary),
+                                            ),
+                                    ),
                             )
                             .push(Row::new().push(Space::new(Length::Units(0), Length::Units(25))))
                     },
@@ -1077,19 +1064,15 @@ impl BackupScreenComponent {
                             .padding(5),
                         )
                         .push(
-                            Button::new(
-                                &mut self.backup_target_browse_button,
-                                Text::new(translator.browse_button()).horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(match operation {
-                                None => Message::BrowseDir(BrowseSubject::BackupTarget),
-                                Some(_) => Message::Ignore,
-                            })
-                            .width(Length::Units(125))
-                            .style(match operation {
-                                None => style::Button::Primary,
-                                Some(_) => style::Button::Disabled,
-                            }),
+                            Button::new(&mut self.backup_target_browse_button, Icon::FolderOpen.as_text())
+                                .on_press(match operation {
+                                    None => Message::BrowseDir(BrowseSubject::BackupTarget),
+                                    Some(_) => Message::Ignore,
+                                })
+                                .style(match operation {
+                                    None => style::Button::Primary,
+                                    Some(_) => style::Button::Disabled,
+                                }),
                         ),
                 )
                 .push(self.root_editor.view(&config, &translator, &operation))
@@ -1249,19 +1232,15 @@ impl RestoreScreenComponent {
                             .padding(5),
                         )
                         .push(
-                            Button::new(
-                                &mut self.restore_source_browse_button,
-                                Text::new(translator.browse_button()).horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(match operation {
-                                None => Message::BrowseDir(BrowseSubject::RestoreSource),
-                                Some(_) => Message::Ignore,
-                            })
-                            .width(Length::Units(125))
-                            .style(match operation {
-                                None => style::Button::Primary,
-                                Some(_) => style::Button::Disabled,
-                            }),
+                            Button::new(&mut self.restore_source_browse_button, Icon::FolderOpen.as_text())
+                                .on_press(match operation {
+                                    None => Message::BrowseDir(BrowseSubject::RestoreSource),
+                                    Some(_) => Message::Ignore,
+                                })
+                                .style(match operation {
+                                    None => style::Button::Primary,
+                                    Some(_) => style::Button::Disabled,
+                                }),
                         ),
                 )
                 .push(self.redirect_editor.view(&config, &translator, &operation))

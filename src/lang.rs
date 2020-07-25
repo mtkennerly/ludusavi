@@ -234,27 +234,6 @@ impl Translator {
         .into()
     }
 
-    pub fn add_file_button(&self) -> String {
-        match self.language {
-            Language::English => "Add path",
-        }
-        .into()
-    }
-
-    pub fn add_registry_button(&self) -> String {
-        match self.language {
-            Language::English => "Add registry",
-        }
-        .into()
-    }
-
-    pub fn remove_button(&self) -> String {
-        match self.language {
-            Language::English => "Remove",
-        }
-        .into()
-    }
-
     pub fn continue_button(&self) -> String {
         match self.language {
             Language::English => "Continue",
@@ -272,13 +251,6 @@ impl Translator {
     pub fn cancelling_button(&self) -> String {
         match self.language {
             Language::English => "Cancelling...",
-        }
-        .into()
-    }
-
-    pub fn browse_button(&self) -> String {
-        match self.language {
-            Language::English => "Browse",
         }
         .into()
     }

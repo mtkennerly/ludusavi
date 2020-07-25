@@ -2,9 +2,9 @@
 # It is not intended for manual editing.
 [[package]]
 name = "ab_glyph"
-version = "0.2.4"
+version = "0.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "600c69210313b93607f32ac23a62bc9c20522f8d6bba88aef6db27657162fe78"
+checksum = "5b50c188ff14b5a6efeb38eee8ccbc505cdf61e347a3d5eb04dc55d74ae4f20e"
 dependencies = [
  "ab_glyph_rasterizer",
  "owned_ttf_parser",
@@ -1927,9 +1927,9 @@ dependencies = [
 
 [[package]]
 name = "owned_ttf_parser"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92cfbcc7f0436a5b1d93087200c04372acc8073ec59f973aa30a98ee8262fcce"
+checksum = "fb477c7fd2a3a6e04e1dc6ca2e4e9b04f2df702021dc5a5d1cf078c587dc59f7"
 dependencies = [
  "ttf-parser",
 ]
@@ -2887,9 +2887,9 @@ checksum = "e604eb7b43c06650e854be16a2a03155743d3752dd1c943f6829e26b7a36e382"
 
 [[package]]
 name = "ttf-parser"
-version = "0.7.0"
+version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "660a1bf32af7e3380bad2b59aff906c96444bb3264c5c272e1054cc7864041f5"
+checksum = "299ea3f99bc2da2d8d319ede7ecee9f9f1d94fe943b1cd69a9f6654c4eae10b8"
 
 [[package]]
 name = "twox-hash"

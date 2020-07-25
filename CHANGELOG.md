@@ -2,8 +2,9 @@
 
 * Added:
   * Support for custom games.
-  * An icon for Ludusavi.
-    (Note: For now, the crates.io release will not show an icon.)
+  * Icons for several buttons.
+  * An icon for Ludusavi itself.
+    (Note: For now, the crates.io release will not show this icon.)
   * Support for cutting in text fields.
     (Note: For now, the crates.io release will copy text instead of cutting it.)
   * More buttons for browsing folders.
