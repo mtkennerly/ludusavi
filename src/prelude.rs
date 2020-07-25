@@ -761,7 +761,7 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "windows")]
-    fn can_scan_game_for_backup_with_registry_matches_on_filled_leaf_key() {
+    fn can_scan_game_for_backup_with_registry_matches_on_leaf_key_with_values() {
         assert_eq!(
             ScanInfo {
                 game_name: s("game3"),
@@ -783,7 +783,7 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "windows")]
-    fn can_scan_game_for_backup_with_registry_matches_on_empty_parent_key() {
+    fn can_scan_game_for_backup_with_registry_matches_on_parent_key_without_values() {
         assert_eq!(
             ScanInfo {
                 game_name: s("game3-outer"),

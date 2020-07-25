@@ -1,16 +1,16 @@
 use crate::prelude::{Error, StrictPath};
 use winreg::types::{FromRegValue, ToRegValue};
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Hives(pub std::collections::HashMap<String, Keys>);
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Keys(pub std::collections::HashMap<String, Entries>);
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Entries(pub std::collections::HashMap<String, Entry>);
 
-#[derive(Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Entry {
     #[serde(skip_serializing_if = "Option::is_none")]
     sz: Option<String>,
@@ -213,4 +213,107 @@ pub fn game_registry_backup_file(start: &StrictPath, game: &str) -> std::path::P
     path.push("other");
     path.push("registry.yaml");
     path
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use maplit::hashmap;
+    use pretty_assertions::assert_eq;
+
+    fn s(text: &str) -> String {
+        text.to_string()
+    }
+
+    #[test]
+    fn can_store_key_from_full_path_of_leaf_key_with_values() {
+        let mut hives = Hives::default();
+        hives
+            .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi/game3")
+            .unwrap();
+        assert_eq!(
+            Hives(hashmap! {
+                s("HKEY_CURRENT_USER") => Keys(hashmap! {
+                    s("Software\\Ludusavi\\game3") => Entries(hashmap! {
+                        s("sz") => Entry {
+                            sz: Some(s("foo")),
+                            ..Default::default()
+                        },
+                        s("multiSz") => Entry {
+                            multi_sz: Some(s("bar")),
+                            ..Default::default()
+                        },
+                        s("expandSz") => Entry {
+                            expand_sz: Some(s("baz")),
+                            ..Default::default()
+                        },
+                        s("dword") => Entry {
+                            dword: Some(1),
+                            ..Default::default()
+                        },
+                        s("qword") => Entry {
+                            qword: Some(2),
+                            ..Default::default()
+                        },
+                    })
+                })
+            }),
+            hives,
+        );
+    }
+
+    #[test]
+    fn can_store_key_from_full_path_of_leaf_key_without_values() {
+        let mut hives = Hives::default();
+        hives
+            .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi/other")
+            .unwrap();
+        assert_eq!(
+            Hives(hashmap! {
+                s("HKEY_CURRENT_USER") => Keys(hashmap! {
+                    s("Software\\Ludusavi\\other") => Entries::default()
+                })
+            }),
+            hives,
+        );
+    }
+
+    #[test]
+    fn can_store_key_from_full_path_of_parent_key_without_values() {
+        let mut hives = Hives::default();
+        hives
+            .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi")
+            .unwrap();
+        assert_eq!(
+            Hives(hashmap! {
+                s("HKEY_CURRENT_USER") => Keys(hashmap! {
+                    s("Software\\Ludusavi") => Entries::default(),
+                    s("Software\\Ludusavi\\game3") => Entries(hashmap! {
+                        s("sz") => Entry {
+                            sz: Some(s("foo")),
+                            ..Default::default()
+                        },
+                        s("multiSz") => Entry {
+                            multi_sz: Some(s("bar")),
+                            ..Default::default()
+                        },
+                        s("expandSz") => Entry {
+                            expand_sz: Some(s("baz")),
+                            ..Default::default()
+                        },
+                        s("dword") => Entry {
+                            dword: Some(1),
+                            ..Default::default()
+                        },
+                        s("qword") => Entry {
+                            qword: Some(2),
+                            ..Default::default()
+                        },
+                    }),
+                    s("Software\\Ludusavi\\other") => Entries::default(),
+                })
+            }),
+            hives,
+        );
+    }
 }

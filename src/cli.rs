@@ -343,3 +343,132 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn check_args(args: &[&str], expected: Cli) {
+        assert_eq!(expected, Cli::from_clap(&Cli::clap().get_matches_from(args)));
+    }
+
+    fn check_args_err(args: &[&str], error: structopt::clap::ErrorKind) {
+        let result = Cli::clap().get_matches_from_safe(args);
+        assert!(result.is_err());
+        assert_eq!(error, result.unwrap_err().kind);
+    }
+
+    fn s(text: &str) -> String {
+        text.to_string()
+    }
+
+    #[test]
+    fn accepts_cli_without_arguments() {
+        check_args(&["ludusavi"], Cli { sub: None });
+    }
+
+    #[test]
+    fn accepts_cli_backup_with_minimal_arguments() {
+        check_args(
+            &["ludusavi", "backup"],
+            Cli {
+                sub: Some(Subcommand::Backup {
+                    preview: false,
+                    path: None,
+                    force: false,
+                    update: false,
+                    games: vec![],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_backup_with_all_arguments() {
+        check_args(
+            &[
+                "ludusavi",
+                "backup",
+                "--preview",
+                "--path",
+                "tests/backup",
+                "--force",
+                "--update",
+                "game1",
+                "game2",
+            ],
+            Cli {
+                sub: Some(Subcommand::Backup {
+                    preview: true,
+                    path: Some(StrictPath::new(s("tests/backup"))),
+                    force: true,
+                    update: true,
+                    games: vec![s("game1"), s("game2")],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_backup_with_nonexistent_path() {
+        check_args(
+            &["ludusavi", "backup", "--path", "tests/fake"],
+            Cli {
+                sub: Some(Subcommand::Backup {
+                    preview: false,
+                    path: Some(StrictPath::new(s("tests/fake"))),
+                    force: false,
+                    update: false,
+                    games: vec![],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_restore_with_minimal_arguments() {
+        check_args(
+            &["ludusavi", "restore"],
+            Cli {
+                sub: Some(Subcommand::Restore {
+                    preview: false,
+                    path: None,
+                    force: false,
+                    games: vec![],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_restore_with_all_arguments() {
+        check_args(
+            &[
+                "ludusavi",
+                "restore",
+                "--preview",
+                "--path",
+                "tests/backup",
+                "--force",
+                "game1",
+                "game2",
+            ],
+            Cli {
+                sub: Some(Subcommand::Restore {
+                    preview: true,
+                    path: Some(StrictPath::new(s("tests/backup"))),
+                    force: true,
+                    games: vec![s("game1"), s("game2")],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn rejects_cli_restore_with_nonexistent_path() {
+        check_args_err(
+            &["ludusavi", "restore", "--path", "tests/fake"],
+            structopt::clap::ErrorKind::ValueValidation,
+        );
+    }
+}
