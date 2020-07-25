@@ -336,8 +336,8 @@ mod tests {
                 assert_eq!(format!("C:/Users/{}/~", username()), sp.render());
             } else {
                 let sp = StrictPath::new("~/~".to_owned());
-                assert_eq!(home(), sp.interpret());
-                assert_eq!(home(), sp.render());
+                assert_eq!(format!("{}/~", home()), sp.interpret());
+                assert_eq!(format!("{}/~", home()), sp.render());
             }
         }
 
@@ -349,8 +349,8 @@ mod tests {
                 assert_eq!(format!("C:/Users/{}/~", username()), sp.render());
             } else {
                 let sp = StrictPath::new("~\\~".to_owned());
-                assert_eq!(home(), sp.interpret());
-                assert_eq!(home(), sp.render());
+                assert_eq!(format!("{}/~", home()), sp.interpret());
+                assert_eq!(format!("{}/~", home()), sp.render());
             }
         }
 
