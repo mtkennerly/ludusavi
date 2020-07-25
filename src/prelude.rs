@@ -473,7 +473,7 @@ pub fn scan_dir_for_restorable_games(source: &StrictPath) -> Vec<(String, Strict
     games
 }
 
-pub fn get_restore_name_and_parent(source: &StrictPath) -> Option<(String, StrictPath)> {
+fn get_restore_name_and_parent(source: &StrictPath) -> Option<(String, StrictPath)> {
     let path = source.as_std_path_buf();
     let base_name = match path.file_name() {
         None => return None,
@@ -503,7 +503,7 @@ pub fn scan_dir_for_restoration(source: &StrictPath) -> ScanInfo {
     }
 }
 
-pub fn scan_game_for_restoration(name: &str, source: &StrictPath) -> ScanInfo {
+fn scan_game_for_restoration(name: &str, source: &StrictPath) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
@@ -801,5 +801,80 @@ mod tests {
                 &None,
             ),
         );
+    }
+
+    #[test]
+    fn can_scan_dir_for_restorable_games() {
+        let make_path = |x| {
+            if cfg!(target_os = "windows") {
+                StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\{}", repo().replace("/", "\\"), x))
+            } else {
+                StrictPath::new(format!("{}/tests/backup/{}", repo(), x))
+            }
+        };
+
+        assert_eq!(
+            vec![(s("game1"), make_path("Z2FtZTE=")), (s("game3"), make_path("Z2FtZTM=")),],
+            scan_dir_for_restorable_games(&StrictPath::new(format!("{}/tests/backup", repo())),),
+        );
+    }
+
+    #[test]
+    fn can_scan_dir_for_restoration_with_files() {
+        let make_path = |x| {
+            if cfg!(target_os = "windows") {
+                StrictPath::new(format!(
+                    "\\\\?\\{}\\tests\\backup\\Z2FtZTE=\\{}",
+                    repo().replace("/", "\\"),
+                    x
+                ))
+            } else {
+                StrictPath::new(format!("{}/tests/backup/Z2FtZTE=/{}", repo(), x))
+            }
+        };
+
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game1"),
+                found_files: hashset! {
+                    ScannedFile { path: make_path("invalid.txt"), size: 0 },
+                    ScannedFile { path: make_path("ZmlsZTEudHh0"), size: 1 },
+                    ScannedFile { path: make_path("ZmlsZTIudHh0"), size: 2 },
+                },
+                ..Default::default()
+            },
+            scan_dir_for_restoration(&StrictPath::new(format!("{}/tests/backup/Z2FtZTE=", repo())),),
+        );
+    }
+
+    #[test]
+    fn can_scan_dir_for_restoration_with_registry() {
+        if cfg!(target_os = "windows") {
+            assert_eq!(
+                ScanInfo {
+                    game_name: s("game3"),
+                    found_registry_keys: hashset! {
+                        s("HKEY_CURRENT_USER/Software/Ludusavi/game3")
+                    },
+                    registry_file: Some(
+                        StrictPath::new(format!(
+                            "\\\\?\\{}\\tests\\backup\\Z2FtZTM=\\other\\registry.yaml",
+                            repo().replace("/", "\\")
+                        ))
+                        .as_std_path_buf()
+                    ),
+                    ..Default::default()
+                },
+                scan_dir_for_restoration(&StrictPath::new(format!("{}/tests/backup/Z2FtZTM=", repo())),),
+            );
+        } else {
+            assert_eq!(
+                ScanInfo {
+                    game_name: s("game3"),
+                    ..Default::default()
+                },
+                scan_dir_for_restoration(&StrictPath::new(format!("{}/tests/backup/Z2FtZTM=", repo())),),
+            );
+        }
     }
 }

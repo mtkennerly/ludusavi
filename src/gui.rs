@@ -3,9 +3,9 @@ use crate::{
     lang::Translator,
     manifest::{Game, Manifest, SteamMetadata, Store},
     prelude::{
-        app_dir, back_up_game, game_file_restoration_target, get_restore_name_and_parent, prepare_backup_target,
-        restore_game, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error, OperationStatus,
-        OperationStepDecision, ScanInfo, StrictPath,
+        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
+        scan_dir_for_restorable_games, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error,
+        OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
     },
     shortcuts::{Shortcut, TextHistory},
 };
@@ -1480,10 +1480,6 @@ impl Application for App {
                     return Command::none();
                 }
 
-                self.restore_screen.status.clear();
-                self.restore_screen.log.entries.clear();
-                self.modal_theme = None;
-
                 let restore_path = &self.config.restore.path;
                 if !restore_path.is_dir() {
                     self.modal_theme = Some(ModalTheme::Error {
@@ -1494,8 +1490,13 @@ impl Application for App {
                     return Command::none();
                 }
 
-                let total_subdirs = self.config.restore.path.count_subdirectories();
-                if total_subdirs == 0 {
+                let restorables = scan_dir_for_restorable_games(&restore_path);
+
+                self.restore_screen.status.clear();
+                self.restore_screen.log.entries.clear();
+                self.modal_theme = None;
+
+                if restorables.is_empty() {
                     return Command::none();
                 }
 
@@ -1505,24 +1506,13 @@ impl Application for App {
                     OngoingOperation::Restore
                 });
                 self.restore_screen.progress.current = 0.0;
-                self.restore_screen.progress.max = total_subdirs as f32;
+                self.restore_screen.progress.max = restorables.len() as f32;
 
                 let mut commands: Vec<Command<Message>> = vec![];
-                for subdir in walkdir::WalkDir::new(restore_path.interpret())
-                    .max_depth(1)
-                    .follow_links(false)
-                    .into_iter()
-                    .skip(1) // the restore path itself
-                    .filter_map(|e| e.ok())
-                {
-                    let strict_subdir = StrictPath::from_std_path_buf(&subdir.into_path());
-                    let source = get_restore_name_and_parent(&strict_subdir);
+                for (name, subdir) in restorables {
                     let redirects = self.config.get_redirects();
                     let cancel_flag = self.operation_should_cancel.clone();
-                    let ignored = match source {
-                        None => true,
-                        Some((name, _)) => !self.config.is_game_enabled_for_restore(&name),
-                    };
+                    let ignored = !self.config.is_game_enabled_for_restore(&name);
                     commands.push(Command::perform(
                         async move {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1531,7 +1521,7 @@ impl Application for App {
                                 return (None, None, OperationStepDecision::Cancelled);
                             }
 
-                            let scan_info = scan_dir_for_restoration(&strict_subdir);
+                            let scan_info = scan_dir_for_restoration(&subdir);
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);
                             }

@@ -93,24 +93,29 @@ fn show_outcome(
         return None;
     }
 
-    let mut successful = true;
+    let mut successful_overall = true;
     println!(
         "{}",
         translator.cli_game_header(&name, scan_info.sum_bytes(&Some(backup_info.to_owned())), &decision)
     );
     for entry in itertools::sorted(&scan_info.found_files) {
+        let mut entry_failed = backup_info.failed_files.contains(entry);
         let mut redirected_from = None;
         let readable = if restoring {
-            let (original_target, redirected_target) = game_file_restoration_target(&entry.path, &redirects).unwrap();
-            if original_target != redirected_target {
-                redirected_from = Some(original_target);
+            if let Ok((original_target, redirected_target)) = game_file_restoration_target(&entry.path, &redirects) {
+                if original_target != redirected_target {
+                    redirected_from = Some(original_target);
+                }
+                redirected_target
+            } else {
+                entry_failed = true;
+                entry.path.to_owned()
             }
-            redirected_target
         } else {
             entry.path.to_owned()
         };
-        if backup_info.failed_files.contains(entry) {
-            successful = false;
+        if entry_failed {
+            successful_overall = false;
             println!("{}", translator.cli_game_line_item_failed(&readable.render()));
         } else {
             println!("{}", translator.cli_game_line_item_successful(&readable.render()));
@@ -124,13 +129,13 @@ fn show_outcome(
     }
     for entry in itertools::sorted(&scan_info.found_registry_keys) {
         if backup_info.failed_registry.contains(entry) {
-            successful = false;
+            successful_overall = false;
             println!("{}", translator.cli_game_line_item_failed(entry));
         } else {
             println!("{}", translator.cli_game_line_item_successful(entry));
         }
     }
-    Some(successful)
+    Some(successful_overall)
 }
 
 pub fn run_cli(sub: Subcommand) -> Result<(), Error> {

@@ -20,29 +20,13 @@
   * The CLI required the backup `--path` to already exist.
   * Keyboard shortcuts didn't work in redirect fields.
   * Registry keys were not backed up if the parent key had no values.
+  * CLI mode would panic when restoring if a non-Base64-encoded file were
+    present in the source folder. Now, such files will be reported as an error.
 * Changed
   * The configuration auto-save is now more predictable. All config changes
     are now saved immediately.
   * When a game has registry data to back up, registry.yaml no longer includes
     unnecessary fields.
-
-    Before:
-
-    ```yaml
-    value-name:
-      sz: this is a string value; the other fields don't apply
-      expandSz: ~
-      multiSz: ~
-      dword: ~
-      qword: ~
-    ```
-
-    Now:
-
-    ```yaml
-    value-name:
-      sz: this is a string value; the other fields don't apply
-    ```
 
 ## v0.4.0 (2020-07-21)
 

@@ -96,17 +96,6 @@ fn render_pathbuf(value: &std::path::PathBuf) -> String {
     value.as_path().display().to_string()
 }
 
-fn count_subdirectories(path: &str) -> usize {
-    walkdir::WalkDir::new(normalize(path))
-        .max_depth(1)
-        .follow_links(false)
-        .into_iter()
-        .skip(1)
-        .filter_map(|e| e.ok())
-        .filter(|x| x.file_type().is_dir())
-        .count()
-}
-
 /// This is a wrapper around paths to make it more obvious when we're
 /// converting between different representations. This also handles
 /// things like `~`.
@@ -168,10 +157,6 @@ impl StrictPath {
             std::fs::remove_dir_all(&self.interpret())?;
         }
         Ok(())
-    }
-
-    pub fn count_subdirectories(&self) -> usize {
-        count_subdirectories(&self.interpret())
     }
 }
 
