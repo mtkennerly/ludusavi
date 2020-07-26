@@ -1,6 +1,7 @@
 use serde::{Serialize, Serializer};
 use std::collections::{BTreeMap, HashMap, HashSet};
 
+#[allow(dead_code)]
 pub fn ordered_map<S, V>(value: &HashMap<String, V>, serializer: S) -> Result<S::Ok, S::Error>
 where
     V: Serialize,

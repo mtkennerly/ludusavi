@@ -99,6 +99,7 @@ struct App {
     restore_screen: RestoreScreenComponent,
     custom_games_screen: CustomGamesScreenComponent,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    progress: DisappearingProgress,
 }
 
 #[derive(Debug, Clone)]
@@ -916,7 +917,7 @@ struct DisappearingProgress {
 impl DisappearingProgress {
     fn view(&mut self) -> ProgressBar {
         let visible = self.current > 0.0 && self.current < self.max;
-        ProgressBar::new(0.0..=self.max, self.current).height(Length::FillPortion(if visible { 200 } else { 1 }))
+        ProgressBar::new(0.0..=self.max, self.current).height(Length::FillPortion(if visible { 100 } else { 1 }))
     }
 
     fn complete(&self) -> bool {
@@ -936,7 +937,6 @@ struct BackupScreenComponent {
     backup_target_history: TextHistory,
     backup_target_browse_button: button::State,
     root_editor: RootEditor,
-    progress: DisappearingProgress,
 }
 
 impl BackupScreenComponent {
@@ -1077,12 +1077,7 @@ impl BackupScreenComponent {
                 )
                 .push(self.root_editor.view(&config, &translator, &operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(
-                    self.log
-                        .view(false, translator, &config)
-                        .height(Length::FillPortion(10_000)),
-                )
-                .push(self.progress.view()),
+                .push(self.log.view(false, translator, &config)),
         )
         .height(Length::Fill)
         .width(Length::Fill)
@@ -1102,7 +1097,6 @@ struct RestoreScreenComponent {
     restore_source_history: TextHistory,
     restore_source_browse_button: button::State,
     redirect_editor: RedirectEditor,
-    progress: DisappearingProgress,
 }
 
 impl RestoreScreenComponent {
@@ -1245,12 +1239,7 @@ impl RestoreScreenComponent {
                 )
                 .push(self.redirect_editor.view(&config, &translator, &operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(
-                    self.log
-                        .view(true, translator, &config)
-                        .height(Length::FillPortion(10_000)),
-                )
-                .push(self.progress.view()),
+                .push(self.log.view(true, translator, &config)),
         )
         .height(Length::Fill)
         .width(Length::Fill)
@@ -1360,10 +1349,8 @@ impl Application for App {
             Message::Idle => {
                 self.operation = None;
                 self.modal_theme = None;
-                self.backup_screen.progress.current = 0.0;
-                self.backup_screen.progress.max = 0.0;
-                self.restore_screen.progress.current = 0.0;
-                self.restore_screen.progress.max = 0.0;
+                self.progress.current = 0.0;
+                self.progress.max = 0.0;
                 self.operation_should_cancel
                     .swap(false, std::sync::atomic::Ordering::Relaxed);
                 Command::none()
@@ -1398,8 +1385,8 @@ impl Application for App {
                 self.backup_screen.status.clear();
                 self.backup_screen.log.entries.clear();
                 self.modal_theme = None;
-                self.backup_screen.progress.current = 0.0;
-                self.backup_screen.progress.max = all_games.len() as f32;
+                self.progress.current = 0.0;
+                self.progress.max = all_games.len() as f32;
 
                 self.operation = Some(if preview {
                     OngoingOperation::PreviewBackup
@@ -1484,8 +1471,8 @@ impl Application for App {
                 } else {
                     OngoingOperation::Restore
                 });
-                self.restore_screen.progress.current = 0.0;
-                self.restore_screen.progress.max = restorables.len() as f32;
+                self.progress.current = 0.0;
+                self.progress.max = restorables.len() as f32;
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for (name, subdir) in restorables {
@@ -1527,7 +1514,7 @@ impl Application for App {
                 backup_info,
                 decision,
             } => {
-                self.backup_screen.progress.current += 1.0;
+                self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
                         self.backup_screen.status.add_game(
@@ -1542,7 +1529,7 @@ impl Application for App {
                         });
                     }
                 }
-                if self.backup_screen.progress.complete() {
+                if self.progress.complete() {
                     Command::perform(async move {}, move |_| Message::BackupComplete)
                 } else {
                     Command::none()
@@ -1553,7 +1540,7 @@ impl Application for App {
                 backup_info,
                 decision,
             } => {
-                self.restore_screen.progress.current += 1.0;
+                self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
                         self.restore_screen.status.add_game(
@@ -1568,7 +1555,7 @@ impl Application for App {
                         });
                     }
                 }
-                if self.restore_screen.progress.complete() {
+                if self.progress.complete() {
                     Command::perform(async move {}, move |_| Message::RestoreComplete)
                 } else {
                     Command::none()
@@ -2039,15 +2026,20 @@ impl Application for App {
                         }),
                     ),
             )
-            .push(match self.screen {
-                Screen::Backup => self.backup_screen.view(&self.config, &self.translator, &self.operation),
-                Screen::Restore => self
-                    .restore_screen
-                    .view(&self.config, &self.translator, &self.operation),
-                Screen::CustomGames => self
-                    .custom_games_screen
-                    .view(&self.config, &self.translator, &self.operation),
-            })
+            .push(
+                match self.screen {
+                    Screen::Backup => self.backup_screen.view(&self.config, &self.translator, &self.operation),
+                    Screen::Restore => self
+                        .restore_screen
+                        .view(&self.config, &self.translator, &self.operation),
+                    Screen::CustomGames => {
+                        self.custom_games_screen
+                            .view(&self.config, &self.translator, &self.operation)
+                    }
+                }
+                .height(Length::FillPortion(10_000)),
+            )
+            .push(self.progress.view())
             .into()
     }
 }

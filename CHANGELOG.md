@@ -29,6 +29,7 @@
   * When a game has registry data to back up, registry.yaml no longer includes
     unnecessary fields and is now sorted alphabetically. This means that identical
     registry content will produce an identical registry.yaml across backups.
+  * The progress bar is now shown on all screens.
 
 ## v0.4.0 (2020-07-21)
 
