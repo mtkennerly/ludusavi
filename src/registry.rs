@@ -2,13 +2,19 @@ use crate::prelude::{Error, StrictPath};
 use winreg::types::{FromRegValue, ToRegValue};
 
 #[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Hives(pub std::collections::HashMap<String, Keys>);
+pub struct Hives(
+    #[serde(serialize_with = "crate::serialization::ordered_map")] pub std::collections::HashMap<String, Keys>,
+);
 
 #[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Keys(pub std::collections::HashMap<String, Entries>);
+pub struct Keys(
+    #[serde(serialize_with = "crate::serialization::ordered_map")] pub std::collections::HashMap<String, Entries>,
+);
 
 #[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct Entries(pub std::collections::HashMap<String, Entry>);
+pub struct Entries(
+    #[serde(serialize_with = "crate::serialization::ordered_map")] pub std::collections::HashMap<String, Entry>,
+);
 
 #[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Entry {
@@ -315,5 +321,58 @@ mod tests {
             }),
             hives,
         );
+    }
+
+    #[test]
+    fn can_be_serialized() {
+        assert_eq!(
+            r#"
+---
+HKEY_CURRENT_USER:
+  "Software\\Ludusavi": {}
+  "Software\\Ludusavi\\game3":
+    dword:
+      dword: 1
+    expandSz:
+      expandSz: baz
+    multiSz:
+      multiSz: bar
+    qword:
+      qword: 2
+    sz:
+      sz: foo
+  "Software\\Ludusavi\\other": {}
+"#
+            .trim(),
+            serde_yaml::to_string(&Hives(hashmap! {
+                s("HKEY_CURRENT_USER") => Keys(hashmap! {
+                    s("Software\\Ludusavi") => Entries::default(),
+                    s("Software\\Ludusavi\\game3") => Entries(hashmap! {
+                        s("sz") => Entry {
+                            sz: Some(s("foo")),
+                            ..Default::default()
+                        },
+                        s("multiSz") => Entry {
+                            multi_sz: Some(s("bar")),
+                            ..Default::default()
+                        },
+                        s("expandSz") => Entry {
+                            expand_sz: Some(s("baz")),
+                            ..Default::default()
+                        },
+                        s("dword") => Entry {
+                            dword: Some(1),
+                            ..Default::default()
+                        },
+                        s("qword") => Entry {
+                            qword: Some(2),
+                            ..Default::default()
+                        },
+                    }),
+                    s("Software\\Ludusavi\\other") => Entries::default(),
+                })
+            }))
+            .unwrap()
+        )
     }
 }

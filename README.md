@@ -29,11 +29,13 @@ so you are encouraged to contribute any new or fixed data back to the wiki itsel
 > ![CLI demo of previewing a backup](docs/demo-cli.gif)
 
 ## Installation
+### Requirements
 Ludusavi is available for Windows, Linux, and Mac. However, your computer must
 support one of these graphics systems: Vulkan, DirectX (11 or 12), or Metal.
 (Experimental builds with OpenGL support are also available - give them a try
 if the standard builds don't work on your system.)
 
+### Methods
 You can install Ludusavi one of these ways:
 
 * Download the executable for your operating system from the
@@ -46,17 +48,19 @@ You can install Ludusavi one of these ways:
   the following system packages, or their equivalents for your distribution:
     * Ubuntu: `sudo apt-get install -y gcc cmake libx11-dev libxcb-composite0-dev libfreetype6-dev libexpat1-dev libfontconfig1-dev`
 
-Some things to look out for:
+### Notes
+If you are on Windows:
 
-* If you are on Windows:
-  * When you first run Ludusavi, you may see a popup that says
-    "Windows protected your PC", because Windows does not recognize the program's
-    publisher. Click "more info" and then "run anyway" to start the program.
-* If you are on Mac:
-  * When you first run Ludusavi, you may see a popup that says
-    "Ludusavi can't be opened because it is from an unidentified developer".
-    To allow Ludusavi to run, please refer to [this article](https://support.apple.com/en-us/HT202491),
-    specifically the section on `How to open an app [...] from an unidentified developer`.
+* When you first run Ludusavi, you may see a popup that says
+  "Windows protected your PC", because Windows does not recognize the program's
+  publisher. Click "more info" and then "run anyway" to start the program.
+
+If you are on Mac:
+
+* When you first run Ludusavi, you may see a popup that says
+  "Ludusavi can't be opened because it is from an unidentified developer".
+  To allow Ludusavi to run, please refer to [this article](https://support.apple.com/en-us/HT202491),
+  specifically the section on `How to open an app [...] from an unidentified developer`.
 
 ## Usage
 ### CLI

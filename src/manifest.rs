@@ -25,7 +25,7 @@ impl Default for Os {
 pub enum Store {
     #[serde(rename = "steam")]
     Steam,
-    #[serde(other)]
+    #[serde(other, rename = "other")]
     Other,
 }
 

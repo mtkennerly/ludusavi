@@ -27,7 +27,8 @@
   * The configuration auto-save is now more predictable. All config changes
     are now saved immediately.
   * When a game has registry data to back up, registry.yaml no longer includes
-    unnecessary fields.
+    unnecessary fields and is now sorted alphabetically. This means that identical
+    registry content will produce an identical registry.yaml across backups.
 
 ## v0.4.0 (2020-07-21)
 
