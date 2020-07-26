@@ -1518,7 +1518,7 @@ dependencies = [
 
 [[package]]
 name = "ludusavi"
-version = "0.4.0"
+version = "0.5.0"
 dependencies = [
  "base64 0.12.3",
  "copypasta",

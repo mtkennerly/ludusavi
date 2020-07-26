@@ -1,4 +1,4 @@
-## Unreleased
+## v0.5.0 (2020-07-25)
 
 * Added:
   * Support for custom games.

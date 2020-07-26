@@ -12,7 +12,7 @@ to that project. Data is ultimately sourced from [PCGamingWiki](https://www.pcga
 so you are encouraged to contribute any new or fixed data back to the wiki itself.
 
 ## Features
-* Ability to back up data from more than 7,000 games<!-- plus your own custom entries -->.
+* Ability to back up data from more than 7,000 games plus your own custom entries.
 * Backup and restore for Steam as well as other game libraries.
 * Preview of the backup/restore before actually performing it.
 * Both a graphical interface and command line interface for scripting.
@@ -75,7 +75,8 @@ Run `ludusavi --help` for the full usage information.
   * If the target folder already exists, it will be deleted first,
     then recreated.
   * Within the target folder, for every game with data to back up,
-    a subfolder will be created with the game's name encoded as Base64.
+    a subfolder will be created with the game's name encoded as
+    [Base64](https://en.wikipedia.org/wiki/Base64).
     For example, files for `Celeste` would go into a folder named `Q2VsZXN0ZQ==`.
   * Within each game's backup folder, any relevant files will be stored with
     their name as the Base64 encoding of the full path to the original file.
@@ -125,13 +126,12 @@ Run `ludusavi --help` for the full usage information.
 * You can select/deselect specific games in restore mode just like you can in
   backup mode. The checkbox settings are remembered separately for both modes.
 
-<!--
 #### Custom games
 * Switch to this mode by clicking the `custom games` button.
 * You can click `add game` to add entries for as many games as you like.
-  Within each game's entry, you can click `add path` for files/directories
-  or `add registry` for registry keys.
-  * For paths, you can use the `browse` button to quickly select a folder.
+  Within each game's entry, you can click the plus icons to add paths
+  (files or directories) and registry keys.
+  * For paths, you can click the browse button to quickly select a folder.
     The path can be a file too, but the browse button only lets you choose
     folders at this time. You can just type in the file name afterwards.
   * In addition to regular paths, you can also use
@@ -144,7 +144,6 @@ Run `ludusavi --help` for the full usage information.
 
   If the game name matches one from Ludusavi's primary data set, then your
   custom entry will override it.
--->
 
 ### Configuration
 Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<your-name>/.config/ludusavi`).
@@ -176,14 +175,12 @@ Here are the available settings (all are required unless otherwise noted):
     * Each entry in the list should be a map with these fields:
       * `source` (string): The original location when the backup was performed.
       * `target` (string): The new location.
-<!--
 * `customGames` (optional, list):
   * Each entry in the list should be a map with these fields:
     * `name` (string): Name of the game.
     * `files` (optional, list of strings): Any files or directories you want
       to back up.
     * `registry` (optional, list of strings): Any registry keys you want to back up.
--->
 
 Example:
 
