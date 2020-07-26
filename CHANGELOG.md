@@ -1,3 +1,36 @@
+## v0.5.0 (2020-07-25)
+
+* Added:
+  * Support for custom games.
+  * Icons for several buttons.
+  * An icon for Ludusavi itself.
+    (Note: For now, the crates.io release will not show this icon.)
+  * Support for cutting in text fields.
+    (Note: For now, the crates.io release will copy text instead of cutting it.)
+  * More buttons for browsing folders.
+  * Support for `~` (user home directory) in redirects.
+  * Support for `.` and `..` path segments when the path does not exist.
+* Fixed:
+  * On Windows, long paths can now be backed up without issue.
+  * When backing up files, the Base64-encoded name now preserves the original
+    file's actual capitalization, rather than the expected capitalization
+    from the manifest.
+  * There was a rare issue related to the above point where some files could be
+    backed up twice, once with the original capitalization and once with the
+    expected capitalization.
+  * The CLI required the backup `--path` to already exist.
+  * Keyboard shortcuts didn't work in redirect fields.
+  * Registry keys were not backed up if the parent key had no values.
+  * CLI mode would panic when restoring if a non-Base64-encoded file were
+    present in the source folder. Now, such files will be reported as an error.
+* Changed:
+  * The configuration auto-save is now more predictable. All config changes
+    are now saved immediately.
+  * When a game has registry data to back up, registry.yaml no longer includes
+    unnecessary fields and is now sorted alphabetically. This means that identical
+    registry content will produce an identical registry.yaml across backups.
+  * The progress bar is now shown on all screens.
+
 ## v0.4.0 (2020-07-21)
 
 * Added the ability to select and deselect specific games.

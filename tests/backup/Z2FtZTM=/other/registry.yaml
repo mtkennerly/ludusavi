@@ -1,0 +1,13 @@
+---
+HKEY_CURRENT_USER:
+  "Software\\Ludusavi\\game3":
+    qword:
+      qword: 2
+    expandSz:
+      sz: baz
+    multiSz:
+      sz: bar
+    dword:
+      dword: 1
+    sz:
+      sz: foo

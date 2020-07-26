@@ -1,55 +1,75 @@
 use crate::{
     manifest::Store,
-    prelude::{app_dir, Error},
+    prelude::{app_dir, Error, StrictPath},
 };
 
 const MANIFEST_URL: &str = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
 
-fn default_backup_dir() -> String {
+fn default_backup_dir() -> StrictPath {
     let mut path = dirs::home_dir().unwrap();
     path.push("ludusavi-backup");
-    path.to_string_lossy().to_string()
+    StrictPath::from_std_path_buf(&path)
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub manifest: ManifestConfig,
     pub roots: Vec<RootsConfig>,
     pub backup: BackupConfig,
     pub restore: RestoreConfig,
+    #[serde(default, rename = "customGames")]
+    pub custom_games: Vec<CustomGame>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ManifestConfig {
     pub url: String,
     pub etag: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RootsConfig {
-    pub path: String,
+    pub path: StrictPath,
     pub store: Store,
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RedirectConfig {
-    pub source: String,
-    pub target: String,
+    pub source: StrictPath,
+    pub target: StrictPath,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BackupConfig {
-    pub path: String,
-    #[serde(rename = "ignoredGames")]
-    pub ignored_games: Option<std::collections::HashSet<String>>,
+    pub path: StrictPath,
+    #[serde(
+        default,
+        rename = "ignoredGames",
+        serialize_with = "crate::serialization::ordered_set"
+    )]
+    pub ignored_games: std::collections::HashSet<String>,
 }
 
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RestoreConfig {
-    pub path: String,
-    #[serde(rename = "ignoredGames")]
-    pub ignored_games: Option<std::collections::HashSet<String>>,
-    pub redirects: Option<Vec<RedirectConfig>>,
+    pub path: StrictPath,
+    #[serde(
+        default,
+        rename = "ignoredGames",
+        serialize_with = "crate::serialization::ordered_set"
+    )]
+    pub ignored_games: std::collections::HashSet<String>,
+    #[serde(default)]
+    pub redirects: Vec<RedirectConfig>,
+}
+
+#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct CustomGame {
+    pub name: String,
+    #[serde(default)]
+    pub files: Vec<String>,
+    #[serde(default)]
+    pub registry: Vec<String>,
 }
 
 impl Default for ManifestConfig {
@@ -65,7 +85,7 @@ impl Default for BackupConfig {
     fn default() -> Self {
         Self {
             path: default_backup_dir(),
-            ignored_games: None,
+            ignored_games: std::collections::HashSet::new(),
         }
     }
 }
@@ -74,8 +94,8 @@ impl Default for RestoreConfig {
     fn default() -> Self {
         Self {
             path: default_backup_dir(),
-            ignored_games: None,
-            redirects: None,
+            ignored_games: std::collections::HashSet::new(),
+            redirects: vec![],
         }
     }
 }
@@ -109,6 +129,10 @@ impl Config {
             return Ok(starter);
         }
         let content = std::fs::read_to_string(Self::file()).unwrap();
+        Self::load_from_string(&content)
+    }
+
+    pub fn load_from_string(content: &str) -> Result<Self, Error> {
         serde_yaml::from_str(&content).map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
     }
 
@@ -150,98 +174,346 @@ impl Config {
             (format!("{}/WindowsApps", pf64), Store::Other),
         ];
 
-        let mut checked = std::collections::HashSet::<String>::new();
+        let mut checked = std::collections::HashSet::<StrictPath>::new();
         for (path, store) in candidates {
-            if checked.contains(&path) {
+            let sp = StrictPath::new(path);
+            if checked.contains(&sp) {
                 continue;
             }
-            if crate::path::is_dir(&path) {
+            if sp.is_dir() {
                 self.roots.push(RootsConfig {
-                    path: crate::path::normalize(&path),
+                    path: sp.clone(),
                     store,
                 });
             }
-            checked.insert(path);
+            checked.insert(sp);
         }
     }
 
     pub fn is_game_enabled_for_backup(&self, name: &str) -> bool {
-        match &self.backup.ignored_games {
-            None => true,
-            Some(ignored) => !ignored.contains(name),
-        }
+        !self.backup.ignored_games.contains(name)
     }
 
     pub fn enable_game_for_backup(&mut self, name: &str) {
-        match &mut self.backup.ignored_games {
-            None => {}
-            Some(games) => {
-                games.remove(name);
-            }
-        }
+        self.backup.ignored_games.remove(name);
     }
 
     pub fn disable_game_for_backup(&mut self, name: &str) {
-        match &mut self.backup.ignored_games {
-            None => {
-                let mut set = std::collections::HashSet::new();
-                set.insert(name.to_owned());
-                self.backup.ignored_games = Some(set);
-            }
-            Some(games) => {
-                games.insert(name.to_owned());
-            }
-        }
+        self.backup.ignored_games.insert(name.to_owned());
     }
 
     pub fn is_game_enabled_for_restore(&self, name: &str) -> bool {
-        match &self.restore.ignored_games {
-            None => true,
-            Some(ignored) => !ignored.contains(name),
-        }
+        !self.restore.ignored_games.contains(name)
     }
 
     pub fn enable_game_for_restore(&mut self, name: &str) {
-        match &mut self.restore.ignored_games {
-            None => {}
-            Some(games) => {
-                games.remove(name);
-            }
-        }
+        self.restore.ignored_games.remove(name);
     }
 
     pub fn disable_game_for_restore(&mut self, name: &str) {
-        match &mut self.restore.ignored_games {
-            None => {
-                let mut set = std::collections::HashSet::new();
-                set.insert(name.to_owned());
-                self.restore.ignored_games = Some(set);
-            }
-            Some(games) => {
-                games.insert(name.to_owned());
-            }
-        }
+        self.restore.ignored_games.insert(name.to_owned());
     }
 
-    pub fn add_redirect(&mut self, source: &str, target: &str) {
+    pub fn add_redirect(&mut self, source: &StrictPath, target: &StrictPath) {
         let redirect = RedirectConfig {
-            source: source.to_string(),
-            target: target.to_string(),
+            source: source.clone(),
+            target: target.clone(),
         };
-        match &mut self.restore.redirects {
-            None => {
-                self.restore.redirects = Some(vec![redirect]);
-            }
-            Some(redirects) => {
-                redirects.push(redirect);
-            }
-        }
+        self.restore.redirects.push(redirect);
     }
 
     pub fn get_redirects(&self) -> Vec<RedirectConfig> {
-        match &self.restore.redirects {
-            None => vec![],
-            Some(redirects) => redirects.to_vec(),
-        }
+        self.restore.redirects.to_vec()
+    }
+
+    pub fn add_custom_game(&mut self) {
+        self.custom_games.push(CustomGame {
+            name: "".to_string(),
+            files: vec![],
+            registry: vec![],
+        });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use maplit::hashset;
+    use pretty_assertions::assert_eq;
+
+    fn s(text: &str) -> String {
+        text.to_string()
+    }
+
+    #[test]
+    fn can_parse_minimal_config() {
+        let config = Config::load_from_string(
+            r#"
+            manifest:
+              url: example.com
+              etag: null
+            roots: []
+            backup:
+              path: ~/backup
+            restore:
+              path: ~/restore
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            Config {
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    etag: None,
+                },
+                roots: vec![],
+                backup: BackupConfig {
+                    path: StrictPath::new(s("~/backup")),
+                    ignored_games: std::collections::HashSet::new(),
+                },
+                restore: RestoreConfig {
+                    path: StrictPath::new(s("~/restore")),
+                    ignored_games: std::collections::HashSet::new(),
+                    redirects: vec![],
+                },
+                custom_games: vec![],
+            },
+            config,
+        );
+    }
+
+    #[test]
+    fn can_parse_optional_fields_when_present_in_config() {
+        let config = Config::load_from_string(
+            r#"
+            manifest:
+              url: example.com
+              etag: "foo"
+            roots:
+              - path: ~/steam
+                store: steam
+              - path: ~/other
+                store: other
+            backup:
+              path: ~/backup
+              ignoredGames:
+                - Backup Game 1
+                - Backup Game 2
+                - Backup Game 2
+            restore:
+              path: ~/restore
+              ignoredGames:
+                - Restore Game 1
+                - Restore Game 2
+                - Restore Game 2
+              redirects:
+                - source: ~/old
+                  target: ~/new
+            customGames:
+              - name: Custom Game 1
+              - name: Custom Game 2
+                files:
+                  - Custom File 1
+                  - Custom File 2
+                  - Custom File 2
+                registry:
+                  - Custom Registry 1
+                  - Custom Registry 2
+                  - Custom Registry 2
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            Config {
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    etag: Some(s("foo")),
+                },
+                roots: vec![
+                    RootsConfig {
+                        path: StrictPath::new(s("~/steam")),
+                        store: Store::Steam,
+                    },
+                    RootsConfig {
+                        path: StrictPath::new(s("~/other")),
+                        store: Store::Other,
+                    },
+                ],
+                backup: BackupConfig {
+                    path: StrictPath::new(s("~/backup")),
+                    ignored_games: hashset! {
+                        s("Backup Game 1"),
+                        s("Backup Game 2"),
+                    },
+                },
+                restore: RestoreConfig {
+                    path: StrictPath::new(s("~/restore")),
+                    ignored_games: hashset! {
+                        s("Restore Game 1"),
+                        s("Restore Game 2"),
+                    },
+                    redirects: vec![RedirectConfig {
+                        source: StrictPath::new(s("~/old")),
+                        target: StrictPath::new(s("~/new")),
+                    },],
+                },
+                custom_games: vec![
+                    CustomGame {
+                        name: s("Custom Game 1"),
+                        files: vec![],
+                        registry: vec![],
+                    },
+                    CustomGame {
+                        name: s("Custom Game 2"),
+                        files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
+                        registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
+                    },
+                ],
+            },
+            config,
+        );
+    }
+
+    /// There was a defect previously where `Store::Other` would be serialized
+    /// as `store: Other` (capitalized). This test ensures that old config files
+    /// with that issue will still be accepted.
+    #[test]
+    fn can_parse_legacy_capitalized_other_store_type() {
+        let config = Config::load_from_string(
+            r#"
+            manifest:
+              url: example.com
+              etag: null
+            roots:
+              - path: ~/other
+                store: Other
+            backup:
+              path: ~/backup
+            restore:
+              path: ~/restore
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            Config {
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    etag: None,
+                },
+                roots: vec![RootsConfig {
+                    path: StrictPath::new(s("~/other")),
+                    store: Store::Other,
+                }],
+                backup: BackupConfig {
+                    path: StrictPath::new(s("~/backup")),
+                    ignored_games: std::collections::HashSet::new(),
+                },
+                restore: RestoreConfig {
+                    path: StrictPath::new(s("~/restore")),
+                    ignored_games: std::collections::HashSet::new(),
+                    redirects: vec![],
+                },
+                custom_games: vec![],
+            },
+            config,
+        );
+    }
+
+    #[test]
+    fn can_be_serialized() {
+        assert_eq!(
+            r#"
+---
+manifest:
+  url: example.com
+  etag: foo
+roots:
+  - path: ~/steam
+    store: steam
+  - path: ~/other
+    store: other
+backup:
+  path: ~/backup
+  ignoredGames:
+    - Backup Game 1
+    - Backup Game 2
+    - Backup Game 3
+restore:
+  path: ~/restore
+  ignoredGames:
+    - Restore Game 1
+    - Restore Game 2
+    - Restore Game 3
+  redirects:
+    - source: ~/old
+      target: ~/new
+customGames:
+  - name: Custom Game 1
+    files: []
+    registry: []
+  - name: Custom Game 2
+    files:
+      - Custom File 1
+      - Custom File 2
+      - Custom File 2
+    registry:
+      - Custom Registry 1
+      - Custom Registry 2
+      - Custom Registry 2
+"#
+            .trim(),
+            serde_yaml::to_string(&Config {
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    etag: Some(s("foo")),
+                },
+                roots: vec![
+                    RootsConfig {
+                        path: StrictPath::new(s("~/steam")),
+                        store: Store::Steam,
+                    },
+                    RootsConfig {
+                        path: StrictPath::new(s("~/other")),
+                        store: Store::Other,
+                    },
+                ],
+                backup: BackupConfig {
+                    path: StrictPath::new(s("~/backup")),
+                    ignored_games: hashset! {
+                        s("Backup Game 3"),
+                        s("Backup Game 1"),
+                        s("Backup Game 2"),
+                    },
+                },
+                restore: RestoreConfig {
+                    path: StrictPath::new(s("~/restore")),
+                    ignored_games: hashset! {
+                        s("Restore Game 3"),
+                        s("Restore Game 1"),
+                        s("Restore Game 2"),
+                    },
+                    redirects: vec![RedirectConfig {
+                        source: StrictPath::new(s("~/old")),
+                        target: StrictPath::new(s("~/new")),
+                    },],
+                },
+                custom_games: vec![
+                    CustomGame {
+                        name: s("Custom Game 1"),
+                        files: vec![],
+                        registry: vec![],
+                    },
+                    CustomGame {
+                        name: s("Custom Game 2"),
+                        files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
+                        registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
+                    },
+                ],
+            })
+            .unwrap(),
+        );
     }
 }

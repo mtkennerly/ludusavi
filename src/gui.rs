@@ -1,11 +1,11 @@
 use crate::{
     config::{Config, RootsConfig},
     lang::Translator,
-    manifest::{Manifest, SteamMetadata, Store},
+    manifest::{Game, Manifest, SteamMetadata, Store},
     prelude::{
-        app_dir, back_up_game, game_file_restoration_target, get_restore_name_and_parent, prepare_backup_target,
-        restore_game, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error, OperationStatus,
-        OperationStepDecision, ScanInfo,
+        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
+        scan_dir_for_restorable_games, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error,
+        OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
     },
     shortcuts::{Shortcut, TextHistory},
 };
@@ -13,10 +13,35 @@ use crate::{
 use iced::{
     button, executor,
     keyboard::{KeyCode, ModifiersState},
-    scrollable, text_input, Align, Application, Button, Checkbox, Column, Command, Container, Element,
+    scrollable, text_input, Align, Application, Button, Checkbox, Column, Command, Container, Element, Font,
     HorizontalAlignment, Length, ProgressBar, Radio, Row, Scrollable, Space, Subscription, Text, TextInput,
 };
 use native_dialog::Dialog;
+
+const ICONS: Font = Font::External {
+    name: "Material Icons",
+    bytes: include_bytes!("../assets/MaterialIcons-Regular.ttf"),
+};
+
+enum Icon {
+    AddCircle,
+    RemoveCircle,
+    FolderOpen,
+}
+
+impl Icon {
+    fn as_text(&self) -> Text {
+        let character = match self {
+            Self::AddCircle => '\u{E147}',
+            Self::RemoveCircle => '\u{E15C}',
+            Self::FolderOpen => '\u{E2C8}',
+        };
+        Text::new(&character.to_string())
+            .font(ICONS)
+            .width(Length::Units(60))
+            .horizontal_alignment(HorizontalAlignment::Center)
+    }
+}
 
 #[realia::dep_from_registry("ludusavi", "iced_native")]
 fn get_key_pressed(event: iced_native::input::keyboard::Event) -> Option<(KeyCode, ModifiersState)> {
@@ -38,6 +63,26 @@ fn get_key_pressed(event: iced_native::keyboard::Event) -> Option<(KeyCode, Modi
     }
 }
 
+#[realia::dep_from_registry("ludusavi", "iced")]
+fn set_app_icon<T>(_settings: &mut iced::Settings<T>) {}
+
+#[realia::not(dep_from_registry("ludusavi", "iced"))]
+fn set_app_icon<T>(settings: &mut iced::Settings<T>) {
+    settings.window.icon = match image::load_from_memory(include_bytes!("../assets/icon-transparent.png")) {
+        Ok(buffer) => {
+            let buffer = buffer.to_rgba();
+            let width = buffer.width();
+            let height = buffer.height();
+            let dynamic_image = image::DynamicImage::ImageRgba8(buffer);
+            match iced::window::icon::Icon::from_rgba(dynamic_image.to_bytes(), width, height) {
+                Ok(icon) => Some(icon),
+                Err(_) => None,
+            }
+        }
+        Err(_) => None,
+    }
+}
+
 #[derive(Default)]
 struct App {
     config: Config,
@@ -46,13 +91,15 @@ struct App {
     operation: Option<OngoingOperation>,
     screen: Screen,
     modal_theme: Option<ModalTheme>,
-    original_working_dir: std::path::PathBuf,
     modal: ModalComponent,
     nav_to_backup_button: button::State,
     nav_to_restore_button: button::State,
+    nav_to_custom_games_button: button::State,
     backup_screen: BackupScreenComponent,
     restore_screen: RestoreScreenComponent,
+    custom_games_screen: CustomGamesScreenComponent,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    progress: DisappearingProgress,
 }
 
 #[derive(Debug, Clone)]
@@ -82,16 +129,13 @@ enum Message {
     RestoreComplete,
     EditedBackupTarget(String),
     EditedRestoreSource(String),
-    EditedRootPath(usize, String),
-    EditedRootStore(usize, Store),
-    AddRoot,
-    RemoveRoot(usize),
-    EditedRedirectSource(usize, String),
-    EditedRedirectTarget(usize, String),
-    AddRedirect,
-    RemoveRedirect(usize),
-    SwitchScreenToRestore,
-    SwitchScreenToBackup,
+    EditedRoot(EditAction),
+    SelectedRootStore(usize, Store),
+    EditedRedirect(EditAction, Option<RedirectEditActionField>),
+    EditedCustomGame(EditAction),
+    EditedCustomGameFile(usize, EditAction),
+    EditedCustomGameRegistry(usize, EditAction),
+    SwitchScreen(Screen),
     ToggleGameListEntryExpanded {
         name: String,
     },
@@ -100,15 +144,10 @@ enum Message {
         enabled: bool,
         restoring: bool,
     },
-    BrowseBackupTarget,
-    BrowseRestoreSource,
+    BrowseDir(BrowseSubject),
     BrowseDirFailure,
-    SelectAllGames {
-        restoring: bool,
-    },
-    DeselectAllGames {
-        restoring: bool,
-    },
+    SelectAllGames,
+    DeselectAllGames,
     SubscribedEvent(iced_native::Event),
 }
 
@@ -128,6 +167,7 @@ enum OngoingOperation {
 enum Screen {
     Backup,
     Restore,
+    CustomGames,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -137,9 +177,80 @@ enum ModalTheme {
     ConfirmRestore,
 }
 
+#[derive(Debug, Clone, PartialEq)]
+enum EditAction {
+    Add,
+    Change(usize, String),
+    Remove(usize),
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum RedirectEditActionField {
+    Source,
+    Target,
+}
+
+#[derive(Debug, Clone, PartialEq)]
+enum BrowseSubject {
+    BackupTarget,
+    RestoreSource,
+    Root(usize),
+    RedirectSource(usize),
+    RedirectTarget(usize),
+    CustomGameFile(usize, usize),
+}
+
 impl Default for Screen {
     fn default() -> Self {
         Self::Backup
+    }
+}
+
+fn apply_shortcut_to_strict_path_field(
+    shortcut: &Shortcut,
+    config: &mut StrictPath,
+    state: &text_input::State,
+    history: &mut TextHistory,
+) {
+    match shortcut {
+        Shortcut::Undo => {
+            config.reset(history.undo());
+        }
+        Shortcut::Redo => {
+            config.reset(history.redo());
+        }
+        Shortcut::ClipboardCopy => {
+            crate::shortcuts::copy_to_clipboard_from_iced(&config.raw(), &state.cursor());
+        }
+        Shortcut::ClipboardCut => {
+            let modified = crate::shortcuts::cut_to_clipboard_from_iced(&config.raw(), &state.cursor());
+            config.reset(modified);
+            history.push(&config.raw());
+        }
+    }
+}
+
+fn apply_shortcut_to_string_field(
+    shortcut: &Shortcut,
+    config: &mut String,
+    state: &text_input::State,
+    history: &mut TextHistory,
+) {
+    match shortcut {
+        Shortcut::Undo => {
+            *config = history.undo();
+        }
+        Shortcut::Redo => {
+            *config = history.redo();
+        }
+        Shortcut::ClipboardCopy => {
+            crate::shortcuts::copy_to_clipboard_from_iced(&config, &state.cursor());
+        }
+        Shortcut::ClipboardCut => {
+            let modified = crate::shortcuts::cut_to_clipboard_from_iced(&config, &state.cursor());
+            *config = modified;
+            history.push(&config);
+        }
     }
 }
 
@@ -196,12 +307,10 @@ impl ModalComponent {
                                 .align_items(Align::Center)
                                 .push(Text::new(match theme {
                                     ModalTheme::Error { variant } => translator.handle_error(variant),
-                                    ModalTheme::ConfirmBackup => translator.modal_confirm_backup(
-                                        &crate::path::absolute(&config.backup.path),
-                                        crate::path::exists(&config.backup.path),
-                                    ),
+                                    ModalTheme::ConfirmBackup => translator
+                                        .modal_confirm_backup(&config.backup.path, config.backup.path.exists()),
                                     ModalTheme::ConfirmRestore => {
-                                        translator.modal_confirm_restore(&crate::path::absolute(&config.restore.path))
+                                        translator.modal_confirm_restore(&config.restore.path)
                                     }
                                 }))
                                 .height(Length::Fill),
@@ -249,7 +358,7 @@ impl GameListEntry {
         if self.expanded {
             for item in itertools::sorted(&self.scan_info.found_files) {
                 let mut redirected_from = None;
-                let mut line = item.path.clone();
+                let mut line = item.path.render();
                 if restoring {
                     if let Ok((original_target, redirected_target)) =
                         game_file_restoration_target(&item.path, &config.get_redirects())
@@ -257,7 +366,7 @@ impl GameListEntry {
                         if original_target != redirected_target {
                             redirected_from = Some(original_target);
                         }
-                        line = redirected_target;
+                        line = redirected_target.render();
                     }
                 }
                 if let Some(backup_info) = &self.backup_info {
@@ -377,6 +486,7 @@ impl GameList {
 #[derive(Default)]
 struct RootEditorRow {
     button_state: button::State,
+    browse_button_state: button::State,
     text_state: text_input::State,
     text_history: TextHistory,
 }
@@ -397,7 +507,12 @@ struct RootEditor {
 }
 
 impl RootEditor {
-    fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+    fn view(
+        &mut self,
+        config: &Config,
+        translator: &Translator,
+        operation: &Option<OngoingOperation>,
+    ) -> Container<Message> {
         let roots = config.roots.clone();
         if roots.is_empty() {
             Container::new(Text::new(translator.no_roots_are_configured()))
@@ -415,18 +530,13 @@ impl RootEditor {
                                     .spacing(20)
                                     .push(Space::new(Length::Units(0), Length::Units(0)))
                                     .push(
-                                        Button::new(
-                                            &mut x.button_state,
-                                            Text::new(translator.remove_button())
-                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                .size(14),
-                                        )
-                                        .on_press(Message::RemoveRoot(i))
-                                        .style(style::Button::Negative),
+                                        Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())
+                                            .on_press(Message::EditedRoot(EditAction::Remove(i)))
+                                            .style(style::Button::Negative),
                                     )
                                     .push(
-                                        TextInput::new(&mut x.text_state, "", &roots[i].path, move |v| {
-                                            Message::EditedRootPath(i, v)
+                                        TextInput::new(&mut x.text_state, "", &roots[i].path.raw(), move |v| {
+                                            Message::EditedRoot(EditAction::Change(i, v))
                                         })
                                         .width(Length::FillPortion(3))
                                         .padding(5),
@@ -436,7 +546,7 @@ impl RootEditor {
                                             Store::Steam,
                                             translator.store(&Store::Steam),
                                             Some(roots[i].store),
-                                            move |v| Message::EditedRootStore(i, v),
+                                            move |v| Message::SelectedRootStore(i, v),
                                         )
                                     })
                                     .push({
@@ -444,9 +554,20 @@ impl RootEditor {
                                             Store::Other,
                                             translator.store(&Store::Other),
                                             Some(roots[i].store),
-                                            move |v| Message::EditedRootStore(i, v),
+                                            move |v| Message::SelectedRootStore(i, v),
                                         )
                                     })
+                                    .push(
+                                        Button::new(&mut x.browse_button_state, Icon::FolderOpen.as_text())
+                                            .on_press(match operation {
+                                                None => Message::BrowseDir(BrowseSubject::Root(i)),
+                                                Some(_) => Message::Ignore,
+                                            })
+                                            .style(match operation {
+                                                None => style::Button::Primary,
+                                                Some(_) => style::Button::Disabled,
+                                            }),
+                                    )
                                     .push(Space::new(Length::Units(0), Length::Units(0))),
                             )
                             .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
@@ -462,8 +583,10 @@ struct RedirectEditorRow {
     button_state: button::State,
     source_text_state: text_input::State,
     source_text_history: TextHistory,
+    source_browse_button_state: button::State,
     target_text_state: text_input::State,
     target_text_history: TextHistory,
+    target_browse_button_state: button::State,
 }
 
 impl RedirectEditorRow {
@@ -483,7 +606,12 @@ struct RedirectEditor {
 }
 
 impl RedirectEditor {
-    fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+    fn view(
+        &mut self,
+        config: &Config,
+        translator: &Translator,
+        operation: &Option<OngoingOperation>,
+    ) -> Container<Message> {
         let redirects = config.get_redirects();
         if redirects.is_empty() {
             Container::new(Space::new(Length::Units(0), Length::Units(0)))
@@ -501,38 +629,278 @@ impl RedirectEditor {
                                     .spacing(20)
                                     .push(Space::new(Length::Units(0), Length::Units(0)))
                                     .push(
-                                        Button::new(
-                                            &mut x.button_state,
-                                            Text::new(translator.remove_button())
-                                                .horizontal_alignment(HorizontalAlignment::Center)
-                                                .size(14),
-                                        )
-                                        .on_press(Message::RemoveRedirect(i))
-                                        .style(style::Button::Negative),
+                                        Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())
+                                            .on_press(Message::EditedRedirect(EditAction::Remove(i), None))
+                                            .style(style::Button::Negative),
                                     )
                                     .push(
                                         TextInput::new(
                                             &mut x.source_text_state,
                                             &translator.redirect_source_placeholder(),
-                                            &redirects[i].source,
-                                            move |v| Message::EditedRedirectSource(i, v),
+                                            &redirects[i].source.raw(),
+                                            move |v| {
+                                                Message::EditedRedirect(
+                                                    EditAction::Change(i, v),
+                                                    Some(RedirectEditActionField::Source),
+                                                )
+                                            },
                                         )
                                         .width(Length::FillPortion(3))
                                         .padding(5),
                                     )
                                     .push(
+                                        Button::new(&mut x.source_browse_button_state, Icon::FolderOpen.as_text())
+                                            .on_press(match operation {
+                                                None => Message::BrowseDir(BrowseSubject::RedirectSource(i)),
+                                                Some(_) => Message::Ignore,
+                                            })
+                                            .style(match operation {
+                                                None => style::Button::Primary,
+                                                Some(_) => style::Button::Disabled,
+                                            }),
+                                    )
+                                    .push(
                                         TextInput::new(
                                             &mut x.target_text_state,
                                             &translator.redirect_target_placeholder(),
-                                            &redirects[i].target,
-                                            move |v| Message::EditedRedirectTarget(i, v),
+                                            &redirects[i].target.raw(),
+                                            move |v| {
+                                                Message::EditedRedirect(
+                                                    EditAction::Change(i, v),
+                                                    Some(RedirectEditActionField::Target),
+                                                )
+                                            },
                                         )
                                         .width(Length::FillPortion(3))
                                         .padding(5),
                                     )
+                                    .push(
+                                        Button::new(&mut x.target_browse_button_state, Icon::FolderOpen.as_text())
+                                            .on_press(match operation {
+                                                None => Message::BrowseDir(BrowseSubject::RedirectTarget(i)),
+                                                Some(_) => Message::Ignore,
+                                            })
+                                            .style(match operation {
+                                                None => style::Button::Primary,
+                                                Some(_) => style::Button::Disabled,
+                                            }),
+                                    )
                                     .push(Space::new(Length::Units(0), Length::Units(0))),
                             )
                             .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
+                    },
+                )
+            })
+        }
+    }
+}
+
+#[derive(Default)]
+struct CustomGamesEditorEntryRow {
+    button_state: button::State,
+    text_state: text_input::State,
+    text_history: TextHistory,
+    browse_button_state: button::State,
+}
+
+impl CustomGamesEditorEntryRow {
+    fn new(initial_text: &str) -> Self {
+        Self {
+            text_history: TextHistory::new(initial_text, 100),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Default)]
+struct CustomGamesEditorEntry {
+    remove_button_state: button::State,
+    add_file_button_state: button::State,
+    add_registry_button_state: button::State,
+    text_state: text_input::State,
+    text_history: TextHistory,
+    files: Vec<CustomGamesEditorEntryRow>,
+    registry: Vec<CustomGamesEditorEntryRow>,
+}
+
+impl CustomGamesEditorEntry {
+    fn new(initial_text: &str) -> Self {
+        Self {
+            text_history: TextHistory::new(initial_text, 100),
+            ..Default::default()
+        }
+    }
+}
+
+#[derive(Default)]
+struct CustomGamesEditor {
+    scroll: scrollable::State,
+    entries: Vec<CustomGamesEditorEntry>,
+}
+
+impl CustomGamesEditor {
+    fn view(
+        &mut self,
+        config: &Config,
+        translator: &Translator,
+        operation: &Option<OngoingOperation>,
+    ) -> Container<Message> {
+        if config.custom_games.is_empty() {
+            Container::new(Space::new(Length::Units(0), Length::Units(0)))
+        } else {
+            Container::new({
+                self.entries.iter_mut().enumerate().fold(
+                    Scrollable::new(&mut self.scroll)
+                        .width(Length::Fill)
+                        .height(Length::Fill)
+                        .spacing(4)
+                        .style(style::Scrollable),
+                    |parent: Scrollable<'_, Message>, (i, x)| {
+                        parent
+                            .push(
+                                Row::new()
+                                    .push(Space::new(Length::Units(20), Length::Units(0)))
+                                    .push(
+                                        Column::new().width(Length::Units(100)).push(
+                                            Button::new(&mut x.remove_button_state, Icon::RemoveCircle.as_text())
+                                                .on_press(Message::EditedCustomGame(EditAction::Remove(i)))
+                                                .style(style::Button::Negative),
+                                        ),
+                                    )
+                                    .push(
+                                        TextInput::new(
+                                            &mut x.text_state,
+                                            &translator.custom_game_name_placeholder(),
+                                            &config.custom_games[i].name,
+                                            move |v| Message::EditedCustomGame(EditAction::Change(i, v)),
+                                        )
+                                        .width(Length::FillPortion(3))
+                                        .padding(5),
+                                    )
+                                    .push(Space::new(Length::Units(20), Length::Units(0))),
+                            )
+                            .push(
+                                Row::new()
+                                    .push(Space::new(Length::Units(20), Length::Units(0)))
+                                    .push(
+                                        Column::new()
+                                            .width(Length::Units(100))
+                                            .push(Text::new(translator.custom_files_label())),
+                                    )
+                                    .push(
+                                        x.files
+                                            .iter_mut()
+                                            .enumerate()
+                                            .fold(Column::new().spacing(4), |column, (ii, xx)| {
+                                                column.push(
+                                                    Row::new()
+                                                        .spacing(20)
+                                                        .push(
+                                                            TextInput::new(
+                                                                &mut xx.text_state,
+                                                                "",
+                                                                &config.custom_games[i].files[ii],
+                                                                move |v| {
+                                                                    Message::EditedCustomGameFile(
+                                                                        i,
+                                                                        EditAction::Change(ii, v),
+                                                                    )
+                                                                },
+                                                            )
+                                                            .padding(5),
+                                                        )
+                                                        .push(
+                                                            Button::new(
+                                                                &mut xx.browse_button_state,
+                                                                Icon::FolderOpen.as_text(),
+                                                            )
+                                                            .on_press(match operation {
+                                                                None => Message::BrowseDir(
+                                                                    BrowseSubject::CustomGameFile(i, ii),
+                                                                ),
+                                                                Some(_) => Message::Ignore,
+                                                            })
+                                                            .style(match operation {
+                                                                None => style::Button::Primary,
+                                                                Some(_) => style::Button::Disabled,
+                                                            }),
+                                                        )
+                                                        .push(
+                                                            Button::new(
+                                                                &mut xx.button_state,
+                                                                Icon::RemoveCircle.as_text(),
+                                                            )
+                                                            .on_press(Message::EditedCustomGameFile(
+                                                                i,
+                                                                EditAction::Remove(ii),
+                                                            ))
+                                                            .style(style::Button::Negative),
+                                                        )
+                                                        .push(Space::new(Length::Units(0), Length::Units(0))),
+                                                )
+                                            })
+                                            .push(
+                                                Button::new(&mut x.add_file_button_state, Icon::AddCircle.as_text())
+                                                    .on_press(Message::EditedCustomGameFile(i, EditAction::Add))
+                                                    .style(style::Button::Primary),
+                                            ),
+                                    ),
+                            )
+                            .push(
+                                Row::new()
+                                    .push(Space::new(Length::Units(20), Length::Units(0)))
+                                    .push(
+                                        Column::new()
+                                            .width(Length::Units(100))
+                                            .push(Text::new(translator.custom_registry_label())),
+                                    )
+                                    .push(
+                                        x.registry
+                                            .iter_mut()
+                                            .enumerate()
+                                            .fold(Column::new().spacing(4), |column, (ii, xx)| {
+                                                column.push(
+                                                    Row::new()
+                                                        .spacing(20)
+                                                        .push(
+                                                            TextInput::new(
+                                                                &mut xx.text_state,
+                                                                "",
+                                                                &config.custom_games[i].registry[ii],
+                                                                move |v| {
+                                                                    Message::EditedCustomGameRegistry(
+                                                                        i,
+                                                                        EditAction::Change(ii, v),
+                                                                    )
+                                                                },
+                                                            )
+                                                            .padding(5),
+                                                        )
+                                                        .push(
+                                                            Button::new(
+                                                                &mut xx.button_state,
+                                                                Icon::RemoveCircle.as_text(),
+                                                            )
+                                                            .on_press(Message::EditedCustomGameRegistry(
+                                                                i,
+                                                                EditAction::Remove(ii),
+                                                            ))
+                                                            .style(style::Button::Negative),
+                                                        )
+                                                        .push(Space::new(Length::Units(0), Length::Units(0))),
+                                                )
+                                            })
+                                            .push(
+                                                Button::new(
+                                                    &mut x.add_registry_button_state,
+                                                    Icon::AddCircle.as_text(),
+                                                )
+                                                .on_press(Message::EditedCustomGameRegistry(i, EditAction::Add))
+                                                .style(style::Button::Primary),
+                                            ),
+                                    ),
+                            )
+                            .push(Row::new().push(Space::new(Length::Units(0), Length::Units(25))))
                     },
                 )
             })
@@ -549,7 +917,7 @@ struct DisappearingProgress {
 impl DisappearingProgress {
     fn view(&mut self) -> ProgressBar {
         let visible = self.current > 0.0 && self.current < self.max;
-        ProgressBar::new(0.0..=self.max, self.current).height(Length::FillPortion(if visible { 200 } else { 1 }))
+        ProgressBar::new(0.0..=self.max, self.current).height(Length::FillPortion(if visible { 100 } else { 1 }))
     }
 
     fn complete(&self) -> bool {
@@ -569,19 +937,18 @@ struct BackupScreenComponent {
     backup_target_history: TextHistory,
     backup_target_browse_button: button::State,
     root_editor: RootEditor,
-    progress: DisappearingProgress,
 }
 
 impl BackupScreenComponent {
     fn new(config: &Config) -> Self {
         let mut root_editor = RootEditor::default();
         for root in &config.roots {
-            root_editor.rows.push(RootEditorRow::new(&root.path))
+            root_editor.rows.push(RootEditorRow::new(&root.path.raw()))
         }
 
         Self {
             root_editor,
-            backup_target_history: TextHistory::new(&config.backup.path, 100),
+            backup_target_history: TextHistory::new(&config.backup.path.raw(), 100),
             ..Default::default()
         }
     }
@@ -651,7 +1018,7 @@ impl BackupScreenComponent {
                                 Text::new(translator.add_root_button())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::AddRoot)
+                            .on_press(Message::EditedRoot(EditAction::Add))
                             .width(Length::Units(125))
                             .style(style::Button::Primary),
                         )
@@ -667,9 +1034,9 @@ impl BackupScreenComponent {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(if self.log.all_entries_selected(&config, restoring) {
-                                Message::DeselectAllGames { restoring }
+                                Message::DeselectAllGames
                             } else {
-                                Message::SelectAllGames { restoring }
+                                Message::SelectAllGames
                             })
                             .width(Length::Units(125))
                             .style(style::Button::Primary)
@@ -691,35 +1058,26 @@ impl BackupScreenComponent {
                             TextInput::new(
                                 &mut self.backup_target_input,
                                 "",
-                                &config.backup.path,
+                                &config.backup.path.raw(),
                                 Message::EditedBackupTarget,
                             )
                             .padding(5),
                         )
                         .push(
-                            Button::new(
-                                &mut self.backup_target_browse_button,
-                                Text::new(translator.browse_button()).horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(match operation {
-                                None => Message::BrowseBackupTarget,
-                                Some(_) => Message::Ignore,
-                            })
-                            .width(Length::Units(125))
-                            .style(match operation {
-                                None => style::Button::Primary,
-                                Some(_) => style::Button::Disabled,
-                            }),
+                            Button::new(&mut self.backup_target_browse_button, Icon::FolderOpen.as_text())
+                                .on_press(match operation {
+                                    None => Message::BrowseDir(BrowseSubject::BackupTarget),
+                                    Some(_) => Message::Ignore,
+                                })
+                                .style(match operation {
+                                    None => style::Button::Primary,
+                                    Some(_) => style::Button::Disabled,
+                                }),
                         ),
                 )
-                .push(self.root_editor.view(&config, &translator))
+                .push(self.root_editor.view(&config, &translator, &operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(
-                    self.log
-                        .view(false, translator, &config)
-                        .height(Length::FillPortion(10_000)),
-                )
-                .push(self.progress.view()),
+                .push(self.log.view(false, translator, &config)),
         )
         .height(Length::Fill)
         .width(Length::Fill)
@@ -739,7 +1097,6 @@ struct RestoreScreenComponent {
     restore_source_history: TextHistory,
     restore_source_browse_button: button::State,
     redirect_editor: RedirectEditor,
-    progress: DisappearingProgress,
 }
 
 impl RestoreScreenComponent {
@@ -748,11 +1105,11 @@ impl RestoreScreenComponent {
         for redirect in &config.get_redirects() {
             redirect_editor
                 .rows
-                .push(RedirectEditorRow::new(&redirect.source, &redirect.target))
+                .push(RedirectEditorRow::new(&redirect.source.raw(), &redirect.target.raw()))
         }
 
         Self {
-            restore_source_history: TextHistory::new(&config.backup.path, 100),
+            restore_source_history: TextHistory::new(&config.backup.path.raw(), 100),
             redirect_editor,
             ..Default::default()
         }
@@ -823,7 +1180,7 @@ impl RestoreScreenComponent {
                                 Text::new(translator.add_redirect_button())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::AddRedirect)
+                            .on_press(Message::EditedRedirect(EditAction::Add, None))
                             .width(Length::Units(125))
                             .style(style::Button::Primary),
                         )
@@ -839,9 +1196,9 @@ impl RestoreScreenComponent {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(if self.log.all_entries_selected(&config, restoring) {
-                                Message::DeselectAllGames { restoring }
+                                Message::DeselectAllGames
                             } else {
-                                Message::SelectAllGames { restoring }
+                                Message::SelectAllGames
                             })
                             .width(Length::Units(125))
                             .style(style::Button::Primary)
@@ -863,35 +1220,81 @@ impl RestoreScreenComponent {
                             TextInput::new(
                                 &mut self.restore_source_input,
                                 "",
-                                &config.restore.path,
+                                &config.restore.path.raw(),
                                 Message::EditedRestoreSource,
                             )
                             .padding(5),
                         )
                         .push(
-                            Button::new(
-                                &mut self.restore_source_browse_button,
-                                Text::new(translator.browse_button()).horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(match operation {
-                                None => Message::BrowseRestoreSource,
-                                Some(_) => Message::Ignore,
-                            })
-                            .width(Length::Units(125))
-                            .style(match operation {
-                                None => style::Button::Primary,
-                                Some(_) => style::Button::Disabled,
-                            }),
+                            Button::new(&mut self.restore_source_browse_button, Icon::FolderOpen.as_text())
+                                .on_press(match operation {
+                                    None => Message::BrowseDir(BrowseSubject::RestoreSource),
+                                    Some(_) => Message::Ignore,
+                                })
+                                .style(match operation {
+                                    None => style::Button::Primary,
+                                    Some(_) => style::Button::Disabled,
+                                }),
                         ),
                 )
-                .push(self.redirect_editor.view(&config, &translator))
+                .push(self.redirect_editor.view(&config, &translator, &operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
+                .push(self.log.view(true, translator, &config)),
+        )
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .center_x()
+    }
+}
+
+#[derive(Default)]
+struct CustomGamesScreenComponent {
+    add_game_button: button::State,
+    games_editor: CustomGamesEditor,
+}
+
+impl CustomGamesScreenComponent {
+    fn new(config: &Config) -> Self {
+        let mut games_editor = CustomGamesEditor::default();
+        for custom_game in &config.custom_games {
+            let mut row = CustomGamesEditorEntry::new(&custom_game.name.to_string());
+            for file in &custom_game.files {
+                row.files.push(CustomGamesEditorEntryRow::new(&file))
+            }
+            for key in &custom_game.registry {
+                row.registry.push(CustomGamesEditorEntryRow::new(&key))
+            }
+            games_editor.entries.push(row);
+        }
+
+        Self {
+            games_editor,
+            ..Default::default()
+        }
+    }
+
+    fn view(
+        &mut self,
+        config: &Config,
+        translator: &Translator,
+        operation: &Option<OngoingOperation>,
+    ) -> Container<Message> {
+        Container::new(
+            Column::new()
+                .padding(5)
+                .align_items(Align::Center)
                 .push(
-                    self.log
-                        .view(true, translator, &config)
-                        .height(Length::FillPortion(10_000)),
+                    Row::new().padding(20).spacing(20).align_items(Align::Center).push(
+                        Button::new(
+                            &mut self.add_game_button,
+                            Text::new(translator.add_game_button()).horizontal_alignment(HorizontalAlignment::Center),
+                        )
+                        .on_press(Message::EditedCustomGame(EditAction::Add))
+                        .width(Length::Units(125))
+                        .style(style::Button::Primary),
+                    ),
                 )
-                .push(self.progress.view()),
+                .push(self.games_editor.view(&config, &translator, &operation)),
         )
         .height(Length::Fill)
         .width(Length::Fill)
@@ -926,10 +1329,10 @@ impl Application for App {
             Self {
                 backup_screen: BackupScreenComponent::new(&config),
                 restore_screen: RestoreScreenComponent::new(&config),
+                custom_games_screen: CustomGamesScreenComponent::new(&config),
                 translator,
                 config,
                 manifest,
-                original_working_dir: std::env::current_dir().unwrap(),
                 modal_theme,
                 ..Self::default()
             },
@@ -946,13 +1349,10 @@ impl Application for App {
             Message::Idle => {
                 self.operation = None;
                 self.modal_theme = None;
-                self.backup_screen.progress.current = 0.0;
-                self.backup_screen.progress.max = 0.0;
-                self.restore_screen.progress.current = 0.0;
-                self.restore_screen.progress.max = 0.0;
+                self.progress.current = 0.0;
+                self.progress.max = 0.0;
                 self.operation_should_cancel
                     .swap(false, std::sync::atomic::Ordering::Relaxed);
-                std::env::set_current_dir(&self.original_working_dir).unwrap();
                 Command::none()
             }
             Message::Ignore => Command::none(),
@@ -969,13 +1369,7 @@ impl Application for App {
                     return Command::none();
                 }
 
-                self.backup_screen.status.clear();
-                self.backup_screen.log.entries.clear();
-                self.modal_theme = None;
-                self.backup_screen.progress.current = 0.0;
-                self.backup_screen.progress.max = self.manifest.0.len() as f32;
-
-                let backup_path = crate::path::absolute(&self.config.backup.path);
+                let backup_path = &self.config.backup.path;
                 if !preview {
                     if let Err(e) = prepare_backup_target(&backup_path) {
                         self.modal_theme = Some(ModalTheme::Error { variant: e });
@@ -983,18 +1377,26 @@ impl Application for App {
                     }
                 }
 
-                self.config.save();
+                let mut all_games = self.manifest.0.clone();
+                for custom_game in &self.config.custom_games {
+                    all_games.insert(custom_game.name.clone(), Game::from(custom_game.to_owned()));
+                }
+
+                self.backup_screen.status.clear();
+                self.backup_screen.log.entries.clear();
+                self.modal_theme = None;
+                self.progress.current = 0.0;
+                self.progress.max = all_games.len() as f32;
+
                 self.operation = Some(if preview {
                     OngoingOperation::PreviewBackup
                 } else {
                     OngoingOperation::Backup
                 });
 
-                std::env::set_current_dir(app_dir()).unwrap();
-
                 let mut commands: Vec<Command<Message>> = vec![];
-                for key in self.manifest.0.iter().map(|(k, _)| k.clone()) {
-                    let game = self.manifest.0[&key].clone();
+                for key in all_games.iter().map(|(k, _)| k.clone()) {
+                    let game = all_games[&key].clone();
                     let roots = self.config.roots.clone();
                     let backup_path2 = backup_path.clone();
                     let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
@@ -1002,14 +1404,22 @@ impl Application for App {
                     let ignored = !self.config.is_game_enabled_for_backup(&key);
                     commands.push(Command::perform(
                         async move {
+                            if key.trim().is_empty() {
+                                return (None, None, OperationStepDecision::Ignored);
+                            }
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                                 // TODO: https://github.com/hecrj/iced/issues/436
                                 std::thread::sleep(std::time::Duration::from_millis(1));
                                 return (None, None, OperationStepDecision::Cancelled);
                             }
 
-                            let scan_info =
-                                scan_game_for_backup(&game, &key, &roots, &app_dir().to_string_lossy(), &steam_id);
+                            let scan_info = scan_game_for_backup(
+                                &game,
+                                &key,
+                                &roots,
+                                &StrictPath::from_std_path_buf(&app_dir()),
+                                &steam_id,
+                            );
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);
                             }
@@ -1036,47 +1446,39 @@ impl Application for App {
                     return Command::none();
                 }
 
-                self.restore_screen.status.clear();
-                self.restore_screen.log.entries.clear();
-                self.modal_theme = None;
-
-                let restore_path = crate::path::normalize(&self.config.restore.path);
-                if !crate::path::is_dir(&restore_path) {
+                let restore_path = &self.config.restore.path;
+                if !restore_path.is_dir() {
                     self.modal_theme = Some(ModalTheme::Error {
-                        variant: Error::RestorationSourceInvalid { path: restore_path },
+                        variant: Error::RestorationSourceInvalid {
+                            path: restore_path.clone(),
+                        },
                     });
                     return Command::none();
                 }
 
-                let total_subdirs = crate::path::count_subdirectories(&self.config.restore.path);
-                if total_subdirs == 0 {
+                let restorables = scan_dir_for_restorable_games(&restore_path);
+
+                self.restore_screen.status.clear();
+                self.restore_screen.log.entries.clear();
+                self.modal_theme = None;
+
+                if restorables.is_empty() {
                     return Command::none();
                 }
 
-                self.config.save();
                 self.operation = Some(if preview {
                     OngoingOperation::PreviewRestore
                 } else {
                     OngoingOperation::Restore
                 });
-                self.restore_screen.progress.current = 0.0;
-                self.restore_screen.progress.max = total_subdirs as f32;
+                self.progress.current = 0.0;
+                self.progress.max = restorables.len() as f32;
 
                 let mut commands: Vec<Command<Message>> = vec![];
-                for subdir in walkdir::WalkDir::new(crate::path::normalize(&restore_path))
-                    .max_depth(1)
-                    .follow_links(false)
-                    .into_iter()
-                    .skip(1) // the restore path itself
-                    .filter_map(|e| e.ok())
-                {
-                    let source = get_restore_name_and_parent(&subdir.path().to_string_lossy());
+                for (name, subdir) in restorables {
                     let redirects = self.config.get_redirects();
                     let cancel_flag = self.operation_should_cancel.clone();
-                    let ignored = match source {
-                        None => true,
-                        Some((name, _)) => !self.config.is_game_enabled_for_restore(&name),
-                    };
+                    let ignored = !self.config.is_game_enabled_for_restore(&name);
                     commands.push(Command::perform(
                         async move {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
@@ -1085,7 +1487,7 @@ impl Application for App {
                                 return (None, None, OperationStepDecision::Cancelled);
                             }
 
-                            let scan_info = scan_dir_for_restoration(&subdir.path().to_string_lossy());
+                            let scan_info = scan_dir_for_restoration(&subdir);
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);
                             }
@@ -1112,7 +1514,7 @@ impl Application for App {
                 backup_info,
                 decision,
             } => {
-                self.backup_screen.progress.current += 1.0;
+                self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
                         self.backup_screen.status.add_game(
@@ -1127,7 +1529,7 @@ impl Application for App {
                         });
                     }
                 }
-                if self.backup_screen.progress.complete() {
+                if self.progress.complete() {
                     Command::perform(async move {}, move |_| Message::BackupComplete)
                 } else {
                     Command::none()
@@ -1138,7 +1540,7 @@ impl Application for App {
                 backup_info,
                 decision,
             } => {
-                self.restore_screen.progress.current += 1.0;
+                self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
                         self.restore_screen.status.add_game(
@@ -1153,7 +1555,7 @@ impl Application for App {
                         });
                     }
                 }
-                if self.restore_screen.progress.complete() {
+                if self.progress.complete() {
                     Command::perform(async move {}, move |_| Message::RestoreComplete)
                 } else {
                     Command::none()
@@ -1207,71 +1609,147 @@ impl Application for App {
             }
             Message::EditedBackupTarget(text) => {
                 self.backup_screen.backup_target_history.push(&text);
-                self.config.backup.path = text;
+                self.config.backup.path.reset(text);
+                self.config.save();
                 Command::none()
             }
             Message::EditedRestoreSource(text) => {
                 self.restore_screen.restore_source_history.push(&text);
-                self.config.restore.path = text;
+                self.config.restore.path.reset(text);
+                self.config.save();
                 Command::none()
             }
-            Message::EditedRootPath(index, path) => {
-                self.backup_screen.root_editor.rows[index].text_history.push(&path);
-                self.config.roots[index].path = path;
-                Command::none()
-            }
-            Message::EditedRootStore(index, store) => {
-                self.config.roots[index].store = store;
-                Command::none()
-            }
-            Message::AddRoot => {
-                self.backup_screen.root_editor.rows.push(RootEditorRow::default());
-                self.config.roots.push(RootsConfig {
-                    path: "".into(),
-                    store: Store::Other,
-                });
-                Command::none()
-            }
-            Message::RemoveRoot(index) => {
-                self.backup_screen.root_editor.rows.remove(index);
-                self.config.roots.remove(index);
-                Command::none()
-            }
-            Message::EditedRedirectSource(index, source) => {
-                self.restore_screen.redirect_editor.rows[index]
-                    .source_text_history
-                    .push(&source);
-                self.config.restore.redirects.as_mut().unwrap()[index].source = source;
-                Command::none()
-            }
-            Message::EditedRedirectTarget(index, target) => {
-                self.restore_screen.redirect_editor.rows[index]
-                    .target_text_history
-                    .push(&target);
-                self.config.restore.redirects.as_mut().unwrap()[index].target = target;
-                Command::none()
-            }
-            Message::AddRedirect => {
-                self.restore_screen
-                    .redirect_editor
-                    .rows
-                    .push(RedirectEditorRow::default());
-                self.config.add_redirect("", "");
-                Command::none()
-            }
-            Message::RemoveRedirect(index) => {
-                self.restore_screen.redirect_editor.rows.remove(index);
-                if let Some(redirects) = &mut self.config.restore.redirects {
-                    redirects.remove(index);
+            Message::EditedRoot(action) => {
+                match action {
+                    EditAction::Add => {
+                        self.backup_screen.root_editor.rows.push(RootEditorRow::default());
+                        self.config.roots.push(RootsConfig {
+                            path: StrictPath::default(),
+                            store: Store::Other,
+                        });
+                    }
+                    EditAction::Change(index, value) => {
+                        self.backup_screen.root_editor.rows[index].text_history.push(&value);
+                        self.config.roots[index].path.reset(value);
+                    }
+                    EditAction::Remove(index) => {
+                        self.backup_screen.root_editor.rows.remove(index);
+                        self.config.roots.remove(index);
+                    }
                 }
+                self.config.save();
                 Command::none()
             }
-            Message::SwitchScreenToBackup => {
-                self.screen = Screen::Backup;
+            Message::SelectedRootStore(index, store) => {
+                self.config.roots[index].store = store;
+                self.config.save();
                 Command::none()
             }
-            Message::SwitchScreenToRestore => {
-                self.screen = Screen::Restore;
+            Message::EditedRedirect(action, field) => {
+                match action {
+                    EditAction::Add => {
+                        self.restore_screen
+                            .redirect_editor
+                            .rows
+                            .push(RedirectEditorRow::default());
+                        self.config.add_redirect(&StrictPath::default(), &StrictPath::default());
+                    }
+                    EditAction::Change(index, value) => match field {
+                        Some(RedirectEditActionField::Source) => {
+                            self.restore_screen.redirect_editor.rows[index]
+                                .source_text_history
+                                .push(&value);
+                            self.config.restore.redirects[index].source.reset(value);
+                        }
+                        Some(RedirectEditActionField::Target) => {
+                            self.restore_screen.redirect_editor.rows[index]
+                                .target_text_history
+                                .push(&value);
+                            self.config.restore.redirects[index].target.reset(value);
+                        }
+                        _ => {}
+                    },
+                    EditAction::Remove(index) => {
+                        self.restore_screen.redirect_editor.rows.remove(index);
+                        self.config.restore.redirects.remove(index);
+                    }
+                }
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedCustomGame(action) => {
+                match action {
+                    EditAction::Add => {
+                        self.custom_games_screen
+                            .games_editor
+                            .entries
+                            .push(CustomGamesEditorEntry::default());
+                        self.config.add_custom_game();
+                    }
+                    EditAction::Change(index, value) => {
+                        self.custom_games_screen.games_editor.entries[index]
+                            .text_history
+                            .push(&value);
+                        self.config.custom_games[index].name = value;
+                    }
+                    EditAction::Remove(index) => {
+                        self.custom_games_screen.games_editor.entries.remove(index);
+                        self.config.custom_games.remove(index);
+                    }
+                }
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedCustomGameFile(game_index, action) => {
+                match action {
+                    EditAction::Add => {
+                        self.custom_games_screen.games_editor.entries[game_index]
+                            .files
+                            .push(CustomGamesEditorEntryRow::default());
+                        self.config.custom_games[game_index].files.push("".to_string());
+                    }
+                    EditAction::Change(index, value) => {
+                        self.custom_games_screen.games_editor.entries[game_index].files[index]
+                            .text_history
+                            .push(&value);
+                        self.config.custom_games[game_index].files[index] = value;
+                    }
+                    EditAction::Remove(index) => {
+                        self.custom_games_screen.games_editor.entries[game_index]
+                            .files
+                            .remove(index);
+                        self.config.custom_games[game_index].files.remove(index);
+                    }
+                }
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedCustomGameRegistry(game_index, action) => {
+                match action {
+                    EditAction::Add => {
+                        self.custom_games_screen.games_editor.entries[game_index]
+                            .registry
+                            .push(CustomGamesEditorEntryRow::default());
+                        self.config.custom_games[game_index].registry.push("".to_string());
+                    }
+                    EditAction::Change(index, value) => {
+                        self.custom_games_screen.games_editor.entries[game_index].registry[index]
+                            .text_history
+                            .push(&value);
+                        self.config.custom_games[game_index].registry[index] = value;
+                    }
+                    EditAction::Remove(index) => {
+                        self.custom_games_screen.games_editor.entries[game_index]
+                            .registry
+                            .remove(index);
+                        self.config.custom_games[game_index].registry.remove(index);
+                    }
+                }
+                self.config.save();
+                Command::none()
+            }
+            Message::SwitchScreen(screen) => {
+                self.screen = screen;
                 Command::none()
             }
             Message::ToggleGameListEntryExpanded { name } => {
@@ -1290,6 +1768,7 @@ impl Application for App {
                             }
                         }
                     }
+                    _ => {}
                 }
                 Command::none()
             }
@@ -1307,18 +1786,23 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
-            Message::BrowseBackupTarget => Command::perform(
+            Message::BrowseDir(subject) => Command::perform(
                 async move { native_dialog::OpenSingleDir { dir: None }.show() },
-                |choice| match choice {
-                    Ok(Some(path)) => Message::EditedBackupTarget(path),
-                    Ok(None) => Message::Ignore,
-                    Err(_) => Message::BrowseDirFailure,
-                },
-            ),
-            Message::BrowseRestoreSource => Command::perform(
-                async move { native_dialog::OpenSingleDir { dir: None }.show() },
-                |choice| match choice {
-                    Ok(Some(path)) => Message::EditedRestoreSource(path),
+                move |choice| match choice {
+                    Ok(Some(path)) => match subject {
+                        BrowseSubject::BackupTarget => Message::EditedBackupTarget(path),
+                        BrowseSubject::RestoreSource => Message::EditedRestoreSource(path),
+                        BrowseSubject::Root(i) => Message::EditedRoot(EditAction::Change(i, path)),
+                        BrowseSubject::RedirectSource(i) => {
+                            Message::EditedRedirect(EditAction::Change(i, path), Some(RedirectEditActionField::Source))
+                        }
+                        BrowseSubject::RedirectTarget(i) => {
+                            Message::EditedRedirect(EditAction::Change(i, path), Some(RedirectEditActionField::Target))
+                        }
+                        BrowseSubject::CustomGameFile(i, j) => {
+                            Message::EditedCustomGameFile(i, EditAction::Change(j, path))
+                        }
+                    },
                     Ok(None) => Message::Ignore,
                     Err(_) => Message::BrowseDirFailure,
                 },
@@ -1329,28 +1813,36 @@ impl Application for App {
                 });
                 Command::none()
             }
-            Message::SelectAllGames { restoring } => {
-                if restoring {
-                    for entry in &self.restore_screen.log.entries {
-                        self.config.enable_game_for_restore(&entry.scan_info.game_name);
+            Message::SelectAllGames => {
+                match self.screen {
+                    Screen::Backup => {
+                        for entry in &self.backup_screen.log.entries {
+                            self.config.enable_game_for_backup(&entry.scan_info.game_name);
+                        }
                     }
-                } else {
-                    for entry in &self.backup_screen.log.entries {
-                        self.config.enable_game_for_backup(&entry.scan_info.game_name);
+                    Screen::Restore => {
+                        for entry in &self.restore_screen.log.entries {
+                            self.config.enable_game_for_restore(&entry.scan_info.game_name);
+                        }
                     }
+                    _ => {}
                 }
                 self.config.save();
                 Command::none()
             }
-            Message::DeselectAllGames { restoring } => {
-                if restoring {
-                    for entry in &self.restore_screen.log.entries {
-                        self.config.disable_game_for_restore(&entry.scan_info.game_name);
+            Message::DeselectAllGames => {
+                match self.screen {
+                    Screen::Backup => {
+                        for entry in &self.backup_screen.log.entries {
+                            self.config.disable_game_for_backup(&entry.scan_info.game_name);
+                        }
                     }
-                } else {
-                    for entry in &self.backup_screen.log.entries {
-                        self.config.disable_game_for_backup(&entry.scan_info.game_name);
+                    Screen::Restore => {
+                        for entry in &self.restore_screen.log.entries {
+                            self.config.disable_game_for_restore(&entry.scan_info.game_name);
+                        }
                     }
+                    _ => {}
                 }
                 self.config.save();
                 Command::none()
@@ -1372,82 +1864,102 @@ impl Application for App {
                         };
 
                         if let Some(shortcut) = shortcut {
+                            let mut matched = false;
+
                             if self.backup_screen.backup_target_input.is_focused() {
-                                match shortcut {
-                                    Shortcut::Undo => {
-                                        self.config.backup.path = self.backup_screen.backup_target_history.undo();
-                                    }
-                                    Shortcut::Redo => {
-                                        self.config.backup.path = self.backup_screen.backup_target_history.redo();
-                                    }
-                                    Shortcut::ClipboardCopy => {
-                                        crate::shortcuts::copy_to_clipboard_from_iced(
-                                            &self.config.backup.path,
-                                            &self.backup_screen.backup_target_input.cursor(),
-                                        );
-                                    }
-                                    Shortcut::ClipboardCut => {
-                                        self.config.backup.path = crate::shortcuts::cut_to_clipboard_from_iced(
-                                            &self.config.backup.path,
-                                            &self.backup_screen.backup_target_input.cursor(),
-                                        );
-                                        self.backup_screen.backup_target_history.push(&self.config.backup.path);
-                                    }
-                                }
+                                apply_shortcut_to_strict_path_field(
+                                    &shortcut,
+                                    &mut self.config.backup.path,
+                                    &self.backup_screen.backup_target_input,
+                                    &mut self.backup_screen.backup_target_history,
+                                );
+                                matched = true;
                             } else if self.restore_screen.restore_source_input.is_focused() {
-                                match shortcut {
-                                    Shortcut::Undo => {
-                                        self.config.restore.path = self.restore_screen.restore_source_history.undo();
-                                    }
-                                    Shortcut::Redo => {
-                                        self.config.restore.path = self.restore_screen.restore_source_history.redo();
-                                    }
-                                    Shortcut::ClipboardCopy => {
-                                        crate::shortcuts::copy_to_clipboard_from_iced(
-                                            &self.config.restore.path,
-                                            &self.restore_screen.restore_source_input.cursor(),
-                                        );
-                                    }
-                                    Shortcut::ClipboardCut => {
-                                        self.config.restore.path = crate::shortcuts::cut_to_clipboard_from_iced(
-                                            &self.config.restore.path,
-                                            &self.restore_screen.restore_source_input.cursor(),
-                                        );
-                                        self.restore_screen
-                                            .restore_source_history
-                                            .push(&self.config.restore.path);
-                                    }
-                                }
+                                apply_shortcut_to_strict_path_field(
+                                    &shortcut,
+                                    &mut self.config.restore.path,
+                                    &self.restore_screen.restore_source_input,
+                                    &mut self.restore_screen.restore_source_history,
+                                );
+                                matched = true;
                             } else {
                                 for (i, root) in self.backup_screen.root_editor.rows.iter_mut().enumerate() {
                                     if root.text_state.is_focused() {
-                                        match shortcut {
-                                            Shortcut::Undo => {
-                                                self.config.roots[i].path = root.text_history.undo();
-                                            }
-                                            Shortcut::Redo => {
-                                                self.config.roots[i].path = root.text_history.redo();
-                                            }
-                                            Shortcut::ClipboardCopy => {
-                                                crate::shortcuts::copy_to_clipboard_from_iced(
-                                                    &self.config.roots[i].path,
-                                                    &root.text_state.cursor(),
-                                                );
-                                            }
-                                            Shortcut::ClipboardCut => {
-                                                self.config.roots[i].path =
-                                                    crate::shortcuts::cut_to_clipboard_from_iced(
-                                                        &self.config.roots[i].path,
-                                                        &root.text_state.cursor(),
-                                                    );
-                                                self.backup_screen.root_editor.rows[i]
-                                                    .text_history
-                                                    .push(&self.config.roots[i].path);
-                                            }
-                                        }
+                                        apply_shortcut_to_strict_path_field(
+                                            &shortcut,
+                                            &mut self.config.roots[i].path,
+                                            &root.text_state,
+                                            &mut root.text_history,
+                                        );
+                                        matched = true;
                                         break;
                                     }
                                 }
+                                for (i, redirect) in self.restore_screen.redirect_editor.rows.iter_mut().enumerate() {
+                                    if redirect.source_text_state.is_focused() {
+                                        apply_shortcut_to_strict_path_field(
+                                            &shortcut,
+                                            &mut self.config.restore.redirects[i].source,
+                                            &redirect.source_text_state,
+                                            &mut redirect.source_text_history,
+                                        );
+                                        matched = true;
+                                        break;
+                                    }
+                                    if redirect.target_text_state.is_focused() {
+                                        apply_shortcut_to_strict_path_field(
+                                            &shortcut,
+                                            &mut self.config.restore.redirects[i].target,
+                                            &redirect.target_text_state,
+                                            &mut redirect.target_text_history,
+                                        );
+                                        matched = true;
+                                        break;
+                                    }
+                                }
+                                for (i, game) in self.custom_games_screen.games_editor.entries.iter_mut().enumerate() {
+                                    if matched {
+                                        break;
+                                    }
+                                    if game.text_state.is_focused() {
+                                        apply_shortcut_to_string_field(
+                                            &shortcut,
+                                            &mut self.config.custom_games[i].name,
+                                            &game.text_state,
+                                            &mut game.text_history,
+                                        );
+                                        matched = true;
+                                        break;
+                                    }
+                                    for (j, file_row) in game.files.iter_mut().enumerate() {
+                                        if file_row.text_state.is_focused() {
+                                            apply_shortcut_to_string_field(
+                                                &shortcut,
+                                                &mut self.config.custom_games[i].files[j],
+                                                &file_row.text_state,
+                                                &mut file_row.text_history,
+                                            );
+                                            matched = true;
+                                            break;
+                                        }
+                                    }
+                                    for (j, registry_row) in game.registry.iter_mut().enumerate() {
+                                        if registry_row.text_state.is_focused() {
+                                            apply_shortcut_to_string_field(
+                                                &shortcut,
+                                                &mut self.config.custom_games[i].registry[j],
+                                                &registry_row.text_state,
+                                                &mut registry_row.text_history,
+                                            );
+                                            matched = true;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            if matched {
+                                self.config.save();
                             }
                         }
                     }
@@ -1478,7 +1990,7 @@ impl Application for App {
                                 .size(16)
                                 .horizontal_alignment(HorizontalAlignment::Center),
                         )
-                        .on_press(Message::SwitchScreenToBackup)
+                        .on_press(Message::SwitchScreen(Screen::Backup))
                         .width(Length::Units(200))
                         .style(match self.screen {
                             Screen::Backup => style::NavButton::Active,
@@ -1492,20 +2004,42 @@ impl Application for App {
                                 .size(16)
                                 .horizontal_alignment(HorizontalAlignment::Center),
                         )
-                        .on_press(Message::SwitchScreenToRestore)
+                        .on_press(Message::SwitchScreen(Screen::Restore))
                         .width(Length::Units(200))
                         .style(match self.screen {
                             Screen::Restore => style::NavButton::Active,
                             _ => style::NavButton::Inactive,
                         }),
+                    )
+                    .push(
+                        Button::new(
+                            &mut self.nav_to_custom_games_button,
+                            Text::new(self.translator.nav_custom_games_button())
+                                .size(16)
+                                .horizontal_alignment(HorizontalAlignment::Center),
+                        )
+                        .on_press(Message::SwitchScreen(Screen::CustomGames))
+                        .width(Length::Units(200))
+                        .style(match self.screen {
+                            Screen::CustomGames => style::NavButton::Active,
+                            _ => style::NavButton::Inactive,
+                        }),
                     ),
             )
-            .push(match self.screen {
-                Screen::Backup => self.backup_screen.view(&self.config, &self.translator, &self.operation),
-                Screen::Restore => self
-                    .restore_screen
-                    .view(&self.config, &self.translator, &self.operation),
-            })
+            .push(
+                match self.screen {
+                    Screen::Backup => self.backup_screen.view(&self.config, &self.translator, &self.operation),
+                    Screen::Restore => self
+                        .restore_screen
+                        .view(&self.config, &self.translator, &self.operation),
+                    Screen::CustomGames => {
+                        self.custom_games_screen
+                            .view(&self.config, &self.translator, &self.operation)
+                    }
+                }
+                .height(Length::FillPortion(10_000)),
+            )
+            .push(self.progress.view())
             .into()
     }
 }
@@ -1653,5 +2187,7 @@ mod style {
 }
 
 pub fn run_gui() {
-    App::run(iced::Settings::default())
+    let mut settings = iced::Settings::default();
+    set_app_icon(&mut settings);
+    App::run(settings)
 }

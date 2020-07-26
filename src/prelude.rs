@@ -3,6 +3,8 @@ use crate::{
     manifest::{Game, Os, Store},
 };
 
+pub use crate::path::StrictPath;
+
 const WINDOWS: bool = cfg!(target_os = "windows");
 const MAC: bool = cfg!(target_os = "macos");
 const LINUX: bool = cfg!(target_os = "linux");
@@ -21,7 +23,7 @@ pub enum Error {
     ConfigInvalid { why: String },
 
     #[error("Target already exists")]
-    CliBackupTargetExists { path: String },
+    CliBackupTargetExists { path: StrictPath },
 
     #[error("Target already exists")]
     CliUnrecognizedGames { games: Vec<String> },
@@ -33,10 +35,10 @@ pub enum Error {
     SomeEntriesFailed,
 
     #[error("Cannot prepare the backup target")]
-    CannotPrepareBackupTarget { path: String },
+    CannotPrepareBackupTarget { path: StrictPath },
 
     #[error("Cannot prepare the backup target")]
-    RestorationSourceInvalid { path: String },
+    RestorationSourceInvalid { path: StrictPath },
 
     #[allow(dead_code)]
     #[error("Error while working with the registry")]
@@ -54,11 +56,11 @@ pub enum OtherError {
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ScannedFile {
-    pub path: String,
+    pub path: StrictPath,
     pub size: u64,
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct ScanInfo {
     pub game_name: String,
     pub found_files: std::collections::HashSet<ScannedFile>,
@@ -131,6 +133,11 @@ pub enum OperationStepDecision {
     Ignored,
 }
 
+// This helps for unit tests when comparing StrictPaths.
+fn reslashed(path: &str) -> String {
+    path.replace("\\", "/")
+}
+
 pub fn app_dir() -> std::path::PathBuf {
     let mut path = dirs::home_dir().unwrap();
     path.push(".config");
@@ -138,39 +145,38 @@ pub fn app_dir() -> std::path::PathBuf {
     path
 }
 
-pub fn game_backup_dir(start: &str, game: &str) -> std::path::PathBuf {
+pub fn game_backup_dir(start: &StrictPath, game: &str) -> std::path::PathBuf {
     let mut path = std::path::PathBuf::new();
-    path.push(start);
+    path.push(start.interpret());
     path.push(base64::encode(game));
     path
 }
 
-pub fn game_file_backup_target(start: &str, game: &str, original_path: &str) -> std::path::PathBuf {
+pub fn game_file_backup_target(start: &StrictPath, game: &str, original_path: &StrictPath) -> std::path::PathBuf {
     let mut path = game_backup_dir(&start, &game);
-    path.push(base64::encode(original_path));
+    path.push(base64::encode(original_path.render()));
     path
 }
 
 pub fn game_file_restoration_target(
-    file: &str,
+    file: &StrictPath,
     redirects: &[RedirectConfig],
-) -> Result<(String, String), Box<dyn std::error::Error>> {
-    let base_name = std::path::Path::new(file)
-        .file_name()
-        .ok_or(OtherError::BadRestorationTarget)?;
+) -> Result<(StrictPath, StrictPath), Box<dyn std::error::Error>> {
+    let file_pb = file.as_std_path_buf();
+    let base_name = file_pb.file_name().ok_or(OtherError::BadRestorationTarget)?;
     let decoded = base64::decode(base_name.to_string_lossy().as_bytes())?;
     let original_target = std::str::from_utf8(&decoded)?.to_string();
 
     let mut redirected_target = original_target.clone();
     for redirect in redirects {
-        let source = redirect.source.replace("\\", "/");
-        let target = redirect.target.replace("\\", "/");
+        let source = redirect.source.render();
+        let target = redirect.target.render();
         if !source.is_empty() && !target.is_empty() && redirected_target.starts_with(&source) {
             redirected_target = redirected_target.replacen(&source, &target, 1);
         }
     }
 
-    Ok((original_target, redirected_target))
+    Ok((StrictPath::new(original_target), StrictPath::new(redirected_target)))
 }
 
 pub fn get_os() -> Os {
@@ -208,18 +214,19 @@ pub fn parse_paths(
     root: &RootsConfig,
     install_dirs: &[&String],
     steam_id: &Option<u32>,
-) -> std::collections::HashSet<String> {
+    manifest_dir: &StrictPath,
+) -> std::collections::HashSet<StrictPath> {
     let mut paths = std::collections::HashSet::new();
 
     for install_dir in install_dirs {
         paths.insert(
-            path.replace("<root>", &root.path)
+            path.replace("<root>", &root.path.interpret())
                 .replace("<game>", &install_dir)
                 .replace(
                     "<base>",
                     &match root.store {
-                        Store::Steam => format!("{}/steamapps/common/{}", root.path, install_dir),
-                        Store::Other => format!("{}/{}", root.path, install_dir),
+                        Store::Steam => format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
+                        Store::Other => format!("{}/{}", root.path.interpret(), install_dir),
                     },
                 )
                 .replace(
@@ -252,11 +259,18 @@ pub fn parse_paths(
                 .replace("<regHklm>", SKIP),
         );
         if get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some() {
-            let prefix = format!("{}/steamapps/compatdata/{}/pfx/drive_c", root.path, steam_id.unwrap());
+            let prefix = format!(
+                "{}/steamapps/compatdata/{}/pfx/drive_c",
+                root.path.interpret(),
+                steam_id.unwrap()
+            );
             paths.insert(
-                path.replace("<root>", &root.path)
+                path.replace("<root>", &root.path.interpret())
                     .replace("<game>", &install_dir)
-                    .replace("<base>", &format!("{}/steamapps/common/{}", root.path, install_dir))
+                    .replace(
+                        "<base>",
+                        &format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
+                    )
                     .replace("<home>", &format!("{}/users/steamuser", prefix))
                     .replace("<storeUserId>", "*")
                     .replace("<osUserName>", "steamuser")
@@ -278,15 +292,18 @@ pub fn parse_paths(
     }
 
     paths
+        .iter()
+        .map(|x| StrictPath::relative(x.to_string(), Some(manifest_dir.interpret())))
+        .collect()
 }
 
-fn glob_any(path: &str, _base: &str) -> Result<glob::Paths, ()> {
+fn glob_any(path: &StrictPath) -> Result<glob::Paths, ()> {
     let options = glob::MatchOptions {
         case_sensitive: CASE_INSENSITIVE_OS,
         require_literal_separator: true,
         require_literal_leading_dot: false,
     };
-    let entries = glob::glob_with(&path, options).map_err(|_| ())?;
+    let entries = glob::glob_with(&path.render(), options).map_err(|_| ())?;
     Ok(entries)
 }
 
@@ -294,7 +311,7 @@ pub fn scan_game_for_backup(
     game: &Game,
     name: &str,
     roots: &[RootsConfig],
-    manifest_dir: &str,
+    manifest_dir: &StrictPath,
     steam_id: &Option<u32>,
 ) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
@@ -303,15 +320,15 @@ pub fn scan_game_for_backup(
 
     // Add a dummy root for checking paths without `<root>`.
     let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig {
-        path: SKIP.to_string(),
+        path: StrictPath::new(SKIP.to_string()),
         store: Store::Other,
     }];
     roots_to_check.extend(roots.iter().cloned());
 
-    let mut paths_to_check = std::collections::HashSet::<String>::new();
+    let mut paths_to_check = std::collections::HashSet::<StrictPath>::new();
 
     for root in &roots_to_check {
-        if root.path.trim().is_empty() {
+        if root.path.raw().trim().is_empty() {
             continue;
         }
         if let Some(files) = &game.files {
@@ -321,9 +338,12 @@ pub fn scan_game_for_backup(
                 _ => vec![&default_install_dir],
             };
             for raw_path in files.keys() {
-                let candidates = parse_paths(raw_path, &root, &install_dirs, &steam_id);
+                if raw_path.trim().is_empty() {
+                    continue;
+                }
+                let candidates = parse_paths(raw_path, &root, &install_dirs, &steam_id, &manifest_dir);
                 for candidate in candidates {
-                    if candidate.contains(SKIP) {
+                    if candidate.raw().contains(SKIP) {
                         continue;
                     }
                     paths_to_check.insert(candidate);
@@ -332,34 +352,47 @@ pub fn scan_game_for_backup(
         }
         if root.store == Store::Steam && steam_id.is_some() {
             // Cloud saves:
-            paths_to_check.insert(format!("{}/userdata/*/{}/remote/", root.path, &steam_id.unwrap()));
+            paths_to_check.insert(StrictPath::relative(
+                format!("{}/userdata/*/{}/remote/", root.path.interpret(), &steam_id.unwrap()),
+                Some(manifest_dir.interpret()),
+            ));
 
             // Screenshots:
-            paths_to_check.insert(format!(
-                "{}/userdata/*/760/remote/{}/screenshots/*.*",
-                root.path,
-                &steam_id.unwrap()
+            paths_to_check.insert(StrictPath::relative(
+                format!(
+                    "{}/userdata/*/760/remote/{}/screenshots/*.*",
+                    root.path.interpret(),
+                    &steam_id.unwrap()
+                ),
+                Some(manifest_dir.interpret()),
             ));
 
             // Registry:
             if game.registry.is_some() {
-                let prefix = format!("{}/steamapps/compatdata/{}/pfx", root.path, steam_id.unwrap());
-                paths_to_check.insert(format!("{}/*.reg", prefix));
+                let prefix = format!(
+                    "{}/steamapps/compatdata/{}/pfx",
+                    root.path.interpret(),
+                    steam_id.unwrap()
+                );
+                paths_to_check.insert(StrictPath::relative(
+                    format!("{}/*.reg", prefix),
+                    Some(manifest_dir.interpret()),
+                ));
             }
         }
     }
 
     for path in paths_to_check {
-        let entries = match glob_any(&path, &manifest_dir) {
+        let entries = match glob_any(&path) {
             Ok(x) => x,
             Err(_) => continue,
         };
         for entry in entries.filter_map(|r| r.ok()) {
-            let plain = entry.to_string_lossy().to_string().replace("\\", "/");
+            let plain = entry.to_string_lossy().to_string();
             let p = std::path::Path::new(&plain);
             if p.is_file() {
                 found_files.insert(ScannedFile {
-                    path: plain.clone(),
+                    path: StrictPath::new(reslashed(&plain)),
                     size: match p.metadata() {
                         Ok(m) => m.len(),
                         _ => 0,
@@ -374,7 +407,7 @@ pub fn scan_game_for_backup(
                 {
                     if child.file_type().is_file() {
                         found_files.insert(ScannedFile {
-                            path: child.path().display().to_string().replace("\\", "/"),
+                            path: StrictPath::new(reslashed(&child.path().display().to_string())),
                             size: match child.metadata() {
                                 Ok(m) => m.len(),
                                 _ => 0,
@@ -391,6 +424,9 @@ pub fn scan_game_for_backup(
         let mut hives = crate::registry::Hives::default();
         if let Some(registry) = &game.registry {
             for key in registry.keys() {
+                if key.trim().is_empty() {
+                    continue;
+                }
                 if let Ok(info) = hives.store_key_from_full_path(&key) {
                     if info.found {
                         found_registry_keys.insert(key.to_string());
@@ -408,9 +444,9 @@ pub fn scan_game_for_backup(
     }
 }
 
-pub fn scan_dir_for_restorable_games(source: &str) -> Vec<(String, String)> {
-    let mut games = vec![];
-    for subdir in walkdir::WalkDir::new(crate::path::normalize(&source))
+pub fn scan_dir_for_restorable_games(source: &StrictPath) -> std::collections::HashSet<(String, StrictPath)> {
+    let mut games = std::collections::HashSet::new();
+    for subdir in walkdir::WalkDir::new(source.interpret())
         .max_depth(1)
         .follow_links(false)
         .into_iter()
@@ -432,13 +468,13 @@ pub fn scan_dir_for_restorable_games(source: &str) -> Vec<(String, String)> {
             Ok(x) => x.to_string(),
         };
 
-        games.push((name, subdir.path().to_string_lossy().to_string()));
+        games.insert((name, StrictPath::from_std_path_buf(&subdir.into_path())));
     }
     games
 }
 
-pub fn get_restore_name_and_parent(source: &str) -> Option<(String, String)> {
-    let path = std::path::Path::new(source);
+fn get_restore_name_and_parent(source: &StrictPath) -> Option<(String, StrictPath)> {
+    let path = source.as_std_path_buf();
     let base_name = match path.file_name() {
         None => return None,
         Some(x) => x,
@@ -457,17 +493,17 @@ pub fn get_restore_name_and_parent(source: &str) -> Option<(String, String)> {
         Ok(x) => x.to_string(),
     };
 
-    Some((name, parent.to_string()))
+    Some((name, StrictPath::new(parent.to_string())))
 }
 
-pub fn scan_dir_for_restoration(source: &str) -> ScanInfo {
+pub fn scan_dir_for_restoration(source: &StrictPath) -> ScanInfo {
     match get_restore_name_and_parent(&source) {
         None => ScanInfo::default(),
         Some((name, parent)) => scan_game_for_restoration(&name, &parent),
     }
 }
 
-pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
+fn scan_game_for_restoration(name: &str, source: &StrictPath) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
@@ -482,7 +518,7 @@ pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
             .filter_map(|e| e.ok())
         {
             if child.file_type().is_file() {
-                let source = child.path().display().to_string().replace("\\", "/");
+                let source = StrictPath::new(child.path().display().to_string());
                 found_files.insert(ScannedFile {
                     path: source,
                     size: match child.metadata() {
@@ -514,25 +550,17 @@ pub fn scan_game_for_restoration(name: &str, source: &str) -> ScanInfo {
     }
 }
 
-pub fn prepare_backup_target(target: &str) -> Result<(), Error> {
-    let p = std::path::Path::new(target);
-    if p.is_file() {
-        std::fs::remove_file(p).map_err(|_| Error::CannotPrepareBackupTarget {
-            path: target.to_string(),
-        })?;
-    } else if p.is_dir() {
-        std::fs::remove_dir_all(p).map_err(|_| Error::CannotPrepareBackupTarget {
-            path: target.to_string(),
-        })?;
-    }
-    std::fs::create_dir_all(p).map_err(|_| Error::CannotPrepareBackupTarget {
-        path: target.to_string(),
-    })?;
+pub fn prepare_backup_target(target: &StrictPath) -> Result<(), Error> {
+    target
+        .remove()
+        .map_err(|_| Error::CannotPrepareBackupTarget { path: target.clone() })?;
+    let p = target.as_std_path_buf();
+    std::fs::create_dir_all(&p).map_err(|_| Error::CannotPrepareBackupTarget { path: target.clone() })?;
 
     Ok(())
 }
 
-pub fn back_up_game(info: &ScanInfo, target: &str, name: &str) -> BackupInfo {
+pub fn back_up_game(info: &ScanInfo, target: &StrictPath, name: &str) -> BackupInfo {
     let mut failed_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut failed_registry = std::collections::HashSet::new();
@@ -545,7 +573,7 @@ pub fn back_up_game(info: &ScanInfo, target: &str, name: &str) -> BackupInfo {
         }
 
         let target_file = game_file_backup_target(&target, &name, &file.path);
-        if std::fs::copy(&file.path, &target_file).is_err() {
+        if std::fs::copy(&file.path.interpret(), &target_file).is_err() {
             failed_files.insert(file.clone());
             continue;
         }
@@ -586,14 +614,14 @@ pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo
                 continue;
             }
             Ok((_, target)) => {
-                let mut p = std::path::PathBuf::from(&target);
+                let mut p = std::path::PathBuf::from(&target.interpret());
                 p.pop();
                 if std::fs::create_dir_all(&p.as_path().display().to_string()).is_err() {
                     failed_files.insert(file.clone());
                     continue;
                 }
                 for i in 0..99 {
-                    if std::fs::copy(&file.path, &target).is_ok() {
+                    if std::fs::copy(&file.path.interpret(), &target.interpret()).is_ok() {
                         continue 'outer;
                     }
                     // File might be busy, especially if multiple games share a file,
@@ -618,5 +646,235 @@ pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo
     BackupInfo {
         failed_files,
         failed_registry,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::config::Config;
+    use crate::manifest::Manifest;
+    use maplit::hashset;
+    use pretty_assertions::assert_eq;
+
+    fn s(text: &str) -> String {
+        text.to_string()
+    }
+
+    fn repo() -> String {
+        reslashed(env!("CARGO_MANIFEST_DIR"))
+    }
+
+    fn config() -> Config {
+        Config::load_from_string(&format!(
+            r#"
+            manifest:
+              url: example.com
+              etag: null
+            roots:
+              - path: {0}/tests/root1
+                store: other
+              - path: {0}/tests/root2
+                store: other
+            backup:
+              path: ~/backup
+            restore:
+              path: ~/restore
+            "#,
+            repo()
+        ))
+        .unwrap()
+    }
+
+    fn manifest() -> Manifest {
+        Manifest::load_from_string(
+            r#"
+            game1:
+              files:
+                <base>/file1.txt: {}
+                <base>/subdir: {}
+            game 2:
+              files:
+                <root>/<game>: {}
+              installDir:
+                game2: {}
+            game3:
+              registry:
+                HKEY_CURRENT_USER/Software/Ludusavi/game3: {}
+                HKEY_CURRENT_USER/Software/Ludusavi/fake: {}
+            game3-outer:
+              registry:
+                HKEY_CURRENT_USER/Software/Ludusavi: {}
+            "#,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_file_matches() {
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game1"),
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo())),
+                        size: 2,
+                    },
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo())),
+                        size: 1,
+                    },
+                },
+                found_registry_keys: hashset! {},
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game1"],
+                "game1",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &None,
+            ),
+        );
+
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game 2"),
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/root2/game2/file1.txt", repo())),
+                        size: 1,
+                    },
+                },
+                found_registry_keys: hashset! {},
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game 2"],
+                "game 2",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &None,
+            ),
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn can_scan_game_for_backup_with_registry_matches_on_leaf_key_with_values() {
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game3"),
+                found_files: hashset! {},
+                found_registry_keys: hashset! {
+                    s("HKEY_CURRENT_USER/Software/Ludusavi/game3")
+                },
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game3"],
+                "game3",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &None,
+            ),
+        );
+    }
+
+    #[test]
+    #[cfg(target_os = "windows")]
+    fn can_scan_game_for_backup_with_registry_matches_on_parent_key_without_values() {
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game3-outer"),
+                found_files: hashset! {},
+                found_registry_keys: hashset! {
+                    s("HKEY_CURRENT_USER/Software/Ludusavi")
+                },
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game3-outer"],
+                "game3-outer",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &None,
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_dir_for_restorable_games() {
+        let make_path = |x| {
+            if cfg!(target_os = "windows") {
+                StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\{}", repo().replace("/", "\\"), x))
+            } else {
+                StrictPath::new(format!("{}/tests/backup/{}", repo(), x))
+            }
+        };
+
+        assert_eq!(
+            hashset! {(s("game1"), make_path("Z2FtZTE=")), (s("game3"), make_path("Z2FtZTM=")) },
+            scan_dir_for_restorable_games(&StrictPath::new(format!("{}/tests/backup", repo())),),
+        );
+    }
+
+    #[test]
+    fn can_scan_dir_for_restoration_with_files() {
+        let make_path = |x| {
+            if cfg!(target_os = "windows") {
+                StrictPath::new(format!(
+                    "\\\\?\\{}\\tests\\backup\\Z2FtZTE=\\{}",
+                    repo().replace("/", "\\"),
+                    x
+                ))
+            } else {
+                StrictPath::new(format!("{}/tests/backup/Z2FtZTE=/{}", repo(), x))
+            }
+        };
+
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game1"),
+                found_files: hashset! {
+                    ScannedFile { path: make_path("invalid.txt"), size: 0 },
+                    ScannedFile { path: make_path("ZmlsZTEudHh0"), size: 1 },
+                    ScannedFile { path: make_path("ZmlsZTIudHh0"), size: 2 },
+                },
+                ..Default::default()
+            },
+            scan_dir_for_restoration(&StrictPath::new(format!("{}/tests/backup/Z2FtZTE=", repo())),),
+        );
+    }
+
+    #[test]
+    fn can_scan_dir_for_restoration_with_registry() {
+        if cfg!(target_os = "windows") {
+            assert_eq!(
+                ScanInfo {
+                    game_name: s("game3"),
+                    found_registry_keys: hashset! {
+                        s("HKEY_CURRENT_USER/Software/Ludusavi/game3")
+                    },
+                    registry_file: Some(
+                        StrictPath::new(format!(
+                            "\\\\?\\{}\\tests\\backup\\Z2FtZTM=\\other\\registry.yaml",
+                            repo().replace("/", "\\")
+                        ))
+                        .as_std_path_buf()
+                    ),
+                    ..Default::default()
+                },
+                scan_dir_for_restoration(&StrictPath::new(format!("{}/tests/backup/Z2FtZTM=", repo())),),
+            );
+        } else {
+            assert_eq!(
+                ScanInfo {
+                    game_name: s("game3"),
+                    ..Default::default()
+                },
+                scan_dir_for_restoration(&StrictPath::new(format!("{}/tests/backup/Z2FtZTM=", repo())),),
+            );
+        }
     }
 }

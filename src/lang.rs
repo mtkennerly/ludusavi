@@ -1,6 +1,6 @@
 use crate::{
     manifest::Store,
-    prelude::{Error, OperationStatus, OperationStepDecision},
+    prelude::{Error, OperationStatus, OperationStepDecision, StrictPath},
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -44,9 +44,9 @@ impl Translator {
         }
     }
 
-    pub fn cli_backup_target_exists(&self, path: &str) -> String {
+    pub fn cli_backup_target_exists(&self, path: &StrictPath) -> String {
         match self.language {
-            Language::English => format!("The backup target already exists ( {} ). Either choose a different --target or delete it with --force.", path),
+            Language::English => format!("The backup target already exists ( {} ). Either choose a different --target or delete it with --force.", path.render()),
         }
     }
 
@@ -58,9 +58,9 @@ impl Translator {
         format!("{}\n{}", prefix, lines.join("\n"))
     }
 
-    pub fn cli_confirm_restoration(&self, path: &str) -> String {
+    pub fn cli_confirm_restoration(&self, path: &StrictPath) -> String {
         match self.language {
-            Language::English => format!("Do you want to restore from {}?", path),
+            Language::English => format!("Do you want to restore from {}?", path.render()),
         }
     }
 
@@ -129,14 +129,14 @@ impl Translator {
         }
     }
 
-    pub fn cli_summary(&self, status: &OperationStatus, location: &str) -> String {
+    pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {
         if status.completed() {
             match self.language {
                 Language::English => format!(
                     "\nOverall:\n  Games: {}\n  Size: {}\n  Location: {}",
                     status.total_games,
                     self.mib(status.total_bytes, true),
-                    location
+                    location.render()
                 ),
             }
         } else {
@@ -147,7 +147,7 @@ impl Translator {
                     status.total_games,
                     self.mib_unlabelled(status.processed_bytes),
                     self.mib(status.total_bytes, true),
-                    location
+                    location.render()
                 ),
             }
         }
@@ -165,9 +165,9 @@ impl Translator {
         }
     }
 
-    pub fn redirected_file_entry_line(&self, path: &str) -> String {
+    pub fn redirected_file_entry_line(&self, path: &StrictPath) -> String {
         match self.language {
-            Language::English => format!(". . . . . Redirected from: {}", path),
+            Language::English => format!(". . . . . Redirected from: {}", path.render()),
         }
     }
 
@@ -206,6 +206,13 @@ impl Translator {
         .into()
     }
 
+    pub fn nav_custom_games_button(&self) -> String {
+        match self.language {
+            Language::English => "CUSTOM GAMES",
+        }
+        .into()
+    }
+
     pub fn add_root_button(&self) -> String {
         match self.language {
             Language::English => "Add root",
@@ -220,9 +227,9 @@ impl Translator {
         .into()
     }
 
-    pub fn remove_button(&self) -> String {
+    pub fn add_game_button(&self) -> String {
         match self.language {
-            Language::English => "Remove",
+            Language::English => "Add game",
         }
         .into()
     }
@@ -244,13 +251,6 @@ impl Translator {
     pub fn cancelling_button(&self) -> String {
         match self.language {
             Language::English => "Cancelling...",
-        }
-        .into()
-    }
-
-    pub fn browse_button(&self) -> String {
-        match self.language {
-            Language::English => "Browse",
         }
         .into()
     }
@@ -302,16 +302,16 @@ impl Translator {
         .into()
     }
 
-    pub fn cannot_prepare_backup_target(&self, target: &str) -> String {
+    pub fn cannot_prepare_backup_target(&self, target: &StrictPath) -> String {
         match self.language {
-            Language::English => format!("Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: {}", target),
+            Language::English => format!("Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: {}", target.render()),
         }
     }
 
-    pub fn restoration_source_is_invalid(&self, source: &str) -> String {
+    pub fn restoration_source_is_invalid(&self, source: &StrictPath) -> String {
         match self.language {
             Language::English => {
-                format!("Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: {}", source)
+                format!("Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: {}", source.render())
             }
         }
     }
@@ -380,6 +380,20 @@ impl Translator {
         .into()
     }
 
+    pub fn custom_files_label(&self) -> String {
+        match self.language {
+            Language::English => "Paths:",
+        }
+        .into()
+    }
+
+    pub fn custom_registry_label(&self) -> String {
+        match self.language {
+            Language::English => "Registry:",
+        }
+        .into()
+    }
+
     pub fn store(&self, store: &Store) -> String {
         match self.language {
             Language::English => match store {
@@ -404,16 +418,23 @@ impl Translator {
         .into()
     }
 
-    pub fn modal_confirm_backup(&self, target: &str, target_exists: bool) -> String {
+    pub fn custom_game_name_placeholder(&self) -> String {
+        match self.language {
+            Language::English => "Name",
+        }
+        .into()
+    }
+
+    pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool) -> String {
         match (self.language, target_exists) {
-            (Language::English, false) => format!("Are you sure you want to proceed with the backup? The target folder does not already exist, so it will be created: {}", target),
-            (Language::English, true) => format!("Are you sure you want to proceed with the backup? The target folder already exists, so it will be deleted and recreated from scratch: {}", target),
+            (Language::English, false) => format!("Are you sure you want to proceed with the backup? The target folder does not already exist, so it will be created: {}", target.render()),
+            (Language::English, true) => format!("Are you sure you want to proceed with the backup? The target folder already exists, so it will be deleted and recreated from scratch: {}", target.render()),
         }
     }
 
-    pub fn modal_confirm_restore(&self, source: &str) -> String {
+    pub fn modal_confirm_restore(&self, source: &StrictPath) -> String {
         match self.language {
-            Language::English => format!("Are you sure you want to proceed with the restoration? This will overwrite any current files with the backups from here: {}", source),
+            Language::English => format!("Are you sure you want to proceed with the restoration? This will overwrite any current files with the backups from here: {}", source.render()),
         }
     }
 }

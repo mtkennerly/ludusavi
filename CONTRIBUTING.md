@@ -20,9 +20,18 @@ for the list.
   ```
 
 ### Environment variables
+These are optional:
+
 * `LUDUSAVI_VERSION`:
   * If set, shown in the window title instead of the Cargo.toml version.
   * Intended for CI.
 * `LUDUSAVI_VARIANT`:
   * If set, shown in the window title in parentheses.
   * Intended for alternative builds, such as for OpenGL support.
+
+### Registry
+On Windows, before running the tests, you need to import some registry keys:
+
+```
+reg import tests/ludusavi.reg
+```

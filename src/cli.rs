@@ -1,19 +1,25 @@
 use crate::{
     config::{Config, RedirectConfig},
     lang::Translator,
-    manifest::{Manifest, SteamMetadata},
+    manifest::{Game, Manifest, SteamMetadata},
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
         scan_dir_for_restorable_games, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error,
-        OperationStatus, OperationStepDecision, ScanInfo,
+        OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
     },
 };
 use indicatif::ParallelProgressIterator;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
 use structopt::StructOpt;
 
-fn parse_canonical_path(path: &str) -> Result<String, std::io::Error> {
-    Ok(std::fs::canonicalize(path)?.to_string_lossy().to_string())
+fn parse_strict_path(path: &str) -> StrictPath {
+    StrictPath::new(path.to_owned())
+}
+
+fn parse_existing_strict_path(path: &str) -> Result<StrictPath, std::io::Error> {
+    let sp = StrictPath::new(path.to_owned());
+    std::fs::canonicalize(sp.interpret())?;
+    Ok(sp)
 }
 
 #[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
@@ -27,8 +33,8 @@ pub enum Subcommand {
         /// Directory in which to create the backup. The directory must not
         /// already exist (unless you use --force), but it will be created if necessary.
         /// When unset, this defaults to the value from Ludusavi's config file.
-        #[structopt(long, parse(try_from_str = parse_canonical_path))]
-        path: Option<String>,
+        #[structopt(long, parse(from_str = parse_strict_path))]
+        path: Option<StrictPath>,
 
         /// Delete the target directory if it already exists.
         #[structopt(long)]
@@ -50,8 +56,8 @@ pub enum Subcommand {
 
         /// Directory containing a Ludusavi backup. When unset, this
         /// defaults to the value from Ludusavi's config file.
-        #[structopt(long, parse(try_from_str = parse_canonical_path))]
-        path: Option<String>,
+        #[structopt(long, parse(try_from_str = parse_existing_strict_path))]
+        path: Option<StrictPath>,
 
         /// Don't ask for confirmation.
         #[structopt(long)]
@@ -87,41 +93,49 @@ fn show_outcome(
         return None;
     }
 
-    let mut successful = true;
+    let mut successful_overall = true;
     println!(
         "{}",
         translator.cli_game_header(&name, scan_info.sum_bytes(&Some(backup_info.to_owned())), &decision)
     );
     for entry in itertools::sorted(&scan_info.found_files) {
+        let mut entry_failed = backup_info.failed_files.contains(entry);
         let mut redirected_from = None;
         let readable = if restoring {
-            let (original_target, redirected_target) = game_file_restoration_target(&entry.path, &redirects).unwrap();
-            if original_target != redirected_target {
-                redirected_from = Some(original_target);
+            if let Ok((original_target, redirected_target)) = game_file_restoration_target(&entry.path, &redirects) {
+                if original_target != redirected_target {
+                    redirected_from = Some(original_target);
+                }
+                redirected_target
+            } else {
+                entry_failed = true;
+                entry.path.to_owned()
             }
-            redirected_target
         } else {
             entry.path.to_owned()
         };
-        if backup_info.failed_files.contains(entry) {
-            successful = false;
-            println!("{}", translator.cli_game_line_item_failed(&readable));
+        if entry_failed {
+            successful_overall = false;
+            println!("{}", translator.cli_game_line_item_failed(&readable.render()));
         } else {
-            println!("{}", translator.cli_game_line_item_successful(&readable));
+            println!("{}", translator.cli_game_line_item_successful(&readable.render()));
         }
         if let Some(redirected_from) = redirected_from {
-            println!("{}", translator.cli_game_line_item_redirected(&redirected_from));
+            println!(
+                "{}",
+                translator.cli_game_line_item_redirected(&redirected_from.render())
+            );
         }
     }
     for entry in itertools::sorted(&scan_info.found_registry_keys) {
         if backup_info.failed_registry.contains(entry) {
-            successful = false;
+            successful_overall = false;
             println!("{}", translator.cli_game_line_item_failed(entry));
         } else {
             println!("{}", translator.cli_game_line_item_successful(entry));
         }
     }
-    Some(successful)
+    Some(successful_overall)
 }
 
 pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
@@ -139,22 +153,30 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
         } => {
             let manifest = Manifest::load(&mut config, update)?;
 
-            let backup_dir = crate::path::normalize(&path.unwrap_or_else(|| config.backup.path.to_owned()));
+            let backup_dir = match path {
+                None => config.backup.path.clone(),
+                Some(p) => p,
+            };
             let roots = &config.roots;
 
             if !preview {
-                if !force && crate::path::exists(&backup_dir) {
+                if !force && backup_dir.exists() {
                     return Err(crate::prelude::Error::CliBackupTargetExists { path: backup_dir });
                 } else if let Err(e) = prepare_backup_target(&backup_dir) {
                     return Err(e);
                 }
             }
 
+            let mut all_games = manifest.0;
+            for custom_game in &config.custom_games {
+                all_games.insert(custom_game.name.clone(), Game::from(custom_game.to_owned()));
+            }
+
             let games_specified = !games.is_empty();
             let mut invalid_games: Vec<_> = games
                 .iter()
                 .filter_map(|game| {
-                    if !manifest.0.contains_key(game) {
+                    if !all_games.contains_key(game) {
                         Some(game.to_owned())
                     } else {
                         None
@@ -169,7 +191,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let mut subjects: Vec<_> = if !&games.is_empty() {
                 games
             } else {
-                manifest.0.keys().cloned().collect()
+                all_games.keys().cloned().collect()
             };
             subjects.sort();
 
@@ -177,10 +199,16 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .par_iter()
                 .progress_count(subjects.len() as u64)
                 .map(|name| {
-                    let game = &manifest.0[name];
+                    let game = &all_games[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
-                    let scan_info = scan_game_for_backup(&game, &name, &roots, &app_dir().to_string_lossy(), &steam_id);
+                    let scan_info = scan_game_for_backup(
+                        &game,
+                        &name,
+                        &roots,
+                        &StrictPath::from_std_path_buf(&app_dir()),
+                        &steam_id,
+                    );
                     let ignored = !&config.is_game_enabled_for_backup(&name) && !games_specified;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
@@ -219,7 +247,10 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             force,
             games,
         } => {
-            let restore_dir = crate::path::normalize(&path.unwrap_or_else(|| config.restore.path.to_owned()));
+            let restore_dir = match path {
+                None => config.restore.path.clone(),
+                Some(p) => p,
+            };
 
             if !preview && !force {
                 match dialoguer::Confirm::new()
@@ -257,7 +288,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     .filter_map(|x| if games.contains(&x.0) { Some(x.to_owned()) } else { None })
                     .collect()
             } else {
-                restorables
+                restorables.iter().cloned().collect()
             };
             subjects.sort();
 
@@ -310,5 +341,134 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
         Err(crate::prelude::Error::SomeEntriesFailed)
     } else {
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn check_args(args: &[&str], expected: Cli) {
+        assert_eq!(expected, Cli::from_clap(&Cli::clap().get_matches_from(args)));
+    }
+
+    fn check_args_err(args: &[&str], error: structopt::clap::ErrorKind) {
+        let result = Cli::clap().get_matches_from_safe(args);
+        assert!(result.is_err());
+        assert_eq!(error, result.unwrap_err().kind);
+    }
+
+    fn s(text: &str) -> String {
+        text.to_string()
+    }
+
+    #[test]
+    fn accepts_cli_without_arguments() {
+        check_args(&["ludusavi"], Cli { sub: None });
+    }
+
+    #[test]
+    fn accepts_cli_backup_with_minimal_arguments() {
+        check_args(
+            &["ludusavi", "backup"],
+            Cli {
+                sub: Some(Subcommand::Backup {
+                    preview: false,
+                    path: None,
+                    force: false,
+                    update: false,
+                    games: vec![],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_backup_with_all_arguments() {
+        check_args(
+            &[
+                "ludusavi",
+                "backup",
+                "--preview",
+                "--path",
+                "tests/backup",
+                "--force",
+                "--update",
+                "game1",
+                "game2",
+            ],
+            Cli {
+                sub: Some(Subcommand::Backup {
+                    preview: true,
+                    path: Some(StrictPath::new(s("tests/backup"))),
+                    force: true,
+                    update: true,
+                    games: vec![s("game1"), s("game2")],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_backup_with_nonexistent_path() {
+        check_args(
+            &["ludusavi", "backup", "--path", "tests/fake"],
+            Cli {
+                sub: Some(Subcommand::Backup {
+                    preview: false,
+                    path: Some(StrictPath::new(s("tests/fake"))),
+                    force: false,
+                    update: false,
+                    games: vec![],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_restore_with_minimal_arguments() {
+        check_args(
+            &["ludusavi", "restore"],
+            Cli {
+                sub: Some(Subcommand::Restore {
+                    preview: false,
+                    path: None,
+                    force: false,
+                    games: vec![],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_restore_with_all_arguments() {
+        check_args(
+            &[
+                "ludusavi",
+                "restore",
+                "--preview",
+                "--path",
+                "tests/backup",
+                "--force",
+                "game1",
+                "game2",
+            ],
+            Cli {
+                sub: Some(Subcommand::Restore {
+                    preview: true,
+                    path: Some(StrictPath::new(s("tests/backup"))),
+                    force: true,
+                    games: vec![s("game1"), s("game2")],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn rejects_cli_restore_with_nonexistent_path() {
+        check_args_err(
+            &["ludusavi", "restore", "--path", "tests/fake"],
+            structopt::clap::ErrorKind::ValueValidation,
+        );
     }
 }
