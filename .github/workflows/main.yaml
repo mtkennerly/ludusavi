@@ -5,7 +5,7 @@ on:
 name: Main
 env:
   LUDUSAVI_VARIANT: OpenGL
-  LUDUSAVI_VERSION: '0.4.0'
+  LUDUSAVI_VERSION: '0.5.0'
 
 jobs:
   build:
@@ -49,7 +49,7 @@ jobs:
           args: --release
       - uses: actions/upload-artifact@v1
         with:
-          name: ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}
+          name: ludusavi-v${{ env.LUDUSAVI_VERSION }}+opengl-${{ matrix.artifact-name }}
           path: target/release/${{ matrix.artifact-file }}
 
   test:
