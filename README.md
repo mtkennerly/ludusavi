@@ -1,4 +1,4 @@
-# ![Logo](assets/icon-transparent.png) Ludusavi
+# ![Logo](assets/icon.png) Ludusavi
 [![Version](https://img.shields.io/crates/v/ludusavi)](https://crates.io/crates/ludusavi)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 

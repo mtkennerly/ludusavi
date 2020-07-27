@@ -68,7 +68,7 @@ fn set_app_icon<T>(_settings: &mut iced::Settings<T>) {}
 
 #[realia::not(dep_from_registry("ludusavi", "iced"))]
 fn set_app_icon<T>(settings: &mut iced::Settings<T>) {
-    settings.window.icon = match image::load_from_memory(include_bytes!("../assets/icon-transparent.png")) {
+    settings.window.icon = match image::load_from_memory(include_bytes!("../assets/icon.png")) {
         Ok(buffer) => {
             let buffer = buffer.to_rgba();
             let width = buffer.width();

@@ -1,3 +1,7 @@
+## Unreleased
+
+* On Windows, the program icon is now embedded in the executable.
+
 ## v0.5.0 (2020-07-25)
 
 * Added:
