@@ -35,3 +35,7 @@ On Windows, before running the tests, you need to import some registry keys:
 ```
 reg import tests/ludusavi.reg
 ```
+
+### Icon
+The master icon is `assets/icon.kra`, which you can edit using
+[Krita](https://krita.org/en) and then export into the other formats.
