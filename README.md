@@ -2,7 +2,8 @@
 [![Version](https://img.shields.io/crates/v/ludusavi)](https://crates.io/crates/ludusavi)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Ludusavi is a tool for backing up your PC video game save data, written in Rust.
+Ludusavi is a tool for backing up your PC video game save data,
+written in [Rust](https://www.rust-lang.org).
 It is cross-platform and supports multiple game stores.
 
 This tool uses the [Ludusavi Manifest](https://github.com/mtkennerly/ludusavi-manifest)
@@ -44,9 +45,30 @@ You can install Ludusavi one of these ways:
   on your system.
   **If you're unsure, choose this option.**
 
-* If you have Rust, you can run `cargo install ludusavi`. On Linux, this requires
-  the following system packages, or their equivalents for your distribution:
-    * Ubuntu: `sudo apt-get install -y gcc cmake libx11-dev libxcb-composite0-dev libfreetype6-dev libexpat1-dev libfontconfig1-dev`
+* On Windows, you can use [Scoop](https://scoop.sh). To install, run:
+
+  ```
+  scoop bucket add extras
+  scoop install ludusavi
+  ```
+
+  To update, run:
+
+  ```
+  scoop update
+  scoop update ludusavi
+  ```
+
+* If you have [Rust](https://www.rust-lang.org), you can use Cargo. To install or update, run:
+
+  ```
+  cargo install ludusavi
+  ```
+
+  On Linux, this requires the following system packages, or their equivalents
+  for your distribution:
+
+  * Ubuntu: `sudo apt-get install -y gcc cmake libx11-dev libxcb-composite0-dev libfreetype6-dev libexpat1-dev libfontconfig1-dev`
 
 ### Notes
 If you are on Windows:
