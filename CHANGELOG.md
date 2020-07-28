@@ -1,6 +1,8 @@
 ## Unreleased
 
 * On Windows, the program icon is now embedded in the executable.
+* Fixed an issue where registry values of type `EXPAND_SZ` and `MULTI_SZ`
+  were converted to `SZ` when restored.
 
 ## v0.5.0 (2020-07-25)
 
