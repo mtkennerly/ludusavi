@@ -560,10 +560,15 @@ fn scan_game_for_restoration(name: &str, source: &StrictPath) -> ScanInfo {
     }
 }
 
-pub fn prepare_backup_target(target: &StrictPath) -> Result<(), Error> {
-    target
-        .remove()
-        .map_err(|_| Error::CannotPrepareBackupTarget { path: target.clone() })?;
+pub fn prepare_backup_target(target: &StrictPath, merge: bool) -> Result<(), Error> {
+    if !merge {
+        target
+            .remove()
+            .map_err(|_| Error::CannotPrepareBackupTarget { path: target.clone() })?;
+    } else if target.exists() && !target.is_dir() {
+        return Err(Error::CannotPrepareBackupTarget { path: target.clone() });
+    }
+
     let p = target.as_std_path_buf();
     std::fs::create_dir_all(&p).map_err(|_| Error::CannotPrepareBackupTarget { path: target.clone() })?;
 
@@ -575,9 +580,23 @@ pub fn back_up_game(info: &ScanInfo, target: &StrictPath, name: &str) -> BackupI
     #[allow(unused_mut)]
     let mut failed_registry = std::collections::HashSet::new();
 
-    for file in &info.found_files {
+    let mut unable_to_prepare = false;
+    if !info.found_files.is_empty() || !info.found_registry_keys.is_empty() {
         let target_game = game_backup_dir(&target, &name);
-        if !target_game.as_path().is_dir() && std::fs::create_dir(target_game).is_err() {
+        match StrictPath::from_std_path_buf(&target_game).remove() {
+            Ok(_) => {
+                if std::fs::create_dir(target_game).is_err() {
+                    unable_to_prepare = true;
+                }
+            }
+            Err(_) => {
+                unable_to_prepare = true;
+            }
+        }
+    }
+
+    for file in &info.found_files {
+        if unable_to_prepare {
             failed_files.insert(file.clone());
             continue;
         }
@@ -592,6 +611,11 @@ pub fn back_up_game(info: &ScanInfo, target: &StrictPath, name: &str) -> BackupI
     #[cfg(target_os = "windows")]
     {
         for reg_path in &info.found_registry_keys {
+            if unable_to_prepare {
+                failed_registry.insert(reg_path.to_string());
+                continue;
+            }
+
             let mut hives = crate::registry::Hives::default();
             match hives.store_key_from_full_path(&reg_path) {
                 Err(_) => {

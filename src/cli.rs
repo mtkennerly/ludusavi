@@ -40,6 +40,18 @@ pub enum Subcommand {
         #[structopt(long)]
         force: bool,
 
+        /// Merge into existing directory instead of deleting/recreating it.
+        /// Within the target directory, the subdirectories for individual
+        /// games will still be cleared out first, though.
+        /// When not specified, this defers to Ludusavi's config file.
+        #[structopt(long)]
+        merge: bool,
+
+        /// Don't merge; delete and recreate the target directory.
+        /// When not specified, this defers to Ludusavi's config file.
+        #[structopt(long, conflicts_with("merge"))]
+        no_merge: bool,
+
         /// Download the latest copy of the manifest.
         #[structopt(long)]
         update: bool,
@@ -357,6 +369,8 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             preview,
             path,
             force,
+            merge,
+            no_merge,
             update,
             by_steam_id,
             api,
@@ -377,9 +391,18 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let roots = &config.roots;
 
             if !preview {
-                if !force && backup_dir.exists() {
+                if !force && !merge && backup_dir.exists() {
                     return Err(crate::prelude::Error::CliBackupTargetExists { path: backup_dir });
-                } else if let Err(e) = prepare_backup_target(&backup_dir) {
+                } else if let Err(e) = prepare_backup_target(
+                    &backup_dir,
+                    if merge {
+                        true
+                    } else if no_merge {
+                        false
+                    } else {
+                        config.backup.merge
+                    },
+                ) {
                     return Err(e);
                 }
             }
@@ -633,6 +656,8 @@ mod tests {
                         preview: false,
                         path: None,
                         force: false,
+                        merge: false,
+                        no_merge: false,
                         update: false,
                         by_steam_id: false,
                         api: false,
@@ -652,6 +677,7 @@ mod tests {
                     "--path",
                     "tests/backup",
                     "--force",
+                    "--merge",
                     "--update",
                     "--by-steam-id",
                     "--api",
@@ -663,6 +689,8 @@ mod tests {
                         preview: true,
                         path: Some(StrictPath::new(s("tests/backup"))),
                         force: true,
+                        merge: true,
+                        no_merge: false,
                         update: true,
                         by_steam_id: true,
                         api: true,
@@ -681,6 +709,28 @@ mod tests {
                         preview: false,
                         path: Some(StrictPath::new(s("tests/fake"))),
                         force: false,
+                        merge: false,
+                        no_merge: false,
+                        update: false,
+                        by_steam_id: false,
+                        api: false,
+                        games: vec![],
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_backup_with_no_merge() {
+            check_args(
+                &["ludusavi", "backup", "--no-merge"],
+                Cli {
+                    sub: Some(Subcommand::Backup {
+                        preview: false,
+                        path: None,
+                        force: false,
+                        merge: false,
+                        no_merge: true,
                         update: false,
                         by_steam_id: false,
                         api: false,

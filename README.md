@@ -93,6 +93,9 @@ If you are on Mac:
 * You can press `back up` to perform the backup for real.
   * If the target folder already exists, it will be deleted first,
     then recreated.
+    <!--
+    However, if you've enabled the merge option, then it will not be deleted first.
+    -->
   * Within the target folder, for every game with data to back up,
     a subfolder will be created with the game's name encoded as
     [Base64](https://en.wikipedia.org/wiki/Base64).
@@ -260,6 +263,10 @@ Here are the available settings (all are required unless otherwise noted):
     This can be overridden in the CLI with `--path`.
   * `ignoredGames` (optional, array of strings): Names of games to skip when backing up.
     This can be overridden in the CLI by passing a list of games.
+  <!--
+  * `merge` (optional, boolean): Whether to merge save data into the target
+    directory rather than deleting the directory first. Default: false.
+  -->
 * `restore` (map):
   * `path` (string): Full path to a directory from which to restore data.
     This can be overridden in the CLI with `--path`.

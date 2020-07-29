@@ -1,6 +1,7 @@
 ## Unreleased
 
 * Added:
+  * Option to merge into an existing backup directory.
   * `--api` flag in CLI mode.
   * `--by-steam-id` flag in CLI mode.
 * Fixed:
