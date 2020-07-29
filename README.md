@@ -85,9 +85,6 @@ If you are on Mac:
   specifically the section on `How to open an app [...] from an unidentified developer`.
 
 ## Usage
-### CLI
-Run `ludusavi --help` for the full usage information.
-
 ### GUI
 #### Backup mode
 * This is the default mode when you open the program.
@@ -167,11 +164,86 @@ Run `ludusavi --help` for the full usage information.
   If the game name matches one from Ludusavi's primary data set, then your
   custom entry will override it.
 
+### CLI
+Run `ludusavi --help` for the full usage information.
+
+<!--
+When you use the `--api` flag, the output will have the following structure:
+
+* `errors` (optional, map):
+  * `someGamesFailed` (optional, boolean): Whether any games failed.
+  * `unknownGames` (optional, list of strings): Names of unknown games, if any.
+* `overall` (map):
+  * `totalGames` (number): How many games were found.
+  * `totalBytes` (number): How many bytes are used by files associated with
+    found games.
+  * `processedGames` (number): How many games were processed.
+    This excludes ignored, failed, and cancelled games.
+  * `processedBytes` (number): How many bytes were processed.
+    This excludes ignored, failed, and cancelled games.
+* `games` (map):
+  * Each key is the name of a game, and the value is a map with these fields:
+    * `decision` (string): How Ludusavi decided to handle this game.
+
+      Possible values:
+      * `Processed`
+      * `Ignored`
+      * `Cancelled`
+    * `files` (map):
+      * Each key is a file path, and each value is a map with these fields:
+        * `failed` (optional, boolean): Whether this entry failed to process.
+        * `bytes` (number): Size of the file.
+        * `originalPath` (optional, string): If the file was restored to a
+          redirected location, then this is its original path.
+    * `registry` (map):
+      * Each key is a registry path, and each value is a map with these fields:
+        * `failed` (optional, boolean): Whether this entry failed to process.
+
+Note that, in some error conditions, there may not be any JSON output,
+so you should check if stdout was blank before trying to parse it.
+
+Example:
+
+```json
+{
+  "errors": {
+    "some_games_failed": true,
+  },
+  "overall": {
+    "totalGames": 2,
+    "totalBytes": 100,
+    "processedGames": 1,
+    "processedBytes": 100,
+  },
+  "games": {
+    "Game 1": {
+      "decision": "Processed",
+      "files": {
+        "/games/game1/save.json": {
+          "bytes": 100
+        }
+      },
+      "registry": {
+        "HKEY_CURRENT_USER/Software/Game1": {
+          "failed": true
+        }
+      }
+    },
+    "Game 2": {
+      "decision": "Ignored",
+      "files": {},
+      "registry": {}
+    }
+  }
+}
+```
+-->
+
 ### Configuration
 Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<your-name>/.config/ludusavi`).
 If you're using the GUI, you don't need to worry about this at all,
 since the GUI will automatically update the config file as needed.
-However, if you're using the CLI, you'll need to edit `config.yaml` directly.
+However, if you're using the CLI exclusively, you'll need to edit `config.yaml`.
 Here are the available settings (all are required unless otherwise noted):
 
 * `manifest` (map):

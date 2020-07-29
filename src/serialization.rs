@@ -19,3 +19,7 @@ where
     ordered.sort();
     ordered.serialize(serializer)
 }
+
+pub fn is_false(v: &bool) -> bool {
+    !v
+}

@@ -96,11 +96,15 @@ impl BackupInfo {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize)]
 pub struct OperationStatus {
+    #[serde(rename = "totalGames")]
     pub total_games: usize,
+    #[serde(rename = "totalBytes")]
     pub total_bytes: u64,
+    #[serde(rename = "processedGames")]
     pub processed_games: usize,
+    #[serde(rename = "processedBytes")]
     pub processed_bytes: u64,
 }
 
@@ -126,11 +130,17 @@ impl OperationStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
 pub enum OperationStepDecision {
     Processed,
     Cancelled,
     Ignored,
+}
+
+impl Default for OperationStepDecision {
+    fn default() -> Self {
+        Self::Processed
+    }
 }
 
 // This helps for unit tests when comparing StrictPaths.
