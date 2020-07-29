@@ -92,10 +92,8 @@ If you are on Mac:
   without actually performing it.
 * You can press `back up` to perform the backup for real.
   * If the target folder already exists, it will be deleted first,
-    then recreated.
-    <!--
-    However, if you've enabled the merge option, then it will not be deleted first.
-    -->
+    then recreated. However, if you've enabled the merge option,
+    then it will not be deleted first.
   * Within the target folder, for every game with data to back up,
     a subfolder will be created with the game's name encoded as
     [Base64](https://en.wikipedia.org/wiki/Base64).
@@ -170,8 +168,9 @@ If you are on Mac:
 ### CLI
 Run `ludusavi --help` for the full usage information.
 
-<!--
-When you use the `--api` flag, the output will have the following structure:
+CLI mode defaults to a human-readable format, but you can switch to a
+machine-readable JSON format with the `--api` flag. In that case, the output
+will have the following structure:
 
 * `errors` (optional, map):
   * `someGamesFailed` (optional, boolean): Whether any games failed.
@@ -210,11 +209,11 @@ Example:
 ```json
 {
   "errors": {
-    "some_games_failed": true,
+    "someGamesFailed": true,
   },
   "overall": {
     "totalGames": 2,
-    "totalBytes": 100,
+    "totalBytes": 150,
     "processedGames": 1,
     "processedBytes": 100,
   },
@@ -234,13 +233,16 @@ Example:
     },
     "Game 2": {
       "decision": "Ignored",
-      "files": {},
+      "files": {
+        "/games/game2/save.json": {
+          "bytes": 50
+        }
+      },
       "registry": {}
     }
   }
 }
 ```
--->
 
 ### Configuration
 Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<your-name>/.config/ludusavi`).
@@ -263,10 +265,8 @@ Here are the available settings (all are required unless otherwise noted):
     This can be overridden in the CLI with `--path`.
   * `ignoredGames` (optional, array of strings): Names of games to skip when backing up.
     This can be overridden in the CLI by passing a list of games.
-  <!--
   * `merge` (optional, boolean): Whether to merge save data into the target
     directory rather than deleting the directory first. Default: false.
-  -->
 * `restore` (map):
   * `path` (string): Full path to a directory from which to restore data.
     This can be overridden in the CLI with `--path`.

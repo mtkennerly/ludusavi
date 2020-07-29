@@ -1624,6 +1624,7 @@ impl Application for App {
             }
             Message::EditedBackupMerge(enabled) => {
                 self.config.backup.merge = enabled;
+                self.config.save();
                 Command::none()
             }
             Message::EditedRestoreSource(text) => {
