@@ -5,7 +5,7 @@ on:
 name: Main
 env:
   LUDUSAVI_VARIANT: OpenGL
-  LUDUSAVI_VERSION: '0.5.0'
+  LUDUSAVI_VERSION: '0.6.0'
 
 jobs:
   build:
