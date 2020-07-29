@@ -68,7 +68,7 @@ fn set_app_icon<T>(_settings: &mut iced::Settings<T>) {}
 
 #[realia::not(dep_from_registry("ludusavi", "iced"))]
 fn set_app_icon<T>(settings: &mut iced::Settings<T>) {
-    settings.window.icon = match image::load_from_memory(include_bytes!("../assets/icon-transparent.png")) {
+    settings.window.icon = match image::load_from_memory(include_bytes!("../assets/icon.png")) {
         Ok(buffer) => {
             let buffer = buffer.to_rgba();
             let width = buffer.width();
@@ -128,6 +128,7 @@ enum Message {
     BackupComplete,
     RestoreComplete,
     EditedBackupTarget(String),
+    EditedBackupMerge(bool),
     EditedRestoreSource(String),
     EditedRoot(EditAction),
     SelectedRootStore(usize, Store),
@@ -307,8 +308,11 @@ impl ModalComponent {
                                 .align_items(Align::Center)
                                 .push(Text::new(match theme {
                                     ModalTheme::Error { variant } => translator.handle_error(variant),
-                                    ModalTheme::ConfirmBackup => translator
-                                        .modal_confirm_backup(&config.backup.path, config.backup.path.exists()),
+                                    ModalTheme::ConfirmBackup => translator.modal_confirm_backup(
+                                        &config.backup.path,
+                                        config.backup.path.exists(),
+                                        config.backup.merge,
+                                    ),
                                     ModalTheme::ConfirmRestore => {
                                         translator.modal_confirm_restore(&config.restore.path)
                                     }
@@ -1063,6 +1067,11 @@ impl BackupScreenComponent {
                             )
                             .padding(5),
                         )
+                        .push(Checkbox::new(
+                            config.backup.merge,
+                            translator.backup_merge_label(),
+                            Message::EditedBackupMerge,
+                        ))
                         .push(
                             Button::new(&mut self.backup_target_browse_button, Icon::FolderOpen.as_text())
                                 .on_press(match operation {
@@ -1371,7 +1380,7 @@ impl Application for App {
 
                 let backup_path = &self.config.backup.path;
                 if !preview {
-                    if let Err(e) = prepare_backup_target(&backup_path) {
+                    if let Err(e) = prepare_backup_target(&backup_path, self.config.backup.merge) {
                         self.modal_theme = Some(ModalTheme::Error { variant: e });
                         return Command::none();
                     }
@@ -1610,6 +1619,11 @@ impl Application for App {
             Message::EditedBackupTarget(text) => {
                 self.backup_screen.backup_target_history.push(&text);
                 self.config.backup.path.reset(text);
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedBackupMerge(enabled) => {
+                self.config.backup.merge = enabled;
                 self.config.save();
                 Command::none()
             }

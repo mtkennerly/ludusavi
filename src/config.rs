@@ -48,6 +48,8 @@ pub struct BackupConfig {
         serialize_with = "crate::serialization::ordered_set"
     )]
     pub ignored_games: std::collections::HashSet<String>,
+    #[serde(default)]
+    pub merge: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -86,6 +88,7 @@ impl Default for BackupConfig {
         Self {
             path: default_backup_dir(),
             ignored_games: std::collections::HashSet::new(),
+            merge: false,
         }
     }
 }
@@ -271,6 +274,7 @@ mod tests {
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: std::collections::HashSet::new(),
+                    merge: false,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -301,6 +305,7 @@ mod tests {
                 - Backup Game 1
                 - Backup Game 2
                 - Backup Game 2
+              merge: true
             restore:
               path: ~/restore
               ignoredGames:
@@ -347,6 +352,7 @@ mod tests {
                         s("Backup Game 1"),
                         s("Backup Game 2"),
                     },
+                    merge: true,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -410,6 +416,7 @@ mod tests {
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: std::collections::HashSet::new(),
+                    merge: false,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -441,6 +448,7 @@ backup:
     - Backup Game 1
     - Backup Game 2
     - Backup Game 3
+  merge: true
 restore:
   path: ~/restore
   ignoredGames:
@@ -487,6 +495,7 @@ customGames:
                         s("Backup Game 1"),
                         s("Backup Game 2"),
                     },
+                    merge: true,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),

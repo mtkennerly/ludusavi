@@ -193,9 +193,15 @@ impl From<&Entry> for Option<winreg::RegValue> {
         if let Some(x) = &item.sz {
             Some(x.to_reg_value())
         } else if let Some(x) = &item.multi_sz {
-            Some(x.to_reg_value())
+            Some(winreg::RegValue {
+                bytes: x.to_reg_value().bytes,
+                vtype: winreg::enums::RegType::REG_MULTI_SZ,
+            })
         } else if let Some(x) = &item.expand_sz {
-            Some(x.to_reg_value())
+            Some(winreg::RegValue {
+                bytes: x.to_reg_value().bytes,
+                vtype: winreg::enums::RegType::REG_EXPAND_SZ,
+            })
         } else if let Some(x) = &item.dword {
             Some(x.to_reg_value())
         } else if let Some(x) = &item.qword {

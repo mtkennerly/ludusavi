@@ -1,8 +1,9 @@
-# ![Logo](assets/icon-transparent.png) Ludusavi
+# ![Logo](assets/icon.svg) Ludusavi
 [![Version](https://img.shields.io/crates/v/ludusavi)](https://crates.io/crates/ludusavi)
 [![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-Ludusavi is a tool for backing up your PC video game save data, written in Rust.
+Ludusavi is a tool for backing up your PC video game save data,
+written in [Rust](https://www.rust-lang.org).
 It is cross-platform and supports multiple game stores.
 
 This tool uses the [Ludusavi Manifest](https://github.com/mtkennerly/ludusavi-manifest)
@@ -44,9 +45,30 @@ You can install Ludusavi one of these ways:
   on your system.
   **If you're unsure, choose this option.**
 
-* If you have Rust, you can run `cargo install ludusavi`. On Linux, this requires
-  the following system packages, or their equivalents for your distribution:
-    * Ubuntu: `sudo apt-get install -y gcc cmake libx11-dev libxcb-composite0-dev libfreetype6-dev libexpat1-dev libfontconfig1-dev`
+* On Windows, you can use [Scoop](https://scoop.sh). To install, run:
+
+  ```
+  scoop bucket add extras
+  scoop install ludusavi
+  ```
+
+  To update, run:
+
+  ```
+  scoop update
+  scoop update ludusavi
+  ```
+
+* If you have [Rust](https://www.rust-lang.org), you can use Cargo. To install or update, run:
+
+  ```
+  cargo install ludusavi
+  ```
+
+  On Linux, this requires the following system packages, or their equivalents
+  for your distribution:
+
+  * Ubuntu: `sudo apt-get install -y gcc cmake libx11-dev libxcb-composite0-dev libfreetype6-dev libexpat1-dev libfontconfig1-dev`
 
 ### Notes
 If you are on Windows:
@@ -63,9 +85,6 @@ If you are on Mac:
   specifically the section on `How to open an app [...] from an unidentified developer`.
 
 ## Usage
-### CLI
-Run `ludusavi --help` for the full usage information.
-
 ### GUI
 #### Backup mode
 * This is the default mode when you open the program.
@@ -73,7 +92,8 @@ Run `ludusavi --help` for the full usage information.
   without actually performing it.
 * You can press `back up` to perform the backup for real.
   * If the target folder already exists, it will be deleted first,
-    then recreated.
+    then recreated. However, if you've enabled the merge option,
+    then it will not be deleted first.
   * Within the target folder, for every game with data to back up,
     a subfolder will be created with the game's name encoded as
     [Base64](https://en.wikipedia.org/wiki/Base64).
@@ -145,11 +165,90 @@ Run `ludusavi --help` for the full usage information.
   If the game name matches one from Ludusavi's primary data set, then your
   custom entry will override it.
 
+### CLI
+Run `ludusavi --help` for the full usage information.
+
+CLI mode defaults to a human-readable format, but you can switch to a
+machine-readable JSON format with the `--api` flag. In that case, the output
+will have the following structure:
+
+* `errors` (optional, map):
+  * `someGamesFailed` (optional, boolean): Whether any games failed.
+  * `unknownGames` (optional, list of strings): Names of unknown games, if any.
+* `overall` (map):
+  * `totalGames` (number): How many games were found.
+  * `totalBytes` (number): How many bytes are used by files associated with
+    found games.
+  * `processedGames` (number): How many games were processed.
+    This excludes ignored, failed, and cancelled games.
+  * `processedBytes` (number): How many bytes were processed.
+    This excludes ignored, failed, and cancelled games.
+* `games` (map):
+  * Each key is the name of a game, and the value is a map with these fields:
+    * `decision` (string): How Ludusavi decided to handle this game.
+
+      Possible values:
+      * `Processed`
+      * `Ignored`
+      * `Cancelled`
+    * `files` (map):
+      * Each key is a file path, and each value is a map with these fields:
+        * `failed` (optional, boolean): Whether this entry failed to process.
+        * `bytes` (number): Size of the file.
+        * `originalPath` (optional, string): If the file was restored to a
+          redirected location, then this is its original path.
+    * `registry` (map):
+      * Each key is a registry path, and each value is a map with these fields:
+        * `failed` (optional, boolean): Whether this entry failed to process.
+
+Note that, in some error conditions, there may not be any JSON output,
+so you should check if stdout was blank before trying to parse it.
+
+Example:
+
+```json
+{
+  "errors": {
+    "someGamesFailed": true,
+  },
+  "overall": {
+    "totalGames": 2,
+    "totalBytes": 150,
+    "processedGames": 1,
+    "processedBytes": 100,
+  },
+  "games": {
+    "Game 1": {
+      "decision": "Processed",
+      "files": {
+        "/games/game1/save.json": {
+          "bytes": 100
+        }
+      },
+      "registry": {
+        "HKEY_CURRENT_USER/Software/Game1": {
+          "failed": true
+        }
+      }
+    },
+    "Game 2": {
+      "decision": "Ignored",
+      "files": {
+        "/games/game2/save.json": {
+          "bytes": 50
+        }
+      },
+      "registry": {}
+    }
+  }
+}
+```
+
 ### Configuration
 Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<your-name>/.config/ludusavi`).
 If you're using the GUI, you don't need to worry about this at all,
 since the GUI will automatically update the config file as needed.
-However, if you're using the CLI, you'll need to edit `config.yaml` directly.
+However, if you're using the CLI exclusively, you'll need to edit `config.yaml`.
 Here are the available settings (all are required unless otherwise noted):
 
 * `manifest` (map):
@@ -166,6 +265,8 @@ Here are the available settings (all are required unless otherwise noted):
     This can be overridden in the CLI with `--path`.
   * `ignoredGames` (optional, array of strings): Names of games to skip when backing up.
     This can be overridden in the CLI by passing a list of games.
+  * `merge` (optional, boolean): Whether to merge save data into the target
+    directory rather than deleting the directory first. Default: false.
 * `restore` (map):
   * `path` (string): Full path to a directory from which to restore data.
     This can be overridden in the CLI with `--path`.

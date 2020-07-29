@@ -373,6 +373,13 @@ impl Translator {
         .into()
     }
 
+    pub fn backup_merge_label(&self) -> String {
+        match self.language {
+            Language::English => "Merge",
+        }
+        .into()
+    }
+
     pub fn restore_source_label(&self) -> String {
         match self.language {
             Language::English => "Restore from:",
@@ -425,10 +432,11 @@ impl Translator {
         .into()
     }
 
-    pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool) -> String {
-        match (self.language, target_exists) {
-            (Language::English, false) => format!("Are you sure you want to proceed with the backup? The target folder does not already exist, so it will be created: {}", target.render()),
-            (Language::English, true) => format!("Are you sure you want to proceed with the backup? The target folder already exists, so it will be deleted and recreated from scratch: {}", target.render()),
+    pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool) -> String {
+        match (self.language, target_exists, merge) {
+            (Language::English, false, _) => format!("Are you sure you want to proceed with the backup? The target folder will be created: {}", target.render()),
+            (Language::English, true, false) => format!("Are you sure you want to proceed with the backup? The target folder will be deleted and recreated from scratch: {}", target.render()),
+            (Language::English, true, true) => format!("Are you sure you want to proceed with the backup? New save data will be merged into the target folder: {}", target.render()),
         }
     }
 

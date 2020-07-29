@@ -1638,7 +1638,7 @@ dependencies = [
 
 [[package]]
 name = "ludusavi"
-version = "0.5.0"
+version = "0.6.0"
 dependencies = [
  "base64 0.12.3",
  "copypasta",
@@ -1657,6 +1657,7 @@ dependencies = [
  "realia",
  "reqwest",
  "serde",
+ "serde_json",
  "serde_yaml",
  "structopt",
  "thiserror",
@@ -2606,9 +2607,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.56"
+version = "1.0.57"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3433e879a558dde8b5e8feb2a04899cf34fdde1fafb894687e52105fc1162ac3"
+checksum = "164eacbdb13512ec2745fb09d51fd5b22b0d65ed294a1dcf7285a360c80a675c"
 dependencies = [
  "itoa",
  "ryu",
@@ -3007,9 +3008,9 @@ checksum = "e604eb7b43c06650e854be16a2a03155743d3752dd1c943f6829e26b7a36e382"
 
 [[package]]
 name = "ttf-parser"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "299ea3f99bc2da2d8d319ede7ecee9f9f1d94fe943b1cd69a9f6654c4eae10b8"
+checksum = "d9adb8aeeaf663a49ffdf9cdb548232849174b451a22bc90921868b8491ee901"
 
 [[package]]
 name = "twox-hash"

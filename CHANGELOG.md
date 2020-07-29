@@ -1,3 +1,15 @@
+## v0.6.0 (2020-07-29)
+
+* Added:
+  * Option to merge into an existing backup directory.
+  * `--api` flag in CLI mode.
+  * `--by-steam-id` flag in CLI mode.
+* Fixed:
+  * Registry values of type `EXPAND_SZ` and `MULTI_SZ` were converted to `SZ` when restored.
+* Changed:
+  * On Windows, the program icon is now embedded in the executable so that
+    you can see it in the file browser as well.
+
 ## v0.5.0 (2020-07-25)
 
 * Added:

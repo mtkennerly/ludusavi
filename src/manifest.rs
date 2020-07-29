@@ -161,6 +161,19 @@ impl Manifest {
             _ => Err(Error::ManifestCannotBeUpdated),
         }
     }
+
+    pub fn map_steam_ids_to_names(&self) -> std::collections::HashMap<u32, String> {
+        self.0
+            .iter()
+            .filter_map(|(k, v)| match &v.steam {
+                None => None,
+                Some(steam) => match steam.id {
+                    None => None,
+                    Some(id) => Some((id, k.to_owned())),
+                },
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]
