@@ -44,6 +44,12 @@ pub enum Subcommand {
         #[structopt(long)]
         update: bool,
 
+        /// When naming specific games to process, this means that you'll
+        /// provide the Steam IDs instead of the manifest names, and Ludusavi will
+        /// look up those IDs in the manifest to find the corresponding names.
+        #[structopt(long)]
+        by_steam_id: bool,
+
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
         #[structopt(long)]
@@ -67,6 +73,12 @@ pub enum Subcommand {
         /// Don't ask for confirmation.
         #[structopt(long)]
         force: bool,
+
+        /// When naming specific games to process, this means that you'll
+        /// provide the Steam IDs instead of the manifest names, and Ludusavi will
+        /// look up those IDs in the manifest to find the corresponding names.
+        #[structopt(long)]
+        by_steam_id: bool,
 
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
@@ -346,6 +358,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             path,
             force,
             update,
+            by_steam_id,
             api,
             games,
         } => {
@@ -371,6 +384,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 }
             }
 
+            let steam_ids_to_names = &manifest.map_steam_ids_to_names();
             let mut all_games = manifest.0;
             for custom_game in &config.custom_games {
                 all_games.insert(custom_game.name.clone(), Game::from(custom_game.to_owned()));
@@ -380,7 +394,18 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let mut invalid_games: Vec<_> = games
                 .iter()
                 .filter_map(|game| {
-                    if !all_games.contains_key(game) {
+                    if by_steam_id {
+                        match game.parse::<u32>() {
+                            Ok(id) => {
+                                if !steam_ids_to_names.contains_key(&id) {
+                                    Some(game.to_owned())
+                                } else {
+                                    None
+                                }
+                            }
+                            Err(_) => Some(game.to_owned()),
+                        }
+                    } else if !all_games.contains_key(game) {
                         Some(game.to_owned())
                     } else {
                         None
@@ -395,7 +420,15 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             let mut subjects: Vec<_> = if !&games.is_empty() {
-                games
+                if by_steam_id {
+                    games
+                        .iter()
+                        .map(|game| &steam_ids_to_names[&game.parse::<u32>().unwrap()])
+                        .cloned()
+                        .collect()
+                } else {
+                    games
+                }
             } else {
                 all_games.keys().cloned().collect()
             };
@@ -441,6 +474,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             preview,
             path,
             force,
+            by_steam_id,
             api,
             games,
         } => {
@@ -449,6 +483,8 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             } else {
                 Reporter::standard(translator)
             };
+
+            let manifest = Manifest::load(&mut config, false)?;
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),
@@ -466,6 +502,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 }
             }
 
+            let steam_ids_to_names = &manifest.map_steam_ids_to_names();
             let restorables = scan_dir_for_restorable_games(&restore_dir);
             let restorable_names: Vec<_> = restorables.iter().map(|(name, _)| name.to_owned()).collect();
 
@@ -473,7 +510,20 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let mut invalid_games: Vec<_> = games
                 .iter()
                 .filter_map(|game| {
-                    if !restorable_names.contains(game) {
+                    if by_steam_id {
+                        match game.parse::<u32>() {
+                            Ok(id) => {
+                                if !steam_ids_to_names.contains_key(&id)
+                                    || !restorable_names.contains(&steam_ids_to_names[&id])
+                                {
+                                    Some(game.to_owned())
+                                } else {
+                                    None
+                                }
+                            }
+                            Err(_) => Some(game.to_owned()),
+                        }
+                    } else if !restorable_names.contains(game) {
                         Some(game.to_owned())
                     } else {
                         None
@@ -490,7 +540,15 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let mut subjects: Vec<_> = if !&games.is_empty() {
                 restorables
                     .iter()
-                    .filter_map(|x| if games.contains(&x.0) { Some(x.to_owned()) } else { None })
+                    .filter_map(|x| {
+                        if (by_steam_id && steam_ids_to_names.values().cloned().any(|y| y == x.0))
+                            || (games.contains(&x.0))
+                        {
+                            Some(x.to_owned())
+                        } else {
+                            None
+                        }
+                    })
                     .collect()
             } else {
                 restorables.iter().cloned().collect()
@@ -576,6 +634,7 @@ mod tests {
                         path: None,
                         force: false,
                         update: false,
+                        by_steam_id: false,
                         api: false,
                         games: vec![],
                     }),
@@ -594,6 +653,7 @@ mod tests {
                     "tests/backup",
                     "--force",
                     "--update",
+                    "--by-steam-id",
                     "--api",
                     "game1",
                     "game2",
@@ -604,6 +664,7 @@ mod tests {
                         path: Some(StrictPath::new(s("tests/backup"))),
                         force: true,
                         update: true,
+                        by_steam_id: true,
                         api: true,
                         games: vec![s("game1"), s("game2")],
                     }),
@@ -621,6 +682,7 @@ mod tests {
                         path: Some(StrictPath::new(s("tests/fake"))),
                         force: false,
                         update: false,
+                        by_steam_id: false,
                         api: false,
                         games: vec![],
                     }),
@@ -637,6 +699,7 @@ mod tests {
                         preview: false,
                         path: None,
                         force: false,
+                        by_steam_id: false,
                         api: false,
                         games: vec![],
                     }),
@@ -654,6 +717,7 @@ mod tests {
                     "--path",
                     "tests/backup",
                     "--force",
+                    "--by-steam-id",
                     "--api",
                     "game1",
                     "game2",
@@ -663,6 +727,7 @@ mod tests {
                         preview: true,
                         path: Some(StrictPath::new(s("tests/backup"))),
                         force: true,
+                        by_steam_id: true,
                         api: true,
                         games: vec![s("game1"), s("game2")],
                     }),
@@ -685,6 +750,14 @@ mod tests {
         use maplit::hashset;
         use pretty_assertions::assert_eq;
 
+        fn drive() -> String {
+            if cfg!(target_os = "windows") {
+                StrictPath::new(s("foo")).render()[..2].to_string()
+            } else {
+                s("")
+            }
+        }
+
         #[test]
         fn can_render_in_standard_mode_with_minimal_input() {
             let mut reporter = Reporter::standard(Translator::default());
@@ -705,7 +778,7 @@ Overall:
   Size: 0.00 MiB
   Location: {}/dev/null
                 "#,
-                    if cfg!(target_os = "windows") { "C:" } else { "" }
+                    &drive()
                 )
                 .trim_end(),
                 reporter.render(&StrictPath::new(s("/dev/null")))
@@ -765,7 +838,7 @@ Overall:
   Location: <drive>/dev/null
                 "#
                 .trim()
-                .replace("<drive>", if cfg!(target_os = "windows") { "C:" } else { "" }),
+                .replace("<drive>", &drive()),
                 reporter.render(&StrictPath::new(s("/dev/null")))
             );
         }
@@ -808,7 +881,7 @@ Overall:
   Location: <drive>/dev/null
                 "#
                 .trim()
-                .replace("<drive>", if cfg!(target_os = "windows") { "C:" } else { "" }),
+                .replace("<drive>", &drive()),
                 reporter.render(&StrictPath::new(s("/dev/null")))
             );
         }
@@ -916,7 +989,7 @@ Overall:
 }
                 "#
                 .trim()
-                .replace("<drive>", if cfg!(target_os = "windows") { "C:" } else { "" }),
+                .replace("<drive>", &drive()),
                 reporter.render(&StrictPath::new(s("/dev/null")))
             );
         }
@@ -973,7 +1046,7 @@ Overall:
 }
                 "#
                 .trim()
-                .replace("<drive>", if cfg!(target_os = "windows") { "C:" } else { "" }),
+                .replace("<drive>", &drive()),
                 reporter.render(&StrictPath::new(s("/dev/null")))
             );
         }

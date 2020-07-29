@@ -2,6 +2,7 @@
 
 * Added:
   * `--api` flag in CLI mode.
+  * `--by-steam-id` flag in CLI mode.
 * Fixed:
   * Registry values of type `EXPAND_SZ` and `MULTI_SZ` were converted to `SZ` when restored.
 * Changed:
