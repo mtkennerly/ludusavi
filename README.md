@@ -21,6 +21,8 @@ so you are encouraged to contribute any new or fixed data back to the wiki itsel
   * Saves that are stored as files and in the Windows registry.
   * Proton saves with Steam.
   * Steam screenshots.
+* Available as a [Playnite](https://playnite.link) extension:
+  https://github.com/mtkennerly/ludusavi-playnite
 
 ## Demo
 ### GUI
