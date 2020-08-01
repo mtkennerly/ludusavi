@@ -6,12 +6,6 @@ Ludusavi is a tool for backing up your PC video game save data,
 written in [Rust](https://www.rust-lang.org).
 It is cross-platform and supports multiple game stores.
 
-This tool uses the [Ludusavi Manifest](https://github.com/mtkennerly/ludusavi-manifest)
-for info on what to back up, and it will automatically download the latest version of
-the primary manifest. To add or update game entries in the primary manifest, please refer
-to that project. Data is ultimately sourced from [PCGamingWiki](https://www.pcgamingwiki.com/wiki/Home),
-so you are encouraged to contribute any new or fixed data back to the wiki itself.
-
 ## Features
 * Ability to back up data from more than 7,000 games plus your own custom entries.
 * Backup and restore for Steam as well as other game libraries.
@@ -23,6 +17,12 @@ so you are encouraged to contribute any new or fixed data back to the wiki itsel
   * Steam screenshots.
 * Available as a [Playnite](https://playnite.link) extension:
   https://github.com/mtkennerly/ludusavi-playnite
+
+This tool uses the [Ludusavi Manifest](https://github.com/mtkennerly/ludusavi-manifest)
+for info on what to back up, and it will automatically download the latest version of
+the primary manifest. The data is ultimately sourced from [PCGamingWiki](https://www.pcgamingwiki.com/wiki/Home),
+so please contribute any new or fixed data back to the wiki itself, and your
+improvements will be incorporated into Ludusavi's data as well.
 
 ## Demo
 ### GUI
@@ -93,21 +93,20 @@ If you are on Mac:
 * You can press `preview` to see what the backup will include,
   without actually performing it.
 * You can press `back up` to perform the backup for real.
-  * If the target folder already exists, it will be deleted first,
-    then recreated. However, if you've enabled the merge option,
-    then it will not be deleted first.
-  * Within the target folder, for every game with data to back up,
-    a subfolder will be created with the game's name encoded as
-    [Base64](https://en.wikipedia.org/wiki/Base64).
-    For example, files for `Celeste` would go into a folder named `Q2VsZXN0ZQ==`.
-  * Within each game's backup folder, any relevant files will be stored with
-    their name as the Base64 encoding of the full path to the original file.
-    For example, `D:/Steam/steamapps/common/Celeste/Saves/0.celeste` would be
-    backed up as `RDovU3RlYW0vc3RlYW1hcHBzL2NvbW1vbi9DZWxlc3RlL1NhdmVzLzAuY2VsZXN0ZQ==`.
+  * If the target folder already exists, it will be deleted first and
+    recreated, unless you've enabled the merge option.
+  * Within the target folder, for every game with data to back up, a subfolder
+    will be created based on the game's name, where some invalid characters are
+    replaced by `_`. In rare cases, if the whole name is invalid characters,
+    then it will be renamed to `ludusavi-renamed-<ENCODED_NAME>`.
+  * Within each game's subfolder, there will be a `mapping.yaml` file that
+    Ludusavi needs to identify the game. There will be some drive folders
+    (e.g., `drive-C` on Windows or `drive-0` on Linux and Mac) containing the
+    backup files, matching the normal file locations on your computer.
   * If the game has save data in the registry and you are using Windows, then
-    the game's backup folder will also contain an `other/registry.yaml` file.
+    the game's subfolder will also contain a `registry.yaml` file.
     If you are using Steam and Proton instead of Windows, then the Proton `*.reg`
-    files will be backed up like other game files.
+    files will be backed up along with the other game files instead.
 * Roots are folders that Ludusavi can check for additional game data. When you
   first run Ludusavi, it will try to find some common roots on your system, but
   you may end up without any configured. You can click `add root` to configure
@@ -132,11 +131,16 @@ If you are on Mac:
 * You can press `preview` to see what the restore will include,
   without actually performing it.
 * You can press `restore` to perform the restore for real.
-  * For all the files in the source directory, they will be decoded as Base64
-    to get the target path and then copied to that location. Any necessary
-    parent directories will be created as well before the copy, but if the
-    directories already exist, their current files will be left alone (other
-    than overwriting the ones that are being restored from the backup).
+  * For each subfolder in the source directory, Ludusavi looks for a `mapping.yaml`
+    file in order to identify each game. Subfolders without that file, or with an
+    invalid one, are ignored.
+  * All files from the drive folders are copied back to their original locations
+    on the respective drive. Any necessary parent directories will be created
+    as well before the copy, but if the directories already exist, then their
+    current files will be left alone (other than overwriting the ones that are
+    being restored from the backup).
+  * If the game subfolder includes a `registry.yaml` file, then the Windows
+    registry data will be restored as well.
 * You can use redirects to restore to a different location than the original file.
   Click `add redirect`, and then enter both the old and new location. For example,
   if you backed up some saves from `C:/Games`, but then you moved it to `D:/Games`,
@@ -166,6 +170,10 @@ If you are on Mac:
 
   If the game name matches one from Ludusavi's primary data set, then your
   custom entry will override it.
+
+#### Other settings
+* Switch to this screen by clicking the `other` button.
+* This screen contains some additional settings that are less commonly used.
 
 ### CLI
 Run `ludusavi --help` for the full usage information.
@@ -269,6 +277,13 @@ Here are the available settings (all are required unless otherwise noted):
     This can be overridden in the CLI by passing a list of games.
   * `merge` (optional, boolean): Whether to merge save data into the target
     directory rather than deleting the directory first. Default: false.
+  * `filter` (optional, map):
+    * `excludeOtherOsData` (optional, boolean): If true, then the backup should
+      exclude any files that have only been confirmed for a different operating
+      system than the one you're using. On Linux, Proton saves will still be
+      backed up regardless of this setting. Default: false.
+    * `excludeStoreScreenshots` (optional, boolean): If true, then the backup
+      should exclude screenshots from stores like Steam. Default: false.
 * `restore` (map):
   * `path` (string): Full path to a directory from which to restore data.
     This can be overridden in the CLI with `--path`.

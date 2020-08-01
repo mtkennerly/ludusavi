@@ -403,7 +403,6 @@ impl GameListEntry {
             config.is_game_enabled_for_backup(&self.scan_info.game_name)
         };
         let name_for_checkbox = self.scan_info.game_name.clone();
-        println!("game: {}", self.scan_info.game_name);
         Container::new(
             Column::new()
                 .padding(5)
