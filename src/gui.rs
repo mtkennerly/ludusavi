@@ -403,7 +403,7 @@ impl GameListEntry {
             config.is_game_enabled_for_backup(&self.scan_info.game_name)
         };
         let name_for_checkbox = self.scan_info.game_name.clone();
-
+        println!("game: {}", self.scan_info.game_name);
         Container::new(
             Column::new()
                 .padding(5)
@@ -443,7 +443,7 @@ impl GameListEntry {
                         )
                         .push(
                             Container::new(Text::new(
-                                translator.mib(self.scan_info.sum_bytes(&self.backup_info), false),
+                                translator.adjusted_size(self.scan_info.sum_bytes(&self.backup_info)),
                             ))
                             .width(Length::Units(115))
                             .center_x(),
