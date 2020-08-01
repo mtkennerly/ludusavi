@@ -2,6 +2,7 @@ mod cli;
 mod config;
 mod gui;
 mod lang;
+mod layout;
 mod manifest;
 mod path;
 mod prelude;

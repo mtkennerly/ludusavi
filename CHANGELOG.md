@@ -1,3 +1,48 @@
+## Unreleased
+
+**The backup structure has changed! Read below for more detail.**
+
+* Changed:
+  * Backup structure is now human-readable.
+
+Previously, Ludusavi used Base64 to encode game names and original paths when
+organizing backups. There were some technical advantages of that approach, but
+it was not easy to understand, and there was a technical flaw because Base64
+output can include `/`, which isn't safe for folder or file names.
+
+Therefore, Ludusavi now organizes backups like this, in a way that is easier
+to read and understand:
+
+```
+C:/somewhere/the-backup-folder/
+  Game 1 Name/
+    mapping.yaml
+    registry.yaml
+    drive-C/  # drive-0 on Linux and Mac
+      Users/
+        ...
+      Program Files/
+        Steam/
+          ...
+```
+
+The name of each game's folder is as close to the real title as possible,
+except for replacing some special characters with `_`. Ultimately, Ludusavi
+doesn't care much about the folder name and mainly looks for `mapping.yaml`,
+which contains some metadata that Ludusavi needs. If a game has any Windows
+registry data to back up, then there will also be a `registry.yaml` file.
+Within each drive folder, everything is simply organized exactly like it
+already is on your computer.
+
+If you need to restore a previous backup, then please use Ludusavi v0.6.0
+to do the restoration first, then migrate to Ludusavi v0.7.0 and create a
+new backup.
+
+You can [read more here](https://github.com/mtkennerly/ludusavi/issues/29)
+about the background of this change. Be assured that this sort of disruptive
+change is not taken lightly, but may happen in some cases until Ludusavi
+reaches version 1.0.0.
+
 ## v0.6.0 (2020-07-29)
 
 * Added:

@@ -1,11 +1,11 @@
 use crate::{
     config::{Config, RootsConfig},
     lang::Translator,
+    layout::BackupLayout,
     manifest::{Game, Manifest, SteamMetadata, Store},
     prelude::{
-        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
-        scan_dir_for_restorable_games, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error,
-        OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
+        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
+        scan_game_for_restoration, BackupInfo, Error, OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
     },
     shortcuts::{Shortcut, TextHistory},
 };
@@ -363,15 +363,11 @@ impl GameListEntry {
             for item in itertools::sorted(&self.scan_info.found_files) {
                 let mut redirected_from = None;
                 let mut line = item.path.render();
-                if restoring {
-                    if let Ok((original_target, redirected_target)) =
-                        game_file_restoration_target(&item.path, &config.get_redirects())
-                    {
-                        if original_target != redirected_target {
-                            redirected_from = Some(original_target);
-                        }
-                        line = redirected_target.render();
-                    }
+                if let Some(original_path) = &item.original_path {
+                    let (target, original_target) =
+                        game_file_restoration_target(&original_path, &config.get_redirects());
+                    redirected_from = original_target;
+                    line = target.render();
                 }
                 if let Some(backup_info) = &self.backup_info {
                     if backup_info.failed_files.contains(&item) {
@@ -1403,11 +1399,13 @@ impl Application for App {
                     OngoingOperation::Backup
                 });
 
+                let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone()));
+
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in all_games.iter().map(|(k, _)| k.clone()) {
                     let game = all_games[&key].clone();
                     let roots = self.config.roots.clone();
-                    let backup_path2 = backup_path.clone();
+                    let layout2 = layout.clone();
                     let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
                     let cancel_flag = self.operation_should_cancel.clone();
                     let ignored = !self.config.is_game_enabled_for_backup(&key);
@@ -1434,7 +1432,7 @@ impl Application for App {
                             }
 
                             let backup_info = if !preview {
-                                Some(back_up_game(&scan_info, &backup_path2, &key))
+                                Some(back_up_game(&scan_info, &key, &layout2))
                             } else {
                                 None
                             };
@@ -1465,7 +1463,8 @@ impl Application for App {
                     return Command::none();
                 }
 
-                let restorables = scan_dir_for_restorable_games(&restore_path);
+                let layout = std::sync::Arc::new(BackupLayout::new(restore_path.clone()));
+                let restorables: Vec<_> = layout.mapping.games.keys().cloned().collect();
 
                 self.restore_screen.status.clear();
                 self.restore_screen.log.entries.clear();
@@ -1484,8 +1483,9 @@ impl Application for App {
                 self.progress.max = restorables.len() as f32;
 
                 let mut commands: Vec<Command<Message>> = vec![];
-                for (name, subdir) in restorables {
+                for name in restorables {
                     let redirects = self.config.get_redirects();
+                    let layout2 = layout.clone();
                     let cancel_flag = self.operation_should_cancel.clone();
                     let ignored = !self.config.is_game_enabled_for_restore(&name);
                     commands.push(Command::perform(
@@ -1496,7 +1496,7 @@ impl Application for App {
                                 return (None, None, OperationStepDecision::Cancelled);
                             }
 
-                            let scan_info = scan_dir_for_restoration(&subdir);
+                            let scan_info = scan_game_for_restoration(&name, &layout2);
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);
                             }
