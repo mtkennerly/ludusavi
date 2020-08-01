@@ -52,9 +52,15 @@ pub enum Subcommand {
         #[structopt(long, conflicts_with("merge"))]
         no_merge: bool,
 
-        /// Download the latest copy of the manifest.
+        /// Check for any manifest updates and download if available.
+        /// If the check fails, report an error.
         #[structopt(long)]
         update: bool,
+
+        /// Check for any manifest updates and download if available.
+        /// If the check fails, continue anyway.
+        #[structopt(long, conflicts_with("update"))]
+        try_update: bool,
 
         /// When naming specific games to process, this means that you'll
         /// provide the Steam IDs instead of the manifest names, and Ludusavi will
@@ -356,6 +362,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             merge,
             no_merge,
             update,
+            try_update,
             by_steam_id,
             api,
             games,
@@ -366,7 +373,14 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 Reporter::standard(translator)
             };
 
-            let manifest = Manifest::load(&mut config, update)?;
+            let manifest = if try_update {
+                match Manifest::load(&mut config, true) {
+                    Ok(x) => x,
+                    Err(_) => Manifest::load(&mut config, false)?,
+                }
+            } else {
+                Manifest::load(&mut config, update)?
+            };
 
             let backup_dir = match path {
                 None => config.backup.path.clone(),
@@ -641,6 +655,7 @@ mod tests {
                         merge: false,
                         no_merge: false,
                         update: false,
+                        try_update: false,
                         by_steam_id: false,
                         api: false,
                         games: vec![],
@@ -674,6 +689,7 @@ mod tests {
                         merge: true,
                         no_merge: false,
                         update: true,
+                        try_update: false,
                         by_steam_id: true,
                         api: true,
                         games: vec![s("game1"), s("game2")],
@@ -694,6 +710,7 @@ mod tests {
                         merge: false,
                         no_merge: false,
                         update: false,
+                        try_update: false,
                         by_steam_id: false,
                         api: false,
                         games: vec![],
@@ -714,11 +731,41 @@ mod tests {
                         merge: false,
                         no_merge: true,
                         update: false,
+                        try_update: false,
                         by_steam_id: false,
                         api: false,
                         games: vec![],
                     }),
                 },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_backup_with_try_update() {
+            check_args(
+                &["ludusavi", "backup", "--try-update"],
+                Cli {
+                    sub: Some(Subcommand::Backup {
+                        preview: false,
+                        path: None,
+                        force: false,
+                        merge: false,
+                        no_merge: false,
+                        update: false,
+                        try_update: true,
+                        by_steam_id: false,
+                        api: false,
+                        games: vec![],
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn rejects_cli_backup_with_update_and_try_update() {
+            check_args_err(
+                &["ludusavi", "backup", "--update", "--try-update"],
+                structopt::clap::ErrorKind::ArgumentConflict,
             );
         }
 

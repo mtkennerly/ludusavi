@@ -304,7 +304,9 @@ impl Translator {
 
     pub fn manifest_cannot_be_updated(&self) -> String {
         match self.language {
-            Language::English => "Error: Unable to download an update to the manifest file.",
+            Language::English => {
+                "Error: Unable to check for an update to the manifest file. Is your Internet connection down?"
+            }
         }
         .into()
     }

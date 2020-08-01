@@ -6,6 +6,12 @@
   * Backup option to exclude save locations that are only confirmed for
     another operating system.
   * Backup option to exclude store screenshots.
+  * `--try-update` flag for backups via CLI.
+* Fixed:
+  * When starting the GUI, if Ludusavi could not check for a manifest update
+    (e.g., because your Internet is down), then it would default to an empty
+    manifest even if you already had a local copy that was downloaded before.
+    Now, it will use the local copy even if it can't check for updates.
 * Changed:
   * Backup structure is now human-readable.
   * App window now has a minimum size, 640x480.

@@ -1384,7 +1384,10 @@ impl Application for App {
             Ok(x) => x,
             Err(x) => {
                 modal_theme = Some(ModalTheme::Error { variant: x });
-                Manifest::default()
+                match Manifest::load(&mut config, false) {
+                    Ok(y) => y,
+                    Err(_) => Manifest::default(),
+                }
             }
         };
 
