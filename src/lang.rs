@@ -1,3 +1,5 @@
+use byte_unit::Byte;
+
 use crate::{
     manifest::Store,
     prelude::{Error, OperationStatus, OperationStepDecision, StrictPath},
@@ -102,11 +104,11 @@ impl Translator {
     pub fn cli_game_header(&self, name: &str, bytes: u64, decision: &OperationStepDecision) -> String {
         if *decision == OperationStepDecision::Processed {
             match self.language {
-                Language::English => format!("{} [{}]:", name, self.mib(bytes, false)),
+                Language::English => format!("{} [{}]:", name, self.adjusted_size(bytes)),
             }
         } else {
             match self.language {
-                Language::English => format!("{} [{}] {}:", name, self.mib(bytes, false), self.label_ignored()),
+                Language::English => format!("{} [{}] {}:", name, self.adjusted_size(bytes), self.label_ignored()),
             }
         }
     }
@@ -135,7 +137,7 @@ impl Translator {
                 Language::English => format!(
                     "\nOverall:\n  Games: {}\n  Size: {}\n  Location: {}",
                     status.total_games,
-                    self.mib(status.total_bytes, true),
+                    self.adjusted_size(status.total_bytes),
                     location.render()
                 ),
             }
@@ -145,8 +147,8 @@ impl Translator {
                     "\nOverall:\n  Games: {} of {}\n  Size: {} of {}\n  Location: {}",
                     status.processed_games,
                     status.total_games,
-                    self.mib_unlabelled(status.processed_bytes),
-                    self.mib(status.total_bytes, true),
+                    self.adjusted_size_unlabelled(status.processed_bytes),
+                    self.adjusted_size(status.total_bytes),
                     location.render()
                 ),
             }
@@ -209,6 +211,13 @@ impl Translator {
     pub fn nav_custom_games_button(&self) -> String {
         match self.language {
             Language::English => "CUSTOM GAMES",
+        }
+        .into()
+    }
+
+    pub fn nav_other_button(&self) -> String {
+        match self.language {
+            Language::English => "OTHER",
         }
         .into()
     }
@@ -297,7 +306,9 @@ impl Translator {
 
     pub fn manifest_cannot_be_updated(&self) -> String {
         match self.language {
-            Language::English => "Error: Unable to download an update to the manifest file.",
+            Language::English => {
+                "Error: Unable to check for an update to the manifest file. Is your Internet connection down?"
+            }
         }
         .into()
     }
@@ -330,28 +341,26 @@ impl Translator {
         .into()
     }
 
-    pub fn mib(&self, bytes: u64, show_zero: bool) -> String {
-        let mib = self.mib_unlabelled(bytes);
-        if !show_zero && mib == "0.00" {
-            match self.language {
-                Language::English => "~ 0",
-            }
-            .into()
-        } else {
-            match self.language {
-                Language::English => format!("{} MiB", mib),
-            }
-        }
+    pub fn adjusted_size(&self, bytes: u64) -> String {
+        let byte = Byte::from_bytes(bytes.into());
+        let adjusted_byte = byte.get_appropriate_unit(true);
+        adjusted_byte.to_string()
     }
 
-    pub fn mib_unlabelled(&self, bytes: u64) -> String {
-        format!("{:.2}", bytes as f64 / 1024.0 / 1024.0)
+    pub fn adjusted_size_unlabelled(&self, bytes: u64) -> String {
+        let byte = Byte::from_bytes(bytes.into());
+        let adjusted_byte = byte.get_appropriate_unit(true);
+        format!("{:.2}", adjusted_byte.get_value())
     }
 
     pub fn processed_games(&self, status: &OperationStatus) -> String {
         if status.completed() {
             match self.language {
-                Language::English => format!("{} games | {}", status.total_games, self.mib(status.total_bytes, true)),
+                Language::English => format!(
+                    "{} games | {}",
+                    status.total_games,
+                    self.adjusted_size(status.total_bytes)
+                ),
             }
         } else {
             match self.language {
@@ -359,8 +368,8 @@ impl Translator {
                     "{} of {} games | {} of {}",
                     status.processed_games,
                     status.total_games,
-                    self.mib_unlabelled(status.processed_bytes),
-                    self.mib(status.total_bytes, true)
+                    self.adjusted_size_unlabelled(status.processed_bytes),
+                    self.adjusted_size(status.total_bytes)
                 ),
             }
         }
@@ -428,6 +437,20 @@ impl Translator {
     pub fn custom_game_name_placeholder(&self) -> String {
         match self.language {
             Language::English => "Name",
+        }
+        .into()
+    }
+
+    pub fn explanation_for_exclude_other_os_data(&self) -> String {
+        match self.language {
+            Language::English => "In backups, exclude save locations that have only been confirmed on another operating system. Some games always put saves in the same place, but the locations may have only been confirmed for a different OS, so it can help to check them anyway. Excluding that data may help to avoid false positives, but may also mean missing out on some saves. On Linux, Proton saves will still be backed up regardless of this setting.",
+        }
+        .into()
+    }
+
+    pub fn explanation_for_exclude_store_screenshots(&self) -> String {
+        match self.language {
+            Language::English => "In backups, exclude store-specific screenshots. Right now, this only applies to Steam screenshots that you've taken. If a game has its own built-in screenshot functionality, this setting will not affect whether those screenshots are backed up.",
         }
         .into()
     }

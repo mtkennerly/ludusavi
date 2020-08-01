@@ -35,21 +35,23 @@ pub struct RegistryInfo {
 }
 
 impl Hives {
-    pub fn load(file: &std::path::PathBuf) -> Option<Self> {
-        if StrictPath::from_std_path_buf(&file).is_file() {
-            let content = std::fs::read_to_string(&file).ok()?;
+    pub fn load(file: &StrictPath) -> Option<Self> {
+        if file.is_file() {
+            let content = std::fs::read_to_string(&file.interpret()).ok()?;
             serde_yaml::from_str(&content).ok()
         } else {
             None
         }
     }
 
-    pub fn save(&self, file: &std::path::PathBuf) {
-        let mut folder = file.clone();
-        folder.pop();
-        if std::fs::create_dir_all(folder).is_ok() {
-            std::fs::write(file, serde_yaml::to_string(self).unwrap().as_bytes()).unwrap();
+    pub fn save(&self, file: &StrictPath) {
+        if file.create_parent_dir().is_ok() {
+            std::fs::write(file.interpret(), self.serialize().as_bytes()).unwrap();
         }
+    }
+
+    pub fn serialize(&self) -> String {
+        serde_yaml::to_string(self).unwrap()
     }
 
     pub fn store_key_from_full_path(&mut self, path: &str) -> Result<RegistryInfo, Error> {
@@ -218,13 +220,6 @@ fn get_hkey_from_name(name: &str) -> Option<winreg::HKEY> {
         "HKEY_LOCAL_MACHINE" => Some(winreg::enums::HKEY_LOCAL_MACHINE),
         _ => None,
     }
-}
-
-pub fn game_registry_backup_file(start: &StrictPath, game: &str) -> std::path::PathBuf {
-    let mut path = crate::prelude::game_backup_dir(&start, &game);
-    path.push("other");
-    path.push("registry.yaml");
-    path
 }
 
 #[cfg(test)]

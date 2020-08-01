@@ -1,11 +1,11 @@
 use crate::{
     config::{Config, RootsConfig},
     lang::Translator,
+    layout::BackupLayout,
     manifest::{Game, Manifest, SteamMetadata, Store},
     prelude::{
-        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
-        scan_dir_for_restorable_games, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error,
-        OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
+        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
+        scan_game_for_restoration, BackupInfo, Error, OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
     },
     shortcuts::{Shortcut, TextHistory},
 };
@@ -83,6 +83,14 @@ fn set_app_icon<T>(settings: &mut iced::Settings<T>) {
     }
 }
 
+#[realia::dep_from_registry("ludusavi", "iced")]
+fn set_app_min_size<T>(_settings: &mut iced::Settings<T>) {}
+
+#[realia::not(dep_from_registry("ludusavi", "iced"))]
+fn set_app_min_size<T>(settings: &mut iced::Settings<T>) {
+    settings.window.min_size = Some((640, 480));
+}
+
 #[derive(Default)]
 struct App {
     config: Config,
@@ -95,9 +103,11 @@ struct App {
     nav_to_backup_button: button::State,
     nav_to_restore_button: button::State,
     nav_to_custom_games_button: button::State,
+    nav_to_other_button: button::State,
     backup_screen: BackupScreenComponent,
     restore_screen: RestoreScreenComponent,
     custom_games_screen: CustomGamesScreenComponent,
+    other_screen: OtherScreenComponent,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     progress: DisappearingProgress,
 }
@@ -136,6 +146,8 @@ enum Message {
     EditedCustomGame(EditAction),
     EditedCustomGameFile(usize, EditAction),
     EditedCustomGameRegistry(usize, EditAction),
+    EditedExcludeOtherOsData(bool),
+    EditedExcludeStoreScreenshots(bool),
     SwitchScreen(Screen),
     ToggleGameListEntryExpanded {
         name: String,
@@ -169,6 +181,7 @@ enum Screen {
     Backup,
     Restore,
     CustomGames,
+    Other,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -363,15 +376,11 @@ impl GameListEntry {
             for item in itertools::sorted(&self.scan_info.found_files) {
                 let mut redirected_from = None;
                 let mut line = item.path.render();
-                if restoring {
-                    if let Ok((original_target, redirected_target)) =
-                        game_file_restoration_target(&item.path, &config.get_redirects())
-                    {
-                        if original_target != redirected_target {
-                            redirected_from = Some(original_target);
-                        }
-                        line = redirected_target.render();
-                    }
+                if let Some(original_path) = &item.original_path {
+                    let (target, original_target) =
+                        game_file_restoration_target(&original_path, &config.get_redirects());
+                    redirected_from = original_target;
+                    line = target.render();
                 }
                 if let Some(backup_info) = &self.backup_info {
                     if backup_info.failed_files.contains(&item) {
@@ -394,7 +403,6 @@ impl GameListEntry {
             config.is_game_enabled_for_backup(&self.scan_info.game_name)
         };
         let name_for_checkbox = self.scan_info.game_name.clone();
-
         Container::new(
             Column::new()
                 .padding(5)
@@ -434,7 +442,7 @@ impl GameListEntry {
                         )
                         .push(
                             Container::new(Text::new(
-                                translator.mib(self.scan_info.sum_bytes(&self.backup_info), false),
+                                translator.adjusted_size(self.scan_info.sum_bytes(&self.backup_info)),
                             ))
                             .width(Length::Units(115))
                             .center_x(),
@@ -1311,6 +1319,51 @@ impl CustomGamesScreenComponent {
     }
 }
 
+#[derive(Default)]
+struct OtherScreenComponent {
+    scroll: scrollable::State,
+}
+
+impl OtherScreenComponent {
+    fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+        Container::new(
+            Scrollable::new(&mut self.scroll)
+                .width(Length::Fill)
+                .padding(10)
+                .style(style::Scrollable)
+                .push(
+                    Column::new()
+                        .padding(5)
+                        .push(
+                            Row::new()
+                                .padding(20)
+                                .spacing(20)
+                                .align_items(Align::Center)
+                                .push(Checkbox::new(
+                                    config.backup.filter.exclude_other_os_data,
+                                    translator.explanation_for_exclude_other_os_data(),
+                                    Message::EditedExcludeOtherOsData,
+                                )),
+                        )
+                        .push(
+                            Row::new()
+                                .padding(20)
+                                .spacing(20)
+                                .align_items(Align::Center)
+                                .push(Checkbox::new(
+                                    config.backup.filter.exclude_store_screenshots,
+                                    translator.explanation_for_exclude_store_screenshots(),
+                                    Message::EditedExcludeStoreScreenshots,
+                                )),
+                        ),
+                ),
+        )
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .center_x()
+    }
+}
+
 impl Application for App {
     type Executor = executor::Default;
     type Message = Message;
@@ -1330,7 +1383,10 @@ impl Application for App {
             Ok(x) => x,
             Err(x) => {
                 modal_theme = Some(ModalTheme::Error { variant: x });
-                Manifest::default()
+                match Manifest::load(&mut config, false) {
+                    Ok(y) => y,
+                    Err(_) => Manifest::default(),
+                }
             }
         };
 
@@ -1403,11 +1459,15 @@ impl Application for App {
                     OngoingOperation::Backup
                 });
 
+                let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone()));
+                let filter = std::sync::Arc::new(self.config.backup.filter.clone());
+
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in all_games.iter().map(|(k, _)| k.clone()) {
                     let game = all_games[&key].clone();
                     let roots = self.config.roots.clone();
-                    let backup_path2 = backup_path.clone();
+                    let layout2 = layout.clone();
+                    let filter2 = filter.clone();
                     let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
                     let cancel_flag = self.operation_should_cancel.clone();
                     let ignored = !self.config.is_game_enabled_for_backup(&key);
@@ -1428,13 +1488,14 @@ impl Application for App {
                                 &roots,
                                 &StrictPath::from_std_path_buf(&app_dir()),
                                 &steam_id,
+                                &filter2,
                             );
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);
                             }
 
                             let backup_info = if !preview {
-                                Some(back_up_game(&scan_info, &backup_path2, &key))
+                                Some(back_up_game(&scan_info, &key, &layout2))
                             } else {
                                 None
                             };
@@ -1465,7 +1526,8 @@ impl Application for App {
                     return Command::none();
                 }
 
-                let restorables = scan_dir_for_restorable_games(&restore_path);
+                let layout = std::sync::Arc::new(BackupLayout::new(restore_path.clone()));
+                let restorables: Vec<_> = layout.mapping.games.keys().cloned().collect();
 
                 self.restore_screen.status.clear();
                 self.restore_screen.log.entries.clear();
@@ -1484,8 +1546,9 @@ impl Application for App {
                 self.progress.max = restorables.len() as f32;
 
                 let mut commands: Vec<Command<Message>> = vec![];
-                for (name, subdir) in restorables {
+                for name in restorables {
                     let redirects = self.config.get_redirects();
+                    let layout2 = layout.clone();
                     let cancel_flag = self.operation_should_cancel.clone();
                     let ignored = !self.config.is_game_enabled_for_restore(&name);
                     commands.push(Command::perform(
@@ -1496,7 +1559,7 @@ impl Application for App {
                                 return (None, None, OperationStepDecision::Cancelled);
                             }
 
-                            let scan_info = scan_dir_for_restoration(&subdir);
+                            let scan_info = scan_game_for_restoration(&name, &layout2);
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);
                             }
@@ -1762,6 +1825,16 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::EditedExcludeOtherOsData(enabled) => {
+                self.config.backup.filter.exclude_other_os_data = enabled;
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedExcludeStoreScreenshots(enabled) => {
+                self.config.backup.filter.exclude_store_screenshots = enabled;
+                self.config.save();
+                Command::none()
+            }
             Message::SwitchScreen(screen) => {
                 self.screen = screen;
                 Command::none()
@@ -2005,7 +2078,7 @@ impl Application for App {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                         )
                         .on_press(Message::SwitchScreen(Screen::Backup))
-                        .width(Length::Units(200))
+                        .width(Length::Units(175))
                         .style(match self.screen {
                             Screen::Backup => style::NavButton::Active,
                             _ => style::NavButton::Inactive,
@@ -2019,7 +2092,7 @@ impl Application for App {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                         )
                         .on_press(Message::SwitchScreen(Screen::Restore))
-                        .width(Length::Units(200))
+                        .width(Length::Units(175))
                         .style(match self.screen {
                             Screen::Restore => style::NavButton::Active,
                             _ => style::NavButton::Inactive,
@@ -2033,9 +2106,23 @@ impl Application for App {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                         )
                         .on_press(Message::SwitchScreen(Screen::CustomGames))
-                        .width(Length::Units(200))
+                        .width(Length::Units(175))
                         .style(match self.screen {
                             Screen::CustomGames => style::NavButton::Active,
+                            _ => style::NavButton::Inactive,
+                        }),
+                    )
+                    .push(
+                        Button::new(
+                            &mut self.nav_to_other_button,
+                            Text::new(self.translator.nav_other_button())
+                                .size(16)
+                                .horizontal_alignment(HorizontalAlignment::Center),
+                        )
+                        .on_press(Message::SwitchScreen(Screen::Other))
+                        .width(Length::Units(175))
+                        .style(match self.screen {
+                            Screen::Other => style::NavButton::Active,
                             _ => style::NavButton::Inactive,
                         }),
                     ),
@@ -2050,6 +2137,7 @@ impl Application for App {
                         self.custom_games_screen
                             .view(&self.config, &self.translator, &self.operation)
                     }
+                    Screen::Other => self.other_screen.view(&self.config, &self.translator),
                 }
                 .height(Length::FillPortion(10_000)),
             )
@@ -2203,5 +2291,6 @@ mod style {
 pub fn run_gui() {
     let mut settings = iced::Settings::default();
     set_app_icon(&mut settings);
+    set_app_min_size(&mut settings);
     App::run(settings)
 }

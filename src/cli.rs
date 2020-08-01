@@ -1,11 +1,11 @@
 use crate::{
     config::{Config, RedirectConfig},
     lang::Translator,
+    layout::BackupLayout,
     manifest::{Game, Manifest, SteamMetadata},
     prelude::{
-        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game,
-        scan_dir_for_restorable_games, scan_dir_for_restoration, scan_game_for_backup, BackupInfo, Error,
-        OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
+        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
+        scan_game_for_restoration, BackupInfo, Error, OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
     },
 };
 use indicatif::ParallelProgressIterator;
@@ -52,9 +52,15 @@ pub enum Subcommand {
         #[structopt(long, conflicts_with("merge"))]
         no_merge: bool,
 
-        /// Download the latest copy of the manifest.
+        /// Check for any manifest updates and download if available.
+        /// If the check fails, report an error.
         #[structopt(long)]
         update: bool,
+
+        /// Check for any manifest updates and download if available.
+        /// If the check fails, continue anyway.
+        #[structopt(long, conflicts_with("update"))]
+        try_update: bool,
 
         /// When naming specific games to process, this means that you'll
         /// provide the Steam IDs instead of the manifest names, and Ludusavi will
@@ -213,7 +219,6 @@ impl Reporter {
         name: &str,
         scan_info: &ScanInfo,
         backup_info: &BackupInfo,
-        restoring: bool,
         decision: &OperationStepDecision,
         redirects: &[RedirectConfig],
     ) -> bool {
@@ -235,29 +240,22 @@ impl Reporter {
                     &decision,
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
-                    let mut entry_failed = backup_info.failed_files.contains(entry);
                     let mut redirected_from = None;
-                    let readable = if restoring {
-                        if let Ok((original_target, redirected_target)) =
-                            game_file_restoration_target(&entry.path, &redirects)
-                        {
-                            if original_target != redirected_target {
-                                redirected_from = Some(original_target);
-                            }
-                            redirected_target
-                        } else {
-                            entry_failed = true;
-                            entry.path.to_owned()
-                        }
+                    let readable = if let Some(original_path) = &entry.original_path {
+                        let (target, original_target) = game_file_restoration_target(&original_path, &redirects);
+                        redirected_from = original_target;
+                        target
                     } else {
                         entry.path.to_owned()
                     };
-                    if entry_failed {
+
+                    if backup_info.failed_files.contains(entry) {
                         successful = false;
                         parts.push(translator.cli_game_line_item_failed(&readable.render()));
                     } else {
                         parts.push(translator.cli_game_line_item_successful(&readable.render()));
                     }
+
                     if let Some(redirected_from) = redirected_from {
                         parts.push(translator.cli_game_line_item_redirected(&redirected_from.render()));
                     }
@@ -289,18 +287,10 @@ impl Reporter {
                     let mut api_file = ApiFile::default();
                     api_file.bytes = entry.size;
                     api_file.failed = backup_info.failed_files.contains(entry);
-                    let readable = if restoring {
-                        if let Ok((original_target, redirected_target)) =
-                            game_file_restoration_target(&entry.path, &redirects)
-                        {
-                            if original_target != redirected_target {
-                                api_file.original_path = Some(original_target.render());
-                            }
-                            redirected_target
-                        } else {
-                            api_file.failed = true;
-                            entry.path.to_owned()
-                        }
+                    let readable = if let Some(original_path) = &entry.original_path {
+                        let (target, original_target) = game_file_restoration_target(&original_path, &redirects);
+                        api_file.original_path = original_target.map(|x| x.render());
+                        target
                     } else {
                         entry.path.to_owned()
                     };
@@ -372,6 +362,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             merge,
             no_merge,
             update,
+            try_update,
             by_steam_id,
             api,
             games,
@@ -382,7 +373,14 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 Reporter::standard(translator)
             };
 
-            let manifest = Manifest::load(&mut config, update)?;
+            let manifest = if try_update {
+                match Manifest::load(&mut config, true) {
+                    Ok(x) => x,
+                    Err(_) => Manifest::load(&mut config, false)?,
+                }
+            } else {
+                Manifest::load(&mut config, update)?
+            };
 
             let backup_dir = match path {
                 None => config.backup.path.clone(),
@@ -457,6 +455,9 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             };
             subjects.sort();
 
+            let layout = BackupLayout::new(backup_dir.clone());
+            let filter = config.backup.filter.clone();
+
             let info: Vec<_> = subjects
                 .par_iter()
                 .progress_count(subjects.len() as u64)
@@ -470,6 +471,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         &roots,
                         &StrictPath::from_std_path_buf(&app_dir()),
                         &steam_id,
+                        &filter,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(&name) && !games_specified;
                     let decision = if ignored {
@@ -480,14 +482,14 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let backup_info = if preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
-                        back_up_game(&scan_info, &backup_dir, &name)
+                        back_up_game(&scan_info, &name, &layout)
                     };
                     (name, scan_info, backup_info, decision)
                 })
                 .collect();
 
             for (name, scan_info, backup_info, decision) in info {
-                if !reporter.add_game(&name, &scan_info, &backup_info, false, &decision, &[]) {
+                if !reporter.add_game(&name, &scan_info, &backup_info, &decision, &[]) {
                     failed = true;
                 }
             }
@@ -525,9 +527,10 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 }
             }
 
+            let layout = BackupLayout::new(restore_dir.clone());
+
             let steam_ids_to_names = &manifest.map_steam_ids_to_names();
-            let restorables = scan_dir_for_restorable_games(&restore_dir);
-            let restorable_names: Vec<_> = restorables.iter().map(|(name, _)| name.to_owned()).collect();
+            let restorable_names: Vec<_> = layout.mapping.games.keys().collect();
 
             let games_specified = !games.is_empty();
             let mut invalid_games: Vec<_> = games
@@ -537,7 +540,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         match game.parse::<u32>() {
                             Ok(id) => {
                                 if !steam_ids_to_names.contains_key(&id)
-                                    || !restorable_names.contains(&steam_ids_to_names[&id])
+                                    || !restorable_names.contains(&&steam_ids_to_names[&id])
                                 {
                                     Some(game.to_owned())
                                 } else {
@@ -546,7 +549,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                             }
                             Err(_) => Some(game.to_owned()),
                         }
-                    } else if !restorable_names.contains(game) {
+                    } else if !restorable_names.contains(&game) {
                         Some(game.to_owned())
                     } else {
                         None
@@ -561,11 +564,11 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             let mut subjects: Vec<_> = if !&games.is_empty() {
-                restorables
+                restorable_names
                     .iter()
                     .filter_map(|x| {
-                        if (by_steam_id && steam_ids_to_names.values().cloned().any(|y| y == x.0))
-                            || (games.contains(&x.0))
+                        if (by_steam_id && steam_ids_to_names.values().cloned().any(|y| &y == *x))
+                            || (games.contains(&x))
                         {
                             Some(x.to_owned())
                         } else {
@@ -574,15 +577,15 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     })
                     .collect()
             } else {
-                restorables.iter().cloned().collect()
+                restorable_names
             };
             subjects.sort();
 
             let info: Vec<_> = subjects
                 .par_iter()
                 .progress_count(subjects.len() as u64)
-                .map(|(name, path)| {
-                    let scan_info = scan_dir_for_restoration(&path);
+                .map(|name| {
+                    let scan_info = scan_game_for_restoration(&name, &layout);
                     let ignored = !&config.is_game_enabled_for_restore(&name) && !games_specified;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
@@ -599,14 +602,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .collect();
 
             for (name, scan_info, backup_info, decision) in info {
-                if !reporter.add_game(
-                    &name,
-                    &scan_info,
-                    &backup_info,
-                    true,
-                    &decision,
-                    &config.get_redirects(),
-                ) {
+                if !reporter.add_game(&name, &scan_info, &backup_info, &decision, &config.get_redirects()) {
                     failed = true;
                 }
             }
@@ -659,6 +655,7 @@ mod tests {
                         merge: false,
                         no_merge: false,
                         update: false,
+                        try_update: false,
                         by_steam_id: false,
                         api: false,
                         games: vec![],
@@ -692,6 +689,7 @@ mod tests {
                         merge: true,
                         no_merge: false,
                         update: true,
+                        try_update: false,
                         by_steam_id: true,
                         api: true,
                         games: vec![s("game1"), s("game2")],
@@ -712,6 +710,7 @@ mod tests {
                         merge: false,
                         no_merge: false,
                         update: false,
+                        try_update: false,
                         by_steam_id: false,
                         api: false,
                         games: vec![],
@@ -732,11 +731,41 @@ mod tests {
                         merge: false,
                         no_merge: true,
                         update: false,
+                        try_update: false,
                         by_steam_id: false,
                         api: false,
                         games: vec![],
                     }),
                 },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_backup_with_try_update() {
+            check_args(
+                &["ludusavi", "backup", "--try-update"],
+                Cli {
+                    sub: Some(Subcommand::Backup {
+                        preview: false,
+                        path: None,
+                        force: false,
+                        merge: false,
+                        no_merge: false,
+                        update: false,
+                        try_update: true,
+                        by_steam_id: false,
+                        api: false,
+                        games: vec![],
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn rejects_cli_backup_with_update_and_try_update() {
+            check_args_err(
+                &["ludusavi", "backup", "--update", "--try-update"],
+                structopt::clap::ErrorKind::ArgumentConflict,
             );
         }
 
@@ -815,7 +844,6 @@ mod tests {
                 "foo",
                 &ScanInfo::default(),
                 &BackupInfo::default(),
-                false,
                 &OperationStepDecision::Processed,
                 &[],
             );
@@ -825,7 +853,7 @@ mod tests {
 
 Overall:
   Games: 0
-  Size: 0.00 MiB
+  Size: 0 B
   Location: {}/dev/null
                 "#,
                     &drive()
@@ -847,10 +875,12 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(s("/file1")),
                             size: 102_400,
+                            original_path: None,
                         },
                         ScannedFile {
                             path: StrictPath::new(s("/file2")),
                             size: 51_200,
+                            original_path: None,
                         },
                     },
                     found_registry_keys: hashset! {
@@ -864,19 +894,19 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(s("/file2")),
                             size: 51_200,
+                            original_path: None,
                         },
                     },
                     failed_registry: hashset! {
                         s("HKEY_CURRENT_USER/Key1")
                     },
                 },
-                false,
                 &OperationStepDecision::Processed,
                 &[],
             );
             assert_eq!(
                 r#"
-foo [0.10 MiB]:
+foo [100.00 KiB]:
   - <drive>/file1
   - [FAILED] <drive>/file2
   - [FAILED] HKEY_CURRENT_USER/Key1
@@ -884,7 +914,7 @@ foo [0.10 MiB]:
 
 Overall:
   Games: 1 of 1
-  Size: 0.10 of 0.15 MiB
+  Size: 100.00 of 150.00 KiB
   Location: <drive>/dev/null
                 "#
                 .trim()
@@ -903,31 +933,32 @@ Overall:
                     game_name: s("foo"),
                     found_files: hashset! {
                         ScannedFile {
-                            path: StrictPath::new(s("L2ZpbGUx")),
+                            path: StrictPath::new(format!("{}/backup/file1", drive())),
                             size: 102_400,
+                            original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                         },
                         ScannedFile {
-                            path: StrictPath::new(s("L2ZpbGUy")),
+                            path: StrictPath::new(format!("{}/backup/file2", drive())),
                             size: 51_200,
+                            original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                         },
                     },
                     found_registry_keys: hashset! {},
                     registry_file: None,
                 },
                 &BackupInfo::default(),
-                true,
                 &OperationStepDecision::Processed,
                 &[],
             );
             assert_eq!(
                 r#"
-foo [0.15 MiB]:
-  - <drive>/file1
-  - <drive>/file2
+foo [150.00 KiB]:
+  - <drive>/original/file1
+  - <drive>/original/file2
 
 Overall:
   Games: 1
-  Size: 0.15 MiB
+  Size: 150.00 KiB
   Location: <drive>/dev/null
                 "#
                 .trim()
@@ -944,7 +975,6 @@ Overall:
                 "foo",
                 &ScanInfo::default(),
                 &BackupInfo::default(),
-                false,
                 &OperationStepDecision::Processed,
                 &[],
             );
@@ -977,10 +1007,12 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(s("/file1")),
                             size: 100,
+                            original_path: None,
                         },
                         ScannedFile {
                             path: StrictPath::new(s("/file2")),
                             size: 50,
+                            original_path: None,
                         },
                     },
                     found_registry_keys: hashset! {
@@ -994,13 +1026,13 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(s("/file2")),
                             size: 50,
+                            original_path: None,
                         },
                     },
                     failed_registry: hashset! {
                         s("HKEY_CURRENT_USER/Key1")
                     },
                 },
-                false,
                 &OperationStepDecision::Processed,
                 &[],
             );
@@ -1054,19 +1086,20 @@ Overall:
                     game_name: s("foo"),
                     found_files: hashset! {
                         ScannedFile {
-                            path: StrictPath::new(s("L2ZpbGUx")),
+                            path: StrictPath::new(format!("{}/backup/file1", drive())),
                             size: 100,
+                            original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                         },
                         ScannedFile {
-                            path: StrictPath::new(s("L2ZpbGUy")),
+                            path: StrictPath::new(format!("{}/backup/file2", drive())),
                             size: 50,
+                            original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                         },
                     },
                     found_registry_keys: hashset! {},
                     registry_file: None,
                 },
                 &BackupInfo::default(),
-                true,
                 &OperationStepDecision::Processed,
                 &[],
             );
@@ -1083,10 +1116,10 @@ Overall:
     "foo": {
       "decision": "Processed",
       "files": {
-        "<drive>/file1": {
+        "<drive>/original/file1": {
           "bytes": 100
         },
-        "<drive>/file2": {
+        "<drive>/original/file2": {
           "bytes": 50
         }
       },

@@ -90,7 +90,7 @@ version = "0.31.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c69a8137596e84c22d57f3da1b5de1d4230b1742a710091c85f4d7ce50f00f38"
 dependencies = [
- "libloading 0.6.2",
+ "libloading",
 ]
 
 [[package]]
@@ -162,6 +162,15 @@ name = "bumpalo"
 version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2e8c087f005730276d1096a652e92a8bacee2e2472bcc9715a74d2bec38b5820"
+
+[[package]]
+name = "byte-unit"
+version = "4.0.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ba58563da2fefa88ddca9db6347a1818fc224be2faf916cd4c5e210d2653f4c"
+dependencies = [
+ "utf8-width",
+]
 
 [[package]]
 name = "bytemuck"
@@ -546,7 +555,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c1324bc4eae34f03b0ced586da5ae2b1ab46acfdae68b5b26d2e23dadae376a2"
 dependencies = [
  "bitflags",
- "libloading 0.6.2",
+ "libloading",
  "winapi 0.3.9",
 ]
 
@@ -630,7 +639,7 @@ version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b11f15d1e3268f140f68d390637d5e76d849782d971ae7063e0da69fe9709a76"
 dependencies = [
- "libloading 0.6.2",
+ "libloading",
 ]
 
 [[package]]
@@ -933,14 +942,14 @@ dependencies = [
 
 [[package]]
 name = "gfx-backend-dx11"
-version = "0.5.1"
+version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "92de0ddc0fde1a89b2a0e92dcc6bbb554bd34af0135e53a28d5ef064611094a4"
+checksum = "32d95d5fddfa596c0628be117a16979b273f676b4e5a037a417365f274349123"
 dependencies = [
  "bitflags",
  "gfx-auxil",
  "gfx-hal",
- "libloading 0.5.2",
+ "libloading",
  "log",
  "parking_lot",
  "range-alloc",
@@ -1569,16 +1578,6 @@ checksum = "9457b06509d27052635f90d6466700c65095fdf75409b3fbdd903e988b886f49"
 
 [[package]]
 name = "libloading"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f2b111a074963af1d37a139918ac6d49ad1d0d5e47f72fd55388619691a7d753"
-dependencies = [
- "cc",
- "winapi 0.3.9",
-]
-
-[[package]]
-name = "libloading"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2cadb8e769f070c45df05c78c7520eb4cd17061d4ab262e43cfc68b4d00ac71c"
@@ -1638,9 +1637,10 @@ dependencies = [
 
 [[package]]
 name = "ludusavi"
-version = "0.6.0"
+version = "0.7.0"
 dependencies = [
  "base64 0.12.3",
+ "byte-unit",
  "copypasta",
  "dialoguer",
  "dirs 3.0.1",
@@ -3008,9 +3008,9 @@ checksum = "e604eb7b43c06650e854be16a2a03155743d3752dd1c943f6829e26b7a36e382"
 
 [[package]]
 name = "ttf-parser"
-version = "0.8.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d9adb8aeeaf663a49ffdf9cdb548232849174b451a22bc90921868b8491ee901"
+checksum = "d973cfa0e6124166b50a1105a67c85de40bbc625082f35c0f56f84cb1fb0a827"
 
 [[package]]
 name = "twox-hash"
@@ -3088,6 +3088,12 @@ dependencies = [
  "matches",
  "percent-encoding",
 ]
+
+[[package]]
+name = "utf8-width"
+version = "0.1.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f2c54fe5e8d6907c60dc6fba532cc8529245d97ff4e26cb490cb462de114ba4"
 
 [[package]]
 name = "vec_map"

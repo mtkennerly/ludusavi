@@ -39,6 +39,22 @@ pub struct RedirectConfig {
     pub target: StrictPath,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct BackupFilter {
+    #[serde(
+        default,
+        skip_serializing_if = "crate::serialization::is_false",
+        rename = "excludeOtherOsData"
+    )]
+    pub exclude_other_os_data: bool,
+    #[serde(
+        default,
+        skip_serializing_if = "crate::serialization::is_false",
+        rename = "excludeStoreScreenshots"
+    )]
+    pub exclude_store_screenshots: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BackupConfig {
     pub path: StrictPath,
@@ -50,6 +66,8 @@ pub struct BackupConfig {
     pub ignored_games: std::collections::HashSet<String>,
     #[serde(default)]
     pub merge: bool,
+    #[serde(default)]
+    pub filter: BackupFilter,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -89,6 +107,7 @@ impl Default for BackupConfig {
             path: default_backup_dir(),
             ignored_games: std::collections::HashSet::new(),
             merge: false,
+            filter: BackupFilter::default(),
         }
     }
 }
@@ -275,6 +294,10 @@ mod tests {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: std::collections::HashSet::new(),
                     merge: false,
+                    filter: BackupFilter {
+                        exclude_other_os_data: false,
+                        exclude_store_screenshots: false,
+                    },
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -306,6 +329,9 @@ mod tests {
                 - Backup Game 2
                 - Backup Game 2
               merge: true
+              filter:
+                excludeOtherOsData: true
+                excludeStoreScreenshots: true
             restore:
               path: ~/restore
               ignoredGames:
@@ -353,6 +379,10 @@ mod tests {
                         s("Backup Game 2"),
                     },
                     merge: true,
+                    filter: BackupFilter {
+                        exclude_other_os_data: true,
+                        exclude_store_screenshots: true,
+                    },
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -417,6 +447,10 @@ mod tests {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: std::collections::HashSet::new(),
                     merge: false,
+                    filter: BackupFilter {
+                        exclude_other_os_data: false,
+                        exclude_store_screenshots: false,
+                    },
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -449,6 +483,9 @@ backup:
     - Backup Game 2
     - Backup Game 3
   merge: true
+  filter:
+    excludeOtherOsData: true
+    excludeStoreScreenshots: true
 restore:
   path: ~/restore
   ignoredGames:
@@ -496,6 +533,10 @@ customGames:
                         s("Backup Game 2"),
                     },
                     merge: true,
+                    filter: BackupFilter {
+                        exclude_other_os_data: true,
+                        exclude_store_screenshots: true,
+                    },
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
