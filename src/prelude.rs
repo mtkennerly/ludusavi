@@ -1,5 +1,5 @@
 use crate::{
-    config::{RedirectConfig, RootsConfig},
+    config::{BackupFilter, RedirectConfig, RootsConfig},
     layout::{BackupLayout, IndividualMapping},
     manifest::{Game, Os, Store},
 };
@@ -311,6 +311,7 @@ pub fn scan_game_for_backup(
     roots: &[RootsConfig],
     manifest_dir: &StrictPath,
     steam_id: &Option<u32>,
+    filter: &BackupFilter,
 ) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
@@ -330,14 +331,26 @@ pub fn scan_game_for_backup(
             continue;
         }
         if let Some(files) = &game.files {
+            let maybe_proton = get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some();
             let default_install_dir = name.to_string();
             let install_dirs: Vec<_> = match &game.install_dir {
                 Some(x) => x.keys().collect(),
                 _ => vec![&default_install_dir],
             };
-            for raw_path in files.keys() {
+            for (raw_path, path_info) in files {
                 if raw_path.trim().is_empty() {
                     continue;
+                }
+                if filter.exclude_other_os_data {
+                    if let Some(constraints) = &path_info.when {
+                        let unconstrained_by_os = constraints.iter().any(|x| x.os == None);
+                        let matches_os = constraints.iter().any(|x| x.os == Some(get_os()));
+                        let suitable_for_proton = maybe_proton && constraints.iter().any(|x| x.os == Some(Os::Windows));
+
+                        if !unconstrained_by_os && !matches_os && !suitable_for_proton {
+                            continue;
+                        }
+                    }
                 }
                 let candidates = parse_paths(raw_path, &root, &install_dirs, &steam_id, &manifest_dir);
                 for candidate in candidates {
@@ -356,14 +369,16 @@ pub fn scan_game_for_backup(
             ));
 
             // Screenshots:
-            paths_to_check.insert(StrictPath::relative(
-                format!(
-                    "{}/userdata/*/760/remote/{}/screenshots/*.*",
-                    root.path.interpret(),
-                    &steam_id.unwrap()
-                ),
-                Some(manifest_dir.interpret()),
-            ));
+            if !filter.exclude_store_screenshots {
+                paths_to_check.insert(StrictPath::relative(
+                    format!(
+                        "{}/userdata/*/760/remote/{}/screenshots/*.*",
+                        root.path.interpret(),
+                        &steam_id.unwrap()
+                    ),
+                    Some(manifest_dir.interpret()),
+                ));
+            }
 
             // Registry:
             if game.registry.is_some() {
@@ -694,6 +709,7 @@ mod tests {
                 &config().roots,
                 &StrictPath::new(repo()),
                 &None,
+                &BackupFilter::default(),
             ),
         );
 
@@ -716,6 +732,7 @@ mod tests {
                 &config().roots,
                 &StrictPath::new(repo()),
                 &None,
+                &BackupFilter::default(),
             ),
         );
     }
@@ -738,6 +755,7 @@ mod tests {
                 &config().roots,
                 &StrictPath::new(repo()),
                 &None,
+                &BackupFilter::default(),
             ),
         );
     }
@@ -760,6 +778,7 @@ mod tests {
                 &config().roots,
                 &StrictPath::new(repo()),
                 &None,
+                &BackupFilter::default(),
             ),
         );
     }

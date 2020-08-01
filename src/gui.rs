@@ -83,6 +83,14 @@ fn set_app_icon<T>(settings: &mut iced::Settings<T>) {
     }
 }
 
+#[realia::dep_from_registry("ludusavi", "iced")]
+fn set_app_min_size<T>(_settings: &mut iced::Settings<T>) {}
+
+#[realia::not(dep_from_registry("ludusavi", "iced"))]
+fn set_app_min_size<T>(settings: &mut iced::Settings<T>) {
+    settings.window.min_size = Some((640, 480));
+}
+
 #[derive(Default)]
 struct App {
     config: Config,
@@ -95,9 +103,11 @@ struct App {
     nav_to_backup_button: button::State,
     nav_to_restore_button: button::State,
     nav_to_custom_games_button: button::State,
+    nav_to_other_button: button::State,
     backup_screen: BackupScreenComponent,
     restore_screen: RestoreScreenComponent,
     custom_games_screen: CustomGamesScreenComponent,
+    other_screen: OtherScreenComponent,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     progress: DisappearingProgress,
 }
@@ -136,6 +146,8 @@ enum Message {
     EditedCustomGame(EditAction),
     EditedCustomGameFile(usize, EditAction),
     EditedCustomGameRegistry(usize, EditAction),
+    EditedExcludeOtherOsData(bool),
+    EditedExcludeStoreScreenshots(bool),
     SwitchScreen(Screen),
     ToggleGameListEntryExpanded {
         name: String,
@@ -169,6 +181,7 @@ enum Screen {
     Backup,
     Restore,
     CustomGames,
+    Other,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1307,6 +1320,51 @@ impl CustomGamesScreenComponent {
     }
 }
 
+#[derive(Default)]
+struct OtherScreenComponent {
+    scroll: scrollable::State,
+}
+
+impl OtherScreenComponent {
+    fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+        Container::new(
+            Scrollable::new(&mut self.scroll)
+                .width(Length::Fill)
+                .padding(10)
+                .style(style::Scrollable)
+                .push(
+                    Column::new()
+                        .padding(5)
+                        .push(
+                            Row::new()
+                                .padding(20)
+                                .spacing(20)
+                                .align_items(Align::Center)
+                                .push(Checkbox::new(
+                                    config.backup.filter.exclude_other_os_data,
+                                    translator.explanation_for_exclude_other_os_data(),
+                                    Message::EditedExcludeOtherOsData,
+                                )),
+                        )
+                        .push(
+                            Row::new()
+                                .padding(20)
+                                .spacing(20)
+                                .align_items(Align::Center)
+                                .push(Checkbox::new(
+                                    config.backup.filter.exclude_store_screenshots,
+                                    translator.explanation_for_exclude_store_screenshots(),
+                                    Message::EditedExcludeStoreScreenshots,
+                                )),
+                        ),
+                ),
+        )
+        .height(Length::Fill)
+        .width(Length::Fill)
+        .center_x()
+    }
+}
+
 impl Application for App {
     type Executor = executor::Default;
     type Message = Message;
@@ -1400,12 +1458,14 @@ impl Application for App {
                 });
 
                 let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone()));
+                let filter = std::sync::Arc::new(self.config.backup.filter.clone());
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in all_games.iter().map(|(k, _)| k.clone()) {
                     let game = all_games[&key].clone();
                     let roots = self.config.roots.clone();
                     let layout2 = layout.clone();
+                    let filter2 = filter.clone();
                     let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
                     let cancel_flag = self.operation_should_cancel.clone();
                     let ignored = !self.config.is_game_enabled_for_backup(&key);
@@ -1426,6 +1486,7 @@ impl Application for App {
                                 &roots,
                                 &StrictPath::from_std_path_buf(&app_dir()),
                                 &steam_id,
+                                &filter2,
                             );
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);
@@ -1762,6 +1823,16 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::EditedExcludeOtherOsData(enabled) => {
+                self.config.backup.filter.exclude_other_os_data = enabled;
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedExcludeStoreScreenshots(enabled) => {
+                self.config.backup.filter.exclude_store_screenshots = enabled;
+                self.config.save();
+                Command::none()
+            }
             Message::SwitchScreen(screen) => {
                 self.screen = screen;
                 Command::none()
@@ -2005,7 +2076,7 @@ impl Application for App {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                         )
                         .on_press(Message::SwitchScreen(Screen::Backup))
-                        .width(Length::Units(200))
+                        .width(Length::Units(175))
                         .style(match self.screen {
                             Screen::Backup => style::NavButton::Active,
                             _ => style::NavButton::Inactive,
@@ -2019,7 +2090,7 @@ impl Application for App {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                         )
                         .on_press(Message::SwitchScreen(Screen::Restore))
-                        .width(Length::Units(200))
+                        .width(Length::Units(175))
                         .style(match self.screen {
                             Screen::Restore => style::NavButton::Active,
                             _ => style::NavButton::Inactive,
@@ -2033,9 +2104,23 @@ impl Application for App {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                         )
                         .on_press(Message::SwitchScreen(Screen::CustomGames))
-                        .width(Length::Units(200))
+                        .width(Length::Units(175))
                         .style(match self.screen {
                             Screen::CustomGames => style::NavButton::Active,
+                            _ => style::NavButton::Inactive,
+                        }),
+                    )
+                    .push(
+                        Button::new(
+                            &mut self.nav_to_other_button,
+                            Text::new(self.translator.nav_other_button())
+                                .size(16)
+                                .horizontal_alignment(HorizontalAlignment::Center),
+                        )
+                        .on_press(Message::SwitchScreen(Screen::Other))
+                        .width(Length::Units(175))
+                        .style(match self.screen {
+                            Screen::Other => style::NavButton::Active,
                             _ => style::NavButton::Inactive,
                         }),
                     ),
@@ -2050,6 +2135,7 @@ impl Application for App {
                         self.custom_games_screen
                             .view(&self.config, &self.translator, &self.operation)
                     }
+                    Screen::Other => self.other_screen.view(&self.config, &self.translator),
                 }
                 .height(Length::FillPortion(10_000)),
             )
@@ -2203,5 +2289,6 @@ mod style {
 pub fn run_gui() {
     let mut settings = iced::Settings::default();
     set_app_icon(&mut settings);
+    set_app_min_size(&mut settings);
     App::run(settings)
 }

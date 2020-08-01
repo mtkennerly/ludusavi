@@ -2,8 +2,14 @@
 
 **The backup structure has changed! Read below for more detail.**
 
+* Added:
+  * Backup option to exclude save locations that are only confirmed for
+    another operating system.
+  * Backup option to exclude store screenshots.
 * Changed:
   * Backup structure is now human-readable.
+  * App window now has a minimum size, 640x480.
+    (Note: For now, the crates.io release will not have a minimum size.)
 
 Previously, Ludusavi used Base64 to encode game names and original paths when
 organizing backups. There were some technical advantages of that approach, but

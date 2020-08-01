@@ -213,6 +213,13 @@ impl Translator {
         .into()
     }
 
+    pub fn nav_other_button(&self) -> String {
+        match self.language {
+            Language::English => "OTHER",
+        }
+        .into()
+    }
+
     pub fn add_root_button(&self) -> String {
         match self.language {
             Language::English => "Add root",
@@ -428,6 +435,20 @@ impl Translator {
     pub fn custom_game_name_placeholder(&self) -> String {
         match self.language {
             Language::English => "Name",
+        }
+        .into()
+    }
+
+    pub fn explanation_for_exclude_other_os_data(&self) -> String {
+        match self.language {
+            Language::English => "Exclude save locations that have only been confirmed on another operating system. Some games always put saves in the same place, but the locations may have only been confirmed for a different OS, so it can help to check them anyway. Excluding that data may help to avoid false positives, but may also mean missing out on some saves. On Linux, Proton saves will still be backed up regardless of this setting.",
+        }
+        .into()
+    }
+
+    pub fn explanation_for_exclude_store_screenshots(&self) -> String {
+        match self.language {
+            Language::English => "Exclude store-specific screenshots. Right now, this only applies to Steam screenshots that you've taken. If a game has its own built-in screenshot functionality, this setting will not affect whether those screenshots are backed up.",
         }
         .into()
     }

@@ -442,6 +442,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             subjects.sort();
 
             let layout = BackupLayout::new(backup_dir.clone());
+            let filter = config.backup.filter.clone();
 
             let info: Vec<_> = subjects
                 .par_iter()
@@ -456,6 +457,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         &roots,
                         &StrictPath::from_std_path_buf(&app_dir()),
                         &steam_id,
+                        &filter,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(&name) && !games_specified;
                     let decision = if ignored {
