@@ -10,6 +10,7 @@ license = "MIT"
 
 [dependencies]
 base64 = "0.12.3"
+byte-unit = "4.0.8"
 copypasta = "0.7.0"
 dialoguer = "0.6.2"
 dirs = "3.0.0"

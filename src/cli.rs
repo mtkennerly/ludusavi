@@ -806,7 +806,7 @@ mod tests {
 
 Overall:
   Games: 0
-  Size: 0.00 MiB
+  Size: 0 B
   Location: {}/dev/null
                 "#,
                     &drive()
@@ -859,7 +859,7 @@ Overall:
             );
             assert_eq!(
                 r#"
-foo [0.10 MiB]:
+foo [100.00 KiB]:
   - <drive>/file1
   - [FAILED] <drive>/file2
   - [FAILED] HKEY_CURRENT_USER/Key1
@@ -867,7 +867,7 @@ foo [0.10 MiB]:
 
 Overall:
   Games: 1 of 1
-  Size: 0.10 of 0.15 MiB
+  Size: 100.00 of 150.00 KiB
   Location: <drive>/dev/null
                 "#
                 .trim()
@@ -905,13 +905,13 @@ Overall:
             );
             assert_eq!(
                 r#"
-foo [0.15 MiB]:
+foo [150.00 KiB]:
   - <drive>/original/file1
   - <drive>/original/file2
 
 Overall:
   Games: 1
-  Size: 0.15 MiB
+  Size: 150.00 KiB
   Location: <drive>/dev/null
                 "#
                 .trim()
