@@ -104,11 +104,11 @@ impl Translator {
     pub fn cli_game_header(&self, name: &str, bytes: u64, decision: &OperationStepDecision) -> String {
         if *decision == OperationStepDecision::Processed {
             match self.language {
-                Language::English => format!("{} [{}]:", name, self.mib(bytes)),
+                Language::English => format!("{} [{}]:", name, self.adjusted_size(bytes)),
             }
         } else {
             match self.language {
-                Language::English => format!("{} [{}] {}:", name, self.mib(bytes), self.label_ignored()),
+                Language::English => format!("{} [{}] {}:", name, self.adjusted_size(bytes), self.label_ignored()),
             }
         }
     }
@@ -137,7 +137,7 @@ impl Translator {
                 Language::English => format!(
                     "\nOverall:\n  Games: {}\n  Size: {}\n  Location: {}",
                     status.total_games,
-                    self.mib(status.total_bytes),
+                    self.adjusted_size(status.total_bytes),
                     location.render()
                 ),
             }
@@ -147,8 +147,8 @@ impl Translator {
                     "\nOverall:\n  Games: {} of {}\n  Size: {} of {}\n  Location: {}",
                     status.processed_games,
                     status.total_games,
-                    self.mib_unlabelled(status.processed_bytes),
-                    self.mib(status.total_bytes),
+                    self.adjusted_size_unlabelled(status.processed_bytes),
+                    self.adjusted_size(status.total_bytes),
                     location.render()
                 ),
             }
@@ -339,13 +339,13 @@ impl Translator {
         .into()
     }
 
-    pub fn mib(&self, bytes: u64) -> String {
+    pub fn adjusted_size(&self, bytes: u64) -> String {
         let byte = Byte::from_bytes(bytes.into());
         let adjusted_byte = byte.get_appropriate_unit(true);
         adjusted_byte.to_string()
     }
 
-    pub fn mib_unlabelled(&self, bytes: u64) -> String {
+    pub fn adjusted_size_unlabelled(&self, bytes: u64) -> String {
         let byte = Byte::from_bytes(bytes.into());
         let adjusted_byte = byte.get_appropriate_unit(true);
         format!("{:.2}", adjusted_byte.get_value())
@@ -354,7 +354,11 @@ impl Translator {
     pub fn processed_games(&self, status: &OperationStatus) -> String {
         if status.completed() {
             match self.language {
-                Language::English => format!("{} games | {}", status.total_games, self.mib(status.total_bytes)),
+                Language::English => format!(
+                    "{} games | {}",
+                    status.total_games,
+                    self.adjusted_size(status.total_bytes)
+                ),
             }
         } else {
             match self.language {
@@ -362,8 +366,8 @@ impl Translator {
                     "{} of {} games | {} of {}",
                     status.processed_games,
                     status.total_games,
-                    self.mib_unlabelled(status.processed_bytes),
-                    self.mib(status.total_bytes)
+                    self.adjusted_size_unlabelled(status.processed_bytes),
+                    self.adjusted_size(status.total_bytes)
                 ),
             }
         }

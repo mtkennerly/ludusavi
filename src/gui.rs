@@ -442,9 +442,11 @@ impl GameListEntry {
                             .padding(2),
                         )
                         .push(
-                            Container::new(Text::new(translator.mib(self.scan_info.sum_bytes(&self.backup_info))))
-                                .width(Length::Units(115))
-                                .center_x(),
+                            Container::new(Text::new(
+                                translator.adjusted_size(self.scan_info.sum_bytes(&self.backup_info)),
+                            ))
+                            .width(Length::Units(115))
+                            .center_x(),
                         ),
                 )
                 .push(
