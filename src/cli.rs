@@ -376,7 +376,13 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let manifest = if try_update {
                 match Manifest::load(&mut config, true) {
                     Ok(x) => x,
-                    Err(_) => Manifest::load(&mut config, false)?,
+                    Err(e) => {
+                        eprintln!("{}", translator.handle_error(&e));
+                        match Manifest::load(&mut config, false) {
+                            Ok(y) => y,
+                            Err(_) => Manifest::default(),
+                        }
+                    }
                 }
             } else {
                 Manifest::load(&mut config, update)?

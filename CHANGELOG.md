@@ -1,3 +1,9 @@
+## Unreleased
+
+* Changed:
+  * In the CLI, `--try-update` will use a default, empty manifest if there is
+    no local copy of the manifest and it cannot be downloaded.
+
 ## v0.7.0 (2020-08-01)
 
 **The backup structure has changed! Read below for more detail.**
