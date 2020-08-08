@@ -213,6 +213,35 @@ impl StrictPath {
             },
         )
     }
+
+    pub fn unset_readonly(&self) -> Result<(), ()> {
+        let interpreted = self.interpret();
+        if self.is_file() {
+            let mut perms = std::fs::metadata(&interpreted).map_err(|_| ())?.permissions();
+            if perms.readonly() {
+                perms.set_readonly(false);
+                std::fs::set_permissions(&interpreted, perms).map_err(|_| ())?;
+            }
+        } else {
+            for entry in walkdir::WalkDir::new(interpreted)
+                .max_depth(100)
+                .follow_links(false)
+                .into_iter()
+                .skip(1) // the base path itself
+                .filter_map(|e| e.ok())
+                .filter(|x| x.file_type().is_file())
+            {
+                let file = &mut entry.path().display().to_string();
+                let mut perms = std::fs::metadata(&file).map_err(|_| ())?.permissions();
+                if perms.readonly() {
+                    perms.set_readonly(false);
+                    std::fs::set_permissions(&file, perms).map_err(|_| ())?;
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 // Based on:

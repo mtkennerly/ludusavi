@@ -520,22 +520,13 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout) -> Backu
     // loading its existing mapping:
     let mut mapping = IndividualMapping::new(name.to_string());
 
-    let mut unable_to_prepare = false;
-    if info.found_anything() {
-        match target_game.remove() {
-            Ok(_) => {
-                if std::fs::create_dir(target_game.interpret()).is_err() {
-                    unable_to_prepare = true;
-                }
-            }
-            Err(_) => {
-                unable_to_prepare = true;
-            }
-        }
-    }
+    let able_to_prepare = info.found_anything()
+        && target_game.unset_readonly().is_ok()
+        && target_game.remove().is_ok()
+        && std::fs::create_dir(target_game.interpret()).is_ok();
 
     for file in &info.found_files {
-        if unable_to_prepare {
+        if !able_to_prepare {
             failed_files.insert(file.clone());
             continue;
         }
@@ -554,7 +545,7 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout) -> Backu
     #[cfg(target_os = "windows")]
     {
         for reg_path in &info.found_registry_keys {
-            if unable_to_prepare {
+            if !able_to_prepare {
                 failed_registry.insert(reg_path.to_string());
                 continue;
             }
@@ -574,7 +565,7 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout) -> Backu
         }
     }
 
-    if info.found_anything() && !unable_to_prepare {
+    if info.found_anything() && able_to_prepare {
         mapping.save(&layout.game_mapping_file(&target_game));
     }
 
@@ -600,7 +591,7 @@ pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo
             continue;
         }
         for i in 0..99 {
-            if std::fs::copy(&file.path.interpret(), &target.interpret()).is_ok() {
+            if target.unset_readonly().is_ok() && std::fs::copy(&file.path.interpret(), &target.interpret()).is_ok() {
                 continue 'outer;
             }
             // File might be busy, especially if multiple games share a file,

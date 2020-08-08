@@ -1,5 +1,11 @@
 ## Unreleased
 
+* Fixed:
+  * Read-only files could only be backed up once, since the original backup
+    could not be replaced by a newer copy, and you could not restore a backup
+    if the original file was read-only. Now, Ludusavi will try to unset the
+    read-only flag on backups before replacing them with newer backups, and
+    it will try to unset the flag on target files before restoring a backup.
 * Changed:
   * In the CLI, `--try-update` will use a default, empty manifest if there is
     no local copy of the manifest and it cannot be downloaded.
