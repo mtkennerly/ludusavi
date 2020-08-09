@@ -6,6 +6,10 @@
     if the original file was read-only. Now, Ludusavi will try to unset the
     read-only flag on backups before replacing them with newer backups, and
     it will try to unset the flag on target files before restoring a backup.
+  * Invalid paths like `C:\Users\Foo\Documents\C:\Users\Foo` would be shortened
+    to just `C:\Users\Foo`, which could cause irrelevant files to be backed up.
+    Now, the extraneous `C:` will be converted to `C_` so that it simply won't
+    match any files or directories.
 * Changed:
   * In the CLI, `--try-update` will use a default, empty manifest if there is
     no local copy of the manifest and it cannot be downloaded.
