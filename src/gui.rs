@@ -949,6 +949,8 @@ struct BackupScreenComponent {
     backup_target_history: TextHistory,
     backup_target_browse_button: button::State,
     root_editor: RootEditor,
+    only_scan_recent_found_games: bool,
+    recent_found_games: std::collections::HashSet<String>,
 }
 
 impl BackupScreenComponent {
@@ -1447,6 +1449,14 @@ impl Application for App {
                     all_games.insert(custom_game.name.clone(), Game::from(custom_game.to_owned()));
                 }
 
+                if self.backup_screen.only_scan_recent_found_games {
+                    all_games.retain(|k, _| {
+                        self.backup_screen.recent_found_games.contains(k)
+                            || self.config.custom_games.iter().any(|x| &x.name == k)
+                    });
+                }
+                self.backup_screen.recent_found_games.clear();
+
                 self.backup_screen.status.clear();
                 self.backup_screen.log.entries.clear();
                 self.modal_theme = None;
@@ -1589,6 +1599,9 @@ impl Application for App {
                 self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
+                        self.backup_screen
+                            .recent_found_games
+                            .insert(scan_info.game_name.clone());
                         self.backup_screen.status.add_game(
                             &scan_info,
                             &backup_info,
@@ -1664,6 +1677,7 @@ impl Application for App {
                         }
                     }
                 }
+                self.backup_screen.only_scan_recent_found_games = !self.backup_screen.recent_found_games.is_empty();
                 Command::perform(async move {}, move |_| Message::Idle)
             }
             Message::RestoreComplete => {
@@ -1715,11 +1729,13 @@ impl Application for App {
                     }
                 }
                 self.config.save();
+                self.backup_screen.only_scan_recent_found_games = false;
                 Command::none()
             }
             Message::SelectedRootStore(index, store) => {
                 self.config.roots[index].store = store;
                 self.config.save();
+                self.backup_screen.only_scan_recent_found_games = false;
                 Command::none()
             }
             Message::EditedRedirect(action, field) => {
@@ -1828,11 +1844,13 @@ impl Application for App {
             Message::EditedExcludeOtherOsData(enabled) => {
                 self.config.backup.filter.exclude_other_os_data = enabled;
                 self.config.save();
+                self.backup_screen.only_scan_recent_found_games = false;
                 Command::none()
             }
             Message::EditedExcludeStoreScreenshots(enabled) => {
                 self.config.backup.filter.exclude_store_screenshots = enabled;
                 self.config.save();
+                self.backup_screen.only_scan_recent_found_games = false;
                 Command::none()
             }
             Message::SwitchScreen(screen) => {

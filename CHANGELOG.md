@@ -10,7 +10,16 @@
     to just `C:\Users\Foo`, which could cause irrelevant files to be backed up.
     Now, the extraneous `C:` will be converted to `C_` so that it simply won't
     match any files or directories.
+  * When some games were deselected, the disk space display only showed units
+    for the total space, not the used space, which could lead to it showing
+    "1.42 of 1.56 GiB", where 1.42 was actually MiB and not GiB.
+    Units are now shown for both sides.
 * Changed:
+  * In the GUI, Ludusavi now tries to be smarter about when a full scan is
+    needed. Previously, every backup and backup preview would trigger a full
+    scan. Now, Ludusavi will remember which games it found and only re-scan
+    those games (until you change your roots, change the "other" settings,
+    or reopen the program).
   * In the CLI, `--try-update` will use a default, empty manifest if there is
     no local copy of the manifest and it cannot be downloaded.
 

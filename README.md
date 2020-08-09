@@ -95,6 +95,12 @@ If you are on Mac:
 * This is the default mode when you open the program.
 * You can press `preview` to see what the backup will include,
   without actually performing it.
+  <!--
+  After you've done one preview or backup, Ludusavi will remember which games
+  it found and only re-scan those games the next time. If you change your root
+  configuration, change the "other" settings, or reopen the program, then
+  it will do another full scan.
+  -->
 * You can press `back up` to perform the backup for real.
   * If the target folder already exists, it will be deleted first and
     recreated, unless you've enabled the merge option.

@@ -147,7 +147,7 @@ impl Translator {
                     "\nOverall:\n  Games: {} of {}\n  Size: {} of {}\n  Location: {}",
                     status.processed_games,
                     status.total_games,
-                    self.adjusted_size_unlabelled(status.processed_bytes),
+                    self.adjusted_size(status.processed_bytes),
                     self.adjusted_size(status.total_bytes),
                     location.render()
                 ),
@@ -347,12 +347,6 @@ impl Translator {
         adjusted_byte.to_string()
     }
 
-    pub fn adjusted_size_unlabelled(&self, bytes: u64) -> String {
-        let byte = Byte::from_bytes(bytes.into());
-        let adjusted_byte = byte.get_appropriate_unit(true);
-        format!("{:.2}", adjusted_byte.get_value())
-    }
-
     pub fn processed_games(&self, status: &OperationStatus) -> String {
         if status.completed() {
             match self.language {
@@ -368,7 +362,7 @@ impl Translator {
                     "{} of {} games | {} of {}",
                     status.processed_games,
                     status.total_games,
-                    self.adjusted_size_unlabelled(status.processed_bytes),
+                    self.adjusted_size(status.processed_bytes),
                     self.adjusted_size(status.total_bytes)
                 ),
             }

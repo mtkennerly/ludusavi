@@ -920,7 +920,7 @@ foo [100.00 KiB]:
 
 Overall:
   Games: 1 of 1
-  Size: 100.00 of 150.00 KiB
+  Size: 100.00 KiB of 150.00 KiB
   Location: <drive>/dev/null
                 "#
                 .trim()
