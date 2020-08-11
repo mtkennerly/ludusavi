@@ -47,7 +47,19 @@ fn parse_dots(path: &str, basis: &str) -> String {
                 ret.pop();
             }
             std::path::Component::Normal(c) => {
-                ret.push(c);
+                let lossy = c.to_string_lossy();
+                if lossy.contains(':') {
+                    // This can happen if the manifest contains invalid paths,
+                    // such as `<winDocuments>/<home>`. In this example, `<home>`
+                    // means we could try to push `C:` in the middle of the path,
+                    // which would truncate the rest of the path up to that point,
+                    // causing us to check the entire home folder.
+                    // We escape it so that it (likely) just won't be found,
+                    // rather than finding something irrelevant.
+                    ret.push(lossy.replace(":", "_"));
+                } else {
+                    ret.push(c);
+                }
             }
         }
     }
@@ -212,6 +224,35 @@ impl StrictPath {
                 self.raw.to_string()
             },
         )
+    }
+
+    pub fn unset_readonly(&self) -> Result<(), ()> {
+        let interpreted = self.interpret();
+        if self.is_file() {
+            let mut perms = std::fs::metadata(&interpreted).map_err(|_| ())?.permissions();
+            if perms.readonly() {
+                perms.set_readonly(false);
+                std::fs::set_permissions(&interpreted, perms).map_err(|_| ())?;
+            }
+        } else {
+            for entry in walkdir::WalkDir::new(interpreted)
+                .max_depth(100)
+                .follow_links(false)
+                .into_iter()
+                .skip(1) // the base path itself
+                .filter_map(|e| e.ok())
+                .filter(|x| x.file_type().is_file())
+            {
+                let file = &mut entry.path().display().to_string();
+                let mut perms = std::fs::metadata(&file).map_err(|_| ())?.permissions();
+                if perms.readonly() {
+                    perms.set_readonly(false);
+                    std::fs::set_permissions(&file, perms).map_err(|_| ())?;
+                }
+            }
+        }
+
+        Ok(())
     }
 }
 
@@ -421,6 +462,34 @@ mod tests {
             } else {
                 assert_eq!(format!("{}/~a", repo()), sp.interpret());
             }
+        }
+
+        #[test]
+        #[cfg(target_os = "windows")]
+        fn does_not_truncate_path_up_to_drive_letter_in_classic_path() {
+            // https://github.com/mtkennerly/ludusavi/issues/36
+            // Test for: <winDocuments>/<home>
+
+            let sp = StrictPath {
+                raw: "C:\\Users\\Foo\\Documents/C:\\Users\\Bar".to_string(),
+                basis: Some("\\\\?\\C:\\Users\\Foo\\.config\\ludusavi".to_string()),
+            };
+            assert_eq!(r#"\\?\C:\Users\Foo\Documents\C_\Users\Bar"#, sp.interpret(),);
+            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", sp.render(),);
+        }
+
+        #[test]
+        #[cfg(target_os = "windows")]
+        fn does_not_truncate_path_up_to_drive_letter_in_unc_path() {
+            // https://github.com/mtkennerly/ludusavi/issues/36
+            // Test for: <winDocuments>/<home>
+
+            let sp = StrictPath {
+                raw: "\\\\?\\C:\\Users\\Foo\\Documents\\C:\\Users\\Bar".to_string(),
+                basis: Some("\\\\?\\C:\\Users\\Foo\\.config\\ludusavi".to_string()),
+            };
+            assert_eq!(r#"\\?\C:\Users\Foo\Documents\C_\Users\Bar"#, sp.interpret(),);
+            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", sp.render(),);
         }
 
         #[test]

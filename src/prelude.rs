@@ -3,6 +3,7 @@ use crate::{
     layout::{BackupLayout, IndividualMapping},
     manifest::{Game, GameFileConstraint, Os, Store},
 };
+use std::io::Read;
 
 pub use crate::path::StrictPath;
 
@@ -146,6 +147,15 @@ fn reslashed(path: &str) -> String {
 }
 
 pub fn app_dir() -> std::path::PathBuf {
+    if let Ok(mut flag) = std::env::current_exe() {
+        flag.pop();
+        flag.push("ludusavi.portable");
+        if flag.exists() {
+            flag.pop();
+            return flag;
+        }
+    }
+
     let mut path = dirs::home_dir().unwrap();
     path.push(".config");
     path.push("ludusavi");
@@ -510,37 +520,64 @@ pub fn prepare_backup_target(target: &StrictPath, merge: bool) -> Result<(), Err
     Ok(())
 }
 
-pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout) -> BackupInfo {
+fn are_files_identical(file1: &StrictPath, file2: &StrictPath) -> Result<bool, Box<dyn std::error::Error>> {
+    let f1 = std::fs::File::open(file1.interpret())?;
+    let mut f1r = std::io::BufReader::new(f1);
+    let f2 = std::fs::File::open(file2.interpret())?;
+    let mut f2r = std::io::BufReader::new(f2);
+
+    let mut f1b = [0; 1024];
+    let mut f2b = [0; 1024];
+    loop {
+        let f1n = f1r.read(&mut f1b[..])?;
+        let f2n = f2r.read(&mut f2b[..])?;
+
+        if f1n != f2n || f1b.iter().zip(f2b.iter()).any(|(a, b)| a != b) {
+            return Ok(false);
+        }
+        if f1n == 0 || f2n == 0 {
+            break;
+        }
+    }
+    Ok(true)
+}
+
+pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: bool) -> BackupInfo {
     let mut failed_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut failed_registry = std::collections::HashSet::new();
 
     let target_game = layout.game_folder(&name);
-    // Since we delete the game folder first, we don't need to worry about
-    // loading its existing mapping:
-    let mut mapping = IndividualMapping::new(name.to_string());
 
-    let mut unable_to_prepare = false;
-    if info.found_anything() {
-        match target_game.remove() {
-            Ok(_) => {
-                if std::fs::create_dir(target_game.interpret()).is_err() {
-                    unable_to_prepare = true;
-                }
-            }
-            Err(_) => {
-                unable_to_prepare = true;
-            }
-        }
-    }
+    let able_to_prepare = info.found_anything()
+        && (merge || (target_game.unset_readonly().is_ok() && target_game.remove().is_ok()))
+        && std::fs::create_dir_all(target_game.interpret()).is_ok();
 
+    let mut mapping = match IndividualMapping::load(&layout.game_mapping_file(&target_game)) {
+        Ok(x) => x,
+        Err(_) => IndividualMapping::new(name.to_string()),
+    };
+
+    let mut relevant_backup_files = Vec::<StrictPath>::new();
     for file in &info.found_files {
-        if unable_to_prepare {
+        if !able_to_prepare {
             failed_files.insert(file.clone());
             continue;
         }
 
         let target_file = layout.game_file(&target_game, &file.path, &mut mapping);
+        relevant_backup_files.push(target_file.clone());
+
+        if target_file.exists() {
+            match are_files_identical(&file.path, &target_file) {
+                Ok(true) => continue,
+                Ok(false) => (),
+                Err(_) => {
+                    failed_files.insert(file.clone());
+                    continue;
+                }
+            }
+        }
         if target_file.create_parent_dir().is_err() {
             failed_files.insert(file.clone());
             continue;
@@ -551,15 +588,21 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout) -> Backu
         }
     }
 
+    if able_to_prepare && merge {
+        layout.remove_irrelevant_backup_files(&target_game, &relevant_backup_files);
+    }
+
     #[cfg(target_os = "windows")]
     {
+        let mut hives = crate::registry::Hives::default();
+        let mut found_some_registry = false;
+
         for reg_path in &info.found_registry_keys {
-            if unable_to_prepare {
+            if !able_to_prepare {
                 failed_registry.insert(reg_path.to_string());
                 continue;
             }
 
-            let mut hives = crate::registry::Hives::default();
             match hives.store_key_from_full_path(&reg_path) {
                 Err(_) => {
                     failed_registry.insert(reg_path.to_string());
@@ -568,13 +611,20 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout) -> Backu
                     failed_registry.insert(reg_path.to_string());
                 }
                 _ => {
-                    hives.save(&layout.game_registry_file(&target_game));
+                    found_some_registry = true;
                 }
             }
         }
+
+        let target_registry_file = layout.game_registry_file(&target_game);
+        if found_some_registry {
+            hives.save(&target_registry_file);
+        } else {
+            let _ = target_registry_file.remove();
+        }
     }
 
-    if info.found_anything() && !unable_to_prepare {
+    if info.found_anything() && able_to_prepare {
         mapping.save(&layout.game_mapping_file(&target_game));
     }
 
@@ -595,12 +645,23 @@ pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo
         };
         let (target, _) = game_file_restoration_target(&original_path, &redirects);
 
+        if target.exists() {
+            match are_files_identical(&file.path, &target) {
+                Ok(true) => continue,
+                Ok(false) => (),
+                Err(_) => {
+                    failed_files.insert(file.clone());
+                    continue;
+                }
+            }
+        }
+
         if target.create_parent_dir().is_err() {
             failed_files.insert(file.clone());
             continue;
         }
         for i in 0..99 {
-            if std::fs::copy(&file.path.interpret(), &target.interpret()).is_ok() {
+            if target.unset_readonly().is_ok() && std::fs::copy(&file.path.interpret(), &target.interpret()).is_ok() {
                 continue 'outer;
             }
             // File might be busy, especially if multiple games share a file,
@@ -950,5 +1011,24 @@ mod tests {
                 ),
             );
         }
+    }
+
+    #[test]
+    fn checks_if_files_are_identical() {
+        assert!(are_files_identical(
+            &StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo())),
+            &StrictPath::new(format!("{}/tests/root2/game2/file1.txt", repo())),
+        )
+        .unwrap());
+        assert!(!are_files_identical(
+            &StrictPath::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo())),
+            &StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo())),
+        )
+        .unwrap());
+        assert!(are_files_identical(
+            &StrictPath::new(format!("{}/tests/root1/game1/file1.txt", repo())),
+            &StrictPath::new(format!("{}/nonexistent.txt", repo())),
+        )
+        .is_err());
     }
 }

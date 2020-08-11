@@ -45,6 +45,15 @@ impl Hives {
     }
 
     pub fn save(&self, file: &StrictPath) {
+        let new_content = serde_yaml::to_string(&self).unwrap();
+
+        if let Some(old) = Self::load(&file) {
+            let old_content = serde_yaml::to_string(&old).unwrap();
+            if old_content == new_content {
+                return;
+            }
+        }
+
         if file.create_parent_dir().is_ok() {
             std::fs::write(file.interpret(), self.serialize().as_bytes()).unwrap();
         }

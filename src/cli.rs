@@ -376,7 +376,13 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let manifest = if try_update {
                 match Manifest::load(&mut config, true) {
                     Ok(x) => x,
-                    Err(_) => Manifest::load(&mut config, false)?,
+                    Err(e) => {
+                        eprintln!("{}", translator.handle_error(&e));
+                        match Manifest::load(&mut config, false) {
+                            Ok(y) => y,
+                            Err(_) => Manifest::default(),
+                        }
+                    }
                 }
             } else {
                 Manifest::load(&mut config, update)?
@@ -482,7 +488,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let backup_info = if preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
-                        back_up_game(&scan_info, &name, &layout)
+                        back_up_game(&scan_info, &name, &layout, config.backup.merge)
                     };
                     (name, scan_info, backup_info, decision)
                 })
@@ -914,7 +920,7 @@ foo [100.00 KiB]:
 
 Overall:
   Games: 1 of 1
-  Size: 100.00 of 150.00 KiB
+  Size: 100.00 KiB of 150.00 KiB
   Location: <drive>/dev/null
                 "#
                 .trim()

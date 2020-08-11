@@ -1,3 +1,34 @@
+## v0.8.0 (2020-08-10)
+
+* Added:
+  * If you create a file called `ludusavi.portable` in the same location as
+    the executable, then Ludusavi will store its config file and the manifest
+    there as well.
+* Fixed:
+  * Read-only files could only be backed up once, since the original backup
+    could not be replaced by a newer copy, and you could not restore a backup
+    if the original file was read-only. Now, Ludusavi will try to unset the
+    read-only flag on backups before replacing them with newer backups, and
+    it will try to unset the flag on target files before restoring a backup.
+  * Invalid paths like `C:\Users\Foo\Documents\C:\Users\Foo` would be shortened
+    to just `C:\Users\Foo`, which could cause irrelevant files to be backed up.
+    Now, the extraneous `C:` will be converted to `C_` so that it simply won't
+    match any files or directories.
+  * When some games were deselected, the disk space display only showed units
+    for the total space, not the used space, which could lead to it showing
+    "1.42 of 1.56 GiB", where 1.42 was actually MiB and not GiB.
+    Units are now shown for both sides.
+* Changed:
+  * When backing up or restoring a file, if it already exists with the correct
+    content, then Ludusavi won't re-copy it.
+  * In GUI mode, Ludusavi now tries to be smarter about when a full scan is
+    needed. Previously, every backup and backup preview would trigger a full
+    scan. Now, Ludusavi will remember which games it found and only re-scan
+    those games (until you change your roots, change the "other" settings,
+    or reopen the program).
+  * In CLI mode, `--try-update` will use a default, empty manifest if there is
+    no local copy of the manifest and it cannot be downloaded.
+
 ## v0.7.0 (2020-08-01)
 
 **The backup structure has changed! Read below for more detail.**

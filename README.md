@@ -89,9 +89,17 @@ If you are on Mac:
 ## Usage
 ### GUI
 #### Backup mode
+<details>
+<summary>Click to expand</summary>
+
 * This is the default mode when you open the program.
 * You can press `preview` to see what the backup will include,
   without actually performing it.
+
+  After you've done one preview or backup, Ludusavi will remember which games
+  it found and only re-scan those games the next time. If you change your root
+  configuration, change the "other" settings, or reopen the program, then
+  it will do another full scan.
 * You can press `back up` to perform the backup for real.
   * If the target folder already exists, it will be deleted first and
     recreated, unless you've enabled the merge option.
@@ -126,7 +134,12 @@ If you are on Mac:
   one game is deselected) to quickly toggle all of them at once.
   Ludusavi will remember your most recent checkbox settings.
 
+</details>
+
 #### Restore mode
+<details>
+<summary>Click to expand</summary>
+
 * Switch to restore mode by clicking the `restore mode` button.
 * You can press `preview` to see what the restore will include,
   without actually performing it.
@@ -152,7 +165,12 @@ If you are on Mac:
 * You can select/deselect specific games in restore mode just like you can in
   backup mode. The checkbox settings are remembered separately for both modes.
 
+</details>
+
 #### Custom games
+<details>
+<summary>Click to expand</summary>
+
 * Switch to this mode by clicking the `custom games` button.
 * You can click `add game` to add entries for as many games as you like.
   Within each game's entry, you can click the plus icons to add paths
@@ -171,12 +189,18 @@ If you are on Mac:
   If the game name matches one from Ludusavi's primary data set, then your
   custom entry will override it.
 
+</details>
+
 #### Other settings
 * Switch to this screen by clicking the `other` button.
 * This screen contains some additional settings that are less commonly used.
 
 ### CLI
 Run `ludusavi --help` for the full usage information.
+
+#### API output
+<details>
+<summary>Click to expand</summary>
 
 CLI mode defaults to a human-readable format, but you can switch to a
 machine-readable JSON format with the `--api` flag. In that case, the output
@@ -254,12 +278,23 @@ Example:
 }
 ```
 
+</details>
+
 ### Configuration
 Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<your-name>/.config/ludusavi`).
-If you're using the GUI, you don't need to worry about this at all,
-since the GUI will automatically update the config file as needed.
-However, if you're using the CLI exclusively, you'll need to edit `config.yaml`.
+Alternatively, if you'd like Ludusavi to store its configuration in the same
+place as the executable, then simply create a file called `ludusavi.portable`
+in the directory that contains the executable file. You might want to do that
+if you're going to run Ludusavi from a flash drive on multiple computers.
+
+if you're using the GUI, then it will automatically update the config file
+as needed, so you don't need to worry about its content. However, if you're
+using the CLI exclusively, then you'll need to edit `config.yaml` yourself.
+
 Here are the available settings (all are required unless otherwise noted):
+
+<details>
+<summary>Click to expand</summary>
 
 * `manifest` (map):
   * `url` (string): Where to download the primary manifest.
@@ -314,6 +349,8 @@ backup:
 restore:
   path: ~/ludusavi-backup
 ```
+
+</details>
 
 Ludusavi also stores `manifest.yaml` (info on what to back up) here.
 You should not modify that file, because Ludusavi will overwrite your changes
