@@ -1,5 +1,9 @@
 ## Unreleased
 
+* Added:
+  * If you create a file called `ludusavi.portable` in the same location as
+    the executable, then Ludusavi will store its config file and the manifest
+    there as well.
 * Fixed:
   * Read-only files could only be backed up once, since the original backup
     could not be replaced by a newer copy, and you could not restore a backup

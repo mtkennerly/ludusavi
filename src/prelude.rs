@@ -147,6 +147,15 @@ fn reslashed(path: &str) -> String {
 }
 
 pub fn app_dir() -> std::path::PathBuf {
+    if let Ok(mut flag) = std::env::current_exe() {
+        flag.pop();
+        flag.push("ludusavi.portable");
+        if flag.exists() {
+            flag.pop();
+            return flag;
+        }
+    }
+
     let mut path = dirs::home_dir().unwrap();
     path.push(".config");
     path.push("ludusavi");

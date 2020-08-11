@@ -283,9 +283,15 @@ Example:
 
 ### Configuration
 Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<your-name>/.config/ludusavi`).
-If you're using the GUI, you don't need to worry about this at all,
-since the GUI will automatically update the config file as needed.
-However, if you're using the CLI exclusively, you'll need to edit `config.yaml`.
+<!--
+Alternatively, if you'd like Ludusavi to store its configuration in the same
+place as the executable, then simply create a file called `ludusavi.portable`
+in the directory that contains the executable file.
+-->
+
+if you're using the GUI, then it will automatically update the config file
+as needed, so you don't need to worry about it. However, if you're using the
+CLI exclusively, then you'll need to edit `config.yaml`.
 
 Here are the available settings (all are required unless otherwise noted):
 
