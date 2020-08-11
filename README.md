@@ -95,12 +95,11 @@ If you are on Mac:
 * This is the default mode when you open the program.
 * You can press `preview` to see what the backup will include,
   without actually performing it.
-  <!--
+
   After you've done one preview or backup, Ludusavi will remember which games
   it found and only re-scan those games the next time. If you change your root
   configuration, change the "other" settings, or reopen the program, then
   it will do another full scan.
-  -->
 * You can press `back up` to perform the backup for real.
   * If the target folder already exists, it will be deleted first and
     recreated, unless you've enabled the merge option.
@@ -283,16 +282,14 @@ Example:
 
 ### Configuration
 Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<your-name>/.config/ludusavi`).
-<!--
 Alternatively, if you'd like Ludusavi to store its configuration in the same
 place as the executable, then simply create a file called `ludusavi.portable`
 in the directory that contains the executable file. You might want to do that
 if you're going to run Ludusavi from a flash drive on multiple computers.
--->
 
 if you're using the GUI, then it will automatically update the config file
-as needed, so you don't need to worry about it. However, if you're using the
-CLI exclusively, then you'll need to edit `config.yaml`.
+as needed, so you don't need to worry about its content. However, if you're
+using the CLI exclusively, then you'll need to edit `config.yaml` yourself.
 
 Here are the available settings (all are required unless otherwise noted):
 

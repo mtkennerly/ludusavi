@@ -1,4 +1,4 @@
-## Unreleased
+## v0.8.0 (2020-08-10)
 
 * Added:
   * If you create a file called `ludusavi.portable` in the same location as
