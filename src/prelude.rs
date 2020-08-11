@@ -1012,4 +1012,23 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn checks_if_files_are_identical() {
+        assert!(are_files_identical(
+            &StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo())),
+            &StrictPath::new(format!("{}/tests/root2/game2/file1.txt", repo())),
+        )
+        .unwrap());
+        assert!(!are_files_identical(
+            &StrictPath::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo())),
+            &StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo())),
+        )
+        .unwrap());
+        assert!(are_files_identical(
+            &StrictPath::new(format!("{}/tests/root1/game1/file1.txt", repo())),
+            &StrictPath::new(format!("{}/nonexistent.txt", repo())),
+        )
+        .is_err());
+    }
 }

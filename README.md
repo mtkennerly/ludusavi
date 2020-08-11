@@ -286,7 +286,8 @@ Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<y
 <!--
 Alternatively, if you'd like Ludusavi to store its configuration in the same
 place as the executable, then simply create a file called `ludusavi.portable`
-in the directory that contains the executable file.
+in the directory that contains the executable file. You might want to do that
+if you're going to run Ludusavi from a flash drive on multiple computers.
 -->
 
 if you're using the GUI, then it will automatically update the config file

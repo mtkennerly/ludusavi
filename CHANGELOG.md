@@ -19,14 +19,14 @@
     "1.42 of 1.56 GiB", where 1.42 was actually MiB and not GiB.
     Units are now shown for both sides.
 * Changed:
-  * In the GUI, Ludusavi now tries to be smarter about when a full scan is
+  * When backing up or restoring a file, if it already exists with the correct
+    content, then Ludusavi won't re-copy it.
+  * In GUI mode, Ludusavi now tries to be smarter about when a full scan is
     needed. Previously, every backup and backup preview would trigger a full
     scan. Now, Ludusavi will remember which games it found and only re-scan
     those games (until you change your roots, change the "other" settings,
     or reopen the program).
-  * When backing up or restoring a file, if it already exists with the correct
-    content, then Ludusavi won't re-copy it.
-  * In the CLI, `--try-update` will use a default, empty manifest if there is
+  * In CLI mode, `--try-update` will use a default, empty manifest if there is
     no local copy of the manifest and it cannot be downloaded.
 
 ## v0.7.0 (2020-08-01)

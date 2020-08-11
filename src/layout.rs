@@ -250,8 +250,9 @@ impl BackupLayout {
         files
     }
 
-    pub fn remove_irrelevant_backup_files(&self, game_folder: &StrictPath, relevant_files: &[StrictPath]) {
+    fn find_irrelevant_backup_files(&self, game_folder: &StrictPath, relevant_files: &[StrictPath]) -> Vec<StrictPath> {
         let relevant_files: Vec<_> = relevant_files.iter().map(|x| x.interpret()).collect();
+        let mut irrelevant_files = vec![];
 
         for drive_dir in walkdir::WalkDir::new(game_folder.interpret())
             .max_depth(1)
@@ -269,9 +270,17 @@ impl BackupLayout {
             {
                 let backup_file = StrictPath::new(file.path().display().to_string());
                 if !relevant_files.contains(&backup_file.interpret()) {
-                    let _ = backup_file.remove();
+                    irrelevant_files.push(backup_file);
                 }
             }
+        }
+
+        irrelevant_files
+    }
+
+    pub fn remove_irrelevant_backup_files(&self, game_folder: &StrictPath, relevant_files: &[StrictPath]) {
+        for file in self.find_irrelevant_backup_files(&game_folder, &relevant_files) {
+            let _ = file.remove();
         }
     }
 }
@@ -376,6 +385,34 @@ mod tests {
                     StrictPath::new(format!("{}/tests/backup/_._", repo()))
                 },
                 layout().game_folder("...")
+            );
+        }
+
+        #[test]
+        fn can_find_irrelevant_backup_files() {
+            assert_eq!(
+                vec![if cfg!(target_os = "windows") {
+                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\game1\\drive-X\\file2.txt", repo()))
+                } else {
+                    StrictPath::new(format!("{}/tests/backup/game1/drive-X/file2.txt", repo()))
+                }],
+                layout().find_irrelevant_backup_files(
+                    &StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                    &[StrictPath::new(format!(
+                        "{}/tests/backup/game1/drive-X/file1.txt",
+                        repo()
+                    ))]
+                )
+            );
+            assert_eq!(
+                Vec::<StrictPath>::new(),
+                layout().find_irrelevant_backup_files(
+                    &StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                    &[
+                        StrictPath::new(format!("{}/tests/backup/game1/drive-X/file1.txt", repo())),
+                        StrictPath::new(format!("{}/tests/backup/game1/drive-X/file2.txt", repo())),
+                    ]
+                )
             );
         }
     }
