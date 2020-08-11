@@ -74,7 +74,18 @@ impl IndividualMapping {
     }
 
     pub fn save(&self, file: &StrictPath) {
-        std::fs::write(file.interpret(), self.serialize().as_bytes()).unwrap();
+        let new_content = serde_yaml::to_string(&self).unwrap();
+
+        if let Ok(old) = Self::load(&file) {
+            let old_content = serde_yaml::to_string(&old).unwrap();
+            if old_content == new_content {
+                return;
+            }
+        }
+
+        if file.create_parent_dir().is_ok() {
+            std::fs::write(file.interpret(), self.serialize().as_bytes()).unwrap();
+        }
     }
 
     pub fn serialize(&self) -> String {
@@ -237,6 +248,31 @@ impl BackupLayout {
             }
         }
         files
+    }
+
+    pub fn remove_irrelevant_backup_files(&self, game_folder: &StrictPath, relevant_files: &[StrictPath]) {
+        let relevant_files: Vec<_> = relevant_files.iter().map(|x| x.interpret()).collect();
+
+        for drive_dir in walkdir::WalkDir::new(game_folder.interpret())
+            .max_depth(1)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|x| x.file_name().to_string_lossy().starts_with("drive-"))
+        {
+            for file in walkdir::WalkDir::new(drive_dir.path())
+                .max_depth(100)
+                .follow_links(false)
+                .into_iter()
+                .filter_map(|e| e.ok())
+                .filter(|x| x.file_type().is_file())
+            {
+                let backup_file = StrictPath::new(file.path().display().to_string());
+                if !relevant_files.contains(&backup_file.interpret()) {
+                    let _ = backup_file.remove();
+                }
+            }
+        }
     }
 }
 

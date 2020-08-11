@@ -20,6 +20,8 @@
     scan. Now, Ludusavi will remember which games it found and only re-scan
     those games (until you change your roots, change the "other" settings,
     or reopen the program).
+  * When backing up or restoring a file, if it already exists with the correct
+    content, then Ludusavi won't re-copy it.
   * In the CLI, `--try-update` will use a default, empty manifest if there is
     no local copy of the manifest and it cannot be downloaded.
 

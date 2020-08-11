@@ -1481,6 +1481,7 @@ impl Application for App {
                     let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
                     let cancel_flag = self.operation_should_cancel.clone();
                     let ignored = !self.config.is_game_enabled_for_backup(&key);
+                    let merge = self.config.backup.merge;
                     commands.push(Command::perform(
                         async move {
                             if key.trim().is_empty() {
@@ -1505,7 +1506,7 @@ impl Application for App {
                             }
 
                             let backup_info = if !preview {
-                                Some(back_up_game(&scan_info, &key, &layout2))
+                                Some(back_up_game(&scan_info, &key, &layout2, merge))
                             } else {
                                 None
                             };

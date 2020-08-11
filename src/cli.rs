@@ -488,7 +488,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let backup_info = if preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
-                        back_up_game(&scan_info, &name, &layout)
+                        back_up_game(&scan_info, &name, &layout, config.backup.merge)
                     };
                     (name, scan_info, backup_info, decision)
                 })
