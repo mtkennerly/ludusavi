@@ -11,6 +11,7 @@ It is cross-platform and supports multiple game stores.
 * Backup and restore for Steam as well as other game libraries.
 * Preview of the backup/restore before actually performing it.
 * Both a graphical interface and command line interface for scripting.
+  <!-- Tab completion is available for Bash, Fish, Zsh, PowerShell, and Elvish. -->
 * Support for:
   * Saves that are stored as files and in the Windows registry.
   * Proton saves with Steam.

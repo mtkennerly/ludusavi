@@ -23,6 +23,20 @@ fn parse_existing_strict_path(path: &str) -> Result<StrictPath, std::io::Error> 
 }
 
 #[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
+pub enum CompletionShell {
+    #[structopt(about = "Completions for Bash")]
+    Bash,
+    #[structopt(about = "Completions for Fish")]
+    Fish,
+    #[structopt(about = "Completions for Zsh")]
+    Zsh,
+    #[structopt(name = "powershell", about = "Completions for PowerShell")]
+    PowerShell,
+    #[structopt(about = "Completions for Elvish")]
+    Elvish,
+}
+
+#[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
 pub enum Subcommand {
     #[structopt(about = "Back up data")]
     Backup {
@@ -106,6 +120,11 @@ pub enum Subcommand {
         /// Only restore these specific games.
         #[structopt()]
         games: Vec<String>,
+    },
+    #[structopt(about = "Generate shell completion scripts")]
+    Complete {
+        #[structopt(flatten)]
+        shell: CompletionShell,
     },
 }
 
@@ -614,6 +633,16 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
             reporter.print(&restore_dir);
         }
+        Subcommand::Complete { shell } => {
+            let clap_shell = match shell {
+                CompletionShell::Bash => structopt::clap::Shell::Bash,
+                CompletionShell::Fish => structopt::clap::Shell::Fish,
+                CompletionShell::Zsh => structopt::clap::Shell::Zsh,
+                CompletionShell::PowerShell => structopt::clap::Shell::PowerShell,
+                CompletionShell::Elvish => structopt::clap::Shell::Elvish,
+            };
+            Cli::clap().gen_completions_to(env!("CARGO_PKG_NAME"), clap_shell, &mut std::io::stdout());
+        }
     }
 
     if failed {
@@ -825,6 +854,66 @@ mod tests {
             check_args_err(
                 &["ludusavi", "restore", "--path", "tests/fake"],
                 structopt::clap::ErrorKind::ValueValidation,
+            );
+        }
+
+        #[test]
+        fn accepts_cli_complete_for_bash() {
+            check_args(
+                &["ludusavi", "complete", "bash"],
+                Cli {
+                    sub: Some(Subcommand::Complete {
+                        shell: CompletionShell::Bash,
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_complete_for_fish() {
+            check_args(
+                &["ludusavi", "complete", "fish"],
+                Cli {
+                    sub: Some(Subcommand::Complete {
+                        shell: CompletionShell::Fish,
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_complete_for_zsh() {
+            check_args(
+                &["ludusavi", "complete", "zsh"],
+                Cli {
+                    sub: Some(Subcommand::Complete {
+                        shell: CompletionShell::Zsh,
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_complete_for_powershell() {
+            check_args(
+                &["ludusavi", "complete", "powershell"],
+                Cli {
+                    sub: Some(Subcommand::Complete {
+                        shell: CompletionShell::PowerShell,
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_complete_for_elvish() {
+            check_args(
+                &["ludusavi", "complete", "elvish"],
+                Cli {
+                    sub: Some(Subcommand::Complete {
+                        shell: CompletionShell::Elvish,
+                    }),
+                },
             );
         }
     }

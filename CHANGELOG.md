@@ -1,3 +1,8 @@
+## Unreleased
+
+* Added:
+  * A `complete` command in the CLI for generating shell completion scripts.
+
 ## v0.8.0 (2020-08-10)
 
 * Added:
