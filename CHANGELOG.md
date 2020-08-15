@@ -10,6 +10,11 @@
   * When using a custom entry to override a known game, some of the original's
     non-overridable data would not be inherited by the custom entry (namely its
     Steam ID and installation directory name).
+  * GUI: If the initial full scan found saves for a game, and then you created
+    a custom entry for that game such that no saves would be found, did a scan,
+    deleted the custom entry, and did another scan, then that scan would not
+    find any files for the game. Now, it will correctly revert to the standard
+    data for that game immediately.
 
 ## v0.8.0 (2020-08-10)
 

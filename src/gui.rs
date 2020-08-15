@@ -1526,7 +1526,6 @@ impl Application for App {
                             || self.config.custom_games.iter().any(|x| &x.name == k)
                     });
                 }
-                self.backup_screen.recent_found_games.clear();
 
                 self.backup_screen.status.clear();
                 self.backup_screen.log.entries.clear();
