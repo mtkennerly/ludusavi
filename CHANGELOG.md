@@ -1,9 +1,11 @@
 ## Unreleased
 
 * Added:
-  * A `complete` command in the CLI for generating shell completion scripts.
-  * Info in the GUI about how many games are selected, if the number is
-    different than how many games have been processed in the backup/restore.
+  * CLI: A `complete` command for generating shell completion scripts.
+  * GUI: Info about how many games are selected, if the number is different
+    than how many games have been processed in the backup/restore.
+  * GUI: An edit button next to each game in backup mode to quickly create
+    a custom entry for that game, pre-filled with the default info.
 
 ## v0.8.0 (2020-08-10)
 

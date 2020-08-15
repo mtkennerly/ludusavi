@@ -1,5 +1,5 @@
 use crate::{
-    config::{Config, RootsConfig},
+    config::{Config, CustomGame, RootsConfig},
     lang::Translator,
     layout::BackupLayout,
     manifest::{Game, Manifest, SteamMetadata, Store},
@@ -27,6 +27,7 @@ enum Icon {
     AddCircle,
     RemoveCircle,
     FolderOpen,
+    Edit,
 }
 
 impl Icon {
@@ -35,6 +36,7 @@ impl Icon {
             Self::AddCircle => '\u{E147}',
             Self::RemoveCircle => '\u{E15C}',
             Self::FolderOpen => '\u{E2C8}',
+            Self::Edit => '\u{E150}',
         };
         Text::new(&character.to_string())
             .font(ICONS)
@@ -161,6 +163,9 @@ enum Message {
     BrowseDirFailure,
     SelectAllGames,
     DeselectAllGames,
+    CustomizeGame {
+        name: String,
+    },
     SubscribedEvent(iced_native::Event),
 }
 
@@ -384,7 +389,8 @@ impl ModalComponent {
 struct GameListEntry {
     scan_info: ScanInfo,
     backup_info: Option<BackupInfo>,
-    button: button::State,
+    expand_button: button::State,
+    customize_button: button::State,
     expanded: bool,
 }
 
@@ -426,7 +432,9 @@ impl GameListEntry {
         } else {
             config.is_game_enabled_for_backup(&self.scan_info.game_name)
         };
+        let customized = config.is_game_customized(&self.scan_info.game_name);
         let name_for_checkbox = self.scan_info.game_name.clone();
+
         Container::new(
             Column::new()
                 .padding(5)
@@ -443,7 +451,7 @@ impl GameListEntry {
                         }))
                         .push(
                             Button::new(
-                                &mut self.button,
+                                &mut self.expand_button,
                                 Text::new(if successful {
                                     self.scan_info.game_name.clone()
                                 } else {
@@ -464,6 +472,33 @@ impl GameListEntry {
                             .width(Length::Fill)
                             .padding(2),
                         )
+                        .push(Space::new(
+                            Length::Units(if restoring { 0 } else { 15 }),
+                            Length::Shrink,
+                        ))
+                        .push(if restoring {
+                            Container::new(Space::new(Length::Shrink, Length::Shrink))
+                        } else {
+                            Container::new(
+                                Button::new(
+                                    &mut self.customize_button,
+                                    Icon::Edit.as_text().horizontal_alignment(HorizontalAlignment::Center),
+                                )
+                                .on_press(if customized {
+                                    Message::Ignore
+                                } else {
+                                    Message::CustomizeGame {
+                                        name: self.scan_info.game_name.clone(),
+                                    }
+                                })
+                                .style(if customized {
+                                    style::Button::Disabled
+                                } else {
+                                    style::Button::Primary
+                                })
+                                .padding(2),
+                            )
+                        })
                         .push(
                             Container::new(Text::new(
                                 translator.adjusted_size(self.scan_info.sum_bytes(&self.backup_info)),
@@ -1987,6 +2022,36 @@ impl Application for App {
                     _ => {}
                 }
                 self.config.save();
+                Command::none()
+            }
+            Message::CustomizeGame { name } => {
+                let game = if let Some(standard) = self.manifest.0.get(&name) {
+                    CustomGame {
+                        name: name.clone(),
+                        files: standard.files.clone().unwrap_or_default().keys().cloned().collect(),
+                        registry: standard.registry.clone().unwrap_or_default().keys().cloned().collect(),
+                    }
+                } else {
+                    CustomGame {
+                        name: name.clone(),
+                        files: vec![],
+                        registry: vec![],
+                    }
+                };
+
+                let mut gui_entry = CustomGamesEditorEntry::new(&name);
+                for item in game.files.iter() {
+                    gui_entry.files.push(CustomGamesEditorEntryRow::new(&item));
+                }
+                for item in game.registry.iter() {
+                    gui_entry.registry.push(CustomGamesEditorEntryRow::new(&item));
+                }
+                self.custom_games_screen.games_editor.entries.push(gui_entry);
+
+                self.config.custom_games.push(game);
+                self.config.save();
+
+                self.screen = Screen::CustomGames;
                 Command::none()
             }
             Message::SubscribedEvent(event) => {

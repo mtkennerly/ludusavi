@@ -134,6 +134,11 @@ If you are on Mac:
   (when all games are selected) or the `select all` button (when at least
   one game is deselected) to quickly toggle all of them at once.
   Ludusavi will remember your most recent checkbox settings.
+<!--
+* Next to each game's name is an edit icon. Clicking this will create a custom
+  game entry with the same name, allowing you to override that game's data.
+  See the [custom games](#custom-games) section for more information.
+-->
 
 </details>
 
@@ -188,7 +193,9 @@ If you are on Mac:
   as are empty paths and empty registry keys.
 
   If the game name matches one from Ludusavi's primary data set, then your
-  custom entry will override it.
+  custom entry will override it. This can be used to totally ignore a game
+  (just don't specify any paths or registry) or to customize what is included
+  in the backup.
 
 </details>
 
