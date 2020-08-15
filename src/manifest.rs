@@ -51,7 +51,7 @@ impl Default for Tag {
     }
 }
 
-#[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Manifest(pub std::collections::HashMap<String, Game>);
 
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -173,6 +173,16 @@ impl Manifest {
                 },
             })
             .collect()
+    }
+
+    pub fn add_custom_game(&mut self, custom: CustomGame) {
+        let name = custom.name.clone();
+        let mut game: Game = custom.into();
+        if let Some(existing) = self.0.get(&name) {
+            game.steam = existing.steam.clone();
+            game.install_dir = existing.install_dir.clone();
+        }
+        self.0.insert(name, game);
     }
 }
 

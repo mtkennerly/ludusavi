@@ -6,6 +6,10 @@
     than how many games have been processed in the backup/restore.
   * GUI: An edit button next to each game in backup mode to quickly create
     a custom entry for that game, pre-filled with the default info.
+* Fixed:
+  * When using a custom entry to override a known game, some of the original's
+    non-overridable data would not be inherited by the custom entry (namely its
+    Steam ID and installation directory name).
 
 ## v0.8.0 (2020-08-10)
 

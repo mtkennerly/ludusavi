@@ -2,7 +2,7 @@ use crate::{
     config::{Config, CustomGame, RootsConfig},
     lang::Translator,
     layout::BackupLayout,
-    manifest::{Game, Manifest, SteamMetadata, Store},
+    manifest::{Manifest, SteamMetadata, Store},
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
         scan_game_for_restoration, BackupInfo, Error, OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
@@ -1515,13 +1515,13 @@ impl Application for App {
                     }
                 }
 
-                let mut all_games = self.manifest.0.clone();
+                let mut all_games = self.manifest.clone();
                 for custom_game in &self.config.custom_games {
-                    all_games.insert(custom_game.name.clone(), Game::from(custom_game.to_owned()));
+                    all_games.add_custom_game(custom_game.clone());
                 }
 
                 if self.backup_screen.only_scan_recent_found_games {
-                    all_games.retain(|k, _| {
+                    all_games.0.retain(|k, _| {
                         self.backup_screen.recent_found_games.contains(k)
                             || self.config.custom_games.iter().any(|x| &x.name == k)
                     });
@@ -1532,7 +1532,7 @@ impl Application for App {
                 self.backup_screen.log.entries.clear();
                 self.modal_theme = None;
                 self.progress.current = 0.0;
-                self.progress.max = all_games.len() as f32;
+                self.progress.max = all_games.0.len() as f32;
 
                 self.operation = Some(if preview {
                     OngoingOperation::PreviewBackup
@@ -1544,8 +1544,8 @@ impl Application for App {
                 let filter = std::sync::Arc::new(self.config.backup.filter.clone());
 
                 let mut commands: Vec<Command<Message>> = vec![];
-                for key in all_games.iter().map(|(k, _)| k.clone()) {
-                    let game = all_games[&key].clone();
+                for key in all_games.0.iter().map(|(k, _)| k.clone()) {
+                    let game = all_games.0[&key].clone();
                     let roots = self.config.roots.clone();
                     let layout2 = layout.clone();
                     let filter2 = filter.clone();

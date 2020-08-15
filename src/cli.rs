@@ -2,7 +2,7 @@ use crate::{
     config::{Config, RedirectConfig},
     lang::Translator,
     layout::BackupLayout,
-    manifest::{Game, Manifest, SteamMetadata},
+    manifest::{Manifest, SteamMetadata},
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
         scan_game_for_restoration, BackupInfo, Error, OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
@@ -431,9 +431,9 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             let steam_ids_to_names = &manifest.map_steam_ids_to_names();
-            let mut all_games = manifest.0;
+            let mut all_games = manifest;
             for custom_game in &config.custom_games {
-                all_games.insert(custom_game.name.clone(), Game::from(custom_game.to_owned()));
+                all_games.add_custom_game(custom_game.clone());
             }
 
             let games_specified = !games.is_empty();
@@ -451,7 +451,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                             }
                             Err(_) => Some(game.to_owned()),
                         }
-                    } else if !all_games.contains_key(game) {
+                    } else if !all_games.0.contains_key(game) {
                         Some(game.to_owned())
                     } else {
                         None
@@ -476,7 +476,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     games
                 }
             } else {
-                all_games.keys().cloned().collect()
+                all_games.0.keys().cloned().collect()
             };
             subjects.sort();
 
@@ -487,7 +487,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .par_iter()
                 .progress_count(subjects.len() as u64)
                 .map(|name| {
-                    let game = &all_games[name];
+                    let game = &all_games.0[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
                     let scan_info = scan_game_for_backup(
