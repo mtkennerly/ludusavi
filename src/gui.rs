@@ -268,6 +268,30 @@ fn apply_shortcut_to_string_field(
     }
 }
 
+fn make_status_row<'a>(
+    translator: &Translator,
+    status: &OperationStatus,
+    (selected_games, selected_bytes): (usize, u64),
+) -> Row<'a, Message> {
+    let show_selection = selected_games != status.processed_games || selected_bytes != status.processed_bytes;
+    Row::new()
+        .padding(20)
+        .align_items(Align::Center)
+        .push(Text::new(translator.processed_games(&status)).size(35))
+        .push(Text::new("  |  ").size(35))
+        .push(Text::new(translator.processed_bytes(&status)).size(35))
+        .push(if show_selection {
+            Text::new("  |  ").size(35)
+        } else {
+            Text::new("")
+        })
+        .push(if show_selection {
+            Text::new(translator.gui_selected_games(selected_games, selected_bytes)).size(20)
+        } else {
+            Text::new("")
+        })
+}
+
 #[derive(Default)]
 struct ModalComponent {
     positive_button: button::State,
@@ -492,6 +516,20 @@ impl GameList {
                 config.is_game_enabled_for_backup(&x.scan_info.game_name)
             }
         })
+    }
+
+    fn count_selected_entries(&self, config: &Config, restoring: bool) -> (usize, u64) {
+        let mut games = 0;
+        let mut bytes = 0;
+        for entry in self.entries.iter() {
+            if (restoring && config.is_game_enabled_for_restore(&entry.scan_info.game_name))
+                || (!restoring && config.is_game_enabled_for_backup(&entry.scan_info.game_name))
+            {
+                games += 1;
+                bytes += entry.scan_info.sum_bytes(&None);
+            }
+        }
+        (games, bytes)
     }
 }
 
@@ -1056,12 +1094,11 @@ impl BackupScreenComponent {
                             .style(style::Button::Primary)
                         }),
                 )
-                .push(
-                    Row::new()
-                        .padding(20)
-                        .align_items(Align::Center)
-                        .push(Text::new(translator.processed_games(&self.status)).size(40)),
-                )
+                .push(make_status_row(
+                    &translator,
+                    &self.status,
+                    self.log.count_selected_entries(&config, false),
+                ))
                 .push(
                     Row::new()
                         .padding(20)
@@ -1223,12 +1260,11 @@ impl RestoreScreenComponent {
                             .style(style::Button::Primary)
                         }),
                 )
-                .push(
-                    Row::new()
-                        .padding(20)
-                        .align_items(Align::Center)
-                        .push(Text::new(translator.processed_games(&self.status)).size(40)),
-                )
+                .push(make_status_row(
+                    &translator,
+                    &self.status,
+                    self.log.count_selected_entries(&config, true),
+                ))
                 .push(
                     Row::new()
                         .padding(20)

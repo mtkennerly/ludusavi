@@ -350,22 +350,34 @@ impl Translator {
     pub fn processed_games(&self, status: &OperationStatus) -> String {
         if status.completed() {
             match self.language {
-                Language::English => format!(
-                    "{} games | {}",
-                    status.total_games,
-                    self.adjusted_size(status.total_bytes)
-                ),
+                Language::English => format!("{} games", status.total_games,),
+            }
+        } else {
+            match self.language {
+                Language::English => format!("{} of {} games", status.processed_games, status.total_games,),
+            }
+        }
+    }
+
+    pub fn processed_bytes(&self, status: &OperationStatus) -> String {
+        if status.completed() {
+            match self.language {
+                Language::English => self.adjusted_size(status.total_bytes),
             }
         } else {
             match self.language {
                 Language::English => format!(
-                    "{} of {} games | {} of {}",
-                    status.processed_games,
-                    status.total_games,
+                    "{} of {}",
                     self.adjusted_size(status.processed_bytes),
                     self.adjusted_size(status.total_bytes)
                 ),
             }
+        }
+    }
+
+    pub fn gui_selected_games(&self, games: usize, bytes: u64) -> String {
+        match self.language {
+            Language::English => format!("Selecting {} games and {}", games, self.adjusted_size(bytes)),
         }
     }
 

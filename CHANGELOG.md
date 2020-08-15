@@ -2,6 +2,8 @@
 
 * Added:
   * A `complete` command in the CLI for generating shell completion scripts.
+  * Info in the GUI about how many games are selected, if the number is
+    different than how many games have been processed in the backup/restore.
 
 ## v0.8.0 (2020-08-10)
 
