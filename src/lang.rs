@@ -416,6 +416,13 @@ impl Translator {
         .into()
     }
 
+    pub fn search_label(&self) -> String {
+        match self.language {
+            Language::English => "Search:",
+        }
+        .into()
+    }
+
     pub fn store(&self, store: &Store) -> String {
         match self.language {
             Language::English => match store {
@@ -441,6 +448,13 @@ impl Translator {
     }
 
     pub fn custom_game_name_placeholder(&self) -> String {
+        match self.language {
+            Language::English => "Name",
+        }
+        .into()
+    }
+
+    pub fn search_game_name_placeholder(&self) -> String {
         match self.language {
             Language::English => "Name",
         }

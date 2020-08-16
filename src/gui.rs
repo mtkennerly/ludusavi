@@ -10,6 +10,7 @@ use crate::{
     shortcuts::{Shortcut, TextHistory},
 };
 
+use fuzzy_matcher::FuzzyMatcher;
 use iced::{
     button, executor,
     keyboard::{KeyCode, ModifiersState},
@@ -28,6 +29,7 @@ enum Icon {
     RemoveCircle,
     FolderOpen,
     Edit,
+    Search,
 }
 
 impl Icon {
@@ -37,6 +39,7 @@ impl Icon {
             Self::RemoveCircle => '\u{E15C}',
             Self::FolderOpen => '\u{E2C8}',
             Self::Edit => '\u{E150}',
+            Self::Search => '\u{E8B6}',
         };
         Text::new(&character.to_string())
             .font(ICONS)
@@ -158,6 +161,13 @@ enum Message {
         name: String,
         enabled: bool,
         restoring: bool,
+    },
+    ToggleSearch {
+        screen: Screen,
+    },
+    EditedSearchGameName {
+        screen: Screen,
+        value: String,
     },
     BrowseDir(BrowseSubject),
     BrowseDirFailure,
@@ -523,24 +533,43 @@ impl GameListEntry {
 struct GameList {
     entries: Vec<GameListEntry>,
     scroll: scrollable::State,
+    search: SearchComponent,
 }
 
 impl GameList {
     fn view(&mut self, restoring: bool, translator: &Translator, config: &Config) -> Container<Message> {
+        let use_search = self.search.show;
+        let search_game_name = self.search.game_name.clone();
+
         self.entries.sort_by_key(|x| x.scan_info.game_name.clone());
-        Container::new({
-            self.entries.iter_mut().enumerate().fold(
-                Scrollable::new(&mut self.scroll)
-                    .width(Length::Fill)
-                    .padding(10)
-                    .style(style::Scrollable),
-                |parent: Scrollable<'_, Message>, (_i, x)| {
-                    parent
-                        .push(x.view(restoring, translator, &config))
-                        .push(Space::new(Length::Units(0), Length::Units(10)))
-                },
-            )
-        })
+        Container::new(
+            Column::new()
+                .push(
+                    self.search
+                        .view(if restoring { Screen::Restore } else { Screen::Backup }, &translator),
+                )
+                .push({
+                    self.entries.iter_mut().enumerate().fold(
+                        Scrollable::new(&mut self.scroll)
+                            .width(Length::Fill)
+                            .padding(10)
+                            .style(style::Scrollable),
+                        |parent: Scrollable<'_, Message>, (_i, x)| {
+                            if !use_search
+                                || fuzzy_matcher::skim::SkimMatcherV2::default()
+                                    .fuzzy_match(&x.scan_info.game_name, &search_game_name)
+                                    .is_some()
+                            {
+                                parent
+                                    .push(x.view(restoring, translator, &config))
+                                    .push(Space::new(Length::Units(0), Length::Units(10)))
+                            } else {
+                                parent
+                            }
+                        },
+                    )
+                }),
+        )
     }
 
     fn all_entries_selected(&self, config: &Config, restoring: bool) -> bool {
@@ -1011,6 +1040,42 @@ impl DisappearingProgress {
 }
 
 #[derive(Default)]
+struct SearchComponent {
+    show: bool,
+    game_name: String,
+    game_name_input: text_input::State,
+    game_name_history: TextHistory,
+}
+
+impl SearchComponent {
+    fn view(&mut self, screen: Screen, translator: &Translator) -> Container<Message> {
+        if !self.show {
+            return Container::new(Space::new(Length::Shrink, Length::Shrink));
+        }
+        Container::new(
+            Row::new()
+                .spacing(20)
+                .align_items(Align::Center)
+                .push(Space::new(Length::Shrink, Length::Shrink))
+                .push(Text::new(translator.search_label()))
+                .push(
+                    TextInput::new(
+                        &mut self.game_name_input,
+                        &translator.search_game_name_placeholder(),
+                        &self.game_name,
+                        move |value| Message::EditedSearchGameName {
+                            screen: screen.clone(),
+                            value,
+                        },
+                    )
+                    .padding(5),
+                )
+                .push(Space::new(Length::Shrink, Length::Shrink)),
+        )
+    }
+}
+
+#[derive(Default)]
 struct BackupScreenComponent {
     status: OperationStatus,
     log: GameList,
@@ -1018,6 +1083,7 @@ struct BackupScreenComponent {
     preview_button: button::State,
     add_root_button: button::State,
     select_all_button: button::State,
+    toggle_search_button: button::State,
     backup_target_input: text_input::State,
     backup_target_history: TextHistory,
     backup_target_browse_button: button::State,
@@ -1127,7 +1193,16 @@ impl BackupScreenComponent {
                             })
                             .width(Length::Units(125))
                             .style(style::Button::Primary)
-                        }),
+                        })
+                        .push(
+                            Button::new(&mut self.toggle_search_button, Icon::Search.as_text())
+                                .on_press(Message::ToggleSearch { screen: Screen::Backup })
+                                .style(if self.log.search.show {
+                                    style::Button::Negative
+                                } else {
+                                    style::Button::Primary
+                                }),
+                        ),
                 )
                 .push(make_status_row(
                     &translator,
@@ -1184,6 +1259,7 @@ struct RestoreScreenComponent {
     preview_button: button::State,
     add_redirect_button: button::State,
     select_all_button: button::State,
+    toggle_search_button: button::State,
     restore_source_input: text_input::State,
     restore_source_history: TextHistory,
     restore_source_browse_button: button::State,
@@ -1293,7 +1369,18 @@ impl RestoreScreenComponent {
                             })
                             .width(Length::Units(125))
                             .style(style::Button::Primary)
-                        }),
+                        })
+                        .push(
+                            Button::new(&mut self.toggle_search_button, Icon::Search.as_text())
+                                .on_press(Message::ToggleSearch {
+                                    screen: Screen::Restore,
+                                })
+                                .style(if self.log.search.show {
+                                    style::Button::Negative
+                                } else {
+                                    style::Button::Primary
+                                }),
+                        ),
                 )
                 .push(make_status_row(
                     &translator,
@@ -1962,6 +2049,32 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::ToggleSearch { screen } => {
+                match screen {
+                    Screen::Backup => {
+                        self.backup_screen.log.search.show = !self.backup_screen.log.search.show;
+                    }
+                    Screen::Restore => {
+                        self.restore_screen.log.search.show = !self.restore_screen.log.search.show;
+                    }
+                    _ => {}
+                }
+                Command::none()
+            }
+            Message::EditedSearchGameName { screen, value } => {
+                match screen {
+                    Screen::Backup => {
+                        self.backup_screen.log.search.game_name_history.push(&value);
+                        self.backup_screen.log.search.game_name = value;
+                    }
+                    Screen::Restore => {
+                        self.restore_screen.log.search.game_name_history.push(&value);
+                        self.restore_screen.log.search.game_name = value;
+                    }
+                    _ => {}
+                }
+                Command::none()
+            }
             Message::BrowseDir(subject) => Command::perform(
                 async move { native_dialog::OpenSingleDir { dir: None }.show() },
                 move |choice| match choice {
@@ -2086,6 +2199,22 @@ impl Application for App {
                                     &mut self.config.restore.path,
                                     &self.restore_screen.restore_source_input,
                                     &mut self.restore_screen.restore_source_history,
+                                );
+                                matched = true;
+                            } else if self.backup_screen.log.search.game_name_input.is_focused() {
+                                apply_shortcut_to_string_field(
+                                    &shortcut,
+                                    &mut self.backup_screen.log.search.game_name,
+                                    &self.backup_screen.log.search.game_name_input,
+                                    &mut self.backup_screen.log.search.game_name_history,
+                                );
+                                matched = true;
+                            } else if self.restore_screen.log.search.game_name_input.is_focused() {
+                                apply_shortcut_to_string_field(
+                                    &shortcut,
+                                    &mut self.restore_screen.log.search.game_name,
+                                    &self.restore_screen.log.search.game_name_input,
+                                    &mut self.restore_screen.log.search.game_name_history,
                                 );
                                 matched = true;
                             } else {

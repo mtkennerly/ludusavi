@@ -138,6 +138,9 @@ If you are on Mac:
 * Next to each game's name is an edit icon. Clicking this will create a custom
   game entry with the same name, allowing you to override that game's data.
   See the [custom games](#custom-games) section for more information.
+* You can click the search icon and enter some text to just see games with
+  matching names. Note that this only affects which games you see in the list,
+  but Ludusavi will still back up the full set of games.
 -->
 
 </details>
@@ -170,6 +173,11 @@ If you are on Mac:
   will have when you perform the restore for real.
 * You can select/deselect specific games in restore mode just like you can in
   backup mode. The checkbox settings are remembered separately for both modes.
+<!--
+* You can click the search icon and enter some text to just see games with
+  matching names. Note that this only affects which games you see in the list,
+  but Ludusavi will still back up the full set of games.
+-->
 
 </details>
 
