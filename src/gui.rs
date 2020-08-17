@@ -5,7 +5,8 @@ use crate::{
     manifest::{Manifest, SteamMetadata, Store},
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
-        scan_game_for_restoration, BackupInfo, Error, OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
+        scan_game_for_restoration, BackupInfo, DuplicateDetector, Error, OperationStatus, OperationStepDecision,
+        ScanInfo, StrictPath,
     },
     shortcuts::{Shortcut, TextHistory},
 };
@@ -287,6 +288,7 @@ fn make_status_row<'a>(
     translator: &Translator,
     status: &OperationStatus,
     (selected_games, selected_bytes): (usize, u64),
+    found_any_duplicates: bool,
 ) -> Row<'a, Message> {
     let show_selection = selected_games != status.processed_games || selected_bytes != status.processed_bytes;
     Row::new()
@@ -295,16 +297,16 @@ fn make_status_row<'a>(
         .push(Text::new(translator.processed_games(&status)).size(35))
         .push(Text::new("  |  ").size(35))
         .push(Text::new(translator.processed_bytes(&status)).size(35))
-        .push(if show_selection {
-            Text::new("  |  ").size(35)
-        } else {
-            Text::new("")
-        })
-        .push(if show_selection {
-            Text::new(translator.gui_selected_games(selected_games, selected_bytes)).size(20)
-        } else {
-            Text::new("")
-        })
+        .push(
+            Badge::new(&translator.badge_duplicates())
+                .left_margin(15)
+                .view_if(found_any_duplicates),
+        )
+        .push(
+            Badge::new(&translator.badge_selected_games(selected_games, selected_bytes))
+                .left_margin(15)
+                .view_if(show_selection),
+        )
 }
 
 #[derive(Default)]
@@ -405,7 +407,13 @@ struct GameListEntry {
 }
 
 impl GameListEntry {
-    fn view(&mut self, restoring: bool, translator: &Translator, config: &Config) -> Container<Message> {
+    fn view(
+        &mut self,
+        restoring: bool,
+        translator: &Translator,
+        config: &Config,
+        duplicate_detector: &DuplicateDetector,
+    ) -> Container<Message> {
         let mut lines = Vec::<String>::new();
         let successful = match &self.backup_info {
             Some(x) => x.successful(),
@@ -415,25 +423,44 @@ impl GameListEntry {
         if self.expanded {
             for item in itertools::sorted(&self.scan_info.found_files) {
                 let mut redirected_from = None;
-                let mut line = item.path.render();
-                if let Some(original_path) = &item.original_path {
+                let readable = if let Some(original_path) = &item.original_path {
                     let (target, original_target) =
                         game_file_restoration_target(&original_path, &config.get_redirects());
                     redirected_from = original_target;
-                    line = target.render();
-                }
+                    target.render()
+                } else {
+                    item.path.render()
+                };
+
+                let mut entry_successful = true;
                 if let Some(backup_info) = &self.backup_info {
                     if backup_info.failed_files.contains(&item) {
-                        line = translator.failed_file_entry_line(&line);
+                        entry_successful = false;
                     }
                 }
-                lines.push(line);
+
+                lines.push(translator.gui_game_line_item(
+                    &readable,
+                    entry_successful,
+                    duplicate_detector.is_file_duplicated(&item),
+                ));
                 if let Some(redirected_from) = redirected_from {
                     lines.push(translator.redirected_file_entry_line(&redirected_from));
                 }
             }
             for item in itertools::sorted(&self.scan_info.found_registry_keys) {
-                lines.push(item.clone());
+                let mut entry_successful = true;
+                if let Some(backup_info) = &self.backup_info {
+                    if backup_info.failed_registry.contains(item) {
+                        entry_successful = false;
+                    }
+                }
+
+                lines.push(translator.gui_game_line_item(
+                    &item,
+                    entry_successful,
+                    duplicate_detector.is_registry_duplicated(&item),
+                ));
             }
         }
 
@@ -462,12 +489,8 @@ impl GameListEntry {
                         .push(
                             Button::new(
                                 &mut self.expand_button,
-                                Text::new(if successful {
-                                    self.scan_info.game_name.clone()
-                                } else {
-                                    translator.game_list_entry_title_failed(&self.scan_info.game_name)
-                                })
-                                .horizontal_alignment(HorizontalAlignment::Center),
+                                Text::new(self.scan_info.game_name.clone())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(Message::ToggleGameListEntryExpanded {
                                 name: self.scan_info.game_name.clone(),
@@ -482,6 +505,16 @@ impl GameListEntry {
                             .width(Length::Fill)
                             .padding(2),
                         )
+                        .push(if duplicate_detector.is_game_duplicated(&self.scan_info) {
+                            Badge::new(&translator.badge_duplicates()).left_margin(15).view()
+                        } else {
+                            Container::new(Space::new(Length::Shrink, Length::Shrink))
+                        })
+                        .push(if !successful {
+                            Badge::new(&translator.badge_failed()).left_margin(15).view()
+                        } else {
+                            Container::new(Space::new(Length::Shrink, Length::Shrink))
+                        })
                         .push(Space::new(
                             Length::Units(if restoring { 0 } else { 15 }),
                             Length::Shrink,
@@ -537,7 +570,13 @@ struct GameList {
 }
 
 impl GameList {
-    fn view(&mut self, restoring: bool, translator: &Translator, config: &Config) -> Container<Message> {
+    fn view(
+        &mut self,
+        restoring: bool,
+        translator: &Translator,
+        config: &Config,
+        duplicate_detector: &DuplicateDetector,
+    ) -> Container<Message> {
         let use_search = self.search.show;
         let search_game_name = self.search.game_name.clone();
 
@@ -561,7 +600,7 @@ impl GameList {
                                     .is_some()
                             {
                                 parent
-                                    .push(x.view(restoring, translator, &config))
+                                    .push(x.view(restoring, translator, &config, &duplicate_detector))
                                     .push(Space::new(Length::Units(0), Length::Units(10)))
                             } else {
                                 parent
@@ -1040,6 +1079,55 @@ impl DisappearingProgress {
 }
 
 #[derive(Default)]
+struct Badge {
+    text: String,
+    left_margin: u16,
+}
+
+impl Badge {
+    fn new(text: &str) -> Self {
+        Self {
+            text: text.to_string(),
+            left_margin: 0,
+        }
+    }
+
+    fn left_margin(mut self, margin: u16) -> Self {
+        self.left_margin = margin;
+        self
+    }
+
+    fn view(self) -> Container<'static, Message> {
+        Container::new(
+            Row::new()
+                .push(Space::new(Length::Units(self.left_margin), Length::Shrink))
+                .push(
+                    Column::new().push(Space::new(Length::Shrink, Length::Units(3))).push(
+                        Container::new(
+                            Row::new()
+                                .push(Space::new(Length::Units(10), Length::Shrink))
+                                .push(Text::new(self.text).size(14))
+                                .push(Space::new(Length::Units(10), Length::Shrink)),
+                        )
+                        .padding(2)
+                        .style(style::Container::Badge),
+                    ),
+                ),
+        )
+        .center_x()
+        .center_y()
+    }
+
+    fn view_if(self, condition: bool) -> Container<'static, Message> {
+        if condition {
+            self.view()
+        } else {
+            Container::new(Space::new(Length::Shrink, Length::Shrink))
+        }
+    }
+}
+
+#[derive(Default)]
 struct SearchComponent {
     show: bool,
     game_name: String,
@@ -1090,6 +1178,7 @@ struct BackupScreenComponent {
     root_editor: RootEditor,
     only_scan_recent_found_games: bool,
     recent_found_games: std::collections::HashSet<String>,
+    duplicate_detector: DuplicateDetector,
 }
 
 impl BackupScreenComponent {
@@ -1208,6 +1297,7 @@ impl BackupScreenComponent {
                     &translator,
                     &self.status,
                     self.log.count_selected_entries(&config, false),
+                    self.duplicate_detector.any_duplicates(),
                 ))
                 .push(
                     Row::new()
@@ -1243,7 +1333,7 @@ impl BackupScreenComponent {
                 )
                 .push(self.root_editor.view(&config, &translator, &operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(self.log.view(false, translator, &config)),
+                .push(self.log.view(false, translator, &config, &self.duplicate_detector)),
         )
         .height(Length::Fill)
         .width(Length::Fill)
@@ -1264,6 +1354,7 @@ struct RestoreScreenComponent {
     restore_source_history: TextHistory,
     restore_source_browse_button: button::State,
     redirect_editor: RedirectEditor,
+    duplicate_detector: DuplicateDetector,
 }
 
 impl RestoreScreenComponent {
@@ -1386,6 +1477,7 @@ impl RestoreScreenComponent {
                     &translator,
                     &self.status,
                     self.log.count_selected_entries(&config, true),
+                    self.duplicate_detector.any_duplicates(),
                 ))
                 .push(
                     Row::new()
@@ -1416,7 +1508,7 @@ impl RestoreScreenComponent {
                 )
                 .push(self.redirect_editor.view(&config, &translator, &operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(self.log.view(true, translator, &config)),
+                .push(self.log.view(true, translator, &config, &self.duplicate_detector)),
         )
         .height(Length::Fill)
         .width(Length::Fill)
@@ -1619,6 +1711,7 @@ impl Application for App {
                 self.modal_theme = None;
                 self.progress.current = 0.0;
                 self.progress.max = all_games.0.len() as f32;
+                self.backup_screen.duplicate_detector.clear();
 
                 self.operation = Some(if preview {
                     OngoingOperation::PreviewBackup
@@ -1700,6 +1793,7 @@ impl Application for App {
                 self.restore_screen.status.clear();
                 self.restore_screen.log.entries.clear();
                 self.modal_theme = None;
+                self.restore_screen.duplicate_detector.clear();
 
                 if restorables.is_empty() {
                     return Command::none();
@@ -1757,6 +1851,7 @@ impl Application for App {
                 self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
+                        self.backup_screen.duplicate_detector.add_game(&scan_info);
                         self.backup_screen
                             .recent_found_games
                             .insert(scan_info.game_name.clone());
@@ -1786,6 +1881,7 @@ impl Application for App {
                 self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
+                        self.restore_screen.duplicate_detector.add_game(&scan_info);
                         self.restore_screen.status.add_game(
                             &scan_info,
                             &backup_info,
@@ -2478,6 +2574,7 @@ mod style {
         ModalBackground,
         GameListEntry,
         GameListEntryBody,
+        Badge,
     }
 
     impl container::StyleSheet for Container {
@@ -2492,11 +2589,11 @@ mod style {
                     _ => Color::BLACK,
                 },
                 border_width: match self {
-                    Self::GameListEntry => 1,
+                    Self::GameListEntry | Self::Badge => 1,
                     _ => 0,
                 },
                 border_radius: match self {
-                    Self::GameListEntry => 10,
+                    Self::GameListEntry | Self::Badge => 10,
                     _ => 0,
                 },
                 ..container::Style::default()

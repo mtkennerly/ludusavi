@@ -94,6 +94,20 @@ impl Translator {
         .into()
     }
 
+    pub fn label_duplicates(&self) -> String {
+        match self.language {
+            Language::English => "[DUPLICATES]",
+        }
+        .into()
+    }
+
+    pub fn label_duplicated(&self) -> String {
+        match self.language {
+            Language::English => "[DUPLICATED]",
+        }
+        .into()
+    }
+
     pub fn label_ignored(&self) -> String {
         match self.language {
             Language::English => "[IGNORED]",
@@ -101,27 +115,64 @@ impl Translator {
         .into()
     }
 
-    pub fn cli_game_header(&self, name: &str, bytes: u64, decision: &OperationStepDecision) -> String {
-        if *decision == OperationStepDecision::Processed {
+    pub fn badge_failed(&self) -> String {
+        match self.language {
+            Language::English => "FAILED",
+        }
+        .into()
+    }
+
+    pub fn badge_duplicates(&self) -> String {
+        match self.language {
+            Language::English => "DUPLICATES",
+        }
+        .into()
+    }
+
+    pub fn badge_selected_games(&self, games: usize, bytes: u64) -> String {
+        match self.language {
+            Language::English => format!("SELECTING {} GAMES, {}", games, self.adjusted_size(bytes)),
+        }
+    }
+
+    pub fn cli_game_header(
+        &self,
+        name: &str,
+        bytes: u64,
+        decision: &OperationStepDecision,
+        duplicated: bool,
+    ) -> String {
+        let mut labels = vec![];
+        if *decision == OperationStepDecision::Ignored {
+            labels.push(self.label_ignored());
+        }
+        if duplicated {
+            labels.push(self.label_duplicates());
+        }
+
+        if labels.is_empty() {
             match self.language {
                 Language::English => format!("{} [{}]:", name, self.adjusted_size(bytes)),
             }
         } else {
             match self.language {
-                Language::English => format!("{} [{}] {}:", name, self.adjusted_size(bytes), self.label_ignored()),
+                Language::English => format!("{} [{}] {}:", name, self.adjusted_size(bytes), labels.join(" ")),
             }
         }
     }
 
-    pub fn cli_game_line_item_successful(&self, item: &str) -> String {
-        match self.language {
-            Language::English => format!("  - {}", item),
+    pub fn cli_game_line_item(&self, item: &str, successful: bool, duplicated: bool) -> String {
+        let mut parts = vec![];
+        if !successful {
+            parts.push(self.label_failed());
         }
-    }
+        if duplicated {
+            parts.push(self.label_duplicated());
+        }
+        parts.push(item.to_string());
 
-    pub fn cli_game_line_item_failed(&self, item: &str) -> String {
         match self.language {
-            Language::English => format!("  - {} {}", self.label_failed(), item),
+            Language::English => format!("  - {}", parts.join(" ")),
         }
     }
 
@@ -155,15 +206,18 @@ impl Translator {
         }
     }
 
-    pub fn game_list_entry_title_failed(&self, name: &str) -> String {
-        match self.language {
-            Language::English => format!("{} {}", name, self.label_failed()),
+    pub fn gui_game_line_item(&self, item: &str, successful: bool, duplicated: bool) -> String {
+        let mut parts = vec![];
+        if !successful {
+            parts.push(self.label_failed());
         }
-    }
+        if duplicated {
+            parts.push(self.label_duplicated());
+        }
+        parts.push(item.to_string());
 
-    pub fn failed_file_entry_line(&self, path: &str) -> String {
         match self.language {
-            Language::English => format!("{} {}", self.label_failed(), path),
+            Language::English => parts.join(" "),
         }
     }
 
@@ -372,12 +426,6 @@ impl Translator {
                     self.adjusted_size(status.total_bytes)
                 ),
             }
-        }
-    }
-
-    pub fn gui_selected_games(&self, games: usize, bytes: u64) -> String {
-        match self.language {
-            Language::English => format!("Selecting {} games and {}", games, self.adjusted_size(bytes)),
         }
     }
 

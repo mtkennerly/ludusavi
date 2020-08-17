@@ -1,6 +1,8 @@
 ## Unreleased
 
 * Added:
+  * An indication when a single file or registry key will be backed up by
+    more than one game.
   * CLI: A `complete` command for generating shell completion scripts.
   * GUI: Info about how many games are selected, if the number is different
     than how many games have been processed in the backup/restore.

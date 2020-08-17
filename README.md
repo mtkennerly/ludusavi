@@ -141,6 +141,11 @@ If you are on Mac:
 * You can click the search icon and enter some text to just see games with
   matching names. Note that this only affects which games you see in the list,
   but Ludusavi will still back up the full set of games.
+* You may see a "duplicates" badge next to some games. This means that some of
+  the same files were also backed up for another game. That could be intentional
+  (e.g., an HD remaster may reuse the original save locations), but it could
+  also be a sign of an issue in the manifest data. You can expand the game's
+  file list to see which exact entries are duplicated.
 -->
 
 </details>
@@ -247,9 +252,17 @@ will have the following structure:
         * `bytes` (number): Size of the file.
         * `originalPath` (optional, string): If the file was restored to a
           redirected location, then this is its original path.
+        <!--
+        * `duplicatedBy` (optional, array of strings): Any other games that
+          also have the same file path.
+        -->
     * `registry` (map):
       * Each key is a registry path, and each value is a map with these fields:
         * `failed` (optional, boolean): Whether this entry failed to process.
+        <!--
+        * `duplicatedBy` (optional, array of strings): Any other games that
+          also have the same registry path.
+        -->
 
 Note that, in some error conditions, there may not be any JSON output,
 so you should check if stdout was blank before trying to parse it.
