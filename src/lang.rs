@@ -525,15 +525,24 @@ impl Translator {
 
     pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool) -> String {
         match (self.language, target_exists, merge) {
-            (Language::English, false, _) => format!("Are you sure you want to proceed with the backup? The target folder will be created: {}", target.render()),
-            (Language::English, true, false) => format!("Are you sure you want to proceed with the backup? The target folder will be deleted and recreated from scratch: {}", target.render()),
-            (Language::English, true, true) => format!("Are you sure you want to proceed with the backup? New save data will be merged into the target folder: {}", target.render()),
+            (Language::English, false, _) => format!("Are you sure you want to proceed with the backup? The target folder will be created:\n\n{}\n\n{}", target.render(), self.modal_consider_doing_a_preview()),
+            (Language::English, true, false) => format!("Are you sure you want to proceed with the backup? The target folder will be deleted and recreated from scratch:\n\n{}\n\n{}", target.render(), self.modal_consider_doing_a_preview()),
+            (Language::English, true, true) => format!("Are you sure you want to proceed with the backup? New save data will be merged into the target folder:\n\n{}\n\n{}", target.render(), self.modal_consider_doing_a_preview()),
         }
     }
 
     pub fn modal_confirm_restore(&self, source: &StrictPath) -> String {
         match self.language {
-            Language::English => format!("Are you sure you want to proceed with the restoration? This will overwrite any current files with the backups from here: {}", source.render()),
+            Language::English => format!("Are you sure you want to proceed with the restoration? This will overwrite any current files with the backups from here:\n\n{}\n\n{}", source.render(), self.modal_consider_doing_a_preview()),
         }
+    }
+
+    pub fn modal_consider_doing_a_preview(&self) -> String {
+        match self.language {
+            Language::English => {
+                "If you haven't already, consider doing a preview first so that there are no surprises."
+            }
+        }
+        .into()
     }
 }

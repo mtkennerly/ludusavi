@@ -9,6 +9,9 @@
   * GUI: An edit button next to each game in backup mode to quickly create
     a custom entry for that game, pre-filled with the default info.
   * GUI: A search option to just see games with matching names.
+* Changed:
+  * GUI: The backup/restore confirmation screen now has some extra text that
+    recommends doing a preview first.
 * Fixed:
   * When using a custom entry to override a known game, some of the original's
     non-overridable data would not be inherited by the custom entry (namely its
