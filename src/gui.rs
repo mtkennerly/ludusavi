@@ -31,6 +31,7 @@ enum Icon {
     FolderOpen,
     Edit,
     Search,
+    Language,
 }
 
 impl Icon {
@@ -41,6 +42,7 @@ impl Icon {
             Self::FolderOpen => '\u{E2C8}',
             Self::Edit => '\u{E150}',
             Self::Search => '\u{E8B6}',
+            Self::Language => '\u{E894}',
         };
         Text::new(&character.to_string())
             .font(ICONS)
@@ -176,6 +178,12 @@ enum Message {
     DeselectAllGames,
     CustomizeGame {
         name: String,
+    },
+    OpenWiki {
+        game: String,
+    },
+    OpenUrlFailure {
+        url: String,
     },
     SubscribedEvent(iced_native::Event),
 }
@@ -402,6 +410,7 @@ struct GameListEntry {
     scan_info: ScanInfo,
     backup_info: Option<BackupInfo>,
     expand_button: button::State,
+    wiki_button: button::State,
     customize_button: button::State,
     expanded: bool,
 }
@@ -412,6 +421,8 @@ impl GameListEntry {
         restoring: bool,
         translator: &Translator,
         config: &Config,
+        manifest: &Manifest,
+        operation: &Option<OngoingOperation>,
         duplicate_detector: &DuplicateDetector,
     ) -> Container<Message> {
         let mut lines = Vec::<String>::new();
@@ -470,6 +481,7 @@ impl GameListEntry {
             config.is_game_enabled_for_backup(&self.scan_info.game_name)
         };
         let customized = config.is_game_customized(&self.scan_info.game_name);
+        let customized_pure = customized && !manifest.0.contains_key(&self.scan_info.game_name);
         let name_for_checkbox = self.scan_info.game_name.clone();
 
         Container::new(
@@ -525,7 +537,7 @@ impl GameListEntry {
                             Container::new(
                                 Button::new(
                                     &mut self.customize_button,
-                                    Icon::Edit.as_text().horizontal_alignment(HorizontalAlignment::Center),
+                                    Icon::Edit.as_text().width(Length::Units(45)),
                                 )
                                 .on_press(if customized {
                                     Message::Ignore
@@ -542,6 +554,23 @@ impl GameListEntry {
                                 .padding(2),
                             )
                         })
+                        .push(Space::new(Length::Units(15), Length::Shrink))
+                        .push(Container::new(
+                            Button::new(&mut self.wiki_button, Icon::Language.as_text().width(Length::Units(45)))
+                                .on_press(if customized_pure || operation.is_some() {
+                                    Message::Ignore
+                                } else {
+                                    Message::OpenWiki {
+                                        game: self.scan_info.game_name.clone(),
+                                    }
+                                })
+                                .style(if customized_pure || operation.is_some() {
+                                    style::Button::Disabled
+                                } else {
+                                    style::Button::Primary
+                                })
+                                .padding(2),
+                        ))
                         .push(
                             Container::new(Text::new(
                                 translator.adjusted_size(self.scan_info.sum_bytes(&self.backup_info)),
@@ -575,6 +604,8 @@ impl GameList {
         restoring: bool,
         translator: &Translator,
         config: &Config,
+        manifest: &Manifest,
+        operation: &Option<OngoingOperation>,
         duplicate_detector: &DuplicateDetector,
     ) -> Container<Message> {
         let use_search = self.search.show;
@@ -600,7 +631,14 @@ impl GameList {
                                     .is_some()
                             {
                                 parent
-                                    .push(x.view(restoring, translator, &config, &duplicate_detector))
+                                    .push(x.view(
+                                        restoring,
+                                        translator,
+                                        &config,
+                                        &manifest,
+                                        &operation,
+                                        &duplicate_detector,
+                                    ))
                                     .push(Space::new(Length::Units(0), Length::Units(10)))
                             } else {
                                 parent
@@ -1198,6 +1236,7 @@ impl BackupScreenComponent {
     fn view(
         &mut self,
         config: &Config,
+        manifest: &Manifest,
         translator: &Translator,
         operation: &Option<OngoingOperation>,
     ) -> Container<Message> {
@@ -1333,7 +1372,14 @@ impl BackupScreenComponent {
                 )
                 .push(self.root_editor.view(&config, &translator, &operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(self.log.view(false, translator, &config, &self.duplicate_detector)),
+                .push(self.log.view(
+                    false,
+                    translator,
+                    &config,
+                    &manifest,
+                    &operation,
+                    &self.duplicate_detector,
+                )),
         )
         .height(Length::Fill)
         .width(Length::Fill)
@@ -1376,6 +1422,7 @@ impl RestoreScreenComponent {
     fn view(
         &mut self,
         config: &Config,
+        manifest: &Manifest,
         translator: &Translator,
         operation: &Option<OngoingOperation>,
     ) -> Container<Message> {
@@ -1508,7 +1555,14 @@ impl RestoreScreenComponent {
                 )
                 .push(self.redirect_editor.view(&config, &translator, &operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(self.log.view(true, translator, &config, &self.duplicate_detector)),
+                .push(self.log.view(
+                    true,
+                    translator,
+                    &config,
+                    &manifest,
+                    &operation,
+                    &self.duplicate_detector,
+                )),
         )
         .height(Length::Fill)
         .width(Length::Fill)
@@ -2262,6 +2316,20 @@ impl Application for App {
                 self.screen = Screen::CustomGames;
                 Command::none()
             }
+            Message::OpenWiki { game } => {
+                let url = format!("https://www.pcgamingwiki.com/wiki/{}", game.replace(" ", "_"));
+                let url2 = url.clone();
+                Command::perform(async move { opener::open(&url) }, move |result| match result {
+                    Ok(_) => Message::Ignore,
+                    Err(_) => Message::OpenUrlFailure { url: url2.clone() },
+                })
+            }
+            Message::OpenUrlFailure { url } => {
+                self.modal_theme = Some(ModalTheme::Error {
+                    variant: Error::UnableToOpenUrl(url),
+                });
+                Command::none()
+            }
             Message::SubscribedEvent(event) => {
                 if let iced_native::Event::Keyboard(key) = event {
                     if let Some((key_code, modifiers)) = get_key_pressed(key) {
@@ -2473,10 +2541,14 @@ impl Application for App {
             )
             .push(
                 match self.screen {
-                    Screen::Backup => self.backup_screen.view(&self.config, &self.translator, &self.operation),
-                    Screen::Restore => self
-                        .restore_screen
-                        .view(&self.config, &self.translator, &self.operation),
+                    Screen::Backup => {
+                        self.backup_screen
+                            .view(&self.config, &self.manifest, &self.translator, &self.operation)
+                    }
+                    Screen::Restore => {
+                        self.restore_screen
+                            .view(&self.config, &self.manifest, &self.translator, &self.operation)
+                    }
                     Screen::CustomGames => {
                         self.custom_games_screen
                             .view(&self.config, &self.translator, &self.operation)

@@ -48,6 +48,9 @@ pub enum Error {
 
     #[error("Unable to browse file system")]
     UnableToBrowseFileSystem,
+
+    #[error("Unable to open URL")]
+    UnableToOpenUrl(String),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]

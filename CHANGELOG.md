@@ -9,6 +9,8 @@
   * GUI: An edit button next to each game in backup mode to quickly create
     a custom entry for that game, pre-filled with the default info.
   * GUI: A search option to just see games with matching names.
+  * GUI: A button to open a game's PCGamingWiki article so that you can more
+    easily review or update its information.
 * Changed:
   * GUI: The backup/restore confirmation screen now has some extra text that
     recommends doing a preview first.

@@ -1542,6 +1542,7 @@ dependencies = [
  "itertools",
  "maplit",
  "native-dialog",
+ "opener",
  "pretty_assertions",
  "rayon",
  "realia",
@@ -1906,6 +1907,15 @@ name = "once_cell"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b631f7e854af39a1739f401cf34a8a013dfe09eac4fa4dba91e9768bd28168d"
+
+[[package]]
+name = "opener"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13117407ca9d0caf3a0e74f97b490a7e64c0ae3aa90a8b7085544d0c37b6f3ae"
+dependencies = [
+ "winapi 0.3.9",
+]
 
 [[package]]
 name = "ordered-float"
