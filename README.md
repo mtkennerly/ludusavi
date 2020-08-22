@@ -138,6 +138,9 @@ If you are on Mac:
 * Next to each game's name is an edit icon. Clicking this will create a custom
   game entry with the same name, allowing you to override that game's data.
   See the [custom games](#custom-games) section for more information.
+
+  There is also a globe icon, which will open the game's PCGamingWiki article
+  so that you can quickly double check or update its information if needed.
 * You can click the search icon and enter some text to just see games with
   matching names. Note that this only affects which games you see in the list,
   but Ludusavi will still back up the full set of games.
