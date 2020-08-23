@@ -4,13 +4,14 @@ use crate::{
         badge::Badge,
         common::OngoingOperation,
         common::{Message, Screen},
+        file_tree::FileTree,
         icon::Icon,
         search::SearchComponent,
         style,
     },
     lang::Translator,
     manifest::Manifest,
-    prelude::{game_file_restoration_target, BackupInfo, DuplicateDetector, ScanInfo},
+    prelude::{BackupInfo, DuplicateDetector, ScanInfo},
 };
 
 use fuzzy_matcher::FuzzyMatcher;
@@ -27,6 +28,8 @@ pub struct GameListEntry {
     pub wiki_button: button::State,
     pub customize_button: button::State,
     pub expanded: bool,
+    pub tree: FileTree,
+    pub tree_should_reload: bool,
 }
 
 impl GameListEntry {
@@ -39,54 +42,25 @@ impl GameListEntry {
         operation: &Option<OngoingOperation>,
         duplicate_detector: &DuplicateDetector,
     ) -> Container<Message> {
-        let mut lines = Vec::<String>::new();
         let successful = match &self.backup_info {
             Some(x) => x.successful(),
             _ => true,
         };
 
         if self.expanded {
-            for item in itertools::sorted(&self.scan_info.found_files) {
-                let mut redirected_from = None;
-                let readable = if let Some(original_path) = &item.original_path {
-                    let (target, original_target) =
-                        game_file_restoration_target(&original_path, &config.get_redirects());
-                    redirected_from = original_target;
-                    target.render()
-                } else {
-                    item.path.render()
-                };
-
-                let mut entry_successful = true;
-                if let Some(backup_info) = &self.backup_info {
-                    if backup_info.failed_files.contains(&item) {
-                        entry_successful = false;
-                    }
-                }
-
-                lines.push(translator.gui_game_line_item(
-                    &readable,
-                    entry_successful,
-                    duplicate_detector.is_file_duplicated(&item),
-                ));
-                if let Some(redirected_from) = redirected_from {
-                    lines.push(translator.redirected_file_entry_line(&redirected_from));
-                }
+            if self.tree_should_reload {
+                self.tree = FileTree::new(
+                    self.scan_info.clone(),
+                    &config,
+                    &self.backup_info,
+                    &duplicate_detector,
+                    &translator,
+                );
+                self.tree_should_reload = false;
             }
-            for item in itertools::sorted(&self.scan_info.found_registry_keys) {
-                let mut entry_successful = true;
-                if let Some(backup_info) = &self.backup_info {
-                    if backup_info.failed_registry.contains(item) {
-                        entry_successful = false;
-                    }
-                }
-
-                lines.push(translator.gui_game_line_item(
-                    &item,
-                    entry_successful,
-                    duplicate_detector.is_registry_duplicated(&item),
-                ));
-            }
+        } else {
+            self.tree.clear();
+            self.tree_should_reload = true;
         }
 
         let enabled = if restoring {
@@ -194,11 +168,9 @@ impl GameListEntry {
                         ),
                 )
                 .push(
-                    Row::new().push(
-                        Container::new(Text::new(lines.join("\n")))
-                            .width(Length::Fill)
-                            .style(style::Container::GameListEntryBody),
-                    ),
+                    self.tree
+                        .view(&translator, &self.scan_info.game_name)
+                        .width(Length::Fill),
                 ),
         )
         .style(style::Container::GameListEntry)

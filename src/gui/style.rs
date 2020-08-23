@@ -80,7 +80,6 @@ impl button::StyleSheet for NavButton {
 pub enum Container {
     ModalBackground,
     GameListEntry,
-    GameListEntryBody,
     Badge,
 }
 

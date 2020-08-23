@@ -12,6 +12,8 @@
   * GUI: A button to open a game's PCGamingWiki article so that you can more
     easily review or update its information.
 * Changed:
+  * GUI: Each game's list of files is now a tree with collapsible folders,
+    rather than a plain list of full paths.
   * GUI: The backup/restore confirmation screen now has some extra text that
     recommends doing a preview first.
 * Fixed:

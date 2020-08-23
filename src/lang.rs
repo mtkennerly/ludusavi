@@ -130,6 +130,19 @@ impl Translator {
         .into()
     }
 
+    pub fn badge_duplicated(&self) -> String {
+        match self.language {
+            Language::English => "DUPLICATED",
+        }
+        .into()
+    }
+
+    pub fn badge_redirected_from(&self, original: &StrictPath) -> String {
+        match self.language {
+            Language::English => format!("FROM: {}", original.render()),
+        }
+    }
+
     pub fn badge_selected_games(&self, games: usize, bytes: u64) -> String {
         match self.language {
             Language::English => format!("SELECTING {} GAMES, {}", games, self.adjusted_size(bytes)),
@@ -204,27 +217,6 @@ impl Translator {
                     location.render()
                 ),
             }
-        }
-    }
-
-    pub fn gui_game_line_item(&self, item: &str, successful: bool, duplicated: bool) -> String {
-        let mut parts = vec![];
-        if !successful {
-            parts.push(self.label_failed());
-        }
-        if duplicated {
-            parts.push(self.label_duplicated());
-        }
-        parts.push(item.to_string());
-
-        match self.language {
-            Language::English => parts.join(" "),
-        }
-    }
-
-    pub fn redirected_file_entry_line(&self, path: &StrictPath) -> String {
-        match self.language {
-            Language::English => format!(". . . . . Redirected from: {}", path.render()),
         }
     }
 
@@ -474,6 +466,14 @@ impl Translator {
     pub fn search_label(&self) -> String {
         match self.language {
             Language::English => "Search:",
+        }
+        .into()
+    }
+
+    /// Used for the FileTree component.
+    pub fn registry_label(&self) -> String {
+        match self.language {
+            Language::English => "Registry",
         }
         .into()
     }

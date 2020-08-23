@@ -48,6 +48,10 @@ pub enum Message {
     ToggleGameListEntryExpanded {
         name: String,
     },
+    ToggleGameListEntryTreeExpanded {
+        name: String,
+        keys: Vec<String>,
+    },
     ToggleGameListEntryEnabled {
         name: String,
         enabled: bool,

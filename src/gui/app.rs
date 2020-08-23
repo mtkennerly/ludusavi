@@ -479,6 +479,9 @@ impl Application for App {
                     }
                 }
                 self.config.save();
+                for item in self.restore_screen.log.entries.iter_mut() {
+                    item.tree_should_reload = true;
+                }
                 Command::none()
             }
             Message::EditedCustomGame(action) => {
@@ -581,6 +584,26 @@ impl Application for App {
                         for entry in &mut self.restore_screen.log.entries {
                             if entry.scan_info.game_name == name {
                                 entry.expanded = !entry.expanded;
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+                Command::none()
+            }
+            Message::ToggleGameListEntryTreeExpanded { name, keys } => {
+                match self.screen {
+                    Screen::Backup => {
+                        for entry in &mut self.backup_screen.log.entries {
+                            if entry.scan_info.game_name == name {
+                                entry.tree.expand_or_collapse_keys(&keys);
+                            }
+                        }
+                    }
+                    Screen::Restore => {
+                        for entry in &mut self.restore_screen.log.entries {
+                            if entry.scan_info.game_name == name {
+                                entry.tree.expand_or_collapse_keys(&keys);
                             }
                         }
                     }
@@ -805,6 +828,9 @@ impl Application for App {
                                             &redirect.source_text_state,
                                             &mut redirect.source_text_history,
                                         );
+                                        for item in self.restore_screen.log.entries.iter_mut() {
+                                            item.tree_should_reload = true;
+                                        }
                                         matched = true;
                                         break;
                                     }
@@ -815,6 +841,9 @@ impl Application for App {
                                             &redirect.target_text_state,
                                             &mut redirect.target_text_history,
                                         );
+                                        for item in self.restore_screen.log.entries.iter_mut() {
+                                            item.tree_should_reload = true;
+                                        }
                                         matched = true;
                                         break;
                                     }
