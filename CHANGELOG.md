@@ -1,4 +1,4 @@
-## Unreleased
+## v0.9.0 (2020-08-30)
 
 * Added:
   * An indication when a single file or registry key will be backed up by
@@ -13,7 +13,8 @@
     easily review or update its information.
 * Changed:
   * GUI: Each game's list of files is now a tree with collapsible folders,
-    rather than a plain list of full paths.
+    rather than a plain list of full paths. Performance has also been improved
+    for very large lists.
   * GUI: The backup/restore confirmation screen now has some extra text that
     recommends doing a preview first.
 * Fixed:

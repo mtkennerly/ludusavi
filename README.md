@@ -11,7 +11,7 @@ It is cross-platform and supports multiple game stores.
 * Backup and restore for Steam as well as other game libraries.
 * Preview of the backup/restore before actually performing it.
 * Both a graphical interface and command line interface for scripting.
-  <!-- Tab completion is available for Bash, Fish, Zsh, PowerShell, and Elvish. -->
+  Tab completion is available for Bash, Fish, Zsh, PowerShell, and Elvish.
 * Support for:
   * Saves that are stored as files and in the Windows registry.
   * Proton saves with Steam.
@@ -134,7 +134,6 @@ If you are on Mac:
   (when all games are selected) or the `select all` button (when at least
   one game is deselected) to quickly toggle all of them at once.
   Ludusavi will remember your most recent checkbox settings.
-<!--
 * Next to each game's name is an edit icon. Clicking this will create a custom
   game entry with the same name, allowing you to override that game's data.
   See the [custom games](#custom-games) section for more information.
@@ -149,7 +148,6 @@ If you are on Mac:
   (e.g., an HD remaster may reuse the original save locations), but it could
   also be a sign of an issue in the manifest data. You can expand the game's
   file list to see which exact entries are duplicated.
--->
 
 </details>
 
@@ -181,11 +179,9 @@ If you are on Mac:
   will have when you perform the restore for real.
 * You can select/deselect specific games in restore mode just like you can in
   backup mode. The checkbox settings are remembered separately for both modes.
-<!--
 * You can click the search icon and enter some text to just see games with
   matching names. Note that this only affects which games you see in the list,
-  but Ludusavi will still back up the full set of games.
--->
+  but Ludusavi will still restore the full set of games.
 
 </details>
 
@@ -255,17 +251,13 @@ will have the following structure:
         * `bytes` (number): Size of the file.
         * `originalPath` (optional, string): If the file was restored to a
           redirected location, then this is its original path.
-        <!--
         * `duplicatedBy` (optional, array of strings): Any other games that
           also have the same file path.
-        -->
     * `registry` (map):
       * Each key is a registry path, and each value is a map with these fields:
         * `failed` (optional, boolean): Whether this entry failed to process.
-        <!--
         * `duplicatedBy` (optional, array of strings): Any other games that
           also have the same registry path.
-        -->
 
 Note that, in some error conditions, there may not be any JSON output,
 so you should check if stdout was blank before trying to parse it.
