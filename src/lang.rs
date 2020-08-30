@@ -470,14 +470,6 @@ impl Translator {
         .into()
     }
 
-    /// Used for the FileTree component.
-    pub fn registry_label(&self) -> String {
-        match self.language {
-            Language::English => "Registry",
-        }
-        .into()
-    }
-
     pub fn store(&self, store: &Store) -> String {
         match self.language {
             Language::English => match store {

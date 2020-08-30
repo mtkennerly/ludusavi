@@ -174,7 +174,6 @@ impl FileTree {
         config: &Config,
         backup_info: &Option<BackupInfo>,
         duplicate_detector: &DuplicateDetector,
-        translator: &Translator,
     ) -> Self {
         let mut nodes = std::collections::BTreeMap::<String, FileTreeNode>::new();
 
@@ -218,12 +217,14 @@ impl FileTree {
                 }
             }
 
+            let components: Vec<_> = item.split('/').collect();
+
             nodes
-                .entry(translator.registry_label())
-                .or_insert_with(|| FileTreeNode::new(vec![translator.registry_label()], None))
+                .entry(components[0].to_string())
+                .or_insert_with(|| FileTreeNode::new(vec![components[0].to_string()], None))
                 .insert_keys(
-                    &[item],
-                    &[&translator.registry_label()],
+                    &components[1..],
+                    &[components[0]],
                     None,
                     successful,
                     duplicate_detector.is_registry_duplicated(&item),

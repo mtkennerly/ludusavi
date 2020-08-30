@@ -49,13 +49,7 @@ impl GameListEntry {
 
         if self.expanded {
             if self.tree_should_reload {
-                self.tree = FileTree::new(
-                    self.scan_info.clone(),
-                    &config,
-                    &self.backup_info,
-                    &duplicate_detector,
-                    &translator,
-                );
+                self.tree = FileTree::new(self.scan_info.clone(), &config, &self.backup_info, &duplicate_detector);
                 self.tree_should_reload = false;
             }
         } else {
