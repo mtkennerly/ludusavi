@@ -897,6 +897,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fuzzy-matcher"
+version = "0.3.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cda28c4acb13182d935e0ab6bc12329d1d22134d69801d0836d1ae4b47054f2a"
+dependencies = [
+ "thread_local",
+]
+
+[[package]]
 name = "fxhash"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1685,13 +1694,14 @@ dependencies = [
 
 [[package]]
 name = "ludusavi"
-version = "0.8.0"
+version = "0.9.0"
 dependencies = [
  "base64 0.12.3",
  "byte-unit",
  "copypasta",
  "dialoguer",
  "dirs 3.0.1",
+ "fuzzy-matcher",
  "glob",
  "iced",
  "iced_native",
@@ -1700,6 +1710,7 @@ dependencies = [
  "itertools",
  "maplit",
  "native-dialog",
+ "opener",
  "pretty_assertions",
  "rayon",
  "realia",
@@ -2064,6 +2075,15 @@ name = "once_cell"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0b631f7e854af39a1739f401cf34a8a013dfe09eac4fa4dba91e9768bd28168d"
+
+[[package]]
+name = "opener"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "13117407ca9d0caf3a0e74f97b490a7e64c0ae3aa90a8b7085544d0c37b6f3ae"
+dependencies = [
+ "winapi 0.3.9",
+]
 
 [[package]]
 name = "ordered-float"
@@ -2996,6 +3016,15 @@ dependencies = [
  "proc-macro2 1.0.18",
  "quote 1.0.7",
  "syn",
+]
+
+[[package]]
+name = "thread_local"
+version = "1.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d40c6d1b69745a6ec6fb1ca717914848da4b44ae29d9b3080cbee91d72a69b14"
+dependencies = [
+ "lazy_static",
 ]
 
 [[package]]

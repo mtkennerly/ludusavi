@@ -255,6 +255,10 @@ impl Config {
             registry: vec![],
         });
     }
+
+    pub fn is_game_customized(&self, name: &str) -> bool {
+        self.custom_games.iter().any(|x| x.name == name)
+    }
 }
 
 #[cfg(test)]

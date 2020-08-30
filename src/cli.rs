@@ -2,10 +2,11 @@ use crate::{
     config::{Config, RedirectConfig},
     lang::Translator,
     layout::BackupLayout,
-    manifest::{Game, Manifest, SteamMetadata},
+    manifest::{Manifest, SteamMetadata},
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
-        scan_game_for_restoration, BackupInfo, Error, OperationStatus, OperationStepDecision, ScanInfo, StrictPath,
+        scan_game_for_restoration, BackupInfo, DuplicateDetector, Error, OperationStatus, OperationStepDecision,
+        ScanInfo, StrictPath,
     },
 };
 use indicatif::ParallelProgressIterator;
@@ -20,6 +21,20 @@ fn parse_existing_strict_path(path: &str) -> Result<StrictPath, std::io::Error> 
     let sp = StrictPath::new(path.to_owned());
     std::fs::canonicalize(sp.interpret())?;
     Ok(sp)
+}
+
+#[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
+pub enum CompletionShell {
+    #[structopt(about = "Completions for Bash")]
+    Bash,
+    #[structopt(about = "Completions for Fish")]
+    Fish,
+    #[structopt(about = "Completions for Zsh")]
+    Zsh,
+    #[structopt(name = "powershell", about = "Completions for PowerShell")]
+    PowerShell,
+    #[structopt(about = "Completions for Elvish")]
+    Elvish,
 }
 
 #[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
@@ -107,6 +122,11 @@ pub enum Subcommand {
         #[structopt()]
         games: Vec<String>,
     },
+    #[structopt(about = "Generate shell completion scripts")]
+    Complete {
+        #[structopt(flatten)]
+        shell: CompletionShell,
+    },
 }
 
 #[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
@@ -135,12 +155,24 @@ struct ApiFile {
     bytes: u64,
     #[serde(rename = "originalPath", skip_serializing_if = "Option::is_none")]
     original_path: Option<String>,
+    #[serde(
+        rename = "duplicatedBy",
+        serialize_with = "crate::serialization::ordered_set",
+        skip_serializing_if = "crate::serialization::is_empty_set"
+    )]
+    duplicated_by: std::collections::HashSet<String>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
 struct ApiRegistry {
     #[serde(skip_serializing_if = "crate::serialization::is_false")]
     failed: bool,
+    #[serde(
+        rename = "duplicatedBy",
+        serialize_with = "crate::serialization::ordered_set",
+        skip_serializing_if = "crate::serialization::is_empty_set"
+    )]
+    duplicated_by: std::collections::HashSet<String>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -221,6 +253,7 @@ impl Reporter {
         backup_info: &BackupInfo,
         decision: &OperationStepDecision,
         redirects: &[RedirectConfig],
+        duplicate_detector: &DuplicateDetector,
     ) -> bool {
         let mut successful = true;
 
@@ -238,6 +271,7 @@ impl Reporter {
                     &name,
                     scan_info.sum_bytes(&Some(backup_info.to_owned())),
                     &decision,
+                    duplicate_detector.is_game_duplicated(&scan_info),
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
                     let mut redirected_from = None;
@@ -249,24 +283,30 @@ impl Reporter {
                         entry.path.to_owned()
                     };
 
-                    if backup_info.failed_files.contains(entry) {
+                    let entry_successful = !backup_info.failed_files.contains(entry);
+                    if !entry_successful {
                         successful = false;
-                        parts.push(translator.cli_game_line_item_failed(&readable.render()));
-                    } else {
-                        parts.push(translator.cli_game_line_item_successful(&readable.render()));
                     }
+                    parts.push(translator.cli_game_line_item(
+                        &readable.render(),
+                        entry_successful,
+                        duplicate_detector.is_file_duplicated(&entry),
+                    ));
 
                     if let Some(redirected_from) = redirected_from {
                         parts.push(translator.cli_game_line_item_redirected(&redirected_from.render()));
                     }
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
-                    if backup_info.failed_registry.contains(entry) {
+                    let entry_successful = !backup_info.failed_registry.contains(entry);
+                    if !entry_successful {
                         successful = false;
-                        parts.push(translator.cli_game_line_item_failed(entry));
-                    } else {
-                        parts.push(translator.cli_game_line_item_successful(entry));
                     }
+                    parts.push(translator.cli_game_line_item(
+                        &entry,
+                        entry_successful,
+                        duplicate_detector.is_registry_duplicated(&entry),
+                    ));
                 }
 
                 status.add_game(
@@ -287,6 +327,12 @@ impl Reporter {
                     let mut api_file = ApiFile::default();
                     api_file.bytes = entry.size;
                     api_file.failed = backup_info.failed_files.contains(entry);
+                    if duplicate_detector.is_file_duplicated(&entry) {
+                        let mut duplicated_by = duplicate_detector.file(&entry);
+                        duplicated_by.remove(&scan_info.game_name);
+                        api_file.duplicated_by = duplicated_by;
+                    }
+
                     let readable = if let Some(original_path) = &entry.original_path {
                         let (target, original_target) = game_file_restoration_target(&original_path, &redirects);
                         api_file.original_path = original_target.map(|x| x.render());
@@ -297,16 +343,24 @@ impl Reporter {
                     if api_file.failed {
                         successful = false;
                     }
+
                     api_game.files.insert(readable.render(), api_file);
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
                     let mut api_registry = ApiRegistry::default();
+                    if duplicate_detector.is_registry_duplicated(&entry) {
+                        let mut duplicated_by = duplicate_detector.registry(&entry);
+                        duplicated_by.remove(&scan_info.game_name);
+                        api_registry.duplicated_by = duplicated_by;
+                    }
+
                     if backup_info.failed_registry.contains(entry) {
                         api_registry.failed = true;
                     }
                     if api_registry.failed {
                         successful = false;
                     }
+
                     api_game.registry.insert(entry.to_string(), api_registry);
                 }
 
@@ -353,6 +407,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
     let translator = Translator::default();
     let mut config = Config::load()?;
     let mut failed = false;
+    let mut duplicate_detector = DuplicateDetector::default();
 
     match sub {
         Subcommand::Backup {
@@ -412,9 +467,9 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             let steam_ids_to_names = &manifest.map_steam_ids_to_names();
-            let mut all_games = manifest.0;
+            let mut all_games = manifest;
             for custom_game in &config.custom_games {
-                all_games.insert(custom_game.name.clone(), Game::from(custom_game.to_owned()));
+                all_games.add_custom_game(custom_game.clone());
             }
 
             let games_specified = !games.is_empty();
@@ -432,7 +487,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                             }
                             Err(_) => Some(game.to_owned()),
                         }
-                    } else if !all_games.contains_key(game) {
+                    } else if !all_games.0.contains_key(game) {
                         Some(game.to_owned())
                     } else {
                         None
@@ -457,7 +512,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     games
                 }
             } else {
-                all_games.keys().cloned().collect()
+                all_games.0.keys().cloned().collect()
             };
             subjects.sort();
 
@@ -468,7 +523,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .par_iter()
                 .progress_count(subjects.len() as u64)
                 .map(|name| {
-                    let game = &all_games[name];
+                    let game = &all_games.0[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
                     let scan_info = scan_game_for_backup(
@@ -494,8 +549,11 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 })
                 .collect();
 
+            for (_, scan_info, _, _) in info.iter() {
+                duplicate_detector.add_game(&scan_info);
+            }
             for (name, scan_info, backup_info, decision) in info {
-                if !reporter.add_game(&name, &scan_info, &backup_info, &decision, &[]) {
+                if !reporter.add_game(&name, &scan_info, &backup_info, &decision, &[], &duplicate_detector) {
                     failed = true;
                 }
             }
@@ -607,12 +665,32 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 })
                 .collect();
 
+            for (_, scan_info, _, _) in info.iter() {
+                duplicate_detector.add_game(&scan_info);
+            }
             for (name, scan_info, backup_info, decision) in info {
-                if !reporter.add_game(&name, &scan_info, &backup_info, &decision, &config.get_redirects()) {
+                if !reporter.add_game(
+                    &name,
+                    &scan_info,
+                    &backup_info,
+                    &decision,
+                    &config.get_redirects(),
+                    &duplicate_detector,
+                ) {
                     failed = true;
                 }
             }
             reporter.print(&restore_dir);
+        }
+        Subcommand::Complete { shell } => {
+            let clap_shell = match shell {
+                CompletionShell::Bash => structopt::clap::Shell::Bash,
+                CompletionShell::Fish => structopt::clap::Shell::Fish,
+                CompletionShell::Zsh => structopt::clap::Shell::Zsh,
+                CompletionShell::PowerShell => structopt::clap::Shell::PowerShell,
+                CompletionShell::Elvish => structopt::clap::Shell::Elvish,
+            };
+            Cli::clap().gen_completions_to(env!("CARGO_PKG_NAME"), clap_shell, &mut std::io::stdout());
         }
     }
 
@@ -827,6 +905,66 @@ mod tests {
                 structopt::clap::ErrorKind::ValueValidation,
             );
         }
+
+        #[test]
+        fn accepts_cli_complete_for_bash() {
+            check_args(
+                &["ludusavi", "complete", "bash"],
+                Cli {
+                    sub: Some(Subcommand::Complete {
+                        shell: CompletionShell::Bash,
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_complete_for_fish() {
+            check_args(
+                &["ludusavi", "complete", "fish"],
+                Cli {
+                    sub: Some(Subcommand::Complete {
+                        shell: CompletionShell::Fish,
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_complete_for_zsh() {
+            check_args(
+                &["ludusavi", "complete", "zsh"],
+                Cli {
+                    sub: Some(Subcommand::Complete {
+                        shell: CompletionShell::Zsh,
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_complete_for_powershell() {
+            check_args(
+                &["ludusavi", "complete", "powershell"],
+                Cli {
+                    sub: Some(Subcommand::Complete {
+                        shell: CompletionShell::PowerShell,
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_complete_for_elvish() {
+            check_args(
+                &["ludusavi", "complete", "elvish"],
+                Cli {
+                    sub: Some(Subcommand::Complete {
+                        shell: CompletionShell::Elvish,
+                    }),
+                },
+            );
+        }
     }
 
     mod reporter {
@@ -852,6 +990,7 @@ mod tests {
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
                 &[],
+                &DuplicateDetector::default(),
             );
             assert_eq!(
                 format!(
@@ -909,6 +1048,7 @@ Overall:
                 },
                 &OperationStepDecision::Processed,
                 &[],
+                &DuplicateDetector::default(),
             );
             assert_eq!(
                 r#"
@@ -955,6 +1095,7 @@ Overall:
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
                 &[],
+                &DuplicateDetector::default(),
             );
             assert_eq!(
                 r#"
@@ -974,6 +1115,66 @@ Overall:
         }
 
         #[test]
+        fn can_render_in_standard_mode_with_duplicated_entries() {
+            let mut reporter = Reporter::standard(Translator::default());
+
+            let mut duplicate_detector = DuplicateDetector::default();
+            for name in &["foo", "bar"] {
+                duplicate_detector.add_game(&ScanInfo {
+                    game_name: s(name),
+                    found_files: hashset! {
+                        ScannedFile {
+                            path: StrictPath::new(s("/file1")),
+                            size: 102_400,
+                            original_path: None,
+                        },
+                    },
+                    found_registry_keys: hashset! {
+                        s("HKEY_CURRENT_USER/Key1"),
+                    },
+                    registry_file: None,
+                });
+            }
+
+            reporter.add_game(
+                "foo",
+                &ScanInfo {
+                    game_name: s("foo"),
+                    found_files: hashset! {
+                        ScannedFile {
+                            path: StrictPath::new(s("/file1")),
+                            size: 102_400,
+                            original_path: None,
+                        },
+                    },
+                    found_registry_keys: hashset! {
+                        s("HKEY_CURRENT_USER/Key1"),
+                    },
+                    registry_file: None,
+                },
+                &BackupInfo::default(),
+                &OperationStepDecision::Processed,
+                &[],
+                &duplicate_detector,
+            );
+            assert_eq!(
+                r#"
+foo [100.00 KiB] [DUPLICATES]:
+  - [DUPLICATED] <drive>/file1
+  - [DUPLICATED] HKEY_CURRENT_USER/Key1
+
+Overall:
+  Games: 1
+  Size: 100.00 KiB
+  Location: <drive>/dev/null
+                "#
+                .trim()
+                .replace("<drive>", &drive()),
+                reporter.render(&StrictPath::new(s("/dev/null")))
+            );
+        }
+
+        #[test]
         fn can_render_in_json_mode_with_minimal_input() {
             let mut reporter = Reporter::json();
 
@@ -983,6 +1184,7 @@ Overall:
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
                 &[],
+                &DuplicateDetector::default(),
             );
             assert_eq!(
                 r#"
@@ -1041,6 +1243,7 @@ Overall:
                 },
                 &OperationStepDecision::Processed,
                 &[],
+                &DuplicateDetector::default(),
             );
             assert_eq!(
                 r#"
@@ -1108,6 +1311,7 @@ Overall:
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
                 &[],
+                &DuplicateDetector::default(),
             );
             assert_eq!(
                 r#"
@@ -1130,6 +1334,86 @@ Overall:
         }
       },
       "registry": {}
+    }
+  }
+}
+                "#
+                .trim()
+                .replace("<drive>", &drive()),
+                reporter.render(&StrictPath::new(s("/dev/null")))
+            );
+        }
+
+        #[test]
+        fn can_render_in_json_mode_with_duplicated_entries() {
+            let mut reporter = Reporter::json();
+
+            let mut duplicate_detector = DuplicateDetector::default();
+            for name in &["foo", "bar"] {
+                duplicate_detector.add_game(&ScanInfo {
+                    game_name: s(name),
+                    found_files: hashset! {
+                        ScannedFile {
+                            path: StrictPath::new(s("/file1")),
+                            size: 102_400,
+                            original_path: None,
+                        },
+                    },
+                    found_registry_keys: hashset! {
+                        s("HKEY_CURRENT_USER/Key1"),
+                    },
+                    registry_file: None,
+                });
+            }
+
+            reporter.add_game(
+                "foo",
+                &ScanInfo {
+                    game_name: s("foo"),
+                    found_files: hashset! {
+                        ScannedFile {
+                            path: StrictPath::new(s("/file1")),
+                            size: 100,
+                            original_path: None,
+                        },
+                    },
+                    found_registry_keys: hashset! {
+                        s("HKEY_CURRENT_USER/Key1"),
+                    },
+                    registry_file: None,
+                },
+                &BackupInfo::default(),
+                &OperationStepDecision::Processed,
+                &[],
+                &duplicate_detector,
+            );
+            assert_eq!(
+                r#"
+{
+  "overall": {
+    "totalGames": 1,
+    "totalBytes": 100,
+    "processedGames": 1,
+    "processedBytes": 100
+  },
+  "games": {
+    "foo": {
+      "decision": "Processed",
+      "files": {
+        "<drive>/file1": {
+          "bytes": 100,
+          "duplicatedBy": [
+            "bar"
+          ]
+        }
+      },
+      "registry": {
+        "HKEY_CURRENT_USER/Key1": {
+          "duplicatedBy": [
+            "bar"
+          ]
+        }
+      }
     }
   }
 }

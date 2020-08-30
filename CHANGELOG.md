@@ -1,3 +1,32 @@
+## v0.9.0 (2020-08-30)
+
+* Added:
+  * An indication when a single file or registry key will be backed up by
+    more than one game.
+  * CLI: A `complete` command for generating shell completion scripts.
+  * GUI: Info about how many games are selected, if the number is different
+    than how many games have been processed in the backup/restore.
+  * GUI: An edit button next to each game in backup mode to quickly create
+    a custom entry for that game, pre-filled with the default info.
+  * GUI: A search option to just see games with matching names.
+  * GUI: A button to open a game's PCGamingWiki article so that you can more
+    easily review or update its information.
+* Changed:
+  * GUI: Each game's list of files is now a tree with collapsible folders,
+    rather than a plain list of full paths. Performance has also been improved
+    for very large lists.
+  * GUI: The backup/restore confirmation screen now has some extra text that
+    recommends doing a preview first.
+* Fixed:
+  * When using a custom entry to override a known game, some of the original's
+    non-overridable data would not be inherited by the custom entry (namely its
+    Steam ID and installation directory name).
+  * GUI: If the initial full scan found saves for a game, and then you created
+    a custom entry for that game such that no saves would be found, did a scan,
+    deleted the custom entry, and did another scan, then that scan would not
+    find any files for the game. Now, it will correctly revert to the standard
+    data for that game immediately.
+
 ## v0.8.0 (2020-08-10)
 
 * Added:

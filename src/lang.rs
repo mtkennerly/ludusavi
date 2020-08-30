@@ -43,6 +43,8 @@ impl Translator {
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
             Error::RegistryIssue => self.registry_issue(),
             Error::UnableToBrowseFileSystem => self.unable_to_browse_file_system(),
+            Error::UnableToOpenDir(path) => self.unable_to_open_dir(&path),
+            Error::UnableToOpenUrl(url) => self.unable_to_open_url(&url),
         }
     }
 
@@ -94,6 +96,20 @@ impl Translator {
         .into()
     }
 
+    pub fn label_duplicates(&self) -> String {
+        match self.language {
+            Language::English => "[DUPLICATES]",
+        }
+        .into()
+    }
+
+    pub fn label_duplicated(&self) -> String {
+        match self.language {
+            Language::English => "[DUPLICATED]",
+        }
+        .into()
+    }
+
     pub fn label_ignored(&self) -> String {
         match self.language {
             Language::English => "[IGNORED]",
@@ -101,27 +117,77 @@ impl Translator {
         .into()
     }
 
-    pub fn cli_game_header(&self, name: &str, bytes: u64, decision: &OperationStepDecision) -> String {
-        if *decision == OperationStepDecision::Processed {
+    pub fn badge_failed(&self) -> String {
+        match self.language {
+            Language::English => "FAILED",
+        }
+        .into()
+    }
+
+    pub fn badge_duplicates(&self) -> String {
+        match self.language {
+            Language::English => "DUPLICATES",
+        }
+        .into()
+    }
+
+    pub fn badge_duplicated(&self) -> String {
+        match self.language {
+            Language::English => "DUPLICATED",
+        }
+        .into()
+    }
+
+    pub fn badge_redirected_from(&self, original: &StrictPath) -> String {
+        match self.language {
+            Language::English => format!("FROM: {}", original.render()),
+        }
+    }
+
+    pub fn badge_selected_games(&self, games: usize, bytes: u64) -> String {
+        match self.language {
+            Language::English => format!("SELECTING {} GAMES, {}", games, self.adjusted_size(bytes)),
+        }
+    }
+
+    pub fn cli_game_header(
+        &self,
+        name: &str,
+        bytes: u64,
+        decision: &OperationStepDecision,
+        duplicated: bool,
+    ) -> String {
+        let mut labels = vec![];
+        if *decision == OperationStepDecision::Ignored {
+            labels.push(self.label_ignored());
+        }
+        if duplicated {
+            labels.push(self.label_duplicates());
+        }
+
+        if labels.is_empty() {
             match self.language {
                 Language::English => format!("{} [{}]:", name, self.adjusted_size(bytes)),
             }
         } else {
             match self.language {
-                Language::English => format!("{} [{}] {}:", name, self.adjusted_size(bytes), self.label_ignored()),
+                Language::English => format!("{} [{}] {}:", name, self.adjusted_size(bytes), labels.join(" ")),
             }
         }
     }
 
-    pub fn cli_game_line_item_successful(&self, item: &str) -> String {
-        match self.language {
-            Language::English => format!("  - {}", item),
+    pub fn cli_game_line_item(&self, item: &str, successful: bool, duplicated: bool) -> String {
+        let mut parts = vec![];
+        if !successful {
+            parts.push(self.label_failed());
         }
-    }
+        if duplicated {
+            parts.push(self.label_duplicated());
+        }
+        parts.push(item.to_string());
 
-    pub fn cli_game_line_item_failed(&self, item: &str) -> String {
         match self.language {
-            Language::English => format!("  - {} {}", self.label_failed(), item),
+            Language::English => format!("  - {}", parts.join(" ")),
         }
     }
 
@@ -152,24 +218,6 @@ impl Translator {
                     location.render()
                 ),
             }
-        }
-    }
-
-    pub fn game_list_entry_title_failed(&self, name: &str) -> String {
-        match self.language {
-            Language::English => format!("{} {}", name, self.label_failed()),
-        }
-    }
-
-    pub fn failed_file_entry_line(&self, path: &str) -> String {
-        match self.language {
-            Language::English => format!("{} {}", self.label_failed(), path),
-        }
-    }
-
-    pub fn redirected_file_entry_line(&self, path: &StrictPath) -> String {
-        match self.language {
-            Language::English => format!(". . . . . Redirected from: {}", path.render()),
         }
     }
 
@@ -341,6 +389,18 @@ impl Translator {
         .into()
     }
 
+    pub fn unable_to_open_dir(&self, path: &StrictPath) -> String {
+        match self.language {
+            Language::English => format!("Error: Unable to open directory:\n\n{}", path.render()),
+        }
+    }
+
+    pub fn unable_to_open_url(&self, url: &str) -> String {
+        match self.language {
+            Language::English => format!("Error: Unable to open URL:\n\n{}", url),
+        }
+    }
+
     pub fn adjusted_size(&self, bytes: u64) -> String {
         let byte = Byte::from_bytes(bytes.into());
         let adjusted_byte = byte.get_appropriate_unit(true);
@@ -350,18 +410,24 @@ impl Translator {
     pub fn processed_games(&self, status: &OperationStatus) -> String {
         if status.completed() {
             match self.language {
-                Language::English => format!(
-                    "{} games | {}",
-                    status.total_games,
-                    self.adjusted_size(status.total_bytes)
-                ),
+                Language::English => format!("{} games", status.total_games,),
+            }
+        } else {
+            match self.language {
+                Language::English => format!("{} of {} games", status.processed_games, status.total_games,),
+            }
+        }
+    }
+
+    pub fn processed_bytes(&self, status: &OperationStatus) -> String {
+        if status.completed() {
+            match self.language {
+                Language::English => self.adjusted_size(status.total_bytes),
             }
         } else {
             match self.language {
                 Language::English => format!(
-                    "{} of {} games | {} of {}",
-                    status.processed_games,
-                    status.total_games,
+                    "{} of {}",
                     self.adjusted_size(status.processed_bytes),
                     self.adjusted_size(status.total_bytes)
                 ),
@@ -404,6 +470,13 @@ impl Translator {
         .into()
     }
 
+    pub fn search_label(&self) -> String {
+        match self.language {
+            Language::English => "Search:",
+        }
+        .into()
+    }
+
     pub fn store(&self, store: &Store) -> String {
         match self.language {
             Language::English => match store {
@@ -435,6 +508,13 @@ impl Translator {
         .into()
     }
 
+    pub fn search_game_name_placeholder(&self) -> String {
+        match self.language {
+            Language::English => "Name",
+        }
+        .into()
+    }
+
     pub fn explanation_for_exclude_other_os_data(&self) -> String {
         match self.language {
             Language::English => "In backups, exclude save locations that have only been confirmed on another operating system. Some games always put saves in the same place, but the locations may have only been confirmed for a different OS, so it can help to check them anyway. Excluding that data may help to avoid false positives, but may also mean missing out on some saves. On Linux, Proton saves will still be backed up regardless of this setting.",
@@ -451,15 +531,24 @@ impl Translator {
 
     pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool) -> String {
         match (self.language, target_exists, merge) {
-            (Language::English, false, _) => format!("Are you sure you want to proceed with the backup? The target folder will be created: {}", target.render()),
-            (Language::English, true, false) => format!("Are you sure you want to proceed with the backup? The target folder will be deleted and recreated from scratch: {}", target.render()),
-            (Language::English, true, true) => format!("Are you sure you want to proceed with the backup? New save data will be merged into the target folder: {}", target.render()),
+            (Language::English, false, _) => format!("Are you sure you want to proceed with the backup? The target folder will be created:\n\n{}\n\n{}", target.render(), self.modal_consider_doing_a_preview()),
+            (Language::English, true, false) => format!("Are you sure you want to proceed with the backup? The target folder will be deleted and recreated from scratch:\n\n{}\n\n{}", target.render(), self.modal_consider_doing_a_preview()),
+            (Language::English, true, true) => format!("Are you sure you want to proceed with the backup? New save data will be merged into the target folder:\n\n{}\n\n{}", target.render(), self.modal_consider_doing_a_preview()),
         }
     }
 
     pub fn modal_confirm_restore(&self, source: &StrictPath) -> String {
         match self.language {
-            Language::English => format!("Are you sure you want to proceed with the restoration? This will overwrite any current files with the backups from here: {}", source.render()),
+            Language::English => format!("Are you sure you want to proceed with the restoration? This will overwrite any current files with the backups from here:\n\n{}\n\n{}", source.render(), self.modal_consider_doing_a_preview()),
         }
+    }
+
+    pub fn modal_consider_doing_a_preview(&self) -> String {
+        match self.language {
+            Language::English => {
+                "If you haven't already, consider doing a preview first so that there are no surprises."
+            }
+        }
+        .into()
     }
 }
