@@ -7,23 +7,38 @@ use crate::{
 };
 use iced::{button, Align, Button, Column, Container, Length, Row, Space, Text};
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum FileTreeNodeType {
+    File,
+    Registry,
+}
+
+impl Default for FileTreeNodeType {
+    fn default() -> Self {
+        Self::File
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 struct FileTreeNode {
     keys: Vec<String>,
     expand_button: button::State,
     expanded: bool,
+    open_button: button::State,
     path: Option<StrictPath>,
     nodes: std::collections::BTreeMap<String, FileTreeNode>,
     successful: bool,
     duplicated: bool,
     redirected_from: Option<StrictPath>,
+    node_type: FileTreeNodeType,
 }
 
 impl FileTreeNode {
-    pub fn new(keys: Vec<String>, path: Option<StrictPath>) -> Self {
+    pub fn new(keys: Vec<String>, path: Option<StrictPath>, node_type: FileTreeNodeType) -> Self {
         Self {
             keys,
             path,
+            node_type,
             ..Default::default()
         }
     }
@@ -99,7 +114,20 @@ impl FileTreeNode {
                             .width(Length::Units(25)),
                         )
                         .push(Space::new(Length::Units(10), Length::Shrink))
-                        .push(Text::new(label)),
+                        .push(Text::new(label))
+                        .push(Space::new(Length::Units(10), Length::Shrink))
+                        .push(match &self.path {
+                            Some(path) if self.node_type == FileTreeNodeType::File => Container::new(
+                                Button::new(
+                                    &mut self.open_button,
+                                    Icon::OpenInNew.as_text().width(Length::Shrink).size(15),
+                                )
+                                .on_press(Message::OpenDir { path: path.clone() })
+                                .style(style::Button::Primary)
+                                .height(Length::Units(25)),
+                            ),
+                            _ => Container::new(Space::new(Length::Shrink, Length::Shrink)),
+                        }),
                 ),
                 |parent, (k, v)| {
                     if expanded {
@@ -116,23 +144,29 @@ impl FileTreeNode {
         &mut self,
         keys: &[&str],
         prefix_keys: &[&str],
-        canonical_leaf_path: Option<StrictPath>,
         successful: bool,
         duplicated: bool,
         redirected_from: Option<StrictPath>,
     ) -> &mut Self {
+        let node_type = self.node_type.clone();
         let mut node = self;
         let mut inserted_keys = vec![];
+        for key in prefix_keys.iter() {
+            inserted_keys.push(key.to_string());
+        }
         let mut full_keys: Vec<_> = prefix_keys.iter().map(|x| x.to_string()).collect();
         for key in keys.iter() {
             inserted_keys.push(key.to_string());
             full_keys.push(key.to_string());
             node = node.nodes.entry(key.to_string()).or_insert_with(|| {
-                FileTreeNode::new(full_keys.clone(), Some(StrictPath::new(inserted_keys.join("/"))))
+                FileTreeNode::new(
+                    full_keys.clone(),
+                    Some(StrictPath::new(inserted_keys.join("/"))),
+                    node_type.clone(),
+                )
             });
         }
 
-        node.path = canonical_leaf_path;
         node.successful = successful;
         node.duplicated = duplicated;
         node.redirected_from = redirected_from;
@@ -199,11 +233,10 @@ impl FileTree {
 
             nodes
                 .entry(components[0].to_string())
-                .or_insert_with(|| FileTreeNode::new(vec![components[0].to_string()], None))
+                .or_insert_with(|| FileTreeNode::new(vec![components[0].to_string()], None, FileTreeNodeType::File))
                 .insert_keys(
                     &components[1..],
                     &[components[0]],
-                    Some(path_to_show.clone()),
                     successful,
                     duplicate_detector.is_file_duplicated(&item),
                     redirected_from,
@@ -221,11 +254,10 @@ impl FileTree {
 
             nodes
                 .entry(components[0].to_string())
-                .or_insert_with(|| FileTreeNode::new(vec![components[0].to_string()], None))
+                .or_insert_with(|| FileTreeNode::new(vec![components[0].to_string()], None, FileTreeNodeType::Registry))
                 .insert_keys(
                     &components[1..],
                     &[components[0]],
-                    None,
                     successful,
                     duplicate_detector.is_registry_duplicated(&item),
                     None,

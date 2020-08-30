@@ -71,6 +71,12 @@ pub enum Message {
     CustomizeGame {
         name: String,
     },
+    OpenDir {
+        path: StrictPath,
+    },
+    OpenDirFailure {
+        path: StrictPath,
+    },
     OpenWiki {
         game: String,
     },

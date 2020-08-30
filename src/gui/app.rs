@@ -742,13 +742,26 @@ impl Application for App {
                 self.screen = Screen::CustomGames;
                 Command::none()
             }
+            Message::OpenDir { path } => {
+                let path2 = path.clone();
+                match std::thread::spawn(move || opener::open(&path.interpret())).join() {
+                    Ok(Ok(_)) => Command::perform(async move {}, move |_| Message::Ignore),
+                    _ => Command::perform(async move {}, move |_| Message::OpenDirFailure { path: path2.clone() }),
+                }
+            }
+            Message::OpenDirFailure { path } => {
+                self.modal_theme = Some(ModalTheme::Error {
+                    variant: Error::UnableToOpenDir(path),
+                });
+                Command::none()
+            }
             Message::OpenWiki { game } => {
                 let url = format!("https://www.pcgamingwiki.com/wiki/{}", game.replace(" ", "_"));
                 let url2 = url.clone();
-                Command::perform(async move { opener::open(&url) }, move |result| match result {
-                    Ok(_) => Message::Ignore,
-                    Err(_) => Message::OpenUrlFailure { url: url2.clone() },
-                })
+                match std::thread::spawn(move || opener::open(&url)).join() {
+                    Ok(Ok(_)) => Command::perform(async move {}, move |_| Message::Ignore),
+                    _ => Command::perform(async move {}, move |_| Message::OpenUrlFailure { url: url2.clone() }),
+                }
             }
             Message::OpenUrlFailure { url } => {
                 self.modal_theme = Some(ModalTheme::Error {

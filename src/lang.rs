@@ -43,6 +43,7 @@ impl Translator {
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
             Error::RegistryIssue => self.registry_issue(),
             Error::UnableToBrowseFileSystem => self.unable_to_browse_file_system(),
+            Error::UnableToOpenDir(path) => self.unable_to_open_dir(&path),
             Error::UnableToOpenUrl(url) => self.unable_to_open_url(&url),
         }
     }
@@ -386,6 +387,12 @@ impl Translator {
             Language::English => "Error: Unable to browse on your system.",
         }
         .into()
+    }
+
+    pub fn unable_to_open_dir(&self, path: &StrictPath) -> String {
+        match self.language {
+            Language::English => format!("Error: Unable to open directory: {}", path.render()),
+        }
     }
 
     pub fn unable_to_open_url(&self, url: &str) -> String {

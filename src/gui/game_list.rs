@@ -2,7 +2,6 @@ use crate::{
     config::Config,
     gui::{
         badge::Badge,
-        common::OngoingOperation,
         common::{Message, Screen},
         file_tree::FileTree,
         icon::Icon,
@@ -39,7 +38,6 @@ impl GameListEntry {
         translator: &Translator,
         config: &Config,
         manifest: &Manifest,
-        operation: &Option<OngoingOperation>,
         duplicate_detector: &DuplicateDetector,
     ) -> Container<Message> {
         let successful = match &self.backup_info {
@@ -139,14 +137,14 @@ impl GameListEntry {
                         .push(Space::new(Length::Units(15), Length::Shrink))
                         .push(Container::new(
                             Button::new(&mut self.wiki_button, Icon::Language.as_text().width(Length::Units(45)))
-                                .on_press(if customized_pure || operation.is_some() {
+                                .on_press(if customized_pure {
                                     Message::Ignore
                                 } else {
                                     Message::OpenWiki {
                                         game: self.scan_info.game_name.clone(),
                                     }
                                 })
-                                .style(if customized_pure || operation.is_some() {
+                                .style(if customized_pure {
                                     style::Button::Disabled
                                 } else {
                                     style::Button::Primary
@@ -185,7 +183,6 @@ impl GameList {
         translator: &Translator,
         config: &Config,
         manifest: &Manifest,
-        operation: &Option<OngoingOperation>,
         duplicate_detector: &DuplicateDetector,
     ) -> Container<Message> {
         let use_search = self.search.show;
@@ -211,14 +208,7 @@ impl GameList {
                                     .is_some()
                             {
                                 parent
-                                    .push(x.view(
-                                        restoring,
-                                        translator,
-                                        &config,
-                                        &manifest,
-                                        &operation,
-                                        &duplicate_detector,
-                                    ))
+                                    .push(x.view(restoring, translator, &config, &manifest, &duplicate_detector))
                                     .push(Space::new(Length::Units(0), Length::Units(10)))
                             } else {
                                 parent

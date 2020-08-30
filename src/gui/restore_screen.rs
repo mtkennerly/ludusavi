@@ -186,14 +186,10 @@ impl RestoreScreenComponent {
                 )
                 .push(self.redirect_editor.view(&config, &translator, &operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
-                .push(self.log.view(
-                    true,
-                    translator,
-                    &config,
-                    &manifest,
-                    &operation,
-                    &self.duplicate_detector,
-                )),
+                .push(
+                    self.log
+                        .view(true, translator, &config, &manifest, &self.duplicate_detector),
+                ),
         )
         .height(Length::Fill)
         .width(Length::Fill)

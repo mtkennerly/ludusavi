@@ -49,6 +49,9 @@ pub enum Error {
     #[error("Unable to browse file system")]
     UnableToBrowseFileSystem,
 
+    #[error("Unable to open directory")]
+    UnableToOpenDir(StrictPath),
+
     #[error("Unable to open URL")]
     UnableToOpenUrl(String),
 }
