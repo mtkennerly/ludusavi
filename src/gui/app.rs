@@ -745,8 +745,8 @@ impl Application for App {
             Message::OpenDir { path } => {
                 let path2 = path.clone();
                 match std::thread::spawn(move || opener::open(&path.interpret())).join() {
-                    Ok(Ok(_)) => Command::perform(async move {}, move |_| Message::Ignore),
-                    _ => Command::perform(async move {}, move |_| Message::OpenDirFailure { path: path2.clone() }),
+                    Ok(Ok(_)) => Command::none(),
+                    _ => Command::perform(async {}, move |_| Message::OpenDirFailure { path: path2.clone() }),
                 }
             }
             Message::OpenDirFailure { path } => {
@@ -759,8 +759,8 @@ impl Application for App {
                 let url = format!("https://www.pcgamingwiki.com/wiki/{}", game.replace(" ", "_"));
                 let url2 = url.clone();
                 match std::thread::spawn(move || opener::open(&url)).join() {
-                    Ok(Ok(_)) => Command::perform(async move {}, move |_| Message::Ignore),
-                    _ => Command::perform(async move {}, move |_| Message::OpenUrlFailure { url: url2.clone() }),
+                    Ok(Ok(_)) => Command::none(),
+                    _ => Command::perform(async {}, move |_| Message::OpenUrlFailure { url: url2.clone() }),
                 }
             }
             Message::OpenUrlFailure { url } => {

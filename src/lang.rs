@@ -391,13 +391,13 @@ impl Translator {
 
     pub fn unable_to_open_dir(&self, path: &StrictPath) -> String {
         match self.language {
-            Language::English => format!("Error: Unable to open directory: {}", path.render()),
+            Language::English => format!("Error: Unable to open directory:\n\n{}", path.render()),
         }
     }
 
     pub fn unable_to_open_url(&self, url: &str) -> String {
         match self.language {
-            Language::English => format!("Error: Unable to open URL: {}", url),
+            Language::English => format!("Error: Unable to open URL:\n\n{}", url),
         }
     }
 
