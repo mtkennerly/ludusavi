@@ -7,7 +7,7 @@ written in [Rust](https://www.rust-lang.org).
 It is cross-platform and supports multiple game stores.
 
 ## Features
-* Ability to back up data from more than 7,000 games plus your own custom entries.
+* Ability to back up data from more than 8,000 games plus your own custom entries.
 * Backup and restore for Steam as well as other game libraries.
 * Preview of the backup/restore before actually performing it.
 * Both a graphical interface and command line interface for scripting.
@@ -390,10 +390,18 @@ cross-platform and cross-store solution:
   * Interface can be slow or unresponsive; e.g., when (de)selecting all checkboxes,
     it takes half a second per checkbox for them all to toggle.
   * No command line interface.
+  * Can create symlinks for games and game data (not currently supported by Ludusavi).
 * [Gaming Backup Multitool for Linux](https://supremesonicbrazil.gitlab.io/gbml-web) (as of v1.4.0.0):
   * Only supports Linux and Steam.
   * Database is not actively updated (as of 2020-06-20, the last update was 2018-06-05).
   * No command line interface.
+* [Game Backup Monitor](http://mikemaximus.github.io/gbm-web) (as of v1.2.2):
+  * Does not support Mac.
+  * Database only covers 479 games (as of 2020-09-30).
+  * No command line interface.
+  * Can compress and keep multiple copies of saves (not currently supported by Ludusavi).
+  * Can automatically back up saves for a game after you play it
+    (Ludusavi can only do that in conjunction with a launcher like Playnite).
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
