@@ -196,15 +196,15 @@ impl StrictPath {
     pub fn split_drive(&self) -> (String, String) {
         let interpreted = self.interpret();
 
-        if interpreted.starts_with(UNC_LOCAL_PREFIX) {
+        if let Some(stripped) = interpreted.strip_prefix(UNC_LOCAL_PREFIX) {
             // Local UNC path - simplify to a classic drive for user-friendliness:
-            let split: Vec<_> = interpreted[UNC_LOCAL_PREFIX.len()..].splitn(2, '\\').collect();
+            let split: Vec<_> = stripped.splitn(2, '\\').collect();
             if split.len() == 2 {
                 return (split[0].to_owned(), split[1].replace("\\", "/"));
             }
-        } else if interpreted.starts_with(UNC_PREFIX) {
+        } else if let Some(stripped) = interpreted.strip_prefix(UNC_PREFIX) {
             // Remote UNC path - can't simplify to classic drive:
-            let split: Vec<_> = interpreted[UNC_PREFIX.len()..].splitn(2, '\\').collect();
+            let split: Vec<_> = stripped.splitn(2, '\\').collect();
             if split.len() == 2 {
                 return (format!("{}{}", UNC_PREFIX, split[0]), split[1].replace("\\", "/"));
             }
