@@ -240,7 +240,7 @@ pub fn parse_paths(
                     "<base>",
                     &match root.store {
                         Store::Steam => format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
-                        Store::Other => format!("{}/{}", root.path.interpret(), install_dir),
+                        Store::Other | Store::OtherWine => format!("{}/{}", root.path.interpret(), install_dir),
                     },
                 )
                 .replace(
@@ -251,7 +251,7 @@ pub fn parse_paths(
                     "<storeUserId>",
                     match root.store {
                         Store::Steam => "[0-9]*",
-                        Store::Other => "*",
+                        Store::Other | Store::OtherWine => "*",
                     },
                 )
                 .replace("<osUserName>", &whoami::username())
@@ -303,6 +303,27 @@ pub fn parse_paths(
                     .replace("<regHklm>", SKIP),
             );
         }
+        if root.store == Store::OtherWine {
+            let prefix = format!("{}/drive_*", root.path.interpret());
+            paths.insert(
+                path.replace("<root>", &root.path.interpret())
+                    .replace("<game>", &install_dir)
+                    .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
+                    .replace("<home>", &format!("{}/users/*", prefix))
+                    .replace("<storeUserId>", "*")
+                    .replace("<osUserName>", "*")
+                    .replace("<winAppData>", &format!("{}/users/*/Application Data", prefix))
+                    .replace("<winLocalAppData>", &format!("{}/users/*/Application Data", prefix))
+                    .replace("<winDocuments>", &format!("{}/users/*/My Documents", prefix))
+                    .replace("<winPublic>", &format!("{}/users/Public", prefix))
+                    .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
+                    .replace("<winDir>", &format!("{}/windows", prefix))
+                    .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
+                    .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
+                    .replace("<regHkcu>", SKIP)
+                    .replace("<regHklm>", SKIP),
+            );
+        }
     }
 
     paths
@@ -336,6 +357,7 @@ pub fn scan_game_for_backup(
     manifest_dir: &StrictPath,
     steam_id: &Option<u32>,
     filter: &BackupFilter,
+    wine_prefix: &Option<StrictPath>,
 ) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
@@ -347,6 +369,12 @@ pub fn scan_game_for_backup(
         store: Store::Other,
     }];
     roots_to_check.extend(roots.iter().cloned());
+    if let Some(wp) = wine_prefix {
+        roots_to_check.push(RootsConfig {
+            path: wp.clone(),
+            store: Store::OtherWine,
+        });
+    }
 
     let mut paths_to_check = std::collections::HashSet::<StrictPath>::new();
 
@@ -834,6 +862,9 @@ mod tests {
             game3-outer:
               registry:
                 HKEY_CURRENT_USER/Software/Ludusavi: {}
+            game4:
+              files:
+                <home>/data.txt: {}
             "#,
         )
         .unwrap()
@@ -967,6 +998,7 @@ mod tests {
                 &StrictPath::new(repo()),
                 &None,
                 &BackupFilter::default(),
+                &None,
             ),
         );
 
@@ -990,6 +1022,34 @@ mod tests {
                 &StrictPath::new(repo()),
                 &None,
                 &BackupFilter::default(),
+                &None,
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_file_matches_in_wine_prefix() {
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game4"),
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo())),
+                        size: 0,
+                        original_path: None,
+                    },
+                },
+                found_registry_keys: hashset! {},
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game4"],
+                "game4",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &None,
+                &BackupFilter::default(),
+                &Some(StrictPath::new(format!("{}/tests/wine-prefix", repo()))),
             ),
         );
     }
@@ -1013,6 +1073,7 @@ mod tests {
                 &StrictPath::new(repo()),
                 &None,
                 &BackupFilter::default(),
+                &None,
             ),
         );
     }
@@ -1036,6 +1097,7 @@ mod tests {
                 &StrictPath::new(repo()),
                 &None,
                 &BackupFilter::default(),
+                &None,
             ),
         );
     }

@@ -481,7 +481,7 @@ impl Translator {
         match self.language {
             Language::English => match store {
                 Store::Steam => "Steam",
-                Store::Other => "Other",
+                Store::Other | Store::OtherWine => "Other",
             },
         }
         .into()

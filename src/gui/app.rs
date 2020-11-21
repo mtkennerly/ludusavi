@@ -207,6 +207,7 @@ impl Application for App {
                                 &StrictPath::from_std_path_buf(&app_dir()),
                                 &steam_id,
                                 &filter2,
+                                &None,
                             );
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);

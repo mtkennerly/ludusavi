@@ -1,3 +1,8 @@
+## Unreleased
+
+* Added:
+  * CLI: `--wine-prefix` option for backups.
+
 ## v0.9.0 (2020-08-30)
 
 * Added:

@@ -83,6 +83,11 @@ pub enum Subcommand {
         #[structopt(long)]
         by_steam_id: bool,
 
+        /// Extra Wine/Proton prefix to check for saves. This should be a folder
+        /// with an immediate child folder named "drive_c" (or another letter).
+        #[structopt(long, parse(from_str = parse_strict_path))]
+        wine_prefix: Option<StrictPath>,
+
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
         #[structopt(long)]
@@ -419,6 +424,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             update,
             try_update,
             by_steam_id,
+            wine_prefix,
             api,
             games,
         } => {
@@ -533,6 +539,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         &StrictPath::from_std_path_buf(&app_dir()),
                         &steam_id,
                         &filter,
+                        &wine_prefix,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(&name) && !games_specified;
                     let decision = if ignored {
@@ -741,6 +748,7 @@ mod tests {
                         update: false,
                         try_update: false,
                         by_steam_id: false,
+                        wine_prefix: None,
                         api: false,
                         games: vec![],
                     }),
@@ -761,6 +769,8 @@ mod tests {
                     "--merge",
                     "--update",
                     "--by-steam-id",
+                    "--wine-prefix",
+                    "tests/wine-prefix",
                     "--api",
                     "game1",
                     "game2",
@@ -775,6 +785,7 @@ mod tests {
                         update: true,
                         try_update: false,
                         by_steam_id: true,
+                        wine_prefix: Some(StrictPath::new(s("tests/wine-prefix"))),
                         api: true,
                         games: vec![s("game1"), s("game2")],
                     }),
@@ -796,6 +807,7 @@ mod tests {
                         update: false,
                         try_update: false,
                         by_steam_id: false,
+                        wine_prefix: None,
                         api: false,
                         games: vec![],
                     }),
@@ -817,6 +829,7 @@ mod tests {
                         update: false,
                         try_update: false,
                         by_steam_id: false,
+                        wine_prefix: None,
                         api: false,
                         games: vec![],
                     }),
@@ -838,6 +851,7 @@ mod tests {
                         update: false,
                         try_update: true,
                         by_steam_id: false,
+                        wine_prefix: None,
                         api: false,
                         games: vec![],
                     }),
