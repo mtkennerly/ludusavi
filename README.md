@@ -395,7 +395,7 @@ cross-platform and cross-store solution:
   * Only supports Linux and Steam.
   * Database is not actively updated (as of 2020-06-20, the last update was 2018-06-05).
   * No command line interface.
-* [Game Backup Monitor](http://mikemaximus.github.io/gbm-web) (as of v1.2.2):
+* [Game Backup Monitor](https://mikemaximus.github.io/gbm-web) (as of v1.2.2):
   * Does not support Mac.
   * Database only covers 479 games (as of 2020-09-30).
   * No command line interface.
