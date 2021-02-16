@@ -2,6 +2,8 @@
 
 * Added:
   * CLI: `--wine-prefix` option for backups.
+* Changed:
+  * GUI: Switched to OpenGL by default and upgraded to [Iced 0.2.0](https://crates.io/crates/iced).
 
 ## v0.9.0 (2020-08-30)
 

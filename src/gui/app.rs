@@ -27,27 +27,14 @@ use crate::{
 
 use iced::{
     button, executor,
-    keyboard::{KeyCode, ModifiersState},
+    keyboard::{KeyCode, Modifiers},
     Align, Application, Button, Column, Command, Element, HorizontalAlignment, Length, Row, Subscription, Text,
 };
 use native_dialog::Dialog;
 
-#[realia::dep_from_registry("ludusavi", "iced_native")]
-pub fn get_key_pressed(event: iced_native::input::keyboard::Event) -> Option<(KeyCode, ModifiersState)> {
+pub fn get_key_pressed(event: iced::keyboard::Event) -> Option<(KeyCode, Modifiers)> {
     match event {
-        iced_native::input::keyboard::Event::Input {
-            state,
-            key_code,
-            modifiers,
-        } if state == iced_native::input::ButtonState::Pressed => Some((key_code, modifiers)),
-        _ => None,
-    }
-}
-
-#[realia::not(dep_from_registry("ludusavi", "iced_native"))]
-pub fn get_key_pressed(event: iced_native::keyboard::Event) -> Option<(KeyCode, ModifiersState)> {
-    match event {
-        iced_native::keyboard::Event::KeyPressed { key_code, modifiers } => Some((key_code, modifiers)),
+        iced::keyboard::Event::KeyPressed { key_code, modifiers } => Some((key_code, modifiers)),
         _ => None,
     }
 }
@@ -915,7 +902,7 @@ impl Application for App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        iced_native::subscription::events().map(Message::SubscribedEvent)
+        iced_native::subscription::events_with(|event, _| Some(event)).map(Message::SubscribedEvent)
     }
 
     fn view(&mut self) -> Element<Message> {

@@ -20,8 +20,8 @@ impl button::StyleSheet for Button {
                 Self::Negative => Some(Background::Color(Color::from_rgb8(255, 0, 0))),
             },
             border_radius: match self {
-                Self::GameListEntryTitle | Self::GameListEntryTitleFailed | Self::GameListEntryTitleDisabled => 10,
-                _ => 4,
+                Self::GameListEntryTitle | Self::GameListEntryTitleFailed | Self::GameListEntryTitleDisabled => 10.0,
+                _ => 4.0,
             },
             shadow_offset: Vector::new(1.0, 1.0),
             text_color: match self {
@@ -55,8 +55,8 @@ impl button::StyleSheet for NavButton {
                 Self::Active => Some(Background::Color(Color::from_rgba8(136, 0, 219, 0.9))),
                 Self::Inactive => Some(Background::Color(Color::TRANSPARENT)),
             },
-            border_radius: 10,
-            border_width: 1,
+            border_radius: 10.0,
+            border_width: 1.0,
             border_color: Color::from_rgb8(136, 0, 219),
             text_color: match self {
                 Self::Active => Color::WHITE,
@@ -95,12 +95,12 @@ impl container::StyleSheet for Container {
                 _ => Color::BLACK,
             },
             border_width: match self {
-                Self::GameListEntry | Self::Badge => 1,
-                _ => 0,
+                Self::GameListEntry | Self::Badge => 1.0,
+                _ => 0.0,
             },
             border_radius: match self {
-                Self::GameListEntry | Self::Badge => 10,
-                _ => 0,
+                Self::GameListEntry | Self::Badge => 10.0,
+                _ => 0.0,
             },
             ..container::Style::default()
         }
@@ -112,13 +112,13 @@ impl scrollable::StyleSheet for Scrollable {
     fn active(&self) -> scrollable::Scrollbar {
         scrollable::Scrollbar {
             background: Some(Background::Color(Color::TRANSPARENT)),
-            border_radius: 5,
-            border_width: 0,
+            border_radius: 5.0,
+            border_width: 0.0,
             border_color: Color::TRANSPARENT,
             scroller: scrollable::Scroller {
                 color: Color::from_rgba8(0, 0, 0, 0.7),
-                border_radius: 5,
-                border_width: 0,
+                border_radius: 5.0,
+                border_width: 0.0,
                 border_color: Color::TRANSPARENT,
             },
         }

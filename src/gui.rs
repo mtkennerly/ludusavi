@@ -18,10 +18,6 @@ pub mod style;
 
 use iced::Application;
 
-#[realia::dep_from_registry("ludusavi", "iced")]
-pub fn set_app_icon<T>(_settings: &mut iced::Settings<T>) {}
-
-#[realia::not(dep_from_registry("ludusavi", "iced"))]
 pub fn set_app_icon<T>(settings: &mut iced::Settings<T>) {
     settings.window.icon = match image::load_from_memory(include_bytes!("../assets/icon.png")) {
         Ok(buffer) => {
@@ -38,10 +34,6 @@ pub fn set_app_icon<T>(settings: &mut iced::Settings<T>) {
     }
 }
 
-#[realia::dep_from_registry("ludusavi", "iced")]
-pub fn set_app_min_size<T>(_settings: &mut iced::Settings<T>) {}
-
-#[realia::not(dep_from_registry("ludusavi", "iced"))]
 pub fn set_app_min_size<T>(settings: &mut iced::Settings<T>) {
     settings.window.min_size = Some((640, 480));
 }
@@ -50,5 +42,5 @@ pub fn run_gui() {
     let mut settings = iced::Settings::default();
     set_app_icon(&mut settings);
     set_app_min_size(&mut settings);
-    app::App::run(settings)
+    let _ = app::App::run(settings);
 }

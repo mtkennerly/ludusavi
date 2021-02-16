@@ -38,6 +38,7 @@ Ludusavi is available for Windows, Linux, and Mac. However, your computer must
 support one of these graphics systems: Vulkan, DirectX (11 or 12), or Metal.
 (Experimental builds with OpenGL support are also available - give them a try
 if the standard builds don't work on your system.)
+<!-- TODO: Document OpenGL being the new default. -->
 
 ### Methods
 You can install Ludusavi one of these ways:
