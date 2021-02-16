@@ -567,7 +567,8 @@ customGames:
                     },
                 ],
             })
-            .unwrap(),
+            .unwrap()
+            .trim(),
         );
     }
 }

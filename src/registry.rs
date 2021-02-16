@@ -383,6 +383,7 @@ HKEY_CURRENT_USER:
                 })
             }))
             .unwrap()
+            .trim()
         )
     }
 }

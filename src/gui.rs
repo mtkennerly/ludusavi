@@ -21,7 +21,7 @@ use iced::Application;
 pub fn set_app_icon<T>(settings: &mut iced::Settings<T>) {
     settings.window.icon = match image::load_from_memory(include_bytes!("../assets/icon.png")) {
         Ok(buffer) => {
-            let buffer = buffer.to_rgba();
+            let buffer = buffer.to_rgba8();
             let width = buffer.width();
             let height = buffer.height();
             let dynamic_image = image::DynamicImage::ImageRgba8(buffer);

@@ -325,13 +325,17 @@ impl Reporter {
                     return true;
                 }
 
-                let mut api_game = ApiGame::default();
-                api_game.decision = decision.clone();
+                let mut api_game = ApiGame {
+                    decision: decision.clone(),
+                    ..Default::default()
+                };
 
                 for entry in itertools::sorted(&scan_info.found_files) {
-                    let mut api_file = ApiFile::default();
-                    api_file.bytes = entry.size;
-                    api_file.failed = backup_info.failed_files.contains(entry);
+                    let mut api_file = ApiFile {
+                        bytes: entry.size,
+                        failed: backup_info.failed_files.contains(entry),
+                        ..Default::default()
+                    };
                     if duplicate_detector.is_file_duplicated(&entry) {
                         let mut duplicated_by = duplicate_detector.file(&entry);
                         duplicated_by.remove(&scan_info.game_name);

@@ -643,17 +643,23 @@ impl Application for App {
                 async move { native_dialog::OpenSingleDir { dir: None }.show() },
                 move |choice| match choice {
                     Ok(Some(path)) => match subject {
-                        BrowseSubject::BackupTarget => Message::EditedBackupTarget(path),
-                        BrowseSubject::RestoreSource => Message::EditedRestoreSource(path),
-                        BrowseSubject::Root(i) => Message::EditedRoot(EditAction::Change(i, path)),
-                        BrowseSubject::RedirectSource(i) => {
-                            Message::EditedRedirect(EditAction::Change(i, path), Some(RedirectEditActionField::Source))
+                        BrowseSubject::BackupTarget => Message::EditedBackupTarget(crate::path::render_pathbuf(&path)),
+                        BrowseSubject::RestoreSource => {
+                            Message::EditedRestoreSource(crate::path::render_pathbuf(&path))
                         }
-                        BrowseSubject::RedirectTarget(i) => {
-                            Message::EditedRedirect(EditAction::Change(i, path), Some(RedirectEditActionField::Target))
+                        BrowseSubject::Root(i) => {
+                            Message::EditedRoot(EditAction::Change(i, crate::path::render_pathbuf(&path)))
                         }
+                        BrowseSubject::RedirectSource(i) => Message::EditedRedirect(
+                            EditAction::Change(i, crate::path::render_pathbuf(&path)),
+                            Some(RedirectEditActionField::Source),
+                        ),
+                        BrowseSubject::RedirectTarget(i) => Message::EditedRedirect(
+                            EditAction::Change(i, crate::path::render_pathbuf(&path)),
+                            Some(RedirectEditActionField::Target),
+                        ),
                         BrowseSubject::CustomGameFile(i, j) => {
-                            Message::EditedCustomGameFile(i, EditAction::Change(j, path))
+                            Message::EditedCustomGameFile(i, EditAction::Change(j, crate::path::render_pathbuf(&path)))
                         }
                     },
                     Ok(None) => Message::Ignore,

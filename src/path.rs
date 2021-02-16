@@ -111,7 +111,7 @@ fn render<P: Into<String>>(path: P) -> String {
     path.into().replace(UNC_LOCAL_PREFIX, "").replace("\\", "/")
 }
 
-fn render_pathbuf(value: &std::path::PathBuf) -> String {
+pub fn render_pathbuf(value: &std::path::PathBuf) -> String {
     value.as_path().display().to_string()
 }
 
