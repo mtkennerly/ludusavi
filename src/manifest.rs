@@ -23,8 +23,20 @@ impl Default for Os {
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Store {
+    #[serde(rename = "epic")]
+    Epic,
+    #[serde(rename = "gog")]
+    Gog,
+    #[serde(rename = "gogGalaxy")]
+    GogGalaxy,
+    #[serde(rename = "microsoft")]
+    Microsoft,
+    #[serde(rename = "origin")]
+    Origin,
     #[serde(rename = "steam")]
     Steam,
+    #[serde(rename = "uplay")]
+    Uplay,
     #[serde(rename = "otherWine")]
     OtherWine,
     #[serde(other, rename = "other")]
@@ -34,6 +46,14 @@ pub enum Store {
 impl Default for Store {
     fn default() -> Self {
         Self::Other
+    }
+}
+
+impl std::fmt::Display for Store {
+    // This is needed for Iced's PickList.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        // TODO: Use display adapter wrapper struct to respect the active language.
+        writeln!(f, "{}", crate::lang::Translator::default().store(&self))
     }
 }
 
@@ -264,7 +284,7 @@ mod tests {
                     s("bar") => GameRegistryEntry {
                         when: Some(vec![
                             GameRegistryConstraint {
-                                store: Some(Store::Other),
+                                store: Some(Store::Epic),
                             }
                         ]),
                         tags: Some(vec![Tag::Config])

@@ -11,7 +11,10 @@ use crate::{
     shortcuts::TextHistory,
 };
 
-use iced::{button, scrollable, text_input, Button, Container, Length, Radio, Row, Scrollable, Space, Text, TextInput};
+use iced::{
+    button, pick_list, scrollable, text_input, Button, Container, Length, PickList, Row, Scrollable, Space, Text,
+    TextInput,
+};
 
 #[derive(Default)]
 pub struct RootEditorRow {
@@ -19,6 +22,7 @@ pub struct RootEditorRow {
     browse_button_state: button::State,
     pub text_state: text_input::State,
     pub text_history: TextHistory,
+    pick_list: pick_list::State<Store>,
 }
 
 impl RootEditorRow {
@@ -71,22 +75,21 @@ impl RootEditor {
                                         .width(Length::FillPortion(3))
                                         .padding(5),
                                     )
-                                    .push({
-                                        Radio::new(
+                                    .push(PickList::new(
+                                        &mut x.pick_list,
+                                        vec![
+                                            Store::Epic,
+                                            Store::Gog,
+                                            Store::GogGalaxy,
+                                            Store::Microsoft,
+                                            Store::Origin,
                                             Store::Steam,
-                                            translator.store(&Store::Steam),
-                                            Some(roots[i].store),
-                                            move |v| Message::SelectedRootStore(i, v),
-                                        )
-                                    })
-                                    .push({
-                                        Radio::new(
+                                            Store::Uplay,
                                             Store::Other,
-                                            translator.store(&Store::Other),
-                                            Some(roots[i].store),
-                                            move |v| Message::SelectedRootStore(i, v),
-                                        )
-                                    })
+                                        ],
+                                        Some(roots[i].store),
+                                        move |v| Message::SelectedRootStore(i, v),
+                                    ))
                                     .push(
                                         Button::new(&mut x.browse_button_state, Icon::FolderOpen.as_text())
                                             .on_press(match operation {

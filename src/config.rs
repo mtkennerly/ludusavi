@@ -177,23 +177,23 @@ impl Config {
             ("~/.steam/steam".to_string(), Store::Steam),
             ("~/Library/Application Support/Steam".to_string(), Store::Steam),
             // Epic:
-            (format!("{}/Epic Games", pf32), Store::Other),
-            (format!("{}/Epic Games", pf64), Store::Other),
+            (format!("{}/Epic Games", pf32), Store::Epic),
+            (format!("{}/Epic Games", pf64), Store::Epic),
             // GOG:
-            ("C:/GOG Games".to_string(), Store::Other),
-            ("~/GOG Games".to_string(), Store::Other),
+            ("C:/GOG Games".to_string(), Store::Gog),
+            ("~/GOG Games".to_string(), Store::Gog),
             // GOG Galaxy:
-            (format!("{}/GOG Galaxy/Games", pf32), Store::Other),
-            (format!("{}/GOG Galaxy/Games", pf64), Store::Other),
+            (format!("{}/GOG Galaxy/Games", pf32), Store::GogGalaxy),
+            (format!("{}/GOG Galaxy/Games", pf64), Store::GogGalaxy),
             // Uplay:
-            (format!("{}/Ubisoft/Ubisoft Game Launcher/games", pf32), Store::Other),
-            (format!("{}/Ubisoft/Ubisoft Game Launcher/games", pf64), Store::Other),
+            (format!("{}/Ubisoft/Ubisoft Game Launcher/games", pf32), Store::Uplay),
+            (format!("{}/Ubisoft/Ubisoft Game Launcher/games", pf64), Store::Uplay),
             // Origin:
-            (format!("{}/Origin Games", pf32), Store::Other),
-            (format!("{}/Origin Games", pf64), Store::Other),
+            (format!("{}/Origin Games", pf32), Store::Origin),
+            (format!("{}/Origin Games", pf64), Store::Origin),
             // Microsoft:
-            (format!("{}/WindowsApps", pf32), Store::Other),
-            (format!("{}/WindowsApps", pf64), Store::Other),
+            (format!("{}/WindowsApps", pf32), Store::Microsoft),
+            (format!("{}/WindowsApps", pf64), Store::Microsoft),
         ];
 
         let mut checked = std::collections::HashSet::<StrictPath>::new();

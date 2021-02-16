@@ -240,7 +240,7 @@ pub fn parse_paths(
                     "<base>",
                     &match root.store {
                         Store::Steam => format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
-                        Store::Other | Store::OtherWine => format!("{}/{}", root.path.interpret(), install_dir),
+                        _ => format!("{}/{}", root.path.interpret(), install_dir),
                     },
                 )
                 .replace(
@@ -251,7 +251,7 @@ pub fn parse_paths(
                     "<storeUserId>",
                     match root.store {
                         Store::Steam => "[0-9]*",
-                        Store::Other | Store::OtherWine => "*",
+                        _ => "*",
                     },
                 )
                 .replace("<osUserName>", &whoami::username())

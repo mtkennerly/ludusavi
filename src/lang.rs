@@ -480,8 +480,15 @@ impl Translator {
     pub fn store(&self, store: &Store) -> String {
         match self.language {
             Language::English => match store {
+                Store::Epic => "Epic",
+                Store::Gog => "GOG",
+                Store::GogGalaxy => "GOG Galaxy",
+                Store::Microsoft => "Microsoft",
+                Store::Origin => "Origin",
                 Store::Steam => "Steam",
-                Store::Other | Store::OtherWine => "Other",
+                Store::Uplay => "Uplay",
+                Store::OtherWine => "Other: Wine",
+                Store::Other => "Other",
             },
         }
         .into()
