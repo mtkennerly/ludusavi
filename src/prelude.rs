@@ -1045,7 +1045,7 @@ mod tests {
                     },
                     ScannedFile {
                         path: StrictPath::new(format!("{}/tests/wine-prefix/user.reg", repo())),
-                        size: 92,
+                        size: 37,
                         original_path: None,
                     },
                 },
