@@ -363,20 +363,25 @@ pub fn scan_game_for_backup(
     #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
 
+    let mut paths_to_check = std::collections::HashSet::<StrictPath>::new();
+
     // Add a dummy root for checking paths without `<root>`.
     let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig {
         path: StrictPath::new(SKIP.to_string()),
         store: Store::Other,
     }];
     roots_to_check.extend(roots.iter().cloned());
+
     if let Some(wp) = wine_prefix {
         roots_to_check.push(RootsConfig {
             path: wp.clone(),
             store: Store::OtherWine,
         });
+        paths_to_check.insert(StrictPath::relative(
+            format!("{}/*.reg", wp.interpret()),
+            Some(manifest_dir.interpret()),
+        ));
     }
-
-    let mut paths_to_check = std::collections::HashSet::<StrictPath>::new();
 
     for root in &roots_to_check {
         if root.path.raw().trim().is_empty() {
@@ -1036,6 +1041,11 @@ mod tests {
                     ScannedFile {
                         path: StrictPath::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo())),
                         size: 0,
+                        original_path: None,
+                    },
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/wine-prefix/user.reg", repo())),
+                        size: 92,
                         original_path: None,
                     },
                 },
