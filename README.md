@@ -125,11 +125,20 @@ If you are on Mac:
     `userdata` subdirectories. Here are some common/standard locations:
     * Windows: `C:/Program Files (x86)/Steam`
     * Linux: `~/.steam/steam`
-  * For the "other" root type, it should be a folder whose direct children are
-    individual games. For example, in the Epic Games store, this would be
-    what you choose as the "install location" for your games (e.g., if you choose
-    `D:/Epic` and it creates a subfolder for `D:/Epic/Celeste`, then the root
-    would be `D:/Epic`).
+  * For the "other" root type<!-- and the remaining store-specific roots -->,
+    this should be a folder whose direct children are individual games.
+    For example, in the Epic Games store, this would be what you choose as the
+    "install location" for your games (e.g., if you choose `D:/Epic` and it
+    creates a subfolder for `D:/Epic/Celeste`, then the root would be `D:/Epic`).
+<!--
+  * For a home folder root, you may specify any folder. Whenever Ludusavi
+    normally checks your standard home folder (Windows: `%USERPROFILE%`,
+    Linux/Mac: `~`), it will additionally check this root. This is useful if
+    you set a custom `HOME` to manipulate the location of save data.
+  * For a Wine prefix root, this should be the folder containing `drive_c`.
+    Currently, Ludusavi does not back up registry-based saves from the prefix,
+    but will back up any file-based saves.
+-->
 * To select/deselect specific games, you can run a preview, then click the
   checkboxes by each game. You can also press the `deselect all` button
   (when all games are selected) or the `select all` button (when at least
@@ -338,6 +347,10 @@ Here are the available settings (all are required unless otherwise noted):
     * `path` (string): Where the root is located on your system.
     * `store` (string): Game store associated with the root.
       Valid options: `steam`, `other`
+      <!--
+      `epic`, `gog`, `gogGalaxy`, `microsoft`, `origin`,
+      `steam`, `uplay`, `otherHome`, `otherWine`, `other`
+      -->
 * `backup` (map):
   * `path` (string): Full path to a directory in which to save backups.
     This can be overridden in the CLI with `--path`.

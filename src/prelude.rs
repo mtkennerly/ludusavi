@@ -441,6 +441,10 @@ pub fn scan_game_for_backup(
             path: wp.clone(),
             store: Store::OtherWine,
         });
+
+        // We can add this for Wine prefixes from the CLI because they're
+        // typically going to be used for only one or a few games at a time.
+        // For other Wine roots, it would trigger for every game.
         paths_to_check.insert(StrictPath::relative(
             format!("{}/*.reg", wp.interpret()),
             Some(manifest_dir.interpret()),

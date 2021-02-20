@@ -86,6 +86,7 @@ impl RootEditor {
                                             Store::Steam,
                                             Store::Uplay,
                                             Store::OtherHome,
+                                            Store::OtherWine,
                                             Store::Other,
                                         ],
                                         Some(roots[i].store),
