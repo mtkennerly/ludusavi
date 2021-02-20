@@ -18,6 +18,12 @@
     If you've used an older version, your existing configuration will be moved
     automatically to the new location.
   * GUI: Switched to OpenGL by default and upgraded to [Iced 0.2.0](https://crates.io/crates/iced).
+* Fixed:
+  * For Proton and Wine, Ludusavi now looks for multiple variations of a few folders:
+    * `<winDocuments>` checks `~/Documents` (in addition to `~/My Documents`).
+    * `<winAppData>` checks `~/AppData/Roaming` (in addition to `~/Application Data`).
+    * `<winLocalAppData>` checks `~/AppData/Local` and `~/Local Settings/Application Data`
+      (instead of `~/Application Data`).
 
 ## v0.9.0 (2020-08-30)
 

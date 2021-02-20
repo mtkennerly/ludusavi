@@ -305,50 +305,72 @@ pub fn parse_paths(
                 root.path.interpret(),
                 steam_id.unwrap()
             );
+            let path2 = path
+                .replace("<root>", &root.path.interpret())
+                .replace("<game>", &install_dir)
+                .replace(
+                    "<base>",
+                    &format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
+                )
+                .replace("<home>", &format!("{}/users/steamuser", prefix))
+                .replace("<storeUserId>", "*")
+                .replace("<osUserName>", "steamuser")
+                .replace("<winPublic>", &format!("{}/users/Public", prefix))
+                .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
+                .replace("<winDir>", &format!("{}/windows", prefix))
+                .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
+                .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
+                .replace("<regHkcu>", SKIP)
+                .replace("<regHklm>", SKIP);
             paths.insert(
-                path.replace("<root>", &root.path.interpret())
-                    .replace("<game>", &install_dir)
+                path2
+                    .replace("<winDocuments>", &format!("{}/users/steamuser/Documents", prefix))
+                    .replace("<winAppData>", &format!("{}/users/steamuser/AppData/Roaming", prefix))
                     .replace(
-                        "<base>",
-                        &format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
-                    )
-                    .replace("<home>", &format!("{}/users/steamuser", prefix))
-                    .replace("<storeUserId>", "*")
-                    .replace("<osUserName>", "steamuser")
+                        "<winLocalAppData>",
+                        &format!("{}/users/steamuser/AppData/Local", prefix),
+                    ),
+            );
+            paths.insert(
+                path2
+                    .replace("<winDocuments>", &format!("{}/users/steamuser/My Documents", prefix))
                     .replace("<winAppData>", &format!("{}/users/steamuser/Application Data", prefix))
                     .replace(
                         "<winLocalAppData>",
-                        &format!("{}/users/steamuser/Application Data", prefix),
-                    )
-                    .replace("<winDocuments>", &format!("{}/users/steamuser/My Documents", prefix))
-                    .replace("<winPublic>", &format!("{}/users/Public", prefix))
-                    .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
-                    .replace("<winDir>", &format!("{}/windows", prefix))
-                    .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
-                    .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
-                    .replace("<regHkcu>", SKIP)
-                    .replace("<regHklm>", SKIP),
+                        &format!("{}/users/steamuser/Local Settings/Application Data", prefix),
+                    ),
             );
         }
         if root.store == Store::OtherWine {
             let prefix = format!("{}/drive_*", root.path.interpret());
+            let path2 = path
+                .replace("<root>", &root.path.interpret())
+                .replace("<game>", &install_dir)
+                .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
+                .replace("<home>", &format!("{}/users/*", prefix))
+                .replace("<storeUserId>", "*")
+                .replace("<osUserName>", "*")
+                .replace("<winPublic>", &format!("{}/users/Public", prefix))
+                .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
+                .replace("<winDir>", &format!("{}/windows", prefix))
+                .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
+                .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
+                .replace("<regHkcu>", SKIP)
+                .replace("<regHklm>", SKIP);
             paths.insert(
-                path.replace("<root>", &root.path.interpret())
-                    .replace("<game>", &install_dir)
-                    .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
-                    .replace("<home>", &format!("{}/users/*", prefix))
-                    .replace("<storeUserId>", "*")
-                    .replace("<osUserName>", "*")
-                    .replace("<winAppData>", &format!("{}/users/*/Application Data", prefix))
-                    .replace("<winLocalAppData>", &format!("{}/users/*/Application Data", prefix))
+                path2
+                    .replace("<winDocuments>", &format!("{}/users/*/Documents", prefix))
+                    .replace("<winAppData>", &format!("{}/users/*/AppData/Roaming", prefix))
+                    .replace("<winLocalAppData>", &format!("{}/users/*/AppData/Local", prefix)),
+            );
+            paths.insert(
+                path2
                     .replace("<winDocuments>", &format!("{}/users/*/My Documents", prefix))
-                    .replace("<winPublic>", &format!("{}/users/Public", prefix))
-                    .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
-                    .replace("<winDir>", &format!("{}/windows", prefix))
-                    .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
-                    .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
-                    .replace("<regHkcu>", SKIP)
-                    .replace("<regHklm>", SKIP),
+                    .replace("<winAppData>", &format!("{}/users/*/Application Data", prefix))
+                    .replace(
+                        "<winLocalAppData>",
+                        &format!("{}/users/*/Local Settings/Application Data", prefix),
+                    ),
             );
         }
     }
