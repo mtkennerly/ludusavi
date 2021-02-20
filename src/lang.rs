@@ -487,7 +487,8 @@ impl Translator {
                 Store::Origin => "Origin",
                 Store::Steam => "Steam",
                 Store::Uplay => "Uplay",
-                Store::OtherWine => "Other: Wine",
+                Store::OtherHome => "Home folder",
+                Store::OtherWine => "Wine prefix",
                 Store::Other => "Other",
             },
         }

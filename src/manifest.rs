@@ -37,6 +37,8 @@ pub enum Store {
     Steam,
     #[serde(rename = "uplay")]
     Uplay,
+    #[serde(rename = "otherHome")]
+    OtherHome,
     #[serde(rename = "otherWine")]
     OtherWine,
     #[serde(other, rename = "other")]

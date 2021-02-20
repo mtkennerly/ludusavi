@@ -281,7 +281,13 @@ pub fn parse_paths(
                 )
                 .replace(
                     "<home>",
-                    &dirs::home_dir().unwrap_or_else(|| SKIP.into()).to_string_lossy(),
+                    &match root.store {
+                        Store::OtherHome => root.path.interpret(),
+                        _ => dirs::home_dir()
+                            .unwrap_or_else(|| SKIP.into())
+                            .to_string_lossy()
+                            .to_string(),
+                    },
                 )
                 .replace(
                     "<storeUserId>",
@@ -1082,6 +1088,36 @@ mod tests {
                 &manifest().0["game 2"],
                 "game 2",
                 &config().roots,
+                &StrictPath::new(repo()),
+                &None,
+                &BackupFilter::default(),
+                &None,
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_file_matches_in_custom_home_folder() {
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game4"),
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/home/data.txt", repo())),
+                        size: 0,
+                        original_path: None,
+                    },
+                },
+                found_registry_keys: hashset! {},
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game4"],
+                "game4",
+                &[RootsConfig {
+                    path: StrictPath::new(format!("{}/tests/home", repo())),
+                    store: Store::OtherHome,
+                }],
                 &StrictPath::new(repo()),
                 &None,
                 &BackupFilter::default(),

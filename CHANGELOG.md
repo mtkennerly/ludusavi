@@ -3,9 +3,9 @@
 * Added:
   * CLI: `--wine-prefix` option for backups.
   * GUI: Root types are now selected via a dropdown instead of radio buttons.
-    In conjunction with this, several root types have been added for various stores.
-    They are functionally the same as an "other" root at this time, but tailored
-    functionality may be added in the future.
+  * Several new root types have been added for various stores, which will allow
+    for better store-specific path detection in the future. There is also a
+    special type for custom home folders.
 * Changed:
   * Ludusavi now stores its configuration in a more standard location on each OS,
     instead of always using `~/.config/ludusavi`.
