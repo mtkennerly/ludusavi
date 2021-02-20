@@ -162,8 +162,7 @@ pub fn app_dir() -> std::path::PathBuf {
         }
     }
 
-    let mut path = dirs::home_dir().unwrap();
-    path.push(".config");
+    let mut path = dirs::config_dir().unwrap();
     path.push("ludusavi");
     path
 }
