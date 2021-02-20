@@ -12,6 +12,9 @@ const MAC: bool = cfg!(target_os = "macos");
 const LINUX: bool = cfg!(target_os = "linux");
 const CASE_INSENSITIVE_OS: bool = WINDOWS || MAC;
 const SKIP: &str = "<skip>";
+const APP_DIR_NAME: &str = "ludusavi";
+const PORTABLE_FLAG_FILE_NAME: &str = "ludusavi.portable";
+const MIGRATION_FLAG_FILE_NAME: &str = ".flag_migrated_legacy_config";
 
 #[derive(Clone, Debug, PartialEq, thiserror::Error)]
 pub enum Error {
@@ -155,7 +158,7 @@ fn reslashed(path: &str) -> String {
 pub fn app_dir() -> std::path::PathBuf {
     if let Ok(mut flag) = std::env::current_exe() {
         flag.pop();
-        flag.push("ludusavi.portable");
+        flag.push(PORTABLE_FLAG_FILE_NAME);
         if flag.exists() {
             flag.pop();
             return flag;
@@ -163,7 +166,7 @@ pub fn app_dir() -> std::path::PathBuf {
     }
 
     let mut path = dirs::config_dir().unwrap();
-    path.push("ludusavi");
+    path.push(APP_DIR_NAME);
     path
 }
 
@@ -175,21 +178,27 @@ pub fn app_dir() -> std::path::PathBuf {
 /// then later launches Ludusavi with a custom XDG_CONFIG_HOME, so the
 /// `standard_app_dir` no longer exists, but the `legacy_app_dir` does.
 pub fn migrate_legacy_config() {
-    let flag_file_name = ".flag_migrated_legacy_config";
-
     let standard_app_dir = app_dir();
     let mut standard_migration_flag_file = standard_app_dir.clone();
-    standard_migration_flag_file.push(flag_file_name);
+    standard_migration_flag_file.push(MIGRATION_FLAG_FILE_NAME);
+    let mut standard_portable_flag_file = standard_app_dir.clone();
+    standard_portable_flag_file.push(PORTABLE_FLAG_FILE_NAME);
 
     let mut legacy_app_dir = dirs::home_dir().unwrap();
     legacy_app_dir.push(".config");
-    legacy_app_dir.push("ludusavi");
+    legacy_app_dir.push(APP_DIR_NAME);
     let mut legacy_migration_flag_file = legacy_app_dir.clone();
-    legacy_migration_flag_file.push(flag_file_name);
+    legacy_migration_flag_file.push(MIGRATION_FLAG_FILE_NAME);
+    let mut legacy_portable_flag_file = legacy_app_dir.clone();
+    legacy_portable_flag_file.push(PORTABLE_FLAG_FILE_NAME);
 
-    if standard_app_dir.exists() && !standard_migration_flag_file.exists() {
+    if standard_app_dir.exists() && !standard_migration_flag_file.exists() && !standard_portable_flag_file.exists() {
         let _ = std::fs::File::create(&standard_migration_flag_file);
-    } else if !standard_app_dir.exists() && legacy_app_dir.exists() && !legacy_migration_flag_file.exists() {
+    } else if !standard_app_dir.exists()
+        && legacy_app_dir.exists()
+        && !legacy_migration_flag_file.exists()
+        && !legacy_portable_flag_file.exists()
+    {
         let _ = std::fs::rename(&legacy_app_dir, &standard_app_dir);
         let _ = std::fs::File::create(&standard_migration_flag_file);
     }
