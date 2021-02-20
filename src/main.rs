@@ -13,6 +13,8 @@ mod shortcuts;
 mod registry;
 
 fn main() {
+    prelude::migrate_legacy_config();
+
     let args = cli::parse_cli();
     match args.sub {
         None => {

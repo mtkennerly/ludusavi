@@ -2,12 +2,22 @@
 
 * Added:
   * CLI: `--wine-prefix` option for backups.
-* Changed:
-  * GUI: Switched to OpenGL by default and upgraded to [Iced 0.2.0](https://crates.io/crates/iced).
   * GUI: Root types are now selected via a dropdown instead of radio buttons.
     In conjunction with this, several root types have been added for various stores.
     They are functionally the same as an "other" root at this time, but tailored
     functionality may be added in the future.
+* Changed:
+  * Ludusavi now stores its configuration in a more standard location on each OS,
+    instead of always using `~/.config/ludusavi`.
+    ([contributed by micke1m](https://github.com/mtkennerly/ludusavi/pull/63))
+
+    * Windows: `%APPDATA%/ludusavi`
+    * Linux: `$XDG_CONFIG_HOME/ludusavi` or `~/.config/ludusavi`
+    * Mac: `~/Library/Application Support/ludusavi`
+
+    If you've used an older version, your existing configuration will be moved
+    automatically to the new location.
+  * GUI: Switched to OpenGL by default and upgraded to [Iced 0.2.0](https://crates.io/crates/iced).
 
 ## v0.9.0 (2020-08-30)
 

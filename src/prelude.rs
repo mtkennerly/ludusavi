@@ -167,6 +167,34 @@ pub fn app_dir() -> std::path::PathBuf {
     path
 }
 
+/// Migrate `~/.config/ludusavi` to the newer OS-dependent location.
+///
+/// We use a flag file to prevent a spurious migration when a Linux user
+/// first launches Ludusavi with XDG_CONFIG_HOME set to default, so the
+/// `standard_app_dir` and `legacy_app_dir` happen to be the same,
+/// then later launches Ludusavi with a custom XDG_CONFIG_HOME, so the
+/// `standard_app_dir` no longer exists, but the `legacy_app_dir` does.
+pub fn migrate_legacy_config() {
+    let flag_file_name = ".flag_migrated_legacy_config";
+
+    let standard_app_dir = app_dir();
+    let mut standard_migration_flag_file = standard_app_dir.clone();
+    standard_migration_flag_file.push(flag_file_name);
+
+    let mut legacy_app_dir = dirs::home_dir().unwrap();
+    legacy_app_dir.push(".config");
+    legacy_app_dir.push("ludusavi");
+    let mut legacy_migration_flag_file = legacy_app_dir.clone();
+    legacy_migration_flag_file.push(flag_file_name);
+
+    if standard_app_dir.exists() && !standard_migration_flag_file.exists() {
+        let _ = std::fs::File::create(&standard_migration_flag_file);
+    } else if !standard_app_dir.exists() && legacy_app_dir.exists() && !legacy_migration_flag_file.exists() {
+        let _ = std::fs::rename(&legacy_app_dir, &standard_app_dir);
+        let _ = std::fs::File::create(&standard_migration_flag_file);
+    }
+}
+
 /// Returns the effective target and the original target (if different)
 pub fn game_file_restoration_target(
     original_target: &StrictPath,
