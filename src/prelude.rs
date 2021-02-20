@@ -252,11 +252,19 @@ fn check_windows_path(path: Option<std::path::PathBuf>) -> String {
     }
 }
 
+fn check_windows_path_str(path: &str) -> String {
+    check_windows_path(Some(std::path::PathBuf::from(path)))
+}
+
 fn check_nonwindows_path(path: Option<std::path::PathBuf>) -> String {
     match get_os() {
         Os::Windows => SKIP.to_string(),
         _ => check_path(path),
     }
+}
+
+fn check_nonwindows_path_str(path: &str) -> String {
+    check_nonwindows_path(Some(std::path::PathBuf::from(path)))
 }
 
 pub fn parse_paths(
@@ -281,13 +289,7 @@ pub fn parse_paths(
                 )
                 .replace(
                     "<home>",
-                    &match root.store {
-                        Store::OtherHome => root.path.interpret(),
-                        _ => dirs::home_dir()
-                            .unwrap_or_else(|| SKIP.into())
-                            .to_string_lossy()
-                            .to_string(),
-                    },
+                    &dirs::home_dir().unwrap_or_else(|| SKIP.into()).to_string_lossy(),
                 )
                 .replace(
                     "<storeUserId>",
@@ -301,19 +303,33 @@ pub fn parse_paths(
                 .replace("<winLocalAppData>", &check_windows_path(dirs::data_local_dir()))
                 .replace("<winDocuments>", &check_windows_path(dirs::document_dir()))
                 .replace("<winPublic>", &check_windows_path(dirs::public_dir()))
-                .replace(
-                    "<winProgramData>",
-                    &check_windows_path(Some(std::path::PathBuf::from("C:/Windows/ProgramData"))),
-                )
-                .replace(
-                    "<winDir>",
-                    &check_windows_path(Some(std::path::PathBuf::from("C:/Windows"))),
-                )
+                .replace("<winProgramData>", &check_windows_path_str("C:/Windows/ProgramData"))
+                .replace("<winDir>", &check_windows_path_str("C:/Windows"))
                 .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
                 .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
                 .replace("<regHkcu>", SKIP)
                 .replace("<regHklm>", SKIP),
         );
+        if root.store == Store::OtherHome {
+            paths.insert(
+                path.replace("<root>", &root.path.interpret())
+                    .replace("<game>", &install_dir)
+                    .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
+                    .replace("<storeUserId>", SKIP)
+                    .replace("<osUserName>", &whoami::username())
+                    .replace("<winAppData>", &check_windows_path_str("<home>/AppData/Roaming"))
+                    .replace("<winLocalAppData>", &check_windows_path_str("<home>/AppData/Local"))
+                    .replace("<winDocuments>", &check_windows_path_str("<home>/Documents"))
+                    .replace("<winPublic>", &check_windows_path(dirs::public_dir()))
+                    .replace("<winProgramData>", &check_windows_path_str("C:/Windows/ProgramData"))
+                    .replace("<winDir>", &check_windows_path_str("C:/Windows"))
+                    .replace("<xdgData>", &check_nonwindows_path_str("<home>/.local/share"))
+                    .replace("<xdgConfig>", &check_nonwindows_path_str("<home>/.config"))
+                    .replace("<regHkcu>", SKIP)
+                    .replace("<regHklm>", SKIP)
+                    .replace("<home>", &root.path.interpret()),
+            );
+        }
         if get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some() {
             let prefix = format!(
                 "{}/steamapps/compatdata/{}/pfx/drive_c",
@@ -328,7 +344,7 @@ pub fn parse_paths(
                     &format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
                 )
                 .replace("<home>", &format!("{}/users/steamuser", prefix))
-                .replace("<storeUserId>", "*")
+                .replace("<storeUserId>", "[0-9]*")
                 .replace("<osUserName>", "steamuser")
                 .replace("<winPublic>", &format!("{}/users/Public", prefix))
                 .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
@@ -938,6 +954,11 @@ mod tests {
             game4:
               files:
                 <home>/data.txt: {}
+                <winAppData>/winAppData.txt: {}
+                <winLocalAppData>/winLocalAppData.txt: {}
+                <winDocuments>/winDocuments.txt: {}
+                <xdgConfig>/xdgConfig.txt: {}
+                <xdgData>/xdgData.txt: {}
             "#,
         )
         .unwrap()
@@ -1101,6 +1122,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn can_scan_game_for_backup_with_file_matches_in_custom_home_folder() {
         assert_eq!(
             ScanInfo {
@@ -1108,6 +1130,62 @@ mod tests {
                 found_files: hashset! {
                     ScannedFile {
                         path: StrictPath::new(format!("{}/tests/home/data.txt", repo())),
+                        size: 0,
+                        original_path: None,
+                    },
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo())),
+                        size: 0,
+                        original_path: None,
+                    },
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo())),
+                        size: 0,
+                        original_path: None,
+                    },
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/home/Documents/winDocuments.txt", repo())),
+                        size: 0,
+                        original_path: None,
+                    },
+                },
+                found_registry_keys: hashset! {},
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game4"],
+                "game4",
+                &[RootsConfig {
+                    path: StrictPath::new(format!("{}/tests/home", repo())),
+                    store: Store::OtherHome,
+                }],
+                &StrictPath::new(repo()),
+                &None,
+                &BackupFilter::default(),
+                &None,
+            ),
+        );
+    }
+
+    #[test]
+    #[cfg(not(target_os = "windows"))]
+    fn can_scan_game_for_backup_with_file_matches_in_custom_home_folder() {
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game4"),
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/home/data.txt", repo())),
+                        size: 0,
+                        original_path: None,
+                    },
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/home/.config/xdgConfig.txt", repo())),
+                        size: 0,
+                        original_path: None,
+                    },
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/home/.local/share/xdgData.txt", repo())),
                         size: 0,
                         original_path: None,
                     },
