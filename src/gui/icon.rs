@@ -16,6 +16,7 @@ pub enum Icon {
     RemoveCircle,
     Search,
     SubdirectoryArrowRight,
+    Delete,
 }
 
 impl Icon {
@@ -31,6 +32,7 @@ impl Icon {
             Self::RemoveCircle => '\u{E15C}',
             Self::Search => '\u{E8B6}',
             Self::SubdirectoryArrowRight => '\u{E5DA}',
+            Self::Delete => '\u{E872}',
         };
         Text::new(&character.to_string())
             .font(ICONS)
