@@ -479,6 +479,9 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let steam_ids_to_names = &manifest.map_steam_ids_to_names();
             let mut all_games = manifest;
             for custom_game in &config.custom_games {
+                if custom_game.ignore {
+                    continue;
+                }
                 all_games.add_custom_game(custom_game.clone());
             }
 

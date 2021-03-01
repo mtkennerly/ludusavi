@@ -60,6 +60,10 @@ pub enum Message {
     ToggleSearch {
         screen: Screen,
     },
+    ToggleCustomGameEnabled {
+        index: usize,
+        enabled: bool,
+    },
     EditedSearchGameName {
         screen: Screen,
         value: String,

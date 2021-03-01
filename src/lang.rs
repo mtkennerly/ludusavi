@@ -333,6 +333,20 @@ impl Translator {
         .into()
     }
 
+    pub fn enable_all_button(&self) -> String {
+        match self.language {
+            Language::English => "Enable all",
+        }
+        .into()
+    }
+
+    pub fn disable_all_button(&self) -> String {
+        match self.language {
+            Language::English => "Disable all",
+        }
+        .into()
+    }
+
     pub fn no_roots_are_configured(&self) -> String {
         match self.language {
             Language::English => "Add some roots to back up even more data.",

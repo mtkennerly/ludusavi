@@ -12,7 +12,8 @@ use crate::{
 };
 
 use iced::{
-    button, scrollable, text_input, Button, Column, Container, Length, Row, Scrollable, Space, Text, TextInput,
+    button, scrollable, text_input, Button, Checkbox, Column, Container, Length, Row, Scrollable, Space, Text,
+    TextInput,
 };
 
 #[derive(Default)]
@@ -80,13 +81,11 @@ impl CustomGamesEditor {
                             .push(
                                 Row::new()
                                     .push(Space::new(Length::Units(20), Length::Units(0)))
-                                    .push(
-                                        Column::new().width(Length::Units(100)).push(
-                                            Button::new(&mut x.remove_button_state, Icon::RemoveCircle.as_text())
-                                                .on_press(Message::EditedCustomGame(EditAction::Remove(i)))
-                                                .style(style::Button::Negative),
-                                        ),
-                                    )
+                                    .push(Column::new().width(Length::Units(100)).push(Checkbox::new(
+                                        config.is_custom_game_enabled(i),
+                                        "",
+                                        move |enabled| Message::ToggleCustomGameEnabled { index: i, enabled },
+                                    )))
                                     .push(
                                         TextInput::new(
                                             &mut x.text_state,
@@ -94,8 +93,14 @@ impl CustomGamesEditor {
                                             &config.custom_games[i].name,
                                             move |v| Message::EditedCustomGame(EditAction::Change(i, v)),
                                         )
-                                        .width(Length::FillPortion(3))
+                                        .width(Length::Fill)
                                         .padding(5),
+                                    )
+                                    .push(Space::new(Length::Units(20), Length::Units(0)))
+                                    .push(
+                                        Button::new(&mut x.remove_button_state, Icon::RemoveCircle.as_text())
+                                            .on_press(Message::EditedCustomGame(EditAction::Remove(i)))
+                                            .style(style::Button::Negative),
                                     )
                                     .push(Space::new(Length::Units(20), Length::Units(0))),
                             )

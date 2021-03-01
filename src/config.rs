@@ -86,6 +86,8 @@ pub struct RestoreConfig {
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct CustomGame {
     pub name: String,
+    #[serde(default, skip_serializing_if = "crate::serialization::is_false")]
+    pub ignore: bool,
     #[serde(default)]
     pub files: Vec<String>,
     #[serde(default)]
@@ -251,6 +253,7 @@ impl Config {
     pub fn add_custom_game(&mut self) {
         self.custom_games.push(CustomGame {
             name: "".to_string(),
+            ignore: false,
             files: vec![],
             registry: vec![],
         });
@@ -258,6 +261,22 @@ impl Config {
 
     pub fn is_game_customized(&self, name: &str) -> bool {
         self.custom_games.iter().any(|x| x.name == name)
+    }
+
+    pub fn enable_custom_game(&mut self, index: usize) {
+        self.custom_games[index].ignore = false;
+    }
+
+    pub fn disable_custom_game(&mut self, index: usize) {
+        self.custom_games[index].ignore = true;
+    }
+
+    pub fn is_custom_game_enabled(&self, index: usize) -> bool {
+        !self.custom_games[index].ignore
+    }
+
+    pub fn are_all_custom_games_enabled(&self) -> bool {
+        self.custom_games.iter().all(|x| !x.ignore)
     }
 }
 
@@ -402,11 +421,13 @@ mod tests {
                 custom_games: vec![
                     CustomGame {
                         name: s("Custom Game 1"),
+                        ignore: false,
                         files: vec![],
                         registry: vec![],
                     },
                     CustomGame {
                         name: s("Custom Game 2"),
+                        ignore: false,
                         files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
@@ -557,11 +578,13 @@ customGames:
                 custom_games: vec![
                     CustomGame {
                         name: s("Custom Game 1"),
+                        ignore: false,
                         files: vec![],
                         registry: vec![],
                     },
                     CustomGame {
                         name: s("Custom Game 2"),
+                        ignore: false,
                         files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },

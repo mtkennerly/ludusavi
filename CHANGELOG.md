@@ -6,9 +6,10 @@
   * Several new root types have been added for various stores, which will allow
     for better store-specific path detection in the future. There is also a
     special type for custom home folders.
+  * Custom games can now be individually disabled.
 * Changed:
-  * Ludusavi now stores its configuration in a more standard location on each OS,
-    instead of always using `~/.config/ludusavi`.
+  * Ludusavi now stores its configuration in a more standard location on each
+    operating system, instead of always using `~/.config/ludusavi`.
     ([contributed by micke1m](https://github.com/mtkennerly/ludusavi/pull/63))
 
     * Windows: `%APPDATA%/ludusavi`

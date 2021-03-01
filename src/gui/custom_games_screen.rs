@@ -15,6 +15,7 @@ use iced::{button, Align, Button, Column, Container, HorizontalAlignment, Length
 #[derive(Default)]
 pub struct CustomGamesScreenComponent {
     add_game_button: button::State,
+    select_all_button: button::State,
     pub games_editor: CustomGamesEditor,
 }
 
@@ -49,15 +50,38 @@ impl CustomGamesScreenComponent {
                 .padding(5)
                 .align_items(Align::Center)
                 .push(
-                    Row::new().padding(20).spacing(20).align_items(Align::Center).push(
-                        Button::new(
-                            &mut self.add_game_button,
-                            Text::new(translator.add_game_button()).horizontal_alignment(HorizontalAlignment::Center),
+                    Row::new()
+                        .padding(20)
+                        .spacing(20)
+                        .align_items(Align::Center)
+                        .push(
+                            Button::new(
+                                &mut self.add_game_button,
+                                Text::new(translator.add_game_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::EditedCustomGame(EditAction::Add))
+                            .width(Length::Units(125))
+                            .style(style::Button::Primary),
                         )
-                        .on_press(Message::EditedCustomGame(EditAction::Add))
-                        .width(Length::Units(125))
-                        .style(style::Button::Primary),
-                    ),
+                        .push({
+                            Button::new(
+                                &mut self.select_all_button,
+                                Text::new(if config.are_all_custom_games_enabled() {
+                                    translator.disable_all_button()
+                                } else {
+                                    translator.enable_all_button()
+                                })
+                                .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(if config.are_all_custom_games_enabled() {
+                                Message::DeselectAllGames
+                            } else {
+                                Message::SelectAllGames
+                            })
+                            .width(Length::Units(125))
+                            .style(style::Button::Primary)
+                        }),
                 )
                 .push(self.games_editor.view(&config, &translator, &operation)),
         )

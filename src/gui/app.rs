@@ -140,6 +140,9 @@ impl Application for App {
 
                 let mut all_games = self.manifest.clone();
                 for custom_game in &self.config.custom_games {
+                    if custom_game.ignore {
+                        continue;
+                    }
                     all_games.add_custom_game(custom_game.clone());
                 }
 
@@ -613,6 +616,15 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::ToggleCustomGameEnabled { index, enabled } => {
+                if enabled {
+                    self.config.enable_custom_game(index);
+                } else {
+                    self.config.disable_custom_game(index);
+                }
+                self.config.save();
+                Command::none()
+            }
             Message::ToggleSearch { screen } => {
                 match screen {
                     Screen::Backup => {
@@ -684,6 +696,11 @@ impl Application for App {
                             self.config.enable_game_for_restore(&entry.scan_info.game_name);
                         }
                     }
+                    Screen::CustomGames => {
+                        for i in 0..self.config.custom_games.len() {
+                            self.config.enable_custom_game(i);
+                        }
+                    }
                     _ => {}
                 }
                 self.config.save();
@@ -701,6 +718,11 @@ impl Application for App {
                             self.config.disable_game_for_restore(&entry.scan_info.game_name);
                         }
                     }
+                    Screen::CustomGames => {
+                        for i in 0..self.config.custom_games.len() {
+                            self.config.disable_custom_game(i);
+                        }
+                    }
                     _ => {}
                 }
                 self.config.save();
@@ -710,12 +732,14 @@ impl Application for App {
                 let game = if let Some(standard) = self.manifest.0.get(&name) {
                     CustomGame {
                         name: name.clone(),
+                        ignore: false,
                         files: standard.files.clone().unwrap_or_default().keys().cloned().collect(),
                         registry: standard.registry.clone().unwrap_or_default().keys().cloned().collect(),
                     }
                 } else {
                     CustomGame {
                         name: name.clone(),
+                        ignore: false,
                         files: vec![],
                         registry: vec![],
                     }
