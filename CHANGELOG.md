@@ -21,6 +21,8 @@
   * GUI: Switched to OpenGL by default and upgraded to [Iced 0.2.0](https://crates.io/crates/iced).
   * GUI: Custom games are now more visually distinct from each other.
 * Fixed:
+  * The 32-bit Windows executable was not properly compatible with 32-bit
+    systems.
   * For Proton and Wine, Ludusavi now looks for multiple variations of a few folders:
     * `<winDocuments>` checks `~/Documents` (in addition to `~/My Documents`).
     * `<winAppData>` checks `~/AppData/Roaming` (in addition to `~/Application Data`).
