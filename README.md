@@ -34,11 +34,8 @@ improvements will be incorporated into Ludusavi's data as well.
 
 ## Installation
 ### Requirements
-Ludusavi is available for Windows, Linux, and Mac. However, your computer must
-support one of these graphics systems: Vulkan, DirectX (11 or 12), or Metal.
-(Experimental builds with OpenGL support are also available - give them a try
-if the standard builds don't work on your system.)
-<!-- TODO: Document OpenGL being the new default. -->
+* Ludusavi is available for Windows, Linux, and Mac.
+* Your system must support OpenGL.
 
 ### Methods
 You can install Ludusavi one of these ways:
@@ -125,12 +122,11 @@ If you are on Mac:
     `userdata` subdirectories. Here are some common/standard locations:
     * Windows: `C:/Program Files (x86)/Steam`
     * Linux: `~/.steam/steam`
-  * For the "other" root type<!-- and the remaining store-specific roots -->,
+  * For the "other" root type and the remaining store-specific roots,
     this should be a folder whose direct children are individual games.
     For example, in the Epic Games store, this would be what you choose as the
     "install location" for your games (e.g., if you choose `D:/Epic` and it
     creates a subfolder for `D:/Epic/Celeste`, then the root would be `D:/Epic`).
-<!--
   * For a home folder root, you may specify any folder. Whenever Ludusavi
     normally checks your standard home folder (Windows: `%USERPROFILE%`,
     Linux/Mac: `~`), it will additionally check this root. This is useful if
@@ -138,7 +134,6 @@ If you are on Mac:
   * For a Wine prefix root, this should be the folder containing `drive_c`.
     Currently, Ludusavi does not back up registry-based saves from the prefix,
     but will back up any file-based saves.
--->
 * To select/deselect specific games, you can run a preview, then click the
   checkboxes by each game. You can also press the `deselect all` button
   (when all games are selected) or the `select all` button (when at least
@@ -315,14 +310,11 @@ Example:
 </details>
 
 ### Configuration
-<!--
 Ludusavi stores its configuration in the following locations:
 
 * Windows: `%APPDATA%/ludusavi`
 * Linux: `$XDG_CONFIG_HOME/ludusavi` or `~/.config/ludusavi`
 * Mac: `~/Library/Application Support/ludusavi`
--->
-Ludusavi stores its configuration in `~/.config/ludusavi` (Windows: `C:/Users/<your-name>/.config/ludusavi`).
 
 Alternatively, if you'd like Ludusavi to store its configuration in the same
 place as the executable, then simply create a file called `ludusavi.portable`
@@ -345,12 +337,9 @@ Here are the available settings (all are required unless otherwise noted):
 * `roots` (list):
   * Each entry in the list should be a map with these fields:
     * `path` (string): Where the root is located on your system.
-    * `store` (string): Game store associated with the root.
-      Valid options: `steam`, `other`
-      <!--
+    * `store` (string): Game store associated with the root. Valid options:
       `epic`, `gog`, `gogGalaxy`, `microsoft`, `origin`,
       `steam`, `uplay`, `otherHome`, `otherWine`, `other`
-      -->
 * `backup` (map):
   * `path` (string): Full path to a directory in which to save backups.
     This can be overridden in the CLI with `--path`.
