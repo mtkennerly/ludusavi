@@ -17,7 +17,7 @@ pub fn copy_to_clipboard_from_iced(text: &str, cursor: &iced_native::text_input:
             let _ = copy_to_clipboard(&text[std::cmp::min(start, end)..std::cmp::max(start, end)]);
         }
         iced_native::text_input::cursor::State::Index(_) => {
-            let _ = copy_to_clipboard(&text);
+            let _ = copy_to_clipboard(text);
         }
     };
 }
@@ -37,7 +37,7 @@ pub fn cut_to_clipboard_from_iced(text: &str, cursor: &iced_native::text_input::
     let value = iced_native::text_input::Value::new(text);
     match cursor.state(&value) {
         iced_native::text_input::cursor::State::Selection { start, end } => {
-            match cut_to_clipboard(&text, std::cmp::min(start, end), std::cmp::max(start, end)) {
+            match cut_to_clipboard(text, std::cmp::min(start, end), std::cmp::max(start, end)) {
                 Ok(remaining) => {
                     // TODO: Clear the previous cursor selection.
                     remaining
@@ -52,7 +52,7 @@ pub fn cut_to_clipboard_from_iced(text: &str, cursor: &iced_native::text_input::
 pub fn cut_to_clipboard(text: &str, start: usize, end: usize) -> Result<String, ()> {
     let cut = &text[start..end];
     let remaining = format!("{}{}", &text[0..start], &text[end..text.len()]);
-    match copy_to_clipboard(&cut) {
+    match copy_to_clipboard(cut) {
         Ok(_) => Ok(remaining),
         Err(_) => Err(()),
     }

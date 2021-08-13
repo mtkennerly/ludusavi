@@ -132,7 +132,7 @@ impl Application for App {
 
                 let backup_path = &self.config.backup.path;
                 if !preview {
-                    if let Err(e) = prepare_backup_target(&backup_path, self.config.backup.merge) {
+                    if let Err(e) = prepare_backup_target(backup_path, self.config.backup.merge) {
                         self.modal_theme = Some(ModalTheme::Error { variant: e });
                         return Command::none();
                     }
@@ -747,10 +747,10 @@ impl Application for App {
 
                 let mut gui_entry = CustomGamesEditorEntry::new(&name);
                 for item in game.files.iter() {
-                    gui_entry.files.push(CustomGamesEditorEntryRow::new(&item));
+                    gui_entry.files.push(CustomGamesEditorEntryRow::new(item));
                 }
                 for item in game.registry.iter() {
-                    gui_entry.registry.push(CustomGamesEditorEntryRow::new(&item));
+                    gui_entry.registry.push(CustomGamesEditorEntryRow::new(item));
                 }
                 self.custom_games_screen.games_editor.entries.push(gui_entry);
 

@@ -25,10 +25,10 @@ impl CustomGamesScreenComponent {
         for custom_game in &config.custom_games {
             let mut row = CustomGamesEditorEntry::new(&custom_game.name.to_string());
             for file in &custom_game.files {
-                row.files.push(CustomGamesEditorEntryRow::new(&file))
+                row.files.push(CustomGamesEditorEntryRow::new(file))
             }
             for key in &custom_game.registry {
-                row.registry.push(CustomGamesEditorEntryRow::new(&key))
+                row.registry.push(CustomGamesEditorEntryRow::new(key))
             }
             games_editor.entries.push(row);
         }
@@ -83,7 +83,7 @@ impl CustomGamesScreenComponent {
                             .style(style::Button::Primary)
                         }),
                 )
-                .push(self.games_editor.view(&config, &translator, &operation)),
+                .push(self.games_editor.view(config, translator, operation)),
         )
         .height(Length::Fill)
         .width(Length::Fill)

@@ -273,15 +273,15 @@ impl Reporter {
                 }
 
                 parts.push(translator.cli_game_header(
-                    &name,
+                    name,
                     scan_info.sum_bytes(&Some(backup_info.to_owned())),
-                    &decision,
-                    duplicate_detector.is_game_duplicated(&scan_info),
+                    decision,
+                    duplicate_detector.is_game_duplicated(scan_info),
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
                     let mut redirected_from = None;
                     let readable = if let Some(original_path) = &entry.original_path {
-                        let (target, original_target) = game_file_restoration_target(&original_path, &redirects);
+                        let (target, original_target) = game_file_restoration_target(original_path, redirects);
                         redirected_from = original_target;
                         target
                     } else {
@@ -295,7 +295,7 @@ impl Reporter {
                     parts.push(translator.cli_game_line_item(
                         &readable.render(),
                         entry_successful,
-                        duplicate_detector.is_file_duplicated(&entry),
+                        duplicate_detector.is_file_duplicated(entry),
                     ));
 
                     if let Some(redirected_from) = redirected_from {
@@ -308,14 +308,14 @@ impl Reporter {
                         successful = false;
                     }
                     parts.push(translator.cli_game_line_item(
-                        &entry,
+                        entry,
                         entry_successful,
-                        duplicate_detector.is_registry_duplicated(&entry),
+                        duplicate_detector.is_registry_duplicated(entry),
                     ));
                 }
 
                 status.add_game(
-                    &scan_info,
+                    scan_info,
                     &Some(backup_info.clone()),
                     decision == &OperationStepDecision::Processed,
                 );
@@ -336,14 +336,14 @@ impl Reporter {
                         failed: backup_info.failed_files.contains(entry),
                         ..Default::default()
                     };
-                    if duplicate_detector.is_file_duplicated(&entry) {
-                        let mut duplicated_by = duplicate_detector.file(&entry);
+                    if duplicate_detector.is_file_duplicated(entry) {
+                        let mut duplicated_by = duplicate_detector.file(entry);
                         duplicated_by.remove(&scan_info.game_name);
                         api_file.duplicated_by = duplicated_by;
                     }
 
                     let readable = if let Some(original_path) = &entry.original_path {
-                        let (target, original_target) = game_file_restoration_target(&original_path, &redirects);
+                        let (target, original_target) = game_file_restoration_target(original_path, redirects);
                         api_file.original_path = original_target.map(|x| x.render());
                         target
                     } else {
@@ -357,8 +357,8 @@ impl Reporter {
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
                     let mut api_registry = ApiRegistry::default();
-                    if duplicate_detector.is_registry_duplicated(&entry) {
-                        let mut duplicated_by = duplicate_detector.registry(&entry);
+                    if duplicate_detector.is_registry_duplicated(entry) {
+                        let mut duplicated_by = duplicate_detector.registry(entry);
                         duplicated_by.remove(&scan_info.game_name);
                         api_registry.duplicated_by = duplicated_by;
                     }
@@ -375,7 +375,7 @@ impl Reporter {
 
                 output.games.insert(name.to_string(), api_game);
                 output.overall.add_game(
-                    &scan_info,
+                    scan_info,
                     &Some(backup_info.clone()),
                     decision == &OperationStepDecision::Processed,
                 );
@@ -394,7 +394,7 @@ impl Reporter {
                 parts,
                 status,
                 translator,
-            } => parts.join("\n") + "\n" + &translator.cli_summary(&status, &path),
+            } => parts.join("\n") + "\n" + &translator.cli_summary(status, path),
             Self::Json { output } => serde_json::to_string_pretty(&output).unwrap(),
         }
     }
@@ -408,7 +408,7 @@ impl Reporter {
     }
 
     fn print(&self, path: &StrictPath) {
-        println!("{}", self.render(&path));
+        println!("{}", self.render(path));
     }
 }
 
@@ -540,15 +540,15 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
                     let scan_info = scan_game_for_backup(
-                        &game,
-                        &name,
-                        &roots,
+                        game,
+                        name,
+                        roots,
                         &StrictPath::from_std_path_buf(&app_dir()),
-                        &steam_id,
+                        steam_id,
                         &filter,
                         &wine_prefix,
                     );
-                    let ignored = !&config.is_game_enabled_for_backup(&name) && !games_specified;
+                    let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
                     } else {
@@ -557,17 +557,17 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let backup_info = if preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
-                        back_up_game(&scan_info, &name, &layout, config.backup.merge)
+                        back_up_game(&scan_info, name, &layout, config.backup.merge)
                     };
                     (name, scan_info, backup_info, decision)
                 })
                 .collect();
 
             for (_, scan_info, _, _) in info.iter() {
-                duplicate_detector.add_game(&scan_info);
+                duplicate_detector.add_game(scan_info);
             }
             for (name, scan_info, backup_info, decision) in info {
-                if !reporter.add_game(&name, &scan_info, &backup_info, &decision, &[], &duplicate_detector) {
+                if !reporter.add_game(name, &scan_info, &backup_info, &decision, &[], &duplicate_detector) {
                     failed = true;
                 }
             }
@@ -646,7 +646,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     .iter()
                     .filter_map(|x| {
                         if (by_steam_id && steam_ids_to_names.values().cloned().any(|y| &y == *x))
-                            || (games.contains(&x))
+                            || (games.contains(x))
                         {
                             Some(x.to_owned())
                         } else {
@@ -663,8 +663,8 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .par_iter()
                 .progress_count(subjects.len() as u64)
                 .map(|name| {
-                    let scan_info = scan_game_for_restoration(&name, &layout);
-                    let ignored = !&config.is_game_enabled_for_restore(&name) && !games_specified;
+                    let scan_info = scan_game_for_restoration(name, &layout);
+                    let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
                     } else {
@@ -680,11 +680,11 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .collect();
 
             for (_, scan_info, _, _) in info.iter() {
-                duplicate_detector.add_game(&scan_info);
+                duplicate_detector.add_game(scan_info);
             }
             for (name, scan_info, backup_info, decision) in info {
                 if !reporter.add_game(
-                    &name,
+                    name,
                     &scan_info,
                     &backup_info,
                     &decision,

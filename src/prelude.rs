@@ -128,7 +128,7 @@ impl OperationStatus {
         self.total_bytes += scan_info.sum_bytes(&None);
         if processed {
             self.processed_games += 1;
-            self.processed_bytes += scan_info.sum_bytes(&backup_info);
+            self.processed_bytes += scan_info.sum_bytes(backup_info);
         }
     }
 
@@ -279,7 +279,7 @@ pub fn parse_paths(
     for install_dir in install_dirs {
         paths.insert(
             path.replace("<root>", &root.path.interpret())
-                .replace("<game>", &install_dir)
+                .replace("<game>", install_dir)
                 .replace(
                     "<base>",
                     &match root.store {
@@ -313,7 +313,7 @@ pub fn parse_paths(
         if root.store == Store::OtherHome {
             paths.insert(
                 path.replace("<root>", &root.path.interpret())
-                    .replace("<game>", &install_dir)
+                    .replace("<game>", install_dir)
                     .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
                     .replace("<storeUserId>", SKIP)
                     .replace("<osUserName>", &whoami::username())
@@ -338,7 +338,7 @@ pub fn parse_paths(
             );
             let path2 = path
                 .replace("<root>", &root.path.interpret())
-                .replace("<game>", &install_dir)
+                .replace("<game>", install_dir)
                 .replace(
                     "<base>",
                     &format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
@@ -376,7 +376,7 @@ pub fn parse_paths(
             let prefix = format!("{}/drive_*", root.path.interpret());
             let path2 = path
                 .replace("<root>", &root.path.interpret())
-                .replace("<game>", &install_dir)
+                .replace("<game>", install_dir)
                 .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
                 .replace("<home>", &format!("{}/users/*", prefix))
                 .replace("<storeUserId>", "*")
@@ -484,12 +484,12 @@ pub fn scan_game_for_backup(
                 }
                 if filter.exclude_other_os_data {
                     if let Some(constraints) = &path_info.when {
-                        if should_exclude_as_other_os_data(&constraints, get_os(), maybe_proton) {
+                        if should_exclude_as_other_os_data(constraints, get_os(), maybe_proton) {
                             continue;
                         }
                     }
                 }
-                let candidates = parse_paths(raw_path, &root, &install_dirs, &steam_id, &manifest_dir);
+                let candidates = parse_paths(raw_path, root, &install_dirs, steam_id, manifest_dir);
                 for candidate in candidates {
                     if candidate.raw().contains(SKIP) {
                         continue;
@@ -579,7 +579,7 @@ pub fn scan_game_for_backup(
                 if key.trim().is_empty() {
                     continue;
                 }
-                if let Ok(info) = hives.store_key_from_full_path(&key) {
+                if let Ok(info) = hives.store_key_from_full_path(key) {
                     if info.found {
                         found_registry_keys.insert(key.to_string());
                     }
@@ -603,9 +603,9 @@ pub fn scan_game_for_restoration(name: &str, layout: &BackupLayout) -> ScanInfo 
     #[allow(unused_mut)]
     let mut registry_file = None;
 
-    let target_game = layout.game_folder(&name);
+    let target_game = layout.game_folder(name);
     if target_game.is_dir() {
-        found_files = layout.restorable_files(&name, &target_game);
+        found_files = layout.restorable_files(name, &target_game);
     }
 
     #[cfg(target_os = "windows")]
@@ -670,7 +670,7 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: b
     #[allow(unused_mut)]
     let mut failed_registry = std::collections::HashSet::new();
 
-    let target_game = layout.game_folder(&name);
+    let target_game = layout.game_folder(name);
 
     let able_to_prepare = info.found_anything()
         && (merge || (target_game.unset_readonly().is_ok() && target_game.remove().is_ok()))
@@ -726,7 +726,7 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: b
                 continue;
             }
 
-            match hives.store_key_from_full_path(&reg_path) {
+            match hives.store_key_from_full_path(reg_path) {
                 Err(_) => {
                     failed_registry.insert(reg_path.to_string());
                 }
@@ -766,7 +766,7 @@ pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo
             Some(x) => x,
             None => continue,
         };
-        let (target, _) = game_file_restoration_target(&original_path, &redirects);
+        let (target, _) = game_file_restoration_target(original_path, redirects);
 
         if target.exists() {
             match are_files_identical(&file.path, &target) {
@@ -797,7 +797,7 @@ pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo
     #[cfg(target_os = "windows")]
     {
         if let Some(registry_file) = &info.registry_file {
-            if let Some(hives) = crate::registry::Hives::load(&registry_file) {
+            if let Some(hives) = crate::registry::Hives::load(registry_file) {
                 // TODO: Track failed keys.
                 let _ = hives.restore();
             }
@@ -820,7 +820,7 @@ impl DuplicateDetector {
     pub fn add_game(&mut self, scan_info: &ScanInfo) {
         for item in scan_info.found_files.iter() {
             self.files
-                .entry(self.pick_path(&item))
+                .entry(self.pick_path(item))
                 .or_insert_with(Default::default)
                 .insert(scan_info.game_name.clone());
         }
@@ -834,12 +834,12 @@ impl DuplicateDetector {
 
     pub fn is_game_duplicated(&self, scan_info: &ScanInfo) -> bool {
         for item in scan_info.found_files.iter() {
-            if self.file(&item).len() > 1 {
+            if self.file(item).len() > 1 {
                 return true;
             }
         }
         for item in scan_info.found_registry_keys.iter() {
-            if self.registry(&item).len() > 1 {
+            if self.registry(item).len() > 1 {
                 return true;
             }
         }
@@ -854,14 +854,14 @@ impl DuplicateDetector {
     }
 
     pub fn file(&self, file: &ScannedFile) -> std::collections::HashSet<String> {
-        match self.files.get(&self.pick_path(&file)) {
+        match self.files.get(&self.pick_path(file)) {
             Some(games) => games.clone(),
             None => Default::default(),
         }
     }
 
     pub fn is_file_duplicated(&self, file: &ScannedFile) -> bool {
-        self.file(&file).len() > 1
+        self.file(file).len() > 1
     }
 
     pub fn registry(&self, path: &str) -> std::collections::HashSet<String> {
@@ -872,7 +872,7 @@ impl DuplicateDetector {
     }
 
     pub fn is_registry_duplicated(&self, path: &str) -> bool {
-        self.registry(&path).len() > 1
+        self.registry(path).len() > 1
     }
 
     pub fn clear(&mut self) {

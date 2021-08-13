@@ -111,8 +111,8 @@ fn render<P: Into<String>>(path: P) -> String {
     path.into().replace(UNC_LOCAL_PREFIX, "").replace("\\", "/")
 }
 
-pub fn render_pathbuf(value: &std::path::PathBuf) -> String {
-    value.as_path().display().to_string()
+pub fn render_pathbuf(value: &std::path::Path) -> String {
+    value.display().to_string()
 }
 
 /// This is a wrapper around paths to make it more obvious when we're
@@ -137,8 +137,8 @@ impl StrictPath {
         self.raw = raw;
     }
 
-    pub fn from_std_path_buf(path_buf: &std::path::PathBuf) -> Self {
-        Self::new(render_pathbuf(&path_buf))
+    pub fn from_std_path_buf(path_buf: &std::path::Path) -> Self {
+        Self::new(render_pathbuf(path_buf))
     }
 
     pub fn as_std_path_buf(&self) -> std::path::PathBuf {
@@ -417,12 +417,11 @@ mod tests {
 
         #[test]
         fn converts_tilde_in_isolation() {
+            let sp = StrictPath::new("~".to_owned());
             if cfg!(target_os = "windows") {
-                let sp = StrictPath::new("~".to_owned());
                 assert_eq!(format!("\\\\?\\C:\\Users\\{}", username()), sp.interpret());
                 assert_eq!(format!("C:/Users/{}", username()), sp.render());
             } else {
-                let sp = StrictPath::new("~".to_owned());
                 assert_eq!(home(), sp.interpret());
                 assert_eq!(home(), sp.render());
             }
@@ -430,12 +429,11 @@ mod tests {
 
         #[test]
         fn converts_tilde_before_forward_slash() {
+            let sp = StrictPath::new("~/~".to_owned());
             if cfg!(target_os = "windows") {
-                let sp = StrictPath::new("~/~".to_owned());
                 assert_eq!(format!("\\\\?\\C:\\Users\\{}\\~", username()), sp.interpret());
                 assert_eq!(format!("C:/Users/{}/~", username()), sp.render());
             } else {
-                let sp = StrictPath::new("~/~".to_owned());
                 assert_eq!(format!("{}/~", home()), sp.interpret());
                 assert_eq!(format!("{}/~", home()), sp.render());
             }
@@ -443,12 +441,11 @@ mod tests {
 
         #[test]
         fn converts_tilde_before_backslash() {
+            let sp = StrictPath::new("~\\~".to_owned());
             if cfg!(target_os = "windows") {
-                let sp = StrictPath::new("~\\~".to_owned());
                 assert_eq!(format!("\\\\?\\C:\\Users\\{}\\~", username()), sp.interpret());
                 assert_eq!(format!("C:/Users/{}/~", username()), sp.render());
             } else {
-                let sp = StrictPath::new("~\\~".to_owned());
                 assert_eq!(format!("{}/~", home()), sp.interpret());
                 assert_eq!(format!("{}/~", home()), sp.render());
             }

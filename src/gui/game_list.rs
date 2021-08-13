@@ -47,7 +47,7 @@ impl GameListEntry {
 
         if self.expanded {
             if self.tree_should_reload {
-                self.tree = FileTree::new(self.scan_info.clone(), &config, &self.backup_info, &duplicate_detector);
+                self.tree = FileTree::new(self.scan_info.clone(), config, &self.backup_info, duplicate_detector);
                 self.tree_should_reload = false;
             }
         } else {
@@ -161,7 +161,7 @@ impl GameListEntry {
                 )
                 .push(
                     self.tree
-                        .view(&translator, &self.scan_info.game_name)
+                        .view(translator, &self.scan_info.game_name)
                         .width(Length::Fill),
                 ),
         )
@@ -193,7 +193,7 @@ impl GameList {
             Column::new()
                 .push(
                     self.search
-                        .view(if restoring { Screen::Restore } else { Screen::Backup }, &translator),
+                        .view(if restoring { Screen::Restore } else { Screen::Backup }, translator),
                 )
                 .push({
                     self.entries.iter_mut().enumerate().fold(
@@ -208,7 +208,7 @@ impl GameList {
                                     .is_some()
                             {
                                 parent
-                                    .push(x.view(restoring, translator, &config, &manifest, &duplicate_detector))
+                                    .push(x.view(restoring, translator, config, manifest, duplicate_detector))
                                     .push(Space::new(Length::Units(0), Length::Units(10)))
                             } else {
                                 parent

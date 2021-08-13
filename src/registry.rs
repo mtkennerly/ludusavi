@@ -47,7 +47,7 @@ impl Hives {
     pub fn save(&self, file: &StrictPath) {
         let new_content = serde_yaml::to_string(&self).unwrap();
 
-        if let Some(old) = Self::load(&file) {
+        if let Some(old) = Self::load(file) {
             let old_content = serde_yaml::to_string(&old).unwrap();
             if old_content == new_content {
                 return;
@@ -215,10 +215,8 @@ impl From<&Entry> for Option<winreg::RegValue> {
             })
         } else if let Some(x) = &item.dword {
             Some(x.to_reg_value())
-        } else if let Some(x) = &item.qword {
-            Some(x.to_reg_value())
         } else {
-            None
+            item.qword.as_ref().map(|x| x.to_reg_value())
         }
     }
 }

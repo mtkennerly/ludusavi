@@ -43,8 +43,8 @@ impl Translator {
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
             Error::RegistryIssue => self.registry_issue(),
             Error::UnableToBrowseFileSystem => self.unable_to_browse_file_system(),
-            Error::UnableToOpenDir(path) => self.unable_to_open_dir(&path),
-            Error::UnableToOpenUrl(url) => self.unable_to_open_url(&url),
+            Error::UnableToOpenDir(path) => self.unable_to_open_dir(path),
+            Error::UnableToOpenUrl(url) => self.unable_to_open_url(url),
         }
     }
 

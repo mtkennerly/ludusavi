@@ -70,19 +70,19 @@ impl FileTreeNode {
                             .view_if(!self.successful),
                     )
                     .push(match &self.redirected_from {
-                        Some(r) => Badge::new(&translator.badge_redirected_from(&r)).left_margin(15).view(),
+                        Some(r) => Badge::new(&translator.badge_redirected_from(r)).left_margin(15).view(),
                         None => Container::new(Space::new(Length::Shrink, Length::Shrink)),
                     }),
             );
         } else if self.nodes.len() == 1 {
             let keys: Vec<_> = self.nodes.keys().cloned().collect();
             let key = &keys[0];
-            if !self.nodes.get::<str>(&key).unwrap().nodes.is_empty() {
-                return Container::new(self.nodes.get_mut::<str>(&key).unwrap().view(
+            if !self.nodes.get::<str>(key).unwrap().nodes.is_empty() {
+                return Container::new(self.nodes.get_mut::<str>(key).unwrap().view(
                     level,
                     &format!("{}/{}", label, key),
-                    &translator,
-                    &game_name,
+                    translator,
+                    game_name,
                 ));
             }
         }
@@ -131,7 +131,7 @@ impl FileTreeNode {
                 ),
                 |parent, (k, v)| {
                     if expanded {
-                        parent.push(v.view(level + 1, k, &translator, &game_name))
+                        parent.push(v.view(level + 1, k, translator, game_name))
                     } else {
                         parent
                     }
@@ -214,7 +214,7 @@ impl FileTree {
         for item in scan_info.found_files.iter() {
             let mut redirected_from = None;
             let path_to_show = if let Some(original_path) = &item.original_path {
-                let (target, original_target) = game_file_restoration_target(&original_path, &config.get_redirects());
+                let (target, original_target) = game_file_restoration_target(original_path, &config.get_redirects());
                 redirected_from = original_target;
                 target.clone()
             } else {
@@ -223,7 +223,7 @@ impl FileTree {
 
             let mut successful = true;
             if let Some(backup_info) = &backup_info {
-                if backup_info.failed_files.contains(&item) {
+                if backup_info.failed_files.contains(item) {
                     successful = false;
                 }
             }
@@ -238,7 +238,7 @@ impl FileTree {
                     &components[1..],
                     &[components[0]],
                     successful,
-                    duplicate_detector.is_file_duplicated(&item),
+                    duplicate_detector.is_file_duplicated(item),
                     redirected_from,
                 );
         }
@@ -259,7 +259,7 @@ impl FileTree {
                     &components[1..],
                     &[components[0]],
                     successful,
-                    duplicate_detector.is_registry_duplicated(&item),
+                    duplicate_detector.is_registry_duplicated(item),
                     None,
                 );
         }
@@ -273,7 +273,7 @@ impl FileTree {
 
     pub fn view(&mut self, translator: &Translator, game_name: &str) -> Container<Message> {
         Container::new(self.nodes.iter_mut().fold(Column::new().spacing(4), |parent, (k, v)| {
-            parent.push(v.view(0, k, &translator, &game_name))
+            parent.push(v.view(0, k, translator, game_name))
         }))
     }
 

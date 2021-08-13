@@ -55,7 +55,7 @@ impl std::fmt::Display for Store {
     // This is needed for Iced's PickList.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
         // TODO: Use display adapter wrapper struct to respect the active language.
-        writeln!(f, "{}", crate::lang::Translator::default().store(&self))
+        writeln!(f, "{}", crate::lang::Translator::default().store(self))
     }
 }
 
@@ -154,7 +154,7 @@ impl Manifest {
     }
 
     pub fn load_from_string(content: &str) -> Result<Self, Error> {
-        serde_yaml::from_str(&content).map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })
+        serde_yaml::from_str(content).map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })
     }
 
     pub fn update(config: &mut Config) -> Result<(), Error> {
@@ -191,10 +191,7 @@ impl Manifest {
             .iter()
             .filter_map(|(k, v)| match &v.steam {
                 None => None,
-                Some(steam) => match steam.id {
-                    None => None,
-                    Some(id) => Some((id, k.to_owned())),
-                },
+                Some(steam) => steam.id.map(|id| (id, k.to_owned())),
             })
             .collect()
     }

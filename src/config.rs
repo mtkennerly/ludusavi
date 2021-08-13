@@ -157,7 +157,7 @@ impl Config {
     }
 
     pub fn load_from_string(content: &str) -> Result<Self, Error> {
-        serde_yaml::from_str(&content).map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
+        serde_yaml::from_str(content).map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
     }
 
     pub fn add_common_roots(&mut self) {

@@ -58,7 +58,7 @@ impl IndividualMapping {
 
     pub fn drive_folder_name(&mut self, drive: &str) -> String {
         let reversed = self.reversed_drives();
-        match reversed.get::<str>(&drive) {
+        match reversed.get::<str>(drive) {
             Some(mapped) => mapped.to_string(),
             None => {
                 let key = if drive.is_empty() {
@@ -76,7 +76,7 @@ impl IndividualMapping {
     pub fn save(&self, file: &StrictPath) {
         let new_content = serde_yaml::to_string(&self).unwrap();
 
-        if let Ok(old) = Self::load(&file) {
+        if let Ok(old) = Self::load(file) {
             let old_content = serde_yaml::to_string(&old).unwrap();
             if old_content == new_content {
                 return;
@@ -101,7 +101,7 @@ impl IndividualMapping {
     }
 
     pub fn load_from_string(content: &str) -> Result<Self, ()> {
-        match serde_yaml::from_str(&content) {
+        match serde_yaml::from_str(content) {
             Ok(x) => Ok(x),
             Err(_) => Err(()),
         }
@@ -134,7 +134,7 @@ impl OverallMapping {
             let individual_file = &mut game_dir.path().to_path_buf();
             individual_file.push("mapping.yaml");
             if individual_file.is_file() {
-                let game = match IndividualMapping::load(&StrictPath::from_std_path_buf(&individual_file)) {
+                let game = match IndividualMapping::load(&StrictPath::from_std_path_buf(individual_file)) {
                     Ok(x) => x,
                     Err(_) => continue,
                 };
@@ -165,18 +165,18 @@ impl BackupLayout {
     }
 
     fn generate_total_rename(original_name: &str) -> String {
-        format!("ludusavi-renamed-{}", encode_base64_for_folder(&original_name))
+        format!("ludusavi-renamed-{}", encode_base64_for_folder(original_name))
     }
 
     pub fn game_folder(&self, game_name: &str) -> StrictPath {
-        match self.mapping.games.get::<str>(&game_name) {
+        match self.mapping.games.get::<str>(game_name) {
             Some(game) => game.base.clone(),
             None => {
                 let mut safe_name = escape_folder_name(game_name);
 
                 if safe_name.matches(SAFE).count() == safe_name.len() {
                     // It's unreadable now, so do a total rename.
-                    safe_name = Self::generate_total_rename(&game_name);
+                    safe_name = Self::generate_total_rename(game_name);
                 }
 
                 self.base.joined(&safe_name)
@@ -220,7 +220,7 @@ impl BackupLayout {
             .filter_map(|e| e.ok())
         {
             let raw_drive_dir = drive_dir.path().display().to_string();
-            let drive_mapping = match self.mapping.games.get::<str>(&game_name) {
+            let drive_mapping = match self.mapping.games.get::<str>(game_name) {
                 Some(x) => match x.drives.get::<str>(&drive_dir.file_name().to_string_lossy()) {
                     Some(y) => y,
                     None => continue,
@@ -279,7 +279,7 @@ impl BackupLayout {
     }
 
     pub fn remove_irrelevant_backup_files(&self, game_folder: &StrictPath, relevant_files: &[StrictPath]) {
-        for file in self.find_irrelevant_backup_files(&game_folder, &relevant_files) {
+        for file in self.find_irrelevant_backup_files(game_folder, relevant_files) {
             let _ = file.remove();
         }
     }

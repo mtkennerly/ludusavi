@@ -124,14 +124,14 @@ impl BackupScreenComponent {
                             let restoring = false;
                             Button::new(
                                 &mut self.select_all_button,
-                                Text::new(if self.log.all_entries_selected(&config, restoring) {
+                                Text::new(if self.log.all_entries_selected(config, restoring) {
                                     translator.deselect_all_button()
                                 } else {
                                     translator.select_all_button()
                                 })
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(if self.log.all_entries_selected(&config, restoring) {
+                            .on_press(if self.log.all_entries_selected(config, restoring) {
                                 Message::DeselectAllGames
                             } else {
                                 Message::SelectAllGames
@@ -150,9 +150,9 @@ impl BackupScreenComponent {
                         ),
                 )
                 .push(make_status_row(
-                    &translator,
+                    translator,
                     &self.status,
-                    self.log.count_selected_entries(&config, false),
+                    self.log.count_selected_entries(config, false),
                     self.duplicate_detector.any_duplicates(),
                 ))
                 .push(
@@ -187,11 +187,11 @@ impl BackupScreenComponent {
                                 }),
                         ),
                 )
-                .push(self.root_editor.view(&config, &translator, &operation))
+                .push(self.root_editor.view(config, translator, operation))
                 .push(Space::new(Length::Units(0), Length::Units(30)))
                 .push(
                     self.log
-                        .view(false, translator, &config, &manifest, &self.duplicate_detector),
+                        .view(false, translator, config, manifest, &self.duplicate_detector),
                 ),
         )
         .height(Length::Fill)

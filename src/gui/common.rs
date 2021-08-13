@@ -177,12 +177,12 @@ pub fn apply_shortcut_to_string_field(
             *config = history.redo();
         }
         Shortcut::ClipboardCopy => {
-            crate::shortcuts::copy_to_clipboard_from_iced(&config, &state.cursor());
+            crate::shortcuts::copy_to_clipboard_from_iced(config, &state.cursor());
         }
         Shortcut::ClipboardCut => {
-            let modified = crate::shortcuts::cut_to_clipboard_from_iced(&config, &state.cursor());
+            let modified = crate::shortcuts::cut_to_clipboard_from_iced(config, &state.cursor());
             *config = modified;
-            history.push(&config);
+            history.push(config);
         }
     }
 }
@@ -197,9 +197,9 @@ pub fn make_status_row<'a>(
     Row::new()
         .padding(20)
         .align_items(Align::Center)
-        .push(Text::new(translator.processed_games(&status)).size(35))
+        .push(Text::new(translator.processed_games(status)).size(35))
         .push(Text::new("  |  ").size(35))
-        .push(Text::new(translator.processed_bytes(&status)).size(35))
+        .push(Text::new(translator.processed_bytes(status)).size(35))
         .push(
             Badge::new(&translator.badge_duplicates())
                 .left_margin(15)
