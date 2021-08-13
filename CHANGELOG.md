@@ -1,3 +1,9 @@
+## Unreleased
+
+* Fixed:
+  * Removed `/games` from the end of the default Uplay (Ubisoft Connect) root
+    paths. The new default is `C:/Program Files/Ubisoft/Ubisoft Game Launcher`.
+
 ## v0.10.0 (2021-03-12)
 
 * Added:

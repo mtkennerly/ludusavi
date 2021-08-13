@@ -188,8 +188,8 @@ impl Config {
             (format!("{}/GOG Galaxy/Games", pf32), Store::GogGalaxy),
             (format!("{}/GOG Galaxy/Games", pf64), Store::GogGalaxy),
             // Uplay:
-            (format!("{}/Ubisoft/Ubisoft Game Launcher/games", pf32), Store::Uplay),
-            (format!("{}/Ubisoft/Ubisoft Game Launcher/games", pf64), Store::Uplay),
+            (format!("{}/Ubisoft/Ubisoft Game Launcher", pf32), Store::Uplay),
+            (format!("{}/Ubisoft/Ubisoft Game Launcher", pf64), Store::Uplay),
             // Origin:
             (format!("{}/Origin Games", pf32), Store::Origin),
             (format!("{}/Origin Games", pf64), Store::Origin),
