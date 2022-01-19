@@ -17,7 +17,7 @@ jobs:
             rust-target: i686-pc-windows-msvc
             artifact-name: win32
             artifact-file: ludusavi.exe
-          - os: ubuntu-16.04
+          - os: ubuntu-18.04
             rust-target: x86_64-unknown-linux-gnu
             artifact-name: linux
             artifact-file: ludusavi
@@ -42,7 +42,7 @@ jobs:
           toolchain: stable
           target: ${{ matrix.rust-target }}
           override: true
-      - if: ${{ matrix.os == 'ubuntu-16.04' }}
+      - if: ${{ matrix.os == 'ubuntu-18.04' }}
         run: sudo apt-get update && sudo apt-get install -y gcc libxcb-composite0-dev
       - uses: actions-rs/cargo@v1
         with:
