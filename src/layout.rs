@@ -251,7 +251,8 @@ impl BackupLayout {
     }
 
     fn find_irrelevant_backup_files(&self, game_folder: &StrictPath, relevant_files: &[StrictPath]) -> Vec<StrictPath> {
-        let mut relevant_files = relevant_files.iter().map(|x| x.interpret());
+        #[allow(clippy::needless_collect)]
+        let relevant_files: Vec<_> = relevant_files.iter().map(|x| x.interpret()).collect();
         let mut irrelevant_files = vec![];
 
         for drive_dir in walkdir::WalkDir::new(game_folder.interpret())
@@ -269,7 +270,7 @@ impl BackupLayout {
                 .filter(|x| x.file_type().is_file())
             {
                 let backup_file = StrictPath::new(file.path().display().to_string());
-                if !relevant_files.any(|x| x == backup_file.interpret()) {
+                if !relevant_files.contains(&backup_file.interpret()) {
                     irrelevant_files.push(backup_file);
                 }
             }
