@@ -1,5 +1,8 @@
 ## Unreleased
 
+* Added:
+  * On Windows, the version field is now set in the executable properties.
+  * On Windows, the executable icon is now included in the crates.io release as well.
 * Fixed:
   * Removed `/games` from the end of the default Uplay (Ubisoft Connect) root
     paths. The new default is `C:/Program Files/Ubisoft/Ubisoft Game Launcher`.

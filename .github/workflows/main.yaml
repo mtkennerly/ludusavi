@@ -48,11 +48,6 @@ jobs:
         with:
           command: build
           args: --release --target ${{ matrix.rust-target }}
-      - if: ${{ matrix.os == 'windows-latest' }}
-        run: |
-          Invoke-WebRequest https://github.com/electron/rcedit/releases/download/v1.1.1/rcedit-x64.exe -O rcedit.exe
-          ./rcedit.exe target/${{ matrix.rust-target }}/release/${{ matrix.artifact-file }} --set-icon assets/icon.ico
-        shell: powershell
       - uses: actions/upload-artifact@v1
         with:
           name: ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}
