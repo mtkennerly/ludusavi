@@ -160,7 +160,9 @@ impl Manifest {
     pub fn update(config: &mut Config) -> Result<(), Error> {
         let mut req = reqwest::blocking::Client::new().get(&config.manifest.url);
         if let Some(etag) = &config.manifest.etag {
-            req = req.header(reqwest::header::IF_NONE_MATCH, etag);
+            if StrictPath::from_std_path_buf(&Self::file()).exists() {
+                req = req.header(reqwest::header::IF_NONE_MATCH, etag);
+            }
         }
         let mut res = req.send().map_err(|_e| Error::ManifestCannotBeUpdated)?;
         match res.status() {
