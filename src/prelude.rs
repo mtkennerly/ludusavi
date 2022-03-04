@@ -152,7 +152,7 @@ impl Default for OperationStepDecision {
 
 // This helps for unit tests when comparing StrictPaths.
 fn reslashed(path: &str) -> String {
-    path.replace("\\", "/")
+    path.replace('\\', "/")
 }
 
 pub fn app_dir() -> std::path::PathBuf {
@@ -614,7 +614,7 @@ pub fn scan_game_for_restoration(name: &str, layout: &BackupLayout) -> ScanInfo 
             registry_file = Some(layout.game_registry_file(&target_game));
             for (hive_name, keys) in hives.0.iter() {
                 for (key_name, _) in keys.0.iter() {
-                    found_registry_keys.insert(format!("{}/{}", hive_name, key_name).replace("\\", "/"));
+                    found_registry_keys.insert(format!("{}/{}", hive_name, key_name).replace('\\', "/"));
                 }
             }
         }
@@ -1276,7 +1276,7 @@ mod tests {
             if cfg!(target_os = "windows") {
                 StrictPath::new(format!(
                     "\\\\?\\{}\\tests\\backup\\game1\\drive-X\\{}",
-                    repo().replace("/", "\\"),
+                    repo().replace('/', "\\"),
                     x
                 ))
             } else {
@@ -1311,7 +1311,7 @@ mod tests {
                     },
                     registry_file: Some(StrictPath::new(format!(
                         "\\\\?\\{}\\tests\\backup\\game3-renamed/registry.yaml",
-                        repo().replace("/", "\\")
+                        repo().replace('/', "\\")
                     ))),
                     ..Default::default()
                 },

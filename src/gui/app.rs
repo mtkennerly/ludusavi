@@ -774,7 +774,7 @@ impl Application for App {
                 Command::none()
             }
             Message::OpenWiki { game } => {
-                let url = format!("https://www.pcgamingwiki.com/wiki/{}", game.replace(" ", "_"));
+                let url = format!("https://www.pcgamingwiki.com/wiki/{}", game.replace(' ', "_"));
                 let url2 = url.clone();
                 match std::thread::spawn(move || opener::open(&url)).join() {
                     Ok(Ok(_)) => Command::none(),

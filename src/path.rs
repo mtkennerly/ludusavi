@@ -15,7 +15,7 @@ const UNC_LOCAL_PREFIX: &str = "\\\\?\\";
 
 fn parse_home(path: &str) -> String {
     if path == "~" || path.starts_with("~/") || path.starts_with("~\\") {
-        path.replacen("~", &dirs::home_dir().unwrap().to_string_lossy(), 1)
+        path.replacen('~', &dirs::home_dir().unwrap().to_string_lossy(), 1)
     } else {
         path.to_owned()
     }
@@ -56,7 +56,7 @@ fn parse_dots(path: &str, basis: &str) -> String {
                     // causing us to check the entire home folder.
                     // We escape it so that it (likely) just won't be found,
                     // rather than finding something irrelevant.
-                    ret.push(lossy.replace(":", "_"));
+                    ret.push(lossy.replace(':', "_"));
                 } else {
                     ret.push(c);
                 }
@@ -108,7 +108,7 @@ fn interpret<P: Into<String>>(path: P, basis: &Option<String>) -> String {
 /// Convert a path into a nice form for display and storage.
 /// On Windows, this produces non-UNC paths.
 fn render<P: Into<String>>(path: P) -> String {
-    path.into().replace(UNC_LOCAL_PREFIX, "").replace("\\", "/")
+    path.into().replace(UNC_LOCAL_PREFIX, "").replace('\\', "/")
 }
 
 pub fn render_pathbuf(value: &std::path::Path) -> String {
@@ -200,18 +200,18 @@ impl StrictPath {
             // Local UNC path - simplify to a classic drive for user-friendliness:
             let split: Vec<_> = stripped.splitn(2, '\\').collect();
             if split.len() == 2 {
-                return (split[0].to_owned(), split[1].replace("\\", "/"));
+                return (split[0].to_owned(), split[1].replace('\\', "/"));
             }
         } else if let Some(stripped) = interpreted.strip_prefix(UNC_PREFIX) {
             // Remote UNC path - can't simplify to classic drive:
             let split: Vec<_> = stripped.splitn(2, '\\').collect();
             if split.len() == 2 {
-                return (format!("{}{}", UNC_PREFIX, split[0]), split[1].replace("\\", "/"));
+                return (format!("{}{}", UNC_PREFIX, split[0]), split[1].replace('\\', "/"));
             }
         }
 
         // This shouldn't normally happen, but we have a fallback just in case.
-        ("".to_owned(), self.raw.replace("\\", "/"))
+        ("".to_owned(), self.raw.replace('\\', "/"))
     }
 
     #[cfg(not(target_os = "windows"))]
@@ -327,7 +327,7 @@ mod tests {
         #[test]
         fn converts_single_dot_at_start_of_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace("\\", "/"),
+                format!("{}/README.md", repo()).replace('\\', "/"),
                 StrictPath::new("./README.md".to_owned()).render(),
             );
         }
@@ -335,7 +335,7 @@ mod tests {
         #[test]
         fn converts_single_dots_at_start_of_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace("\\", "/"),
+                format!("{}/README.md", repo()).replace('\\', "/"),
                 StrictPath::new("./././README.md".to_owned()).render(),
             );
         }
@@ -343,7 +343,7 @@ mod tests {
         #[test]
         fn converts_single_dot_at_start_of_fake_path() {
             assert_eq!(
-                format!("{}/fake/README.md", repo()).replace("\\", "/"),
+                format!("{}/fake/README.md", repo()).replace('\\', "/"),
                 StrictPath::relative("./README.md".to_owned(), Some(format!("{}/fake", repo()))).render(),
             );
         }
@@ -351,7 +351,7 @@ mod tests {
         #[test]
         fn converts_single_dot_within_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace("\\", "/"),
+                format!("{}/README.md", repo()).replace('\\', "/"),
                 StrictPath::new(format!("{}/./README.md", repo())).render(),
             );
         }
@@ -359,7 +359,7 @@ mod tests {
         #[test]
         fn converts_single_dots_within_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace("\\", "/"),
+                format!("{}/README.md", repo()).replace('\\', "/"),
                 StrictPath::new(format!("{}/./././README.md", repo())).render(),
             );
         }
@@ -367,7 +367,7 @@ mod tests {
         #[test]
         fn converts_single_dot_within_fake_path() {
             assert_eq!(
-                format!("{}/fake/README.md", repo()).replace("\\", "/"),
+                format!("{}/fake/README.md", repo()).replace('\\', "/"),
                 StrictPath::new(format!("{}/fake/./README.md", repo())).render(),
             );
         }
@@ -375,7 +375,7 @@ mod tests {
         #[test]
         fn converts_double_dots_at_start_of_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace("\\", "/"),
+                format!("{}/README.md", repo()).replace('\\', "/"),
                 StrictPath::relative("../README.md".to_owned(), Some(format!("{}/src", repo()))).render(),
             );
         }
@@ -383,7 +383,7 @@ mod tests {
         #[test]
         fn converts_double_dots_at_start_of_fake_path() {
             assert_eq!(
-                format!("{}/fake.md", repo()).replace("\\", "/"),
+                format!("{}/fake.md", repo()).replace('\\', "/"),
                 StrictPath::relative("../fake.md".to_owned(), Some(format!("{}/fake", repo()))).render(),
             );
         }
@@ -391,7 +391,7 @@ mod tests {
         #[test]
         fn converts_double_dots_within_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace("\\", "/"),
+                format!("{}/README.md", repo()).replace('\\', "/"),
                 StrictPath::new(format!("{}/src/../README.md", repo())).render(),
             );
         }
@@ -399,7 +399,7 @@ mod tests {
         #[test]
         fn converts_double_dots_within_fake_path() {
             assert_eq!(
-                format!("{}/fake.md", repo()).replace("\\", "/"),
+                format!("{}/fake.md", repo()).replace('\\', "/"),
                 StrictPath::new(format!("{}/fake/../fake.md", repo())).render(),
             );
         }

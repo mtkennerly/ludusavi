@@ -3,7 +3,7 @@ use crate::{path::StrictPath, prelude::ScannedFile};
 const SAFE: &str = "_";
 
 fn encode_base64_for_folder(name: &str) -> String {
-    base64::encode(&name).replace("/", SAFE)
+    base64::encode(&name).replace('/', SAFE)
 }
 
 fn escape_folder_name(name: &str) -> String {
@@ -25,16 +25,16 @@ fn escape_folder_name(name: &str) -> String {
     }
 
     escaped
-        .replace("\\", SAFE)
-        .replace("/", SAFE)
-        .replace(":", SAFE)
-        .replace("*", SAFE)
-        .replace("?", SAFE)
-        .replace("\"", SAFE)
-        .replace("<", SAFE)
-        .replace(">", SAFE)
-        .replace("|", SAFE)
-        .replace("\0", SAFE)
+        .replace('\\', SAFE)
+        .replace('/', SAFE)
+        .replace(':', SAFE)
+        .replace('*', SAFE)
+        .replace('?', SAFE)
+        .replace('"', SAFE)
+        .replace('<', SAFE)
+        .replace('>', SAFE)
+        .replace('|', SAFE)
+        .replace('\0', SAFE)
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
@@ -65,7 +65,7 @@ impl IndividualMapping {
                     "drive-0".to_string()
                 } else {
                     // Simplify "C:" to "drive-C" instead of "drive-C_" for the common case.
-                    format!("drive-{}", escape_folder_name(&drive.replace(":", "")))
+                    format!("drive-{}", escape_folder_name(&drive.replace(':', "")))
                 };
                 self.drives.insert(key.to_string(), drive.to_string());
                 key
@@ -141,7 +141,7 @@ impl OverallMapping {
                 overall.games.insert(
                     game.name,
                     OverallMappingGame {
-                        base: StrictPath::from_std_path_buf(&game_dir.path().to_path_buf()),
+                        base: StrictPath::from_std_path_buf(game_dir.path()),
                         drives: game.drives,
                     },
                 );
