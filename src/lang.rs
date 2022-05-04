@@ -50,7 +50,10 @@ impl Translator {
 
     pub fn cli_backup_target_exists(&self, path: &StrictPath) -> String {
         match self.language {
-            Language::English => format!("The backup target already exists ( {} ). Either choose a different --target or delete it with --force.", path.render()),
+            Language::English => format!(
+                "The backup target already exists ( {} ). Either choose a different --path or delete it with --force.",
+                path.render()
+            ),
         }
     }
 
