@@ -6,7 +6,7 @@ use crate::{
     shortcuts::{Shortcut, TextHistory},
 };
 
-use iced::{text_input, Align, Row, Text};
+use iced::{text_input, Alignment, Row, Text};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -196,7 +196,7 @@ pub fn make_status_row<'a>(
     let show_selection = selected_games != status.processed_games || selected_bytes != status.processed_bytes;
     Row::new()
         .padding(20)
-        .align_items(Align::Center)
+        .align_items(Alignment::Center)
         .push(Text::new(translator.processed_games(status)).size(35))
         .push(Text::new("  |  ").size(35))
         .push(Text::new(translator.processed_bytes(status)).size(35))

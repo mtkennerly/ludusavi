@@ -15,7 +15,8 @@ use crate::{
 };
 
 use iced::{
-    button, text_input, Align, Button, Column, Container, HorizontalAlignment, Length, Row, Space, Text, TextInput,
+    alignment::Horizontal as HorizontalAlignment, button, text_input, Alignment, Button, Column, Container, Length,
+    Row, Space, Text, TextInput,
 };
 
 #[derive(Default)]
@@ -60,12 +61,12 @@ impl RestoreScreenComponent {
         Container::new(
             Column::new()
                 .padding(5)
-                .align_items(Align::Center)
+                .align_items(Alignment::Center)
                 .push(
                     Row::new()
                         .padding(20)
                         .spacing(20)
-                        .align_items(Align::Center)
+                        .align_items(Alignment::Center)
                         .push(
                             Button::new(
                                 &mut self.preview_button,
@@ -161,7 +162,7 @@ impl RestoreScreenComponent {
                     Row::new()
                         .padding(20)
                         .spacing(20)
-                        .align_items(Align::Center)
+                        .align_items(Alignment::Center)
                         .push(Text::new(translator.restore_source_label()))
                         .push(
                             TextInput::new(

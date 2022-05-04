@@ -15,8 +15,8 @@ use crate::{
 
 use fuzzy_matcher::FuzzyMatcher;
 use iced::{
-    button, scrollable, Align, Button, Checkbox, Column, Container, HorizontalAlignment, Length, Row, Scrollable,
-    Space, Text,
+    alignment::Horizontal as HorizontalAlignment, button, scrollable, Alignment, Button, Checkbox, Column, Container,
+    Length, Row, Scrollable, Space, Text,
 };
 
 #[derive(Default)]
@@ -68,7 +68,7 @@ impl GameListEntry {
             Column::new()
                 .padding(5)
                 .spacing(5)
-                .align_items(Align::Center)
+                .align_items(Alignment::Center)
                 .push(
                     Row::new()
                         .push(Checkbox::new(enabled, "", move |enabled| {

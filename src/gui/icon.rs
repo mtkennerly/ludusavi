@@ -1,4 +1,4 @@
-use iced::{Font, HorizontalAlignment, Length, Text};
+use iced::{alignment::Horizontal as HorizontalAlignment, Font, Length, Text};
 
 const ICONS: Font = Font::External {
     name: "Material Icons",

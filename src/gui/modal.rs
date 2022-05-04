@@ -5,7 +5,10 @@ use crate::{
     prelude::Error,
 };
 
-use iced::{button, Align, Button, Column, Container, HorizontalAlignment, Length, Row, Space, Text};
+use iced::{
+    alignment::Horizontal as HorizontalAlignment, button, Alignment, Button, Column, Container, Length, Row, Space,
+    Text,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModalTheme {
@@ -50,7 +53,7 @@ impl ModalComponent {
             Column::new()
                 .padding(5)
                 .width(Length::Fill)
-                .align_items(Align::Center)
+                .align_items(Alignment::Center)
                 .push(
                     Container::new(Space::new(Length::Shrink, Length::Shrink))
                         .width(Length::Fill)
@@ -60,11 +63,11 @@ impl ModalComponent {
                 .push(
                     Column::new()
                         .height(Length::FillPortion(2))
-                        .align_items(Align::Center)
+                        .align_items(Alignment::Center)
                         .push(
                             Row::new()
                                 .padding(20)
-                                .align_items(Align::Center)
+                                .align_items(Alignment::Center)
                                 .push(Text::new(match theme {
                                     ModalTheme::Error { variant } => translator.handle_error(variant),
                                     ModalTheme::ConfirmBackup => translator.modal_confirm_backup(
@@ -86,7 +89,7 @@ impl ModalComponent {
                             .padding(20)
                             .spacing(20)
                             .height(Length::Fill)
-                            .align_items(Align::Center),
+                            .align_items(Alignment::Center),
                         ),
                 )
                 .push(

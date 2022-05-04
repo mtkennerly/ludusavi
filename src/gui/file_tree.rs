@@ -5,7 +5,7 @@ use crate::{
     path::StrictPath,
     prelude::{game_file_restoration_target, BackupInfo, DuplicateDetector, ScanInfo},
 };
-use iced::{button, Align, Button, Column, Container, Length, Row, Space, Text};
+use iced::{button, Alignment, Button, Column, Container, Length, Row, Space, Text};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum FileTreeNodeType {
@@ -91,7 +91,7 @@ impl FileTreeNode {
             self.nodes.iter_mut().fold(
                 Column::new().push(
                     Row::new()
-                        .align_items(Align::Center)
+                        .align_items(Alignment::Center)
                         .push(Space::new(Length::Units(35 * level), Length::Shrink))
                         .push(
                             Button::new(

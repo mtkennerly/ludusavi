@@ -26,9 +26,10 @@ use crate::{
 };
 
 use iced::{
+    alignment::Horizontal as HorizontalAlignment,
     button, executor,
     keyboard::{KeyCode, Modifiers},
-    Align, Application, Button, Column, Command, Element, HorizontalAlignment, Length, Row, Subscription, Text,
+    Alignment, Application, Button, Column, Command, Element, Length, Row, Subscription, Text,
 };
 use native_dialog::Dialog;
 
@@ -791,11 +792,11 @@ impl Application for App {
                 if let iced_native::Event::Keyboard(key) = event {
                     if let Some((key_code, modifiers)) = get_key_pressed(key) {
                         let activated = if cfg!(target_os = "mac") {
-                            modifiers.logo || modifiers.control
+                            modifiers.logo() || modifiers.control()
                         } else {
-                            modifiers.control
+                            modifiers.control()
                         };
-                        let shortcut = match (key_code, activated, modifiers.shift) {
+                        let shortcut = match (key_code, activated, modifiers.shift()) {
                             (KeyCode::Z, true, false) => Some(Shortcut::Undo),
                             (KeyCode::Y, true, false) | (KeyCode::Z, true, true) => Some(Shortcut::Redo),
                             (KeyCode::C, true, false) => Some(Shortcut::ClipboardCopy),
@@ -941,7 +942,7 @@ impl Application for App {
         }
 
         Column::new()
-            .align_items(Align::Center)
+            .align_items(Alignment::Center)
             .push(
                 Row::new()
                     .spacing(20)

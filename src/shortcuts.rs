@@ -10,13 +10,13 @@ pub enum Shortcut {
     ClipboardCut,
 }
 
-pub fn copy_to_clipboard_from_iced(text: &str, cursor: &iced_native::text_input::Cursor) {
-    let value = iced_native::text_input::Value::new(text);
+pub fn copy_to_clipboard_from_iced(text: &str, cursor: &iced_native::widget::text_input::Cursor) {
+    let value = iced_native::widget::text_input::Value::new(text);
     match cursor.state(&value) {
-        iced_native::text_input::cursor::State::Selection { start, end } => {
+        iced_native::widget::text_input::cursor::State::Selection { start, end } => {
             let _ = copy_to_clipboard(&text[std::cmp::min(start, end)..std::cmp::max(start, end)]);
         }
-        iced_native::text_input::cursor::State::Index(_) => {
+        iced_native::widget::text_input::cursor::State::Index(_) => {
             let _ = copy_to_clipboard(text);
         }
     };
@@ -33,10 +33,10 @@ pub fn copy_to_clipboard(text: &str) -> Result<(), ()> {
     }
 }
 
-pub fn cut_to_clipboard_from_iced(text: &str, cursor: &iced_native::text_input::Cursor) -> String {
-    let value = iced_native::text_input::Value::new(text);
+pub fn cut_to_clipboard_from_iced(text: &str, cursor: &iced_native::widget::text_input::Cursor) -> String {
+    let value = iced_native::widget::text_input::Value::new(text);
     match cursor.state(&value) {
-        iced_native::text_input::cursor::State::Selection { start, end } => {
+        iced_native::widget::text_input::cursor::State::Selection { start, end } => {
             match cut_to_clipboard(text, std::cmp::min(start, end), std::cmp::max(start, end)) {
                 Ok(remaining) => {
                     // TODO: Clear the previous cursor selection.

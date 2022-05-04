@@ -4,7 +4,7 @@ use crate::{
     shortcuts::TextHistory,
 };
 
-use iced::{text_input, Align, Container, Length, Row, Space, Text, TextInput};
+use iced::{text_input, Alignment, Container, Length, Row, Space, Text, TextInput};
 
 #[derive(Default)]
 pub struct SearchComponent {
@@ -22,7 +22,7 @@ impl SearchComponent {
         Container::new(
             Row::new()
                 .spacing(20)
-                .align_items(Align::Center)
+                .align_items(Alignment::Center)
                 .push(Space::new(Length::Shrink, Length::Shrink))
                 .push(Text::new(translator.search_label()))
                 .push(

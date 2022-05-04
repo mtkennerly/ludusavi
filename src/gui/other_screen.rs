@@ -4,7 +4,7 @@ use crate::{
     lang::Translator,
 };
 
-use iced::{scrollable, Align, Checkbox, Column, Container, Length, Row, Scrollable};
+use iced::{scrollable, Alignment, Checkbox, Column, Container, Length, Row, Scrollable};
 
 #[derive(Default)]
 pub struct OtherScreenComponent {
@@ -25,7 +25,7 @@ impl OtherScreenComponent {
                             Row::new()
                                 .padding(20)
                                 .spacing(20)
-                                .align_items(Align::Center)
+                                .align_items(Alignment::Center)
                                 .push(Checkbox::new(
                                     config.backup.filter.exclude_other_os_data,
                                     translator.explanation_for_exclude_other_os_data(),
@@ -36,7 +36,7 @@ impl OtherScreenComponent {
                             Row::new()
                                 .padding(20)
                                 .spacing(20)
-                                .align_items(Align::Center)
+                                .align_items(Alignment::Center)
                                 .push(Checkbox::new(
                                     config.backup.filter.exclude_store_screenshots,
                                     translator.explanation_for_exclude_store_screenshots(),

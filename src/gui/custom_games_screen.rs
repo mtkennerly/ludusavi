@@ -10,7 +10,9 @@ use crate::{
     lang::Translator,
 };
 
-use iced::{button, Align, Button, Column, Container, HorizontalAlignment, Length, Row, Text};
+use iced::{
+    alignment::Horizontal as HorizontalAlignment, button, Alignment, Button, Column, Container, Length, Row, Text,
+};
 
 #[derive(Default)]
 pub struct CustomGamesScreenComponent {
@@ -48,12 +50,12 @@ impl CustomGamesScreenComponent {
         Container::new(
             Column::new()
                 .padding(5)
-                .align_items(Align::Center)
+                .align_items(Alignment::Center)
                 .push(
                     Row::new()
                         .padding(20)
                         .spacing(20)
-                        .align_items(Align::Center)
+                        .align_items(Alignment::Center)
                         .push(
                             Button::new(
                                 &mut self.add_game_button,
