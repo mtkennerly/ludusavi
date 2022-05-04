@@ -6,7 +6,7 @@ use crate::{
     shortcuts::{Shortcut, TextHistory},
 };
 
-use iced::{text_input, Alignment, Row, Text};
+use iced::{Alignment, Row, Text};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -139,12 +139,7 @@ impl Default for Screen {
     }
 }
 
-pub fn apply_shortcut_to_strict_path_field(
-    shortcut: &Shortcut,
-    config: &mut StrictPath,
-    state: &text_input::State,
-    history: &mut TextHistory,
-) {
+pub fn apply_shortcut_to_strict_path_field(shortcut: &Shortcut, config: &mut StrictPath, history: &mut TextHistory) {
     match shortcut {
         Shortcut::Undo => {
             config.reset(history.undo());
@@ -152,37 +147,16 @@ pub fn apply_shortcut_to_strict_path_field(
         Shortcut::Redo => {
             config.reset(history.redo());
         }
-        Shortcut::ClipboardCopy => {
-            crate::shortcuts::copy_to_clipboard_from_iced(&config.raw(), &state.cursor());
-        }
-        Shortcut::ClipboardCut => {
-            let modified = crate::shortcuts::cut_to_clipboard_from_iced(&config.raw(), &state.cursor());
-            config.reset(modified);
-            history.push(&config.raw());
-        }
     }
 }
 
-pub fn apply_shortcut_to_string_field(
-    shortcut: &Shortcut,
-    config: &mut String,
-    state: &text_input::State,
-    history: &mut TextHistory,
-) {
+pub fn apply_shortcut_to_string_field(shortcut: &Shortcut, config: &mut String, history: &mut TextHistory) {
     match shortcut {
         Shortcut::Undo => {
             *config = history.undo();
         }
         Shortcut::Redo => {
             *config = history.redo();
-        }
-        Shortcut::ClipboardCopy => {
-            crate::shortcuts::copy_to_clipboard_from_iced(config, &state.cursor());
-        }
-        Shortcut::ClipboardCut => {
-            let modified = crate::shortcuts::cut_to_clipboard_from_iced(config, &state.cursor());
-            *config = modified;
-            history.push(config);
         }
     }
 }

@@ -799,8 +799,6 @@ impl Application for App {
                         let shortcut = match (key_code, activated, modifiers.shift()) {
                             (KeyCode::Z, true, false) => Some(Shortcut::Undo),
                             (KeyCode::Y, true, false) | (KeyCode::Z, true, true) => Some(Shortcut::Redo),
-                            (KeyCode::C, true, false) => Some(Shortcut::ClipboardCopy),
-                            (KeyCode::X, true, false) => Some(Shortcut::ClipboardCut),
                             _ => None,
                         };
 
@@ -811,7 +809,6 @@ impl Application for App {
                                 apply_shortcut_to_strict_path_field(
                                     &shortcut,
                                     &mut self.config.backup.path,
-                                    &self.backup_screen.backup_target_input,
                                     &mut self.backup_screen.backup_target_history,
                                 );
                                 matched = true;
@@ -819,7 +816,6 @@ impl Application for App {
                                 apply_shortcut_to_strict_path_field(
                                     &shortcut,
                                     &mut self.config.restore.path,
-                                    &self.restore_screen.restore_source_input,
                                     &mut self.restore_screen.restore_source_history,
                                 );
                                 matched = true;
@@ -827,7 +823,6 @@ impl Application for App {
                                 apply_shortcut_to_string_field(
                                     &shortcut,
                                     &mut self.backup_screen.log.search.game_name,
-                                    &self.backup_screen.log.search.game_name_input,
                                     &mut self.backup_screen.log.search.game_name_history,
                                 );
                                 matched = true;
@@ -835,7 +830,6 @@ impl Application for App {
                                 apply_shortcut_to_string_field(
                                     &shortcut,
                                     &mut self.restore_screen.log.search.game_name,
-                                    &self.restore_screen.log.search.game_name_input,
                                     &mut self.restore_screen.log.search.game_name_history,
                                 );
                                 matched = true;
@@ -845,7 +839,6 @@ impl Application for App {
                                         apply_shortcut_to_strict_path_field(
                                             &shortcut,
                                             &mut self.config.roots[i].path,
-                                            &root.text_state,
                                             &mut root.text_history,
                                         );
                                         matched = true;
@@ -857,7 +850,6 @@ impl Application for App {
                                         apply_shortcut_to_strict_path_field(
                                             &shortcut,
                                             &mut self.config.restore.redirects[i].source,
-                                            &redirect.source_text_state,
                                             &mut redirect.source_text_history,
                                         );
                                         for item in self.restore_screen.log.entries.iter_mut() {
@@ -870,7 +862,6 @@ impl Application for App {
                                         apply_shortcut_to_strict_path_field(
                                             &shortcut,
                                             &mut self.config.restore.redirects[i].target,
-                                            &redirect.target_text_state,
                                             &mut redirect.target_text_history,
                                         );
                                         for item in self.restore_screen.log.entries.iter_mut() {
@@ -888,7 +879,6 @@ impl Application for App {
                                         apply_shortcut_to_string_field(
                                             &shortcut,
                                             &mut self.config.custom_games[i].name,
-                                            &game.text_state,
                                             &mut game.text_history,
                                         );
                                         matched = true;
@@ -899,7 +889,6 @@ impl Application for App {
                                             apply_shortcut_to_string_field(
                                                 &shortcut,
                                                 &mut self.config.custom_games[i].files[j],
-                                                &file_row.text_state,
                                                 &mut file_row.text_history,
                                             );
                                             matched = true;
@@ -911,7 +900,6 @@ impl Application for App {
                                             apply_shortcut_to_string_field(
                                                 &shortcut,
                                                 &mut self.config.custom_games[i].registry[j],
-                                                &registry_row.text_state,
                                                 &mut registry_row.text_history,
                                             );
                                             matched = true;

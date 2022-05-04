@@ -205,16 +205,6 @@ dependencies = [
 
 [[package]]
 name = "clipboard-win"
-version = "3.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9fdf5e01086b6be750428ba4a40619f847eb2e95756eee84b18e06e5f0b50342"
-dependencies = [
- "lazy-bytes-cast",
- "winapi 0.3.9",
-]
-
-[[package]]
-name = "clipboard-win"
 version = "4.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2f3e1238132dc01f081e1cbb9dace14e5ef4c3a51ee244bd982275fb514605db"
@@ -330,20 +320,6 @@ dependencies = [
  "terminal_size",
  "unicode-width",
  "winapi 0.3.9",
-]
-
-[[package]]
-name = "copypasta"
-version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4423d79fed83ebd9ab81ec21fa97144300a961782158287dc9bf7eddac37ff0b"
-dependencies = [
- "clipboard-win 3.1.1",
- "objc",
- "objc-foundation",
- "objc_id",
- "smithay-clipboard",
- "x11-clipboard",
 ]
 
 [[package]]
@@ -1458,12 +1434,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2db585e1d738fc771bf08a151420d3ed193d9d895a36df7f6f8a9456b911ddc"
 
 [[package]]
-name = "lazy-bytes-cast"
-version = "5.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10257499f089cd156ad82d0a9cd57d9501fa2c989068992a97eb3c27836f206b"
-
-[[package]]
 name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1516,7 +1486,6 @@ version = "0.10.0"
 dependencies = [
  "base64 0.12.3",
  "byte-unit",
- "copypasta",
  "dialoguer",
  "dirs",
  "fuzzy-matcher",
@@ -2139,15 +2108,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec757218438d5fda206afc041538b2f6d889286160d649a86a24d37e1235afd1"
 dependencies = [
  "unicode-xid",
-]
-
-[[package]]
-name = "quick-xml"
-version = "0.22.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8533f14c8382aaad0d592c812ac3b826162128b65662331e1127b45c3d18536b"
-dependencies = [
- "memchr",
 ]
 
 [[package]]
@@ -3218,7 +3178,7 @@ version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "086ed826cc4468377b6b995300d5f7f852a2fe1eb02e6cd1ccd4a574deb9d310"
 dependencies = [
- "clipboard-win 4.4.1",
+ "clipboard-win",
  "clipboard_macos",
  "clipboard_wayland",
  "clipboard_x11",
@@ -3297,15 +3257,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "x11-clipboard"
-version = "0.5.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "473068b7b80ac86a18328824f1054e5e007898c47b5bbc281bd7abe32bc3653c"
-dependencies = [
- "xcb",
-]
-
-[[package]]
 name = "x11-dl"
 version = "2.19.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3326,17 +3277,6 @@ dependencies = [
  "nix 0.20.0",
  "winapi 0.3.9",
  "winapi-wsapoll",
-]
-
-[[package]]
-name = "xcb"
-version = "0.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "771e2b996df720cd1c6dd9ff90f62d91698fd3610cc078388d0564bdd6622a9c"
-dependencies = [
- "libc",
- "log",
- "quick-xml",
 ]
 
 [[package]]

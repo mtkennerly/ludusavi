@@ -1,61 +1,9 @@
 // Iced has built-in support for some keyboard shortcuts. This module provides
 // support for implementing other shortcuts until Iced provides its own support.
 
-use copypasta::ClipboardProvider;
-
 pub enum Shortcut {
     Undo,
     Redo,
-    ClipboardCopy,
-    ClipboardCut,
-}
-
-pub fn copy_to_clipboard_from_iced(text: &str, cursor: &iced_native::widget::text_input::Cursor) {
-    let value = iced_native::widget::text_input::Value::new(text);
-    match cursor.state(&value) {
-        iced_native::widget::text_input::cursor::State::Selection { start, end } => {
-            let _ = copy_to_clipboard(&text[std::cmp::min(start, end)..std::cmp::max(start, end)]);
-        }
-        iced_native::widget::text_input::cursor::State::Index(_) => {
-            let _ = copy_to_clipboard(text);
-        }
-    };
-}
-
-pub fn copy_to_clipboard(text: &str) -> Result<(), ()> {
-    if let Ok(mut ctx) = copypasta::ClipboardContext::new() {
-        match ctx.set_contents(text.to_owned()) {
-            Ok(_) => Ok(()),
-            Err(_) => Err(()),
-        }
-    } else {
-        Err(())
-    }
-}
-
-pub fn cut_to_clipboard_from_iced(text: &str, cursor: &iced_native::widget::text_input::Cursor) -> String {
-    let value = iced_native::widget::text_input::Value::new(text);
-    match cursor.state(&value) {
-        iced_native::widget::text_input::cursor::State::Selection { start, end } => {
-            match cut_to_clipboard(text, std::cmp::min(start, end), std::cmp::max(start, end)) {
-                Ok(remaining) => {
-                    // TODO: Clear the previous cursor selection.
-                    remaining
-                }
-                Err(_) => text.to_owned(),
-            }
-        }
-        _ => text.to_owned(),
-    }
-}
-
-pub fn cut_to_clipboard(text: &str, start: usize, end: usize) -> Result<String, ()> {
-    let cut = &text[start..end];
-    let remaining = format!("{}{}", &text[0..start], &text[end..text.len()]);
-    match copy_to_clipboard(cut) {
-        Ok(_) => Ok(remaining),
-        Err(_) => Err(()),
-    }
 }
 
 pub struct TextHistory {
