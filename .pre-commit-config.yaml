@@ -9,16 +9,8 @@ repos:
     rev: v1.1.7
     hooks:
       - id: forbid-tabs
-  - repo: local
+  - repo: https://github.com/mtkennerly/pre-commit-hooks
+    rev: v0.1.1
     hooks:
-      - id: rustfmt
-        name: rustfmt
-        language: system
-        entry: cargo fmt --
-        types: [rust]
-      - id: clippy
-        name: clippy
-        language: system
-        entry: cargo clippy --tests -- -D warnings
-        types: [rust]
-        pass_filenames: false
+      - id: cargo-fmt
+      - id: cargo-clippy
