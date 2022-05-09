@@ -2,7 +2,7 @@
 name = "ludusavi"
 version = "0.10.0"
 authors = ["mtkennerly <mtkennerly@gmail.com>"]
-edition = "2018"
+edition = "2021"
 description = "Game save backup tool"
 repository = "https://github.com/mtkennerly/ludusavi"
 readme = "README.md"
@@ -15,7 +15,7 @@ dialoguer = "0.6.2"
 dirs = "3.0.0"
 fuzzy-matcher = "0.3.5"
 glob = "0.3.0"
-iced = { version = "0.4.2", default-features = false, features = ["glow", "glow_default_system_font"] }
+iced = { version = "0.4.2", features = ["glow", "glow_default_system_font"] }
 iced_native = { version = "0.5.0" }
 image = { version = "0.23.7", features = ["ico"], default-features = false }
 indicatif = { version = "0.15.0", features = ["rayon"] }
