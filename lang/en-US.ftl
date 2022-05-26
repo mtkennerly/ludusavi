@@ -9,13 +9,9 @@ cli-unable-to-request-confirmation = Unable to request confirmation.
 badge-failed = FAILED
 badge-duplicates = DUPLICATES
 badge-duplicated = DUPLICATED
+badge-ignored = IGNORED
 badge-redirected-from = FROM: {$path}
 badge-selecting = SELECTING {$total-games} GAMES, {$total-size}
-
-label-failed = [{badge-failed}]
-label-duplicates = [{badge-duplicates}]
-label-duplicated = [{badge-duplicated}]
-label-ignored = [IGNORED]
 
 some-entries-failed = Some entries failed to process; look for {label-failed} in the output for details. Double check whether you can access those files or whether their paths are very long.
 

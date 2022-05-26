@@ -157,20 +157,24 @@ impl Translator {
         translate("some-entries-failed")
     }
 
+    fn label(&self, text: &str) -> String {
+        format!("[{}]", text)
+    }
+
     pub fn label_failed(&self) -> String {
-        translate("label-failed")
+        self.label(&translate("badge-failed"))
     }
 
     pub fn label_duplicates(&self) -> String {
-        translate("label-duplicates")
+        self.label(&translate("badge-duplicates"))
     }
 
     pub fn label_duplicated(&self) -> String {
-        translate("label-duplicated")
+        self.label(&translate("badge-duplicated"))
     }
 
     pub fn label_ignored(&self) -> String {
-        translate("label-ignored")
+        self.label(&translate("badge-ignored"))
     }
 
     pub fn badge_failed(&self) -> String {

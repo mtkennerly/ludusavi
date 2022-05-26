@@ -25,6 +25,9 @@ the primary manifest. The data is ultimately sourced from [PCGamingWiki](https:/
 so please contribute any new or fixed data back to the wiki itself, and your
 improvements will be incorporated into Ludusavi's data as well.
 
+If you'd like to help translate Ludusavi into other languages,
+[check out the Crowdin project](https://crowdin.com/project/ludusavi).
+
 ## Demo
 ### GUI
 > ![GUI demo of previewing a backup](docs/demo-gui.gif)
