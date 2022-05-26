@@ -394,7 +394,7 @@ impl Reporter {
                 parts,
                 status,
                 translator,
-            } => parts.join("\n") + "\n" + &translator.cli_summary(status, path),
+            } => parts.join("\n") + "\n\n" + &translator.cli_summary(status, path),
             Self::Json { output } => serde_json::to_string_pretty(&output).unwrap(),
         }
     }

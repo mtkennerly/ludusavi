@@ -1,32 +1,109 @@
 use byte_unit::Byte;
+use fluent::{bundle::FluentBundle, FluentArgs, FluentResource};
+use intl_memoizer::concurrent::IntlLangMemoizer;
+use once_cell::sync::Lazy;
+use regex::Regex;
+use std::sync::Mutex;
+use unic_langid::LanguageIdentifier;
 
 use crate::{
     manifest::Store,
     prelude::{Error, OperationStatus, OperationStepDecision, StrictPath},
 };
 
-#[derive(Clone, Copy, Debug)]
+const PATH: &str = "path";
+const PATH_ACTION: &str = "path-action";
+const PROCESSED_GAMES: &str = "processed-games";
+const PROCESSED_SIZE: &str = "processed-size";
+const TOTAL_GAMES: &str = "total-games";
+const TOTAL_SIZE: &str = "total-size";
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Language {
     English,
 }
 
-impl Default for Language {
-    fn default() -> Self {
-        Language::English
+impl Language {
+    pub fn id(&self) -> String {
+        match self {
+            Self::English => "en-US",
+        }
+        .to_string()
     }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub struct Translator {
-    language: Language,
+pub struct Translator {}
+
+static BUNDLE: Lazy<Mutex<FluentBundle<FluentResource, IntlLangMemoizer>>> = Lazy::new(|| {
+    let ftl = include_str!("../lang/en-US.ftl").to_owned();
+    let res = FluentResource::try_new(ftl).expect("Failed to parse Fluent file content.");
+
+    let language_id: LanguageIdentifier = Language::English.id().parse().unwrap();
+    let mut bundle = FluentBundle::new_concurrent(vec![language_id]);
+    bundle.set_use_isolating(false);
+
+    bundle
+        .add_resource(res)
+        .expect("Failed to add Fluent resources to the bundle.");
+
+    Mutex::new(bundle)
+});
+
+static RE_EXTRA_SPACES: Lazy<Regex> = Lazy::new(|| Regex::new(r#"([^\r\n ]) {2,}"#).unwrap());
+static RE_EXTRA_LINES: Lazy<Regex> = Lazy::new(|| Regex::new(r#"([^\r\n ])[\r\n]([^\r\n ])"#).unwrap());
+static RE_EXTRA_PARAGRAPHS: Lazy<Regex> = Lazy::new(|| Regex::new(r#"([^\r\n ])[\r\n]{2,}([^\r\n ])"#).unwrap());
+
+fn translate(id: &str) -> String {
+    translate_args(id, &FluentArgs::new())
+}
+
+fn translate_args(id: &str, args: &FluentArgs) -> String {
+    let bundle = match BUNDLE.lock() {
+        Ok(x) => x,
+        Err(_) => return "fluent-cannot-lock".to_string(),
+    };
+
+    let parts: Vec<&str> = id.splitn(2, '.').collect();
+    let (name, attr) = if parts.len() < 2 {
+        (id, None)
+    } else {
+        (parts[0], Some(parts[1]))
+    };
+
+    let message = match bundle.get_message(name) {
+        Some(x) => x,
+        None => return format!("fluent-no-message={}", name),
+    };
+
+    let pattern = match attr {
+        None => match message.value() {
+            Some(x) => x,
+            None => return format!("fluent-no-message-value={}", id),
+        },
+        Some(attr) => match message.get_attribute(attr) {
+            Some(x) => x.value(),
+            None => return format!("fluent-no-attr={}", id),
+        },
+    };
+    let mut errors = vec![];
+    let value = bundle.format_pattern(pattern, Some(args), &mut errors);
+
+    RE_EXTRA_PARAGRAPHS
+        .replace_all(
+            &RE_EXTRA_LINES.replace_all(&RE_EXTRA_SPACES.replace_all(&value, "${1} "), "${1} ${2}"),
+            "${1}\n\n${2}",
+        )
+        .to_string()
 }
 
 impl Translator {
     pub fn window_title(&self) -> String {
+        let name = translate("ludusavi");
         let version = option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
         match option_env!("LUDUSAVI_VARIANT") {
-            Some(variant) => format!("Ludusavi v{} ({})", version, variant),
-            None => format!("Ludusavi v{}", version),
+            Some(variant) => format!("{} v{} ({})", name, version, variant),
+            None => format!("{} v{}", name, version),
         }
     }
 
@@ -49,108 +126,76 @@ impl Translator {
     }
 
     pub fn cli_backup_target_exists(&self, path: &StrictPath) -> String {
-        match self.language {
-            Language::English => format!(
-                "The backup target already exists ( {} ). Either choose a different --path or delete it with --force.",
-                path.render()
-            ),
-        }
+        let mut args = FluentArgs::new();
+        args.set(PATH, path.render());
+        translate_args("cli-backup-target-already-exists", &args)
     }
 
     pub fn cli_unrecognized_games(&self, games: &[String]) -> String {
-        let prefix = match self.language {
-            Language::English => "No info for these games:",
-        };
+        let prefix = translate("cli-unrecognized-games");
         let lines: Vec<_> = games.iter().map(|x| format!("  - {}", x)).collect();
         format!("{}\n{}", prefix, lines.join("\n"))
     }
 
     pub fn cli_confirm_restoration(&self, path: &StrictPath) -> String {
-        match self.language {
-            Language::English => format!("Do you want to restore from {}?", path.render()),
-        }
+        let mut args = FluentArgs::new();
+        args.set(PATH, path.render());
+        translate_args("cli-confirm-restoration", &args)
     }
 
     pub fn cli_unable_to_request_confirmation(&self) -> String {
         #[cfg(target_os = "windows")]
-        let extra_note: String = match self.language {
-            Language::English => "If you are using a Bash emulator (like Git Bash), try running winpty.",
-        }
-        .into();
+        let extra_note = translate("cli-unable-to-request-confirmation.winpty-workaround");
 
         #[cfg(not(target_os = "windows"))]
         let extra_note = "";
 
-        match self.language {
-            Language::English => format!("Unable to request confirmation. {}", extra_note),
-        }
+        format!("{} {}", translate("cli-unable-to-request-confirmation"), extra_note)
     }
 
     pub fn some_entries_failed(&self) -> String {
-        match self.language {
-            Language::English => format!("Some entries failed to process; look for {} in the output for details. Double check whether you can access those files or whether their paths are very long.", self.label_failed()),
-        }
+        translate("some-entries-failed")
     }
 
     pub fn label_failed(&self) -> String {
-        match self.language {
-            Language::English => "[FAILED]",
-        }
-        .into()
+        translate("label-failed")
     }
 
     pub fn label_duplicates(&self) -> String {
-        match self.language {
-            Language::English => "[DUPLICATES]",
-        }
-        .into()
+        translate("label-duplicates")
     }
 
     pub fn label_duplicated(&self) -> String {
-        match self.language {
-            Language::English => "[DUPLICATED]",
-        }
-        .into()
+        translate("label-duplicated")
     }
 
     pub fn label_ignored(&self) -> String {
-        match self.language {
-            Language::English => "[IGNORED]",
-        }
-        .into()
+        translate("label-ignored")
     }
 
     pub fn badge_failed(&self) -> String {
-        match self.language {
-            Language::English => "FAILED",
-        }
-        .into()
+        translate("badge-failed")
     }
 
     pub fn badge_duplicates(&self) -> String {
-        match self.language {
-            Language::English => "DUPLICATES",
-        }
-        .into()
+        translate("badge-duplicates")
     }
 
     pub fn badge_duplicated(&self) -> String {
-        match self.language {
-            Language::English => "DUPLICATED",
-        }
-        .into()
+        translate("badge-duplicated")
     }
 
     pub fn badge_redirected_from(&self, original: &StrictPath) -> String {
-        match self.language {
-            Language::English => format!("FROM: {}", original.render()),
-        }
+        let mut args = FluentArgs::new();
+        args.set(PATH, original.render());
+        translate_args("badge-redirected-from", &args)
     }
 
     pub fn badge_selected_games(&self, games: usize, bytes: u64) -> String {
-        match self.language {
-            Language::English => format!("SELECTING {} GAMES, {}", games, self.adjusted_size(bytes)),
-        }
+        let mut args = FluentArgs::new();
+        args.set(TOTAL_GAMES, games);
+        args.set(TOTAL_SIZE, self.adjusted_size(bytes));
+        translate_args("badge-selecting", &args)
     }
 
     pub fn cli_game_header(
@@ -169,13 +214,9 @@ impl Translator {
         }
 
         if labels.is_empty() {
-            match self.language {
-                Language::English => format!("{} [{}]:", name, self.adjusted_size(bytes)),
-            }
+            format!("{} [{}]:", name, self.adjusted_size(bytes))
         } else {
-            match self.language {
-                Language::English => format!("{} [{}] {}:", name, self.adjusted_size(bytes), labels.join(" ")),
-            }
+            format!("{} [{}] {}:", name, self.adjusted_size(bytes), labels.join(" "))
         }
     }
 
@@ -189,233 +230,144 @@ impl Translator {
         }
         parts.push(item.to_string());
 
-        match self.language {
-            Language::English => format!("  - {}", parts.join(" ")),
-        }
+        format!("  - {}", parts.join(" "))
     }
 
     pub fn cli_game_line_item_redirected(&self, item: &str) -> String {
-        match self.language {
-            Language::English => format!("    - Redirected from: {}", item),
-        }
+        let mut args = FluentArgs::new();
+        args.set(PATH, item);
+        translate_args("cli-game-line-redirected-from", &args)
     }
 
     pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {
+        let mut args = FluentArgs::new();
+        args.set(PATH, location.render());
+        args.set(TOTAL_GAMES, status.total_games);
+        args.set(PROCESSED_GAMES, status.processed_games);
+        args.set(TOTAL_SIZE, self.adjusted_size(status.total_bytes));
+        args.set(PROCESSED_SIZE, self.adjusted_size(status.processed_bytes));
+
         if status.completed() {
-            match self.language {
-                Language::English => format!(
-                    "\nOverall:\n  Games: {}\n  Size: {}\n  Location: {}",
-                    status.total_games,
-                    self.adjusted_size(status.total_bytes),
-                    location.render()
-                ),
-            }
+            translate_args("cli-summary.succeeded", &args)
         } else {
-            match self.language {
-                Language::English => format!(
-                    "\nOverall:\n  Games: {} of {}\n  Size: {} of {}\n  Location: {}",
-                    status.processed_games,
-                    status.total_games,
-                    self.adjusted_size(status.processed_bytes),
-                    self.adjusted_size(status.total_bytes),
-                    location.render()
-                ),
-            }
+            translate_args("cli-summary.failed", &args)
         }
     }
 
     pub fn backup_button(&self) -> String {
-        match self.language {
-            Language::English => "Back up",
-        }
-        .into()
+        translate("button-backup")
     }
 
     pub fn preview_button(&self) -> String {
-        match self.language {
-            Language::English => "Preview",
-        }
-        .into()
+        translate("button-preview")
     }
 
     pub fn restore_button(&self) -> String {
-        match self.language {
-            Language::English => "Restore",
-        }
-        .into()
+        translate("button-restore")
     }
 
     pub fn nav_backup_button(&self) -> String {
-        match self.language {
-            Language::English => "BACKUP MODE",
-        }
-        .into()
+        translate("button-nav-backup")
     }
 
     pub fn nav_restore_button(&self) -> String {
-        match self.language {
-            Language::English => "RESTORE MODE",
-        }
-        .into()
+        translate("button-nav-restore")
     }
 
     pub fn nav_custom_games_button(&self) -> String {
-        match self.language {
-            Language::English => "CUSTOM GAMES",
-        }
-        .into()
+        translate("button-nav-custom-games")
     }
 
     pub fn nav_other_button(&self) -> String {
-        match self.language {
-            Language::English => "OTHER",
-        }
-        .into()
+        translate("button-nav-other")
     }
 
     pub fn add_root_button(&self) -> String {
-        match self.language {
-            Language::English => "Add root",
-        }
-        .into()
+        translate("button-add-root")
     }
 
     pub fn add_redirect_button(&self) -> String {
-        match self.language {
-            Language::English => "Add redirect",
-        }
-        .into()
+        translate("button-add-redirect")
     }
 
     pub fn add_game_button(&self) -> String {
-        match self.language {
-            Language::English => "Add game",
-        }
-        .into()
+        translate("button-add-game")
     }
 
     pub fn continue_button(&self) -> String {
-        match self.language {
-            Language::English => "Continue",
-        }
-        .into()
+        translate("button-continue")
     }
 
     pub fn cancel_button(&self) -> String {
-        match self.language {
-            Language::English => "Cancel",
-        }
-        .into()
+        translate("button-cancel")
     }
 
     pub fn cancelling_button(&self) -> String {
-        match self.language {
-            Language::English => "Cancelling...",
-        }
-        .into()
+        translate("button-cancelling")
     }
 
     pub fn okay_button(&self) -> String {
-        match self.language {
-            Language::English => "Okay",
-        }
-        .into()
+        translate("button-okay")
     }
 
     pub fn select_all_button(&self) -> String {
-        match self.language {
-            Language::English => "Select all",
-        }
-        .into()
+        translate("button-select-all")
     }
 
     pub fn deselect_all_button(&self) -> String {
-        match self.language {
-            Language::English => "Deselect all",
-        }
-        .into()
+        translate("button-deselect-all")
     }
 
     pub fn enable_all_button(&self) -> String {
-        match self.language {
-            Language::English => "Enable all",
-        }
-        .into()
+        translate("button-enable-all")
     }
 
     pub fn disable_all_button(&self) -> String {
-        match self.language {
-            Language::English => "Disable all",
-        }
-        .into()
+        translate("button-disable-all")
     }
 
     pub fn no_roots_are_configured(&self) -> String {
-        match self.language {
-            Language::English => "Add some roots to back up even more data.",
-        }
-        .into()
+        translate("no-roots-are-configured")
     }
 
     pub fn config_is_invalid(&self, why: &str) -> String {
-        match self.language {
-            Language::English => format!("Error: The config file is invalid.\n{}", why),
-        }
+        format!("{}\n{}", translate("config-is-invalid"), why)
     }
 
     pub fn manifest_is_invalid(&self, why: &str) -> String {
-        match self.language {
-            Language::English => format!("Error: The manifest file is invalid.\n{}", why),
-        }
+        format!("{}\n{}", translate("manifest-is-invalid"), why)
     }
 
     pub fn manifest_cannot_be_updated(&self) -> String {
-        match self.language {
-            Language::English => {
-                "Error: Unable to check for an update to the manifest file. Is your Internet connection down?"
-            }
-        }
-        .into()
+        translate("manifest-cannot-be-updated")
     }
 
     pub fn cannot_prepare_backup_target(&self, target: &StrictPath) -> String {
-        match self.language {
-            Language::English => format!("Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: {}", target.render()),
-        }
+        let mut args = FluentArgs::new();
+        args.set(PATH, target.render());
+        translate_args("cannot-prepare-backup-target", &args)
     }
 
     pub fn restoration_source_is_invalid(&self, source: &StrictPath) -> String {
-        match self.language {
-            Language::English => {
-                format!("Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: {}", source.render())
-            }
-        }
+        let mut args = FluentArgs::new();
+        args.set(PATH, source.render());
+        translate_args("restoration-source-is-invalid", &args)
     }
 
     pub fn registry_issue(&self) -> String {
-        match self.language {
-            Language::English => "Error: Some registry entries were skipped.",
-        }
-        .into()
+        translate("registry-issue")
     }
 
     pub fn unable_to_browse_file_system(&self) -> String {
-        match self.language {
-            Language::English => "Error: Unable to browse on your system.",
-        }
-        .into()
+        translate("unable-to-browse-file-system")
     }
 
     pub fn unable_to_open_dir(&self, path: &StrictPath) -> String {
-        match self.language {
-            Language::English => format!("Error: Unable to open directory:\n\n{}", path.render()),
-        }
+        format!("{}\n\n{}", translate("unable-to-open-directory"), path.render())
     }
 
     pub fn unable_to_open_url(&self, url: &str) -> String {
-        match self.language {
-            Language::English => format!("Error: Unable to open URL:\n\n{}", url),
-        }
+        format!("{}\n\n{}", translate("unable-to-open-url"), url)
     }
 
     pub fn adjusted_size(&self, bytes: u64) -> String {
@@ -425,155 +377,108 @@ impl Translator {
     }
 
     pub fn processed_games(&self, status: &OperationStatus) -> String {
+        let mut args = FluentArgs::new();
+        args.set(TOTAL_GAMES, status.total_games);
+        args.set(PROCESSED_GAMES, status.processed_games);
+
         if status.completed() {
-            match self.language {
-                Language::English => format!("{} games", status.total_games,),
-            }
+            translate_args("processed-games", &args)
         } else {
-            match self.language {
-                Language::English => format!("{} of {} games", status.processed_games, status.total_games,),
-            }
+            translate_args("processed-games-subset", &args)
         }
     }
 
     pub fn processed_bytes(&self, status: &OperationStatus) -> String {
         if status.completed() {
-            match self.language {
-                Language::English => self.adjusted_size(status.total_bytes),
-            }
+            self.adjusted_size(status.total_bytes)
         } else {
-            match self.language {
-                Language::English => format!(
-                    "{} of {}",
-                    self.adjusted_size(status.processed_bytes),
-                    self.adjusted_size(status.total_bytes)
-                ),
-            }
+            let mut args = FluentArgs::new();
+            args.set(TOTAL_SIZE, self.adjusted_size(status.total_bytes));
+            args.set(PROCESSED_SIZE, self.adjusted_size(status.processed_bytes));
+            translate_args("processed-size-subset", &args)
         }
     }
 
     pub fn backup_target_label(&self) -> String {
-        match self.language {
-            Language::English => "Back up to:",
-        }
-        .into()
+        translate("field-backup-target")
     }
 
     pub fn backup_merge_label(&self) -> String {
-        match self.language {
-            Language::English => "Merge",
-        }
-        .into()
+        translate("toggle-backup-merge")
     }
 
     pub fn restore_source_label(&self) -> String {
-        match self.language {
-            Language::English => "Restore from:",
-        }
-        .into()
+        translate("field-restore-source")
     }
 
     pub fn custom_files_label(&self) -> String {
-        match self.language {
-            Language::English => "Paths:",
-        }
-        .into()
+        translate("field-custom-files")
     }
 
     pub fn custom_registry_label(&self) -> String {
-        match self.language {
-            Language::English => "Registry:",
-        }
-        .into()
+        translate("field-custom-registry")
     }
 
     pub fn search_label(&self) -> String {
-        match self.language {
-            Language::English => "Search:",
-        }
-        .into()
+        translate("field-search")
     }
 
     pub fn store(&self, store: &Store) -> String {
-        match self.language {
-            Language::English => match store {
-                Store::Epic => "Epic",
-                Store::Gog => "GOG",
-                Store::GogGalaxy => "GOG Galaxy",
-                Store::Microsoft => "Microsoft",
-                Store::Origin => "Origin",
-                Store::Steam => "Steam",
-                Store::Uplay => "Uplay",
-                Store::OtherHome => "Home folder",
-                Store::OtherWine => "Wine prefix",
-                Store::Other => "Other",
-            },
-        }
-        .into()
+        translate(match store {
+            Store::Epic => "store-epic",
+            Store::Gog => "store-gog",
+            Store::GogGalaxy => "store-gog-galaxy",
+            Store::Microsoft => "store-microsoft",
+            Store::Origin => "store-origin",
+            Store::Steam => "store-steam",
+            Store::Uplay => "store-uplay",
+            Store::OtherHome => "store-other-home",
+            Store::OtherWine => "store-other-wine",
+            Store::Other => "store-other",
+        })
     }
 
     pub fn redirect_source_placeholder(&self) -> String {
-        match self.language {
-            Language::English => "Source (original location)",
-        }
-        .into()
+        translate("field-redirect-source.placeholder")
     }
 
     pub fn redirect_target_placeholder(&self) -> String {
-        match self.language {
-            Language::English => "Target (new location)",
-        }
-        .into()
+        translate("field-redirect-target.placeholder")
     }
 
     pub fn custom_game_name_placeholder(&self) -> String {
-        match self.language {
-            Language::English => "Name",
-        }
-        .into()
+        translate("field-custom-game-name.placeholder")
     }
 
     pub fn search_game_name_placeholder(&self) -> String {
-        match self.language {
-            Language::English => "Name",
-        }
-        .into()
+        translate("field-search-game-name.placeholder")
     }
 
     pub fn explanation_for_exclude_other_os_data(&self) -> String {
-        match self.language {
-            Language::English => "In backups, exclude save locations that have only been confirmed on another operating system. Some games always put saves in the same place, but the locations may have only been confirmed for a different OS, so it can help to check them anyway. Excluding that data may help to avoid false positives, but may also mean missing out on some saves. On Linux, Proton saves will still be backed up regardless of this setting.",
-        }
-        .into()
+        translate("explanation-for-exclude-other-os-data")
     }
 
     pub fn explanation_for_exclude_store_screenshots(&self) -> String {
-        match self.language {
-            Language::English => "In backups, exclude store-specific screenshots. Right now, this only applies to Steam screenshots that you've taken. If a game has its own built-in screenshot functionality, this setting will not affect whether those screenshots are backed up.",
-        }
-        .into()
+        translate("explanation-for-exclude-store-screenshots")
     }
 
     pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool) -> String {
-        match (self.language, target_exists, merge) {
-            (Language::English, false, _) => format!("Are you sure you want to proceed with the backup? The target folder will be created:\n\n{}\n\n{}", target.render(), self.modal_consider_doing_a_preview()),
-            (Language::English, true, false) => format!("Are you sure you want to proceed with the backup? The target folder will be deleted and recreated from scratch:\n\n{}\n\n{}", target.render(), self.modal_consider_doing_a_preview()),
-            (Language::English, true, true) => format!("Are you sure you want to proceed with the backup? New save data will be merged into the target folder:\n\n{}\n\n{}", target.render(), self.modal_consider_doing_a_preview()),
-        }
+        let mut args = FluentArgs::new();
+        args.set(PATH, target.render());
+        args.set(
+            PATH_ACTION,
+            match (target_exists, merge) {
+                (false, _) => "create",
+                (true, false) => "recreate",
+                (true, true) => "merge",
+            },
+        );
+        translate_args("confirm-backup", &args)
     }
 
     pub fn modal_confirm_restore(&self, source: &StrictPath) -> String {
-        match self.language {
-            Language::English => format!("Are you sure you want to proceed with the restoration? This will overwrite any current files with the backups from here:\n\n{}\n\n{}", source.render(), self.modal_consider_doing_a_preview()),
-        }
-    }
-
-    pub fn modal_consider_doing_a_preview(&self) -> String {
-        match self.language {
-            Language::English => {
-                "If you haven't already, consider doing a preview first so that there are no surprises."
-            }
-        }
-        .into()
+        let mut args = FluentArgs::new();
+        args.set(PATH, source.render());
+        translate_args("confirm-restore", &args)
     }
 }

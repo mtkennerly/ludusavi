@@ -1,5 +1,9 @@
 ## Unreleased
 
+* Changed:
+  * Localizations now use [Project Fluent](https://projectfluent.org) instead of pure Rust code.
+    Although English currently remains the only language available, this change
+    will hopefully make it easier for others to contribute translations.
 * Added:
   * On Windows, the version field is now set in the executable properties.
   * On Windows, the executable icon is now included in the crates.io release as well.
