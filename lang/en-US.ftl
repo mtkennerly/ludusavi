@@ -11,7 +11,10 @@ badge-duplicates = DUPLICATES
 badge-duplicated = DUPLICATED
 badge-ignored = IGNORED
 badge-redirected-from = FROM: {$path}
-badge-selecting = SELECTING {$total-games} GAMES, {$total-size}
+badge-selecting = SELECTING {$total-games} {$total-games ->
+    [one] GAME
+   *[other] GAMES
+}, {$total-size}
 
 some-entries-failed = Some entries failed to process; look for {label-failed} in the output for details. Double check whether you can access those files or whether their paths are very long.
 
