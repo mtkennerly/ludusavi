@@ -1,7 +1,4 @@
 # ![Logo](assets/icon.svg) Ludusavi
-[![Version](https://img.shields.io/crates/v/ludusavi)](https://crates.io/crates/ludusavi)
-[![License: MIT](https://img.shields.io/badge/license-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 Ludusavi is a tool for backing up your PC video game save data,
 written in [Rust](https://www.rust-lang.org).
 It is cross-platform and supports multiple game stores.
