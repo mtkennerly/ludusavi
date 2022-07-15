@@ -25,7 +25,7 @@ pub fn set_app_icon<T>(settings: &mut iced::Settings<T>) {
             let width = buffer.width();
             let height = buffer.height();
             let dynamic_image = image::DynamicImage::ImageRgba8(buffer);
-            match iced::window::icon::Icon::from_rgba(dynamic_image.to_bytes(), width, height) {
+            match iced::window::icon::Icon::from_rgba(dynamic_image.into_bytes(), width, height) {
                 Ok(icon) => Some(icon),
                 Err(_) => None,
             }

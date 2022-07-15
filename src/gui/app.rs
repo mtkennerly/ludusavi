@@ -31,7 +31,6 @@ use iced::{
     keyboard::{KeyCode, Modifiers},
     Alignment, Application, Button, Column, Command, Element, Length, Row, Subscription, Text,
 };
-use native_dialog::Dialog;
 
 pub fn get_key_pressed(event: iced::keyboard::Event) -> Option<(KeyCode, Modifiers)> {
     match event {
@@ -653,7 +652,7 @@ impl Application for App {
                 Command::none()
             }
             Message::BrowseDir(subject) => Command::perform(
-                async move { native_dialog::OpenSingleDir { dir: None }.show() },
+                async move { native_dialog::FileDialog::new().show_open_single_dir() },
                 move |choice| match choice {
                     Ok(Some(path)) => match subject {
                         BrowseSubject::BackupTarget => Message::EditedBackupTarget(crate::path::render_pathbuf(&path)),
