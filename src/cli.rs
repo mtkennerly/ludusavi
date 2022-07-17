@@ -9,9 +9,9 @@ use crate::{
         ScanInfo, StrictPath,
     },
 };
+use clap::{CommandFactory, Parser};
 use indicatif::ParallelProgressIterator;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
-use structopt::StructOpt;
 
 fn parse_strict_path(path: &str) -> StrictPath {
     StrictPath::new(path.to_owned())
@@ -23,121 +23,121 @@ fn parse_existing_strict_path(path: &str) -> Result<StrictPath, std::io::Error> 
     Ok(sp)
 }
 
-#[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
+#[derive(clap::Subcommand, Clone, Debug, PartialEq)]
 pub enum CompletionShell {
-    #[structopt(about = "Completions for Bash")]
+    #[clap(about = "Completions for Bash")]
     Bash,
-    #[structopt(about = "Completions for Fish")]
+    #[clap(about = "Completions for Fish")]
     Fish,
-    #[structopt(about = "Completions for Zsh")]
+    #[clap(about = "Completions for Zsh")]
     Zsh,
-    #[structopt(name = "powershell", about = "Completions for PowerShell")]
+    #[clap(name = "powershell", about = "Completions for PowerShell")]
     PowerShell,
-    #[structopt(about = "Completions for Elvish")]
+    #[clap(about = "Completions for Elvish")]
     Elvish,
 }
 
-#[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
+#[derive(clap::Subcommand, Clone, Debug, PartialEq)]
 pub enum Subcommand {
-    #[structopt(about = "Back up data")]
+    #[clap(about = "Back up data")]
     Backup {
         /// List out what would be included, but don't actually perform the operation.
-        #[structopt(long)]
+        #[clap(long)]
         preview: bool,
 
         /// Directory in which to create the backup. The directory must not
         /// already exist (unless you use --force), but it will be created if necessary.
         /// When unset, this defaults to the value from Ludusavi's config file.
-        #[structopt(long, parse(from_str = parse_strict_path))]
+        #[clap(long, parse(from_str = parse_strict_path))]
         path: Option<StrictPath>,
 
         /// Delete the target directory if it already exists.
-        #[structopt(long)]
+        #[clap(long)]
         force: bool,
 
         /// Merge into existing directory instead of deleting/recreating it.
         /// Within the target directory, the subdirectories for individual
         /// games will still be cleared out first, though.
         /// When not specified, this defers to Ludusavi's config file.
-        #[structopt(long)]
+        #[clap(long)]
         merge: bool,
 
         /// Don't merge; delete and recreate the target directory.
         /// When not specified, this defers to Ludusavi's config file.
-        #[structopt(long, conflicts_with("merge"))]
+        #[clap(long, conflicts_with("merge"))]
         no_merge: bool,
 
         /// Check for any manifest updates and download if available.
         /// If the check fails, report an error.
-        #[structopt(long)]
+        #[clap(long)]
         update: bool,
 
         /// Check for any manifest updates and download if available.
         /// If the check fails, continue anyway.
-        #[structopt(long, conflicts_with("update"))]
+        #[clap(long, conflicts_with("update"))]
         try_update: bool,
 
         /// When naming specific games to process, this means that you'll
         /// provide the Steam IDs instead of the manifest names, and Ludusavi will
         /// look up those IDs in the manifest to find the corresponding names.
-        #[structopt(long)]
+        #[clap(long)]
         by_steam_id: bool,
 
         /// Extra Wine/Proton prefix to check for saves. This should be a folder
         /// with an immediate child folder named "drive_c" (or another letter).
-        #[structopt(long, parse(from_str = parse_strict_path))]
+        #[clap(long, parse(from_str = parse_strict_path))]
         wine_prefix: Option<StrictPath>,
 
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
-        #[structopt(long)]
+        #[clap(long)]
         api: bool,
 
         /// Only back up these specific games.
-        #[structopt()]
+        #[clap()]
         games: Vec<String>,
     },
-    #[structopt(about = "Restore data")]
+    #[clap(about = "Restore data")]
     Restore {
         /// List out what would be included, but don't actually perform the operation.
-        #[structopt(long)]
+        #[clap(long)]
         preview: bool,
 
         /// Directory containing a Ludusavi backup. When unset, this
         /// defaults to the value from Ludusavi's config file.
-        #[structopt(long, parse(try_from_str = parse_existing_strict_path))]
+        #[clap(long, parse(try_from_str = parse_existing_strict_path))]
         path: Option<StrictPath>,
 
         /// Don't ask for confirmation.
-        #[structopt(long)]
+        #[clap(long)]
         force: bool,
 
         /// When naming specific games to process, this means that you'll
         /// provide the Steam IDs instead of the manifest names, and Ludusavi will
         /// look up those IDs in the manifest to find the corresponding names.
-        #[structopt(long)]
+        #[clap(long)]
         by_steam_id: bool,
 
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
-        #[structopt(long)]
+        #[clap(long)]
         api: bool,
 
         /// Only restore these specific games.
-        #[structopt()]
+        #[clap()]
         games: Vec<String>,
     },
-    #[structopt(about = "Generate shell completion scripts")]
+    #[clap(about = "Generate shell completion scripts")]
     Complete {
-        #[structopt(flatten)]
+        #[clap(subcommand)]
         shell: CompletionShell,
     },
 }
 
-#[derive(structopt::StructOpt, Clone, Debug, PartialEq)]
-#[structopt(name = "ludusavi", about = "Back up and restore PC game saves", set_term_width = 79)]
+#[derive(clap::Parser, Clone, Debug, PartialEq)]
+#[clap(name = "ludusavi", about = "Back up and restore PC game saves", set_term_width = 79)]
 pub struct Cli {
-    #[structopt(subcommand)]
+    #[clap(subcommand)]
     pub sub: Option<Subcommand>,
 }
 
@@ -698,13 +698,18 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
         }
         Subcommand::Complete { shell } => {
             let clap_shell = match shell {
-                CompletionShell::Bash => structopt::clap::Shell::Bash,
-                CompletionShell::Fish => structopt::clap::Shell::Fish,
-                CompletionShell::Zsh => structopt::clap::Shell::Zsh,
-                CompletionShell::PowerShell => structopt::clap::Shell::PowerShell,
-                CompletionShell::Elvish => structopt::clap::Shell::Elvish,
+                CompletionShell::Bash => clap_complete::Shell::Bash,
+                CompletionShell::Fish => clap_complete::Shell::Fish,
+                CompletionShell::Zsh => clap_complete::Shell::Zsh,
+                CompletionShell::PowerShell => clap_complete::Shell::PowerShell,
+                CompletionShell::Elvish => clap_complete::Shell::Elvish,
             };
-            Cli::clap().gen_completions_to(env!("CARGO_PKG_NAME"), clap_shell, &mut std::io::stdout());
+            clap_complete::generate(
+                clap_shell,
+                &mut Cli::into_app(),
+                env!("CARGO_PKG_NAME"),
+                &mut std::io::stdout(),
+            )
         }
     }
 
@@ -730,7 +735,7 @@ mod tests {
             assert_eq!(expected, Cli::from_clap(&Cli::clap().get_matches_from(args)));
         }
 
-        fn check_args_err(args: &[&str], error: structopt::clap::ErrorKind) {
+        fn check_args_err(args: &[&str], error: clap::ErrorKind) {
             let result = Cli::clap().get_matches_from_safe(args);
             assert!(result.is_err());
             assert_eq!(error, result.unwrap_err().kind);
@@ -870,7 +875,7 @@ mod tests {
         fn rejects_cli_backup_with_update_and_try_update() {
             check_args_err(
                 &["ludusavi", "backup", "--update", "--try-update"],
-                structopt::clap::ErrorKind::ArgumentConflict,
+                clap::ErrorKind::ArgumentConflict,
             );
         }
 
@@ -923,7 +928,7 @@ mod tests {
         fn rejects_cli_restore_with_nonexistent_path() {
             check_args_err(
                 &["ludusavi", "restore", "--path", "tests/fake"],
-                structopt::clap::ErrorKind::ValueValidation,
+                clap::ErrorKind::ValueValidation,
             );
         }
 
