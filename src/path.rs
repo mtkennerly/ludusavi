@@ -153,8 +153,22 @@ impl StrictPath {
         interpret(&self.raw, &self.basis)
     }
 
+    pub fn interpreted(&self) -> Self {
+        Self {
+            raw: self.interpret(),
+            basis: self.basis.clone(),
+        }
+    }
+
     pub fn render(&self) -> String {
         render(self.interpret())
+    }
+
+    pub fn rendered(&self) -> Self {
+        Self {
+            raw: self.render(),
+            basis: self.basis.clone(),
+        }
     }
 
     pub fn is_file(&self) -> bool {

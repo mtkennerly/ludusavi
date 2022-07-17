@@ -200,19 +200,35 @@ impl Config {
             ("C:/Amazon Games/Library".to_string(), Store::Prime),
         ];
 
+        let from_steamlocate = match steamlocate::SteamDir::locate() {
+            Some(mut steam_dir) => steam_dir
+                .libraryfolders()
+                .paths
+                .iter()
+                .cloned()
+                .map(|mut pb| {
+                    // Remove "/steamapps" suffix:
+                    pb.pop();
+                    pb
+                })
+                .map(|pb| (pb.as_os_str().to_string_lossy().to_string(), Store::Steam))
+                .collect(),
+            None => vec![],
+        };
+
         let mut checked = std::collections::HashSet::<StrictPath>::new();
-        for (path, store) in candidates {
+        for (path, store) in [candidates, from_steamlocate].concat() {
             let sp = StrictPath::new(path);
-            if checked.contains(&sp) {
+            if checked.contains(&sp.interpreted()) {
                 continue;
             }
             if sp.is_dir() {
                 self.roots.push(RootsConfig {
-                    path: sp.clone(),
+                    path: sp.rendered(),
                     store,
                 });
             }
-            checked.insert(sp);
+            checked.insert(sp.interpreted());
         }
     }
 
