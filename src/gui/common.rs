@@ -36,6 +36,7 @@ pub enum Message {
     EditedBackupTarget(String),
     EditedBackupMerge(bool),
     EditedRestoreSource(String),
+    AddMissingRoots,
     EditedRoot(EditAction),
     SelectedRootStore(usize, Store),
     EditedRedirect(EditAction, Option<RedirectEditActionField>),

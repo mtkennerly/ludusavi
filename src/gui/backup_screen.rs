@@ -25,6 +25,7 @@ pub struct BackupScreenComponent {
     start_button: button::State,
     preview_button: button::State,
     add_root_button: button::State,
+    add_missing_roots_button: button::State,
     select_all_button: button::State,
     toggle_search_button: button::State,
     pub backup_target_input: text_input::State,
@@ -117,6 +118,16 @@ impl BackupScreenComponent {
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(Message::EditedRoot(EditAction::Add))
+                            .width(Length::Units(125))
+                            .style(style::Button::Primary),
+                        )
+                        .push(
+                            Button::new(
+                                &mut self.add_missing_roots_button,
+                                Text::new(translator.add_missing_roots_button())
+                                    .horizontal_alignment(HorizontalAlignment::Center),
+                            )
+                            .on_press(Message::AddMissingRoots)
                             .width(Length::Units(125))
                             .style(style::Button::Primary),
                         )

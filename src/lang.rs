@@ -290,6 +290,10 @@ impl Translator {
         translate("button-add-root")
     }
 
+    pub fn add_missing_roots_button(&self) -> String {
+        translate("button-add-missing-roots")
+    }
+
     pub fn add_redirect_button(&self) -> String {
         translate("button-add-redirect")
     }

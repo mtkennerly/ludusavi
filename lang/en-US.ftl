@@ -43,6 +43,7 @@ button-nav-restore = RESTORE MODE
 button-nav-custom-games = CUSTOM GAMES
 button-nav-other = OTHER
 button-add-root = Add root
+button-add-missing-roots = Add missing roots
 button-add-redirect = Add redirect
 button-add-game = Add game
 button-continue = Continue

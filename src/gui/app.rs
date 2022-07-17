@@ -412,6 +412,24 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::AddMissingRoots => {
+                self.config.add_common_roots();
+                for root in &self.config.roots {
+                    if !self
+                        .backup_screen
+                        .root_editor
+                        .rows
+                        .iter()
+                        .any(|row| StrictPath::new(row.text_history.current()).interpret() == root.path.interpret())
+                    {
+                        let mut row = RootEditorRow::default();
+                        row.text_history.push(&root.path.render());
+                        self.backup_screen.root_editor.rows.push(row);
+                    }
+                }
+                self.config.save();
+                Command::none()
+            }
             Message::EditedRoot(action) => {
                 match action {
                     EditAction::Add => {

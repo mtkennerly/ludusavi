@@ -219,7 +219,9 @@ impl Config {
         let mut checked = std::collections::HashSet::<StrictPath>::new();
         for (path, store) in [candidates, from_steamlocate].concat() {
             let sp = StrictPath::new(path);
-            if checked.contains(&sp.interpreted()) {
+            if self.roots.iter().any(|root| root.path.interpret() == sp.interpret())
+                || checked.contains(&sp.interpreted())
+            {
                 continue;
             }
             if sp.is_dir() {
