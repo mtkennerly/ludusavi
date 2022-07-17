@@ -33,6 +33,8 @@ pub enum Store {
     Microsoft,
     #[serde(rename = "origin")]
     Origin,
+    #[serde(rename = "prime")]
+    Prime,
     #[serde(rename = "steam")]
     Steam,
     #[serde(rename = "uplay")]
@@ -43,6 +45,22 @@ pub enum Store {
     OtherWine,
     #[serde(other, rename = "other")]
     Other,
+}
+
+impl Store {
+    pub const ALL: &'static [Self] = &[
+        Store::Epic,
+        Store::Gog,
+        Store::GogGalaxy,
+        Store::Microsoft,
+        Store::Origin,
+        Store::Prime,
+        Store::Steam,
+        Store::Uplay,
+        Store::OtherHome,
+        Store::OtherWine,
+        Store::Other,
+    ];
 }
 
 impl Default for Store {

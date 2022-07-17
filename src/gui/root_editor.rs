@@ -77,18 +77,7 @@ impl RootEditor {
                                     )
                                     .push(PickList::new(
                                         &mut x.pick_list,
-                                        vec![
-                                            Store::Epic,
-                                            Store::Gog,
-                                            Store::GogGalaxy,
-                                            Store::Microsoft,
-                                            Store::Origin,
-                                            Store::Steam,
-                                            Store::Uplay,
-                                            Store::OtherHome,
-                                            Store::OtherWine,
-                                            Store::Other,
-                                        ],
+                                        Store::ALL,
                                         Some(roots[i].store),
                                         move |v| Message::SelectedRootStore(i, v),
                                     ))

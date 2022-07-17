@@ -96,6 +96,7 @@ store-gog = GOG
 store-gog-galaxy = GOG Galaxy
 store-microsoft = Microsoft
 store-origin = Origin
+store-prime = Prime Gaming
 store-steam = Steam
 store-uplay = Uplay
 store-other-home = Home folder

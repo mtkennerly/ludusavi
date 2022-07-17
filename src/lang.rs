@@ -434,6 +434,7 @@ impl Translator {
             Store::GogGalaxy => "store-gog-galaxy",
             Store::Microsoft => "store-microsoft",
             Store::Origin => "store-origin",
+            Store::Prime => "store-prime",
             Store::Steam => "store-steam",
             Store::Uplay => "store-uplay",
             Store::OtherHome => "store-other-home",

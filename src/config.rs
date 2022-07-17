@@ -196,6 +196,8 @@ impl Config {
             // Microsoft:
             (format!("{}/WindowsApps", pf32), Store::Microsoft),
             (format!("{}/WindowsApps", pf64), Store::Microsoft),
+            // Prime Gaming:
+            ("C:/Amazon Games/Library".to_string(), Store::Prime),
         ];
 
         let mut checked = std::collections::HashSet::<StrictPath>::new();

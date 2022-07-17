@@ -6,6 +6,7 @@
     should make it easier for other people to contribute. If you're interested,
     [check out the new Crowdin project](https://crowdin.com/project/ludusavi).
 * Added:
+  * Support for Prime Gaming roots.
   * On Windows, the version field is now set in the executable properties.
   * On Windows, the executable icon is now included in the crates.io release as well.
 * Fixed:

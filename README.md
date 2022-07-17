@@ -338,7 +338,7 @@ Here are the available settings (all are required unless otherwise noted):
   * Each entry in the list should be a map with these fields:
     * `path` (string): Where the root is located on your system.
     * `store` (string): Game store associated with the root. Valid options:
-      `epic`, `gog`, `gogGalaxy`, `microsoft`, `origin`,
+      `epic`, `gog`, `gogGalaxy`, `microsoft`, `origin`, <!-- `prime`, -->
       `steam`, `uplay`, `otherHome`, `otherWine`, `other`
 * `backup` (map):
   * `path` (string): Full path to a directory in which to save backups.
