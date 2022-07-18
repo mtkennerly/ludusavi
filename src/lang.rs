@@ -290,8 +290,23 @@ impl Translator {
         translate("button-add-root")
     }
 
-    pub fn add_missing_roots_button(&self) -> String {
-        translate("button-add-missing-roots")
+    pub fn find_roots_button(&self) -> String {
+        translate("button-find-roots")
+    }
+
+    pub fn no_missing_roots(&self) -> String {
+        translate("no-missing-roots")
+    }
+
+    pub fn confirm_add_missing_roots(&self, roots: &[crate::config::RootsConfig]) -> String {
+        use std::fmt::Write;
+        let mut msg = translate("confirm-add-missing-roots") + "\n";
+
+        for root in roots {
+            let _ = &write!(msg, "\n[{}] {}", self.store(&root.store), root.path.render());
+        }
+
+        msg
     }
 
     pub fn add_redirect_button(&self) -> String {

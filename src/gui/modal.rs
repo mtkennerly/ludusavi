@@ -1,5 +1,5 @@
 use crate::{
-    config::Config,
+    config::{Config, RootsConfig},
     gui::{common::Message, style},
     lang::Translator,
     prelude::Error,
@@ -10,11 +10,48 @@ use iced::{
     Text,
 };
 
+pub enum ModalVariant {
+    Info,
+    Confirm,
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModalTheme {
     Error { variant: Error },
     ConfirmBackup,
     ConfirmRestore,
+    NoMissingRoots,
+    ConfirmAddMissingRoots(Vec<RootsConfig>),
+}
+
+impl ModalTheme {
+    pub fn variant(&self) -> ModalVariant {
+        match self {
+            Self::Error { .. } | Self::NoMissingRoots => ModalVariant::Info,
+            Self::ConfirmBackup | Self::ConfirmRestore | Self::ConfirmAddMissingRoots(..) => ModalVariant::Confirm,
+        }
+    }
+
+    pub fn text(&self, config: &Config, translator: &Translator) -> String {
+        match self {
+            Self::Error { variant } => translator.handle_error(variant),
+            Self::ConfirmBackup => {
+                translator.modal_confirm_backup(&config.backup.path, config.backup.path.exists(), config.backup.merge)
+            }
+            Self::ConfirmRestore => translator.modal_confirm_restore(&config.restore.path),
+            Self::NoMissingRoots => translator.no_missing_roots(),
+            Self::ConfirmAddMissingRoots(missing) => translator.confirm_add_missing_roots(missing),
+        }
+    }
+
+    pub fn message(&self) -> Message {
+        match self {
+            Self::Error { .. } | Self::NoMissingRoots => Message::Idle,
+            Self::ConfirmBackup => Message::BackupStart { preview: false },
+            Self::ConfirmRestore => Message::RestoreStart { preview: false },
+            Self::ConfirmAddMissingRoots(missing) => Message::ConfirmAddMissingRoots(missing.clone()),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -27,17 +64,13 @@ impl ModalComponent {
     pub fn view(&mut self, theme: &ModalTheme, config: &Config, translator: &Translator) -> Container<Message> {
         let positive_button = Button::new(
             &mut self.positive_button,
-            Text::new(match theme {
-                ModalTheme::Error { .. } => translator.okay_button(),
-                _ => translator.continue_button(),
+            Text::new(match theme.variant() {
+                ModalVariant::Info => translator.okay_button(),
+                ModalVariant::Confirm => translator.continue_button(),
             })
             .horizontal_alignment(HorizontalAlignment::Center),
         )
-        .on_press(match theme {
-            ModalTheme::Error { .. } => Message::Idle,
-            ModalTheme::ConfirmBackup => Message::BackupStart { preview: false },
-            ModalTheme::ConfirmRestore => Message::RestoreStart { preview: false },
-        })
+        .on_press(theme.message())
         .width(Length::Units(125))
         .style(style::Button::Primary);
 
@@ -68,23 +101,13 @@ impl ModalComponent {
                             Row::new()
                                 .padding(20)
                                 .align_items(Alignment::Center)
-                                .push(Text::new(match theme {
-                                    ModalTheme::Error { variant } => translator.handle_error(variant),
-                                    ModalTheme::ConfirmBackup => translator.modal_confirm_backup(
-                                        &config.backup.path,
-                                        config.backup.path.exists(),
-                                        config.backup.merge,
-                                    ),
-                                    ModalTheme::ConfirmRestore => {
-                                        translator.modal_confirm_restore(&config.restore.path)
-                                    }
-                                }))
+                                .push(Text::new(theme.text(config, translator)))
                                 .height(Length::Fill),
                         )
                         .push(
-                            match theme {
-                                ModalTheme::Error { .. } => Row::new().push(positive_button),
-                                _ => Row::new().push(positive_button).push(negative_button),
+                            match theme.variant() {
+                                ModalVariant::Info => Row::new().push(positive_button),
+                                ModalVariant::Confirm => Row::new().push(positive_button).push(negative_button),
                             }
                             .padding(20)
                             .spacing(20)

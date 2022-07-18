@@ -1,4 +1,5 @@
 use crate::{
+    config::RootsConfig,
     gui::badge::Badge,
     lang::Translator,
     manifest::Store,
@@ -36,7 +37,8 @@ pub enum Message {
     EditedBackupTarget(String),
     EditedBackupMerge(bool),
     EditedRestoreSource(String),
-    AddMissingRoots,
+    FindRoots,
+    ConfirmAddMissingRoots(Vec<RootsConfig>),
     EditedRoot(EditAction),
     SelectedRootStore(usize, Store),
     EditedRedirect(EditAction, Option<RedirectEditActionField>),

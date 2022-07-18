@@ -160,7 +160,7 @@ impl Config {
         serde_yaml::from_str(content).map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
     }
 
-    pub fn add_common_roots(&mut self) {
+    pub fn find_missing_roots(&self) -> Vec<RootsConfig> {
         let mut pf32 = "C:/Program Files (x86)".to_string();
         let mut pf64 = "C:/Program Files".to_string();
         if let Ok(x) = std::env::var("ProgramFiles(x86)") {
@@ -217,6 +217,7 @@ impl Config {
         };
 
         let mut checked = std::collections::HashSet::<StrictPath>::new();
+        let mut roots = vec![];
         for (path, store) in [candidates, from_steamlocate].concat() {
             let sp = StrictPath::new(path);
             if self.roots.iter().any(|root| root.path.interpret() == sp.interpret())
@@ -225,13 +226,19 @@ impl Config {
                 continue;
             }
             if sp.is_dir() {
-                self.roots.push(RootsConfig {
+                roots.push(RootsConfig {
                     path: sp.rendered(),
                     store,
                 });
             }
             checked.insert(sp.interpreted());
         }
+
+        roots
+    }
+
+    pub fn add_common_roots(&mut self) {
+        self.roots.extend(self.find_missing_roots());
     }
 
     pub fn is_game_enabled_for_backup(&self, name: &str) -> bool {

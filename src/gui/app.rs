@@ -412,23 +412,24 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
-            Message::AddMissingRoots => {
-                self.config.add_common_roots();
-                for root in &self.config.roots {
-                    if !self
-                        .backup_screen
-                        .root_editor
-                        .rows
-                        .iter()
-                        .any(|row| StrictPath::new(row.text_history.current()).interpret() == root.path.interpret())
-                    {
-                        let mut row = RootEditorRow::default();
-                        row.text_history.push(&root.path.render());
-                        self.backup_screen.root_editor.rows.push(row);
-                    }
+            Message::FindRoots => {
+                let missing = self.config.find_missing_roots();
+                if missing.is_empty() {
+                    self.modal_theme = Some(ModalTheme::NoMissingRoots);
+                } else {
+                    self.modal_theme = Some(ModalTheme::ConfirmAddMissingRoots(missing));
+                }
+                Command::none()
+            }
+            Message::ConfirmAddMissingRoots(missing) => {
+                for root in missing {
+                    let mut row = RootEditorRow::default();
+                    row.text_history.push(&root.path.render());
+                    self.backup_screen.root_editor.rows.push(row);
+                    self.config.roots.push(root);
                 }
                 self.config.save();
-                Command::none()
+                Command::perform(async move {}, move |_| Message::Idle)
             }
             Message::EditedRoot(action) => {
                 match action {
