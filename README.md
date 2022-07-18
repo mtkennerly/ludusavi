@@ -99,6 +99,11 @@ If you are on Mac:
   it found and only re-scan those games the next time. If you change your root
   configuration, change the "other" settings, or reopen the program, then
   it will do another full scan.
+  <!--
+  After you've done one preview, Ludusavi will remember which games it found
+  and only back up those games. If you then do another preview or do multiple
+  consecutive backups, then Ludusavi will do another full scan.
+  -->
 * You can press `back up` to perform the backup for real.
   * If the target folder already exists, it will be deleted first and
     recreated, unless you've enabled the merge option.

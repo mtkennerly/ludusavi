@@ -32,7 +32,6 @@ pub struct BackupScreenComponent {
     pub backup_target_history: TextHistory,
     backup_target_browse_button: button::State,
     pub root_editor: RootEditor,
-    pub only_scan_recent_found_games: bool,
     pub recent_found_games: std::collections::HashSet<String>,
     pub duplicate_detector: DuplicateDetector,
 }

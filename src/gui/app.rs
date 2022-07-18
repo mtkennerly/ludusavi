@@ -146,11 +146,12 @@ impl Application for App {
                     all_games.add_custom_game(custom_game.clone());
                 }
 
-                if self.backup_screen.only_scan_recent_found_games {
-                    all_games.0.retain(|k, _| {
-                        self.backup_screen.recent_found_games.contains(k)
-                            || self.config.custom_games.iter().any(|x| &x.name == k)
-                    });
+                if preview {
+                    self.backup_screen.recent_found_games.clear();
+                } else if !self.backup_screen.recent_found_games.is_empty() {
+                    all_games
+                        .0
+                        .retain(|k, _| self.backup_screen.recent_found_games.contains(k));
                 }
 
                 self.backup_screen.status.clear();
@@ -214,6 +215,7 @@ impl Application for App {
                             scan_info,
                             backup_info,
                             decision,
+                            preview,
                         },
                     ));
                 }
@@ -295,6 +297,7 @@ impl Application for App {
                 scan_info,
                 backup_info,
                 decision,
+                preview,
             } => {
                 self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
@@ -316,7 +319,7 @@ impl Application for App {
                     }
                 }
                 if self.progress.complete() {
-                    Command::perform(async move {}, move |_| Message::BackupComplete)
+                    Command::perform(async move {}, move |_| Message::BackupComplete { preview })
                 } else {
                     Command::none()
                 }
@@ -368,7 +371,7 @@ impl Application for App {
                 };
                 Command::none()
             }
-            Message::BackupComplete => {
+            Message::BackupComplete { preview } => {
                 for entry in &self.backup_screen.log.entries {
                     if let Some(backup_info) = &entry.backup_info {
                         if !backup_info.successful() {
@@ -379,7 +382,9 @@ impl Application for App {
                         }
                     }
                 }
-                self.backup_screen.only_scan_recent_found_games = !self.backup_screen.recent_found_games.is_empty();
+                if !preview {
+                    self.backup_screen.recent_found_games.clear();
+                }
                 Command::perform(async move {}, move |_| Message::Idle)
             }
             Message::RestoreComplete => {
@@ -450,13 +455,11 @@ impl Application for App {
                     }
                 }
                 self.config.save();
-                self.backup_screen.only_scan_recent_found_games = false;
                 Command::none()
             }
             Message::SelectedRootStore(index, store) => {
                 self.config.roots[index].store = store;
                 self.config.save();
-                self.backup_screen.only_scan_recent_found_games = false;
                 Command::none()
             }
             Message::EditedRedirect(action, field) => {
@@ -568,13 +571,11 @@ impl Application for App {
             Message::EditedExcludeOtherOsData(enabled) => {
                 self.config.backup.filter.exclude_other_os_data = enabled;
                 self.config.save();
-                self.backup_screen.only_scan_recent_found_games = false;
                 Command::none()
             }
             Message::EditedExcludeStoreScreenshots(enabled) => {
                 self.config.backup.filter.exclude_store_screenshots = enabled;
                 self.config.save();
-                self.backup_screen.only_scan_recent_found_games = false;
                 Command::none()
             }
             Message::SwitchScreen(screen) => {

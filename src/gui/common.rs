@@ -25,6 +25,7 @@ pub enum Message {
         scan_info: Option<ScanInfo>,
         backup_info: Option<BackupInfo>,
         decision: OperationStepDecision,
+        preview: bool,
     },
     RestoreStep {
         scan_info: Option<ScanInfo>,
@@ -32,7 +33,9 @@ pub enum Message {
         decision: OperationStepDecision,
     },
     CancelOperation,
-    BackupComplete,
+    BackupComplete {
+        preview: bool,
+    },
     RestoreComplete,
     EditedBackupTarget(String),
     EditedBackupMerge(bool),

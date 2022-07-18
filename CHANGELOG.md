@@ -5,6 +5,17 @@
     Although English currently remains the only language available, this change
     should make it easier for other people to contribute. If you're interested,
     [check out the new Crowdin project](https://crowdin.com/project/ludusavi).
+  * Previously, as an optimization, Ludusavi would remember the games it found
+    from its first backup/preview and only re-check those games on subsequent
+    backups, until certain configuration changes were made (e.g., adding a root).
+    However, this had the side effect that newly installed games may not be
+    detected right away without an obvious reason why.
+
+    Now, every preview will trigger a full scan. After a preview, doing a backup
+    will only include the games found in the preview. If you then do another
+    preview or consecutive backup, then it will be a new full scan. This ensures
+    Ludusavi will find newly installed games, but it still optimizes for the
+    common case of doing a preview immediately followed by a backup.
 * Added:
   * During first-time setup, Ludusavi will now automatically detect roots for
     secondary Steam library folders (Windows/Linux/Mac) and non-default Epic
