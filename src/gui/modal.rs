@@ -6,8 +6,8 @@ use crate::{
 };
 
 use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, Alignment, Button, Column, Container, Length, Row, Space,
-    Text,
+    alignment::Horizontal as HorizontalAlignment, button, scrollable, Alignment, Button, Column, Container, Length,
+    Padding, Row, Scrollable, Space, Text,
 };
 
 pub enum ModalVariant {
@@ -58,6 +58,7 @@ impl ModalTheme {
 pub struct ModalComponent {
     positive_button: button::State,
     negative_button: button::State,
+    scroll: scrollable::State,
 }
 
 impl ModalComponent {
@@ -99,9 +100,21 @@ impl ModalComponent {
                         .align_items(Alignment::Center)
                         .push(
                             Row::new()
-                                .padding(20)
+                                .padding(Padding {
+                                    top: 40,
+                                    bottom: 0,
+                                    left: 40,
+                                    right: 40,
+                                })
                                 .align_items(Alignment::Center)
-                                .push(Text::new(theme.text(config, translator)))
+                                .push(
+                                    Scrollable::new(&mut self.scroll)
+                                        .width(Length::Fill)
+                                        .height(Length::Fill)
+                                        .style(style::Scrollable)
+                                        .push(Text::new(theme.text(config, translator)))
+                                        .align_items(Alignment::Center),
+                                )
                                 .height(Length::Fill),
                         )
                         .push(
@@ -109,9 +122,9 @@ impl ModalComponent {
                                 ModalVariant::Info => Row::new().push(positive_button),
                                 ModalVariant::Confirm => Row::new().push(positive_button).push(negative_button),
                             }
-                            .padding(20)
+                            .padding(40)
                             .spacing(20)
-                            .height(Length::Fill)
+                            .height(Length::Shrink)
                             .align_items(Alignment::Center),
                         ),
                 )
