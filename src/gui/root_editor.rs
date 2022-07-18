@@ -55,6 +55,12 @@ impl RootEditor {
                 self.rows.iter_mut().enumerate().fold(
                     Scrollable::new(&mut self.scroll)
                         .width(Length::Fill)
+                        // TODO: https://github.com/iced-rs/iced/issues/1388
+                        .height(if config.roots.len() > 3 {
+                            Length::Units(100)
+                        } else {
+                            Length::Shrink
+                        })
                         .max_height(100)
                         .style(style::Scrollable),
                     |parent: Scrollable<'_, Message>, (i, x)| {
