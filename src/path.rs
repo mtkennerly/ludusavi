@@ -293,6 +293,11 @@ impl<'de> serde::Deserialize<'de> for StrictPath {
     }
 }
 
+pub fn is_raw_path_relative(path: &str) -> bool {
+    let path = path.replace('\\', "/");
+    path.is_empty() || path == "." || path == ".." || path.starts_with("./") || path.starts_with("../")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

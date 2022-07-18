@@ -200,7 +200,7 @@ impl Config {
             ("C:/Amazon Games/Library".to_string(), Store::Prime),
         ];
 
-        let from_steamlocate = match steamlocate::SteamDir::locate() {
+        let detected_steam = match steamlocate::SteamDir::locate() {
             Some(mut steam_dir) => steam_dir
                 .libraryfolders()
                 .paths
@@ -216,9 +216,42 @@ impl Config {
             None => vec![],
         };
 
+        #[cfg(target_os = "windows")]
+        let detected_epic: Vec<(String, Store)> = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER)
+            .open_subkey(r"SOFTWARE\Epic Games\EOS")
+            .and_then(|subkey| {
+                #[derive(serde::Deserialize)]
+                struct EpicManifest {
+                    #[serde(rename = "InstallLocation")]
+                    install_location: String,
+                }
+
+                let mut install_dirs = vec![];
+                let manifest_dir = subkey.get_value::<String, &str>("ModSdkMetadataDir")?;
+                for entry in std::fs::read_dir(&manifest_dir)?.flatten() {
+                    if !entry.file_type()?.is_file() {
+                        continue;
+                    }
+                    let content = std::fs::read_to_string(entry.path())?;
+                    let manifest = serde_json::from_str::<EpicManifest>(&content)?;
+                    let normalized = manifest.install_location.replace('\\', "/");
+                    if let Some((prefix, _)) = normalized.rsplit_once('/') {
+                        let prefix = prefix.trim();
+                        if crate::path::is_raw_path_relative(prefix) {
+                            continue;
+                        }
+                        install_dirs.push(prefix.to_string());
+                    }
+                }
+                Ok(install_dirs.iter().cloned().map(|x| (x, Store::Epic)).collect())
+            })
+            .unwrap_or_default();
+        #[cfg(not(target_os = "windows"))]
+        let detected_epic = vec![];
+
         let mut checked = std::collections::HashSet::<StrictPath>::new();
         let mut roots = vec![];
-        for (path, store) in [candidates, from_steamlocate].concat() {
+        for (path, store) in [candidates, detected_steam, detected_epic].concat() {
             let sp = StrictPath::new(path);
             if self.roots.iter().any(|root| root.path.interpret() == sp.interpret())
                 || checked.contains(&sp.interpreted())

@@ -6,8 +6,9 @@
     should make it easier for other people to contribute. If you're interested,
     [check out the new Crowdin project](https://crowdin.com/project/ludusavi).
 * Added:
-  * During first-time setup, Ludusavi will now automatically add any secondary
-    Steam library folders as roots as well, not just the main library folder.
+  * During first-time setup, Ludusavi will now automatically detect roots for
+    secondary Steam library folders (Windows/Linux/Mac) and non-default Epic
+    install folders (Windows).
   * GUI: Button to find and add any missing roots. This is the same functionality
     as the automatic first-time setup, but is now available on demand.
   * Support for Prime Gaming roots.
