@@ -72,6 +72,12 @@ jobs:
         run: sudo apt-get update && sudo apt-get install -y gcc libxcb-composite0-dev
       - if: ${{ matrix.os == 'windows-latest' }}
         run: reg import tests/ludusavi.reg
+      - if: ${{ matrix.os == 'windows-latest' }}
+        run: |
+          cd tests/root3/game5 && cmd /c "mklink /J data-symlink data"
+      - if: ${{ matrix.os != 'windows-latest' }}
+        run: |
+          cd tests/root3/game5 && ln -s data data-symlink
       - uses: actions-rs/cargo@v1
         with:
           command: test

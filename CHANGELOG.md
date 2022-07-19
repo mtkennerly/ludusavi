@@ -16,6 +16,14 @@
     preview or consecutive backup, then it will be a new full scan. This ensures
     Ludusavi will find newly installed games, but it still optimizes for the
     common case of doing a preview immediately followed by a backup.
+  * Previously, when Ludusavi backed up a symlink, the backup would contain a
+    normal folder with the symlink's name and copies of any files inside of the
+    symlink target. If the symlink target itself were also included in the list
+    of things to back up, then the same files would be duplicated (once under
+    the original directory name and once under the symlink name).
+
+    Now, Ludusavi will still follow symlinks and back up their targets,
+    but it will not back up the symlink itself or duplicate the files.
 * Added:
   * During first-time setup, Ludusavi will now automatically detect roots for
     secondary Steam library folders (Windows/Linux/Mac) and non-default Epic

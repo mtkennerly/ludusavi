@@ -183,6 +183,10 @@ impl StrictPath {
         self.is_file() || self.is_dir()
     }
 
+    pub fn metadata(&self) -> std::io::Result<std::fs::Metadata> {
+        self.as_std_path_buf().metadata()
+    }
+
     pub fn remove(&self) -> Result<(), Box<dyn std::error::Error>> {
         if self.is_file() {
             std::fs::remove_file(&self.interpret())?;
@@ -267,6 +271,24 @@ impl StrictPath {
         }
 
         Ok(())
+    }
+}
+
+impl From<std::path::PathBuf> for StrictPath {
+    fn from(source: std::path::PathBuf) -> Self {
+        StrictPath::from_std_path_buf(&source)
+    }
+}
+
+impl From<&std::path::Path> for StrictPath {
+    fn from(source: &std::path::Path) -> Self {
+        StrictPath::from_std_path_buf(source)
+    }
+}
+
+impl From<&walkdir::DirEntry> for StrictPath {
+    fn from(source: &walkdir::DirEntry) -> Self {
+        StrictPath::from_std_path_buf(source.path())
     }
 }
 

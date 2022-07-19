@@ -150,11 +150,6 @@ impl Default for OperationStepDecision {
     }
 }
 
-// This helps for unit tests when comparing StrictPaths.
-fn reslashed(path: &str) -> String {
-    path.replace('\\', "/")
-}
-
 pub fn app_dir() -> std::path::PathBuf {
     if let Ok(mut flag) = std::env::current_exe() {
         flag.pop();
@@ -538,19 +533,19 @@ pub fn scan_game_for_backup(
             Err(_) => continue,
         };
         for entry in entries.filter_map(|r| r.ok()) {
-            let plain = entry.to_string_lossy().to_string();
-            let p = std::path::Path::new(&plain);
+            let p = StrictPath::from(entry).rendered();
             if p.is_file() {
+                let metadata = p.metadata();
                 found_files.insert(ScannedFile {
-                    path: StrictPath::new(reslashed(&plain)),
-                    size: match p.metadata() {
+                    path: p,
+                    size: match metadata {
                         Ok(m) => m.len(),
                         _ => 0,
                     },
                     original_path: None,
                 });
             } else if p.is_dir() {
-                for child in walkdir::WalkDir::new(p)
+                for child in walkdir::WalkDir::new(p.as_std_path_buf())
                     .max_depth(100)
                     .follow_links(true)
                     .into_iter()
@@ -558,7 +553,7 @@ pub fn scan_game_for_backup(
                 {
                     if child.file_type().is_file() {
                         found_files.insert(ScannedFile {
-                            path: StrictPath::new(reslashed(&child.path().display().to_string())),
+                            path: StrictPath::from(&child).rendered(),
                             size: match child.metadata() {
                                 Ok(m) => m.len(),
                                 _ => 0,
@@ -908,7 +903,7 @@ mod tests {
     }
 
     fn repo() -> String {
-        reslashed(env!("CARGO_MANIFEST_DIR"))
+        env!("CARGO_MANIFEST_DIR").replace('\\', "/")
     }
 
     fn config() -> Config {
@@ -959,6 +954,9 @@ mod tests {
                 <winDocuments>/winDocuments.txt: {}
                 <xdgConfig>/xdgConfig.txt: {}
                 <xdgData>/xdgData.txt: {}
+            game5:
+              files:
+                <base>: {}
             "#,
         )
         .unwrap()
@@ -1095,6 +1093,36 @@ mod tests {
                 &manifest().0["game 2"],
                 "game 2",
                 &config().roots,
+                &StrictPath::new(repo()),
+                &None,
+                &BackupFilter::default(),
+                &None,
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_deduplicating_symlinks() {
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game5"),
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/root3/game5/data/file1.txt", repo())),
+                        size: 1,
+                        original_path: None,
+                    },
+                },
+                found_registry_keys: hashset! {},
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game5"],
+                "game5",
+                &vec![RootsConfig {
+                    path: StrictPath::new(format!("{}/tests/root3", repo())),
+                    store: Store::Other
+                }],
                 &StrictPath::new(repo()),
                 &None,
                 &BackupFilter::default(),

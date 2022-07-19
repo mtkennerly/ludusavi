@@ -9,6 +9,18 @@ for the list.
 * Run program:
   * `cargo run`
 * Run tests:
+  * One-time setup:
+    * Windows:
+      ```
+      reg import tests/ludusavi.reg
+      cd tests/root3/game5
+      mklink /J data-symlink data
+      ```
+    * Other:
+      ```
+      cd tests/root3/game5
+      ln -s data data-symlink
+      ```
   * `cargo test`
 * Linting:
   * `cargo fmt`
@@ -28,13 +40,6 @@ These are optional:
 * `LUDUSAVI_VARIANT`:
   * If set, shown in the window title in parentheses.
   * Intended for alternative builds, such as for OpenGL support.
-
-### Registry
-On Windows, before running the tests, you need to import some registry keys:
-
-```
-reg import tests/ludusavi.reg
-```
 
 ### Icon
 The master icon is `assets/icon.kra`, which you can edit using
