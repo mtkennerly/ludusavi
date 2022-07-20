@@ -37,6 +37,9 @@
   * Removed `/games` from the end of the default Uplay (Ubisoft Connect) root
     paths. The new default is `C:/Program Files/Ubisoft/Ubisoft Game Launcher`.
   * Crash when launching Ludusavi after the user manually deleted the manifest.
+  * If duplicate files were found while a game's file list were already open,
+    then the files would not immediately be marked as duplicates until you
+    closed and reopened the file list.
 
 ## v0.10.0 (2021-03-12)
 

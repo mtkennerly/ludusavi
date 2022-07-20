@@ -492,9 +492,6 @@ impl Application for App {
                     }
                 }
                 self.config.save();
-                for item in self.restore_screen.log.entries.iter_mut() {
-                    item.tree_should_reload = true;
-                }
                 Command::none()
             }
             Message::EditedCustomGame(action) => {
@@ -871,9 +868,6 @@ impl Application for App {
                                             &mut self.config.restore.redirects[i].source,
                                             &mut redirect.source_text_history,
                                         );
-                                        for item in self.restore_screen.log.entries.iter_mut() {
-                                            item.tree_should_reload = true;
-                                        }
                                         matched = true;
                                         break;
                                     }
@@ -883,9 +877,6 @@ impl Application for App {
                                             &mut self.config.restore.redirects[i].target,
                                             &mut redirect.target_text_history,
                                         );
-                                        for item in self.restore_screen.log.entries.iter_mut() {
-                                            item.tree_should_reload = true;
-                                        }
                                         matched = true;
                                         break;
                                     }

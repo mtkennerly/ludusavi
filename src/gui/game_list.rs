@@ -28,7 +28,6 @@ pub struct GameListEntry {
     pub customize_button: button::State,
     pub expanded: bool,
     pub tree: FileTree,
-    pub tree_should_reload: bool,
 }
 
 impl GameListEntry {
@@ -46,13 +45,9 @@ impl GameListEntry {
         };
 
         if self.expanded {
-            if self.tree_should_reload {
-                self.tree = FileTree::new(self.scan_info.clone(), config, &self.backup_info, duplicate_detector);
-                self.tree_should_reload = false;
-            }
+            self.tree = FileTree::new(self.scan_info.clone(), config, &self.backup_info, duplicate_detector);
         } else {
             self.tree.clear();
-            self.tree_should_reload = true;
         }
 
         let enabled = if restoring {
