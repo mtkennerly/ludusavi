@@ -20,7 +20,7 @@ use crate::{
     manifest::{Manifest, SteamMetadata, Store},
     prelude::{
         app_dir, back_up_game, prepare_backup_target, restore_game, scan_game_for_backup, scan_game_for_restoration,
-        Error, OperationStepDecision, StrictPath,
+        Error, InstallDirRanking, OperationStepDecision, StrictPath,
     },
     shortcuts::Shortcut,
 };
@@ -154,6 +154,9 @@ impl Application for App {
                         .retain(|k, _| self.backup_screen.recent_found_games.contains(k));
                 }
 
+                let mut subjects: Vec<_> = all_games.0.keys().cloned().collect();
+                subjects.sort();
+
                 self.backup_screen.status.clear();
                 self.backup_screen.log.entries.clear();
                 self.modal_theme = None;
@@ -169,6 +172,7 @@ impl Application for App {
 
                 let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone()));
                 let filter = std::sync::Arc::new(self.config.backup.filter.clone());
+                let ranking = InstallDirRanking::scan(&self.config.roots, &all_games, &subjects);
 
                 let mut commands: Vec<Command<Message>> = vec![];
                 for key in all_games.0.iter().map(|(k, _)| k.clone()) {
@@ -176,6 +180,7 @@ impl Application for App {
                     let roots = self.config.roots.clone();
                     let layout2 = layout.clone();
                     let filter2 = filter.clone();
+                    let ranking = ranking.clone();
                     let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
                     let cancel_flag = self.operation_should_cancel.clone();
                     let ignored = !self.config.is_game_enabled_for_backup(&key);
@@ -199,6 +204,7 @@ impl Application for App {
                                 &steam_id,
                                 &filter2,
                                 &None,
+                                &ranking,
                             );
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);

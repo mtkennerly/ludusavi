@@ -24,6 +24,15 @@
 
     Now, Ludusavi will still follow symlinks and back up their targets,
     but it will not back up the symlink itself or duplicate the files.
+  * When looking for game install folders, Ludusavi previously checked _either_
+    the `installDir` entries from the manifest _or_ the game's name, but never
+    both at the same time, leading to some missed saves when the `installDir`
+    list was incomplete or was not accurate for all stores.
+
+    Now, Ludusavi applies a heuristic to find any install folder that is
+    sufficiently similar to the game's title or any known `installDir` value.
+    It picks the best match across all games that the install directory
+    could possibly represent.
 * Added:
   * During first-time setup, Ludusavi will now automatically detect roots for
     secondary Steam library folders (Windows/Linux/Mac) and non-default Epic

@@ -27,7 +27,7 @@ pub struct ManifestConfig {
     pub etag: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub struct RootsConfig {
     pub path: StrictPath,
     pub store: Store,

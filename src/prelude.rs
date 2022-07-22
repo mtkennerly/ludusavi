@@ -3,6 +3,8 @@ use crate::{
     layout::{BackupLayout, IndividualMapping},
     manifest::{Game, GameFileConstraint, Os, Store},
 };
+use fuzzy_matcher::FuzzyMatcher;
+use rayon::prelude::*;
 use std::io::Read;
 
 pub use crate::path::StrictPath;
@@ -265,140 +267,143 @@ fn check_nonwindows_path_str(path: &str) -> String {
 pub fn parse_paths(
     path: &str,
     root: &RootsConfig,
-    install_dirs: &[&String],
+    install_dir: &Option<String>,
     steam_id: &Option<u32>,
     manifest_dir: &StrictPath,
 ) -> std::collections::HashSet<StrictPath> {
     let mut paths = std::collections::HashSet::new();
 
-    for install_dir in install_dirs {
+    let install_dir = match install_dir {
+        Some(d) => d,
+        None => SKIP,
+    };
+
+    paths.insert(
+        path.replace("<root>", &root.path.interpret())
+            .replace("<game>", install_dir)
+            .replace(
+                "<base>",
+                &match root.store {
+                    Store::Steam => format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
+                    _ => format!("{}/{}", root.path.interpret(), install_dir),
+                },
+            )
+            .replace(
+                "<home>",
+                &dirs::home_dir().unwrap_or_else(|| SKIP.into()).to_string_lossy(),
+            )
+            .replace(
+                "<storeUserId>",
+                match root.store {
+                    Store::Steam => "[0-9]*",
+                    _ => "*",
+                },
+            )
+            .replace("<osUserName>", &whoami::username())
+            .replace("<winAppData>", &check_windows_path(dirs::data_dir()))
+            .replace("<winLocalAppData>", &check_windows_path(dirs::data_local_dir()))
+            .replace("<winDocuments>", &check_windows_path(dirs::document_dir()))
+            .replace("<winPublic>", &check_windows_path(dirs::public_dir()))
+            .replace("<winProgramData>", &check_windows_path_str("C:/Windows/ProgramData"))
+            .replace("<winDir>", &check_windows_path_str("C:/Windows"))
+            .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
+            .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
+            .replace("<regHkcu>", SKIP)
+            .replace("<regHklm>", SKIP),
+    );
+    if root.store == Store::OtherHome {
         paths.insert(
             path.replace("<root>", &root.path.interpret())
                 .replace("<game>", install_dir)
-                .replace(
-                    "<base>",
-                    &match root.store {
-                        Store::Steam => format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
-                        _ => format!("{}/{}", root.path.interpret(), install_dir),
-                    },
-                )
-                .replace(
-                    "<home>",
-                    &dirs::home_dir().unwrap_or_else(|| SKIP.into()).to_string_lossy(),
-                )
-                .replace(
-                    "<storeUserId>",
-                    match root.store {
-                        Store::Steam => "[0-9]*",
-                        _ => "*",
-                    },
-                )
+                .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
+                .replace("<storeUserId>", SKIP)
                 .replace("<osUserName>", &whoami::username())
-                .replace("<winAppData>", &check_windows_path(dirs::data_dir()))
-                .replace("<winLocalAppData>", &check_windows_path(dirs::data_local_dir()))
-                .replace("<winDocuments>", &check_windows_path(dirs::document_dir()))
+                .replace("<winAppData>", &check_windows_path_str("<home>/AppData/Roaming"))
+                .replace("<winLocalAppData>", &check_windows_path_str("<home>/AppData/Local"))
+                .replace("<winDocuments>", &check_windows_path_str("<home>/Documents"))
                 .replace("<winPublic>", &check_windows_path(dirs::public_dir()))
                 .replace("<winProgramData>", &check_windows_path_str("C:/Windows/ProgramData"))
                 .replace("<winDir>", &check_windows_path_str("C:/Windows"))
-                .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
-                .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
+                .replace("<xdgData>", &check_nonwindows_path_str("<home>/.local/share"))
+                .replace("<xdgConfig>", &check_nonwindows_path_str("<home>/.config"))
                 .replace("<regHkcu>", SKIP)
-                .replace("<regHklm>", SKIP),
+                .replace("<regHklm>", SKIP)
+                .replace("<home>", &root.path.interpret()),
         );
-        if root.store == Store::OtherHome {
-            paths.insert(
-                path.replace("<root>", &root.path.interpret())
-                    .replace("<game>", install_dir)
-                    .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
-                    .replace("<storeUserId>", SKIP)
-                    .replace("<osUserName>", &whoami::username())
-                    .replace("<winAppData>", &check_windows_path_str("<home>/AppData/Roaming"))
-                    .replace("<winLocalAppData>", &check_windows_path_str("<home>/AppData/Local"))
-                    .replace("<winDocuments>", &check_windows_path_str("<home>/Documents"))
-                    .replace("<winPublic>", &check_windows_path(dirs::public_dir()))
-                    .replace("<winProgramData>", &check_windows_path_str("C:/Windows/ProgramData"))
-                    .replace("<winDir>", &check_windows_path_str("C:/Windows"))
-                    .replace("<xdgData>", &check_nonwindows_path_str("<home>/.local/share"))
-                    .replace("<xdgConfig>", &check_nonwindows_path_str("<home>/.config"))
-                    .replace("<regHkcu>", SKIP)
-                    .replace("<regHklm>", SKIP)
-                    .replace("<home>", &root.path.interpret()),
-            );
-        }
-        if get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some() {
-            let prefix = format!(
-                "{}/steamapps/compatdata/{}/pfx/drive_c",
-                root.path.interpret(),
-                steam_id.unwrap()
-            );
-            let path2 = path
-                .replace("<root>", &root.path.interpret())
-                .replace("<game>", install_dir)
+    }
+    if get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some() {
+        let prefix = format!(
+            "{}/steamapps/compatdata/{}/pfx/drive_c",
+            root.path.interpret(),
+            steam_id.unwrap()
+        );
+        let path2 = path
+            .replace("<root>", &root.path.interpret())
+            .replace("<game>", install_dir)
+            .replace(
+                "<base>",
+                &format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
+            )
+            .replace("<home>", &format!("{}/users/steamuser", prefix))
+            .replace("<storeUserId>", "[0-9]*")
+            .replace("<osUserName>", "steamuser")
+            .replace("<winPublic>", &format!("{}/users/Public", prefix))
+            .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
+            .replace("<winDir>", &format!("{}/windows", prefix))
+            .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
+            .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
+            .replace("<regHkcu>", SKIP)
+            .replace("<regHklm>", SKIP);
+        paths.insert(
+            path2
+                .replace("<winDocuments>", &format!("{}/users/steamuser/Documents", prefix))
+                .replace("<winAppData>", &format!("{}/users/steamuser/AppData/Roaming", prefix))
                 .replace(
-                    "<base>",
-                    &format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
-                )
-                .replace("<home>", &format!("{}/users/steamuser", prefix))
-                .replace("<storeUserId>", "[0-9]*")
-                .replace("<osUserName>", "steamuser")
-                .replace("<winPublic>", &format!("{}/users/Public", prefix))
-                .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
-                .replace("<winDir>", &format!("{}/windows", prefix))
-                .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
-                .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
-                .replace("<regHkcu>", SKIP)
-                .replace("<regHklm>", SKIP);
-            paths.insert(
-                path2
-                    .replace("<winDocuments>", &format!("{}/users/steamuser/Documents", prefix))
-                    .replace("<winAppData>", &format!("{}/users/steamuser/AppData/Roaming", prefix))
-                    .replace(
-                        "<winLocalAppData>",
-                        &format!("{}/users/steamuser/AppData/Local", prefix),
-                    ),
-            );
-            paths.insert(
-                path2
-                    .replace("<winDocuments>", &format!("{}/users/steamuser/My Documents", prefix))
-                    .replace("<winAppData>", &format!("{}/users/steamuser/Application Data", prefix))
-                    .replace(
-                        "<winLocalAppData>",
-                        &format!("{}/users/steamuser/Local Settings/Application Data", prefix),
-                    ),
-            );
-        }
-        if root.store == Store::OtherWine {
-            let prefix = format!("{}/drive_*", root.path.interpret());
-            let path2 = path
-                .replace("<root>", &root.path.interpret())
-                .replace("<game>", install_dir)
-                .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
-                .replace("<home>", &format!("{}/users/*", prefix))
-                .replace("<storeUserId>", "*")
-                .replace("<osUserName>", "*")
-                .replace("<winPublic>", &format!("{}/users/Public", prefix))
-                .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
-                .replace("<winDir>", &format!("{}/windows", prefix))
-                .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
-                .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
-                .replace("<regHkcu>", SKIP)
-                .replace("<regHklm>", SKIP);
-            paths.insert(
-                path2
-                    .replace("<winDocuments>", &format!("{}/users/*/Documents", prefix))
-                    .replace("<winAppData>", &format!("{}/users/*/AppData/Roaming", prefix))
-                    .replace("<winLocalAppData>", &format!("{}/users/*/AppData/Local", prefix)),
-            );
-            paths.insert(
-                path2
-                    .replace("<winDocuments>", &format!("{}/users/*/My Documents", prefix))
-                    .replace("<winAppData>", &format!("{}/users/*/Application Data", prefix))
-                    .replace(
-                        "<winLocalAppData>",
-                        &format!("{}/users/*/Local Settings/Application Data", prefix),
-                    ),
-            );
-        }
+                    "<winLocalAppData>",
+                    &format!("{}/users/steamuser/AppData/Local", prefix),
+                ),
+        );
+        paths.insert(
+            path2
+                .replace("<winDocuments>", &format!("{}/users/steamuser/My Documents", prefix))
+                .replace("<winAppData>", &format!("{}/users/steamuser/Application Data", prefix))
+                .replace(
+                    "<winLocalAppData>",
+                    &format!("{}/users/steamuser/Local Settings/Application Data", prefix),
+                ),
+        );
+    }
+    if root.store == Store::OtherWine {
+        let prefix = format!("{}/drive_*", root.path.interpret());
+        let path2 = path
+            .replace("<root>", &root.path.interpret())
+            .replace("<game>", install_dir)
+            .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
+            .replace("<home>", &format!("{}/users/*", prefix))
+            .replace("<storeUserId>", "*")
+            .replace("<osUserName>", "*")
+            .replace("<winPublic>", &format!("{}/users/Public", prefix))
+            .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
+            .replace("<winDir>", &format!("{}/windows", prefix))
+            .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
+            .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
+            .replace("<regHkcu>", SKIP)
+            .replace("<regHklm>", SKIP);
+        paths.insert(
+            path2
+                .replace("<winDocuments>", &format!("{}/users/*/Documents", prefix))
+                .replace("<winAppData>", &format!("{}/users/*/AppData/Roaming", prefix))
+                .replace("<winLocalAppData>", &format!("{}/users/*/AppData/Local", prefix)),
+        );
+        paths.insert(
+            path2
+                .replace("<winDocuments>", &format!("{}/users/*/My Documents", prefix))
+                .replace("<winAppData>", &format!("{}/users/*/Application Data", prefix))
+                .replace(
+                    "<winLocalAppData>",
+                    &format!("{}/users/*/Local Settings/Application Data", prefix),
+                ),
+        );
     }
 
     paths
@@ -425,6 +430,94 @@ fn should_exclude_as_other_os_data(constraints: &[GameFileConstraint], host: Os,
     constrained && !unconstrained_by_os && !matches_os && !suitable_for_proton
 }
 
+#[derive(Clone, Default)]
+pub struct InstallDirRanking(std::collections::HashMap<(RootsConfig, String), (i64, String)>);
+
+impl InstallDirRanking {
+    /// Get the installation directory for some root/game combination.
+    pub fn get(&self, root: &RootsConfig, name: &str) -> Option<String> {
+        self.0.get(&(root.to_owned(), name.to_owned())).and_then(|candidate| {
+            if candidate.0 == i64::MAX {
+                return Some(candidate.1.to_owned());
+            }
+            for other in self.0.values() {
+                if other.0 > candidate.0 {
+                    return None;
+                }
+            }
+            Some(candidate.1.to_owned())
+        })
+    }
+
+    pub fn scan(roots: &[RootsConfig], manifest: &crate::manifest::Manifest, subjects: &[String]) -> Self {
+        let mut ranking = Self::default();
+        for root in roots {
+            ranking.scan_root(root, manifest, subjects);
+        }
+        ranking
+    }
+
+    fn scan_root(&mut self, root: &RootsConfig, manifest: &crate::manifest::Manifest, subjects: &[String]) {
+        let install_parent = match root.store {
+            Store::Steam => root.path.joined("steamapps/common"),
+            _ => root.path.clone(),
+        };
+        let matcher = make_fuzzy_matcher();
+
+        let actual_dirs: Vec<_> = std::fs::read_dir(install_parent.interpret())
+            .map(|entries| {
+                entries
+                    .filter_map(|entry| entry.ok())
+                    .filter_map(|entry| match entry.file_type() {
+                        Ok(ft) if ft.is_dir() => Some(entry.file_name().to_string_lossy().to_string()),
+                        _ => None,
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        let scores: Vec<_> = subjects
+            .into_par_iter()
+            .filter_map(|name| {
+                let manifest_install_dirs: Vec<_> = manifest.0[name]
+                    .install_dir
+                    .as_ref()
+                    .map(|x| x.keys().collect())
+                    .unwrap_or_default();
+                let default_install_dir = name.to_string();
+                let expected_install_dirs = &[manifest_install_dirs, vec![&default_install_dir]].concat();
+
+                let mut best: Option<(i64, &String)> = None;
+                'dirs: for expected_dir in expected_install_dirs {
+                    let ideal = matcher.fuzzy_match(expected_dir, expected_dir);
+                    for actual_dir in &actual_dirs {
+                        let score = fuzzy_match(&matcher, expected_dir, actual_dir, &ideal);
+                        if let Some(score) = score {
+                            if let Some((previous, _)) = best {
+                                if score > previous {
+                                    best = Some((score, actual_dir));
+                                }
+                            } else {
+                                best = Some((score, actual_dir));
+                            }
+                        }
+                        if score == Some(i64::MAX) {
+                            break 'dirs;
+                        }
+                    }
+                }
+                best.map(|(score, subdir)| (score, name, subdir))
+            })
+            .collect();
+
+        for (score, name, subdir) in scores {
+            self.0
+                .insert((root.clone(), name.to_owned()), (score, subdir.to_owned()));
+        }
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn scan_game_for_backup(
     game: &Game,
     name: &str,
@@ -433,6 +526,7 @@ pub fn scan_game_for_backup(
     steam_id: &Option<u32>,
     filter: &BackupFilter,
     wine_prefix: &Option<StrictPath>,
+    ranking: &InstallDirRanking,
 ) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
@@ -468,11 +562,8 @@ pub fn scan_game_for_backup(
         }
         if let Some(files) = &game.files {
             let maybe_proton = get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some();
-            let default_install_dir = name.to_string();
-            let install_dirs: Vec<_> = match &game.install_dir {
-                Some(x) => x.keys().collect(),
-                _ => vec![&default_install_dir],
-            };
+            let install_dir = ranking.get(root, name);
+
             for (raw_path, path_info) in files {
                 if raw_path.trim().is_empty() {
                     continue;
@@ -484,7 +575,7 @@ pub fn scan_game_for_backup(
                         }
                     }
                 }
-                let candidates = parse_paths(raw_path, root, &install_dirs, steam_id, manifest_dir);
+                let candidates = parse_paths(raw_path, root, &install_dir, steam_id, manifest_dir);
                 for candidate in candidates {
                     if candidate.raw().contains(SKIP) {
                         continue;
@@ -890,6 +981,35 @@ impl DuplicateDetector {
     }
 }
 
+fn make_fuzzy_matcher() -> fuzzy_matcher::skim::SkimMatcherV2 {
+    fuzzy_matcher::skim::SkimMatcherV2::default()
+        .ignore_case()
+        .score_config(fuzzy_matcher::skim::SkimScoreConfig {
+            penalty_case_mismatch: 0,
+            ..Default::default()
+        })
+}
+
+pub fn fuzzy_match(
+    matcher: &fuzzy_matcher::skim::SkimMatcherV2,
+    reference: &str,
+    candidate: &str,
+    ideal: &Option<i64>,
+) -> Option<i64> {
+    if reference == candidate {
+        return Some(i64::MAX);
+    }
+    let actual = matcher.fuzzy_match(reference, &candidate.replace('_', " ").replace('-', " "));
+    if let (Some(ideal), Some(actual)) = (ideal, actual) {
+        if actual == *ideal {
+            return Some(i64::MAX);
+        } else if actual > (ideal / 4 * 3) {
+            return Some(actual);
+        }
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -897,6 +1017,41 @@ mod tests {
     use crate::manifest::Manifest;
     use maplit::hashset;
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn fuzzy_matching() {
+        let matcher = make_fuzzy_matcher();
+
+        for (reference, candidate, output) in vec![
+            ("a", "a", Some(i64::MAX)),
+            ("a", "b", None),
+            ("Something", "Something", Some(i64::MAX)),
+            // Too short:
+            ("ab", "a", None),
+            ("ab", "b", None),
+            ("abc", "ab", None),
+            // Long enough:
+            ("abcd", "abc", Some(71)),
+            ("A Fun Game", "a fun game", Some(i64::MAX)),
+            ("A Fun Game", "AFunGame", Some(171)),
+            ("A Fun Game", "A_Fun_Game", Some(i64::MAX)),
+            ("A Fun Game", "a-fun-game", Some(i64::MAX)),
+            ("A Fun Game", "A FUN GAME", Some(i64::MAX)),
+            ("A Fun Game!", "A Fun Game", Some(219)),
+            ("A Funner Game", "A Fun Game", Some(209)),
+            ("A Fun Game 2", "A Fun Game", Some(219)),
+        ] {
+            assert_eq!(
+                output,
+                fuzzy_match(
+                    &matcher,
+                    reference,
+                    candidate,
+                    &matcher.fuzzy_match(reference, reference)
+                )
+            );
+        }
+    }
 
     fn s(text: &str) -> String {
         text.to_string()
@@ -1073,6 +1228,7 @@ mod tests {
                 &None,
                 &BackupFilter::default(),
                 &None,
+                &InstallDirRanking::scan(&config().roots, &manifest(), &["game1".to_string()]),
             ),
         );
 
@@ -1097,12 +1253,17 @@ mod tests {
                 &None,
                 &BackupFilter::default(),
                 &None,
+                &InstallDirRanking::scan(&config().roots, &manifest(), &["game 2".to_string()]),
             ),
         );
     }
 
     #[test]
     fn can_scan_game_for_backup_deduplicating_symlinks() {
+        let roots = &[RootsConfig {
+            path: StrictPath::new(format!("{}/tests/root3", repo())),
+            store: Store::Other,
+        }];
         assert_eq!(
             ScanInfo {
                 game_name: s("game5"),
@@ -1119,14 +1280,44 @@ mod tests {
             scan_game_for_backup(
                 &manifest().0["game5"],
                 "game5",
-                &vec![RootsConfig {
-                    path: StrictPath::new(format!("{}/tests/root3", repo())),
-                    store: Store::Other
-                }],
+                roots,
                 &StrictPath::new(repo()),
                 &None,
                 &BackupFilter::default(),
                 &None,
+                &InstallDirRanking::scan(roots, &manifest(), &["game5".to_string()]),
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_fuzzy_matched_install_dir() {
+        let roots = &[RootsConfig {
+            path: StrictPath::new(format!("{}/tests/root3", repo())),
+            store: Store::Other,
+        }];
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game 2"),
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/root3/game_2/file1.txt", repo())),
+                        size: 1,
+                        original_path: None,
+                    },
+                },
+                found_registry_keys: hashset! {},
+                registry_file: None,
+            },
+            scan_game_for_backup(
+                &manifest().0["game 2"],
+                "game 2",
+                roots,
+                &StrictPath::new(repo()),
+                &None,
+                &BackupFilter::default(),
+                &None,
+                &InstallDirRanking::scan(roots, &manifest(), &["game 2".to_string()]),
             ),
         );
     }
@@ -1134,6 +1325,10 @@ mod tests {
     #[test]
     #[cfg(target_os = "windows")]
     fn can_scan_game_for_backup_with_file_matches_in_custom_home_folder() {
+        let roots = &[RootsConfig {
+            path: StrictPath::new(format!("{}/tests/home", repo())),
+            store: Store::OtherHome,
+        }];
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
@@ -1165,14 +1360,12 @@ mod tests {
             scan_game_for_backup(
                 &manifest().0["game4"],
                 "game4",
-                &[RootsConfig {
-                    path: StrictPath::new(format!("{}/tests/home", repo())),
-                    store: Store::OtherHome,
-                }],
+                roots,
                 &StrictPath::new(repo()),
                 &None,
                 &BackupFilter::default(),
                 &None,
+                &InstallDirRanking::scan(roots, &manifest(), &["game4".to_string()]),
             ),
         );
     }
@@ -1180,6 +1373,10 @@ mod tests {
     #[test]
     #[cfg(not(target_os = "windows"))]
     fn can_scan_game_for_backup_with_file_matches_in_custom_home_folder() {
+        let roots = &[RootsConfig {
+            path: StrictPath::new(format!("{}/tests/home", repo())),
+            store: Store::OtherHome,
+        }];
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
@@ -1206,14 +1403,12 @@ mod tests {
             scan_game_for_backup(
                 &manifest().0["game4"],
                 "game4",
-                &[RootsConfig {
-                    path: StrictPath::new(format!("{}/tests/home", repo())),
-                    store: Store::OtherHome,
-                }],
+                roots,
                 &StrictPath::new(repo()),
                 &None,
                 &BackupFilter::default(),
                 &None,
+                &InstallDirRanking::scan(roots, &manifest(), &["game4".to_string()]),
             ),
         );
     }
@@ -1246,6 +1441,7 @@ mod tests {
                 &None,
                 &BackupFilter::default(),
                 &Some(StrictPath::new(format!("{}/tests/wine-prefix", repo()))),
+                &InstallDirRanking::scan(&config().roots, &manifest(), &["game4".to_string()]),
             ),
         );
     }
@@ -1270,6 +1466,7 @@ mod tests {
                 &None,
                 &BackupFilter::default(),
                 &None,
+                &InstallDirRanking::scan(&config().roots, &manifest(), &["game3".to_string()]),
             ),
         );
     }
@@ -1294,6 +1491,7 @@ mod tests {
                 &None,
                 &BackupFilter::default(),
                 &None,
+                &InstallDirRanking::scan(&config().roots, &manifest(), &["game3-outer".to_string()]),
             ),
         );
     }

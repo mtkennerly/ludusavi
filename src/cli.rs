@@ -5,8 +5,8 @@ use crate::{
     manifest::{Manifest, SteamMetadata},
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
-        scan_game_for_restoration, BackupInfo, DuplicateDetector, Error, OperationStatus, OperationStepDecision,
-        ScanInfo, StrictPath,
+        scan_game_for_restoration, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus,
+        OperationStepDecision, ScanInfo, StrictPath,
     },
 };
 use clap::{CommandFactory, Parser};
@@ -531,6 +531,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             let layout = BackupLayout::new(backup_dir.clone());
             let filter = config.backup.filter.clone();
+            let ranking = InstallDirRanking::scan(roots, &all_games, &subjects);
 
             let info: Vec<_> = subjects
                 .par_iter()
@@ -547,6 +548,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         steam_id,
                         &filter,
                         &wine_prefix,
+                        &ranking,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified;
                     let decision = if ignored {

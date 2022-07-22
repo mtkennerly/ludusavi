@@ -21,7 +21,7 @@ impl Default for Os {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Store {
     #[serde(rename = "epic")]
     Epic,
