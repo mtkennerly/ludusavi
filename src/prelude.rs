@@ -292,13 +292,7 @@ pub fn parse_paths(
                 "<home>",
                 &dirs::home_dir().unwrap_or_else(|| SKIP.into()).to_string_lossy(),
             )
-            .replace(
-                "<storeUserId>",
-                match root.store {
-                    Store::Steam => "[0-9]*",
-                    _ => "*",
-                },
-            )
+            .replace("<storeUserId>", "*")
             .replace("<osUserName>", &whoami::username())
             .replace("<winAppData>", &check_windows_path(dirs::data_dir()))
             .replace("<winLocalAppData>", &check_windows_path(dirs::data_local_dir()))
@@ -345,7 +339,7 @@ pub fn parse_paths(
                 &format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
             )
             .replace("<home>", &format!("{}/users/steamuser", prefix))
-            .replace("<storeUserId>", "[0-9]*")
+            .replace("<storeUserId>", "*")
             .replace("<osUserName>", "steamuser")
             .replace("<winPublic>", &format!("{}/users/Public", prefix))
             .replace("<winProgramData>", &format!("{}/ProgramData", prefix))

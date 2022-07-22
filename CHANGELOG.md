@@ -33,6 +33,10 @@
     sufficiently similar to the game's title or any known `installDir` value.
     It picks the best match across all games that the install directory
     could possibly represent.
+  * Previously, for Steam roots, Ludusavi assumed that the `<storeUserId>`
+    would be a series of numbers. However, for some games, this ID may be from
+    another launcher and may not conform to those rules. Now, Ludusavi
+    just checks for any text, like it does for non-Steam roots.
 * Added:
   * During first-time setup, Ludusavi will now automatically detect roots for
     secondary Steam library folders (Windows/Linux/Mac) and non-default Epic
