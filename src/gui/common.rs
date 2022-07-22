@@ -191,3 +191,35 @@ pub fn make_status_row<'a>(
                 .view_if(show_selection),
         )
 }
+
+pub trait IcedExtension<'a> {
+    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
+    where
+        E: Into<iced::Element<'a, Message>>;
+}
+
+impl<'a> IcedExtension<'a> for iced::Column<'a, Message> {
+    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
+    where
+        E: Into<iced::Element<'a, Message>>,
+    {
+        if condition() {
+            self.push(element().into())
+        } else {
+            self
+        }
+    }
+}
+
+impl<'a> IcedExtension<'a> for iced::Row<'a, Message> {
+    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
+    where
+        E: Into<iced::Element<'a, Message>>,
+    {
+        if condition() {
+            self.push(element().into())
+        } else {
+            self
+        }
+    }
+}

@@ -973,6 +973,21 @@ impl DuplicateDetector {
         }
         false
     }
+
+    pub fn count_duplicates_for(&self, game: &str) -> usize {
+        let mut tally = 0;
+        for item in self.files.values() {
+            if item.contains(game) && item.len() > 1 {
+                tally += 1;
+            }
+        }
+        for item in self.registry.values() {
+            if item.contains(game) && item.len() > 1 {
+                tally += 1;
+            }
+        }
+        tally
+    }
 }
 
 fn make_fuzzy_matcher() -> fuzzy_matcher::skim::SkimMatcherV2 {

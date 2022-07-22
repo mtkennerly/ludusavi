@@ -2,7 +2,7 @@ use crate::{
     config::Config,
     gui::{
         badge::Badge,
-        common::{Message, Screen},
+        common::{IcedExtension, Message, Screen},
         file_tree::FileTree,
         icon::Icon,
         search::SearchComponent,
@@ -28,6 +28,7 @@ pub struct GameListEntry {
     pub customize_button: button::State,
     pub expanded: bool,
     pub tree: FileTree,
+    pub duplicates: usize,
 }
 
 impl GameListEntry {
@@ -44,8 +45,12 @@ impl GameListEntry {
             _ => true,
         };
 
+        let duplicates = duplicate_detector.count_duplicates_for(&self.scan_info.game_name);
         if self.expanded {
-            self.tree = FileTree::new(self.scan_info.clone(), config, &self.backup_info, duplicate_detector);
+            if self.tree.is_empty() || duplicates != self.duplicates {
+                self.tree = FileTree::new(self.scan_info.clone(), config, &self.backup_info, duplicate_detector);
+                self.duplicates = duplicates;
+            }
         } else {
             self.tree.clear();
         }
@@ -92,43 +97,42 @@ impl GameListEntry {
                             .width(Length::Fill)
                             .padding(2),
                         )
-                        .push(if duplicate_detector.is_game_duplicated(&self.scan_info) {
-                            Badge::new(&translator.badge_duplicates()).left_margin(15).view()
-                        } else {
-                            Container::new(Space::new(Length::Shrink, Length::Shrink))
-                        })
-                        .push(if !successful {
-                            Badge::new(&translator.badge_failed()).left_margin(15).view()
-                        } else {
-                            Container::new(Space::new(Length::Shrink, Length::Shrink))
-                        })
+                        .push_if(
+                            || duplicate_detector.is_game_duplicated(&self.scan_info),
+                            || Badge::new(&translator.badge_duplicates()).left_margin(15).view(),
+                        )
+                        .push_if(
+                            || !successful,
+                            || Badge::new(&translator.badge_failed()).left_margin(15).view(),
+                        )
                         .push(Space::new(
                             Length::Units(if restoring { 0 } else { 15 }),
                             Length::Shrink,
                         ))
-                        .push(if restoring {
-                            Container::new(Space::new(Length::Shrink, Length::Shrink))
-                        } else {
-                            Container::new(
-                                Button::new(
-                                    &mut self.customize_button,
-                                    Icon::Edit.as_text().width(Length::Units(45)),
+                        .push_if(
+                            || !restoring,
+                            || {
+                                Container::new(
+                                    Button::new(
+                                        &mut self.customize_button,
+                                        Icon::Edit.as_text().width(Length::Units(45)),
+                                    )
+                                    .on_press(if customized {
+                                        Message::Ignore
+                                    } else {
+                                        Message::CustomizeGame {
+                                            name: self.scan_info.game_name.clone(),
+                                        }
+                                    })
+                                    .style(if customized {
+                                        style::Button::Disabled
+                                    } else {
+                                        style::Button::Primary
+                                    })
+                                    .padding(2),
                                 )
-                                .on_press(if customized {
-                                    Message::Ignore
-                                } else {
-                                    Message::CustomizeGame {
-                                        name: self.scan_info.game_name.clone(),
-                                    }
-                                })
-                                .style(if customized {
-                                    style::Button::Disabled
-                                } else {
-                                    style::Button::Primary
-                                })
-                                .padding(2),
-                            )
-                        })
+                            },
+                        )
                         .push(Space::new(Length::Units(15), Length::Shrink))
                         .push(Container::new(
                             Button::new(&mut self.wiki_button, Icon::Language.as_text().width(Length::Units(45)))
@@ -154,10 +158,13 @@ impl GameListEntry {
                             .center_x(),
                         ),
                 )
-                .push(
-                    self.tree
-                        .view(translator, &self.scan_info.game_name)
-                        .width(Length::Fill),
+                .push_if(
+                    || self.expanded,
+                    || {
+                        self.tree
+                            .view(translator, &self.scan_info.game_name)
+                            .width(Length::Fill)
+                    },
                 ),
         )
         .style(style::Container::GameListEntry)
