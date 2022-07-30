@@ -626,7 +626,7 @@ pub fn scan_game_for_backup(
     wine_prefix: &Option<StrictPath>,
     ranking: &InstallDirRanking,
     ignored_paths: &ToggledPaths,
-    ignored_registry: &ToggledRegistry,
+    #[allow(unused_variables)] ignored_registry: &ToggledRegistry,
 ) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
@@ -1659,6 +1659,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn can_scan_game_for_backup_with_registry_matches_and_ignores() {
         let cases = vec![
             (

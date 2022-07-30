@@ -20,6 +20,7 @@ impl RegistryItem {
         self.raw.replace('\\', "/")
     }
 
+    #[allow(dead_code)]
     pub fn rendered(&self) -> Self {
         Self { raw: self.render() }
     }
@@ -28,6 +29,7 @@ impl RegistryItem {
         self.raw.replace('/', "\\")
     }
 
+    #[allow(dead_code)]
     pub fn interpreted(&self) -> Self {
         Self { raw: self.interpret() }
     }
@@ -36,6 +38,7 @@ impl RegistryItem {
         self.interpret().split('\\').map(|x| x.to_string()).collect()
     }
 
+    #[allow(dead_code)]
     pub fn split_hive(&self) -> Option<(String, String)> {
         let interpreted = self.interpret();
         let parts: Vec<_> = interpreted.splitn(2, '\\').collect();

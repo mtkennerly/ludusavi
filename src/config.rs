@@ -67,6 +67,7 @@ impl BackupFilter {
             .any(|x| x.is_prefix_of(item) || x.interpret() == interpreted)
     }
 
+    #[allow(dead_code)]
     pub fn is_registry_ignored(&self, item: &RegistryItem) -> bool {
         let interpreted = item.interpret();
         self.ignored_registry
