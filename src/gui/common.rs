@@ -13,13 +13,19 @@ use iced::{Alignment, Row, Text};
 pub enum Message {
     Idle,
     Ignore,
-    ConfirmBackupStart,
+    ConfirmBackupStart {
+        games: Option<Vec<String>>,
+    },
     BackupStart {
         preview: bool,
+        games: Option<Vec<String>>,
     },
-    ConfirmRestoreStart,
+    ConfirmRestoreStart {
+        games: Option<Vec<String>>,
+    },
     RestoreStart {
         preview: bool,
+        games: Option<Vec<String>>,
     },
     BackupStep {
         scan_info: Option<ScanInfo>,
@@ -37,6 +43,10 @@ pub enum Message {
         preview: bool,
     },
     RestoreComplete,
+    ProcessGameOnDemand {
+        game: String,
+        restore: bool,
+    },
     EditedBackupTarget(String),
     EditedBackupMerge(bool),
     EditedRestoreSource(String),
@@ -198,16 +208,14 @@ pub fn apply_shortcut_to_string_field(shortcut: &Shortcut, config: &mut String, 
 pub fn make_status_row<'a>(
     translator: &Translator,
     status: &OperationStatus,
-    (selected_games, selected_bytes): (usize, u64),
     found_any_duplicates: bool,
 ) -> Row<'a, Message> {
-    let status = status.with_selection(selected_games, selected_bytes);
     Row::new()
         .padding(20)
         .align_items(Alignment::Center)
-        .push(Text::new(translator.processed_games(&status)).size(35))
+        .push(Text::new(translator.processed_games(status)).size(35))
         .push(Text::new("  |  ").size(35))
-        .push(Text::new(translator.processed_bytes(&status)).size(35))
+        .push(Text::new(translator.processed_bytes(status)).size(35))
         .push(
             Badge::new(&translator.badge_duplicates())
                 .left_margin(15)

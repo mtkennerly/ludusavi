@@ -43,6 +43,7 @@
     install folders (Windows).
   * It is now possible to ignore paths for backup across all games
     and/or for specific games.
+  * GUI: Button to back up or restore an individual game from the list on demand.
   * GUI: Button to find and add any missing roots. This is the same functionality
     as the automatic first-time setup, but is now available on demand.
   * Support for Prime Gaming roots.

@@ -10,7 +10,7 @@ use crate::{
     },
     lang::Translator,
     manifest::Manifest,
-    prelude::{DuplicateDetector, OperationStatus},
+    prelude::DuplicateDetector,
     shortcuts::TextHistory,
 };
 
@@ -21,7 +21,6 @@ use iced::{
 
 #[derive(Default)]
 pub struct RestoreScreenComponent {
-    pub status: OperationStatus,
     pub log: GameList,
     start_button: button::State,
     preview_button: button::State,
@@ -88,7 +87,10 @@ impl RestoreScreenComponent {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(match operation {
-                                None => Message::RestoreStart { preview: true },
+                                None => Message::RestoreStart {
+                                    preview: true,
+                                    games: None,
+                                },
                                 Some(OngoingOperation::PreviewRestore) => Message::CancelOperation,
                                 _ => Message::Ignore,
                             })
@@ -110,7 +112,7 @@ impl RestoreScreenComponent {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(match operation {
-                                None => Message::ConfirmRestoreStart,
+                                None => Message::ConfirmRestoreStart { games: None },
                                 Some(OngoingOperation::Restore) => Message::CancelOperation,
                                 _ => Message::Ignore,
                             })
@@ -164,8 +166,7 @@ impl RestoreScreenComponent {
                 )
                 .push(make_status_row(
                     translator,
-                    &self.status,
-                    self.log.count_selected_entries(config, true),
+                    &self.log.compute_operation_status(config, true),
                     self.duplicate_detector.any_duplicates(),
                 ))
                 .push(
@@ -199,7 +200,7 @@ impl RestoreScreenComponent {
                 .push(Space::new(Length::Units(0), Length::Units(30)))
                 .push(
                     self.log
-                        .view(true, translator, config, manifest, &self.duplicate_detector),
+                        .view(true, translator, config, manifest, &self.duplicate_detector, operation),
                 ),
         )
         .height(Length::Fill)

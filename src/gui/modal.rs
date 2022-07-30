@@ -18,8 +18,8 @@ pub enum ModalVariant {
 #[derive(Debug, Clone, PartialEq)]
 pub enum ModalTheme {
     Error { variant: Error },
-    ConfirmBackup,
-    ConfirmRestore,
+    ConfirmBackup { games: Option<Vec<String>> },
+    ConfirmRestore { games: Option<Vec<String>> },
     NoMissingRoots,
     ConfirmAddMissingRoots(Vec<RootsConfig>),
 }
@@ -28,17 +28,19 @@ impl ModalTheme {
     pub fn variant(&self) -> ModalVariant {
         match self {
             Self::Error { .. } | Self::NoMissingRoots => ModalVariant::Info,
-            Self::ConfirmBackup | Self::ConfirmRestore | Self::ConfirmAddMissingRoots(..) => ModalVariant::Confirm,
+            Self::ConfirmBackup { .. } | Self::ConfirmRestore { .. } | Self::ConfirmAddMissingRoots(..) => {
+                ModalVariant::Confirm
+            }
         }
     }
 
     pub fn text(&self, config: &Config, translator: &Translator) -> String {
         match self {
             Self::Error { variant } => translator.handle_error(variant),
-            Self::ConfirmBackup => {
+            Self::ConfirmBackup { .. } => {
                 translator.modal_confirm_backup(&config.backup.path, config.backup.path.exists(), config.backup.merge)
             }
-            Self::ConfirmRestore => translator.modal_confirm_restore(&config.restore.path),
+            Self::ConfirmRestore { .. } => translator.modal_confirm_restore(&config.restore.path),
             Self::NoMissingRoots => translator.no_missing_roots(),
             Self::ConfirmAddMissingRoots(missing) => translator.confirm_add_missing_roots(missing),
         }
@@ -47,8 +49,14 @@ impl ModalTheme {
     pub fn message(&self) -> Message {
         match self {
             Self::Error { .. } | Self::NoMissingRoots => Message::Idle,
-            Self::ConfirmBackup => Message::BackupStart { preview: false },
-            Self::ConfirmRestore => Message::RestoreStart { preview: false },
+            Self::ConfirmBackup { games } => Message::BackupStart {
+                preview: false,
+                games: games.clone(),
+            },
+            Self::ConfirmRestore { games } => Message::RestoreStart {
+                preview: false,
+                games: games.clone(),
+            },
             Self::ConfirmAddMissingRoots(missing) => Message::ConfirmAddMissingRoots(missing.clone()),
         }
     }

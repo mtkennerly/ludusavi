@@ -9,7 +9,7 @@ use crate::{
     },
     lang::Translator,
     manifest::Manifest,
-    prelude::{DuplicateDetector, OperationStatus},
+    prelude::DuplicateDetector,
     shortcuts::TextHistory,
 };
 
@@ -20,7 +20,6 @@ use iced::{
 
 #[derive(Default)]
 pub struct BackupScreenComponent {
-    pub status: OperationStatus,
     pub log: GameList,
     start_button: button::State,
     preview_button: button::State,
@@ -87,7 +86,10 @@ impl BackupScreenComponent {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(match operation {
-                                None => Message::BackupStart { preview: true },
+                                None => Message::BackupStart {
+                                    preview: true,
+                                    games: None,
+                                },
                                 Some(OngoingOperation::PreviewBackup) => Message::CancelOperation,
                                 _ => Message::Ignore,
                             })
@@ -109,7 +111,7 @@ impl BackupScreenComponent {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(match operation {
-                                None => Message::ConfirmBackupStart,
+                                None => Message::ConfirmBackupStart { games: None },
                                 Some(OngoingOperation::Backup) => Message::CancelOperation,
                                 _ => Message::Ignore,
                             })
@@ -171,8 +173,7 @@ impl BackupScreenComponent {
                 )
                 .push(make_status_row(
                     translator,
-                    &self.status,
-                    self.log.count_selected_entries(config, false),
+                    &self.log.compute_operation_status(config, false),
                     self.duplicate_detector.any_duplicates(),
                 ))
                 .push(
@@ -211,7 +212,7 @@ impl BackupScreenComponent {
                 .push(Space::new(Length::Units(0), Length::Units(30)))
                 .push(
                     self.log
-                        .view(false, translator, config, manifest, &self.duplicate_detector),
+                        .view(false, translator, config, manifest, &self.duplicate_detector, operation),
                 ),
         )
         .height(Length::Fill)

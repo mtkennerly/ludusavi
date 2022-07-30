@@ -10,7 +10,7 @@ use crate::{
     },
     lang::Translator,
     manifest::Manifest,
-    prelude::{BackupInfo, DuplicateDetector, ScanInfo},
+    prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
 };
 
 use fuzzy_matcher::FuzzyMatcher;
@@ -19,6 +19,8 @@ use iced::{
     Length, Row, Scrollable, Space, Text,
 };
 
+use super::common::OngoingOperation;
+
 #[derive(Default)]
 pub struct GameListEntry {
     pub scan_info: ScanInfo,
@@ -26,6 +28,7 @@ pub struct GameListEntry {
     pub expand_button: button::State,
     pub wiki_button: button::State,
     pub customize_button: button::State,
+    pub operate_button: button::State,
     pub expanded: bool,
     pub tree: FileTree,
     pub duplicates: usize,
@@ -39,6 +42,7 @@ impl GameListEntry {
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
+        operation: &Option<OngoingOperation>,
     ) -> Container<Message> {
         let successful = match &self.backup_info {
             Some(x) => x.successful(),
@@ -146,6 +150,26 @@ impl GameListEntry {
                         )
                         .push(Space::new(Length::Units(15), Length::Shrink))
                         .push(Container::new(
+                            Button::new(
+                                &mut self.operate_button,
+                                Icon::PlayCircleOutline.as_text().width(Length::Units(45)),
+                            )
+                            .on_press(match operation {
+                                None => Message::ProcessGameOnDemand {
+                                    game: self.scan_info.game_name.clone(),
+                                    restore: restoring,
+                                },
+                                Some(_) => Message::Ignore,
+                            })
+                            .style(if operation.is_some() {
+                                style::Button::Disabled
+                            } else {
+                                style::Button::Primary
+                            })
+                            .padding(2),
+                        ))
+                        .push(Space::new(Length::Units(15), Length::Shrink))
+                        .push(Container::new(
                             Button::new(&mut self.wiki_button, Icon::Language.as_text().width(Length::Units(45)))
                                 .on_press(if customized_pure {
                                     Message::Ignore
@@ -197,6 +221,7 @@ impl GameList {
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
+        operation: &Option<OngoingOperation>,
     ) -> Container<Message> {
         let use_search = self.search.show;
         let search_game_name = self.search.game_name.clone();
@@ -221,7 +246,14 @@ impl GameList {
                                     .is_some()
                             {
                                 parent
-                                    .push(x.view(restoring, translator, config, manifest, duplicate_detector))
+                                    .push(x.view(
+                                        restoring,
+                                        translator,
+                                        config,
+                                        manifest,
+                                        duplicate_detector,
+                                        operation,
+                                    ))
                                     .push(Space::new(Length::Units(0), Length::Units(10)))
                             } else {
                                 parent
@@ -242,18 +274,19 @@ impl GameList {
         })
     }
 
-    pub fn count_selected_entries(&self, config: &Config, restoring: bool) -> (usize, u64) {
-        let mut games = 0;
-        let mut bytes = 0;
+    pub fn compute_operation_status(&self, config: &Config, restoring: bool) -> OperationStatus {
+        let mut status = OperationStatus::default();
         for entry in self.entries.iter() {
+            status.total_games += 1;
+            status.total_bytes += entry.scan_info.total_possible_bytes();
             if (restoring && config.is_game_enabled_for_restore(&entry.scan_info.game_name))
                 || (!restoring && config.is_game_enabled_for_backup(&entry.scan_info.game_name))
             {
-                games += 1;
-                bytes += entry.scan_info.sum_bytes(&None);
+                status.processed_games += 1;
+                status.processed_bytes += entry.scan_info.sum_bytes(&None);
             }
         }
-        (games, bytes)
+        status
     }
 
     pub fn update_ignored(&mut self, game: &str, ignored_paths: &ToggledPaths, ignored_registry: &ToggledRegistry) {

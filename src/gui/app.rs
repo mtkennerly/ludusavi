@@ -61,6 +61,211 @@ pub struct App {
     progress: DisappearingProgress,
 }
 
+impl App {
+    fn start_backup(&mut self, preview: bool, games: Option<Vec<String>>) -> Command<Message> {
+        if self.operation.is_some() {
+            return Command::none();
+        }
+
+        let backup_path = &self.config.backup.path;
+        if !preview {
+            if let Err(e) = prepare_backup_target(
+                backup_path,
+                if games.is_some() {
+                    true
+                } else {
+                    self.config.backup.merge
+                },
+            ) {
+                self.modal_theme = Some(ModalTheme::Error { variant: e });
+                return Command::none();
+            }
+        }
+
+        let mut all_games = self.manifest.clone();
+        for custom_game in &self.config.custom_games {
+            if custom_game.ignore {
+                continue;
+            }
+            all_games.add_custom_game(custom_game.clone());
+        }
+
+        if preview {
+            self.backup_screen.recent_found_games.clear();
+        }
+
+        if let Some(ref games) = games {
+            all_games.0.retain(|k, _| games.contains(k));
+        } else if !self.backup_screen.recent_found_games.is_empty() {
+            all_games
+                .0
+                .retain(|k, _| self.backup_screen.recent_found_games.contains(k));
+        }
+
+        let subjects: Vec<_> = all_games.0.keys().cloned().collect();
+
+        if let Some(ref games) = games {
+            self.backup_screen
+                .log
+                .entries
+                .retain(|entry| !games.contains(&entry.scan_info.game_name))
+        } else {
+            self.backup_screen.log.entries.clear();
+            self.backup_screen.duplicate_detector.clear();
+        }
+        self.modal_theme = None;
+        self.progress.current = 0.0;
+        self.progress.max = all_games.0.len() as f32;
+
+        self.operation = Some(if preview {
+            OngoingOperation::PreviewBackup
+        } else {
+            OngoingOperation::Backup
+        });
+
+        let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone()));
+        let filter = std::sync::Arc::new(self.config.backup.filter.clone());
+        let ranking = InstallDirRanking::scan(&self.config.roots, &all_games, &subjects);
+
+        let mut commands: Vec<Command<Message>> = vec![];
+        for key in subjects {
+            let game = all_games.0[&key].clone();
+            let roots = self.config.roots.clone();
+            let layout2 = layout.clone();
+            let filter2 = filter.clone();
+            let ranking = ranking.clone();
+            let toggled_paths = self.config.backup.toggled_paths.clone();
+            let toggled_registry = self.config.backup.toggled_registry.clone();
+            let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
+            let cancel_flag = self.operation_should_cancel.clone();
+            let ignored = !self.config.is_game_enabled_for_backup(&key);
+            let merge = self.config.backup.merge;
+            commands.push(Command::perform(
+                async move {
+                    if key.trim().is_empty() {
+                        return (None, None, OperationStepDecision::Ignored);
+                    }
+                    if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                        // TODO: https://github.com/hecrj/iced/issues/436
+                        std::thread::sleep(std::time::Duration::from_millis(1));
+                        return (None, None, OperationStepDecision::Cancelled);
+                    }
+
+                    let scan_info = scan_game_for_backup(
+                        &game,
+                        &key,
+                        &roots,
+                        &StrictPath::from_std_path_buf(&app_dir()),
+                        &steam_id,
+                        &filter2,
+                        &None,
+                        &ranking,
+                        &toggled_paths,
+                        &toggled_registry,
+                    );
+                    if ignored {
+                        return (Some(scan_info), None, OperationStepDecision::Ignored);
+                    }
+
+                    let backup_info = if !preview {
+                        Some(back_up_game(&scan_info, &key, &layout2, merge))
+                    } else {
+                        None
+                    };
+                    (Some(scan_info), backup_info, OperationStepDecision::Processed)
+                },
+                move |(scan_info, backup_info, decision)| Message::BackupStep {
+                    scan_info,
+                    backup_info,
+                    decision,
+                    preview,
+                },
+            ));
+        }
+
+        Command::batch(commands)
+    }
+
+    fn start_restore(&mut self, preview: bool, games: Option<Vec<String>>) -> Command<Message> {
+        if self.operation.is_some() {
+            return Command::none();
+        }
+
+        let restore_path = &self.config.restore.path;
+        if !restore_path.is_dir() {
+            self.modal_theme = Some(ModalTheme::Error {
+                variant: Error::RestorationSourceInvalid {
+                    path: restore_path.clone(),
+                },
+            });
+            return Command::none();
+        }
+
+        let layout = std::sync::Arc::new(BackupLayout::new(restore_path.clone()));
+        let mut restorables: Vec<_> = layout.mapping.games.keys().cloned().collect();
+
+        if let Some(games) = games {
+            restorables.retain(|v| games.contains(v));
+            self.restore_screen
+                .log
+                .entries
+                .retain(|entry| !games.contains(&entry.scan_info.game_name))
+        } else {
+            self.restore_screen.log.entries.clear();
+            self.restore_screen.duplicate_detector.clear();
+        }
+        self.modal_theme = None;
+
+        if restorables.is_empty() {
+            return Command::none();
+        }
+
+        self.operation = Some(if preview {
+            OngoingOperation::PreviewRestore
+        } else {
+            OngoingOperation::Restore
+        });
+        self.progress.current = 0.0;
+        self.progress.max = restorables.len() as f32;
+
+        let mut commands: Vec<Command<Message>> = vec![];
+        for name in restorables {
+            let redirects = self.config.get_redirects();
+            let layout2 = layout.clone();
+            let cancel_flag = self.operation_should_cancel.clone();
+            let ignored = !self.config.is_game_enabled_for_restore(&name);
+            commands.push(Command::perform(
+                async move {
+                    if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                        // TODO: https://github.com/hecrj/iced/issues/436
+                        std::thread::sleep(std::time::Duration::from_millis(1));
+                        return (None, None, OperationStepDecision::Cancelled);
+                    }
+
+                    let scan_info = scan_game_for_restoration(&name, &layout2);
+                    if ignored {
+                        return (Some(scan_info), None, OperationStepDecision::Ignored);
+                    }
+
+                    let backup_info = if !preview {
+                        Some(restore_game(&scan_info, &redirects))
+                    } else {
+                        None
+                    };
+                    (Some(scan_info), backup_info, OperationStepDecision::Processed)
+                },
+                move |(scan_info, backup_info, decision)| Message::RestoreStep {
+                    scan_info,
+                    backup_info,
+                    decision,
+                },
+            ));
+        }
+
+        Command::batch(commands)
+    }
+}
+
 impl Application for App {
     type Executor = executor::Default;
     type Message = Message;
@@ -119,196 +324,20 @@ impl Application for App {
                 Command::none()
             }
             Message::Ignore => Command::none(),
-            Message::ConfirmBackupStart => {
-                self.modal_theme = Some(ModalTheme::ConfirmBackup);
+            Message::ConfirmBackupStart { games } => {
+                self.modal_theme = Some(ModalTheme::ConfirmBackup { games });
                 Command::none()
             }
-            Message::ConfirmRestoreStart => {
-                self.modal_theme = Some(ModalTheme::ConfirmRestore);
+            Message::ConfirmRestoreStart { games } => {
+                self.modal_theme = Some(ModalTheme::ConfirmRestore { games });
                 Command::none()
             }
-            Message::BackupStart { preview } => {
-                if self.operation.is_some() {
-                    return Command::none();
-                }
-
-                let backup_path = &self.config.backup.path;
-                if !preview {
-                    if let Err(e) = prepare_backup_target(backup_path, self.config.backup.merge) {
-                        self.modal_theme = Some(ModalTheme::Error { variant: e });
-                        return Command::none();
-                    }
-                }
-
-                let mut all_games = self.manifest.clone();
-                for custom_game in &self.config.custom_games {
-                    if custom_game.ignore {
-                        continue;
-                    }
-                    all_games.add_custom_game(custom_game.clone());
-                }
-
-                if preview {
-                    self.backup_screen.recent_found_games.clear();
-                } else if !self.backup_screen.recent_found_games.is_empty() {
-                    all_games
-                        .0
-                        .retain(|k, _| self.backup_screen.recent_found_games.contains(k));
-                }
-
-                let mut subjects: Vec<_> = all_games.0.keys().cloned().collect();
-                subjects.sort();
-
-                self.backup_screen.status.clear();
-                self.backup_screen.log.entries.clear();
-                self.modal_theme = None;
-                self.progress.current = 0.0;
-                self.progress.max = all_games.0.len() as f32;
-                self.backup_screen.duplicate_detector.clear();
-
-                self.operation = Some(if preview {
-                    OngoingOperation::PreviewBackup
-                } else {
-                    OngoingOperation::Backup
-                });
-
-                let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone()));
-                let filter = std::sync::Arc::new(self.config.backup.filter.clone());
-                let ranking = InstallDirRanking::scan(&self.config.roots, &all_games, &subjects);
-
-                let mut commands: Vec<Command<Message>> = vec![];
-                for key in all_games.0.iter().map(|(k, _)| k.clone()) {
-                    let game = all_games.0[&key].clone();
-                    let roots = self.config.roots.clone();
-                    let layout2 = layout.clone();
-                    let filter2 = filter.clone();
-                    let ranking = ranking.clone();
-                    let toggled_paths = self.config.backup.toggled_paths.clone();
-                    let toggled_registry = self.config.backup.toggled_registry.clone();
-                    let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
-                    let cancel_flag = self.operation_should_cancel.clone();
-                    let ignored = !self.config.is_game_enabled_for_backup(&key);
-                    let merge = self.config.backup.merge;
-                    commands.push(Command::perform(
-                        async move {
-                            if key.trim().is_empty() {
-                                return (None, None, OperationStepDecision::Ignored);
-                            }
-                            if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
-                                // TODO: https://github.com/hecrj/iced/issues/436
-                                std::thread::sleep(std::time::Duration::from_millis(1));
-                                return (None, None, OperationStepDecision::Cancelled);
-                            }
-
-                            let scan_info = scan_game_for_backup(
-                                &game,
-                                &key,
-                                &roots,
-                                &StrictPath::from_std_path_buf(&app_dir()),
-                                &steam_id,
-                                &filter2,
-                                &None,
-                                &ranking,
-                                &toggled_paths,
-                                &toggled_registry,
-                            );
-                            if ignored {
-                                return (Some(scan_info), None, OperationStepDecision::Ignored);
-                            }
-
-                            let backup_info = if !preview {
-                                Some(back_up_game(&scan_info, &key, &layout2, merge))
-                            } else {
-                                None
-                            };
-                            (Some(scan_info), backup_info, OperationStepDecision::Processed)
-                        },
-                        move |(scan_info, backup_info, decision)| Message::BackupStep {
-                            scan_info,
-                            backup_info,
-                            decision,
-                            preview,
-                        },
-                    ));
-                }
-
-                Command::batch(commands)
-            }
-            Message::RestoreStart { preview } => {
-                if self.operation.is_some() {
-                    return Command::none();
-                }
-
-                let restore_path = &self.config.restore.path;
-                if !restore_path.is_dir() {
-                    self.modal_theme = Some(ModalTheme::Error {
-                        variant: Error::RestorationSourceInvalid {
-                            path: restore_path.clone(),
-                        },
-                    });
-                    return Command::none();
-                }
-
-                let layout = std::sync::Arc::new(BackupLayout::new(restore_path.clone()));
-                let restorables: Vec<_> = layout.mapping.games.keys().cloned().collect();
-
-                self.restore_screen.status.clear();
-                self.restore_screen.log.entries.clear();
-                self.modal_theme = None;
-                self.restore_screen.duplicate_detector.clear();
-
-                if restorables.is_empty() {
-                    return Command::none();
-                }
-
-                self.operation = Some(if preview {
-                    OngoingOperation::PreviewRestore
-                } else {
-                    OngoingOperation::Restore
-                });
-                self.progress.current = 0.0;
-                self.progress.max = restorables.len() as f32;
-
-                let mut commands: Vec<Command<Message>> = vec![];
-                for name in restorables {
-                    let redirects = self.config.get_redirects();
-                    let layout2 = layout.clone();
-                    let cancel_flag = self.operation_should_cancel.clone();
-                    let ignored = !self.config.is_game_enabled_for_restore(&name);
-                    commands.push(Command::perform(
-                        async move {
-                            if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
-                                // TODO: https://github.com/hecrj/iced/issues/436
-                                std::thread::sleep(std::time::Duration::from_millis(1));
-                                return (None, None, OperationStepDecision::Cancelled);
-                            }
-
-                            let scan_info = scan_game_for_restoration(&name, &layout2);
-                            if ignored {
-                                return (Some(scan_info), None, OperationStepDecision::Ignored);
-                            }
-
-                            let backup_info = if !preview {
-                                Some(restore_game(&scan_info, &redirects))
-                            } else {
-                                None
-                            };
-                            (Some(scan_info), backup_info, OperationStepDecision::Processed)
-                        },
-                        move |(scan_info, backup_info, decision)| Message::RestoreStep {
-                            scan_info,
-                            backup_info,
-                            decision,
-                        },
-                    ));
-                }
-
-                Command::batch(commands)
-            }
+            Message::BackupStart { preview, games } => self.start_backup(preview, games),
+            Message::RestoreStart { preview, games } => self.start_restore(preview, games),
             Message::BackupStep {
                 scan_info,
                 backup_info,
-                decision,
+                decision: _,
                 preview,
             } => {
                 self.progress.current += 1.0;
@@ -318,11 +347,6 @@ impl Application for App {
                         self.backup_screen
                             .recent_found_games
                             .insert(scan_info.game_name.clone());
-                        self.backup_screen.status.add_game(
-                            &scan_info,
-                            &backup_info,
-                            decision == OperationStepDecision::Processed,
-                        );
                         self.backup_screen.log.entries.push(GameListEntry {
                             scan_info,
                             backup_info,
@@ -339,17 +363,12 @@ impl Application for App {
             Message::RestoreStep {
                 scan_info,
                 backup_info,
-                decision,
+                decision: _,
             } => {
                 self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
                         self.restore_screen.duplicate_detector.add_game(&scan_info);
-                        self.restore_screen.status.add_game(
-                            &scan_info,
-                            &backup_info,
-                            decision == OperationStepDecision::Processed,
-                        );
                         self.restore_screen.log.entries.push(GameListEntry {
                             scan_info,
                             backup_info,
@@ -411,6 +430,17 @@ impl Application for App {
                     }
                 }
                 Command::perform(async move {}, move |_| Message::Idle)
+            }
+            Message::ProcessGameOnDemand { game, restore } => {
+                if restore {
+                    Command::perform(async move {}, move |_| Message::ConfirmRestoreStart {
+                        games: Some(vec![game.clone()]),
+                    })
+                } else {
+                    Command::perform(async move {}, move |_| Message::ConfirmBackupStart {
+                        games: Some(vec![game.clone()]),
+                    })
+                }
             }
             Message::EditedBackupTarget(text) => {
                 self.backup_screen.backup_target_history.push(&text);

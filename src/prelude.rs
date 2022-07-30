@@ -205,13 +205,6 @@ pub struct OperationStatus {
 }
 
 impl OperationStatus {
-    pub fn clear(&mut self) {
-        self.total_games = 0;
-        self.total_bytes = 0;
-        self.processed_games = 0;
-        self.processed_bytes = 0;
-    }
-
     pub fn add_game(&mut self, scan_info: &ScanInfo, backup_info: &Option<BackupInfo>, processed: bool) {
         self.total_games += 1;
         self.total_bytes += scan_info.total_possible_bytes();
@@ -231,15 +224,6 @@ impl OperationStatus {
 
     pub fn processed_all_bytes(&self) -> bool {
         self.total_bytes == self.processed_bytes
-    }
-
-    pub fn with_selection(&self, games: usize, bytes: u64) -> Self {
-        Self {
-            total_games: self.total_games,
-            total_bytes: self.total_bytes,
-            processed_games: games,
-            processed_bytes: bytes,
-        }
     }
 }
 
