@@ -15,19 +15,15 @@ badge-duplicates = DUPLICATES
 badge-duplicated = DUPLICATED
 badge-ignored = IGNORED
 badge-redirected-from = FROM: {$path}
-badge-selecting = SELECTING {$total-games} {$total-games ->
-    [one] GAME
-   *[other] GAMES
-}, {$total-size}
 
-some-entries-failed = Some entries failed to process; look for {label-failed} in the output for details. Double check whether you can access those files or whether their paths are very long.
+some-entries-failed = Some entries failed to process; look for {badge-failed} in the output for details. Double check whether you can access those files or whether their paths are very long.
 
 cli-game-line-item-redirected = Redirected from: {$path}
 cli-summary =
     .succeeded =
         Overall:
-          Games: {$total-games}
-          Size: {$total-size}
+          Games: {$processed-games}
+          Size: {$processed-size}
           Location: {$path}
     .failed =
         Overall:
@@ -91,6 +87,7 @@ field-custom-game-name =
     .placeholder = Name
 field-search-game-name =
     .placeholder = Name
+field-backup-excluded-items = Backup exclusions:
 
 store-epic = Epic
 store-gog = GOG

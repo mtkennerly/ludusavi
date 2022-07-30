@@ -3,7 +3,7 @@ use crate::{
     gui::badge::Badge,
     lang::Translator,
     manifest::Store,
-    prelude::{BackupInfo, OperationStatus, OperationStepDecision, ScanInfo, StrictPath},
+    prelude::{BackupInfo, OperationStatus, OperationStepDecision, RegistryItem, ScanInfo, StrictPath},
     shortcuts::{Shortcut, TextHistory},
 };
 
@@ -50,6 +50,8 @@ pub enum Message {
     EditedCustomGameRegistry(usize, EditAction),
     EditedExcludeOtherOsData(bool),
     EditedExcludeStoreScreenshots(bool),
+    EditedBackupFilterIgnoredPath(EditAction),
+    EditedBackupFilterIgnoredRegistry(EditAction),
     SwitchScreen(Screen),
     ToggleGameListEntryExpanded {
         name: String,
@@ -65,6 +67,16 @@ pub enum Message {
     },
     ToggleSearch {
         screen: Screen,
+    },
+    ToggleSpecificBackupPathIgnored {
+        name: String,
+        path: StrictPath,
+        enabled: bool,
+    },
+    ToggleSpecificBackupRegistryIgnored {
+        name: String,
+        path: RegistryItem,
+        enabled: bool,
     },
     ToggleCustomGameEnabled {
         index: usize,
@@ -137,6 +149,7 @@ pub enum BrowseSubject {
     RedirectSource(usize),
     RedirectTarget(usize),
     CustomGameFile(usize, usize),
+    BackupFilterIgnoredPath(usize),
 }
 
 impl Default for Screen {
@@ -146,6 +159,21 @@ impl Default for Screen {
 }
 
 pub fn apply_shortcut_to_strict_path_field(shortcut: &Shortcut, config: &mut StrictPath, history: &mut TextHistory) {
+    match shortcut {
+        Shortcut::Undo => {
+            config.reset(history.undo());
+        }
+        Shortcut::Redo => {
+            config.reset(history.redo());
+        }
+    }
+}
+
+pub fn apply_shortcut_to_registry_path_field(
+    shortcut: &Shortcut,
+    config: &mut RegistryItem,
+    history: &mut TextHistory,
+) {
     match shortcut {
         Shortcut::Undo => {
             config.reset(history.undo());
@@ -173,27 +201,26 @@ pub fn make_status_row<'a>(
     (selected_games, selected_bytes): (usize, u64),
     found_any_duplicates: bool,
 ) -> Row<'a, Message> {
-    let show_selection = selected_games != status.processed_games || selected_bytes != status.processed_bytes;
+    let status = status.with_selection(selected_games, selected_bytes);
     Row::new()
         .padding(20)
         .align_items(Alignment::Center)
-        .push(Text::new(translator.processed_games(status)).size(35))
+        .push(Text::new(translator.processed_games(&status)).size(35))
         .push(Text::new("  |  ").size(35))
-        .push(Text::new(translator.processed_bytes(status)).size(35))
+        .push(Text::new(translator.processed_bytes(&status)).size(35))
         .push(
             Badge::new(&translator.badge_duplicates())
                 .left_margin(15)
                 .view_if(found_any_duplicates),
         )
-        .push(
-            Badge::new(&translator.badge_selected_games(selected_games, selected_bytes))
-                .left_margin(15)
-                .view_if(show_selection),
-        )
 }
 
 pub trait IcedExtension<'a> {
     fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
+    where
+        E: Into<iced::Element<'a, Message>>;
+
+    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
     where
         E: Into<iced::Element<'a, Message>>;
 }
@@ -209,6 +236,17 @@ impl<'a> IcedExtension<'a> for iced::Column<'a, Message> {
             self
         }
     }
+
+    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
+    where
+        E: Into<iced::Element<'a, Message>>,
+    {
+        if let Some(element) = element() {
+            self.push(element.into())
+        } else {
+            self
+        }
+    }
 }
 
 impl<'a> IcedExtension<'a> for iced::Row<'a, Message> {
@@ -218,6 +256,17 @@ impl<'a> IcedExtension<'a> for iced::Row<'a, Message> {
     {
         if condition() {
             self.push(element().into())
+        } else {
+            self
+        }
+    }
+
+    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
+    where
+        E: Into<iced::Element<'a, Message>>,
+    {
+        if let Some(element) = element() {
+            self.push(element.into())
         } else {
             self
         }

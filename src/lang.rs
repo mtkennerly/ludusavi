@@ -162,19 +162,19 @@ impl Translator {
     }
 
     pub fn label_failed(&self) -> String {
-        self.label(&translate("badge-failed"))
+        self.label(&self.badge_failed())
     }
 
     pub fn label_duplicates(&self) -> String {
-        self.label(&translate("badge-duplicates"))
+        self.label(&self.badge_duplicates())
     }
 
     pub fn label_duplicated(&self) -> String {
-        self.label(&translate("badge-duplicated"))
+        self.label(&self.badge_duplicated())
     }
 
     pub fn label_ignored(&self) -> String {
-        self.label(&translate("badge-ignored"))
+        self.label(&self.badge_ignored())
     }
 
     pub fn badge_failed(&self) -> String {
@@ -189,17 +189,14 @@ impl Translator {
         translate("badge-duplicated")
     }
 
+    pub fn badge_ignored(&self) -> String {
+        translate("badge-ignored")
+    }
+
     pub fn badge_redirected_from(&self, original: &StrictPath) -> String {
         let mut args = FluentArgs::new();
         args.set(PATH, original.render());
         translate_args("badge-redirected-from", &args)
-    }
-
-    pub fn badge_selected_games(&self, games: usize, bytes: u64) -> String {
-        let mut args = FluentArgs::new();
-        args.set(TOTAL_GAMES, games);
-        args.set(TOTAL_SIZE, self.adjusted_size(bytes));
-        translate_args("badge-selecting", &args)
     }
 
     pub fn cli_game_header(
@@ -224,10 +221,13 @@ impl Translator {
         }
     }
 
-    pub fn cli_game_line_item(&self, item: &str, successful: bool, duplicated: bool) -> String {
+    pub fn cli_game_line_item(&self, item: &str, successful: bool, ignored: bool, duplicated: bool) -> String {
         let mut parts = vec![];
         if !successful {
             parts.push(self.label_failed());
+        }
+        if ignored {
+            parts.push(self.label_ignored());
         }
         if duplicated {
             parts.push(self.label_duplicated());
@@ -251,7 +251,7 @@ impl Translator {
         args.set(TOTAL_SIZE, self.adjusted_size(status.total_bytes));
         args.set(PROCESSED_SIZE, self.adjusted_size(status.processed_bytes));
 
-        if status.completed() {
+        if status.processed_all() {
             translate_args("cli-summary.succeeded", &args)
         } else {
             translate_args("cli-summary.failed", &args)
@@ -404,7 +404,7 @@ impl Translator {
         args.set(TOTAL_GAMES, status.total_games);
         args.set(PROCESSED_GAMES, status.processed_games);
 
-        if status.completed() {
+        if status.processed_all_games() {
             translate_args("processed-games", &args)
         } else {
             translate_args("processed-games-subset", &args)
@@ -412,7 +412,7 @@ impl Translator {
     }
 
     pub fn processed_bytes(&self, status: &OperationStatus) -> String {
-        if status.completed() {
+        if status.processed_all_bytes() {
             self.adjusted_size(status.total_bytes)
         } else {
             let mut args = FluentArgs::new();
@@ -420,6 +420,13 @@ impl Translator {
             args.set(PROCESSED_SIZE, self.adjusted_size(status.processed_bytes));
             translate_args("processed-size-subset", &args)
         }
+    }
+
+    pub fn processed_subset(&self, total: usize, processed: usize) -> String {
+        let mut args = FluentArgs::new();
+        args.set(TOTAL_SIZE, total as u64);
+        args.set(PROCESSED_SIZE, processed as u64);
+        translate_args("processed-size-subset", &args)
     }
 
     pub fn backup_target_label(&self) -> String {
@@ -484,6 +491,10 @@ impl Translator {
 
     pub fn explanation_for_exclude_store_screenshots(&self) -> String {
         translate("explanation-for-exclude-store-screenshots")
+    }
+
+    pub fn ignored_items_label(&self) -> String {
+        translate("field-backup-excluded-items")
     }
 
     pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool) -> String {

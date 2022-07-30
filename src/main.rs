@@ -6,6 +6,7 @@ mod layout;
 mod manifest;
 mod path;
 mod prelude;
+mod registry_compat;
 mod serialization;
 mod shortcuts;
 
@@ -25,11 +26,11 @@ fn main() {
                 // window. Unfortunately, it does not seem to be possible to go the other direction
                 // (setting `#![windows_subsystem = "windows"]` and calling `AllocConsole`),
                 // so there's a brief console icon in the task bar, but no visible console window.
-                let code = unsafe { winapi::um::wincon::FreeConsole() };
-                if code == 0 {
-                    eprintln!("Unable to detach the console");
-                    std::process::exit(1);
-                }
+                // let code = unsafe { winapi::um::wincon::FreeConsole() };
+                // if code == 0 {
+                //     eprintln!("Unable to detach the console");
+                //     std::process::exit(1);
+                // }
             }
             gui::run_gui();
         }

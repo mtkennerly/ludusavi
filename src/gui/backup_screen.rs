@@ -15,7 +15,7 @@ use crate::{
 
 use iced::{
     alignment::Horizontal as HorizontalAlignment, button, text_input, Alignment, Button, Checkbox, Column, Container,
-    Length, Row, Space, Text, TextInput,
+    Length, Padding, Row, Space, Text, TextInput,
 };
 
 #[derive(Default)]
@@ -59,11 +59,21 @@ impl BackupScreenComponent {
     ) -> Container<Message> {
         Container::new(
             Column::new()
-                .padding(5)
+                .padding(Padding {
+                    top: 0,
+                    bottom: 5,
+                    left: 5,
+                    right: 5,
+                })
                 .align_items(Alignment::Center)
                 .push(
                     Row::new()
-                        .padding(20)
+                        .padding(Padding {
+                            top: 0,
+                            bottom: 20,
+                            left: 20,
+                            right: 20,
+                        })
                         .spacing(20)
                         .align_items(Alignment::Center)
                         .push(

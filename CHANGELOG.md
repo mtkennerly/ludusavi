@@ -41,6 +41,8 @@
   * During first-time setup, Ludusavi will now automatically detect roots for
     secondary Steam library folders (Windows/Linux/Mac) and non-default Epic
     install folders (Windows).
+  * It is now possible to ignore paths for backup across all games
+    and/or for specific games.
   * GUI: Button to find and add any missing roots. This is the same functionality
     as the automatic first-time setup, but is now available on demand.
   * Support for Prime Gaming roots.

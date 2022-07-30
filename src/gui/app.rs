@@ -22,6 +22,7 @@ use crate::{
         app_dir, back_up_game, prepare_backup_target, restore_game, scan_game_for_backup, scan_game_for_restoration,
         Error, InstallDirRanking, OperationStepDecision, StrictPath,
     },
+    registry_compat::RegistryItem,
     shortcuts::Shortcut,
 };
 
@@ -29,7 +30,7 @@ use iced::{
     alignment::Horizontal as HorizontalAlignment,
     button, executor,
     keyboard::{KeyCode, Modifiers},
-    Alignment, Application, Button, Column, Command, Element, Length, Row, Subscription, Text,
+    Alignment, Application, Button, Column, Command, Element, Length, Row, Space, Subscription, Text,
 };
 
 pub fn get_key_pressed(event: iced::keyboard::Event) -> Option<(KeyCode, Modifiers)> {
@@ -91,6 +92,7 @@ impl Application for App {
                 backup_screen: BackupScreenComponent::new(&config),
                 restore_screen: RestoreScreenComponent::new(&config),
                 custom_games_screen: CustomGamesScreenComponent::new(&config),
+                other_screen: OtherScreenComponent::new(&config),
                 translator,
                 config,
                 manifest,
@@ -181,6 +183,8 @@ impl Application for App {
                     let layout2 = layout.clone();
                     let filter2 = filter.clone();
                     let ranking = ranking.clone();
+                    let toggled_paths = self.config.backup.toggled_paths.clone();
+                    let toggled_registry = self.config.backup.toggled_registry.clone();
                     let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
                     let cancel_flag = self.operation_should_cancel.clone();
                     let ignored = !self.config.is_game_enabled_for_backup(&key);
@@ -205,6 +209,8 @@ impl Application for App {
                                 &filter2,
                                 &None,
                                 &ranking,
+                                &toggled_paths,
+                                &toggled_registry,
                             );
                             if ignored {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored);
@@ -581,6 +587,62 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::EditedBackupFilterIgnoredPath(action) => {
+                match action {
+                    EditAction::Add => {
+                        self.other_screen
+                            .ignored_items_editor
+                            .entry
+                            .files
+                            .push(crate::gui::ignored_items_editor::IgnoredItemsEditorEntryRow::default());
+                        self.config
+                            .backup
+                            .filter
+                            .ignored_paths
+                            .push(StrictPath::new("".to_string()));
+                    }
+                    EditAction::Change(index, value) => {
+                        self.other_screen.ignored_items_editor.entry.files[index]
+                            .text_history
+                            .push(&value);
+                        self.config.backup.filter.ignored_paths[index] = StrictPath::new(value);
+                    }
+                    EditAction::Remove(index) => {
+                        self.other_screen.ignored_items_editor.entry.files.remove(index);
+                        self.config.backup.filter.ignored_paths.remove(index);
+                    }
+                }
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedBackupFilterIgnoredRegistry(action) => {
+                match action {
+                    EditAction::Add => {
+                        self.other_screen
+                            .ignored_items_editor
+                            .entry
+                            .registry
+                            .push(crate::gui::ignored_items_editor::IgnoredItemsEditorEntryRow::default());
+                        self.config
+                            .backup
+                            .filter
+                            .ignored_registry
+                            .push(RegistryItem::new("".to_string()));
+                    }
+                    EditAction::Change(index, value) => {
+                        self.other_screen.ignored_items_editor.entry.registry[index]
+                            .text_history
+                            .push(&value);
+                        self.config.backup.filter.ignored_registry[index] = RegistryItem::new(value);
+                    }
+                    EditAction::Remove(index) => {
+                        self.other_screen.ignored_items_editor.entry.registry.remove(index);
+                        self.config.backup.filter.ignored_registry.remove(index);
+                    }
+                }
+                self.config.save();
+                Command::none()
+            }
             Message::SwitchScreen(screen) => {
                 self.screen = screen;
                 Command::none()
@@ -660,6 +722,26 @@ impl Application for App {
                 }
                 Command::none()
             }
+            Message::ToggleSpecificBackupPathIgnored { name, path, .. } => {
+                self.config.backup.toggled_paths.toggle(&name, &path);
+                self.config.save();
+                self.backup_screen.log.update_ignored(
+                    &name,
+                    &self.config.backup.toggled_paths,
+                    &self.config.backup.toggled_registry,
+                );
+                Command::none()
+            }
+            Message::ToggleSpecificBackupRegistryIgnored { name, path, .. } => {
+                self.config.backup.toggled_registry.toggle(&name, &path);
+                self.config.save();
+                self.backup_screen.log.update_ignored(
+                    &name,
+                    &self.config.backup.toggled_paths,
+                    &self.config.backup.toggled_registry,
+                );
+                Command::none()
+            }
             Message::EditedSearchGameName { screen, value } => {
                 match screen {
                     Screen::Backup => {
@@ -696,6 +778,9 @@ impl Application for App {
                         BrowseSubject::CustomGameFile(i, j) => {
                             Message::EditedCustomGameFile(i, EditAction::Change(j, crate::path::render_pathbuf(&path)))
                         }
+                        BrowseSubject::BackupFilterIgnoredPath(i) => Message::EditedBackupFilterIgnoredPath(
+                            EditAction::Change(i, crate::path::render_pathbuf(&path)),
+                        ),
                     },
                     Ok(None) => Message::Ignore,
                     Err(_) => Message::BrowseDirFailure,
@@ -923,6 +1008,48 @@ impl Application for App {
                                         }
                                     }
                                 }
+                                for (i, row) in self
+                                    .other_screen
+                                    .ignored_items_editor
+                                    .entry
+                                    .files
+                                    .iter_mut()
+                                    .enumerate()
+                                {
+                                    if matched {
+                                        break;
+                                    }
+                                    if row.text_state.is_focused() {
+                                        apply_shortcut_to_strict_path_field(
+                                            &shortcut,
+                                            &mut self.config.backup.filter.ignored_paths[i],
+                                            &mut row.text_history,
+                                        );
+                                        matched = true;
+                                        break;
+                                    }
+                                }
+                                for (i, row) in self
+                                    .other_screen
+                                    .ignored_items_editor
+                                    .entry
+                                    .registry
+                                    .iter_mut()
+                                    .enumerate()
+                                {
+                                    if matched {
+                                        break;
+                                    }
+                                    if row.text_state.is_focused() {
+                                        apply_shortcut_to_registry_path_field(
+                                            &shortcut,
+                                            &mut self.config.backup.filter.ignored_registry[i],
+                                            &mut row.text_history,
+                                        );
+                                        matched = true;
+                                        break;
+                                    }
+                                }
                             }
 
                             if matched {
@@ -1007,6 +1134,7 @@ impl Application for App {
                         }),
                     ),
             )
+            .push(Space::with_height(Length::Units(25)))
             .push(
                 match self.screen {
                     Screen::Backup => {
@@ -1021,7 +1149,7 @@ impl Application for App {
                         self.custom_games_screen
                             .view(&self.config, &self.translator, &self.operation)
                     }
-                    Screen::Other => self.other_screen.view(&self.config, &self.translator),
+                    Screen::Other => self.other_screen.view(&self.config, &self.translator, &self.operation),
                 }
                 .height(Length::FillPortion(10_000)),
             )

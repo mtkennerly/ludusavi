@@ -11,7 +11,8 @@ use crate::{
 };
 
 use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, Alignment, Button, Column, Container, Length, Row, Text,
+    alignment::Horizontal as HorizontalAlignment, button, Alignment, Button, Column, Container, Length, Padding, Row,
+    Text,
 };
 
 #[derive(Default)]
@@ -49,11 +50,21 @@ impl CustomGamesScreenComponent {
     ) -> Container<Message> {
         Container::new(
             Column::new()
-                .padding(5)
+                .padding(Padding {
+                    top: 0,
+                    bottom: 5,
+                    left: 5,
+                    right: 5,
+                })
                 .align_items(Alignment::Center)
                 .push(
                     Row::new()
-                        .padding(20)
+                        .padding(Padding {
+                            top: 0,
+                            bottom: 20,
+                            left: 20,
+                            right: 20,
+                        })
                         .spacing(20)
                         .align_items(Alignment::Center)
                         .push(

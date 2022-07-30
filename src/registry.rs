@@ -1,4 +1,7 @@
-use crate::prelude::{Error, StrictPath};
+use crate::{
+    config::{BackupFilter, ToggledRegistry},
+    prelude::{Error, RegistryItem, ScannedRegistry, StrictPath},
+};
 use winreg::types::{FromRegValue, ToRegValue};
 
 #[derive(Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -30,8 +33,50 @@ pub struct Entry {
     qword: Option<u64>,
 }
 
-pub struct RegistryInfo {
-    pub found: bool,
+pub fn scan_registry(
+    game: &str,
+    path: &str,
+    filter: &BackupFilter,
+    toggled: &ToggledRegistry,
+) -> Result<Vec<ScannedRegistry>, Error> {
+    let path = RegistryItem::new(path.to_string());
+
+    let (hive_name, key) = path.split_hive().ok_or(Error::RegistryIssue)?;
+    let hive = get_hkey_from_name(&hive_name).ok_or(Error::RegistryIssue)?;
+
+    scan_registry_key(game, hive, &hive_name, &key, filter, toggled)
+}
+
+fn scan_registry_key(
+    game: &str,
+    hive: winreg::HKEY,
+    hive_name: &str,
+    key: &str,
+    filter: &BackupFilter,
+    toggled: &ToggledRegistry,
+) -> Result<Vec<ScannedRegistry>, Error> {
+    let mut found = vec![];
+    let path = RegistryItem::new(format!("{}\\{}", hive_name, key));
+
+    let subkey = winreg::RegKey::predef(hive)
+        .open_subkey(key)
+        .map_err(|_| Error::RegistryIssue)?;
+
+    if !filter.is_registry_ignored(&path) {
+        found.push(ScannedRegistry {
+            path: path.rendered(),
+            ignored: toggled.is_ignored(game, &path),
+        });
+
+        for name in subkey.enum_keys().filter_map(|x| x.ok()) {
+            found.extend(
+                scan_registry_key(game, hive, hive_name, &format!("{}\\{}", key, name), filter, toggled)
+                    .unwrap_or_default(),
+            );
+        }
+    }
+
+    Ok(found)
 }
 
 impl Hives {
@@ -63,24 +108,18 @@ impl Hives {
         serde_yaml::to_string(self).unwrap()
     }
 
-    pub fn store_key_from_full_path(&mut self, path: &str) -> Result<RegistryInfo, Error> {
-        let path = path.replace('/', "\\");
+    pub fn store_key_from_full_path(&mut self, path: &str) -> Result<(), Error> {
+        let path = RegistryItem::new(path.to_string()).interpreted();
 
-        let parts: Vec<&str> = path.splitn(2, '\\').collect();
-        if parts.len() != 2 {
-            return Err(Error::RegistryIssue);
-        }
+        let (hive_name, key) = path.split_hive().ok_or(Error::RegistryIssue)?;
+        let hive = get_hkey_from_name(&hive_name).ok_or(Error::RegistryIssue)?;
 
-        let hive_name = parts[0];
-        let hive = get_hkey_from_name(hive_name).ok_or(Error::RegistryIssue)?;
-        let key = parts[1];
+        self.store_key(hive, &hive_name, &key)?;
 
-        let info = self.store_key(hive, hive_name, key)?;
-
-        Ok(info)
+        Ok(())
     }
 
-    pub fn store_key(&mut self, hive: winreg::HKEY, hive_name: &str, key: &str) -> Result<RegistryInfo, Error> {
+    pub fn store_key(&mut self, hive: winreg::HKEY, hive_name: &str, key: &str) -> Result<(), Error> {
         let subkey = winreg::RegKey::predef(hive)
             .open_subkey(key)
             .map_err(|_| Error::RegistryIssue)?;
@@ -106,18 +145,7 @@ impl Hives {
             }
         }
 
-        let mut failed = false;
-        for name in subkey.enum_keys().filter_map(|x| x.ok()) {
-            if self.store_key(hive, hive_name, &format!("{}\\{}", key, name)).is_err() {
-                failed = true;
-            }
-        }
-
-        if failed {
-            return Err(Error::RegistryIssue);
-        }
-
-        Ok(RegistryInfo { found: true })
+        Ok(())
     }
 
     pub fn restore(&self) -> Result<(), Error> {
@@ -302,29 +330,6 @@ mod tests {
             Hives(hashmap! {
                 s("HKEY_CURRENT_USER") => Keys(hashmap! {
                     s("Software\\Ludusavi") => Entries::default(),
-                    s("Software\\Ludusavi\\game3") => Entries(hashmap! {
-                        s("sz") => Entry {
-                            sz: Some(s("foo")),
-                            ..Default::default()
-                        },
-                        s("multiSz") => Entry {
-                            multi_sz: Some(s("bar")),
-                            ..Default::default()
-                        },
-                        s("expandSz") => Entry {
-                            expand_sz: Some(s("baz")),
-                            ..Default::default()
-                        },
-                        s("dword") => Entry {
-                            dword: Some(1),
-                            ..Default::default()
-                        },
-                        s("qword") => Entry {
-                            qword: Some(2),
-                            ..Default::default()
-                        },
-                    }),
-                    s("Software\\Ludusavi\\other") => Entries::default(),
                 })
             }),
             hives,

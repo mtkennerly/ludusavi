@@ -272,6 +272,42 @@ impl StrictPath {
 
         Ok(())
     }
+
+    pub fn is_prefix_of(&self, other: &StrictPath) -> bool {
+        let us_rendered = self.render();
+        let them_rendered = other.render();
+
+        let us_components = us_rendered.split('/');
+        let them_components = them_rendered.split('/');
+
+        if us_components.clone().count() >= them_components.clone().count() {
+            return false;
+        }
+        us_components.zip(them_components).all(|(us, them)| us == them)
+    }
+
+    pub fn nearest_prefix(&self, others: Vec<StrictPath>) -> Option<StrictPath> {
+        let us_rendered = self.render();
+        let us_components = us_rendered.split('/');
+        let us_count = us_components.clone().count();
+
+        let mut nearest = None;
+        let mut nearest_len = 0;
+        for other in others {
+            let them_rendered = other.render();
+            let them_components = them_rendered.split('/');
+            let them_len = them_components.clone().count();
+
+            if us_count <= them_len {
+                continue;
+            }
+            if us_components.clone().zip(them_components).all(|(us, them)| us == them) && them_len > nearest_len {
+                nearest = Some(other.clone());
+                nearest_len = them_len;
+            }
+        }
+        nearest
+    }
 }
 
 impl From<std::path::PathBuf> for StrictPath {
@@ -582,6 +618,35 @@ mod tests {
         #[cfg(not(target_os = "windows"))]
         fn can_split_drive_for_nonwindows_path() {
             assert_eq!((s(""), s("foo/bar")), StrictPath::new(s("/foo/bar")).split_drive());
+        }
+
+        #[test]
+        fn is_prefix_of() {
+            assert!(StrictPath::new(s(r#"/foo"#)).is_prefix_of(&StrictPath::new(s("/foo/bar"))));
+            assert!(!StrictPath::new(s(r#"/foo"#)).is_prefix_of(&StrictPath::new(s("/f"))));
+            assert!(!StrictPath::new(s(r#"/foo"#)).is_prefix_of(&StrictPath::new(s("/foo"))));
+            assert!(!StrictPath::new(s(r#"/foo"#)).is_prefix_of(&StrictPath::new(s("/bar"))));
+            assert!(!StrictPath::new(s(r#""#)).is_prefix_of(&StrictPath::new(s("/foo"))));
+        }
+
+        #[test]
+        fn nearest_prefix() {
+            assert_eq!(
+                Some(StrictPath::new(s(r#"/foo/bar"#))),
+                StrictPath::new(s(r#"/foo/bar/baz"#)).nearest_prefix(vec![
+                    StrictPath::new(s(r#"/foo"#)),
+                    StrictPath::new(s(r#"/foo/bar"#)),
+                    StrictPath::new(s(r#"/foo/bar/baz"#)),
+                ])
+            );
+            assert_eq!(
+                None,
+                StrictPath::new(s(r#"/foo/bar/baz"#)).nearest_prefix(vec![
+                    StrictPath::new(s(r#"/fo"#)),
+                    StrictPath::new(s(r#"/fooo"#)),
+                    StrictPath::new(s(r#"/foo/bar/baz"#)),
+                ])
+            );
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
     manifest::Store,
-    prelude::{app_dir, Error, StrictPath},
+    prelude::{app_dir, Error, RegistryItem, StrictPath},
 };
 
 const MANIFEST_URL: &str = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
@@ -53,7 +53,33 @@ pub struct BackupFilter {
         rename = "excludeStoreScreenshots"
     )]
     pub exclude_store_screenshots: bool,
+    #[serde(default, rename = "ignoredPaths")]
+    pub ignored_paths: Vec<StrictPath>,
+    #[serde(default, rename = "ignoredRegistry")]
+    pub ignored_registry: Vec<RegistryItem>,
 }
+
+impl BackupFilter {
+    pub fn is_path_ignored(&self, item: &StrictPath) -> bool {
+        let interpreted = item.interpret();
+        self.ignored_paths
+            .iter()
+            .any(|x| x.is_prefix_of(item) || x.interpret() == interpreted)
+    }
+
+    pub fn is_registry_ignored(&self, item: &RegistryItem) -> bool {
+        let interpreted = item.interpret();
+        self.ignored_registry
+            .iter()
+            .any(|x| x.is_prefix_of(item) || x.interpret() == interpreted)
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ToggledPaths(std::collections::BTreeMap<String, std::collections::BTreeMap<StrictPath, bool>>);
+
+#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ToggledRegistry(std::collections::BTreeMap<String, std::collections::BTreeMap<RegistryItem, bool>>);
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BackupConfig {
@@ -68,6 +94,10 @@ pub struct BackupConfig {
     pub merge: bool,
     #[serde(default)]
     pub filter: BackupFilter,
+    #[serde(default, rename = "toggledPaths")]
+    pub toggled_paths: ToggledPaths,
+    #[serde(default, rename = "toggledRegistry")]
+    pub toggled_registry: ToggledRegistry,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -110,6 +140,8 @@ impl Default for BackupConfig {
             ignored_games: std::collections::HashSet::new(),
             merge: false,
             filter: BackupFilter::default(),
+            toggled_paths: Default::default(),
+            toggled_registry: Default::default(),
         }
     }
 }
@@ -340,6 +372,177 @@ impl Config {
     }
 }
 
+impl ToggledPaths {
+    #[cfg(test)]
+    pub fn new(data: std::collections::BTreeMap<String, std::collections::BTreeMap<StrictPath, bool>>) -> Self {
+        Self(data)
+    }
+
+    pub fn is_ignored(&self, game: &str, path: &StrictPath) -> bool {
+        let transitive = self.is_enabled_transitively(game, path);
+        let specific = self.is_enabled_specifically(game, path);
+        match (transitive, specific) {
+            (_, Some(x)) => !x,
+            (Some(x), _) => !x,
+            _ => false,
+        }
+    }
+
+    fn is_enabled_transitively(&self, game: &str, path: &StrictPath) -> Option<bool> {
+        self.0.get(game).and_then(|x| {
+            path.nearest_prefix(x.keys().cloned().collect())
+                .as_ref()
+                .map(|prefix| x[prefix])
+        })
+    }
+
+    fn is_enabled_specifically(&self, game: &str, path: &StrictPath) -> Option<bool> {
+        self.0.get(game).and_then(|x| match x.get(path) {
+            Some(enabled) => Some(*enabled),
+            None => x
+                .iter()
+                .find(|(k, _)| path.interpret() == k.interpret())
+                .map(|(_, v)| *v),
+        })
+    }
+
+    fn set_enabled(&mut self, game: &str, path: &StrictPath, enabled: bool) {
+        self.remove_with_children(game, path);
+        self.0
+            .entry(game.to_string())
+            .or_insert_with(Default::default)
+            .insert(path.clone(), enabled);
+    }
+
+    fn remove(&mut self, game: &str, path: &StrictPath) {
+        self.remove_with_children(game, path);
+        if self.0[game].is_empty() {
+            self.0.remove(game);
+        }
+    }
+
+    fn remove_with_children(&mut self, game: &str, path: &StrictPath) {
+        let keys: Vec<_> = self
+            .0
+            .get(game)
+            .map(|x| x.keys().cloned().collect())
+            .unwrap_or_default();
+        for key in keys {
+            if path.is_prefix_of(&key) || key.interpret() == path.interpret() {
+                self.0.get_mut(game).map(|entry| entry.remove(&key));
+            }
+        }
+    }
+
+    pub fn toggle(&mut self, game: &str, path: &StrictPath) {
+        let transitive = self.is_enabled_transitively(game, path);
+        let specific = self.is_enabled_specifically(game, path);
+        match (transitive, specific) {
+            (None, None | Some(true)) => {
+                self.set_enabled(game, path, false);
+            }
+            (None, Some(false)) => {
+                self.remove(game, path);
+            }
+            (Some(x), None) => {
+                self.set_enabled(game, path, !x);
+            }
+            (Some(x), Some(y)) if x == y => {
+                self.set_enabled(game, path, !x);
+            }
+            (Some(_), Some(_)) => {
+                self.remove(game, path);
+            }
+        }
+    }
+}
+
+impl ToggledRegistry {
+    #[cfg(test)]
+    pub fn new(data: std::collections::BTreeMap<String, std::collections::BTreeMap<RegistryItem, bool>>) -> Self {
+        Self(data)
+    }
+
+    pub fn is_ignored(&self, game: &str, path: &RegistryItem) -> bool {
+        let transitive = self.is_enabled_transitively(game, path);
+        let specific = self.is_enabled_specifically(game, path);
+        match (transitive, specific) {
+            (_, Some(x)) => !x,
+            (Some(x), _) => !x,
+            _ => false,
+        }
+    }
+
+    fn is_enabled_transitively(&self, game: &str, path: &RegistryItem) -> Option<bool> {
+        self.0.get(game).and_then(|x| {
+            path.nearest_prefix(x.keys().cloned().collect())
+                .as_ref()
+                .map(|prefix| x[prefix])
+        })
+    }
+
+    fn is_enabled_specifically(&self, game: &str, path: &RegistryItem) -> Option<bool> {
+        self.0.get(game).and_then(|x| match x.get(path) {
+            Some(enabled) => Some(*enabled),
+            None => x
+                .iter()
+                .find(|(k, _)| path.interpret() == k.interpret())
+                .map(|(_, v)| *v),
+        })
+    }
+
+    fn set_enabled(&mut self, game: &str, path: &RegistryItem, enabled: bool) {
+        self.remove_with_children(game, path);
+        self.0
+            .entry(game.to_string())
+            .or_insert_with(Default::default)
+            .insert(path.clone(), enabled);
+    }
+
+    fn remove(&mut self, game: &str, path: &RegistryItem) {
+        self.remove_with_children(game, path);
+        self.0.get_mut(game).map(|entry| entry.remove(path));
+        if self.0[game].is_empty() {
+            self.0.remove(game);
+        }
+    }
+
+    fn remove_with_children(&mut self, game: &str, path: &RegistryItem) {
+        let keys: Vec<_> = self
+            .0
+            .get(game)
+            .map(|x| x.keys().cloned().collect())
+            .unwrap_or_default();
+        for key in keys {
+            if path.is_prefix_of(&key) || key.interpret() == path.interpret() {
+                self.0.get_mut(game).map(|entry| entry.remove(&key));
+            }
+        }
+    }
+
+    pub fn toggle(&mut self, game: &str, path: &RegistryItem) {
+        let transitive = self.is_enabled_transitively(game, path);
+        let specific = self.is_enabled_specifically(game, path);
+        match (transitive, specific) {
+            (None, None | Some(true)) => {
+                self.set_enabled(game, path, false);
+            }
+            (None, Some(false)) => {
+                self.remove(game, path);
+            }
+            (Some(x), None) => {
+                self.set_enabled(game, path, !x);
+            }
+            (Some(x), Some(y)) if x == y => {
+                self.set_enabled(game, path, !x);
+            }
+            (Some(_), Some(_)) => {
+                self.remove(game, path);
+            }
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -380,7 +583,10 @@ mod tests {
                     filter: BackupFilter {
                         exclude_other_os_data: false,
                         exclude_store_screenshots: false,
+                        ..Default::default()
                     },
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -465,7 +671,10 @@ mod tests {
                     filter: BackupFilter {
                         exclude_other_os_data: true,
                         exclude_store_screenshots: true,
+                        ..Default::default()
                     },
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -535,7 +744,10 @@ mod tests {
                     filter: BackupFilter {
                         exclude_other_os_data: false,
                         exclude_store_screenshots: false,
+                        ..Default::default()
                     },
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -571,6 +783,10 @@ backup:
   filter:
     excludeOtherOsData: true
     excludeStoreScreenshots: true
+    ignoredPaths: []
+    ignoredRegistry: []
+  toggledPaths: {}
+  toggledRegistry: {}
 restore:
   path: ~/restore
   ignoredGames:
@@ -621,7 +837,10 @@ customGames:
                     filter: BackupFilter {
                         exclude_other_os_data: true,
                         exclude_store_screenshots: true,
+                        ..Default::default()
                     },
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -653,5 +872,258 @@ customGames:
             .unwrap()
             .trim(),
         );
+    }
+
+    mod ignored_paths {
+        use super::*;
+        use maplit::*;
+        use pretty_assertions::assert_eq;
+
+        fn repo() -> String {
+            env!("CARGO_MANIFEST_DIR").to_string()
+        }
+
+        fn repo_path(path: &str) -> String {
+            format!("{}/{}", repo(), path)
+        }
+
+        fn verify_toggle_registry_bouncing(mut toggled: ToggledPaths, path: &str, initial: bool, after: ToggledPaths) {
+            let untoggled = toggled.clone();
+
+            let path = StrictPath::new(path.to_string());
+            assert_eq!(initial, !toggled.is_ignored("game", &path));
+
+            toggled.toggle("game", &path);
+            assert_eq!(!initial, !toggled.is_ignored("game", &path));
+            assert_eq!(after, toggled);
+
+            toggled.toggle("game", &path);
+            assert_eq!(initial, !toggled.is_ignored("game", &path));
+            assert_eq!(untoggled, toggled);
+        }
+
+        fn verify_toggle_registry_sequential(
+            mut toggled: ToggledPaths,
+            path: &str,
+            initial: bool,
+            states: Vec<ToggledPaths>,
+        ) {
+            let path = StrictPath::new(path.to_string());
+            assert_eq!(initial, !toggled.is_ignored("game", &path));
+
+            let mut enabled = initial;
+            for state in states {
+                enabled = !enabled;
+                toggled.toggle("game", &path);
+                assert_eq!(enabled, !toggled.is_ignored("game", &path));
+                assert_eq!(state, toggled);
+            }
+        }
+
+        #[test]
+        fn transitively_unset_and_specifically_unset_or_disabled() {
+            verify_toggle_registry_bouncing(
+                ToggledPaths::default(),
+                &repo_path("tests/root1/game1/subdir/file2.txt"),
+                true,
+                ToggledPaths(btreemap! {
+                    s("game") => btreemap! {
+                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => false,
+                    }
+                }),
+            );
+        }
+
+        #[test]
+        fn transitively_unset_and_specifically_enabled() {
+            verify_toggle_registry_sequential(
+                ToggledPaths(btreemap! {
+                    s("game") => btreemap! {
+                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => true,
+                    }
+                }),
+                &repo_path("tests/root1/game1/subdir/file2.txt"),
+                true,
+                vec![
+                    ToggledPaths(btreemap! {
+                        s("game") => btreemap! {
+                            StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => false,
+                        }
+                    }),
+                    ToggledPaths::default(),
+                ],
+            );
+        }
+
+        #[test]
+        fn transitively_disabled_and_specifically_unset_or_enabled() {
+            verify_toggle_registry_bouncing(
+                ToggledPaths(btreemap! {
+                    s("game") => btreemap! {
+                        StrictPath::new(repo_path("tests/root1/game1/subdir")) => false,
+                    }
+                }),
+                &repo_path("tests/root1/game1/subdir/file2.txt"),
+                false,
+                ToggledPaths(btreemap! {
+                    s("game") => btreemap! {
+                        StrictPath::new(repo_path("tests/root1/game1/subdir")) => false,
+                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => true,
+                    }
+                }),
+            );
+        }
+
+        #[test]
+        fn transitively_disabled_and_specifically_disabled() {
+            verify_toggle_registry_sequential(
+                ToggledPaths(btreemap! {
+                    s("game") => btreemap! {
+                        StrictPath::new(repo_path("tests/root1/game1/subdir")) => false,
+                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => false,
+                    }
+                }),
+                &repo_path("tests/root1/game1/subdir/file2.txt"),
+                false,
+                vec![
+                    ToggledPaths(btreemap! {
+                        s("game") => btreemap! {
+                            StrictPath::new(repo_path("tests/root1/game1/subdir")) => false,
+                            StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => true,
+                        }
+                    }),
+                    ToggledPaths(btreemap! {
+                        s("game") => btreemap! {
+                            StrictPath::new(repo_path("tests/root1/game1/subdir")) => false,
+                        }
+                    }),
+                ],
+            );
+        }
+    }
+
+    mod ignored_registry {
+        use super::*;
+        use maplit::*;
+        use pretty_assertions::assert_eq;
+
+        fn verify_toggle_registry_bouncing(
+            mut toggled: ToggledRegistry,
+            path: &str,
+            initial: bool,
+            after: ToggledRegistry,
+        ) {
+            let untoggled = toggled.clone();
+
+            let path = RegistryItem::new(path.to_string());
+            assert_eq!(initial, !toggled.is_ignored("game", &path));
+
+            toggled.toggle("game", &path);
+            assert_eq!(!initial, !toggled.is_ignored("game", &path));
+            assert_eq!(after, toggled);
+
+            toggled.toggle("game", &path);
+            assert_eq!(initial, !toggled.is_ignored("game", &path));
+            assert_eq!(untoggled, toggled);
+        }
+
+        fn verify_toggle_registry_sequential(
+            mut toggled: ToggledRegistry,
+            path: &str,
+            initial: bool,
+            states: Vec<ToggledRegistry>,
+        ) {
+            let path = RegistryItem::new(path.to_string());
+            assert_eq!(initial, !toggled.is_ignored("game", &path));
+
+            let mut enabled = initial;
+            for state in states {
+                enabled = !enabled;
+                toggled.toggle("game", &path);
+                assert_eq!(enabled, !toggled.is_ignored("game", &path));
+                assert_eq!(state, toggled);
+            }
+        }
+
+        #[test]
+        fn transitively_unset_and_specifically_unset_or_disabled() {
+            verify_toggle_registry_bouncing(
+                ToggledRegistry::default(),
+                "HKEY_CURRENT_USER/Software/Ludusavi",
+                true,
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => false,
+                    }
+                }),
+            );
+        }
+
+        #[test]
+        fn transitively_unset_and_specifically_enabled() {
+            verify_toggle_registry_sequential(
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => true,
+                    }
+                }),
+                "HKEY_CURRENT_USER/Software/Ludusavi",
+                true,
+                vec![
+                    ToggledRegistry(btreemap! {
+                        s("game") => btreemap! {
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => false,
+                        }
+                    }),
+                    ToggledRegistry::default(),
+                ],
+            );
+        }
+
+        #[test]
+        fn transitively_disabled_and_specifically_unset_or_enabled() {
+            verify_toggle_registry_bouncing(
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => false,
+                    }
+                }),
+                "HKEY_CURRENT_USER/Software/Ludusavi",
+                false,
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => false,
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => true,
+                    }
+                }),
+            );
+        }
+
+        #[test]
+        fn transitively_disabled_and_specifically_disabled() {
+            verify_toggle_registry_sequential(
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => false,
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => false,
+                    }
+                }),
+                "HKEY_CURRENT_USER/Software/Ludusavi",
+                false,
+                vec![
+                    ToggledRegistry(btreemap! {
+                        s("game") => btreemap! {
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => false,
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => true,
+                        }
+                    }),
+                    ToggledRegistry(btreemap! {
+                        s("game") => btreemap! {
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => false,
+                        }
+                    }),
+                ],
+            );
+        }
     }
 }

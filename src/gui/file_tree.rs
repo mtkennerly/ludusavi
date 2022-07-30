@@ -1,11 +1,16 @@
 use crate::{
-    config::Config,
-    gui::{badge::Badge, common::Message, icon::Icon, style},
+    config::{Config, ToggledPaths, ToggledRegistry},
+    gui::{
+        badge::Badge,
+        common::{IcedExtension, Message},
+        icon::Icon,
+        style,
+    },
     lang::Translator,
     path::StrictPath,
-    prelude::{game_file_restoration_target, BackupInfo, DuplicateDetector, ScanInfo},
+    prelude::{game_file_restoration_target, BackupInfo, DuplicateDetector, RegistryItem, ScanInfo},
 };
-use iced::{button, Alignment, Button, Column, Container, Length, Row, Space, Text};
+use iced::{button, Alignment, Button, Checkbox, Column, Container, Length, Row, Space, Text};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum FileTreeNodeType {
@@ -19,22 +24,29 @@ impl Default for FileTreeNodeType {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum FileTreeNodePath {
+    File(StrictPath),
+    Registry(RegistryItem),
+}
+
 #[derive(Clone, Debug, Default)]
 struct FileTreeNode {
     keys: Vec<String>,
     expand_button: button::State,
     expanded: bool,
     open_button: button::State,
-    path: Option<StrictPath>,
+    path: Option<FileTreeNodePath>,
     nodes: std::collections::BTreeMap<String, FileTreeNode>,
     successful: bool,
+    ignored: bool,
     duplicated: bool,
     redirected_from: Option<StrictPath>,
     node_type: FileTreeNodeType,
 }
 
 impl FileTreeNode {
-    pub fn new(keys: Vec<String>, path: Option<StrictPath>, node_type: FileTreeNodeType) -> Self {
+    pub fn new(keys: Vec<String>, path: Option<FileTreeNodePath>, node_type: FileTreeNodeType) -> Self {
         Self {
             keys,
             path,
@@ -43,8 +55,55 @@ impl FileTreeNode {
         }
     }
 
-    pub fn view(&mut self, level: u16, label: &str, translator: &Translator, game_name: &str) -> Container<Message> {
+    pub fn anything_showable(&self) -> bool {
+        if self.nodes.is_empty() {
+            return true;
+        }
+        for node in self.nodes.values() {
+            if node.anything_showable() {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn view(
+        &mut self,
+        level: u16,
+        label: &str,
+        translator: &Translator,
+        game_name: &str,
+        config: &Config,
+        restoring: bool,
+    ) -> Container<Message> {
         let expanded = self.expanded;
+
+        let make_enabler = || {
+            if restoring {
+                return None;
+            }
+            if let Some(path) = &self.path {
+                let game_name = game_name.to_string();
+                let path = path.clone();
+                return Some(
+                    Container::new(Checkbox::new(!self.ignored, "", move |enabled| match &path {
+                        FileTreeNodePath::File(path) => Message::ToggleSpecificBackupPathIgnored {
+                            name: game_name.clone(),
+                            path: path.clone(),
+                            enabled,
+                        },
+                        FileTreeNodePath::Registry(path) => Message::ToggleSpecificBackupRegistryIgnored {
+                            name: game_name.clone(),
+                            path: path.clone(),
+                            enabled,
+                        },
+                    }))
+                    .align_x(iced::alignment::Horizontal::Center)
+                    .align_y(iced::alignment::Vertical::Center),
+                );
+            }
+            None
+        };
 
         if self.nodes.is_empty() {
             return Container::new(
@@ -58,16 +117,15 @@ impl FileTreeNode {
                             .size(25),
                     )
                     .push(Space::new(Length::Units(10), Length::Shrink))
+                    .push_some(make_enabler)
                     .push(Text::new(label))
-                    .push(
-                        Badge::new(&translator.badge_duplicated())
-                            .left_margin(15)
-                            .view_if(self.duplicated),
+                    .push_if(
+                        || self.duplicated,
+                        || Badge::new(&translator.badge_duplicated()).left_margin(15).view(),
                     )
-                    .push(
-                        Badge::new(&translator.badge_failed())
-                            .left_margin(15)
-                            .view_if(!self.successful),
+                    .push_if(
+                        || !self.successful,
+                        || Badge::new(&translator.badge_failed()).left_margin(15).view(),
                     )
                     .push(match &self.redirected_from {
                         Some(r) => Badge::new(&translator.badge_redirected_from(r)).left_margin(15).view(),
@@ -83,12 +141,14 @@ impl FileTreeNode {
                     &format!("{}/{}", label, key),
                     translator,
                     game_name,
+                    config,
+                    restoring,
                 ));
             }
         }
 
         Container::new(
-            self.nodes.iter_mut().fold(
+            self.nodes.iter_mut().filter(|(_, v)| v.anything_showable()).fold(
                 Column::new().push(
                     Row::new()
                         .align_items(Alignment::Center)
@@ -114,24 +174,28 @@ impl FileTreeNode {
                             .width(Length::Units(25)),
                         )
                         .push(Space::new(Length::Units(10), Length::Shrink))
+                        .push_some(make_enabler)
                         .push(Text::new(label))
                         .push(Space::new(Length::Units(10), Length::Shrink))
-                        .push(match &self.path {
-                            Some(path) if self.node_type == FileTreeNodeType::File => Container::new(
-                                Button::new(
-                                    &mut self.open_button,
-                                    Icon::OpenInNew.as_text().width(Length::Shrink).size(15),
-                                )
-                                .on_press(Message::OpenDir { path: path.clone() })
-                                .style(style::Button::Primary)
-                                .height(Length::Units(25)),
-                            ),
-                            _ => Container::new(Space::new(Length::Shrink, Length::Shrink)),
-                        }),
+                        .push_some(|| {
+                            if let Some(FileTreeNodePath::File(path)) = &self.path {
+                                return Some(
+                                    Button::new(
+                                        &mut self.open_button,
+                                        Icon::OpenInNew.as_text().width(Length::Shrink).size(15),
+                                    )
+                                    .on_press(Message::OpenDir { path: path.clone() })
+                                    .style(style::Button::Primary)
+                                    .height(Length::Units(25)),
+                                );
+                            }
+                            None
+                        })
+                        .push(Space::new(Length::Units(10), Length::Shrink)),
                 ),
                 |parent, (k, v)| {
                     if expanded {
-                        parent.push(v.view(level + 1, k, translator, game_name))
+                        parent.push(v.view(level + 1, k, translator, game_name, config, restoring))
                     } else {
                         parent
                     }
@@ -140,10 +204,10 @@ impl FileTreeNode {
         )
     }
 
-    fn insert_keys(
+    fn insert_keys<T: AsRef<str> + ToString>(
         &mut self,
-        keys: &[&str],
-        prefix_keys: &[&str],
+        keys: &[T],
+        prefix_keys: &[T],
         successful: bool,
         duplicated: bool,
         redirected_from: Option<StrictPath>,
@@ -161,7 +225,14 @@ impl FileTreeNode {
             node = node.nodes.entry(key.to_string()).or_insert_with(|| {
                 FileTreeNode::new(
                     full_keys.clone(),
-                    Some(StrictPath::new(inserted_keys.join("/"))),
+                    match &node_type {
+                        FileTreeNodeType::File => {
+                            Some(FileTreeNodePath::File(StrictPath::new(inserted_keys.join("/"))))
+                        }
+                        FileTreeNodeType::Registry => {
+                            Some(FileTreeNodePath::Registry(RegistryItem::new(inserted_keys.join("/"))))
+                        }
+                    },
                     node_type.clone(),
                 )
             });
@@ -193,6 +264,21 @@ impl FileTreeNode {
         }
         for item in self.nodes.values_mut() {
             item.expand_short();
+        }
+    }
+
+    pub fn update_ignored(&mut self, game: &str, ignored_paths: &ToggledPaths, ignored_registry: &ToggledRegistry) {
+        match &self.path {
+            Some(FileTreeNodePath::File(path)) => {
+                self.ignored = ignored_paths.is_ignored(game, path);
+            }
+            Some(FileTreeNodePath::Registry(path)) => {
+                self.ignored = ignored_registry.is_ignored(game, path);
+            }
+            None => {}
+        }
+        for item in self.nodes.values_mut() {
+            item.update_ignored(game, ignored_paths, ignored_registry);
         }
     }
 }
@@ -245,36 +331,52 @@ impl FileTree {
         for item in scan_info.found_registry_keys.iter() {
             let mut successful = true;
             if let Some(backup_info) = &backup_info {
-                if backup_info.failed_registry.contains(item) {
+                if backup_info.failed_registry.contains(&item.path) {
                     successful = false;
                 }
             }
 
-            let components: Vec<_> = item.split('/').collect();
+            let components: Vec<_> = item.path.split();
 
             nodes
                 .entry(components[0].to_string())
                 .or_insert_with(|| FileTreeNode::new(vec![components[0].to_string()], None, FileTreeNodeType::Registry))
                 .insert_keys(
                     &components[1..],
-                    &[components[0]],
+                    &components[0..1],
                     successful,
-                    duplicate_detector.is_registry_duplicated(item),
+                    duplicate_detector.is_registry_duplicated(&item.path),
                     None,
                 );
         }
 
         for item in nodes.values_mut() {
             item.expand_short();
+            item.update_ignored(
+                &scan_info.game_name,
+                &config.backup.toggled_paths,
+                &config.backup.toggled_registry,
+            );
         }
 
         Self { nodes }
     }
 
-    pub fn view(&mut self, translator: &Translator, game_name: &str) -> Container<Message> {
-        Container::new(self.nodes.iter_mut().fold(Column::new().spacing(4), |parent, (k, v)| {
-            parent.push(v.view(0, k, translator, game_name))
-        }))
+    pub fn view(
+        &mut self,
+        translator: &Translator,
+        game_name: &str,
+        config: &Config,
+        restoring: bool,
+    ) -> Container<Message> {
+        Container::new(
+            self.nodes
+                .iter_mut()
+                .filter(|(_, v)| v.anything_showable())
+                .fold(Column::new().spacing(4), |parent, (k, v)| {
+                    parent.push(v.view(0, k, translator, game_name, config, restoring))
+                }),
+        )
     }
 
     pub fn is_empty(&self) -> bool {
@@ -294,6 +396,12 @@ impl FileTree {
                 v.expand_or_collapse_keys(&keys[1..]);
                 break;
             }
+        }
+    }
+
+    pub fn update_ignored(&mut self, game: &str, ignored_paths: &ToggledPaths, ignored_registry: &ToggledRegistry) {
+        for item in self.nodes.values_mut() {
+            item.update_ignored(game, ignored_paths, ignored_registry);
         }
     }
 }

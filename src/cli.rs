@@ -157,6 +157,8 @@ struct ApiErrors {
 struct ApiFile {
     #[serde(skip_serializing_if = "crate::serialization::is_false")]
     failed: bool,
+    #[serde(skip_serializing_if = "crate::serialization::is_false")]
+    ignored: bool,
     bytes: u64,
     #[serde(rename = "originalPath", skip_serializing_if = "Option::is_none")]
     original_path: Option<String>,
@@ -295,6 +297,7 @@ impl Reporter {
                     parts.push(translator.cli_game_line_item(
                         &readable.render(),
                         entry_successful,
+                        entry.ignored,
                         duplicate_detector.is_file_duplicated(entry),
                     ));
 
@@ -303,14 +306,15 @@ impl Reporter {
                     }
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
-                    let entry_successful = !backup_info.failed_registry.contains(entry);
+                    let entry_successful = !backup_info.failed_registry.contains(&entry.path);
                     if !entry_successful {
                         successful = false;
                     }
                     parts.push(translator.cli_game_line_item(
-                        entry,
+                        &entry.path.render(),
                         entry_successful,
-                        duplicate_detector.is_registry_duplicated(entry),
+                        entry.ignored,
+                        duplicate_detector.is_registry_duplicated(&entry.path),
                     ));
                 }
 
@@ -334,6 +338,7 @@ impl Reporter {
                     let mut api_file = ApiFile {
                         bytes: entry.size,
                         failed: backup_info.failed_files.contains(entry),
+                        ignored: entry.ignored,
                         ..Default::default()
                     };
                     if duplicate_detector.is_file_duplicated(entry) {
@@ -357,20 +362,20 @@ impl Reporter {
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
                     let mut api_registry = ApiRegistry::default();
-                    if duplicate_detector.is_registry_duplicated(entry) {
-                        let mut duplicated_by = duplicate_detector.registry(entry);
+                    if duplicate_detector.is_registry_duplicated(&entry.path) {
+                        let mut duplicated_by = duplicate_detector.registry(&entry.path);
                         duplicated_by.remove(&scan_info.game_name);
                         api_registry.duplicated_by = duplicated_by;
                     }
 
-                    if backup_info.failed_registry.contains(entry) {
+                    if backup_info.failed_registry.contains(&entry.path) {
                         api_registry.failed = true;
                     }
                     if api_registry.failed {
                         successful = false;
                     }
 
-                    api_game.registry.insert(entry.to_string(), api_registry);
+                    api_game.registry.insert(entry.path.render(), api_registry);
                 }
 
                 output.games.insert(name.to_string(), api_game);
@@ -532,6 +537,8 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let layout = BackupLayout::new(backup_dir.clone());
             let filter = config.backup.filter.clone();
             let ranking = InstallDirRanking::scan(roots, &all_games, &subjects);
+            let toggled_paths = config.backup.toggled_paths.clone();
+            let toggled_registry = config.backup.toggled_registry.clone();
 
             let info: Vec<_> = subjects
                 .par_iter()
@@ -549,6 +556,8 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         &filter,
                         &wine_prefix,
                         &ranking,
+                        &toggled_paths,
+                        &toggled_registry,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified;
                     let decision = if ignored {
@@ -997,7 +1006,7 @@ mod tests {
 
     mod reporter {
         use super::*;
-        use crate::prelude::ScannedFile;
+        use crate::prelude::{RegistryItem, ScannedFile, ScannedRegistry};
         use maplit::hashset;
         use pretty_assertions::assert_eq;
 
@@ -1049,29 +1058,27 @@ Overall:
                             path: StrictPath::new(s("/file1")),
                             size: 102_400,
                             original_path: None,
+                            ignored: false,
                         },
                         ScannedFile {
                             path: StrictPath::new(s("/file2")),
                             size: 51_200,
                             original_path: None,
+                            ignored: false,
                         },
                     },
                     found_registry_keys: hashset! {
-                        s("HKEY_CURRENT_USER/Key1"),
-                        s("HKEY_CURRENT_USER/Key2")
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key2"),
                     },
                     registry_file: None,
                 },
                 &BackupInfo {
                     failed_files: hashset! {
-                        ScannedFile {
-                            path: StrictPath::new(s("/file2")),
-                            size: 51_200,
-                            original_path: None,
-                        },
+                        ScannedFile::new("/file2", 51_200),
                     },
                     failed_registry: hashset! {
-                        s("HKEY_CURRENT_USER/Key1")
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Key1"))
                     },
                 },
                 &OperationStepDecision::Processed,
@@ -1110,11 +1117,13 @@ Overall:
                             path: StrictPath::new(format!("{}/backup/file1", drive())),
                             size: 102_400,
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
+                            ignored: false,
                         },
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
                             size: 51_200,
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
+                            ignored: false,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1151,14 +1160,10 @@ Overall:
                 duplicate_detector.add_game(&ScanInfo {
                     game_name: s(name),
                     found_files: hashset! {
-                        ScannedFile {
-                            path: StrictPath::new(s("/file1")),
-                            size: 102_400,
-                            original_path: None,
-                        },
+                        ScannedFile::new("/file1", 102_400),
                     },
                     found_registry_keys: hashset! {
-                        s("HKEY_CURRENT_USER/Key1"),
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     },
                     registry_file: None,
                 });
@@ -1169,14 +1174,10 @@ Overall:
                 &ScanInfo {
                     game_name: s("foo"),
                     found_files: hashset! {
-                        ScannedFile {
-                            path: StrictPath::new(s("/file1")),
-                            size: 102_400,
-                            original_path: None,
-                        },
+                        ScannedFile::new("/file1", 102_400),
                     },
                     found_registry_keys: hashset! {
-                        s("HKEY_CURRENT_USER/Key1"),
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     },
                     registry_file: None,
                 },
@@ -1240,33 +1241,21 @@ Overall:
                 &ScanInfo {
                     game_name: s("foo"),
                     found_files: hashset! {
-                        ScannedFile {
-                            path: StrictPath::new(s("/file1")),
-                            size: 100,
-                            original_path: None,
-                        },
-                        ScannedFile {
-                            path: StrictPath::new(s("/file2")),
-                            size: 50,
-                            original_path: None,
-                        },
+                        ScannedFile::new("/file1", 100),
+                        ScannedFile::new("/file2", 50),
                     },
                     found_registry_keys: hashset! {
-                        s("HKEY_CURRENT_USER/Key1"),
-                        s("HKEY_CURRENT_USER/Key2")
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key2")
                     },
                     registry_file: None,
                 },
                 &BackupInfo {
                     failed_files: hashset! {
-                        ScannedFile {
-                            path: StrictPath::new(s("/file2")),
-                            size: 50,
-                            original_path: None,
-                        },
+                        ScannedFile::new("/file2", 50),
                     },
                     failed_registry: hashset! {
-                        s("HKEY_CURRENT_USER/Key1")
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Key1"))
                     },
                 },
                 &OperationStepDecision::Processed,
@@ -1326,11 +1315,13 @@ Overall:
                             path: StrictPath::new(format!("{}/backup/file1", drive())),
                             size: 100,
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
+                            ignored: false,
                         },
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
                             size: 50,
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
+                            ignored: false,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1381,14 +1372,10 @@ Overall:
                 duplicate_detector.add_game(&ScanInfo {
                     game_name: s(name),
                     found_files: hashset! {
-                        ScannedFile {
-                            path: StrictPath::new(s("/file1")),
-                            size: 102_400,
-                            original_path: None,
-                        },
+                        ScannedFile::new("/file1", 102_400),
                     },
                     found_registry_keys: hashset! {
-                        s("HKEY_CURRENT_USER/Key1"),
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     },
                     registry_file: None,
                 });
@@ -1399,14 +1386,10 @@ Overall:
                 &ScanInfo {
                     game_name: s("foo"),
                     found_files: hashset! {
-                        ScannedFile {
-                            path: StrictPath::new(s("/file1")),
-                            size: 100,
-                            original_path: None,
-                        },
+                        ScannedFile::new("/file1", 100),
                     },
                     found_registry_keys: hashset! {
-                        s("HKEY_CURRENT_USER/Key1"),
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     },
                     registry_file: None,
                 },

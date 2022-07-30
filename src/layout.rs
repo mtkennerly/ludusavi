@@ -244,6 +244,7 @@ impl BackupLayout {
                         _ => 0,
                     },
                     original_path,
+                    ignored: false,
                 });
             }
         }

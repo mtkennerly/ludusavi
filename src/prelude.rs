@@ -1,5 +1,5 @@
 use crate::{
-    config::{BackupFilter, RedirectConfig, RootsConfig},
+    config::{BackupFilter, RedirectConfig, RootsConfig, ToggledPaths, ToggledRegistry},
     layout::{BackupLayout, IndividualMapping},
     manifest::{Game, GameFileConstraint, Os, Store},
 };
@@ -8,6 +8,7 @@ use rayon::prelude::*;
 use std::io::Read;
 
 pub use crate::path::StrictPath;
+pub use crate::registry_compat::RegistryItem;
 
 const WINDOWS: bool = cfg!(target_os = "windows");
 const MAC: bool = cfg!(target_os = "macos");
@@ -67,19 +68,63 @@ pub struct ScannedFile {
     pub size: u64,
     /// This is the restoration target path, without redirects applied.
     pub original_path: Option<StrictPath>,
+    pub ignored: bool,
+}
+
+#[cfg(test)]
+impl ScannedFile {
+    pub fn new<T: AsRef<str> + ToString>(path: T, size: u64) -> Self {
+        Self {
+            path: StrictPath::new(path.to_string()),
+            size,
+            original_path: None,
+            ignored: false,
+        }
+    }
+
+    pub fn ignored(mut self) -> Self {
+        self.ignored = true;
+        self
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct ScannedRegistry {
+    pub path: RegistryItem,
+    pub ignored: bool,
+}
+
+#[cfg(test)]
+impl ScannedRegistry {
+    pub fn new<T: AsRef<str> + ToString>(path: T) -> Self {
+        Self {
+            path: RegistryItem::new(path.to_string()),
+            ignored: false,
+        }
+    }
+
+    pub fn ignored(mut self) -> Self {
+        self.ignored = true;
+        self
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ScanInfo {
     pub game_name: String,
     pub found_files: std::collections::HashSet<ScannedFile>,
-    pub found_registry_keys: std::collections::HashSet<String>,
+    pub found_registry_keys: std::collections::HashSet<ScannedRegistry>,
     pub registry_file: Option<StrictPath>,
 }
 
 impl ScanInfo {
     pub fn sum_bytes(&self, backup_info: &Option<BackupInfo>) -> u64 {
-        let successful_bytes = self.found_files.iter().map(|x| x.size).sum::<u64>();
+        let successful_bytes = self
+            .found_files
+            .iter()
+            .filter(|x| !x.ignored)
+            .map(|x| x.size)
+            .sum::<u64>();
         let failed_bytes = if let Some(backup_info) = &backup_info {
             backup_info.failed_files.iter().map(|x| x.size).sum::<u64>()
         } else {
@@ -88,15 +133,57 @@ impl ScanInfo {
         successful_bytes - failed_bytes
     }
 
+    pub fn total_possible_bytes(&self) -> u64 {
+        self.found_files.iter().map(|x| x.size).sum::<u64>()
+    }
+
     pub fn found_anything(&self) -> bool {
         !self.found_files.is_empty() || !self.found_registry_keys.is_empty()
+    }
+
+    pub fn found_anything_processable(&self) -> bool {
+        self.found_files.iter().any(|x| !x.ignored) || self.found_registry_keys.iter().any(|x| !x.ignored)
+    }
+
+    pub fn update_ignored(&mut self, toggled_paths: &ToggledPaths, toggled_registry: &ToggledRegistry) {
+        self.found_files = self
+            .found_files
+            .iter()
+            .map(|x| {
+                let mut y = x.clone();
+                y.ignored = toggled_paths.is_ignored(&self.game_name, &x.path);
+                y
+            })
+            .collect();
+        self.found_registry_keys = self
+            .found_registry_keys
+            .iter()
+            .map(|x| {
+                let mut y = x.clone();
+                y.ignored = toggled_registry.is_ignored(&self.game_name, &x.path);
+                y
+            })
+            .collect();
+    }
+
+    pub fn any_ignored(&self) -> bool {
+        self.found_files.iter().any(|x| x.ignored) || self.found_registry_keys.iter().any(|x| x.ignored)
+    }
+
+    pub fn total_items(&self) -> usize {
+        self.found_files.len() + self.found_registry_keys.len()
+    }
+
+    pub fn enabled_items(&self) -> usize {
+        self.found_files.iter().filter(|x| !x.ignored).count()
+            + self.found_registry_keys.iter().filter(|x| !x.ignored).count()
     }
 }
 
 #[derive(Clone, Debug, Default)]
 pub struct BackupInfo {
     pub failed_files: std::collections::HashSet<ScannedFile>,
-    pub failed_registry: std::collections::HashSet<String>,
+    pub failed_registry: std::collections::HashSet<RegistryItem>,
 }
 
 impl BackupInfo {
@@ -127,15 +214,32 @@ impl OperationStatus {
 
     pub fn add_game(&mut self, scan_info: &ScanInfo, backup_info: &Option<BackupInfo>, processed: bool) {
         self.total_games += 1;
-        self.total_bytes += scan_info.sum_bytes(&None);
+        self.total_bytes += scan_info.total_possible_bytes();
         if processed {
             self.processed_games += 1;
             self.processed_bytes += scan_info.sum_bytes(backup_info);
         }
     }
 
-    pub fn completed(&self) -> bool {
-        self.total_games == self.processed_games && self.total_bytes == self.processed_bytes
+    pub fn processed_all(&self) -> bool {
+        self.processed_all_games() && self.processed_all_bytes()
+    }
+
+    pub fn processed_all_games(&self) -> bool {
+        self.total_games == self.processed_games
+    }
+
+    pub fn processed_all_bytes(&self) -> bool {
+        self.total_bytes == self.processed_bytes
+    }
+
+    pub fn with_selection(&self, games: usize, bytes: u64) -> Self {
+        Self {
+            total_games: self.total_games,
+            total_bytes: self.total_bytes,
+            processed_games: games,
+            processed_bytes: bytes,
+        }
     }
 }
 
@@ -521,6 +625,8 @@ pub fn scan_game_for_backup(
     filter: &BackupFilter,
     wine_prefix: &Option<StrictPath>,
     ranking: &InstallDirRanking,
+    ignored_paths: &ToggledPaths,
+    ignored_registry: &ToggledRegistry,
 ) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
@@ -613,6 +719,9 @@ pub fn scan_game_for_backup(
     }
 
     for path in paths_to_check {
+        if filter.is_path_ignored(&path) {
+            continue;
+        }
         let entries = match glob_any(&path) {
             Ok(x) => x,
             Err(_) => continue,
@@ -620,6 +729,10 @@ pub fn scan_game_for_backup(
         for entry in entries.filter_map(|r| r.ok()) {
             let p = StrictPath::from(entry).rendered();
             if p.is_file() {
+                if filter.is_path_ignored(&p) {
+                    continue;
+                }
+                let ignored = ignored_paths.is_ignored(name, &p);
                 let metadata = p.metadata();
                 found_files.insert(ScannedFile {
                     path: p,
@@ -628,6 +741,7 @@ pub fn scan_game_for_backup(
                         _ => 0,
                     },
                     original_path: None,
+                    ignored,
                 });
             } else if p.is_dir() {
                 for child in walkdir::WalkDir::new(p.as_std_path_buf())
@@ -637,13 +751,20 @@ pub fn scan_game_for_backup(
                     .filter_map(|e| e.ok())
                 {
                     if child.file_type().is_file() {
+                        let child = StrictPath::from(&child).rendered();
+                        if filter.is_path_ignored(&child) {
+                            continue;
+                        }
+                        let ignored = ignored_paths.is_ignored(name, &child);
+                        let metadata = child.metadata();
                         found_files.insert(ScannedFile {
-                            path: StrictPath::from(&child).rendered(),
-                            size: match child.metadata() {
+                            path: child,
+                            size: match metadata {
                                 Ok(m) => m.len(),
                                 _ => 0,
                             },
                             original_path: None,
+                            ignored,
                         });
                     }
                 }
@@ -653,16 +774,13 @@ pub fn scan_game_for_backup(
 
     #[cfg(target_os = "windows")]
     {
-        let mut hives = crate::registry::Hives::default();
         if let Some(registry) = &game.registry {
             for key in registry.keys() {
                 if key.trim().is_empty() {
                     continue;
                 }
-                if let Ok(info) = hives.store_key_from_full_path(key) {
-                    if info.found {
-                        found_registry_keys.insert(key.to_string());
-                    }
+                for scanned in crate::registry::scan_registry(name, key, filter, ignored_registry).unwrap_or_default() {
+                    found_registry_keys.insert(scanned);
                 }
             }
         }
@@ -694,7 +812,10 @@ pub fn scan_game_for_restoration(name: &str, layout: &BackupLayout) -> ScanInfo 
             registry_file = Some(layout.game_registry_file(&target_game));
             for (hive_name, keys) in hives.0.iter() {
                 for (key_name, _) in keys.0.iter() {
-                    found_registry_keys.insert(format!("{}/{}", hive_name, key_name).replace('\\', "/"));
+                    found_registry_keys.insert(ScannedRegistry {
+                        path: RegistryItem::new(format!("{}/{}", hive_name, key_name).replace('\\', "/")),
+                        ignored: false,
+                    });
                 }
             }
         }
@@ -752,7 +873,7 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: b
 
     let target_game = layout.game_folder(name);
 
-    let able_to_prepare = info.found_anything()
+    let able_to_prepare = info.found_anything_processable()
         && (merge || (target_game.unset_readonly().is_ok() && target_game.remove().is_ok()))
         && std::fs::create_dir_all(target_game.interpret()).is_ok();
 
@@ -763,6 +884,10 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: b
 
     let mut relevant_backup_files = Vec::<StrictPath>::new();
     for file in &info.found_files {
+        if file.ignored {
+            continue;
+        }
+
         if !able_to_prepare {
             failed_files.insert(file.clone());
             continue;
@@ -801,19 +926,20 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: b
         let mut found_some_registry = false;
 
         for reg_path in &info.found_registry_keys {
-            if !able_to_prepare {
-                failed_registry.insert(reg_path.to_string());
+            if reg_path.ignored {
                 continue;
             }
 
-            match hives.store_key_from_full_path(reg_path) {
+            if !able_to_prepare {
+                failed_registry.insert(reg_path.path.clone());
+                continue;
+            }
+
+            match hives.store_key_from_full_path(&reg_path.path.raw()) {
                 Err(_) => {
-                    failed_registry.insert(reg_path.to_string());
+                    failed_registry.insert(reg_path.path.clone());
                 }
-                Ok(x) if !x.found => {
-                    failed_registry.insert(reg_path.to_string());
-                }
-                _ => {
+                Ok(_) => {
                     found_some_registry = true;
                 }
             }
@@ -827,7 +953,7 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: b
         }
     }
 
-    if info.found_anything() && able_to_prepare {
+    if able_to_prepare {
         mapping.save(&layout.game_mapping_file(&target_game));
     }
 
@@ -893,7 +1019,7 @@ pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo
 #[derive(Clone, Debug, Default)]
 pub struct DuplicateDetector {
     files: std::collections::HashMap<StrictPath, std::collections::HashSet<String>>,
-    registry: std::collections::HashMap<String, std::collections::HashSet<String>>,
+    registry: std::collections::HashMap<RegistryItem, std::collections::HashSet<String>>,
 }
 
 impl DuplicateDetector {
@@ -906,7 +1032,7 @@ impl DuplicateDetector {
         }
         for item in scan_info.found_registry_keys.iter() {
             self.registry
-                .entry(item.clone())
+                .entry(item.path.clone())
                 .or_insert_with(Default::default)
                 .insert(scan_info.game_name.clone());
         }
@@ -919,7 +1045,7 @@ impl DuplicateDetector {
             }
         }
         for item in scan_info.found_registry_keys.iter() {
-            if self.registry(item).len() > 1 {
+            if self.registry(&item.path).len() > 1 {
                 return true;
             }
         }
@@ -944,14 +1070,14 @@ impl DuplicateDetector {
         self.file(file).len() > 1
     }
 
-    pub fn registry(&self, path: &str) -> std::collections::HashSet<String> {
+    pub fn registry(&self, path: &RegistryItem) -> std::collections::HashSet<String> {
         match self.registry.get(path) {
             Some(games) => games.clone(),
             None => Default::default(),
         }
     }
 
-    pub fn is_registry_duplicated(&self, path: &str) -> bool {
+    pub fn is_registry_duplicated(&self, path: &RegistryItem) -> bool {
         self.registry(path).len() > 1
     }
 
@@ -1024,7 +1150,7 @@ mod tests {
     use super::*;
     use crate::config::Config;
     use crate::manifest::Manifest;
-    use maplit::hashset;
+    use maplit::*;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -1215,16 +1341,8 @@ mod tests {
             ScanInfo {
                 game_name: s("game1"),
                 found_files: hashset! {
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo())),
-                        size: 2,
-                        original_path: None,
-                    },
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo())),
-                        size: 1,
-                        original_path: None,
-                    },
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
                 registry_file: None,
@@ -1238,6 +1356,8 @@ mod tests {
                 &BackupFilter::default(),
                 &None,
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game1".to_string()]),
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
             ),
         );
 
@@ -1245,11 +1365,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game 2"),
                 found_files: hashset! {
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/root2/game2/file1.txt", repo())),
-                        size: 1,
-                        original_path: None,
-                    },
+                    ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
                 registry_file: None,
@@ -1263,6 +1379,8 @@ mod tests {
                 &BackupFilter::default(),
                 &None,
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game 2".to_string()]),
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
             ),
         );
     }
@@ -1277,11 +1395,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game5"),
                 found_files: hashset! {
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/root3/game5/data/file1.txt", repo())),
-                        size: 1,
-                        original_path: None,
-                    },
+                    ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
                 registry_file: None,
@@ -1295,6 +1409,8 @@ mod tests {
                 &BackupFilter::default(),
                 &None,
                 &InstallDirRanking::scan(roots, &manifest(), &["game5".to_string()]),
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
             ),
         );
     }
@@ -1309,11 +1425,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game 2"),
                 found_files: hashset! {
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/root3/game_2/file1.txt", repo())),
-                        size: 1,
-                        original_path: None,
-                    },
+                    ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
                 registry_file: None,
@@ -1327,6 +1439,8 @@ mod tests {
                 &BackupFilter::default(),
                 &None,
                 &InstallDirRanking::scan(roots, &manifest(), &["game 2".to_string()]),
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
             ),
         );
     }
@@ -1342,26 +1456,10 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hashset! {
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/home/data.txt", repo())),
-                        size: 0,
-                        original_path: None,
-                    },
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo())),
-                        size: 0,
-                        original_path: None,
-                    },
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo())),
-                        size: 0,
-                        original_path: None,
-                    },
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/home/Documents/winDocuments.txt", repo())),
-                        size: 0,
-                        original_path: None,
-                    },
+                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0),
+                    ScannedFile::new(format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo()), 0),
+                    ScannedFile::new(format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo()), 0),
+                    ScannedFile::new(format!("{}/tests/home/Documents/winDocuments.txt", repo()), 0),
                 },
                 found_registry_keys: hashset! {},
                 registry_file: None,
@@ -1375,6 +1473,8 @@ mod tests {
                 &BackupFilter::default(),
                 &None,
                 &InstallDirRanking::scan(roots, &manifest(), &["game4".to_string()]),
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
             ),
         );
     }
@@ -1390,21 +1490,9 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hashset! {
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/home/data.txt", repo())),
-                        size: 0,
-                        original_path: None,
-                    },
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/home/.config/xdgConfig.txt", repo())),
-                        size: 0,
-                        original_path: None,
-                    },
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/home/.local/share/xdgData.txt", repo())),
-                        size: 0,
-                        original_path: None,
-                    },
+                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0),
+                    ScannedFile::new(format!("{}/tests/home/.config/xdgConfig.txt", repo()), 0),
+                    ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0),
                 },
                 found_registry_keys: hashset! {},
                 registry_file: None,
@@ -1418,6 +1506,8 @@ mod tests {
                 &BackupFilter::default(),
                 &None,
                 &InstallDirRanking::scan(roots, &manifest(), &["game4".to_string()]),
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
             ),
         );
     }
@@ -1428,16 +1518,8 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hashset! {
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo())),
-                        size: 0,
-                        original_path: None,
-                    },
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/wine-prefix/user.reg", repo())),
-                        size: 37,
-                        original_path: None,
-                    },
+                    ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0),
+                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37),
                 },
                 found_registry_keys: hashset! {},
                 registry_file: None,
@@ -1451,8 +1533,73 @@ mod tests {
                 &BackupFilter::default(),
                 &Some(StrictPath::new(format!("{}/tests/wine-prefix", repo()))),
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game4".to_string()]),
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
             ),
         );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_file_matches_and_ignores() {
+        let cases = [
+            (
+                BackupFilter {
+                    ignored_paths: vec![StrictPath::new(format!("{}\\tests/root1/game1/subdir", repo()))],
+                    ..Default::default()
+                },
+                ToggledPaths::default(),
+                hashset! {
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
+                },
+            ),
+            (
+                BackupFilter::default(),
+                ToggledPaths::new(btreemap! {
+                    s("game1") => btreemap! {
+                        StrictPath::new(format!("{}\\tests/root1/game1/subdir", repo())) => false
+                    }
+                }),
+                hashset! {
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2).ignored(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
+                },
+            ),
+            (
+                BackupFilter::default(),
+                ToggledPaths::new(btreemap! {
+                    s("game1") => btreemap! {
+                        StrictPath::new(format!("{}\\tests/root1/game1/subdir/file2.txt", repo())) => false
+                    }
+                }),
+                hashset! {
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2).ignored(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
+                },
+            ),
+        ];
+
+        for (filter, ignored, found) in cases {
+            assert_eq!(
+                ScanInfo {
+                    game_name: s("game1"),
+                    found_files: found,
+                    found_registry_keys: hashset! {},
+                    registry_file: None,
+                },
+                scan_game_for_backup(
+                    &manifest().0["game1"],
+                    "game1",
+                    &config().roots,
+                    &StrictPath::new(repo()),
+                    &None,
+                    &filter,
+                    &None,
+                    &InstallDirRanking::scan(&config().roots, &manifest(), &["game1".to_string()]),
+                    &ignored,
+                    &ToggledRegistry::default(),
+                ),
+            );
+        }
     }
 
     #[test]
@@ -1463,7 +1610,7 @@ mod tests {
                 game_name: s("game3"),
                 found_files: hashset! {},
                 found_registry_keys: hashset! {
-                    s("HKEY_CURRENT_USER/Software/Ludusavi/game3")
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3")
                 },
                 registry_file: None,
             },
@@ -1476,6 +1623,8 @@ mod tests {
                 &BackupFilter::default(),
                 &None,
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game3".to_string()]),
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
             ),
         );
     }
@@ -1488,7 +1637,9 @@ mod tests {
                 game_name: s("game3-outer"),
                 found_files: hashset! {},
                 found_registry_keys: hashset! {
-                    s("HKEY_CURRENT_USER/Software/Ludusavi")
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi"),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3"),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other"),
                 },
                 registry_file: None,
             },
@@ -1501,8 +1652,76 @@ mod tests {
                 &BackupFilter::default(),
                 &None,
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game3-outer".to_string()]),
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
             ),
         );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_registry_matches_and_ignores() {
+        let cases = vec![
+            (
+                BackupFilter {
+                    ignored_registry: vec![RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/other"))],
+                    ..Default::default()
+                },
+                ToggledRegistry::default(),
+                hashset! {
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi"),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3"),
+                },
+            ),
+            (
+                BackupFilter::default(),
+                ToggledRegistry::new(btreemap! {
+                    s("game3-outer") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi")) => false
+                    }
+                }),
+                hashset! {
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").ignored(),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").ignored(),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored(),
+                },
+            ),
+            (
+                BackupFilter::default(),
+                ToggledRegistry::new(btreemap! {
+                    s("game3-outer") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/other")) => false
+                    }
+                }),
+                hashset! {
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi"),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3"),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored(),
+                },
+            ),
+        ];
+
+        for (filter, ignored, found) in cases {
+            assert_eq!(
+                ScanInfo {
+                    game_name: s("game3-outer"),
+                    found_files: hashset! {},
+                    found_registry_keys: found,
+                    registry_file: None,
+                },
+                scan_game_for_backup(
+                    &manifest().0["game3-outer"],
+                    "game3-outer",
+                    &config().roots,
+                    &StrictPath::new(repo()),
+                    &None,
+                    &filter,
+                    &None,
+                    &InstallDirRanking::scan(&config().roots, &manifest(), &["game1".to_string()]),
+                    &ToggledPaths::default(),
+                    &ignored,
+                ),
+            );
+        }
     }
 
     #[test]
@@ -1523,8 +1742,18 @@ mod tests {
             ScanInfo {
                 game_name: s("game1"),
                 found_files: hashset! {
-                    ScannedFile { path: make_path("file1.txt"), size: 1, original_path: Some(StrictPath::new(s(if cfg!(target_os = "windows") { "X:\\file1.txt" } else { "X:/file1.txt" }))) },
-                    ScannedFile { path: make_path("file2.txt"), size: 2, original_path: Some(StrictPath::new(s(if cfg!(target_os = "windows") { "X:\\file2.txt" } else { "X:/file2.txt" }))) },
+                    ScannedFile {
+                        path: make_path("file1.txt"),
+                        size: 1,
+                        original_path: Some(StrictPath::new(s(if cfg!(target_os = "windows") { "X:\\file1.txt" } else { "X:/file1.txt" }))),
+                        ignored: false,
+                    },
+                    ScannedFile {
+                        path: make_path("file2.txt"),
+                        size: 2,
+                        original_path: Some(StrictPath::new(s(if cfg!(target_os = "windows") { "X:\\file2.txt" } else { "X:/file2.txt" }))),
+                        ignored: false,
+                    },
                 },
                 ..Default::default()
             },
@@ -1542,7 +1771,7 @@ mod tests {
                 ScanInfo {
                     game_name: s("game3"),
                     found_registry_keys: hashset! {
-                        s("HKEY_CURRENT_USER/Software/Ludusavi/game3")
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3")
                     },
                     registry_file: Some(StrictPath::new(format!(
                         "\\\\?\\{}\\tests\\backup\\game3-renamed/registry.yaml",
@@ -1598,29 +1827,21 @@ mod tests {
 
             let game1 = s("game1");
             let game2 = s("game2");
-            let file1 = ScannedFile {
-                path: StrictPath::new(s("file1.txt")),
-                size: 1,
-                original_path: None,
-            };
-            let file2 = ScannedFile {
-                path: StrictPath::new(s("file2.txt")),
-                size: 2,
-                original_path: None,
-            };
+            let file1 = ScannedFile::new("file1.txt", 1);
+            let file2 = ScannedFile::new("file2.txt", 2);
             let reg1 = s("reg1");
             let reg2 = s("reg2");
 
             detector.add_game(&ScanInfo {
                 game_name: game1.clone(),
                 found_files: hashset! { file1.clone(), file2.clone() },
-                found_registry_keys: hashset! { reg1.clone() },
+                found_registry_keys: hashset! { ScannedRegistry::new(&reg1) },
                 ..Default::default()
             });
             detector.add_game(&ScanInfo {
                 game_name: game2.clone(),
                 found_files: hashset! { file1.clone() },
-                found_registry_keys: hashset! { reg1.clone(), reg2.clone() },
+                found_registry_keys: hashset! { ScannedRegistry::new(&reg1), ScannedRegistry::new(&reg2) },
                 ..Default::default()
             });
 
@@ -1630,11 +1851,14 @@ mod tests {
             assert!(!detector.is_file_duplicated(&file2));
             assert_eq!(hashset! { game1.clone() }, detector.file(&file2));
 
-            assert!(detector.is_registry_duplicated(&reg1));
-            assert_eq!(hashset! { game1, game2.clone() }, detector.registry(&reg1));
+            assert!(detector.is_registry_duplicated(&RegistryItem::new(reg1.clone())));
+            assert_eq!(
+                hashset! { game1, game2.clone() },
+                detector.registry(&RegistryItem::new(reg1))
+            );
 
-            assert!(!detector.is_registry_duplicated(&reg2));
-            assert_eq!(hashset! { game2 }, detector.registry(&reg2));
+            assert!(!detector.is_registry_duplicated(&RegistryItem::new(reg2.clone())));
+            assert_eq!(hashset! { game2 }, detector.registry(&RegistryItem::new(reg2)));
         }
 
         #[test]
@@ -1647,11 +1871,13 @@ mod tests {
                 path: StrictPath::new(s("file1a.txt")),
                 size: 1,
                 original_path: Some(StrictPath::new(s("file1.txt"))),
+                ignored: false,
             };
             let file1b = ScannedFile {
                 path: StrictPath::new(s("file1b.txt")),
                 size: 1,
                 original_path: Some(StrictPath::new(s("file1.txt"))),
+                ignored: false,
             };
 
             detector.add_game(&ScanInfo {
@@ -1670,7 +1896,8 @@ mod tests {
             assert!(!detector.is_file_duplicated(&ScannedFile {
                 path: StrictPath::new(s("file1a.txt")),
                 size: 1,
-                original_path: None
+                original_path: None,
+                ignored: false,
             }));
 
             assert!(detector.is_file_duplicated(&file1b));
@@ -1678,7 +1905,8 @@ mod tests {
             assert!(!detector.is_file_duplicated(&ScannedFile {
                 path: StrictPath::new(s("file1b.txt")),
                 size: 1,
-                original_path: None
+                original_path: None,
+                ignored: false,
             }));
         }
     }

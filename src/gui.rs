@@ -8,6 +8,7 @@ pub mod disappearing_progress;
 pub mod file_tree;
 pub mod game_list;
 pub mod icon;
+pub mod ignored_items_editor;
 pub mod modal;
 pub mod other_screen;
 pub mod redirect_editor;

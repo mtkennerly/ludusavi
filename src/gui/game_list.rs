@@ -1,5 +1,5 @@
 use crate::{
-    config::Config,
+    config::{Config, ToggledPaths, ToggledRegistry},
     gui::{
         badge::Badge,
         common::{IcedExtension, Message, Screen},
@@ -98,6 +98,17 @@ impl GameListEntry {
                             .padding(2),
                         )
                         .push_if(
+                            || self.scan_info.any_ignored(),
+                            || {
+                                Badge::new(
+                                    &translator
+                                        .processed_subset(self.scan_info.total_items(), self.scan_info.enabled_items()),
+                                )
+                                .left_margin(15)
+                                .view()
+                            },
+                        )
+                        .push_if(
                             || duplicate_detector.is_game_duplicated(&self.scan_info),
                             || Badge::new(&translator.badge_duplicates()).left_margin(15).view(),
                         )
@@ -162,7 +173,7 @@ impl GameListEntry {
                     || self.expanded,
                     || {
                         self.tree
-                            .view(translator, &self.scan_info.game_name)
+                            .view(translator, &self.scan_info.game_name, config, restoring)
                             .width(Length::Fill)
                     },
                 ),
@@ -243,5 +254,14 @@ impl GameList {
             }
         }
         (games, bytes)
+    }
+
+    pub fn update_ignored(&mut self, game: &str, ignored_paths: &ToggledPaths, ignored_registry: &ToggledRegistry) {
+        for item in self.entries.iter_mut() {
+            if item.scan_info.game_name == game {
+                item.scan_info.update_ignored(ignored_paths, ignored_registry);
+                item.tree.update_ignored(game, ignored_paths, ignored_registry);
+            }
+        }
     }
 }
