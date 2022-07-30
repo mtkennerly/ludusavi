@@ -4,9 +4,8 @@ written in [Rust](https://www.rust-lang.org).
 It is cross-platform and supports multiple game stores.
 
 ## Features
-* Ability to back up data from more than 8,000 games plus your own custom entries.
+* Ability to back up data from more than 9,000 games plus your own custom entries.
 * Backup and restore for Steam as well as other game libraries.
-* Preview of the backup/restore before actually performing it.
 * Both a graphical interface and command line interface for scripting.
   Tab completion is available for Bash, Fish, Zsh, PowerShell, and Elvish.
 * Support for:
@@ -15,6 +14,8 @@ It is cross-platform and supports multiple game stores.
   * Steam screenshots.
 * Available as a [Playnite](https://playnite.link) extension:
   https://github.com/mtkennerly/ludusavi-playnite
+* Works on the Steam Deck.
+  * For desktop mode, set the `WINIT_X11_SCALE_FACTOR` environment variable to `1`.
 
 This tool uses the [Ludusavi Manifest](https://github.com/mtkennerly/ludusavi-manifest)
 for info on what to back up, and it will automatically download the latest version of
