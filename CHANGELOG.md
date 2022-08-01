@@ -56,6 +56,7 @@
   * If duplicate files were found while a game's file list were already open,
     then the files would not immediately be marked as duplicates until you
     closed and reopened the file list.
+  * GUI: Unable to start on KDE 5.25.3 when using Wayland.
 
 ## v0.10.0 (2021-03-12)
 
