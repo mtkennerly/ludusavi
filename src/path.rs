@@ -26,7 +26,8 @@ fn normalize(path: &str) -> String {
 
     #[cfg(target_os = "windows")]
     if path.starts_with('/') {
-        path = format!("C:{}", path);
+        let drive = &render_pathbuf(&std::env::current_dir().unwrap())[..2];
+        path = format!("{}{}", drive, path)
     }
 
     path = parse_home(&path).replace(ATYPICAL_SEPARATOR, TYPICAL_SEPARATOR);
@@ -143,14 +144,14 @@ pub fn render_pathbuf(value: &std::path::Path) -> String {
 /// starting with `""`.
 fn splittable(path: &StrictPath) -> String {
     let rendered = path.render();
-    let stripped = match rendered.strip_suffix('/') {
-        Some(x) => x,
-        _ => &rendered,
-    };
-    if stripped.starts_with('/') {
-        format!("C:{}", stripped)
+    let prefixed = if rendered.starts_with('/') {
+        format!("C:{}", rendered)
     } else {
-        stripped.to_string()
+        rendered
+    };
+    match prefixed.strip_suffix('/') {
+        Some(x) => x.to_string(),
+        _ => prefixed,
     }
 }
 
@@ -416,6 +417,14 @@ mod tests {
         render_pathbuf(&dirs::home_dir().unwrap())
     }
 
+    fn drive() -> String {
+        if cfg!(target_os = "windows") {
+            StrictPath::new(s("foo")).render()[..2].to_string()
+        } else {
+            s("")
+        }
+    }
+
     mod strict_path {
         use super::*;
         use pretty_assertions::assert_eq;
@@ -425,7 +434,7 @@ mod tests {
             if cfg!(target_os = "windows") {
                 assert_eq!("".to_string(), interpret("", &Some("/foo".to_string())));
                 assert_eq!(
-                    r#"\\?\C:\foo\bar"#.to_string(),
+                    format!(r#"\\?\{}\foo\bar"#, drive()),
                     interpret("bar", &Some("/foo".to_string()))
                 );
             } else {
@@ -437,17 +446,18 @@ mod tests {
         #[test]
         fn can_interpret_linux_style_paths() {
             if cfg!(target_os = "windows") {
-                assert_eq!(r#"\\?\C:\"#.to_string(), interpret("/", &None));
-                assert_eq!(r#"\\?\C:\foo"#.to_string(), interpret("/foo", &None));
-                assert_eq!(r#"\\?\C:\foo\bar"#.to_string(), interpret("/foo/bar", &None));
+                assert_eq!(format!(r#"\\?\{}\"#, drive()), interpret("/", &None));
+                assert_eq!(format!(r#"\\?\{}\foo"#, drive()), interpret("/foo", &None));
+                assert_eq!(format!(r#"\\?\{}\foo\bar"#, drive()), interpret("/foo/bar", &None));
             } else {
                 assert_eq!("/".to_string(), interpret("/", &None));
                 assert_eq!("/foo".to_string(), interpret("/foo", &None));
-                assert_eq!("/foo\\bar".to_string(), interpret("/foo/bar", &None));
+                assert_eq!("/foo/bar".to_string(), interpret("/foo/bar", &None));
             }
         }
 
         #[test]
+        #[cfg(target_os = "windows")]
         fn can_interpret_windows_drive_letter() {
             assert_eq!(r#"\\?\C:\foo"#.to_string(), interpret("C:/foo", &None));
             assert_eq!(r#"\\?\C:\"#.to_string(), interpret("C:\\", &None));
@@ -456,6 +466,7 @@ mod tests {
         }
 
         #[test]
+        #[cfg(target_os = "windows")]
         fn can_interpret_unc_path() {
             assert_eq!(r#"\\?\C:\foo"#.to_string(), interpret(r#"\\?\C:\foo"#, &None));
             assert_eq!(r#"\\?\C:\"#.to_string(), interpret(r#"\\?\C:\"#, &None));
@@ -723,6 +734,7 @@ mod tests {
         }
 
         #[test]
+        #[cfg(target_os = "windows")]
         fn is_prefix_of_with_windows_drive_letters() {
             assert!(StrictPath::new(s(r#"C:"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
             assert!(StrictPath::new(s(r#"C:/"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
@@ -730,6 +742,7 @@ mod tests {
         }
 
         #[test]
+        #[cfg(target_os = "windows")]
         fn is_prefix_of_with_unc_drives() {
             assert!(!StrictPath::new(s(r#"\\?\C:\foo"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
             assert!(StrictPath::new(s(r#"\\?\C:\foo"#)).is_prefix_of(&StrictPath::new(s("C:/foo/bar"))));
