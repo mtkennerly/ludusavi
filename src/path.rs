@@ -22,7 +22,23 @@ fn parse_home(path: &str) -> String {
 }
 
 fn normalize(path: &str) -> String {
-    parse_home(path).replace(ATYPICAL_SEPARATOR, TYPICAL_SEPARATOR)
+    let mut path = path.trim().to_string();
+
+    #[cfg(target_os = "windows")]
+    if path.starts_with('/') {
+        path = format!("C:{}", path);
+    }
+
+    path = parse_home(&path).replace(ATYPICAL_SEPARATOR, TYPICAL_SEPARATOR);
+
+    // On Windows, canonicalizing "C:" or "C:/" yields the current directory,
+    // but "C:\" works.
+    #[cfg(target_os = "windows")]
+    if path.ends_with(':') {
+        path += TYPICAL_SEPARATOR;
+    }
+
+    path
 }
 
 // Based on:
@@ -71,17 +87,21 @@ fn parse_dots(path: &str, basis: &str) -> String {
 /// On Windows, this produces UNC paths.
 fn interpret<P: Into<String>>(path: P, basis: &Option<String>) -> String {
     let normalized = normalize(&path.into());
+    if normalized.is_empty() {
+        return normalized;
+    }
     let absolutized = if std::path::Path::new(&normalized).is_absolute() {
         normalized
     } else {
         render_pathbuf(
             &match basis {
                 None => std::env::current_dir().unwrap(),
-                Some(b) => std::path::Path::new(b).to_path_buf(),
+                Some(b) => std::path::Path::new(&normalize(b)).to_path_buf(),
             }
             .join(normalized),
         )
     };
+
     match std::fs::canonicalize(&absolutized) {
         Ok(x) => render_pathbuf(&x),
         Err(_) => {
@@ -89,7 +109,7 @@ fn interpret<P: Into<String>>(path: P, basis: &Option<String>) -> String {
                 &absolutized,
                 &render_pathbuf(&match basis {
                     None => std::env::current_dir().unwrap(),
-                    Some(b) => std::path::Path::new(b).to_path_buf(),
+                    Some(b) => std::path::Path::new(&normalize(b)).to_path_buf(),
                 }),
             );
             format!(
@@ -113,6 +133,25 @@ fn render<P: Into<String>>(path: P) -> String {
 
 pub fn render_pathbuf(value: &std::path::Path) -> String {
     value.display().to_string()
+}
+
+/// Convert a path into a format that is amenable to zipped comparison when splitting on `/`.
+/// The resulting path should not be used for actual file lookup.
+/// This relies on `render()` removing UNC prefixes when possible, so that
+/// `C:` and `\\?\C:` will end up normalizing to `C:`.
+/// For Linux-style paths, `C:` is inserted before path-initial `/` to avoid the split vec
+/// starting with `""`.
+fn splittable(path: &StrictPath) -> String {
+    let rendered = path.render();
+    let stripped = match rendered.strip_suffix('/') {
+        Some(x) => x,
+        _ => &rendered,
+    };
+    if stripped.starts_with('/') {
+        format!("C:{}", stripped)
+    } else {
+        stripped.to_string()
+    }
 }
 
 /// This is a wrapper around paths to make it more obvious when we're
@@ -274,8 +313,8 @@ impl StrictPath {
     }
 
     pub fn is_prefix_of(&self, other: &StrictPath) -> bool {
-        let us_rendered = self.render();
-        let them_rendered = other.render();
+        let us_rendered = splittable(self);
+        let them_rendered = splittable(other);
 
         let us_components = us_rendered.split('/');
         let them_components = them_rendered.split('/');
@@ -287,14 +326,14 @@ impl StrictPath {
     }
 
     pub fn nearest_prefix(&self, others: Vec<StrictPath>) -> Option<StrictPath> {
-        let us_rendered = self.render();
+        let us_rendered = splittable(self);
         let us_components = us_rendered.split('/');
         let us_count = us_components.clone().count();
 
         let mut nearest = None;
         let mut nearest_len = 0;
         for other in others {
-            let them_rendered = other.render();
+            let them_rendered = splittable(&other);
             let them_components = them_rendered.split('/');
             let them_len = them_components.clone().count();
 
@@ -380,6 +419,59 @@ mod tests {
     mod strict_path {
         use super::*;
         use pretty_assertions::assert_eq;
+
+        #[test]
+        fn can_interpret_general_paths() {
+            if cfg!(target_os = "windows") {
+                assert_eq!("".to_string(), interpret("", &Some("/foo".to_string())));
+                assert_eq!(
+                    r#"\\?\C:\foo\bar"#.to_string(),
+                    interpret("bar", &Some("/foo".to_string()))
+                );
+            } else {
+                assert_eq!("".to_string(), interpret("", &Some("/foo".to_string())));
+                assert_eq!("/foo/bar".to_string(), interpret("bar", &Some("/foo".to_string())));
+            }
+        }
+
+        #[test]
+        fn can_interpret_linux_style_paths() {
+            if cfg!(target_os = "windows") {
+                assert_eq!(r#"\\?\C:\"#.to_string(), interpret("/", &None));
+                assert_eq!(r#"\\?\C:\foo"#.to_string(), interpret("/foo", &None));
+                assert_eq!(r#"\\?\C:\foo\bar"#.to_string(), interpret("/foo/bar", &None));
+            } else {
+                assert_eq!("/".to_string(), interpret("/", &None));
+                assert_eq!("/foo".to_string(), interpret("/foo", &None));
+                assert_eq!("/foo\\bar".to_string(), interpret("/foo/bar", &None));
+            }
+        }
+
+        #[test]
+        fn can_interpret_windows_drive_letter() {
+            assert_eq!(r#"\\?\C:\foo"#.to_string(), interpret("C:/foo", &None));
+            assert_eq!(r#"\\?\C:\"#.to_string(), interpret("C:\\", &None));
+            assert_eq!(r#"\\?\C:\"#.to_string(), interpret("C:/", &None));
+            assert_eq!(r#"\\?\C:\"#.to_string(), interpret("C:", &None));
+        }
+
+        #[test]
+        fn can_interpret_unc_path() {
+            assert_eq!(r#"\\?\C:\foo"#.to_string(), interpret(r#"\\?\C:\foo"#, &None));
+            assert_eq!(r#"\\?\C:\"#.to_string(), interpret(r#"\\?\C:\"#, &None));
+            assert_eq!(r#"\\?\C:\"#.to_string(), interpret(r#"\\?\C:/"#, &None));
+            assert_eq!(r#"\\?\C:\"#.to_string(), interpret(r#"\\?\C:"#, &None));
+        }
+
+        #[test]
+        fn can_render() {
+            assert_eq!("".to_string(), render(""));
+            assert_eq!("/".to_string(), render("/"));
+            assert_eq!("/foo".to_string(), render("/foo"));
+            assert_eq!("/foo/bar".to_string(), render("/foo/bar"));
+            assert_eq!("/foo/bar/".to_string(), render("\\foo/bar/"));
+            assert_eq!("C:/foo".to_string(), render("C:/foo"));
+        }
 
         #[test]
         fn expands_relative_paths_from_working_dir_by_default() {
@@ -622,11 +714,27 @@ mod tests {
 
         #[test]
         fn is_prefix_of() {
-            assert!(StrictPath::new(s(r#"/foo"#)).is_prefix_of(&StrictPath::new(s("/foo/bar"))));
-            assert!(!StrictPath::new(s(r#"/foo"#)).is_prefix_of(&StrictPath::new(s("/f"))));
-            assert!(!StrictPath::new(s(r#"/foo"#)).is_prefix_of(&StrictPath::new(s("/foo"))));
-            assert!(!StrictPath::new(s(r#"/foo"#)).is_prefix_of(&StrictPath::new(s("/bar"))));
-            assert!(!StrictPath::new(s(r#""#)).is_prefix_of(&StrictPath::new(s("/foo"))));
+            assert!(StrictPath::new(s("/")).is_prefix_of(&StrictPath::new(s("/foo"))));
+            assert!(StrictPath::new(s("/foo")).is_prefix_of(&StrictPath::new(s("/foo/bar"))));
+            assert!(!StrictPath::new(s("/foo")).is_prefix_of(&StrictPath::new(s("/f"))));
+            assert!(!StrictPath::new(s("/foo")).is_prefix_of(&StrictPath::new(s("/foo"))));
+            assert!(!StrictPath::new(s("/foo")).is_prefix_of(&StrictPath::new(s("/bar"))));
+            assert!(!StrictPath::new(s("")).is_prefix_of(&StrictPath::new(s("/foo"))));
+        }
+
+        #[test]
+        fn is_prefix_of_with_windows_drive_letters() {
+            assert!(StrictPath::new(s(r#"C:"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
+            assert!(StrictPath::new(s(r#"C:/"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
+            assert!(StrictPath::new(s(r#"C:\"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
+        }
+
+        #[test]
+        fn is_prefix_of_with_unc_drives() {
+            assert!(!StrictPath::new(s(r#"\\?\C:\foo"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
+            assert!(StrictPath::new(s(r#"\\?\C:\foo"#)).is_prefix_of(&StrictPath::new(s("C:/foo/bar"))));
+            assert!(!StrictPath::new(s(r#"\\remote\foo"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
+            assert!(StrictPath::new(s(r#"C:\"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
         }
 
         #[test]
