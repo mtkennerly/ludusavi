@@ -8,7 +8,7 @@ use crate::{
     lang::Translator,
 };
 
-use iced::{scrollable, Alignment, Checkbox, Column, Container, Length, Padding, Row, Scrollable, Text};
+use iced::{scrollable, Checkbox, Column, Container, Length, Padding, Scrollable, Text};
 
 #[derive(Default)]
 pub struct OtherScreenComponent {
@@ -33,57 +33,43 @@ impl OtherScreenComponent {
         Container::new(
             Scrollable::new(&mut self.scroll)
                 .width(Length::Fill)
+                .style(style::Scrollable)
                 .padding(Padding {
                     top: 0,
                     bottom: 5,
-                    left: 5,
-                    right: 5,
+                    left: 15,
+                    right: 15,
                 })
-                .style(style::Scrollable)
                 .push(
                     Column::new()
+                        .spacing(20)
+                        .push(Checkbox::new(
+                            config.backup.filter.exclude_other_os_data,
+                            translator.explanation_for_exclude_other_os_data(),
+                            Message::EditedExcludeOtherOsData,
+                        ))
+                        .push(Checkbox::new(
+                            config.backup.filter.exclude_store_screenshots,
+                            translator.explanation_for_exclude_store_screenshots(),
+                            Message::EditedExcludeStoreScreenshots,
+                        ))
                         .push(
-                            Row::new()
-                                .padding(Padding {
-                                    top: 0,
-                                    bottom: 0,
-                                    left: 20,
-                                    right: 20,
-                                })
-                                .spacing(20)
-                                .align_items(Alignment::Center)
-                                .push(Checkbox::new(
-                                    config.backup.filter.exclude_other_os_data,
-                                    translator.explanation_for_exclude_other_os_data(),
-                                    Message::EditedExcludeOtherOsData,
-                                )),
-                        )
-                        .push(
-                            Row::new()
-                                .padding(20)
-                                .spacing(20)
-                                .align_items(Alignment::Center)
-                                .push(Checkbox::new(
-                                    config.backup.filter.exclude_store_screenshots,
-                                    translator.explanation_for_exclude_store_screenshots(),
-                                    Message::EditedExcludeStoreScreenshots,
-                                )),
-                        )
-                        .push(
-                            Row::new()
-                                .padding(Padding {
-                                    top: 0,
-                                    bottom: 0,
-                                    left: 20,
-                                    right: 20,
-                                })
-                                .push(Text::new(translator.ignored_items_label())),
-                        )
-                        .push(self.ignored_items_editor.view(config, translator, operation)),
+                            Column::new().push(Text::new(translator.ignored_items_label())).push(
+                                self.ignored_items_editor
+                                    .view(config, translator, operation)
+                                    .padding(Padding {
+                                        top: 10,
+                                        bottom: 0,
+                                        left: 0,
+                                        right: 0,
+                                    }),
+                            ),
+                        ),
                 ),
         )
         .height(Length::Fill)
         .width(Length::Fill)
+        .padding(5)
         .center_x()
     }
 }

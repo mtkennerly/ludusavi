@@ -30,7 +30,7 @@ use iced::{
     alignment::Horizontal as HorizontalAlignment,
     button, executor,
     keyboard::{KeyCode, Modifiers},
-    Alignment, Application, Button, Column, Command, Element, Length, Row, Space, Subscription, Text,
+    Alignment, Application, Button, Column, Command, Element, Length, Padding, Row, Subscription, Text,
 };
 
 pub fn get_key_pressed(event: iced::keyboard::Event) -> Option<(KeyCode, Modifiers)> {
@@ -1106,6 +1106,12 @@ impl Application for App {
             .align_items(Alignment::Center)
             .push(
                 Row::new()
+                    .padding(Padding {
+                        top: 2,
+                        bottom: 25,
+                        left: 20,
+                        right: 20,
+                    })
                     .spacing(20)
                     .push(
                         Button::new(
@@ -1164,7 +1170,6 @@ impl Application for App {
                         }),
                     ),
             )
-            .push(Space::with_height(Length::Units(25)))
             .push(
                 match self.screen {
                     Screen::Backup => {
@@ -1181,6 +1186,12 @@ impl Application for App {
                     }
                     Screen::Other => self.other_screen.view(&self.config, &self.translator, &self.operation),
                 }
+                .padding(Padding {
+                    top: 0,
+                    bottom: 5,
+                    left: 5,
+                    right: 5,
+                })
                 .height(Length::FillPortion(10_000)),
             )
             .push(self.progress.view())

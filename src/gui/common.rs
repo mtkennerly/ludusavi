@@ -7,7 +7,7 @@ use crate::{
     shortcuts::{Shortcut, TextHistory},
 };
 
-use iced::{Alignment, Row, Text};
+use iced::{Alignment, Padding, Row, Text};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -211,7 +211,12 @@ pub fn make_status_row<'a>(
     found_any_duplicates: bool,
 ) -> Row<'a, Message> {
     Row::new()
-        .padding(20)
+        .padding(Padding {
+            top: 0,
+            bottom: 0,
+            left: 20,
+            right: 20,
+        })
         .align_items(Alignment::Center)
         .push(Text::new(translator.processed_games(status)).size(35))
         .push(Text::new("  |  ").size(35))

@@ -12,7 +12,7 @@ use crate::{
 };
 
 use iced::{
-    button, scrollable, text_input, Button, Checkbox, Column, Container, Length, Row, Scrollable, Space, Text,
+    button, scrollable, text_input, Button, Checkbox, Column, Container, Length, Padding, Row, Scrollable, Space, Text,
     TextInput,
 };
 
@@ -74,6 +74,12 @@ impl CustomGamesEditor {
                     Scrollable::new(&mut self.scroll)
                         .width(Length::Fill)
                         .height(Length::Fill)
+                        .padding(Padding {
+                            top: 0,
+                            bottom: 5,
+                            left: 15,
+                            right: 15,
+                        })
                         .spacing(10)
                         .style(style::Scrollable),
                     |parent: Scrollable<'_, Message>, (i, x)| {
@@ -232,7 +238,6 @@ impl CustomGamesEditor {
                     },
                 )
             })
-            .padding(10)
         }
     }
 }

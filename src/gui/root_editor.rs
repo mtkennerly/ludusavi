@@ -12,7 +12,7 @@ use crate::{
 };
 
 use iced::{
-    button, pick_list, scrollable, text_input, Button, Container, Length, PickList, Row, Scrollable, Space, Text,
+    button, pick_list, scrollable, text_input, Button, Container, Length, Padding, PickList, Row, Scrollable, Text,
     TextInput,
 };
 
@@ -62,45 +62,48 @@ impl RootEditor {
                             Length::Shrink
                         })
                         .max_height(100)
+                        .spacing(5)
                         .style(style::Scrollable),
                     |parent: Scrollable<'_, Message>, (i, x)| {
-                        parent
-                            .push(
-                                Row::new()
-                                    .spacing(20)
-                                    .push(Space::new(Length::Units(0), Length::Units(0)))
-                                    .push(
-                                        Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())
-                                            .on_press(Message::EditedRoot(EditAction::Remove(i)))
-                                            .style(style::Button::Negative),
-                                    )
-                                    .push(
-                                        TextInput::new(&mut x.text_state, "", &roots[i].path.raw(), move |v| {
-                                            Message::EditedRoot(EditAction::Change(i, v))
+                        parent.push(
+                            Row::new()
+                                .padding(Padding {
+                                    top: 0,
+                                    bottom: 0,
+                                    left: 20,
+                                    right: 20,
+                                })
+                                .spacing(20)
+                                .push(
+                                    Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())
+                                        .on_press(Message::EditedRoot(EditAction::Remove(i)))
+                                        .style(style::Button::Negative),
+                                )
+                                .push(
+                                    TextInput::new(&mut x.text_state, "", &roots[i].path.raw(), move |v| {
+                                        Message::EditedRoot(EditAction::Change(i, v))
+                                    })
+                                    .width(Length::FillPortion(3))
+                                    .padding(5),
+                                )
+                                .push(PickList::new(
+                                    &mut x.pick_list,
+                                    Store::ALL,
+                                    Some(roots[i].store),
+                                    move |v| Message::SelectedRootStore(i, v),
+                                ))
+                                .push(
+                                    Button::new(&mut x.browse_button_state, Icon::FolderOpen.as_text())
+                                        .on_press(match operation {
+                                            None => Message::BrowseDir(BrowseSubject::Root(i)),
+                                            Some(_) => Message::Ignore,
                                         })
-                                        .width(Length::FillPortion(3))
-                                        .padding(5),
-                                    )
-                                    .push(PickList::new(
-                                        &mut x.pick_list,
-                                        Store::ALL,
-                                        Some(roots[i].store),
-                                        move |v| Message::SelectedRootStore(i, v),
-                                    ))
-                                    .push(
-                                        Button::new(&mut x.browse_button_state, Icon::FolderOpen.as_text())
-                                            .on_press(match operation {
-                                                None => Message::BrowseDir(BrowseSubject::Root(i)),
-                                                Some(_) => Message::Ignore,
-                                            })
-                                            .style(match operation {
-                                                None => style::Button::Primary,
-                                                Some(_) => style::Button::Disabled,
-                                            }),
-                                    )
-                                    .push(Space::new(Length::Units(0), Length::Units(0))),
-                            )
-                            .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
+                                        .style(match operation {
+                                            None => style::Button::Primary,
+                                            Some(_) => style::Button::Disabled,
+                                        }),
+                                ),
+                        )
                     },
                 )
             })

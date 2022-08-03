@@ -16,7 +16,7 @@ use crate::{
 use fuzzy_matcher::FuzzyMatcher;
 use iced::{
     alignment::Horizontal as HorizontalAlignment, button, scrollable, Alignment, Button, Checkbox, Column, Container,
-    Length, Row, Scrollable, Space, Text,
+    Length, Padding, Row, Scrollable, Space, Text,
 };
 
 use super::common::OngoingOperation;
@@ -237,7 +237,13 @@ impl GameList {
                     self.entries.iter_mut().enumerate().fold(
                         Scrollable::new(&mut self.scroll)
                             .width(Length::Fill)
-                            .padding(10)
+                            .padding(Padding {
+                                top: 0,
+                                bottom: 5,
+                                left: 15,
+                                right: 15,
+                            })
+                            .spacing(10)
                             .style(style::Scrollable),
                         |parent: Scrollable<'_, Message>, (_i, x)| {
                             if !use_search
@@ -245,16 +251,14 @@ impl GameList {
                                     .fuzzy_match(&x.scan_info.game_name, &search_game_name)
                                     .is_some()
                             {
-                                parent
-                                    .push(x.view(
-                                        restoring,
-                                        translator,
-                                        config,
-                                        manifest,
-                                        duplicate_detector,
-                                        operation,
-                                    ))
-                                    .push(Space::new(Length::Units(0), Length::Units(10)))
+                                parent.push(x.view(
+                                    restoring,
+                                    translator,
+                                    config,
+                                    manifest,
+                                    duplicate_detector,
+                                    operation,
+                                ))
                             } else {
                                 parent
                             }

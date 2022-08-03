@@ -50,18 +50,13 @@ impl CustomGamesScreenComponent {
     ) -> Container<Message> {
         Container::new(
             Column::new()
-                .padding(Padding {
-                    top: 0,
-                    bottom: 5,
-                    left: 5,
-                    right: 5,
-                })
+                .spacing(20)
                 .align_items(Alignment::Center)
                 .push(
                     Row::new()
                         .padding(Padding {
                             top: 0,
-                            bottom: 20,
+                            bottom: 0,
                             left: 20,
                             right: 20,
                         })

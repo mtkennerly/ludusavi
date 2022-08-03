@@ -16,7 +16,7 @@ use crate::{
 
 use iced::{
     alignment::Horizontal as HorizontalAlignment, button, text_input, Alignment, Button, Column, Container, Length,
-    Padding, Row, Space, Text, TextInput,
+    Padding, Row, Text, TextInput,
 };
 
 #[derive(Default)]
@@ -59,18 +59,13 @@ impl RestoreScreenComponent {
     ) -> Container<Message> {
         Container::new(
             Column::new()
-                .padding(Padding {
-                    top: 0,
-                    bottom: 5,
-                    left: 5,
-                    right: 5,
-                })
                 .align_items(Alignment::Center)
+                .spacing(20)
                 .push(
                     Row::new()
                         .padding(Padding {
                             top: 0,
-                            bottom: 20,
+                            bottom: 0,
                             left: 20,
                             right: 20,
                         })
@@ -171,7 +166,12 @@ impl RestoreScreenComponent {
                 ))
                 .push(
                     Row::new()
-                        .padding(20)
+                        .padding(Padding {
+                            top: 0,
+                            bottom: 0,
+                            left: 20,
+                            right: 20,
+                        })
                         .spacing(20)
                         .align_items(Alignment::Center)
                         .push(Text::new(translator.restore_source_label()))
@@ -197,7 +197,6 @@ impl RestoreScreenComponent {
                         ),
                 )
                 .push(self.redirect_editor.view(config, translator, operation))
-                .push(Space::new(Length::Units(0), Length::Units(30)))
                 .push(
                     self.log
                         .view(true, translator, config, manifest, &self.duplicate_detector, operation),

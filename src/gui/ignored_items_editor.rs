@@ -195,6 +195,5 @@ impl IgnoredItemsEditor {
                 .style(style::Container::GameListEntry),
             )
         })
-        .padding(15)
     }
 }
