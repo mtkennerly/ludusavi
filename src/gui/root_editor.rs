@@ -12,8 +12,7 @@ use crate::{
 };
 
 use iced::{
-    button, pick_list, scrollable, text_input, Button, Container, Length, Padding, PickList, Row, Scrollable, Text,
-    TextInput,
+    button, pick_list, scrollable, text_input, Button, Container, Length, PickList, Row, Scrollable, Text, TextInput,
 };
 
 #[derive(Default)]
@@ -67,12 +66,7 @@ impl RootEditor {
                     |parent: Scrollable<'_, Message>, (i, x)| {
                         parent.push(
                             Row::new()
-                                .padding(Padding {
-                                    top: 0,
-                                    bottom: 0,
-                                    left: 20,
-                                    right: 20,
-                                })
+                                .padding([0, 20, 0, 20])
                                 .spacing(20)
                                 .push(
                                     Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())

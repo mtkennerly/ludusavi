@@ -8,7 +8,7 @@ use crate::{
     lang::Translator,
 };
 
-use iced::{scrollable, Checkbox, Column, Container, Length, Padding, Scrollable, Text};
+use iced::{scrollable, Checkbox, Column, Container, Length, Scrollable, Text};
 
 #[derive(Default)]
 pub struct OtherScreenComponent {
@@ -34,12 +34,7 @@ impl OtherScreenComponent {
             Scrollable::new(&mut self.scroll)
                 .width(Length::Fill)
                 .style(style::Scrollable)
-                .padding(Padding {
-                    top: 0,
-                    bottom: 5,
-                    left: 15,
-                    right: 15,
-                })
+                .padding([0, 15, 5, 15])
                 .push(
                     Column::new()
                         .spacing(20)
@@ -57,12 +52,7 @@ impl OtherScreenComponent {
                             Column::new().push(Text::new(translator.ignored_items_label())).push(
                                 self.ignored_items_editor
                                     .view(config, translator, operation)
-                                    .padding(Padding {
-                                        top: 10,
-                                        bottom: 0,
-                                        left: 0,
-                                        right: 0,
-                                    }),
+                                    .padding([10, 0, 0, 0]),
                             ),
                         ),
                 ),

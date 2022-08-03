@@ -21,9 +21,9 @@ impl SearchComponent {
         }
         Container::new(
             Row::new()
+                .padding([0, 20, 20, 20])
                 .spacing(20)
                 .align_items(Alignment::Center)
-                .push(Space::new(Length::Shrink, Length::Shrink))
                 .push(Text::new(translator.search_label()))
                 .push(
                     TextInput::new(
@@ -36,8 +36,7 @@ impl SearchComponent {
                         },
                     )
                     .padding(5),
-                )
-                .push(Space::new(Length::Shrink, Length::Shrink)),
+                ),
         )
     }
 }

@@ -1,5 +1,5 @@
 use crate::gui::{common::Message, style};
-use iced::{Column, Container, Length, Row, Space, Text};
+use iced::{Container, Text};
 
 #[derive(Default)]
 pub struct Badge {
@@ -22,30 +22,12 @@ impl Badge {
 
     pub fn view(self) -> Container<'static, Message> {
         Container::new(
-            Row::new()
-                .push(Space::new(Length::Units(self.left_margin), Length::Shrink))
-                .push(
-                    Column::new().push(Space::new(Length::Shrink, Length::Units(3))).push(
-                        Container::new(
-                            Row::new()
-                                .push(Space::new(Length::Units(10), Length::Shrink))
-                                .push(Text::new(self.text).size(14))
-                                .push(Space::new(Length::Units(10), Length::Shrink)),
-                        )
-                        .padding(2)
-                        .style(style::Container::Badge),
-                    ),
-                ),
+            Container::new(Text::new(self.text).size(14))
+                .padding([2, 12, 2, 12])
+                .style(style::Container::Badge),
         )
+        .padding([3, 0, 0, self.left_margin])
         .center_x()
         .center_y()
-    }
-
-    pub fn view_if(self, condition: bool) -> Container<'static, Message> {
-        if condition {
-            self.view()
-        } else {
-            Container::new(Space::new(Length::Shrink, Length::Shrink))
-        }
     }
 }

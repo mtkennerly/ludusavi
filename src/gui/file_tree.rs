@@ -108,7 +108,7 @@ impl FileTreeNode {
         if self.nodes.is_empty() {
             return Container::new(
                 Row::new()
-                    .push(Space::new(Length::Units(35 * level), Length::Shrink))
+                    .padding([0, 0, 0, 35 * level])
                     .push(
                         Icon::SubdirectoryArrowRight
                             .as_text()
@@ -127,9 +127,10 @@ impl FileTreeNode {
                         || !self.successful,
                         || Badge::new(&translator.badge_failed()).left_margin(15).view(),
                     )
-                    .push(match &self.redirected_from {
-                        Some(r) => Badge::new(&translator.badge_redirected_from(r)).left_margin(15).view(),
-                        None => Container::new(Space::new(Length::Shrink, Length::Shrink)),
+                    .push_some(|| {
+                        self.redirected_from
+                            .as_ref()
+                            .map(|r| Badge::new(&translator.badge_redirected_from(r)).left_margin(15).view())
                     }),
             );
         } else if self.nodes.len() == 1 {
@@ -152,7 +153,7 @@ impl FileTreeNode {
                 Column::new().push(
                     Row::new()
                         .align_items(Alignment::Center)
-                        .push(Space::new(Length::Units(35 * level), Length::Shrink))
+                        .padding([0, 10, 0, 35 * level])
                         .push(
                             Button::new(
                                 &mut self.expand_button,
@@ -190,15 +191,13 @@ impl FileTreeNode {
                                 );
                             }
                             None
-                        })
-                        .push(Space::new(Length::Units(10), Length::Shrink)),
+                        }),
                 ),
                 |parent, (k, v)| {
-                    if expanded {
-                        parent.push(v.view(level + 1, k, translator, game_name, config, restoring))
-                    } else {
-                        parent
-                    }
+                    parent.push_if(
+                        || expanded,
+                        || v.view(level + 1, k, translator, game_name, config, restoring),
+                    )
                 },
             ),
         )

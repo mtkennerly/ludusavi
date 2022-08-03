@@ -48,89 +48,87 @@ impl RedirectEditor {
     ) -> Container<Message> {
         let redirects = config.get_redirects();
         if redirects.is_empty() {
-            Container::new(Space::new(Length::Units(0), Length::Units(0)))
-        } else {
-            Container::new({
-                self.rows.iter_mut().enumerate().fold(
-                    Scrollable::new(&mut self.scroll)
-                        .width(Length::Fill)
-                        // TODO: https://github.com/iced-rs/iced/issues/1388
-                        .height(if config.restore.redirects.len() > 3 {
-                            Length::Units(100)
-                        } else {
-                            Length::Shrink
-                        })
-                        .max_height(100)
-                        .style(style::Scrollable),
-                    |parent: Scrollable<'_, Message>, (i, x)| {
-                        parent
-                            .push(
-                                Row::new()
-                                    .spacing(20)
-                                    .push(Space::new(Length::Units(0), Length::Units(0)))
-                                    .push(
-                                        Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())
-                                            .on_press(Message::EditedRedirect(EditAction::Remove(i), None))
-                                            .style(style::Button::Negative),
-                                    )
-                                    .push(
-                                        TextInput::new(
-                                            &mut x.source_text_state,
-                                            &translator.redirect_source_placeholder(),
-                                            &redirects[i].source.raw(),
-                                            move |v| {
-                                                Message::EditedRedirect(
-                                                    EditAction::Change(i, v),
-                                                    Some(RedirectEditActionField::Source),
-                                                )
-                                            },
-                                        )
-                                        .width(Length::FillPortion(3))
-                                        .padding(5),
-                                    )
-                                    .push(
-                                        Button::new(&mut x.source_browse_button_state, Icon::FolderOpen.as_text())
-                                            .on_press(match operation {
-                                                None => Message::BrowseDir(BrowseSubject::RedirectSource(i)),
-                                                Some(_) => Message::Ignore,
-                                            })
-                                            .style(match operation {
-                                                None => style::Button::Primary,
-                                                Some(_) => style::Button::Disabled,
-                                            }),
-                                    )
-                                    .push(
-                                        TextInput::new(
-                                            &mut x.target_text_state,
-                                            &translator.redirect_target_placeholder(),
-                                            &redirects[i].target.raw(),
-                                            move |v| {
-                                                Message::EditedRedirect(
-                                                    EditAction::Change(i, v),
-                                                    Some(RedirectEditActionField::Target),
-                                                )
-                                            },
-                                        )
-                                        .width(Length::FillPortion(3))
-                                        .padding(5),
-                                    )
-                                    .push(
-                                        Button::new(&mut x.target_browse_button_state, Icon::FolderOpen.as_text())
-                                            .on_press(match operation {
-                                                None => Message::BrowseDir(BrowseSubject::RedirectTarget(i)),
-                                                Some(_) => Message::Ignore,
-                                            })
-                                            .style(match operation {
-                                                None => style::Button::Primary,
-                                                Some(_) => style::Button::Disabled,
-                                            }),
-                                    )
-                                    .push(Space::new(Length::Units(0), Length::Units(0))),
-                            )
-                            .push(Row::new().push(Space::new(Length::Units(0), Length::Units(5))))
-                    },
-                )
-            })
+            return Container::new(Space::new(Length::Shrink, Length::Shrink));
         }
+
+        Container::new({
+            self.rows.iter_mut().enumerate().fold(
+                Scrollable::new(&mut self.scroll)
+                    .width(Length::Fill)
+                    // TODO: https://github.com/iced-rs/iced/issues/1388
+                    .height(if config.restore.redirects.len() > 3 {
+                        Length::Units(100)
+                    } else {
+                        Length::Shrink
+                    })
+                    .max_height(100)
+                    .spacing(5)
+                    .style(style::Scrollable),
+                |parent: Scrollable<'_, Message>, (i, x)| {
+                    parent.push(
+                        Row::new()
+                            .padding([0, 20, 0, 20])
+                            .spacing(20)
+                            .push(
+                                Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())
+                                    .on_press(Message::EditedRedirect(EditAction::Remove(i), None))
+                                    .style(style::Button::Negative),
+                            )
+                            .push(
+                                TextInput::new(
+                                    &mut x.source_text_state,
+                                    &translator.redirect_source_placeholder(),
+                                    &redirects[i].source.raw(),
+                                    move |v| {
+                                        Message::EditedRedirect(
+                                            EditAction::Change(i, v),
+                                            Some(RedirectEditActionField::Source),
+                                        )
+                                    },
+                                )
+                                .width(Length::FillPortion(3))
+                                .padding(5),
+                            )
+                            .push(
+                                Button::new(&mut x.source_browse_button_state, Icon::FolderOpen.as_text())
+                                    .on_press(match operation {
+                                        None => Message::BrowseDir(BrowseSubject::RedirectSource(i)),
+                                        Some(_) => Message::Ignore,
+                                    })
+                                    .style(match operation {
+                                        None => style::Button::Primary,
+                                        Some(_) => style::Button::Disabled,
+                                    }),
+                            )
+                            .push(
+                                TextInput::new(
+                                    &mut x.target_text_state,
+                                    &translator.redirect_target_placeholder(),
+                                    &redirects[i].target.raw(),
+                                    move |v| {
+                                        Message::EditedRedirect(
+                                            EditAction::Change(i, v),
+                                            Some(RedirectEditActionField::Target),
+                                        )
+                                    },
+                                )
+                                .width(Length::FillPortion(3))
+                                .padding(5),
+                            )
+                            .push(
+                                Button::new(&mut x.target_browse_button_state, Icon::FolderOpen.as_text())
+                                    .on_press(match operation {
+                                        None => Message::BrowseDir(BrowseSubject::RedirectTarget(i)),
+                                        Some(_) => Message::Ignore,
+                                    })
+                                    .style(match operation {
+                                        None => style::Button::Primary,
+                                        Some(_) => style::Button::Disabled,
+                                    }),
+                            ),
+                    )
+                },
+            )
+        })
     }
 }

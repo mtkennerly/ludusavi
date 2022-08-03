@@ -7,7 +7,7 @@ use crate::{
 
 use iced::{
     alignment::Horizontal as HorizontalAlignment, button, scrollable, Alignment, Button, Column, Container, Length,
-    Padding, Row, Scrollable, Space, Text,
+    Row, Scrollable, Space, Text,
 };
 
 pub enum ModalVariant {
@@ -108,12 +108,7 @@ impl ModalComponent {
                         .align_items(Alignment::Center)
                         .push(
                             Row::new()
-                                .padding(Padding {
-                                    top: 40,
-                                    bottom: 0,
-                                    left: 40,
-                                    right: 40,
-                                })
+                                .padding([40, 40, 0, 40])
                                 .align_items(Alignment::Center)
                                 .push(
                                     Scrollable::new(&mut self.scroll)

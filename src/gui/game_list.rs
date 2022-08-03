@@ -16,7 +16,7 @@ use crate::{
 use fuzzy_matcher::FuzzyMatcher;
 use iced::{
     alignment::Horizontal as HorizontalAlignment, button, scrollable, Alignment, Button, Checkbox, Column, Container,
-    Length, Padding, Row, Scrollable, Space, Text,
+    Length, Row, Scrollable, Space, Text,
 };
 
 use super::common::OngoingOperation;
@@ -237,12 +237,7 @@ impl GameList {
                     self.entries.iter_mut().enumerate().fold(
                         Scrollable::new(&mut self.scroll)
                             .width(Length::Fill)
-                            .padding(Padding {
-                                top: 0,
-                                bottom: 5,
-                                left: 15,
-                                right: 15,
-                            })
+                            .padding([0, 15, 5, 15])
                             .spacing(10)
                             .style(style::Scrollable),
                         |parent: Scrollable<'_, Message>, (_i, x)| {

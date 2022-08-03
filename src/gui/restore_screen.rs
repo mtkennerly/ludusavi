@@ -16,7 +16,7 @@ use crate::{
 
 use iced::{
     alignment::Horizontal as HorizontalAlignment, button, text_input, Alignment, Button, Column, Container, Length,
-    Padding, Row, Text, TextInput,
+    Row, Text, TextInput,
 };
 
 #[derive(Default)]
@@ -63,12 +63,7 @@ impl RestoreScreenComponent {
                 .spacing(20)
                 .push(
                     Row::new()
-                        .padding(Padding {
-                            top: 0,
-                            bottom: 0,
-                            left: 20,
-                            right: 20,
-                        })
+                        .padding([0, 20, 0, 20])
                         .spacing(20)
                         .align_items(Alignment::Center)
                         .push(
@@ -166,12 +161,7 @@ impl RestoreScreenComponent {
                 ))
                 .push(
                     Row::new()
-                        .padding(Padding {
-                            top: 0,
-                            bottom: 0,
-                            left: 20,
-                            right: 20,
-                        })
+                        .padding([0, 20, 0, 20])
                         .spacing(20)
                         .align_items(Alignment::Center)
                         .push(Text::new(translator.restore_source_label()))

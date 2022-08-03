@@ -12,7 +12,7 @@ use crate::{
 };
 
 use iced::{
-    button, scrollable, text_input, Button, Checkbox, Column, Container, Length, Padding, Row, Scrollable, Space, Text,
+    button, scrollable, text_input, Button, Checkbox, Column, Container, Length, Row, Scrollable, Space, Text,
     TextInput,
 };
 
@@ -67,177 +67,172 @@ impl CustomGamesEditor {
         operation: &Option<OngoingOperation>,
     ) -> Container<Message> {
         if config.custom_games.is_empty() {
-            Container::new(Space::new(Length::Units(0), Length::Units(0)))
-        } else {
-            Container::new({
-                self.entries.iter_mut().enumerate().fold(
-                    Scrollable::new(&mut self.scroll)
-                        .width(Length::Fill)
-                        .height(Length::Fill)
-                        .padding(Padding {
-                            top: 0,
-                            bottom: 5,
-                            left: 15,
-                            right: 15,
-                        })
-                        .spacing(10)
-                        .style(style::Scrollable),
-                    |parent: Scrollable<'_, Message>, (i, x)| {
-                        parent.push(
-                            Container::new(
-                                Column::new()
-                                    .padding(5)
-                                    .spacing(5)
-                                    .push(
-                                        Row::new()
-                                            .push(Column::new().width(Length::Units(100)).push(Checkbox::new(
-                                                config.is_custom_game_enabled(i),
-                                                "",
-                                                move |enabled| Message::ToggleCustomGameEnabled { index: i, enabled },
-                                            )))
-                                            .push(
-                                                TextInput::new(
-                                                    &mut x.text_state,
-                                                    &translator.custom_game_name_placeholder(),
-                                                    &config.custom_games[i].name,
-                                                    move |v| Message::EditedCustomGame(EditAction::Change(i, v)),
-                                                )
-                                                .width(Length::Fill)
-                                                .padding(5),
-                                            )
-                                            .push(Space::new(Length::Units(20), Length::Units(0)))
-                                            .push(
-                                                Button::new(&mut x.remove_button_state, Icon::Delete.as_text())
-                                                    .on_press(Message::EditedCustomGame(EditAction::Remove(i)))
-                                                    .style(style::Button::Negative),
-                                            ),
-                                    )
-                                    .push(
-                                        Row::new()
-                                            .push(
-                                                Column::new()
-                                                    .width(Length::Units(100))
-                                                    .push(Text::new(translator.custom_files_label())),
-                                            )
-                                            .push(
-                                                x.files
-                                                    .iter_mut()
-                                                    .enumerate()
-                                                    .fold(Column::new().spacing(4), |column, (ii, xx)| {
-                                                        column.push(
-                                                            Row::new()
-                                                                .spacing(20)
-                                                                .push(
-                                                                    TextInput::new(
-                                                                        &mut xx.text_state,
-                                                                        "",
-                                                                        &config.custom_games[i].files[ii],
-                                                                        move |v| {
-                                                                            Message::EditedCustomGameFile(
-                                                                                i,
-                                                                                EditAction::Change(ii, v),
-                                                                            )
-                                                                        },
-                                                                    )
-                                                                    .padding(5),
-                                                                )
-                                                                .push(
-                                                                    Button::new(
-                                                                        &mut xx.browse_button_state,
-                                                                        Icon::FolderOpen.as_text(),
-                                                                    )
-                                                                    .on_press(match operation {
-                                                                        None => Message::BrowseDir(
-                                                                            BrowseSubject::CustomGameFile(i, ii),
-                                                                        ),
-                                                                        Some(_) => Message::Ignore,
-                                                                    })
-                                                                    .style(match operation {
-                                                                        None => style::Button::Primary,
-                                                                        Some(_) => style::Button::Disabled,
-                                                                    }),
-                                                                )
-                                                                .push(
-                                                                    Button::new(
-                                                                        &mut xx.button_state,
-                                                                        Icon::RemoveCircle.as_text(),
-                                                                    )
-                                                                    .on_press(Message::EditedCustomGameFile(
-                                                                        i,
-                                                                        EditAction::Remove(ii),
-                                                                    ))
-                                                                    .style(style::Button::Negative),
-                                                                ),
-                                                        )
-                                                    })
-                                                    .push(
-                                                        Button::new(
-                                                            &mut x.add_file_button_state,
-                                                            Icon::AddCircle.as_text(),
-                                                        )
-                                                        .on_press(Message::EditedCustomGameFile(i, EditAction::Add))
-                                                        .style(style::Button::Primary),
-                                                    ),
-                                            ),
-                                    )
-                                    .push(
-                                        Row::new()
-                                            .push(
-                                                Column::new()
-                                                    .width(Length::Units(100))
-                                                    .push(Text::new(translator.custom_registry_label())),
-                                            )
-                                            .push(
-                                                x.registry
-                                                    .iter_mut()
-                                                    .enumerate()
-                                                    .fold(Column::new().spacing(4), |column, (ii, xx)| {
-                                                        column.push(
-                                                            Row::new()
-                                                                .spacing(20)
-                                                                .push(
-                                                                    TextInput::new(
-                                                                        &mut xx.text_state,
-                                                                        "",
-                                                                        &config.custom_games[i].registry[ii],
-                                                                        move |v| {
-                                                                            Message::EditedCustomGameRegistry(
-                                                                                i,
-                                                                                EditAction::Change(ii, v),
-                                                                            )
-                                                                        },
-                                                                    )
-                                                                    .padding(5),
-                                                                )
-                                                                .push(
-                                                                    Button::new(
-                                                                        &mut xx.button_state,
-                                                                        Icon::RemoveCircle.as_text(),
-                                                                    )
-                                                                    .on_press(Message::EditedCustomGameRegistry(
-                                                                        i,
-                                                                        EditAction::Remove(ii),
-                                                                    ))
-                                                                    .style(style::Button::Negative),
-                                                                ),
-                                                        )
-                                                    })
-                                                    .push(
-                                                        Button::new(
-                                                            &mut x.add_registry_button_state,
-                                                            Icon::AddCircle.as_text(),
-                                                        )
-                                                        .on_press(Message::EditedCustomGameRegistry(i, EditAction::Add))
-                                                        .style(style::Button::Primary),
-                                                    ),
-                                            ),
-                                    ),
-                            )
-                            .style(style::Container::GameListEntry),
-                        )
-                    },
-                )
-            })
+            return Container::new(Space::new(Length::Shrink, Length::Shrink));
         }
+
+        Container::new({
+            self.entries.iter_mut().enumerate().fold(
+                Scrollable::new(&mut self.scroll)
+                    .width(Length::Fill)
+                    .height(Length::Fill)
+                    .padding([0, 15, 5, 15])
+                    .spacing(10)
+                    .style(style::Scrollable),
+                |parent: Scrollable<'_, Message>, (i, x)| {
+                    parent.push(
+                        Container::new(
+                            Column::new()
+                                .padding(5)
+                                .spacing(5)
+                                .push(
+                                    Row::new()
+                                        .spacing(20)
+                                        .push(Column::new().width(Length::Units(80)).push(Checkbox::new(
+                                            config.is_custom_game_enabled(i),
+                                            "",
+                                            move |enabled| Message::ToggleCustomGameEnabled { index: i, enabled },
+                                        )))
+                                        .push(
+                                            TextInput::new(
+                                                &mut x.text_state,
+                                                &translator.custom_game_name_placeholder(),
+                                                &config.custom_games[i].name,
+                                                move |v| Message::EditedCustomGame(EditAction::Change(i, v)),
+                                            )
+                                            .width(Length::Fill)
+                                            .padding(5),
+                                        )
+                                        .push(
+                                            Button::new(&mut x.remove_button_state, Icon::Delete.as_text())
+                                                .on_press(Message::EditedCustomGame(EditAction::Remove(i)))
+                                                .style(style::Button::Negative),
+                                        ),
+                                )
+                                .push(
+                                    Row::new()
+                                        .push(
+                                            Column::new()
+                                                .width(Length::Units(100))
+                                                .push(Text::new(translator.custom_files_label())),
+                                        )
+                                        .push(
+                                            x.files
+                                                .iter_mut()
+                                                .enumerate()
+                                                .fold(Column::new().spacing(4), |column, (ii, xx)| {
+                                                    column.push(
+                                                        Row::new()
+                                                            .spacing(20)
+                                                            .push(
+                                                                TextInput::new(
+                                                                    &mut xx.text_state,
+                                                                    "",
+                                                                    &config.custom_games[i].files[ii],
+                                                                    move |v| {
+                                                                        Message::EditedCustomGameFile(
+                                                                            i,
+                                                                            EditAction::Change(ii, v),
+                                                                        )
+                                                                    },
+                                                                )
+                                                                .padding(5),
+                                                            )
+                                                            .push(
+                                                                Button::new(
+                                                                    &mut xx.browse_button_state,
+                                                                    Icon::FolderOpen.as_text(),
+                                                                )
+                                                                .on_press(match operation {
+                                                                    None => Message::BrowseDir(
+                                                                        BrowseSubject::CustomGameFile(i, ii),
+                                                                    ),
+                                                                    Some(_) => Message::Ignore,
+                                                                })
+                                                                .style(match operation {
+                                                                    None => style::Button::Primary,
+                                                                    Some(_) => style::Button::Disabled,
+                                                                }),
+                                                            )
+                                                            .push(
+                                                                Button::new(
+                                                                    &mut xx.button_state,
+                                                                    Icon::RemoveCircle.as_text(),
+                                                                )
+                                                                .on_press(Message::EditedCustomGameFile(
+                                                                    i,
+                                                                    EditAction::Remove(ii),
+                                                                ))
+                                                                .style(style::Button::Negative),
+                                                            ),
+                                                    )
+                                                })
+                                                .push(
+                                                    Button::new(
+                                                        &mut x.add_file_button_state,
+                                                        Icon::AddCircle.as_text(),
+                                                    )
+                                                    .on_press(Message::EditedCustomGameFile(i, EditAction::Add))
+                                                    .style(style::Button::Primary),
+                                                ),
+                                        ),
+                                )
+                                .push(
+                                    Row::new()
+                                        .push(
+                                            Column::new()
+                                                .width(Length::Units(100))
+                                                .push(Text::new(translator.custom_registry_label())),
+                                        )
+                                        .push(
+                                            x.registry
+                                                .iter_mut()
+                                                .enumerate()
+                                                .fold(Column::new().spacing(4), |column, (ii, xx)| {
+                                                    column.push(
+                                                        Row::new()
+                                                            .spacing(20)
+                                                            .push(
+                                                                TextInput::new(
+                                                                    &mut xx.text_state,
+                                                                    "",
+                                                                    &config.custom_games[i].registry[ii],
+                                                                    move |v| {
+                                                                        Message::EditedCustomGameRegistry(
+                                                                            i,
+                                                                            EditAction::Change(ii, v),
+                                                                        )
+                                                                    },
+                                                                )
+                                                                .padding(5),
+                                                            )
+                                                            .push(
+                                                                Button::new(
+                                                                    &mut xx.button_state,
+                                                                    Icon::RemoveCircle.as_text(),
+                                                                )
+                                                                .on_press(Message::EditedCustomGameRegistry(
+                                                                    i,
+                                                                    EditAction::Remove(ii),
+                                                                ))
+                                                                .style(style::Button::Negative),
+                                                            ),
+                                                    )
+                                                })
+                                                .push(
+                                                    Button::new(
+                                                        &mut x.add_registry_button_state,
+                                                        Icon::AddCircle.as_text(),
+                                                    )
+                                                    .on_press(Message::EditedCustomGameRegistry(i, EditAction::Add))
+                                                    .style(style::Button::Primary),
+                                                ),
+                                        ),
+                                ),
+                        )
+                        .style(style::Container::GameListEntry),
+                    )
+                },
+            )
+        })
     }
 }
