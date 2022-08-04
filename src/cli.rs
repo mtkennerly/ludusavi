@@ -195,7 +195,12 @@ pub enum Subcommand {
 }
 
 #[derive(clap::Parser, Clone, Debug, PartialEq)]
-#[clap(name = "ludusavi", about = "Back up and restore PC game saves", set_term_width = 79)]
+#[clap(
+    name = "ludusavi",
+    version,
+    about = "Back up and restore PC game saves",
+    set_term_width = 79
+)]
 pub struct Cli {
     #[clap(subcommand)]
     pub sub: Option<Subcommand>,
