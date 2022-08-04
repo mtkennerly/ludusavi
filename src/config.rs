@@ -82,6 +82,33 @@ pub struct ToggledPaths(std::collections::BTreeMap<String, std::collections::BTr
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct ToggledRegistry(std::collections::BTreeMap<String, std::collections::BTreeMap<RegistryItem, bool>>);
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum SortKey {
+    #[default]
+    #[serde(rename = "name")]
+    Name,
+    #[serde(rename = "size")]
+    Size,
+}
+
+impl SortKey {
+    pub const ALL: &'static [Self] = &[Self::Name, Self::Size];
+}
+
+impl std::fmt::Display for SortKey {
+    // This is needed for Iced's PickList.
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
+        // TODO: Use display adapter wrapper struct to respect the active language.
+        writeln!(f, "{}", crate::lang::Translator::default().sort_key(self))
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Sort {
+    pub key: SortKey,
+    pub reversed: bool,
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BackupConfig {
     pub path: StrictPath,
@@ -99,6 +126,8 @@ pub struct BackupConfig {
     pub toggled_paths: ToggledPaths,
     #[serde(default, rename = "toggledRegistry")]
     pub toggled_registry: ToggledRegistry,
+    #[serde(default)]
+    pub sort: Sort,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -112,6 +141,8 @@ pub struct RestoreConfig {
     pub ignored_games: std::collections::HashSet<String>,
     #[serde(default)]
     pub redirects: Vec<RedirectConfig>,
+    #[serde(default)]
+    pub sort: Sort,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -143,6 +174,7 @@ impl Default for BackupConfig {
             filter: BackupFilter::default(),
             toggled_paths: Default::default(),
             toggled_registry: Default::default(),
+            sort: Default::default(),
         }
     }
 }
@@ -153,6 +185,7 @@ impl Default for RestoreConfig {
             path: default_backup_dir(),
             ignored_games: std::collections::HashSet::new(),
             redirects: vec![],
+            sort: Default::default(),
         }
     }
 }
@@ -588,11 +621,13 @@ mod tests {
                     },
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
+                    sort: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
                     ignored_games: std::collections::HashSet::new(),
                     redirects: vec![],
+                    sort: Default::default(),
                 },
                 custom_games: vec![],
             },
@@ -676,6 +711,7 @@ mod tests {
                     },
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
+                    sort: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -686,7 +722,8 @@ mod tests {
                     redirects: vec![RedirectConfig {
                         source: StrictPath::new(s("~/old")),
                         target: StrictPath::new(s("~/new")),
-                    },],
+                    }],
+                    sort: Default::default(),
                 },
                 custom_games: vec![
                     CustomGame {
@@ -749,11 +786,13 @@ mod tests {
                     },
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
+                    sort: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
                     ignored_games: std::collections::HashSet::new(),
                     redirects: vec![],
+                    sort: Default::default(),
                 },
                 custom_games: vec![],
             },
@@ -788,6 +827,9 @@ backup:
     ignoredRegistry: []
   toggledPaths: {}
   toggledRegistry: {}
+  sort:
+    key: name
+    reversed: false
 restore:
   path: ~/restore
   ignoredGames:
@@ -797,6 +839,9 @@ restore:
   redirects:
     - source: ~/old
       target: ~/new
+  sort:
+    key: name
+    reversed: false
 customGames:
   - name: Custom Game 1
     files: []
@@ -842,6 +887,7 @@ customGames:
                     },
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
+                    sort: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -853,7 +899,8 @@ customGames:
                     redirects: vec![RedirectConfig {
                         source: StrictPath::new(s("~/old")),
                         target: StrictPath::new(s("~/new")),
-                    },],
+                    }],
+                    sort: Default::default(),
                 },
                 custom_games: vec![
                     CustomGame {

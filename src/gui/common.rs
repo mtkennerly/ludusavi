@@ -1,5 +1,5 @@
 use crate::{
-    config::RootsConfig,
+    config::{RootsConfig, SortKey},
     gui::badge::Badge,
     lang::Translator,
     manifest::Store,
@@ -96,6 +96,14 @@ pub enum Message {
         screen: Screen,
         value: String,
     },
+    EditedSortKey {
+        screen: Screen,
+        value: SortKey,
+    },
+    EditedSortReversed {
+        screen: Screen,
+        value: bool,
+    },
     BrowseDir(BrowseSubject),
     BrowseDirFailure,
     SelectAllGames,
@@ -130,7 +138,7 @@ pub enum OngoingOperation {
     CancelPreviewRestore,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Screen {
     Backup,
     Restore,

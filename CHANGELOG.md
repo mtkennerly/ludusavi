@@ -47,6 +47,7 @@
   * GUI: Button to find and add any missing roots. This is the same functionality
     as the automatic first-time setup, but is now available on demand.
   * Support for Prime Gaming roots.
+  * Option to sort the game list by file size and to reverse the sorting.
   * On Windows, the version field is now set in the executable properties.
   * On Windows, the executable icon is now included in the crates.io release as well.
 * Fixed:

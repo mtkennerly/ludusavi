@@ -7,6 +7,7 @@ use std::sync::Mutex;
 use unic_langid::LanguageIdentifier;
 
 use crate::{
+    config::SortKey,
     manifest::Store,
     prelude::{Error, OperationStatus, OperationStepDecision, StrictPath},
 };
@@ -453,6 +454,10 @@ impl Translator {
         translate("field-search")
     }
 
+    pub fn sort_label(&self) -> String {
+        translate("field-sort")
+    }
+
     pub fn store(&self, store: &Store) -> String {
         translate(match store {
             Store::Epic => "store-epic",
@@ -467,6 +472,17 @@ impl Translator {
             Store::OtherWine => "store-other-wine",
             Store::Other => "store-other",
         })
+    }
+
+    pub fn sort_key(&self, key: &SortKey) -> String {
+        translate(match key {
+            SortKey::Name => "sort-name",
+            SortKey::Size => "sort-size",
+        })
+    }
+
+    pub fn sort_reversed(&self) -> String {
+        translate("sort-reversed")
     }
 
     pub fn redirect_source_placeholder(&self) -> String {

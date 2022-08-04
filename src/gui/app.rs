@@ -352,6 +352,7 @@ impl Application for App {
                             backup_info,
                             ..Default::default()
                         });
+                        self.backup_screen.log.sort(&self.config.backup.sort);
                     }
                 }
                 if self.progress.complete() {
@@ -374,6 +375,7 @@ impl Application for App {
                             backup_info,
                             ..Default::default()
                         });
+                        self.restore_screen.log.sort(&self.config.restore.sort);
                     }
                 }
                 if self.progress.complete() {
@@ -784,6 +786,36 @@ impl Application for App {
                     }
                     _ => {}
                 }
+                Command::none()
+            }
+            Message::EditedSortKey { screen, value } => {
+                match screen {
+                    Screen::Backup => {
+                        self.config.backup.sort.key = value;
+                        self.backup_screen.log.sort(&self.config.backup.sort);
+                    }
+                    Screen::Restore => {
+                        self.config.restore.sort.key = value;
+                        self.restore_screen.log.sort(&self.config.restore.sort);
+                    }
+                    _ => {}
+                }
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedSortReversed { screen, value } => {
+                match screen {
+                    Screen::Backup => {
+                        self.config.backup.sort.reversed = value;
+                        self.backup_screen.log.sort(&self.config.backup.sort);
+                    }
+                    Screen::Restore => {
+                        self.config.restore.sort.reversed = value;
+                        self.restore_screen.log.sort(&self.config.restore.sort);
+                    }
+                    _ => {}
+                }
+                self.config.save();
                 Command::none()
             }
             Message::BrowseDir(subject) => Command::perform(

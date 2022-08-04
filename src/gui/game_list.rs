@@ -1,5 +1,5 @@
 use crate::{
-    config::{Config, ToggledPaths, ToggledRegistry},
+    config::{Config, Sort, SortKey, ToggledPaths, ToggledRegistry},
     gui::{
         badge::Badge,
         common::{IcedExtension, Message, Screen},
@@ -226,13 +226,17 @@ impl GameList {
         let use_search = self.search.show;
         let search_game_name = self.search.game_name.clone();
 
-        self.entries.sort_by_key(|x| x.scan_info.game_name.clone());
         Container::new(
             Column::new()
-                .push(
-                    self.search
-                        .view(if restoring { Screen::Restore } else { Screen::Backup }, translator),
-                )
+                .push(self.search.view(
+                    if restoring { Screen::Restore } else { Screen::Backup },
+                    translator,
+                    if restoring {
+                        &config.restore.sort
+                    } else {
+                        &config.backup.sort
+                    },
+                ))
                 .push({
                     self.entries.iter_mut().enumerate().fold(
                         Scrollable::new(&mut self.scroll)
@@ -294,6 +298,18 @@ impl GameList {
                 item.scan_info.update_ignored(ignored_paths, ignored_registry);
                 item.tree.update_ignored(game, ignored_paths, ignored_registry);
             }
+        }
+    }
+
+    pub fn sort(&mut self, sort: &Sort) {
+        match sort.key {
+            SortKey::Name => self.entries.sort_by_key(|x| x.scan_info.game_name.clone()),
+            SortKey::Size => self
+                .entries
+                .sort_by_key(|x| (x.scan_info.sum_bytes(&x.backup_info), x.scan_info.game_name.clone())),
+        }
+        if sort.reversed {
+            self.entries.reverse();
         }
     }
 }

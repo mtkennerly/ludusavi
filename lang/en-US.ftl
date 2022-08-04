@@ -79,6 +79,7 @@ field-restore-source = Restore from:
 field-custom-files = Paths:
 field-custom-registry = Registry:
 field-search = Search:
+field-sort = Sort:
 field-redirect-source =
     .placeholder = Source (original location)
 field-redirect-target =
@@ -100,6 +101,10 @@ store-uplay = Uplay
 store-other-home = Home folder
 store-other-wine = Wine prefix
 store-other = Other
+
+sort-name = Name
+sort-size = Size
+sort-reversed = Reversed
 
 explanation-for-exclude-other-os-data =
     In backups, exclude save locations that have only been confirmed on another

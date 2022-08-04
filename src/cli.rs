@@ -1,5 +1,5 @@
 use crate::{
-    config::{Config, RedirectConfig},
+    config::{Config, RedirectConfig, Sort, SortKey},
     lang::Translator,
     layout::BackupLayout,
     manifest::{Manifest, SteamMetadata},
@@ -35,6 +35,56 @@ pub enum CompletionShell {
     PowerShell,
     #[clap(about = "Completions for Elvish")]
     Elvish,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum CliSort {
+    #[default]
+    Name,
+    NameReversed,
+    Size,
+    SizeReversed,
+}
+
+impl CliSort {
+    pub const ALL: &'static [&'static str] = &["name", "name-rev", "size", "size-rev"];
+}
+
+impl std::str::FromStr for CliSort {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "name" => Ok(Self::Name),
+            "name-rev" => Ok(Self::NameReversed),
+            "size" => Ok(Self::Size),
+            "size-rev" => Ok(Self::SizeReversed),
+            _ => Err(format!("invalid sort key: {}", s)),
+        }
+    }
+}
+
+impl From<CliSort> for Sort {
+    fn from(source: CliSort) -> Self {
+        match source {
+            CliSort::Name => Self {
+                key: SortKey::Name,
+                reversed: false,
+            },
+            CliSort::NameReversed => Self {
+                key: SortKey::Name,
+                reversed: true,
+            },
+            CliSort::Size => Self {
+                key: SortKey::Size,
+                reversed: false,
+            },
+            CliSort::SizeReversed => Self {
+                key: SortKey::Size,
+                reversed: true,
+            },
+        }
+    }
 }
 
 #[derive(clap::Subcommand, Clone, Debug, PartialEq)]
@@ -93,6 +143,11 @@ pub enum Subcommand {
         #[clap(long)]
         api: bool,
 
+        /// Sort the game list by different criteria.
+        /// When not specified, this defers to Ludusavi's config file.
+        #[clap(long, possible_values = CliSort::ALL)]
+        sort: Option<CliSort>,
+
         /// Only back up these specific games.
         #[clap()]
         games: Vec<String>,
@@ -122,6 +177,11 @@ pub enum Subcommand {
         /// This replaces the default, human-readable output.
         #[clap(long)]
         api: bool,
+
+        /// Sort the game list by different criteria.
+        /// When not specified, this defers to Ludusavi's config file.
+        #[clap(long, possible_values = CliSort::ALL)]
+        sort: Option<CliSort>,
 
         /// Only restore these specific games.
         #[clap()]
@@ -435,6 +495,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             by_steam_id,
             wine_prefix,
             api,
+            sort,
             games,
         } => {
             let mut reporter = if api {
@@ -540,7 +601,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
 
-            let info: Vec<_> = subjects
+            let mut info: Vec<_> = subjects
                 .par_iter()
                 .progress_count(subjects.len() as u64)
                 .map(|name| {
@@ -577,6 +638,18 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             for (_, scan_info, _, _) in info.iter() {
                 duplicate_detector.add_game(scan_info);
             }
+
+            let sort = sort.map(From::from).unwrap_or_else(|| config.backup.sort.clone());
+            match sort.key {
+                SortKey::Name => info.sort_by_key(|(name, _, _, _)| name.to_string()),
+                SortKey::Size => info.sort_by_key(|(name, scan_info, backup_info, _)| {
+                    (scan_info.sum_bytes(&Some(backup_info.clone())), name.to_string())
+                }),
+            }
+            if sort.reversed {
+                info.reverse();
+            }
+
             for (name, scan_info, backup_info, decision) in info {
                 if !reporter.add_game(name, &scan_info, &backup_info, &decision, &[], &duplicate_detector) {
                     failed = true;
@@ -590,6 +663,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             force,
             by_steam_id,
             api,
+            sort,
             games,
         } => {
             let mut reporter = if api {
@@ -670,7 +744,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             };
             subjects.sort();
 
-            let info: Vec<_> = subjects
+            let mut info: Vec<_> = subjects
                 .par_iter()
                 .progress_count(subjects.len() as u64)
                 .map(|name| {
@@ -693,6 +767,18 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             for (_, scan_info, _, _) in info.iter() {
                 duplicate_detector.add_game(scan_info);
             }
+
+            let sort = sort.map(From::from).unwrap_or_else(|| config.restore.sort.clone());
+            match sort.key {
+                SortKey::Name => info.sort_by_key(|(name, _, _, _)| name.to_string()),
+                SortKey::Size => info.sort_by_key(|(name, scan_info, backup_info, _)| {
+                    (scan_info.sum_bytes(&Some(backup_info.clone())), name.to_string())
+                }),
+            }
+            if sort.reversed {
+                info.reverse();
+            }
+
             for (name, scan_info, backup_info, decision) in info {
                 if !reporter.add_game(
                     name,
@@ -773,6 +859,7 @@ mod tests {
                         by_steam_id: false,
                         wine_prefix: None,
                         api: false,
+                        sort: None,
                         games: vec![],
                     }),
                 },
@@ -795,6 +882,8 @@ mod tests {
                     "--wine-prefix",
                     "tests/wine-prefix",
                     "--api",
+                    "--sort",
+                    "name",
                     "game1",
                     "game2",
                 ],
@@ -810,6 +899,7 @@ mod tests {
                         by_steam_id: true,
                         wine_prefix: Some(StrictPath::new(s("tests/wine-prefix"))),
                         api: true,
+                        sort: Some(CliSort::Name),
                         games: vec![s("game1"), s("game2")],
                     }),
                 },
@@ -832,6 +922,7 @@ mod tests {
                         by_steam_id: false,
                         wine_prefix: None,
                         api: false,
+                        sort: None,
                         games: vec![],
                     }),
                 },
@@ -854,6 +945,7 @@ mod tests {
                         by_steam_id: false,
                         wine_prefix: None,
                         api: false,
+                        sort: None,
                         games: vec![],
                     }),
                 },
@@ -876,6 +968,7 @@ mod tests {
                         by_steam_id: false,
                         wine_prefix: None,
                         api: false,
+                        sort: None,
                         games: vec![],
                     }),
                 },
@@ -891,6 +984,38 @@ mod tests {
         }
 
         #[test]
+        fn accepts_cli_backup_with_sort_variants() {
+            let cases = [
+                ("name", CliSort::Name),
+                ("name-rev", CliSort::NameReversed),
+                ("size", CliSort::Size),
+                ("size-rev", CliSort::SizeReversed),
+            ];
+
+            for (value, sort) in cases {
+                check_args(
+                    &["ludusavi", "backup", "--sort", value],
+                    Cli {
+                        sub: Some(Subcommand::Backup {
+                            preview: false,
+                            path: None,
+                            force: false,
+                            merge: false,
+                            no_merge: false,
+                            update: false,
+                            try_update: false,
+                            by_steam_id: false,
+                            wine_prefix: None,
+                            api: false,
+                            sort: Some(sort),
+                            games: vec![],
+                        }),
+                    },
+                );
+            }
+        }
+
+        #[test]
         fn accepts_cli_restore_with_minimal_arguments() {
             check_args(
                 &["ludusavi", "restore"],
@@ -901,6 +1026,7 @@ mod tests {
                         force: false,
                         by_steam_id: false,
                         api: false,
+                        sort: None,
                         games: vec![],
                     }),
                 },
@@ -919,6 +1045,8 @@ mod tests {
                     "--force",
                     "--by-steam-id",
                     "--api",
+                    "--sort",
+                    "name",
                     "game1",
                     "game2",
                 ],
@@ -929,6 +1057,7 @@ mod tests {
                         force: true,
                         by_steam_id: true,
                         api: true,
+                        sort: Some(CliSort::Name),
                         games: vec![s("game1"), s("game2")],
                     }),
                 },
@@ -941,6 +1070,33 @@ mod tests {
                 &["ludusavi", "restore", "--path", "tests/fake"],
                 clap::ErrorKind::ValueValidation,
             );
+        }
+
+        #[test]
+        fn accepts_cli_restore_with_sort_variants() {
+            let cases = [
+                ("name", CliSort::Name),
+                ("name-rev", CliSort::NameReversed),
+                ("size", CliSort::Size),
+                ("size-rev", CliSort::SizeReversed),
+            ];
+
+            for (value, sort) in cases {
+                check_args(
+                    &["ludusavi", "restore", "--sort", value],
+                    Cli {
+                        sub: Some(Subcommand::Restore {
+                            preview: false,
+                            path: None,
+                            force: false,
+                            by_steam_id: false,
+                            api: false,
+                            sort: Some(sort),
+                            games: vec![],
+                        }),
+                    },
+                );
+            }
         }
 
         #[test]
