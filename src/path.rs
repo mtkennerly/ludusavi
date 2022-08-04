@@ -348,6 +348,18 @@ impl StrictPath {
         }
         nearest
     }
+
+    pub fn glob(&self) -> Vec<StrictPath> {
+        let options = glob::MatchOptions {
+            case_sensitive: crate::prelude::CASE_INSENSITIVE_OS,
+            require_literal_separator: true,
+            require_literal_leading_dot: false,
+        };
+        match glob::glob_with(&self.render(), options) {
+            Ok(xs) => xs.filter_map(|r| r.ok()).map(StrictPath::from).collect(),
+            Err(_) => vec![],
+        }
+    }
 }
 
 impl From<std::path::PathBuf> for StrictPath {

@@ -13,7 +13,7 @@ pub use crate::registry_compat::RegistryItem;
 const WINDOWS: bool = cfg!(target_os = "windows");
 const MAC: bool = cfg!(target_os = "macos");
 const LINUX: bool = cfg!(target_os = "linux");
-const CASE_INSENSITIVE_OS: bool = WINDOWS || MAC;
+pub const CASE_INSENSITIVE_OS: bool = WINDOWS || MAC;
 const SKIP: &str = "<skip>";
 const APP_DIR_NAME: &str = "ludusavi";
 const PORTABLE_FLAG_FILE_NAME: &str = "ludusavi.portable";
@@ -533,8 +533,8 @@ impl InstallDirRanking {
 
     pub fn scan(roots: &[RootsConfig], manifest: &crate::manifest::Manifest, subjects: &[String]) -> Self {
         let mut ranking = Self::default();
-        for root in roots {
-            ranking.scan_root(root, manifest, subjects);
+        for root in roots.iter().flat_map(|x| x.glob()) {
+            ranking.scan_root(&root, manifest, subjects);
         }
         ranking
     }
@@ -640,13 +640,13 @@ pub fn scan_game_for_backup(
         ));
     }
 
-    for root in &roots_to_check {
+    for root in roots_to_check.iter().flat_map(|x| x.glob()) {
         if root.path.raw().trim().is_empty() {
             continue;
         }
         if let Some(files) = &game.files {
             let maybe_proton = get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some();
-            let install_dir = ranking.get(root, name);
+            let install_dir = ranking.get(&root, name);
 
             for (raw_path, path_info) in files {
                 if raw_path.trim().is_empty() {
@@ -659,7 +659,7 @@ pub fn scan_game_for_backup(
                         }
                     }
                 }
-                let candidates = parse_paths(raw_path, root, &install_dir, steam_id, manifest_dir);
+                let candidates = parse_paths(raw_path, &root, &install_dir, steam_id, manifest_dir);
                 for candidate in candidates {
                     if candidate.raw().contains(SKIP) {
                         continue;

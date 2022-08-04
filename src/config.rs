@@ -33,6 +33,20 @@ pub struct RootsConfig {
     pub store: Store,
 }
 
+impl RootsConfig {
+    pub fn glob(&self) -> Vec<Self> {
+        self.path
+            .glob()
+            .iter()
+            .cloned()
+            .map(|path| RootsConfig {
+                path,
+                store: self.store,
+            })
+            .collect()
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct RedirectConfig {
     pub source: StrictPath,
