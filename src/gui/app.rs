@@ -17,7 +17,7 @@ use crate::{
     },
     lang::Translator,
     layout::BackupLayout,
-    manifest::{Manifest, SteamMetadata, Store},
+    manifest::{Manifest, Store},
     prelude::{
         app_dir, back_up_game, prepare_backup_target, restore_game, scan_game_for_backup, scan_game_for_restoration,
         Error, InstallDirRanking, OperationStepDecision, StrictPath,
@@ -123,22 +123,20 @@ impl App {
             OngoingOperation::Backup
         });
 
+        let config = std::sync::Arc::new(self.config.clone());
         let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone()));
         let filter = std::sync::Arc::new(self.config.backup.filter.clone());
-        let ranking = InstallDirRanking::scan(&self.config.roots, &all_games, &subjects);
+        let ranking = std::sync::Arc::new(InstallDirRanking::scan(&self.config.roots, &all_games, &subjects));
 
         let mut commands: Vec<Command<Message>> = vec![];
         for key in subjects {
             let game = all_games.0[&key].clone();
-            let roots = self.config.roots.clone();
-            let layout2 = layout.clone();
-            let filter2 = filter.clone();
+            let config = config.clone();
+            let layout = layout.clone();
+            let filter = filter.clone();
             let ranking = ranking.clone();
-            let toggled_paths = self.config.backup.toggled_paths.clone();
-            let toggled_registry = self.config.backup.toggled_registry.clone();
-            let steam_id = game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
+            let steam_id = game.steam.as_ref().and_then(|x| x.id);
             let cancel_flag = self.operation_should_cancel.clone();
-            let ignored = !self.config.is_game_enabled_for_backup(&key);
             let merge = self.config.backup.merge;
             commands.push(Command::perform(
                 async move {
@@ -154,21 +152,21 @@ impl App {
                     let scan_info = scan_game_for_backup(
                         &game,
                         &key,
-                        &roots,
+                        &config.roots,
                         &StrictPath::from_std_path_buf(&app_dir()),
                         &steam_id,
-                        &filter2,
+                        &filter,
                         &None,
                         &ranking,
-                        &toggled_paths,
-                        &toggled_registry,
+                        &config.backup.toggled_paths,
+                        &config.backup.toggled_registry,
                     );
-                    if ignored {
+                    if !config.is_game_enabled_for_backup(&key) {
                         return (Some(scan_info), None, OperationStepDecision::Ignored);
                     }
 
                     let backup_info = if !preview {
-                        Some(back_up_game(&scan_info, &key, &layout2, merge))
+                        Some(back_up_game(&scan_info, &key, &layout, merge))
                     } else {
                         None
                     };
@@ -201,6 +199,7 @@ impl App {
             return Command::none();
         }
 
+        let config = std::sync::Arc::new(self.config.clone());
         let layout = std::sync::Arc::new(BackupLayout::new(restore_path.clone()));
         let mut restorables: Vec<_> = layout.mapping.games.keys().cloned().collect();
 
@@ -230,10 +229,9 @@ impl App {
 
         let mut commands: Vec<Command<Message>> = vec![];
         for name in restorables {
-            let redirects = self.config.get_redirects();
-            let layout2 = layout.clone();
+            let config = config.clone();
+            let layout = layout.clone();
             let cancel_flag = self.operation_should_cancel.clone();
-            let ignored = !self.config.is_game_enabled_for_restore(&name);
             commands.push(Command::perform(
                 async move {
                     if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
@@ -242,13 +240,13 @@ impl App {
                         return (None, None, OperationStepDecision::Cancelled);
                     }
 
-                    let scan_info = scan_game_for_restoration(&name, &layout2);
-                    if ignored {
+                    let scan_info = scan_game_for_restoration(&name, &layout);
+                    if !config.is_game_enabled_for_restore(&name) {
                         return (Some(scan_info), None, OperationStepDecision::Ignored);
                     }
 
                     let backup_info = if !preview {
-                        Some(restore_game(&scan_info, &redirects))
+                        Some(restore_game(&scan_info, &config.get_redirects()))
                     } else {
                         None
                     };
