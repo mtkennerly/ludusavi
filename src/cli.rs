@@ -383,6 +383,9 @@ impl Reporter {
                     ));
                 }
 
+                // Blank line between games.
+                parts.push("".to_string());
+
                 status.add_game(
                     scan_info,
                     &Some(backup_info.clone()),
@@ -464,7 +467,7 @@ impl Reporter {
                 parts,
                 status,
                 translator,
-            } => parts.join("\n") + "\n\n" + &translator.cli_summary(status, path),
+            } => parts.join("\n") + "\n" + &translator.cli_summary(status, path),
             Self::Json { output } => serde_json::to_string_pretty(&output).unwrap(),
         }
     }
@@ -1193,7 +1196,6 @@ mod tests {
             assert_eq!(
                 format!(
                     r#"
-
 Overall:
   Games: 0
   Size: 0 B
@@ -1257,6 +1259,75 @@ foo [100.00 KiB]:
 Overall:
   Games: 1 of 1
   Size: 100.00 KiB of 150.00 KiB
+  Location: <drive>/dev/null
+                "#
+                .trim()
+                .replace("<drive>", &drive()),
+                reporter.render(&StrictPath::new(s("/dev/null")))
+            );
+        }
+
+        #[test]
+        fn can_render_in_standard_mode_with_multiple_games_in_backup_mode() {
+            let mut reporter = Reporter::standard(Translator::default());
+
+            reporter.add_game(
+                "foo",
+                &ScanInfo {
+                    game_name: s("foo"),
+                    found_files: hashset! {
+                        ScannedFile {
+                            path: StrictPath::new(s("/file1")),
+                            size: 1,
+                            original_path: None,
+                            ignored: false,
+                        },
+                    },
+                    found_registry_keys: hashset! {},
+                    registry_file: None,
+                },
+                &BackupInfo {
+                    failed_files: hashset! {},
+                    failed_registry: hashset! {},
+                },
+                &OperationStepDecision::Processed,
+                &[],
+                &DuplicateDetector::default(),
+            );
+            reporter.add_game(
+                "bar",
+                &ScanInfo {
+                    game_name: s("bar"),
+                    found_files: hashset! {
+                        ScannedFile {
+                            path: StrictPath::new(s("/file2")),
+                            size: 3,
+                            original_path: None,
+                            ignored: false,
+                        },
+                    },
+                    found_registry_keys: hashset! {},
+                    registry_file: None,
+                },
+                &BackupInfo {
+                    failed_files: hashset! {},
+                    failed_registry: hashset! {},
+                },
+                &OperationStepDecision::Processed,
+                &[],
+                &DuplicateDetector::default(),
+            );
+            assert_eq!(
+                r#"
+foo [1 B]:
+  - <drive>/file1
+
+bar [3 B]:
+  - <drive>/file2
+
+Overall:
+  Games: 2
+  Size: 4 B
   Location: <drive>/dev/null
                 "#
                 .trim()
