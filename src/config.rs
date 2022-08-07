@@ -123,6 +123,21 @@ pub struct Sort {
     pub reversed: bool,
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Retention {
+    full: u8,
+    differential: u8,
+}
+
+impl Default for Retention {
+    fn default() -> Self {
+        Self {
+            full: 1,
+            differential: 0,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct BackupConfig {
     pub path: StrictPath,
@@ -132,7 +147,7 @@ pub struct BackupConfig {
         serialize_with = "crate::serialization::ordered_set"
     )]
     pub ignored_games: std::collections::HashSet<String>,
-    #[serde(default)]
+    #[serde(default = "crate::serialization::default_true")]
     pub merge: bool,
     #[serde(default)]
     pub filter: BackupFilter,
@@ -142,6 +157,8 @@ pub struct BackupConfig {
     pub toggled_registry: ToggledRegistry,
     #[serde(default)]
     pub sort: Sort,
+    #[serde(default)]
+    pub retention: Retention,
 }
 
 #[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -184,11 +201,12 @@ impl Default for BackupConfig {
         Self {
             path: default_backup_dir(),
             ignored_games: std::collections::HashSet::new(),
-            merge: false,
+            merge: true,
             filter: BackupFilter::default(),
             toggled_paths: Default::default(),
             toggled_registry: Default::default(),
             sort: Default::default(),
+            retention: Retention::default(),
         }
     }
 }
@@ -627,7 +645,7 @@ mod tests {
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: std::collections::HashSet::new(),
-                    merge: false,
+                    merge: true,
                     filter: BackupFilter {
                         exclude_other_os_data: false,
                         exclude_store_screenshots: false,
@@ -636,6 +654,7 @@ mod tests {
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
+                    retention: Retention::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -726,6 +745,7 @@ mod tests {
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
+                    retention: Retention::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -792,7 +812,7 @@ mod tests {
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: std::collections::HashSet::new(),
-                    merge: false,
+                    merge: true,
                     filter: BackupFilter {
                         exclude_other_os_data: false,
                         exclude_store_screenshots: false,
@@ -801,6 +821,7 @@ mod tests {
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
+                    retention: Retention::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -844,6 +865,9 @@ backup:
   sort:
     key: name
     reversed: false
+  retention:
+    full: 1
+    differential: 0
 restore:
   path: ~/restore
   ignoredGames:
@@ -902,6 +926,7 @@ customGames:
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
+                    retention: Retention::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),

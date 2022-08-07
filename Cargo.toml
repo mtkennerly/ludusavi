@@ -11,6 +11,7 @@ license = "MIT"
 [dependencies]
 base64 = "0.13.0"
 byte-unit = "4.0.14"
+chrono = { version = "0.4.20", features = ["serde"] }
 clap = { version = "3.2.12", features = ["derive"] }
 clap_complete = "3.2.3"
 dialoguer = "0.10.1"

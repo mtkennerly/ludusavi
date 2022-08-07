@@ -1,6 +1,6 @@
 use crate::{
     config::{BackupFilter, RedirectConfig, RootsConfig, ToggledPaths, ToggledRegistry},
-    layout::{BackupLayout, IndividualMapping},
+    layout::BackupLayout,
     manifest::{Game, GameFileConstraint, Os, Store},
 };
 use fuzzy_matcher::FuzzyMatcher;
@@ -779,21 +779,22 @@ pub fn scan_game_for_backup(
 }
 
 pub fn scan_game_for_restoration(name: &str, layout: &BackupLayout) -> ScanInfo {
+    let layout = layout.game_layout(name);
+
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut registry_file = None;
 
-    let target_game = layout.game_folder(name);
-    if target_game.is_dir() {
-        found_files = layout.restorable_files(name, &target_game);
+    if layout.path.is_dir() {
+        found_files = layout.restorable_files();
     }
 
     #[cfg(target_os = "windows")]
     {
-        if let Some(hives) = crate::registry::Hives::load(&layout.game_registry_file(&target_game)) {
-            registry_file = Some(layout.game_registry_file(&target_game));
+        if let Some(hives) = crate::registry::Hives::load(&layout.registry_file()) {
+            registry_file = Some(layout.registry_file());
             for (hive_name, keys) in hives.0.iter() {
                 for (key_name, _) in keys.0.iter() {
                     found_registry_keys.insert(ScannedRegistry {
@@ -851,20 +852,15 @@ fn are_files_identical(file1: &StrictPath, file2: &StrictPath) -> Result<bool, B
 }
 
 pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: bool) -> BackupInfo {
+    let mut layout = layout.game_layout(name);
+
     let mut failed_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut failed_registry = std::collections::HashSet::new();
 
-    let target_game = layout.game_folder(name);
-
     let able_to_prepare = info.found_anything_processable()
-        && (merge || (target_game.unset_readonly().is_ok() && target_game.remove().is_ok()))
-        && std::fs::create_dir_all(target_game.interpret()).is_ok();
-
-    let mut mapping = match IndividualMapping::load(&layout.game_mapping_file(&target_game)) {
-        Ok(x) => x,
-        Err(_) => IndividualMapping::new(name.to_string()),
-    };
+        && (merge || (layout.path.unset_readonly().is_ok() && layout.path.remove().is_ok()))
+        && std::fs::create_dir_all(layout.path.interpret()).is_ok();
 
     let mut relevant_backup_files = Vec::<StrictPath>::new();
     for file in &info.found_files {
@@ -877,7 +873,7 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: b
             continue;
         }
 
-        let target_file = layout.game_file(&target_game, &file.path, &mut mapping);
+        let target_file = layout.game_file(&file.path);
         relevant_backup_files.push(target_file.clone());
 
         if target_file.exists() {
@@ -901,7 +897,7 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: b
     }
 
     if able_to_prepare && merge {
-        layout.remove_irrelevant_backup_files(&target_game, &relevant_backup_files);
+        layout.remove_irrelevant_backup_files(&relevant_backup_files);
     }
 
     #[cfg(target_os = "windows")]
@@ -929,7 +925,7 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: b
             }
         }
 
-        let target_registry_file = layout.game_registry_file(&target_game);
+        let target_registry_file = layout.registry_file();
         if found_some_registry {
             hives.save(&target_registry_file);
         } else {
@@ -938,7 +934,7 @@ pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: b
     }
 
     if able_to_prepare {
-        mapping.save(&layout.game_mapping_file(&target_game));
+        layout.save();
     }
 
     BackupInfo {
@@ -1132,7 +1128,7 @@ pub fn fuzzy_match(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::config::Config;
+    use crate::config::{Config, Retention};
     use crate::manifest::Manifest;
     use maplit::*;
     use pretty_assertions::assert_eq;
@@ -1744,7 +1740,10 @@ mod tests {
             },
             scan_game_for_restoration(
                 "game1",
-                &BackupLayout::new(StrictPath::new(format!("{}/tests/backup", repo())))
+                &BackupLayout::new(
+                    StrictPath::new(format!("{}/tests/backup", repo())),
+                    Retention::default()
+                )
             ),
         );
     }
@@ -1766,7 +1765,10 @@ mod tests {
                 },
                 scan_game_for_restoration(
                     "game3",
-                    &BackupLayout::new(StrictPath::new(format!("{}/tests/backup", repo())))
+                    &BackupLayout::new(
+                        StrictPath::new(format!("{}/tests/backup", repo())),
+                        Retention::default()
+                    )
                 ),
             );
         } else {
@@ -1777,7 +1779,10 @@ mod tests {
                 },
                 scan_game_for_restoration(
                     "game3",
-                    &BackupLayout::new(StrictPath::new(format!("{}/tests/backup", repo())))
+                    &BackupLayout::new(
+                        StrictPath::new(format!("{}/tests/backup", repo())),
+                        Retention::default()
+                    )
                 ),
             );
         }

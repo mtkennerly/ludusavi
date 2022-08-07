@@ -1,4 +1,4 @@
-use crate::{path::StrictPath, prelude::ScannedFile};
+use crate::{config::Retention, path::StrictPath, prelude::ScannedFile};
 
 const SAFE: &str = "_";
 
@@ -38,10 +38,25 @@ fn escape_folder_name(name: &str) -> String {
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct FullBackup {
+    pub name: String,
+    pub when: chrono::DateTime<chrono::Utc>,
+    pub children: Vec<DifferentialBackup>,
+}
+
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+pub struct DifferentialBackup {
+    pub name: String,
+    pub when: chrono::DateTime<chrono::Utc>,
+}
+
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct IndividualMapping {
     pub name: String,
     #[serde(serialize_with = "crate::serialization::ordered_map")]
     pub drives: std::collections::HashMap<String, String>,
+    #[serde(default)]
+    pub backups: Vec<FullBackup>,
 }
 
 impl IndividualMapping {
@@ -108,123 +123,39 @@ impl IndividualMapping {
     }
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct OverallMapping {
-    pub games: std::collections::HashMap<String, OverallMappingGame>,
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct OverallMappingGame {
-    pub drives: std::collections::HashMap<String, String>,
-    pub base: StrictPath,
-}
-
-impl OverallMapping {
-    pub fn load(base: &StrictPath) -> Self {
-        let mut overall = Self::default();
-
-        for game_dir in walkdir::WalkDir::new(base.interpret())
-            .max_depth(1)
-            .follow_links(false)
-            .into_iter()
-            .skip(1) // the base path itself
-            .filter_map(|e| e.ok())
-            .filter(|x| x.file_type().is_dir())
-        {
-            let individual_file = &mut game_dir.path().to_path_buf();
-            individual_file.push("mapping.yaml");
-            if individual_file.is_file() {
-                let game = match IndividualMapping::load(&StrictPath::from_std_path_buf(individual_file)) {
-                    Ok(x) => x,
-                    Err(_) => continue,
-                };
-                overall.games.insert(
-                    game.name,
-                    OverallMappingGame {
-                        base: StrictPath::from_std_path_buf(game_dir.path()),
-                        drives: game.drives,
-                    },
-                );
-            }
-        }
-
-        overall
-    }
-}
-
-#[derive(Clone, Debug, Default)]
-pub struct BackupLayout {
-    pub base: StrictPath,
-    pub mapping: OverallMapping,
-}
-
-impl BackupLayout {
-    pub fn new(base: StrictPath) -> Self {
-        let mapping = OverallMapping::load(&base);
-        Self { base, mapping }
-    }
-
-    fn generate_total_rename(original_name: &str) -> String {
-        format!("ludusavi-renamed-{}", encode_base64_for_folder(original_name))
-    }
-
-    pub fn game_folder(&self, game_name: &str) -> StrictPath {
-        match self.mapping.games.get::<str>(game_name) {
-            Some(game) => game.base.clone(),
-            None => {
-                let mut safe_name = escape_folder_name(game_name);
-
-                if safe_name.matches(SAFE).count() == safe_name.len() {
-                    // It's unreadable now, so do a total rename.
-                    safe_name = Self::generate_total_rename(game_name);
-                }
-
-                self.base.joined(&safe_name)
-            }
-        }
-    }
-
-    pub fn game_file(
-        &self,
-        game_folder: &StrictPath,
-        original_file: &StrictPath,
-        mapping: &mut IndividualMapping,
-    ) -> StrictPath {
-        let (drive, plain_path) = original_file.split_drive();
-        let drive_folder = mapping.drive_folder_name(&drive);
-        StrictPath::relative(
-            format!("{}/{}", drive_folder, plain_path),
-            Some(game_folder.interpret()),
-        )
-    }
-
-    pub fn game_mapping_file(&self, game_folder: &StrictPath) -> StrictPath {
-        game_folder.joined("mapping.yaml")
-    }
-
+#[derive(Default)]
+pub struct GameLayout {
+    pub path: StrictPath,
+    mapping: IndividualMapping,
     #[allow(dead_code)]
-    pub fn game_registry_file(&self, game_folder: &StrictPath) -> StrictPath {
-        game_folder.joined("registry.yaml")
+    retention: Retention,
+}
+
+impl GameLayout {
+    pub fn load(path: StrictPath, retention: Retention) -> Result<Self, ()> {
+        let mapping = Self::mapping_file(&path);
+        Ok(Self {
+            path,
+            mapping: IndividualMapping::load(&mapping)?,
+            retention,
+        })
     }
 
-    pub fn restorable_files(
-        &self,
-        game_name: &str,
-        game_folder: &StrictPath,
-    ) -> std::collections::HashSet<ScannedFile> {
+    pub fn save(&self) {
+        self.mapping.save(&Self::mapping_file(&self.path))
+    }
+
+    pub fn restorable_files(&self) -> std::collections::HashSet<ScannedFile> {
         let mut files = std::collections::HashSet::new();
-        for drive_dir in walkdir::WalkDir::new(game_folder.interpret())
+        for drive_dir in walkdir::WalkDir::new(self.path.interpret())
             .max_depth(1)
             .follow_links(false)
             .into_iter()
             .filter_map(|e| e.ok())
         {
             let raw_drive_dir = drive_dir.path().display().to_string();
-            let drive_mapping = match self.mapping.games.get::<str>(game_name) {
-                Some(x) => match x.drives.get::<str>(&drive_dir.file_name().to_string_lossy()) {
-                    Some(y) => y,
-                    None => continue,
-                },
+            let drive_mapping = match self.mapping.drives.get::<str>(&drive_dir.file_name().to_string_lossy()) {
+                Some(x) => x,
                 None => continue,
             };
 
@@ -251,12 +182,27 @@ impl BackupLayout {
         files
     }
 
-    fn find_irrelevant_backup_files(&self, game_folder: &StrictPath, relevant_files: &[StrictPath]) -> Vec<StrictPath> {
+    #[allow(dead_code)]
+    pub fn registry_file(&self) -> StrictPath {
+        self.path.joined("registry.yaml")
+    }
+
+    pub fn game_file(&mut self, original_file: &StrictPath) -> StrictPath {
+        let (drive, plain_path) = original_file.split_drive();
+        let drive_folder = self.mapping.drive_folder_name(&drive);
+        StrictPath::relative(format!("{}/{}", drive_folder, plain_path), Some(self.path.interpret()))
+    }
+
+    fn mapping_file(path: &StrictPath) -> StrictPath {
+        path.joined("mapping.yaml")
+    }
+
+    fn find_irrelevant_backup_files(&self, relevant_files: &[StrictPath]) -> Vec<StrictPath> {
         #[allow(clippy::needless_collect)]
         let relevant_files: Vec<_> = relevant_files.iter().map(|x| x.interpret()).collect();
         let mut irrelevant_files = vec![];
 
-        for drive_dir in walkdir::WalkDir::new(game_folder.interpret())
+        for drive_dir in walkdir::WalkDir::new(self.path.interpret())
             .max_depth(1)
             .follow_links(false)
             .into_iter()
@@ -280,10 +226,84 @@ impl BackupLayout {
         irrelevant_files
     }
 
-    pub fn remove_irrelevant_backup_files(&self, game_folder: &StrictPath, relevant_files: &[StrictPath]) {
-        for file in self.find_irrelevant_backup_files(game_folder, relevant_files) {
+    pub fn remove_irrelevant_backup_files(&self, relevant_files: &[StrictPath]) {
+        for file in self.find_irrelevant_backup_files(relevant_files) {
             let _ = file.remove();
         }
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct BackupLayout {
+    pub base: StrictPath,
+    games: std::collections::HashMap<String, StrictPath>,
+    retention: Retention,
+}
+
+impl BackupLayout {
+    pub fn new(base: StrictPath, retention: Retention) -> Self {
+        let games = Self::load(&base);
+        Self { base, games, retention }
+    }
+
+    pub fn load(base: &StrictPath) -> std::collections::HashMap<String, StrictPath> {
+        let mut overall = std::collections::HashMap::new();
+
+        for game_dir in walkdir::WalkDir::new(base.interpret())
+            .max_depth(1)
+            .follow_links(false)
+            .into_iter()
+            .skip(1) // the base path itself
+            .filter_map(|e| e.ok())
+            .filter(|x| x.file_type().is_dir())
+        {
+            let game_dir = StrictPath::from(&game_dir);
+            let mapping_file = game_dir.joined("mapping.yaml");
+            if mapping_file.is_file() {
+                if let Ok(mapping) = IndividualMapping::load(&mapping_file) {
+                    overall.insert(mapping.name.clone(), game_dir);
+                }
+            }
+        }
+
+        overall
+    }
+
+    pub fn game_layout(&self, name: &str) -> GameLayout {
+        let path = self.game_folder(name);
+
+        match GameLayout::load(path.clone(), self.retention.clone()) {
+            Ok(x) => x,
+            Err(_) => GameLayout {
+                path,
+                mapping: IndividualMapping::new(name.to_string()),
+                retention: self.retention.clone(),
+            },
+        }
+    }
+
+    fn generate_total_rename(original_name: &str) -> String {
+        format!("ludusavi-renamed-{}", encode_base64_for_folder(original_name))
+    }
+
+    pub fn game_folder(&self, game_name: &str) -> StrictPath {
+        match self.games.get::<str>(game_name) {
+            Some(game) => game.clone(),
+            None => {
+                let mut safe_name = escape_folder_name(game_name);
+
+                if safe_name.matches(SAFE).count() == safe_name.len() {
+                    // It's unreadable now, so do a total rename.
+                    safe_name = Self::generate_total_rename(game_name);
+                }
+
+                self.base.joined(&safe_name)
+            }
+        }
+    }
+
+    pub fn restorable_games(&self) -> Vec<String> {
+        self.games.keys().cloned().collect()
     }
 }
 
@@ -315,7 +335,19 @@ mod tests {
         use pretty_assertions::assert_eq;
 
         fn layout() -> BackupLayout {
-            BackupLayout::new(StrictPath::new(format!("{}/tests/backup", repo())))
+            BackupLayout::new(
+                StrictPath::new(format!("{}/tests/backup", repo())),
+                Retention::default(),
+            )
+        }
+
+        fn game_layout(name: &str, path: &str) -> GameLayout {
+            GameLayout {
+                path: StrictPath::new(path.to_string()),
+                mapping: IndividualMapping::new(name.to_string()),
+                retention: Retention::default(),
+            }
+            // BackupLayout::new(StrictPath::new(format!("{}/tests/backup", repo())), Retention::default())
         }
 
         #[test]
@@ -398,23 +430,16 @@ mod tests {
                 } else {
                     StrictPath::new(format!("{}/tests/backup/game1/drive-X/file2.txt", repo()))
                 }],
-                layout().find_irrelevant_backup_files(
-                    &StrictPath::new(format!("{}/tests/backup/game1", repo())),
-                    &[StrictPath::new(format!(
-                        "{}/tests/backup/game1/drive-X/file1.txt",
-                        repo()
-                    ))]
-                )
+                game_layout("game1", &format!("{}/tests/backup/game1", repo())).find_irrelevant_backup_files(&[
+                    StrictPath::new(format!("{}/tests/backup/game1/drive-X/file1.txt", repo()))
+                ])
             );
             assert_eq!(
                 Vec::<StrictPath>::new(),
-                layout().find_irrelevant_backup_files(
-                    &StrictPath::new(format!("{}/tests/backup/game1", repo())),
-                    &[
-                        StrictPath::new(format!("{}/tests/backup/game1/drive-X/file1.txt", repo())),
-                        StrictPath::new(format!("{}/tests/backup/game1/drive-X/file2.txt", repo())),
-                    ]
-                )
+                game_layout("game1", &format!("{}/tests/backup/game1", repo())).find_irrelevant_backup_files(&[
+                    StrictPath::new(format!("{}/tests/backup/game1/drive-X/file1.txt", repo())),
+                    StrictPath::new(format!("{}/tests/backup/game1/drive-X/file2.txt", repo())),
+                ])
             );
         }
     }

@@ -603,7 +603,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             };
             subjects.sort();
 
-            let layout = BackupLayout::new(backup_dir.clone());
+            let layout = BackupLayout::new(backup_dir.clone(), config.backup.retention.clone());
             let filter = config.backup.filter.clone();
             let ranking = InstallDirRanking::scan(roots, &all_games, &subjects);
             let toggled_paths = config.backup.toggled_paths.clone();
@@ -698,10 +698,10 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 }
             }
 
-            let layout = BackupLayout::new(restore_dir.clone());
+            let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
 
             let steam_ids_to_names = &manifest.map_steam_ids_to_names();
-            let restorable_names: Vec<_> = layout.mapping.games.keys().collect();
+            let restorable_names = layout.restorable_games();
 
             let games_specified = !games.is_empty();
             let mut invalid_games: Vec<_> = games
@@ -711,7 +711,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         match game.parse::<u32>() {
                             Ok(id) => {
                                 if !steam_ids_to_names.contains_key(&id)
-                                    || !restorable_names.contains(&&steam_ids_to_names[&id])
+                                    || !restorable_names.contains(&steam_ids_to_names[&id])
                                 {
                                     Some(game.to_owned())
                                 } else {
@@ -720,7 +720,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                             }
                             Err(_) => Some(game.to_owned()),
                         }
-                    } else if !restorable_names.contains(&game) {
+                    } else if !restorable_names.contains(game) {
                         Some(game.to_owned())
                     } else {
                         None
@@ -738,8 +738,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 restorable_names
                     .iter()
                     .filter_map(|x| {
-                        if (by_steam_id && steam_ids_to_names.values().cloned().any(|y| &y == *x))
-                            || (games.contains(x))
+                        if (by_steam_id && steam_ids_to_names.values().cloned().any(|y| &y == x)) || (games.contains(x))
                         {
                             Some(x.to_owned())
                         } else {

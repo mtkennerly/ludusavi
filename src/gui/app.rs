@@ -124,7 +124,7 @@ impl App {
         });
 
         let config = std::sync::Arc::new(self.config.clone());
-        let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone()));
+        let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone(), config.backup.retention.clone()));
         let filter = std::sync::Arc::new(self.config.backup.filter.clone());
         let ranking = std::sync::Arc::new(InstallDirRanking::scan(&self.config.roots, &all_games, &subjects));
 
@@ -200,8 +200,8 @@ impl App {
         }
 
         let config = std::sync::Arc::new(self.config.clone());
-        let layout = std::sync::Arc::new(BackupLayout::new(restore_path.clone()));
-        let mut restorables: Vec<_> = layout.mapping.games.keys().cloned().collect();
+        let layout = std::sync::Arc::new(BackupLayout::new(restore_path.clone(), config.backup.retention.clone()));
+        let mut restorables = layout.restorable_games();
 
         if let Some(games) = games {
             restorables.retain(|v| games.contains(v));
