@@ -124,6 +124,8 @@ pub enum Message {
         url: String,
     },
     SubscribedEvent(iced_native::Event),
+    EditedFullRetention(u8),
+    EditedDiffRetention(u8),
 }
 
 #[derive(Debug, Clone, PartialEq)]

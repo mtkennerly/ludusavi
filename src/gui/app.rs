@@ -1120,6 +1120,16 @@ impl Application for App {
                 };
                 Command::none()
             }
+            Message::EditedFullRetention(value) => {
+                self.config.backup.retention.full = value;
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedDiffRetention(value) => {
+                self.config.backup.retention.differential = value;
+                self.config.save();
+                Command::none()
+            }
         }
     }
 

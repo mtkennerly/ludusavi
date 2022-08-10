@@ -6,6 +6,7 @@ const ICONS: Font = Font::External {
 };
 
 pub enum Icon {
+    Add,
     AddCircle,
     Edit,
     FolderOpen,
@@ -13,6 +14,7 @@ pub enum Icon {
     KeyboardArrowDown,
     Language,
     OpenInNew,
+    Remove,
     RemoveCircle,
     Search,
     SubdirectoryArrowRight,
@@ -23,6 +25,7 @@ pub enum Icon {
 impl Icon {
     pub fn as_text(&self) -> Text {
         let character = match self {
+            Self::Add => '\u{E145}',
             Self::AddCircle => '\u{E147}',
             Self::Edit => '\u{E150}',
             Self::FolderOpen => '\u{E2C8}',
@@ -30,6 +33,7 @@ impl Icon {
             Self::KeyboardArrowDown => '\u{E313}',
             Self::Language => '\u{E894}',
             Self::OpenInNew => '\u{E89E}',
+            Self::Remove => '\u{E15B}',
             Self::RemoveCircle => '\u{E15C}',
             Self::Search => '\u{E8B6}',
             Self::SubdirectoryArrowRight => '\u{E5DA}',

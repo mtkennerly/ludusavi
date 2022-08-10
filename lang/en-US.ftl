@@ -89,6 +89,8 @@ field-custom-game-name =
 field-search-game-name =
     .placeholder = Name
 field-backup-excluded-items = Backup exclusions:
+field-retention-full = Full:
+field-retention-differential = Differential:
 
 store-epic = Epic
 store-gog = GOG

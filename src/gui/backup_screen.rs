@@ -33,6 +33,8 @@ pub struct BackupScreenComponent {
     pub root_editor: RootEditor,
     pub recent_found_games: std::collections::HashSet<String>,
     pub duplicate_detector: DuplicateDetector,
+    full_retention_input: crate::gui::number_input::NumberInput,
+    diff_retention_input: crate::gui::number_input::NumberInput,
 }
 
 impl BackupScreenComponent {
@@ -180,6 +182,28 @@ impl BackupScreenComponent {
                                 Message::EditedBackupTarget,
                             )
                             .padding(5),
+                        )
+                        .push_if(
+                            || config.backup.merge,
+                            || {
+                                self.full_retention_input.view(
+                                    config.backup.retention.full,
+                                    &translator.full_retention(),
+                                    1..=9,
+                                    Message::EditedFullRetention,
+                                )
+                            },
+                        )
+                        .push_if(
+                            || config.backup.merge,
+                            || {
+                                self.diff_retention_input.view(
+                                    config.backup.retention.differential,
+                                    &translator.differential_retention(),
+                                    0..=9,
+                                    Message::EditedDiffRetention,
+                                )
+                            },
                         )
                         .push(Checkbox::new(
                             config.backup.merge,

@@ -10,6 +10,7 @@ pub mod game_list;
 pub mod icon;
 pub mod ignored_items_editor;
 pub mod modal;
+pub mod number_input;
 pub mod other_screen;
 pub mod redirect_editor;
 pub mod restore_screen;

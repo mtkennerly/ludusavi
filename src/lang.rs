@@ -513,6 +513,14 @@ impl Translator {
         translate("field-backup-excluded-items")
     }
 
+    pub fn full_retention(&self) -> String {
+        translate("field-retention-full")
+    }
+
+    pub fn differential_retention(&self) -> String {
+        translate("field-retention-differential")
+    }
+
     pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool) -> String {
         let mut args = FluentArgs::new();
         args.set(PATH, target.render());
