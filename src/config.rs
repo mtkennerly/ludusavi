@@ -125,8 +125,8 @@ pub struct Sort {
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct Retention {
-    full: u8,
-    differential: u8,
+    pub full: u8,
+    pub differential: u8,
 }
 
 impl Default for Retention {

@@ -1,6 +1,8 @@
+use std::collections::HashSet;
+
 use crate::{
     config::{BackupFilter, ToggledRegistry},
-    prelude::{Error, RegistryItem, ScannedRegistry, StrictPath},
+    prelude::{Error, RegistryItem, ScanInfo, ScannedRegistry, StrictPath},
 };
 use winreg::types::{FromRegValue, ToRegValue};
 
@@ -108,6 +110,32 @@ impl Hives {
         serde_yaml::to_string(self).unwrap()
     }
 
+    pub fn incorporate(&mut self, scan: &HashSet<ScannedRegistry>) -> (bool, HashSet<RegistryItem>) {
+        let mut failed = HashSet::new();
+        let mut found = false;
+
+        for scanned in scan {
+            if scanned.ignored {
+                continue;
+            }
+
+            match self.store_key_from_full_path(&scanned.path.raw()) {
+                Err(_) => {
+                    failed.insert(scanned.path.clone());
+                }
+                Ok(_) => {
+                    found = true;
+                }
+            }
+        }
+
+        (found, failed)
+    }
+
+    pub fn same_content(&self, other: &Self) -> bool {
+        self.0 == other.0
+    }
+
     pub fn store_key_from_full_path(&mut self, path: &str) -> Result<(), Error> {
         let path = RegistryItem::new(path.to_string()).interpreted();
 
@@ -186,6 +214,22 @@ impl Hives {
         }
 
         Ok(())
+    }
+}
+
+impl From<&HashSet<ScannedRegistry>> for Hives {
+    fn from(source: &HashSet<ScannedRegistry>) -> Self {
+        let mut hives = Self::default();
+        hives.incorporate(source);
+        hives
+    }
+}
+
+impl From<&ScanInfo> for Hives {
+    fn from(scan: &ScanInfo) -> Self {
+        let mut hives = Self::default();
+        hives.incorporate(&scan.found_registry_keys);
+        hives
     }
 }
 

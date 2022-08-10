@@ -360,6 +360,26 @@ impl StrictPath {
             Err(_) => vec![],
         }
     }
+
+    pub fn same_path(&self, other: &Self) -> bool {
+        self.interpret() == other.interpret()
+    }
+
+    pub fn same_content(&self, other: &StrictPath) -> bool {
+        crate::prelude::are_files_identical(self, other).unwrap_or(false)
+    }
+}
+
+impl From<&str> for StrictPath {
+    fn from(source: &str) -> Self {
+        StrictPath::new(source.to_string())
+    }
+}
+
+impl From<&String> for StrictPath {
+    fn from(source: &String) -> Self {
+        StrictPath::new(source.clone())
+    }
 }
 
 impl From<std::path::PathBuf> for StrictPath {

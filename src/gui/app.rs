@@ -166,7 +166,7 @@ impl App {
                     }
 
                     let backup_info = if !preview {
-                        Some(back_up_game(&scan_info, &key, &layout, merge))
+                        Some(back_up_game(&scan_info, &key, &layout, merge, &chrono::Utc::now()))
                     } else {
                         None
                     };

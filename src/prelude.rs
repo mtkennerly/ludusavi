@@ -829,7 +829,7 @@ pub fn prepare_backup_target(target: &StrictPath, merge: bool) -> Result<(), Err
     Ok(())
 }
 
-fn are_files_identical(file1: &StrictPath, file2: &StrictPath) -> Result<bool, Box<dyn std::error::Error>> {
+pub fn are_files_identical(file1: &StrictPath, file2: &StrictPath) -> Result<bool, Box<dyn std::error::Error>> {
     let f1 = std::fs::File::open(file1.interpret())?;
     let mut f1r = std::io::BufReader::new(f1);
     let f2 = std::fs::File::open(file2.interpret())?;
@@ -851,95 +851,38 @@ fn are_files_identical(file1: &StrictPath, file2: &StrictPath) -> Result<bool, B
     Ok(true)
 }
 
-pub fn back_up_game(info: &ScanInfo, name: &str, layout: &BackupLayout, merge: bool) -> BackupInfo {
+pub fn back_up_game(
+    info: &ScanInfo,
+    name: &str,
+    layout: &BackupLayout,
+    merge: bool,
+    now: &chrono::DateTime<chrono::Utc>,
+) -> BackupInfo {
     let mut layout = layout.game_layout(name);
-
-    let mut failed_files = std::collections::HashSet::new();
-    #[allow(unused_mut)]
-    let mut failed_registry = std::collections::HashSet::new();
 
     let able_to_prepare = info.found_anything_processable()
         && (merge || (layout.path.unset_readonly().is_ok() && layout.path.remove().is_ok()))
         && std::fs::create_dir_all(layout.path.interpret()).is_ok();
 
-    let mut relevant_backup_files = Vec::<StrictPath>::new();
-    for file in &info.found_files {
-        if file.ignored {
-            continue;
-        }
+    if able_to_prepare {
+        layout.back_up(info, now)
+    } else {
+        let mut backup_info = BackupInfo::default();
 
-        if !able_to_prepare {
-            failed_files.insert(file.clone());
-            continue;
-        }
-
-        let target_file = layout.game_file(&file.path);
-        relevant_backup_files.push(target_file.clone());
-
-        if target_file.exists() {
-            match are_files_identical(&file.path, &target_file) {
-                Ok(true) => continue,
-                Ok(false) => (),
-                Err(_) => {
-                    failed_files.insert(file.clone());
-                    continue;
-                }
+        for file in &info.found_files {
+            if file.ignored {
+                continue;
             }
+            backup_info.failed_files.insert(file.clone());
         }
-        if target_file.create_parent_dir().is_err() {
-            failed_files.insert(file.clone());
-            continue;
-        }
-        if std::fs::copy(&file.path.interpret(), &target_file.interpret()).is_err() {
-            failed_files.insert(file.clone());
-            continue;
-        }
-    }
-
-    if able_to_prepare && merge {
-        layout.remove_irrelevant_backup_files(&relevant_backup_files);
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        let mut hives = crate::registry::Hives::default();
-        let mut found_some_registry = false;
-
         for reg_path in &info.found_registry_keys {
             if reg_path.ignored {
                 continue;
             }
-
-            if !able_to_prepare {
-                failed_registry.insert(reg_path.path.clone());
-                continue;
-            }
-
-            match hives.store_key_from_full_path(&reg_path.path.raw()) {
-                Err(_) => {
-                    failed_registry.insert(reg_path.path.clone());
-                }
-                Ok(_) => {
-                    found_some_registry = true;
-                }
-            }
+            backup_info.failed_registry.insert(reg_path.path.clone());
         }
 
-        let target_registry_file = layout.registry_file();
-        if found_some_registry {
-            hives.save(&target_registry_file);
-        } else {
-            let _ = target_registry_file.remove();
-        }
-    }
-
-    if able_to_prepare {
-        layout.save();
-    }
-
-    BackupInfo {
-        failed_files,
-        failed_registry,
+        backup_info
     }
 }
 
