@@ -28,12 +28,12 @@
 	</description>
 	<screenshots>
 		<screenshot type="default">
-			<image type="source">https://github.com/mtkennerly/ludusavi/blob/master/docs/demo-gui.gif</image>
-			<caption>GUI</caption>
+			<image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/master/docs/demo-gui.gif</image>
+			<caption>Graphical user interface</caption>
 		</screenshot>
 		<screenshot type="default">
-			<image type="source">https://github.com/mtkennerly/ludusavi/raw/master/docs/demo-cli.gif</image>
-			<caption>CLI</caption>
+			<image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/master/docs/demo-cli.gif</image>
+			<caption>Command line interface</caption>
 		</screenshot>
 	</screenshots>
 	<content_rating type="oars-1.1" />
