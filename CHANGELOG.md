@@ -38,10 +38,14 @@
     another launcher and may not conform to those rules. Now, Ludusavi
     just checks for any text, like it does for non-Steam roots.
   * The `merge` setting is now enabled by default.
+  * The app window's minimum size has increased from 640x480 to 800x600.
+    It may be returned to 640x480 in the future, but there are currently
+    some limitations that make it look poor at that size.
 * Added:
   * During first-time setup, Ludusavi will now automatically detect roots for
     secondary Steam library folders (Windows/Linux/Mac) and non-default Epic
     install folders (Windows).
+  * Support for multiple full and differential backups per game.
   * It is now possible to ignore paths for backup across all games
     and/or for specific games.
   * GUI: Button to back up or restore an individual game from the list on demand.
