@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop">
+	<id>com.github.mtkennerly.ludusavi</id>
+	<metadata_license>CC0-1.0</metadata_license>
+	<project_license>MIT</project_license>
+	<name>ludusavi</name>
+	<developer_name>mtkennerly</developer_name>
+	<url type="homepage">https://github.com/mtkennerly/ludusavi/</url>
+	<summary>Ludusavi is a tool for backing up your PC video game save data.</summary>
+	<url type="bugtracker">https://github.com/mtkennerly/ludusavi/issues</url>
+  <url type="translate">https://crowdin.com/project/ludusavi</url>
+	<description>
+		<p>Ludusavi is a tool for backing up your PC video game save data,written in [Rust](https://www.rust-lang.org). It is cross-platform and supports multiple game stores.</p>
+		<p><b>Features</b>
+		<ul>
+			<li>Ability to back up data from more than 8,000 games plus your own custom entries.</li>
+			<li>Backup and restore for Steam as well as other game libraries.</li>
+			<li>Preview of the backup/restore before actually performing it.</li>
+			<li>Both a graphical interface and command line interface for scripting. (NOTE: Cli is named "com.github.mtkennerly.ludusavi" for flatpak) </li>
+			<li>Tab completion is available for Bash, Fish, Zsh, PowerShell, and Elvish.</li>
+			<li>Support for:</li>
+			<ul>
+				<li>Saves that are stored as files and in the Windows registry.</li>
+				<li>Proton saves with Steam.</li>
+				<li>Steam screenshots.</li>
+			</ul>
+		</ul></p>
+	</description>
+	<screenshots>
+		<screenshot type="default">
+			<image type="source">https://github.com/mtkennerly/ludusavi/blob/master/docs/demo-gui.gif</image>
+			<caption>GUI</caption>
+		</screenshot>
+		<screenshot type="default">
+			<image type="source">https://github.com/mtkennerly/ludusavi/raw/master/docs/demo-cli.gif</image>
+			<caption>CLI</caption>
+		</screenshot>
+	</screenshots>
+	<content_rating type="oars-1.1" />
+	<launchable type="desktop-id">com.github.mtkennerly.ludusavi.desktop</launchable>
+	<releases>
+		<release version="0.10.0" date="2021-03-12"/>
+	</releases>
+</component>
