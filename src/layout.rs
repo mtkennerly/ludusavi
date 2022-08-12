@@ -89,7 +89,7 @@ impl FullBackup {
         match self.when {
             None => self.name.clone(),
             Some(when) => chrono::DateTime::<chrono::Local>::from(when)
-                .format("%Y-%m-%d @ %H:%M:%S")
+                .format("%Y-%m-%dT%H:%M:%S")
                 .to_string(),
         }
     }
@@ -128,7 +128,7 @@ impl DifferentialBackup {
         match self.when {
             None => self.name.clone(),
             Some(when) => chrono::DateTime::<chrono::Local>::from(when)
-                .format("%Y-%m-%d @ %H:%M:%S")
+                .format("%Y-%m-%dT%H:%M:%S")
                 .to_string(),
         }
     }
@@ -225,7 +225,19 @@ impl IndividualMapping {
             return Err(());
         }
         let content = std::fs::read_to_string(&file.interpret()).unwrap();
-        Self::load_from_string(&content)
+        let mut parsed = Self::load_from_string(&content)?;
+
+        // Handle legacy files without backup timestamps.
+        for full in parsed.backups.iter_mut() {
+            if full.name == "." && full.when.is_none() {
+                full.when = file
+                    .metadata()
+                    .ok()
+                    .and_then(|metadata| metadata.modified().ok().map(chrono::DateTime::from));
+            }
+        }
+
+        Ok(parsed)
     }
 
     pub fn load_from_string(content: &str) -> Result<Self, ()> {

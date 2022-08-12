@@ -1,4 +1,5 @@
-use iced::{button, container, scrollable, Background, Color, Vector};
+use iced::{button, container, pick_list, scrollable, Background, Color, Vector};
+use iced_style::menu;
 
 pub enum Button {
     Primary,
@@ -81,6 +82,7 @@ pub enum Container {
     ModalBackground,
     GameListEntry,
     Badge,
+    DisabledBackup,
 }
 
 impl container::StyleSheet for Container {
@@ -88,6 +90,7 @@ impl container::StyleSheet for Container {
         container::Style {
             background: match self {
                 Self::ModalBackground => Some(Background::Color(Color::from_rgb8(230, 230, 230))),
+                Self::DisabledBackup => Some(Background::Color(Color::from_rgb8(169, 169, 169))),
                 _ => None,
             },
             border_color: match self {
@@ -99,10 +102,13 @@ impl container::StyleSheet for Container {
                 _ => 0.0,
             },
             border_radius: match self {
-                Self::GameListEntry | Self::Badge => 10.0,
+                Self::GameListEntry | Self::Badge | Self::DisabledBackup => 10.0,
                 _ => 0.0,
             },
-            ..container::Style::default()
+            text_color: match self {
+                Self::DisabledBackup => Some(Color::WHITE),
+                _ => None,
+            },
         }
     }
 }
@@ -135,5 +141,36 @@ impl scrollable::StyleSheet for Scrollable {
             },
             ..active
         }
+    }
+}
+
+pub enum PickList {
+    Primary,
+    Backup,
+}
+
+impl pick_list::StyleSheet for PickList {
+    fn active(&self) -> pick_list::Style {
+        pick_list::Style {
+            border_radius: match self {
+                Self::Primary => 5.0,
+                Self::Backup => 10.0,
+            },
+            ..Default::default()
+        }
+    }
+
+    fn hovered(&self) -> pick_list::Style {
+        pick_list::Style {
+            border_radius: match self {
+                Self::Primary => 5.0,
+                Self::Backup => 10.0,
+            },
+            ..Default::default()
+        }
+    }
+
+    fn menu(&self) -> menu::Style {
+        pick_list::Menu::default()
     }
 }

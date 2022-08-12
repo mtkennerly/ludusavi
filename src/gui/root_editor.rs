@@ -80,12 +80,12 @@ impl RootEditor {
                                     .width(Length::FillPortion(3))
                                     .padding(5),
                                 )
-                                .push(PickList::new(
-                                    &mut x.pick_list,
-                                    Store::ALL,
-                                    Some(roots[i].store),
-                                    move |v| Message::SelectedRootStore(i, v),
-                                ))
+                                .push(
+                                    PickList::new(&mut x.pick_list, Store::ALL, Some(roots[i].store), move |v| {
+                                        Message::SelectedRootStore(i, v)
+                                    })
+                                    .style(style::PickList::Primary),
+                                )
                                 .push(
                                     Button::new(&mut x.browse_button_state, Icon::FolderOpen.as_text())
                                         .on_press(match operation {

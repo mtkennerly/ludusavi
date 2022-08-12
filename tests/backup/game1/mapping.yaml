@@ -1,3 +1,7 @@
 name: game1
 drives:
   drive-X: 'X:'
+backups:
+  - name: .
+    when: '2000-01-02T03:04:05Z'
+    children: []

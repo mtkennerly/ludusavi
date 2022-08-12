@@ -1812,6 +1812,7 @@ dependencies = [
  "glob",
  "iced",
  "iced_native",
+ "iced_style",
  "image",
  "indicatif",
  "intl-memoizer",

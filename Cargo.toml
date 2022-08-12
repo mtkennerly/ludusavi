@@ -21,6 +21,7 @@ fuzzy-matcher = "0.3.7"
 glob = "0.3.0"
 iced = { version = "0.4.2", features = ["glow", "glow_default_system_font"] }
 iced_native = { version = "0.5.1" }
+iced_style = "0.4.0"
 image = { version = "0.24.2", features = ["ico"], default-features = false }
 indicatif = { version = "0.16.2", features = ["rayon"] }
 intl-memoizer = "0.5.1"

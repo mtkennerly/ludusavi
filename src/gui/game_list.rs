@@ -129,21 +129,50 @@ impl GameListEntry {
                             Length::Units(if restoring { 0 } else { 15 }),
                             Length::Shrink,
                         ))
-                        .push_if(
-                            || !self.scan_info.available_backups.is_empty(),
-                            || {
+                        .push_some(|| {
+                            if self.scan_info.available_backups.len() == 1 {
+                                self.scan_info.backup.as_ref().map(|backup| {
+                                    Container::new(Text::new(backup.label()).size(18))
+                                        .padding([2, 0, 0, 15])
+                                        .width(Length::Units(175))
+                                        .align_x(HorizontalAlignment::Center)
+                                })
+                            } else if !self.scan_info.available_backups.is_empty() {
+                                if operation.is_some() {
+                                    return self.scan_info.backup.as_ref().map(|backup| {
+                                        Container::new(
+                                            Container::new(Text::new(backup.label()).size(15))
+                                                .padding(2)
+                                                .width(Length::Units(160))
+                                                .align_x(HorizontalAlignment::Center)
+                                                .style(style::Container::DisabledBackup),
+                                        )
+                                        .padding([2, 0, 0, 15])
+                                    });
+                                }
+
                                 let game = self.scan_info.game_name.clone();
-                                PickList::new(
-                                    &mut self.backup_selector,
-                                    &self.scan_info.available_backups,
-                                    self.scan_info.backup.as_ref().cloned(),
-                                    move |backup| Message::SelectedBackupToRestore {
-                                        game: game.clone(),
-                                        backup,
-                                    },
+                                let content = Container::new(
+                                    PickList::new(
+                                        &mut self.backup_selector,
+                                        &self.scan_info.available_backups,
+                                        self.scan_info.backup.as_ref().cloned(),
+                                        move |backup| Message::SelectedBackupToRestore {
+                                            game: game.clone(),
+                                            backup,
+                                        },
+                                    )
+                                    .text_size(15)
+                                    .style(style::PickList::Backup),
                                 )
-                            },
-                        )
+                                .padding([0, 0, 0, 15])
+                                .width(Length::Units(175))
+                                .align_x(HorizontalAlignment::Center);
+                                Some(content)
+                            } else {
+                                None
+                            }
+                        })
                         .push_if(
                             || !restoring,
                             || {

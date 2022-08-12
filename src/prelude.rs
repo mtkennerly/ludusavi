@@ -1134,6 +1134,13 @@ mod tests {
         env!("CARGO_MANIFEST_DIR").replace('\\', "/")
     }
 
+    fn now() -> chrono::DateTime<chrono::Utc> {
+        chrono::NaiveDate::from_ymd(2000, 1, 2)
+            .and_hms(3, 4, 5)
+            .and_local_timezone(chrono::Utc)
+            .unwrap()
+    }
+
     fn config() -> Config {
         Config::load_from_string(&format!(
             r#"
@@ -1700,12 +1707,12 @@ mod tests {
                 },
                 available_backups: vec![Backup::Full(FullBackup {
                     name: ".".to_string(),
-                    when: None,
+                    when: Some(now()),
                     children: vec![],
                 })],
                 backup: Some(Backup::Full(FullBackup {
                     name: ".".to_string(),
-                    when: None,
+                    when: Some(now()),
                     children: vec![],
                 })),
                 ..Default::default()
@@ -1733,12 +1740,12 @@ mod tests {
                     ))),
                     available_backups: vec![Backup::Full(FullBackup {
                         name: ".".to_string(),
-                        when: None,
+                        when: Some(now()),
                         children: vec![],
                     })],
                     backup: Some(Backup::Full(FullBackup {
                         name: ".".to_string(),
-                        when: None,
+                        when: Some(now()),
                         children: vec![],
                     })),
                     ..Default::default()
@@ -1751,12 +1758,12 @@ mod tests {
                     game_name: s("game3"),
                     available_backups: vec![Backup::Full(FullBackup {
                         name: ".".to_string(),
-                        when: None,
+                        when: Some(now()),
                         children: vec![],
                     })],
                     backup: Some(Backup::Full(FullBackup {
                         name: ".".to_string(),
-                        when: None,
+                        when: Some(now()),
                         children: vec![],
                     })),
                     ..Default::default()
