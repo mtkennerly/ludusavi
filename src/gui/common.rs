@@ -4,7 +4,7 @@ use crate::{
     lang::Translator,
     layout::Backup,
     manifest::Store,
-    prelude::{BackupInfo, OperationStatus, OperationStepDecision, RegistryItem, ScanInfo, StrictPath},
+    prelude::{BackupInfo, Error, OperationStatus, OperationStepDecision, RegistryItem, ScanInfo, StrictPath},
     shortcuts::{Shortcut, TextHistory},
 };
 
@@ -14,7 +14,12 @@ use iced::{Alignment, Row, Text};
 pub enum Message {
     Idle,
     Ignore,
+    Error(Error),
     ConfirmBackupStart {
+        games: Option<Vec<String>>,
+    },
+    BackupPrep {
+        preview: bool,
         games: Option<Vec<String>>,
     },
     BackupStart {

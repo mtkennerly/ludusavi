@@ -66,6 +66,8 @@
     closed and reopened the file list.
   * GUI: Unable to start on KDE 5.25.3 when using Wayland.
   * GUI: Improved spacing/padding consistency between some elements.
+  * GUI: Unresponsive while deleting the backup directory with `merge` disabled
+    if the folder was very large.
 
 ## v0.10.0 (2021-03-12)
 

@@ -299,6 +299,10 @@ impl Translator {
         translate("no-missing-roots")
     }
 
+    pub fn preparing_backup_dir(&self) -> String {
+        translate("preparing-backup-target")
+    }
+
     pub fn confirm_add_missing_roots(&self, roots: &[crate::config::RootsConfig]) -> String {
         use std::fmt::Write;
         let mut msg = translate("confirm-add-missing-roots") + "\n";

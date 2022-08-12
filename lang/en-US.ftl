@@ -147,3 +147,4 @@ confirm-restore =
 
 confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
+preparing-backup-target = Preparing backup directory...

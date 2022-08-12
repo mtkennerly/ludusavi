@@ -78,7 +78,7 @@ impl BackupScreenComponent {
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(match operation {
-                                None => Message::BackupStart {
+                                None => Message::BackupPrep {
                                     preview: true,
                                     games: None,
                                 },

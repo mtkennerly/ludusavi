@@ -67,21 +67,7 @@ impl App {
         if self.operation.is_some() {
             return Command::none();
         }
-
         let backup_path = &self.config.backup.path;
-        if !preview {
-            if let Err(e) = prepare_backup_target(
-                backup_path,
-                if games.is_some() {
-                    true
-                } else {
-                    self.config.backup.merge
-                },
-            ) {
-                self.modal_theme = Some(ModalTheme::Error { variant: e });
-                return Command::none();
-            }
-        }
 
         let mut all_games = self.manifest.clone();
         for custom_game in &self.config.custom_games {
@@ -329,6 +315,10 @@ impl Application for App {
                 Command::none()
             }
             Message::Ignore => Command::none(),
+            Message::Error(error) => {
+                self.modal_theme = Some(ModalTheme::Error { variant: error });
+                Command::none()
+            }
             Message::ConfirmBackupStart { games } => {
                 self.modal_theme = Some(ModalTheme::ConfirmBackup { games });
                 Command::none()
@@ -336,6 +326,35 @@ impl Application for App {
             Message::ConfirmRestoreStart { games } => {
                 self.modal_theme = Some(ModalTheme::ConfirmRestore { games });
                 Command::none()
+            }
+            Message::BackupPrep { preview, games } => {
+                if self.operation.is_some() {
+                    return Command::none();
+                }
+
+                if preview {
+                    return self.start_backup(preview, games);
+                }
+
+                self.modal_theme = Some(ModalTheme::PreparingBackupDir);
+
+                let backup_path = self.config.backup.path.clone();
+                let merge = if games.is_some() {
+                    true
+                } else {
+                    self.config.backup.merge
+                };
+
+                Command::perform(
+                    async move { prepare_backup_target(&backup_path, merge) },
+                    move |result| match result {
+                        Ok(_) => Message::BackupStart {
+                            preview,
+                            games: games.clone(),
+                        },
+                        Err(e) => Message::Error(e),
+                    },
+                )
             }
             Message::BackupStart { preview, games } => self.start_backup(preview, games),
             Message::RestoreStart { preview, games } => self.start_restore(preview, games),

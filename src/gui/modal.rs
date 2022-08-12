@@ -11,6 +11,7 @@ use iced::{
 };
 
 pub enum ModalVariant {
+    Loading,
     Info,
     Confirm,
 }
@@ -22,11 +23,13 @@ pub enum ModalTheme {
     ConfirmRestore { games: Option<Vec<String>> },
     NoMissingRoots,
     ConfirmAddMissingRoots(Vec<RootsConfig>),
+    PreparingBackupDir,
 }
 
 impl ModalTheme {
     pub fn variant(&self) -> ModalVariant {
         match self {
+            Self::PreparingBackupDir => ModalVariant::Loading,
             Self::Error { .. } | Self::NoMissingRoots => ModalVariant::Info,
             Self::ConfirmBackup { .. } | Self::ConfirmRestore { .. } | Self::ConfirmAddMissingRoots(..) => {
                 ModalVariant::Confirm
@@ -43,21 +46,23 @@ impl ModalTheme {
             Self::ConfirmRestore { .. } => translator.modal_confirm_restore(&config.restore.path),
             Self::NoMissingRoots => translator.no_missing_roots(),
             Self::ConfirmAddMissingRoots(missing) => translator.confirm_add_missing_roots(missing),
+            Self::PreparingBackupDir => translator.preparing_backup_dir(),
         }
     }
 
-    pub fn message(&self) -> Message {
+    pub fn message(&self) -> Option<Message> {
         match self {
-            Self::Error { .. } | Self::NoMissingRoots => Message::Idle,
-            Self::ConfirmBackup { games } => Message::BackupStart {
+            Self::Error { .. } | Self::NoMissingRoots => Some(Message::Idle),
+            Self::ConfirmBackup { games } => Some(Message::BackupPrep {
                 preview: false,
                 games: games.clone(),
-            },
-            Self::ConfirmRestore { games } => Message::RestoreStart {
+            }),
+            Self::ConfirmRestore { games } => Some(Message::RestoreStart {
                 preview: false,
                 games: games.clone(),
-            },
-            Self::ConfirmAddMissingRoots(missing) => Message::ConfirmAddMissingRoots(missing.clone()),
+            }),
+            Self::ConfirmAddMissingRoots(missing) => Some(Message::ConfirmAddMissingRoots(missing.clone())),
+            Self::PreparingBackupDir => None,
         }
     }
 }
@@ -71,17 +76,21 @@ pub struct ModalComponent {
 
 impl ModalComponent {
     pub fn view(&mut self, theme: &ModalTheme, config: &Config, translator: &Translator) -> Container<Message> {
-        let positive_button = Button::new(
+        let mut positive_button = Button::new(
             &mut self.positive_button,
             Text::new(match theme.variant() {
+                ModalVariant::Loading => translator.okay_button(), // dummy
                 ModalVariant::Info => translator.okay_button(),
                 ModalVariant::Confirm => translator.continue_button(),
             })
             .horizontal_alignment(HorizontalAlignment::Center),
         )
-        .on_press(theme.message())
         .width(Length::Units(125))
         .style(style::Button::Primary);
+
+        if let Some(message) = theme.message() {
+            positive_button = positive_button.on_press(message);
+        }
 
         let negative_button = Button::new(
             &mut self.negative_button,
@@ -122,6 +131,7 @@ impl ModalComponent {
                         )
                         .push(
                             match theme.variant() {
+                                ModalVariant::Loading => Row::new(),
                                 ModalVariant::Info => Row::new().push(positive_button),
                                 ModalVariant::Confirm => Row::new().push(positive_button).push(negative_button),
                             }
