@@ -377,10 +377,10 @@ impl GameLayout {
         let mut backups = vec![];
 
         for full in &self.mapping.backups {
+            backups.push(Backup::Full(full.clone()));
             for diff in &full.children {
                 backups.push(Backup::Differential(diff.clone()));
             }
-            backups.push(Backup::Full(full.clone()));
         }
 
         backups
@@ -687,7 +687,12 @@ impl GameLayout {
 
                 if let Some(latest_full) = plan.mapping.latest_full_backup_mut() {
                     if let Some(latest_diff) = latest_full.latest_diff_mut() {
-                        let new_file_list: HashSet<_> = scan.found_files.iter().map(|x| x.path.render()).collect();
+                        let new_file_list: HashSet<_> = scan
+                            .found_files
+                            .iter()
+                            .filter(|x| !x.ignored)
+                            .map(|x| x.path.render())
+                            .collect();
                         full_file_list.retain(|x| !new_file_list.contains(x));
                         latest_diff.omit.files = full_file_list;
                     }
