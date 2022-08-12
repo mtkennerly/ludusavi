@@ -276,7 +276,7 @@ impl IndividualMapping {
             if name.starts_with("drive-") && !self.has_backup(".") {
                 irrelevant.push(StrictPath::from(&child));
             }
-            if (name.starts_with("full-") || name.starts_with("diff-")) && !relevant.clone().any(|x| x == name) {
+            if name.starts_with("backup-") && !relevant.clone().any(|x| x == name) {
                 irrelevant.push(StrictPath::from(&child));
             }
         }
@@ -603,12 +603,12 @@ impl GameLayout {
         if self.retention.full == 1 {
             ".".to_string()
         } else {
-            format!("full-{}", Self::generate_file_friendly_timestamp(now))
+            format!("backup-{}", Self::generate_file_friendly_timestamp(now))
         }
     }
 
     fn generate_differential_backup_name(&self, now: &chrono::DateTime<chrono::Utc>) -> String {
-        format!("diff-{}", Self::generate_file_friendly_timestamp(now))
+        format!("backup-{}", Self::generate_file_friendly_timestamp(now))
     }
 
     fn plan_backup(&self, scan: &ScanInfo, now: &chrono::DateTime<chrono::Utc>) -> Option<BackupPlan> {
@@ -1236,13 +1236,13 @@ mod tests {
                                 children: vec![],
                             },
                             FullBackup {
-                                name: format!("full-{}", now_str()),
+                                name: format!("backup-{}", now_str()),
                                 when: Some(now()),
                                 children: vec![],
                             },
                         ]),
                     },
-                    name: format!("full-{}", now_str()),
+                    name: format!("backup-{}", now_str()),
                     files: scan.found_files.clone(),
                     registry: hashset! {},
                 }),
@@ -1273,7 +1273,7 @@ mod tests {
                             children: vec![],
                         },
                         FullBackup {
-                            name: format!("full-{}", past2_str()),
+                            name: format!("backup-{}", past2_str()),
                             when: Some(past2()),
                             children: vec![],
                         },
@@ -1292,18 +1292,18 @@ mod tests {
                         drives: drives(),
                         backups: VecDeque::from(vec![
                             FullBackup {
-                                name: format!("full-{}", past2_str()),
+                                name: format!("backup-{}", past2_str()),
                                 when: Some(past2()),
                                 children: vec![],
                             },
                             FullBackup {
-                                name: format!("full-{}", now_str()),
+                                name: format!("backup-{}", now_str()),
                                 when: Some(now()),
                                 children: vec![],
                             },
                         ]),
                     },
-                    name: format!("full-{}", now_str()),
+                    name: format!("backup-{}", now_str()),
                     files: scan.found_files.clone(),
                     registry: hashset! {},
                 }),
@@ -1348,13 +1348,13 @@ mod tests {
                             name: ".".to_string(),
                             when: Some(past()),
                             children: vec![DifferentialBackup {
-                                name: format!("diff-{}", now_str()),
+                                name: format!("backup-{}", now_str()),
                                 when: Some(now()),
                                 omit: Default::default(),
                             },],
                         },]),
                     },
-                    name: format!("diff-{}", now_str()),
+                    name: format!("backup-{}", now_str()),
                     files: scan.found_files.clone(),
                     registry: hashset! {},
                 }),
@@ -1382,7 +1382,7 @@ mod tests {
                         name: ".".to_string(),
                         when: Some(past()),
                         children: vec![DifferentialBackup {
-                            name: format!("diff-{}", past2_str()),
+                            name: format!("backup-{}", past2_str()),
                             when: Some(past2()),
                             omit: Default::default(),
                         }],
@@ -1404,19 +1404,19 @@ mod tests {
                                 name: ".".to_string(),
                                 when: Some(past()),
                                 children: vec![DifferentialBackup {
-                                    name: format!("diff-{}", past2_str()),
+                                    name: format!("backup-{}", past2_str()),
                                     when: Some(past2()),
                                     omit: Default::default(),
                                 },],
                             },
                             FullBackup {
-                                name: format!("full-{}", now_str()),
+                                name: format!("backup-{}", now_str()),
                                 when: Some(now()),
                                 children: vec![],
                             },
                         ]),
                     },
-                    name: format!("full-{}", now_str()),
+                    name: format!("backup-{}", now_str()),
                     files: scan.found_files.clone(),
                     registry: hashset! {},
                 }),
@@ -1441,10 +1441,10 @@ mod tests {
                     name: "game1".to_string(),
                     drives: drives(),
                     backups: VecDeque::from(vec![FullBackup {
-                        name: format!("full-{}", past_str()),
+                        name: format!("backup-{}", past_str()),
                         when: Some(past()),
                         children: vec![DifferentialBackup {
-                            name: format!("diff-{}", past2_str()),
+                            name: format!("backup-{}", past2_str()),
                             when: Some(past2()),
                             omit: Default::default(),
                         }],
