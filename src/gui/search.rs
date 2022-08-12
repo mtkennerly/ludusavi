@@ -7,7 +7,7 @@ use crate::{
 
 use iced::{
     pick_list::{self, PickList},
-    text_input, Alignment, Checkbox, Container, Length, Row, Space, Text, TextInput,
+    text_input, Alignment, Checkbox, Container, Row, Text, TextInput,
 };
 
 #[derive(Default)]
@@ -20,11 +20,11 @@ pub struct SearchComponent {
 }
 
 impl SearchComponent {
-    pub fn view(&mut self, screen: Screen, translator: &Translator, sort: &Sort) -> Container<Message> {
+    pub fn view(&mut self, screen: Screen, translator: &Translator, sort: &Sort) -> Option<Container<Message>> {
         if !self.show {
-            return Container::new(Space::new(Length::Shrink, Length::Shrink));
+            return None;
         }
-        Container::new(
+        Some(Container::new(
             Row::new()
                 .padding([0, 20, 20, 20])
                 .spacing(20)
@@ -49,6 +49,6 @@ impl SearchComponent {
                 .push(Checkbox::new(sort.reversed, translator.sort_reversed(), move |value| {
                     Message::EditedSortReversed { screen, value }
                 })),
-        )
+        ))
     }
 }

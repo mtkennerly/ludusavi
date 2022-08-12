@@ -68,6 +68,7 @@
   * GUI: Improved spacing/padding consistency between some elements.
   * GUI: Unresponsive while deleting the backup directory with `merge` disabled
     if the folder was very large.
+  * GUI: Performance has been improved generally, including for very large results (1,000+ games).
 
 ## v0.10.0 (2021-03-12)
 

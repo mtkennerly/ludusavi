@@ -278,15 +278,17 @@ impl GameList {
 
         Container::new(
             Column::new()
-                .push(self.search.view(
-                    if restoring { Screen::Restore } else { Screen::Backup },
-                    translator,
-                    if restoring {
-                        &config.restore.sort
-                    } else {
-                        &config.backup.sort
-                    },
-                ))
+                .push_some(|| {
+                    self.search.view(
+                        if restoring { Screen::Restore } else { Screen::Backup },
+                        translator,
+                        if restoring {
+                            &config.restore.sort
+                        } else {
+                            &config.backup.sort
+                        },
+                    )
+                })
                 .push({
                     self.entries.iter_mut().enumerate().fold(
                         Scrollable::new(&mut self.scroll)

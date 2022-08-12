@@ -957,36 +957,52 @@ pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo
 pub struct DuplicateDetector {
     files: std::collections::HashMap<StrictPath, std::collections::HashSet<String>>,
     registry: std::collections::HashMap<RegistryItem, std::collections::HashSet<String>>,
+    file_cache: std::collections::HashMap<String, usize>,
+    registry_cache: std::collections::HashMap<String, usize>,
 }
 
 impl DuplicateDetector {
     pub fn add_game(&mut self, scan_info: &ScanInfo) {
+        let mut stale = std::collections::HashSet::new();
+        stale.insert(scan_info.game_name.clone());
+
         for item in scan_info.found_files.iter() {
+            let path = self.pick_path(item);
+            if let Some(existing) = self.files.get(&path) {
+                // Len 0: No games to update counts for.
+                // Len 2+: These games already include the item in their duplicate counts.
+                if existing.len() == 1 {
+                    stale.extend(existing.clone());
+                }
+            }
             self.files
-                .entry(self.pick_path(item))
+                .entry(path)
                 .or_insert_with(Default::default)
                 .insert(scan_info.game_name.clone());
         }
         for item in scan_info.found_registry_keys.iter() {
+            let path = item.path.clone();
+            if let Some(existing) = self.registry.get(&path) {
+                if existing.len() == 1 {
+                    stale.extend(existing.clone());
+                }
+            }
             self.registry
-                .entry(item.path.clone())
+                .entry(path)
                 .or_insert_with(Default::default)
                 .insert(scan_info.game_name.clone());
+        }
+
+        for game in stale {
+            self.file_cache
+                .insert(game.to_string(), self.count_file_duplicates_for(&game));
+            self.registry_cache
+                .insert(game.to_string(), self.count_registry_duplicates_for(&game));
         }
     }
 
     pub fn is_game_duplicated(&self, scan_info: &ScanInfo) -> bool {
-        for item in scan_info.found_files.iter() {
-            if self.file(item).len() > 1 {
-                return true;
-            }
-        }
-        for item in scan_info.found_registry_keys.iter() {
-            if self.registry(&item.path).len() > 1 {
-                return true;
-            }
-        }
-        false
+        self.count_duplicates_for(&scan_info.game_name) > 0
     }
 
     fn pick_path(&self, file: &ScannedFile) -> StrictPath {
@@ -1021,35 +1037,54 @@ impl DuplicateDetector {
     pub fn clear(&mut self) {
         self.files.clear();
         self.registry.clear();
+        self.file_cache.clear();
+        self.registry_cache.clear();
     }
 
     pub fn any_duplicates(&self) -> bool {
-        for item in self.files.values() {
-            if item.len() > 1 {
+        for item in self.file_cache.values() {
+            if *item > 0 {
                 return true;
             }
         }
-        for item in self.registry.values() {
-            if item.len() > 1 {
+        for item in self.registry_cache.values() {
+            if *item > 0 {
                 return true;
             }
         }
         false
     }
 
-    pub fn count_duplicates_for(&self, game: &str) -> usize {
+    fn cached_file_duplicates_for(&self, game: &str) -> usize {
+        self.file_cache.get(game).copied().unwrap_or(0)
+    }
+
+    fn cached_registry_duplicates_for(&self, game: &str) -> usize {
+        self.registry_cache.get(game).copied().unwrap_or(0)
+    }
+
+    fn count_file_duplicates_for(&self, game: &str) -> usize {
         let mut tally = 0;
         for item in self.files.values() {
             if item.contains(game) && item.len() > 1 {
                 tally += 1;
             }
         }
+        tally
+    }
+
+    fn count_registry_duplicates_for(&self, game: &str) -> usize {
+        let mut tally = 0;
         for item in self.registry.values() {
             if item.contains(game) && item.len() > 1 {
                 tally += 1;
             }
         }
         tally
+    }
+
+    pub fn count_duplicates_for(&self, game: &str) -> usize {
+        self.cached_file_duplicates_for(game) + self.cached_registry_duplicates_for(game)
     }
 }
 
