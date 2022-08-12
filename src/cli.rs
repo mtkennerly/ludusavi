@@ -23,7 +23,7 @@ fn parse_existing_strict_path(path: &str) -> Result<StrictPath, std::io::Error> 
     Ok(sp)
 }
 
-#[derive(clap::Subcommand, Clone, Debug, PartialEq)]
+#[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
 pub enum CompletionShell {
     #[clap(about = "Completions for Bash")]
     Bash,
@@ -87,7 +87,7 @@ impl From<CliSort> for Sort {
     }
 }
 
-#[derive(clap::Subcommand, Clone, Debug, PartialEq)]
+#[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
 pub enum Subcommand {
     #[clap(about = "Back up data")]
     Backup {
@@ -194,7 +194,7 @@ pub enum Subcommand {
     },
 }
 
-#[derive(clap::Parser, Clone, Debug, PartialEq)]
+#[derive(clap::Parser, Clone, Debug, PartialEq, Eq)]
 #[clap(
     name = "ludusavi",
     version,

@@ -19,7 +19,7 @@ const APP_DIR_NAME: &str = "ludusavi";
 const PORTABLE_FLAG_FILE_NAME: &str = "ludusavi.portable";
 const MIGRATION_FLAG_FILE_NAME: &str = ".flag_migrated_legacy_config";
 
-#[derive(Clone, Debug, PartialEq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
     #[error("The manifest file is invalid: {why:?}")]
     ManifestInvalid { why: String },
@@ -109,7 +109,7 @@ impl ScannedRegistry {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ScanInfo {
     pub game_name: String,
     pub found_files: std::collections::HashSet<ScannedFile>,
@@ -232,7 +232,7 @@ impl OperationStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum OperationStepDecision {
     Processed,
     Cancelled,
@@ -604,7 +604,6 @@ impl InstallDirRanking {
     }
 }
 
-#[allow(clippy::too_many_arguments)]
 pub fn scan_game_for_backup(
     game: &Game,
     name: &str,

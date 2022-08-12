@@ -3,7 +3,7 @@ use crate::{
     prelude::{app_dir, Error, StrictPath},
 };
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Os {
     #[serde(rename = "windows")]
     Windows,
@@ -77,7 +77,7 @@ impl std::fmt::Display for Store {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Tag {
     #[serde(rename = "save")]
     Save,
@@ -93,10 +93,10 @@ impl Default for Tag {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Manifest(pub std::collections::HashMap<String, Game>);
 
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Game {
     pub files: Option<std::collections::HashMap<String, GameFileEntry>>,
     #[serde(rename = "installDir")]
@@ -105,33 +105,33 @@ pub struct Game {
     pub steam: Option<SteamMetadata>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GameFileEntry {
     pub tags: Option<Vec<Tag>>,
     pub when: Option<Vec<GameFileConstraint>>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GameInstallDirEntry {}
 
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GameRegistryEntry {
     pub tags: Option<Vec<Tag>>,
     pub when: Option<Vec<GameRegistryConstraint>>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GameFileConstraint {
     pub os: Option<Os>,
     pub store: Option<Store>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GameRegistryConstraint {
     pub store: Option<Store>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SteamMetadata {
     pub id: Option<u32>,
 }

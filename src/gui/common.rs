@@ -133,7 +133,7 @@ pub enum Message {
     },
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OngoingOperation {
     Backup,
     CancelBackup,
@@ -145,7 +145,7 @@ pub enum OngoingOperation {
     CancelPreviewRestore,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
     Backup,
     Restore,
@@ -153,20 +153,20 @@ pub enum Screen {
     Other,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EditAction {
     Add,
     Change(usize, String),
     Remove(usize),
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum RedirectEditActionField {
     Source,
     Target,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BrowseSubject {
     BackupTarget,
     RestoreSource,
