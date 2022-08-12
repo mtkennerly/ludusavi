@@ -1,6 +1,6 @@
 use crate::{
     config::{BackupFilter, RedirectConfig, RootsConfig, ToggledPaths, ToggledRegistry},
-    layout::BackupLayout,
+    layout::{Backup, GameLayout},
     manifest::{Game, GameFileConstraint, Os, Store},
 };
 use fuzzy_matcher::FuzzyMatcher;
@@ -114,7 +114,12 @@ pub struct ScanInfo {
     pub game_name: String,
     pub found_files: std::collections::HashSet<ScannedFile>,
     pub found_registry_keys: std::collections::HashSet<ScannedRegistry>,
+    /// Only populated by a restoration scan.
     pub registry_file: Option<StrictPath>,
+    /// Only populated by a restoration scan.
+    pub available_backups: Vec<Backup>,
+    /// Only populated by a restoration scan.
+    pub backup: Option<Backup>,
 }
 
 impl ScanInfo {
@@ -774,27 +779,38 @@ pub fn scan_game_for_backup(
         game_name: name.to_string(),
         found_files,
         found_registry_keys,
-        registry_file: None,
+        ..Default::default()
     }
 }
 
-pub fn scan_game_for_restoration(name: &str, layout: &BackupLayout) -> ScanInfo {
-    let layout = layout.game_layout(name);
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub enum BackupId {
+    #[default]
+    Latest,
+    Named(String),
+}
 
+pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &GameLayout) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut registry_file = None;
+    let mut available_backups = vec![];
+    let mut backup = None;
+
+    let id = layout.verify_id(id);
 
     if layout.path.is_dir() {
-        found_files = layout.restorable_files();
+        found_files = layout.restorable_files(&id);
+        available_backups = layout.restorable_backups_flattened();
+        backup = layout.find_by_id_flattened(&id);
     }
 
     #[cfg(target_os = "windows")]
     {
-        if let Some(hives) = crate::registry::Hives::load(&layout.registry_file()) {
-            registry_file = Some(layout.registry_file());
+        if let Some(hives) = crate::registry::Hives::load(&layout.registry_file(&id)) {
+            registry_file = Some(layout.registry_file(&id));
             for (hive_name, keys) in hives.0.iter() {
                 for (key_name, _) in keys.0.iter() {
                     found_registry_keys.insert(ScannedRegistry {
@@ -811,6 +827,8 @@ pub fn scan_game_for_restoration(name: &str, layout: &BackupLayout) -> ScanInfo 
         found_files,
         found_registry_keys,
         registry_file,
+        available_backups,
+        backup,
     }
 }
 
@@ -853,13 +871,10 @@ pub fn are_files_identical(file1: &StrictPath, file2: &StrictPath) -> Result<boo
 
 pub fn back_up_game(
     info: &ScanInfo,
-    name: &str,
-    layout: &BackupLayout,
+    mut layout: GameLayout,
     merge: bool,
     now: &chrono::DateTime<chrono::Utc>,
 ) -> BackupInfo {
-    let mut layout = layout.game_layout(name);
-
     let able_to_prepare = info.found_anything_processable()
         && (merge || (layout.path.unset_readonly().is_ok() && layout.path.remove().is_ok()))
         && std::fs::create_dir_all(layout.path.interpret()).is_ok();
@@ -1072,6 +1087,7 @@ pub fn fuzzy_match(
 mod tests {
     use super::*;
     use crate::config::{Config, Retention};
+    use crate::layout::{BackupLayout, FullBackup};
     use crate::manifest::Manifest;
     use maplit::*;
     use pretty_assertions::assert_eq;
@@ -1268,7 +1284,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             },
             scan_game_for_backup(
                 &manifest().0["game1"],
@@ -1291,7 +1307,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             },
             scan_game_for_backup(
                 &manifest().0["game 2"],
@@ -1321,7 +1337,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             },
             scan_game_for_backup(
                 &manifest().0["game5"],
@@ -1351,7 +1367,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             },
             scan_game_for_backup(
                 &manifest().0["game 2"],
@@ -1385,7 +1401,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/home/Documents/winDocuments.txt", repo()), 0),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             },
             scan_game_for_backup(
                 &manifest().0["game4"],
@@ -1418,7 +1434,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             },
             scan_game_for_backup(
                 &manifest().0["game4"],
@@ -1445,7 +1461,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             },
             scan_game_for_backup(
                 &manifest().0["game4"],
@@ -1507,7 +1523,7 @@ mod tests {
                     game_name: s("game1"),
                     found_files: found,
                     found_registry_keys: hashset! {},
-                    registry_file: None,
+                    ..Default::default()
                 },
                 scan_game_for_backup(
                     &manifest().0["game1"],
@@ -1535,7 +1551,7 @@ mod tests {
                 found_registry_keys: hashset! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3")
                 },
-                registry_file: None,
+                ..Default::default()
             },
             scan_game_for_backup(
                 &manifest().0["game3"],
@@ -1564,7 +1580,7 @@ mod tests {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other"),
                 },
-                registry_file: None,
+                ..Default::default()
             },
             scan_game_for_backup(
                 &manifest().0["game3-outer"],
@@ -1630,7 +1646,7 @@ mod tests {
                     game_name: s("game3-outer"),
                     found_files: hashset! {},
                     found_registry_keys: found,
-                    registry_file: None,
+                    ..Default::default()
                 },
                 scan_game_for_backup(
                     &manifest().0["game3-outer"],
@@ -1650,6 +1666,10 @@ mod tests {
 
     #[test]
     fn can_scan_game_for_restoration_with_files() {
+        let layout = BackupLayout::new(
+            StrictPath::new(format!("{}/tests/backup", repo())),
+            Retention::default(),
+        );
         let make_path = |x| {
             if cfg!(target_os = "windows") {
                 StrictPath::new(format!(
@@ -1679,20 +1699,28 @@ mod tests {
                         ignored: false,
                     },
                 },
+                available_backups: vec![Backup::Full(FullBackup {
+                    name: ".".to_string(),
+                    when: None,
+                    children: vec![],
+                })],
+                backup: Some(Backup::Full(FullBackup {
+                    name: ".".to_string(),
+                    when: None,
+                    children: vec![],
+                })),
                 ..Default::default()
             },
-            scan_game_for_restoration(
-                "game1",
-                &BackupLayout::new(
-                    StrictPath::new(format!("{}/tests/backup", repo())),
-                    Retention::default()
-                )
-            ),
+            scan_game_for_restoration("game1", &BackupId::Latest, &layout.game_layout("game1")),
         );
     }
 
     #[test]
     fn can_scan_game_for_restoration_with_registry() {
+        let layout = BackupLayout::new(
+            StrictPath::new(format!("{}/tests/backup", repo())),
+            Retention::default(),
+        );
         if cfg!(target_os = "windows") {
             assert_eq!(
                 ScanInfo {
@@ -1704,29 +1732,37 @@ mod tests {
                         "\\\\?\\{}\\tests\\backup\\game3-renamed/registry.yaml",
                         repo().replace('/', "\\")
                     ))),
+                    available_backups: vec![Backup::Full(FullBackup {
+                        name: ".".to_string(),
+                        when: None,
+                        children: vec![],
+                    })],
+                    backup: Some(Backup::Full(FullBackup {
+                        name: ".".to_string(),
+                        when: None,
+                        children: vec![],
+                    })),
                     ..Default::default()
                 },
-                scan_game_for_restoration(
-                    "game3",
-                    &BackupLayout::new(
-                        StrictPath::new(format!("{}/tests/backup", repo())),
-                        Retention::default()
-                    )
-                ),
+                scan_game_for_restoration("game3", &BackupId::Latest, &layout.game_layout("game3")),
             );
         } else {
             assert_eq!(
                 ScanInfo {
                     game_name: s("game3"),
+                    available_backups: vec![Backup::Full(FullBackup {
+                        name: ".".to_string(),
+                        when: None,
+                        children: vec![],
+                    })],
+                    backup: Some(Backup::Full(FullBackup {
+                        name: ".".to_string(),
+                        when: None,
+                        children: vec![],
+                    })),
                     ..Default::default()
                 },
-                scan_game_for_restoration(
-                    "game3",
-                    &BackupLayout::new(
-                        StrictPath::new(format!("{}/tests/backup", repo())),
-                        Retention::default()
-                    )
-                ),
+                scan_game_for_restoration("game3", &BackupId::Latest, &layout.game_layout("game3")),
             );
         }
     }

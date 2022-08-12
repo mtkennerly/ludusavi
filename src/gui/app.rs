@@ -20,7 +20,7 @@ use crate::{
     manifest::{Manifest, Store},
     prelude::{
         app_dir, back_up_game, prepare_backup_target, restore_game, scan_game_for_backup, scan_game_for_restoration,
-        Error, InstallDirRanking, OperationStepDecision, StrictPath,
+        BackupId, Error, InstallDirRanking, OperationStepDecision, StrictPath,
     },
     registry_compat::RegistryItem,
     shortcuts::Shortcut,
@@ -59,6 +59,7 @@ pub struct App {
     other_screen: OtherScreenComponent,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     progress: DisappearingProgress,
+    backups_to_restore: std::collections::HashMap<String, BackupId>,
 }
 
 impl App {
@@ -110,7 +111,7 @@ impl App {
                 .entries
                 .retain(|entry| !games.contains(&entry.scan_info.game_name))
         } else {
-            self.backup_screen.log.entries.clear();
+            self.backup_screen.log.clear();
             self.backup_screen.duplicate_detector.clear();
         }
         self.modal_theme = None;
@@ -166,7 +167,12 @@ impl App {
                     }
 
                     let backup_info = if !preview {
-                        Some(back_up_game(&scan_info, &key, &layout, merge, &chrono::Utc::now()))
+                        Some(back_up_game(
+                            &scan_info,
+                            layout.game_layout(&key),
+                            merge,
+                            &chrono::Utc::now(),
+                        ))
                     } else {
                         None
                     };
@@ -210,7 +216,7 @@ impl App {
                 .entries
                 .retain(|entry| !games.contains(&entry.scan_info.game_name))
         } else {
-            self.restore_screen.log.entries.clear();
+            self.restore_screen.log.clear();
             self.restore_screen.duplicate_detector.clear();
         }
         self.modal_theme = None;
@@ -232,6 +238,7 @@ impl App {
             let config = config.clone();
             let layout = layout.clone();
             let cancel_flag = self.operation_should_cancel.clone();
+            let backup_id = self.backups_to_restore.get(&name).cloned().unwrap_or(BackupId::Latest);
             commands.push(Command::perform(
                 async move {
                     if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
@@ -240,7 +247,7 @@ impl App {
                         return (None, None, OperationStepDecision::Cancelled);
                     }
 
-                    let scan_info = scan_game_for_restoration(&name, &layout);
+                    let scan_info = scan_game_for_restoration(&name, &backup_id, &layout.game_layout(&name));
                     if !config.is_game_enabled_for_restore(&name) {
                         return (Some(scan_info), None, OperationStepDecision::Ignored);
                     }
@@ -680,18 +687,10 @@ impl Application for App {
             Message::ToggleGameListEntryExpanded { name } => {
                 match self.screen {
                     Screen::Backup => {
-                        for entry in &mut self.backup_screen.log.entries {
-                            if entry.scan_info.game_name == name {
-                                entry.expanded = !entry.expanded;
-                            }
-                        }
+                        self.backup_screen.log.toggle_game_expanded(&name);
                     }
                     Screen::Restore => {
-                        for entry in &mut self.restore_screen.log.entries {
-                            if entry.scan_info.game_name == name {
-                                entry.expanded = !entry.expanded;
-                            }
-                        }
+                        self.restore_screen.log.toggle_game_expanded(&name);
                     }
                     _ => {}
                 }
@@ -1129,6 +1128,10 @@ impl Application for App {
                 self.config.backup.retention.differential = value;
                 self.config.save();
                 Command::none()
+            }
+            Message::SelectedBackupToRestore { game, backup } => {
+                self.backups_to_restore.insert(game.clone(), backup.id());
+                self.start_restore(true, Some(vec![game]))
             }
         }
     }

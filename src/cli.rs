@@ -5,7 +5,7 @@ use crate::{
     manifest::{Manifest, SteamMetadata},
     prelude::{
         app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
-        scan_game_for_restoration, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus,
+        scan_game_for_restoration, BackupId, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus,
         OperationStepDecision, ScanInfo, StrictPath,
     },
 };
@@ -637,7 +637,12 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let backup_info = if preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
-                        back_up_game(&scan_info, name, &layout, config.backup.merge, &chrono::Utc::now())
+                        back_up_game(
+                            &scan_info,
+                            layout.game_layout(name),
+                            config.backup.merge,
+                            &chrono::Utc::now(),
+                        )
                     };
                     (name, scan_info, backup_info, decision)
                 })
@@ -755,7 +760,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .par_iter()
                 .progress_count(subjects.len() as u64)
                 .map(|name| {
-                    let scan_info = scan_game_for_restoration(name, &layout);
+                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &layout.game_layout(name));
                     let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
@@ -1233,7 +1238,7 @@ Overall:
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key2"),
                     },
-                    registry_file: None,
+                    ..Default::default()
                 },
                 &BackupInfo {
                     failed_files: hashset! {
@@ -1283,7 +1288,7 @@ Overall:
                         },
                     },
                     found_registry_keys: hashset! {},
-                    registry_file: None,
+                    ..Default::default()
                 },
                 &BackupInfo {
                     failed_files: hashset! {},
@@ -1306,7 +1311,7 @@ Overall:
                         },
                     },
                     found_registry_keys: hashset! {},
-                    registry_file: None,
+                    ..Default::default()
                 },
                 &BackupInfo {
                     failed_files: hashset! {},
@@ -1358,7 +1363,7 @@ Overall:
                         },
                     },
                     found_registry_keys: hashset! {},
-                    registry_file: None,
+                    ..Default::default()
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
@@ -1396,7 +1401,7 @@ Overall:
                     found_registry_keys: hashset! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     },
-                    registry_file: None,
+                    ..Default::default()
                 });
             }
 
@@ -1410,7 +1415,7 @@ Overall:
                     found_registry_keys: hashset! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     },
-                    registry_file: None,
+                    ..Default::default()
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
@@ -1479,7 +1484,7 @@ Overall:
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key2")
                     },
-                    registry_file: None,
+                    ..Default::default()
                 },
                 &BackupInfo {
                     failed_files: hashset! {
@@ -1556,7 +1561,7 @@ Overall:
                         },
                     },
                     found_registry_keys: hashset! {},
-                    registry_file: None,
+                    ..Default::default()
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
@@ -1608,7 +1613,7 @@ Overall:
                     found_registry_keys: hashset! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     },
-                    registry_file: None,
+                    ..Default::default()
                 });
             }
 
@@ -1622,7 +1627,7 @@ Overall:
                     found_registry_keys: hashset! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     },
-                    registry_file: None,
+                    ..Default::default()
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,

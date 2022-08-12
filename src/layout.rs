@@ -5,7 +5,7 @@ use chrono::{Datelike, Timelike};
 use crate::{
     config::Retention,
     path::StrictPath,
-    prelude::{BackupInfo, ScanInfo, ScannedFile, ScannedRegistry},
+    prelude::{BackupId, BackupInfo, ScanInfo, ScannedFile, ScannedRegistry},
 };
 
 const SAFE: &str = "_";
@@ -45,16 +45,53 @@ fn escape_folder_name(name: &str) -> String {
         .replace('\0', SAFE)
 }
 
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Backup {
+    Full(FullBackup),
+    Differential(DifferentialBackup),
+}
+
+impl Backup {
+    pub fn label(&self) -> String {
+        match self {
+            Self::Full(x) => x.label(),
+            Self::Differential(x) => x.label(),
+        }
+    }
+
+    pub fn id(&self) -> BackupId {
+        match self {
+            Self::Full(x) => BackupId::Named(x.name.clone()),
+            Self::Differential(x) => BackupId::Named(x.name.clone()),
+        }
+    }
+}
+
+impl std::fmt::Display for Backup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.label())
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FullBackup {
     pub name: String,
-    pub when: chrono::DateTime<chrono::Utc>,
+    pub when: Option<chrono::DateTime<chrono::Utc>>,
     pub children: Vec<DifferentialBackup>,
 }
 
 impl FullBackup {
     pub fn latest_diff_mut(&mut self) -> Option<&mut DifferentialBackup> {
         self.children.last_mut()
+    }
+
+    pub fn label(&self) -> String {
+        match self.when {
+            None => self.name.clone(),
+            Some(when) => chrono::DateTime::<chrono::Local>::from(when)
+                .format("%Y-%m-%d @ %H:%M:%S")
+                .to_string(),
+        }
     }
 }
 
@@ -74,7 +111,7 @@ pub struct BackupOmission {
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DifferentialBackup {
     pub name: String,
-    pub when: chrono::DateTime<chrono::Utc>,
+    pub when: Option<chrono::DateTime<chrono::Utc>>,
     pub omit: BackupOmission,
 }
 
@@ -86,12 +123,20 @@ impl DifferentialBackup {
     pub fn omits_registry(&self) -> bool {
         self.omit.registry
     }
+
+    pub fn label(&self) -> String {
+        match self.when {
+            None => self.name.clone(),
+            Some(when) => chrono::DateTime::<chrono::Local>::from(when)
+                .format("%Y-%m-%d @ %H:%M:%S")
+                .to_string(),
+        }
+    }
 }
 
 fn default_backup_list() -> VecDeque<FullBackup> {
     VecDeque::from(vec![FullBackup {
         name: ".".to_string(),
-        when: chrono::Utc::now(),
         ..Default::default()
     }])
 }
@@ -259,10 +304,80 @@ impl GameLayout {
         self.mapping.save(&Self::mapping_file(&self.path))
     }
 
-    pub fn restorable_files(&self) -> std::collections::HashSet<ScannedFile> {
+    pub fn verify_id(&self, id: &BackupId) -> BackupId {
+        match id {
+            BackupId::Latest => id.clone(),
+            BackupId::Named(name) => {
+                for full in &self.mapping.backups {
+                    for diff in &full.children {
+                        if diff.name == *name {
+                            return id.clone();
+                        }
+                    }
+                    if full.name == *name {
+                        return id.clone();
+                    }
+                }
+                BackupId::Latest
+            }
+        }
+    }
+
+    pub fn find_by_id(&self, id: &BackupId) -> Option<(&FullBackup, Option<&DifferentialBackup>)> {
+        match id {
+            BackupId::Latest => self.mapping.latest_backup(),
+            BackupId::Named(id) => {
+                let mut full = None;
+                let mut diff = None;
+
+                'outer: for full_candidate in &self.mapping.backups {
+                    if full_candidate.name == *id {
+                        full = Some(full_candidate);
+                        break 'outer;
+                    }
+                    for diff_candidate in &full_candidate.children {
+                        if diff_candidate.name == *id {
+                            full = Some(full_candidate);
+                            diff = Some(diff_candidate);
+                            break 'outer;
+                        }
+                    }
+                }
+
+                match (full, diff) {
+                    (None, _) => None,
+                    (Some(full), None) => Some((full, None)),
+                    (Some(full), Some(diff)) => Some((full, Some(diff))),
+                }
+            }
+        }
+    }
+
+    pub fn find_by_id_flattened(&self, id: &BackupId) -> Option<Backup> {
+        match self.find_by_id(id) {
+            None => None,
+            Some((full, None)) => Some(Backup::Full(full.clone())),
+            Some((_, Some(diff))) => Some(Backup::Differential(diff.clone())),
+        }
+    }
+
+    pub fn restorable_backups_flattened(&self) -> Vec<Backup> {
+        let mut backups = vec![];
+
+        for full in &self.mapping.backups {
+            for diff in &full.children {
+                backups.push(Backup::Differential(diff.clone()));
+            }
+            backups.push(Backup::Full(full.clone()));
+        }
+
+        backups
+    }
+
+    pub fn restorable_files(&self, id: &BackupId) -> std::collections::HashSet<ScannedFile> {
         let mut files = std::collections::HashSet::new();
 
-        match self.mapping.latest_backup() {
+        match self.find_by_id(id) {
             None => {}
             Some((full, None)) => {
                 files.extend(self.restorable_files_in(&full.name));
@@ -326,8 +441,8 @@ impl GameLayout {
     }
 
     #[allow(dead_code)]
-    pub fn registry_file(&self) -> StrictPath {
-        match self.mapping.latest_backup() {
+    pub fn registry_file(&self, id: &BackupId) -> StrictPath {
+        match self.find_by_id(id) {
             None => self.registry_file_in("."),
             Some((full, None)) => self.registry_file_in(&full.name),
             Some((full, Some(diff))) => {
@@ -342,7 +457,7 @@ impl GameLayout {
     }
 
     #[allow(dead_code)]
-    pub fn registry_file_in(&self, backup: &str) -> StrictPath {
+    fn registry_file_in(&self, backup: &str) -> StrictPath {
         self.path.joined(backup).joined("registry.yaml")
     }
 
@@ -514,7 +629,7 @@ impl GameLayout {
             BackupKind::Full => {
                 plan.mapping.backups.push_back(FullBackup {
                     name: plan.name.clone(),
-                    when: *now,
+                    when: Some(*now),
                     children: Default::default(),
                 });
                 while plan.mapping.backups.len() as u8 > self.retention.full {
@@ -524,7 +639,7 @@ impl GameLayout {
             BackupKind::Differential => {
                 let new = DifferentialBackup {
                     name: plan.name.clone(),
-                    when: *now,
+                    when: Some(*now),
                     omit: Default::default(),
                 };
                 if let Some(latest_full) = plan.mapping.latest_full_backup_mut() {
@@ -975,14 +1090,14 @@ mod tests {
                 game_name: "game1".to_string(),
                 found_files: hashset! {},
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             };
             let layout = GameLayout {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
                 mapping: IndividualMapping::new("game1".to_string()),
                 retention: Retention::default(),
             };
-            assert_eq!(None, layout.plan_backup(&scan, &now()),);
+            assert_eq!(None, layout.plan_backup(&scan, &now()));
         }
 
         #[test]
@@ -994,7 +1109,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             };
             let layout = GameLayout {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
@@ -1010,7 +1125,7 @@ mod tests {
                         drives: Default::default(),
                         backups: VecDeque::from(vec![FullBackup {
                             name: ".".to_string(),
-                            when: now(),
+                            when: Some(now()),
                             children: vec![],
                         }]),
                     },
@@ -1031,7 +1146,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             };
             let layout = GameLayout {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
@@ -1040,7 +1155,7 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
                         name: ".".to_string(),
-                        when: past(),
+                        when: Some(past()),
                         children: vec![],
                     }]),
                 },
@@ -1057,7 +1172,7 @@ mod tests {
                         drives: drives(),
                         backups: VecDeque::from(vec![FullBackup {
                             name: ".".to_string(),
-                            when: now(),
+                            when: Some(now()),
                             children: vec![],
                         }]),
                     },
@@ -1078,7 +1193,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             };
             let layout = GameLayout {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
@@ -1087,7 +1202,7 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
                         name: ".".to_string(),
-                        when: past(),
+                        when: Some(past()),
                         children: vec![],
                     }]),
                 },
@@ -1105,12 +1220,12 @@ mod tests {
                         backups: VecDeque::from(vec![
                             FullBackup {
                                 name: ".".to_string(),
-                                when: past(),
+                                when: Some(past()),
                                 children: vec![],
                             },
                             FullBackup {
                                 name: format!("full-{}", now_str()),
-                                when: now(),
+                                when: Some(now()),
                                 children: vec![],
                             },
                         ]),
@@ -1132,7 +1247,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             };
             let layout = GameLayout {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
@@ -1142,12 +1257,12 @@ mod tests {
                     backups: VecDeque::from_iter(vec![
                         FullBackup {
                             name: ".".to_string(),
-                            when: past(),
+                            when: Some(past()),
                             children: vec![],
                         },
                         FullBackup {
                             name: format!("full-{}", past2_str()),
-                            when: past2(),
+                            when: Some(past2()),
                             children: vec![],
                         },
                     ]),
@@ -1166,12 +1281,12 @@ mod tests {
                         backups: VecDeque::from(vec![
                             FullBackup {
                                 name: format!("full-{}", past2_str()),
-                                when: past2(),
+                                when: Some(past2()),
                                 children: vec![],
                             },
                             FullBackup {
                                 name: format!("full-{}", now_str()),
-                                when: now(),
+                                when: Some(now()),
                                 children: vec![],
                             },
                         ]),
@@ -1193,7 +1308,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             };
             let layout = GameLayout {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
@@ -1202,7 +1317,7 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
                         name: ".".to_string(),
-                        when: past(),
+                        when: Some(past()),
                         children: vec![],
                     }]),
                 },
@@ -1219,10 +1334,10 @@ mod tests {
                         drives: drives(),
                         backups: VecDeque::from(vec![FullBackup {
                             name: ".".to_string(),
-                            when: past(),
+                            when: Some(past()),
                             children: vec![DifferentialBackup {
                                 name: format!("diff-{}", now_str()),
-                                when: now(),
+                                when: Some(now()),
                                 omit: Default::default(),
                             },],
                         },]),
@@ -1244,7 +1359,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             };
             let layout = GameLayout {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
@@ -1253,10 +1368,10 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".to_string(),
-                        when: past(),
+                        when: Some(past()),
                         children: vec![DifferentialBackup {
                             name: format!("diff-{}", past2_str()),
-                            when: past2(),
+                            when: Some(past2()),
                             omit: Default::default(),
                         }],
                     }]),
@@ -1275,16 +1390,16 @@ mod tests {
                         backups: VecDeque::from(vec![
                             FullBackup {
                                 name: ".".to_string(),
-                                when: past(),
+                                when: Some(past()),
                                 children: vec![DifferentialBackup {
                                     name: format!("diff-{}", past2_str()),
-                                    when: past2(),
+                                    when: Some(past2()),
                                     omit: Default::default(),
                                 },],
                             },
                             FullBackup {
                                 name: format!("full-{}", now_str()),
-                                when: now(),
+                                when: Some(now()),
                                 children: vec![],
                             },
                         ]),
@@ -1306,7 +1421,7 @@ mod tests {
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
                 },
                 found_registry_keys: hashset! {},
-                registry_file: None,
+                ..Default::default()
             };
             let layout = GameLayout {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
@@ -1315,10 +1430,10 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: format!("full-{}", past_str()),
-                        when: past(),
+                        when: Some(past()),
                         children: vec![DifferentialBackup {
                             name: format!("diff-{}", past2_str()),
-                            when: past2(),
+                            when: Some(past2()),
                             omit: Default::default(),
                         }],
                     }]),
@@ -1336,7 +1451,7 @@ mod tests {
                         drives: drives(),
                         backups: VecDeque::from(vec![FullBackup {
                             name: ".".to_string(),
-                            when: now(),
+                            when: Some(now()),
                             children: vec![],
                         },]),
                     },

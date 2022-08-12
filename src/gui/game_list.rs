@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::{
     config::{Config, Sort, SortKey, ToggledPaths, ToggledRegistry},
     gui::{
@@ -9,14 +11,15 @@ use crate::{
         style,
     },
     lang::Translator,
+    layout::Backup,
     manifest::Manifest,
     prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
 };
 
 use fuzzy_matcher::FuzzyMatcher;
 use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, scrollable, Alignment, Button, Checkbox, Column, Container,
-    Length, Row, Scrollable, Space, Text,
+    alignment::Horizontal as HorizontalAlignment, button, pick_list, scrollable, Alignment, Button, Checkbox, Column,
+    Container, Length, PickList, Row, Scrollable, Space, Text,
 };
 
 use super::common::OngoingOperation;
@@ -26,10 +29,11 @@ pub struct GameListEntry {
     pub scan_info: ScanInfo,
     pub backup_info: Option<BackupInfo>,
     pub expand_button: button::State,
+    pub selected_backup: Option<String>,
+    pub backup_selector: pick_list::State<Backup>,
     pub wiki_button: button::State,
     pub customize_button: button::State,
     pub operate_button: button::State,
-    pub expanded: bool,
     pub tree: FileTree,
     pub duplicates: usize,
 }
@@ -43,6 +47,7 @@ impl GameListEntry {
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
         operation: &Option<OngoingOperation>,
+        expanded: bool,
     ) -> Container<Message> {
         let successful = match &self.backup_info {
             Some(x) => x.successful(),
@@ -50,7 +55,7 @@ impl GameListEntry {
         };
 
         let duplicates = duplicate_detector.count_duplicates_for(&self.scan_info.game_name);
-        if self.expanded {
+        if expanded {
             if self.tree.is_empty() || duplicates != self.duplicates {
                 self.tree = FileTree::new(self.scan_info.clone(), config, &self.backup_info, duplicate_detector);
                 self.duplicates = duplicates;
@@ -125,6 +130,21 @@ impl GameListEntry {
                             Length::Shrink,
                         ))
                         .push_if(
+                            || !self.scan_info.available_backups.is_empty(),
+                            || {
+                                let game = self.scan_info.game_name.clone();
+                                PickList::new(
+                                    &mut self.backup_selector,
+                                    &self.scan_info.available_backups,
+                                    self.scan_info.backup.as_ref().cloned(),
+                                    move |backup| Message::SelectedBackupToRestore {
+                                        game: game.clone(),
+                                        backup,
+                                    },
+                                )
+                            },
+                        )
+                        .push_if(
                             || !restoring,
                             || {
                                 Container::new(
@@ -194,7 +214,7 @@ impl GameListEntry {
                         ),
                 )
                 .push_if(
-                    || self.expanded,
+                    || expanded,
                     || {
                         self.tree
                             .view(translator, &self.scan_info.game_name, config, restoring)
@@ -211,6 +231,7 @@ pub struct GameList {
     pub entries: Vec<GameListEntry>,
     scroll: scrollable::State,
     pub search: SearchComponent,
+    expanded_games: HashSet<String>,
 }
 
 impl GameList {
@@ -257,6 +278,7 @@ impl GameList {
                                     manifest,
                                     duplicate_detector,
                                     operation,
+                                    self.expanded_games.contains(&x.scan_info.game_name),
                                 ))
                             } else {
                                 parent
@@ -311,5 +333,18 @@ impl GameList {
         if sort.reversed {
             self.entries.reverse();
         }
+    }
+
+    pub fn toggle_game_expanded(&mut self, game: &str) {
+        if self.expanded_games.contains(game) {
+            self.expanded_games.remove(game);
+        } else {
+            self.expanded_games.insert(game.to_string());
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.entries.clear();
+        self.expanded_games.clear();
     }
 }

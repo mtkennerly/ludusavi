@@ -684,8 +684,8 @@ mod tests {
                 raw: "C:\\Users\\Foo\\Documents/C:\\Users\\Bar".to_string(),
                 basis: Some("\\\\?\\C:\\Users\\Foo\\.config\\ludusavi".to_string()),
             };
-            assert_eq!(r#"\\?\C:\Users\Foo\Documents\C_\Users\Bar"#, sp.interpret(),);
-            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", sp.render(),);
+            assert_eq!(r#"\\?\C:\Users\Foo\Documents\C_\Users\Bar"#, sp.interpret());
+            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", sp.render());
         }
 
         #[test]
@@ -698,8 +698,8 @@ mod tests {
                 raw: "\\\\?\\C:\\Users\\Foo\\Documents\\C:\\Users\\Bar".to_string(),
                 basis: Some("\\\\?\\C:\\Users\\Foo\\.config\\ludusavi".to_string()),
             };
-            assert_eq!(r#"\\?\C:\Users\Foo\Documents\C_\Users\Bar"#, sp.interpret(),);
-            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", sp.render(),);
+            assert_eq!(r#"\\?\C:\Users\Foo\Documents\C_\Users\Bar"#, sp.interpret());
+            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", sp.render());
         }
 
         #[test]

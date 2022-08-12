@@ -1,3 +1,5 @@
+#![allow(clippy::too_many_arguments)]
+
 mod cli;
 mod config;
 mod gui;

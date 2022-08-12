@@ -2,6 +2,7 @@ use crate::{
     config::{RootsConfig, SortKey},
     gui::badge::Badge,
     lang::Translator,
+    layout::Backup,
     manifest::Store,
     prelude::{BackupInfo, OperationStatus, OperationStepDecision, RegistryItem, ScanInfo, StrictPath},
     shortcuts::{Shortcut, TextHistory},
@@ -126,6 +127,10 @@ pub enum Message {
     SubscribedEvent(iced_native::Event),
     EditedFullRetention(u8),
     EditedDiffRetention(u8),
+    SelectedBackupToRestore {
+        game: String,
+        backup: Backup,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq)]
