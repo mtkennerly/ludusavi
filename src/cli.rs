@@ -488,6 +488,7 @@ impl Reporter {
 pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
     let translator = Translator::default();
     let mut config = Config::load()?;
+    translator.set_language(config.language);
     let mut failed = false;
     let mut duplicate_detector = DuplicateDetector::default();
 

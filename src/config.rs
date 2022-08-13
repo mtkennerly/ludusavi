@@ -1,4 +1,5 @@
 use crate::{
+    lang::Language,
     manifest::Store,
     prelude::{app_dir, Error, RegistryItem, StrictPath},
 };
@@ -14,6 +15,8 @@ fn default_backup_dir() -> StrictPath {
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Config {
     pub manifest: ManifestConfig,
+    #[serde(default)]
+    pub language: Language,
     pub roots: Vec<RootsConfig>,
     pub backup: BackupConfig,
     pub restore: RestoreConfig,
@@ -641,6 +644,7 @@ mod tests {
                     url: s("example.com"),
                     etag: None,
                 },
+                language: Language::English,
                 roots: vec![],
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
@@ -720,6 +724,7 @@ mod tests {
                     url: s("example.com"),
                     etag: Some(s("foo")),
                 },
+                language: Language::English,
                 roots: vec![
                     RootsConfig {
                         path: StrictPath::new(s("~/steam")),
@@ -805,6 +810,7 @@ mod tests {
                     url: s("example.com"),
                     etag: None,
                 },
+                language: Language::English,
                 roots: vec![RootsConfig {
                     path: StrictPath::new(s("~/other")),
                     store: Store::Other,
@@ -843,6 +849,7 @@ mod tests {
 manifest:
   url: example.com
   etag: foo
+language: en-US
 roots:
   - path: ~/steam
     store: steam
@@ -900,6 +907,7 @@ customGames:
                     url: s("example.com"),
                     etag: Some(s("foo")),
                 },
+                language: Language::English,
                 roots: vec![
                     RootsConfig {
                         path: StrictPath::new(s("~/steam")),

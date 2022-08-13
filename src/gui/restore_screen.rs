@@ -120,7 +120,7 @@ impl RestoreScreenComponent {
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(Message::EditedRedirect(EditAction::Add, None))
-                            .width(Length::Units(125))
+                            .width(Length::Units(150))
                             .style(style::Button::Primary),
                         )
                         .push({

@@ -1,7 +1,7 @@
 use crate::{
     config::{RootsConfig, SortKey},
     gui::badge::Badge,
-    lang::Translator,
+    lang::{Language, Translator},
     layout::Backup,
     manifest::Store,
     prelude::{BackupInfo, Error, OperationStatus, OperationStepDecision, RegistryItem, ScanInfo, StrictPath},
@@ -136,6 +136,7 @@ pub enum Message {
         game: String,
         backup: Backup,
     },
+    SelectedLanguage(Language),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

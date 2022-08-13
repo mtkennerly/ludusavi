@@ -19,15 +19,57 @@ const PROCESSED_SIZE: &str = "processed-size";
 const TOTAL_GAMES: &str = "total-games";
 const TOTAL_SIZE: &str = "total-size";
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Language {
+    #[default]
+    #[serde(rename = "en-US")]
     English,
+    #[serde(rename = "fil-PH")]
+    Filipino,
+    #[serde(rename = "de-DE")]
+    German,
+    #[serde(rename = "pt-BR")]
+    PortugueseBrazilian,
+    #[serde(rename = "pl-PL")]
+    Polish,
+    #[serde(rename = "es-ES")]
+    Spanish,
+    // TODO: Blocked by https://github.com/mtkennerly/ludusavi/issues/9.
+    // ChineseSimplified,
 }
 
 impl Language {
-    pub fn id(&self) -> String {
-        match self {
+    pub const ALL: &'static [Self] = &[
+        Self::German,
+        Self::English,
+        Self::Spanish,
+        Self::Filipino,
+        Self::Polish,
+        Self::PortugueseBrazilian,
+    ];
+
+    pub fn id(&self) -> LanguageIdentifier {
+        let id = match self {
             Self::English => "en-US",
+            Self::Filipino => "fil-PH",
+            Self::German => "de-DE",
+            Self::Polish => "pl-PL",
+            Self::PortugueseBrazilian => "pt-BR",
+            Self::Spanish => "es-ES",
+        };
+        id.parse().unwrap()
+    }
+}
+
+impl ToString for Language {
+    fn to_string(&self) -> String {
+        match self {
+            Self::English => "English",
+            Self::Filipino => "Filipino",
+            Self::German => "Deutsch",
+            Self::Polish => "Polski",
+            Self::PortugueseBrazilian => "Português brasileiro",
+            Self::Spanish => "Español",
         }
         .to_string()
     }
@@ -40,8 +82,7 @@ static BUNDLE: Lazy<Mutex<FluentBundle<FluentResource, IntlLangMemoizer>>> = Laz
     let ftl = include_str!("../lang/en-US.ftl").to_owned();
     let res = FluentResource::try_new(ftl).expect("Failed to parse Fluent file content.");
 
-    let language_id: LanguageIdentifier = Language::English.id().parse().unwrap();
-    let mut bundle = FluentBundle::new_concurrent(vec![language_id]);
+    let mut bundle = FluentBundle::new_concurrent(vec![Language::English.id()]);
     bundle.set_use_isolating(false);
 
     bundle
@@ -50,6 +91,25 @@ static BUNDLE: Lazy<Mutex<FluentBundle<FluentResource, IntlLangMemoizer>>> = Laz
 
     Mutex::new(bundle)
 });
+
+fn set_language(language: Language) {
+    let mut bundle = BUNDLE.lock().unwrap();
+
+    let ftl = match language {
+        Language::English => include_str!("../lang/en-US.ftl"),
+        Language::Filipino => include_str!("../lang/fil-PH.ftl"),
+        Language::German => include_str!("../lang/de-DE.ftl"),
+        Language::Polish => include_str!("../lang/pl-PL.ftl"),
+        Language::PortugueseBrazilian => include_str!("../lang/pt-BR.ftl"),
+        Language::Spanish => include_str!("../lang/es-ES.ftl"),
+    }
+    .to_owned();
+
+    let res = FluentResource::try_new(ftl).expect("Failed to parse Fluent file content.");
+    bundle.locales = vec![language.id()];
+
+    bundle.add_resource_overriding(res);
+}
 
 static RE_EXTRA_SPACES: Lazy<Regex> = Lazy::new(|| Regex::new(r#"([^\r\n ]) {2,}"#).unwrap());
 static RE_EXTRA_LINES: Lazy<Regex> = Lazy::new(|| Regex::new(r#"([^\r\n ])[\r\n]([^\r\n ])"#).unwrap());
@@ -99,6 +159,13 @@ fn translate_args(id: &str, args: &FluentArgs) -> String {
 }
 
 impl Translator {
+    pub fn set_language(&self, language: Language) {
+        set_language(Language::English);
+        if language != Language::English {
+            set_language(language);
+        }
+    }
+
     pub fn window_title(&self) -> String {
         let name = translate("ludusavi");
         let version = option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
@@ -176,6 +243,14 @@ impl Translator {
 
     pub fn label_ignored(&self) -> String {
         self.label(&self.badge_ignored())
+    }
+
+    fn field(&self, text: &str) -> String {
+        format!("{}:", text)
+    }
+
+    pub fn field_language(&self) -> String {
+        self.field(&translate("language"))
     }
 
     pub fn badge_failed(&self) -> String {

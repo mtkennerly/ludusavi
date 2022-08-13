@@ -42,6 +42,12 @@
     It may be returned to 640x480 in the future, but there are currently
     some limitations that make it look poor at that size.
 * Added:
+  * Translations for German, Spanish, Filipino (partial), Polish, and Brazilian Portuguese.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
+
+    Note that a Simplified Chinese translation has been contributed, but unfortunately
+    there is a technical limitation that means it can't be included just yet
+    ([more info](https://github.com/mtkennerly/ludusavi/issues/9)).
   * During first-time setup, Ludusavi will now automatically detect roots for
     secondary Steam library folders (Windows/Linux/Mac) and non-default Epic
     install folders (Windows).

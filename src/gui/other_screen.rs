@@ -5,15 +5,16 @@ use crate::{
         ignored_items_editor::IgnoredItemsEditor,
         style,
     },
-    lang::Translator,
+    lang::{Language, Translator},
 };
 
-use iced::{scrollable, Checkbox, Column, Container, Length, Scrollable, Text};
+use iced::{pick_list, scrollable, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Text};
 
 #[derive(Default)]
 pub struct OtherScreenComponent {
     scroll: scrollable::State,
     pub ignored_items_editor: IgnoredItemsEditor,
+    language_selector: pick_list::State<Language>,
 }
 
 impl OtherScreenComponent {
@@ -38,6 +39,21 @@ impl OtherScreenComponent {
                 .push(
                     Column::new()
                         .spacing(20)
+                        .push(
+                            Row::new()
+                                .align_items(iced::Alignment::Center)
+                                .spacing(20)
+                                .push(Text::new(translator.field_language()))
+                                .push(
+                                    PickList::new(
+                                        &mut self.language_selector,
+                                        Language::ALL,
+                                        Some(config.language),
+                                        Message::SelectedLanguage,
+                                    )
+                                    .style(style::PickList::Primary),
+                                ),
+                        )
                         .push(Checkbox::new(
                             config.backup.filter.exclude_other_os_data,
                             translator.explanation_for_exclude_other_os_data(),

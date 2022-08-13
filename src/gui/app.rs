@@ -40,6 +40,22 @@ pub fn get_key_pressed(event: iced::keyboard::Event) -> Option<(KeyCode, Modifie
     }
 }
 
+fn make_nav_button(state: &mut button::State, text: String, screen: Screen, current_screen: Screen) -> Button<Message> {
+    Button::new(
+        state,
+        Text::new(text)
+            .size(16)
+            .horizontal_alignment(HorizontalAlignment::Center),
+    )
+    .on_press(Message::SwitchScreen(screen))
+    .padding([5, 20, 5, 20])
+    .style(if current_screen == screen {
+        style::NavButton::Active
+    } else {
+        style::NavButton::Inactive
+    })
+}
+
 #[derive(Default)]
 pub struct App {
     config: Config,
@@ -272,6 +288,7 @@ impl Application for App {
                 Config::default()
             }
         };
+        translator.set_language(config.language);
         let manifest = match Manifest::load(&mut config, true) {
             Ok(x) => x,
             Err(x) => {
@@ -1152,6 +1169,12 @@ impl Application for App {
                 self.backups_to_restore.insert(game.clone(), backup.id());
                 self.start_restore(true, Some(vec![game]))
             }
+            Message::SelectedLanguage(language) => {
+                self.translator.set_language(language);
+                self.config.language = language;
+                self.config.save();
+                Command::none()
+            }
         }
     }
 
@@ -1170,62 +1193,30 @@ impl Application for App {
                 Row::new()
                     .padding([2, 20, 25, 20])
                     .spacing(20)
-                    .push(
-                        Button::new(
-                            &mut self.nav_to_backup_button,
-                            Text::new(self.translator.nav_backup_button())
-                                .size(16)
-                                .horizontal_alignment(HorizontalAlignment::Center),
-                        )
-                        .on_press(Message::SwitchScreen(Screen::Backup))
-                        .width(Length::Units(175))
-                        .style(match self.screen {
-                            Screen::Backup => style::NavButton::Active,
-                            _ => style::NavButton::Inactive,
-                        }),
-                    )
-                    .push(
-                        Button::new(
-                            &mut self.nav_to_restore_button,
-                            Text::new(self.translator.nav_restore_button())
-                                .size(16)
-                                .horizontal_alignment(HorizontalAlignment::Center),
-                        )
-                        .on_press(Message::SwitchScreen(Screen::Restore))
-                        .width(Length::Units(175))
-                        .style(match self.screen {
-                            Screen::Restore => style::NavButton::Active,
-                            _ => style::NavButton::Inactive,
-                        }),
-                    )
-                    .push(
-                        Button::new(
-                            &mut self.nav_to_custom_games_button,
-                            Text::new(self.translator.nav_custom_games_button())
-                                .size(16)
-                                .horizontal_alignment(HorizontalAlignment::Center),
-                        )
-                        .on_press(Message::SwitchScreen(Screen::CustomGames))
-                        .width(Length::Units(175))
-                        .style(match self.screen {
-                            Screen::CustomGames => style::NavButton::Active,
-                            _ => style::NavButton::Inactive,
-                        }),
-                    )
-                    .push(
-                        Button::new(
-                            &mut self.nav_to_other_button,
-                            Text::new(self.translator.nav_other_button())
-                                .size(16)
-                                .horizontal_alignment(HorizontalAlignment::Center),
-                        )
-                        .on_press(Message::SwitchScreen(Screen::Other))
-                        .width(Length::Units(175))
-                        .style(match self.screen {
-                            Screen::Other => style::NavButton::Active,
-                            _ => style::NavButton::Inactive,
-                        }),
-                    ),
+                    .push(make_nav_button(
+                        &mut self.nav_to_backup_button,
+                        self.translator.nav_backup_button(),
+                        Screen::Backup,
+                        self.screen,
+                    ))
+                    .push(make_nav_button(
+                        &mut self.nav_to_restore_button,
+                        self.translator.nav_restore_button(),
+                        Screen::Restore,
+                        self.screen,
+                    ))
+                    .push(make_nav_button(
+                        &mut self.nav_to_custom_games_button,
+                        self.translator.nav_custom_games_button(),
+                        Screen::CustomGames,
+                        self.screen,
+                    ))
+                    .push(make_nav_button(
+                        &mut self.nav_to_other_button,
+                        self.translator.nav_other_button(),
+                        Screen::Other,
+                        self.screen,
+                    )),
             )
             .push(
                 match self.screen {
