@@ -189,7 +189,7 @@ impl BackupScreenComponent {
                                 self.full_retention_input.view(
                                     config.backup.retention.full,
                                     &translator.full_retention(),
-                                    1..=9,
+                                    1..=u8::MAX,
                                     Message::EditedFullRetention,
                                 )
                             },
@@ -200,7 +200,7 @@ impl BackupScreenComponent {
                                 self.diff_retention_input.view(
                                     config.backup.retention.differential,
                                     &translator.differential_retention(),
-                                    0..=9,
+                                    0..=u8::MAX,
                                     Message::EditedDiffRetention,
                                 )
                             },
