@@ -165,9 +165,9 @@ pub struct ZipConfig {
 pub enum ZipCompression {
     #[serde(rename = "none")]
     None,
+    #[default]
     #[serde(rename = "deflate")]
     Deflate,
-    #[default]
     #[serde(rename = "bzip2")]
     Bzip2,
     #[serde(rename = "zstd")]
@@ -917,7 +917,7 @@ backup:
   format:
     chosen: simple
     zip:
-      compression: bzip2
+      compression: deflate
 restore:
   path: ~/restore
   ignoredGames:

@@ -1,9 +1,12 @@
-use std::collections::{HashSet, VecDeque};
+use std::{
+    collections::{HashSet, VecDeque},
+    io::Write,
+};
 
 use chrono::{Datelike, Timelike};
 
 use crate::{
-    config::{BackupFormat, BackupFormats, RedirectConfig, Retention},
+    config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
     path::StrictPath,
     prelude::{game_file_restoration_target, BackupId, BackupInfo, ScanInfo, ScannedFile, ScannedRegistry},
 };
@@ -190,6 +193,12 @@ impl IndividualMapping {
             format!("{}/{}/{}", backup, drive_folder, plain_path),
             Some(base.interpret()),
         )
+    }
+
+    fn game_file_for_zip(&mut self, original_file: &StrictPath) -> String {
+        let (drive, plain_path) = original_file.split_drive();
+        let drive_folder = self.drive_folder_name(&drive);
+        format!("{}/{}", drive_folder, plain_path).replace('\\', "/")
     }
 
     fn latest_backup(&self) -> Option<(&FullBackup, Option<&DifferentialBackup>)> {
@@ -749,13 +758,10 @@ impl GameLayout {
         Some(plan)
     }
 
-    fn execute_backup(&mut self, plan: BackupPlan) -> BackupInfo {
-        let mut backup_info = BackupInfo::default();
-        self.mapping = plan.mapping;
-
+    fn execute_backup_as_simple(&self, plan: &mut BackupPlan, backup_info: &mut BackupInfo) {
         let mut relevant_files = vec![];
         for file in &plan.files {
-            let target_file = self.mapping.game_file(&self.path, &file.path, &plan.name);
+            let target_file = plan.mapping.game_file(&self.path, &file.path, &plan.name);
             if file.path.same_content(&target_file) {
                 relevant_files.push(target_file);
                 continue;
@@ -787,11 +793,103 @@ impl GameLayout {
         if plan.kind == BackupKind::Full {
             self.remove_irrelevant_backup_files(&plan.name, &relevant_files);
         }
+    }
 
-        for irrelevant_parent in self.mapping.irrelevant_parents(&self.path) {
+    fn execute_backup_as_zip(&self, plan: &mut BackupPlan, backup_info: &mut BackupInfo, format: &BackupFormats) {
+        let fail_file =
+            |file: &ScannedFile, backup_info: &mut BackupInfo| backup_info.failed_files.insert(file.clone());
+        let fail_all = |backup_info: &mut BackupInfo| {
+            for file in &plan.files {
+                backup_info.failed_files.insert(file.clone());
+            }
+        };
+
+        let archive_path = self.path.joined(&plan.name);
+        let archive_file = match std::fs::File::create(archive_path.interpret()) {
+            Ok(x) => x,
+            Err(_) => {
+                fail_all(backup_info);
+                return;
+            }
+        };
+        let mut zip = zip::ZipWriter::new(archive_file);
+        let options = zip::write::FileOptions::default()
+            .compression_method(match format.zip.compression {
+                ZipCompression::None => zip::CompressionMethod::Stored,
+                ZipCompression::Deflate => zip::CompressionMethod::Deflated,
+                ZipCompression::Bzip2 => zip::CompressionMethod::Bzip2,
+                ZipCompression::Zstd => zip::CompressionMethod::Zstd,
+            })
+            .large_file(true);
+
+        'item: for file in &plan.files {
+            if zip
+                .start_file(plan.mapping.game_file_for_zip(&file.path), options)
+                .is_err()
+            {
+                fail_file(file, backup_info);
+                continue;
+            }
+
+            use std::io::Read;
+            let handle = match std::fs::File::open(file.path.interpret()) {
+                Ok(x) => x,
+                Err(_) => {
+                    fail_file(file, backup_info);
+                    continue;
+                }
+            };
+            let mut reader = std::io::BufReader::new(handle);
+            let mut buffer = [0; 1024];
+
+            loop {
+                let read = match reader.read(&mut buffer[..]) {
+                    Ok(x) => x,
+                    Err(_) => {
+                        fail_file(file, backup_info);
+                        continue 'item;
+                    }
+                };
+                if read == 0 {
+                    break;
+                }
+                if zip.write_all(&buffer[0..read]).is_err() {
+                    fail_file(file, backup_info);
+                    continue 'item;
+                }
+            }
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            use crate::registry::Hives;
+
+            if !plan.registry.is_empty() {
+                let hives = Hives::from(&plan.registry);
+                if zip.start_file("registry.yaml", options).is_ok() {
+                    let _ = zip.write_all(hives.serialize().as_bytes());
+                }
+            }
+        }
+
+        if zip.finish().is_err() {
+            fail_all(backup_info);
+        }
+    }
+
+    fn execute_backup(&mut self, mut plan: BackupPlan, format: &BackupFormats) -> BackupInfo {
+        let mut backup_info = BackupInfo::default();
+
+        match format.chosen {
+            BackupFormat::Simple => self.execute_backup_as_simple(&mut plan, &mut backup_info),
+            BackupFormat::Zip => self.execute_backup_as_zip(&mut plan, &mut backup_info, format),
+        }
+
+        for irrelevant_parent in plan.mapping.irrelevant_parents(&self.path) {
             let _ = irrelevant_parent.remove();
         }
 
+        self.mapping = plan.mapping;
         self.save();
         backup_info
     }
@@ -804,7 +902,7 @@ impl GameLayout {
     ) -> BackupInfo {
         match self.plan_backup(scan, now, format) {
             None => BackupInfo::default(),
-            Some(plan) => self.execute_backup(plan),
+            Some(plan) => self.execute_backup(plan, format),
         }
     }
 
