@@ -19,8 +19,8 @@ use crate::{
     layout::BackupLayout,
     manifest::{Manifest, Store},
     prelude::{
-        app_dir, back_up_game, prepare_backup_target, restore_game, scan_game_for_backup, scan_game_for_restoration,
-        BackupId, Error, InstallDirRanking, OperationStepDecision, StrictPath,
+        app_dir, back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId, Error,
+        InstallDirRanking, OperationStepDecision, StrictPath,
     },
     registry_compat::RegistryItem,
     shortcuts::Shortcut,
@@ -174,6 +174,7 @@ impl App {
                             layout.game_layout(&key),
                             merge,
                             &chrono::Utc::now(),
+                            &config.backup.format,
                         ))
                     } else {
                         None
@@ -243,19 +244,21 @@ impl App {
             let backup_id = self.backups_to_restore.get(&name).cloned().unwrap_or(BackupId::Latest);
             commands.push(Command::perform(
                 async move {
+                    let layout = layout.game_layout(&name);
+
                     if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                         // TODO: https://github.com/hecrj/iced/issues/436
                         std::thread::sleep(std::time::Duration::from_millis(1));
                         return (None, None, OperationStepDecision::Cancelled);
                     }
 
-                    let scan_info = scan_game_for_restoration(&name, &backup_id, &layout.game_layout(&name));
+                    let scan_info = scan_game_for_restoration(&name, &backup_id, &layout);
                     if !config.is_game_enabled_for_restore(&name) {
                         return (Some(scan_info), None, OperationStepDecision::Ignored);
                     }
 
-                    let backup_info = if !preview {
-                        Some(restore_game(&scan_info, &config.get_redirects()))
+                    let backup_info = if scan_info.backup.is_some() && !preview {
+                        Some(layout.restore(&scan_info.backup.as_ref().unwrap().id(), &config.get_redirects()))
                     } else {
                         None
                     };

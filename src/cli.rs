@@ -4,7 +4,7 @@ use crate::{
     layout::BackupLayout,
     manifest::{Manifest, SteamMetadata},
     prelude::{
-        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, restore_game, scan_game_for_backup,
+        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, scan_game_for_backup,
         scan_game_for_restoration, BackupId, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus,
         OperationStepDecision, ScanInfo, StrictPath,
     },
@@ -643,6 +643,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                             layout.game_layout(name),
                             config.backup.merge,
                             &chrono::Utc::now(),
+                            &config.backup.format,
                         )
                     };
                     (name, scan_info, backup_info, decision)
@@ -761,17 +762,18 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .par_iter()
                 .progress_count(subjects.len() as u64)
                 .map(|name| {
-                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &layout.game_layout(name));
+                    let layout = layout.game_layout(name);
+                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &layout);
                     let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
                     } else {
                         OperationStepDecision::Processed
                     };
-                    let restore_info = if preview || ignored {
+                    let restore_info = if scan_info.backup.is_none() || preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
-                        restore_game(&scan_info, &config.get_redirects())
+                        layout.restore(&scan_info.backup.as_ref().unwrap().id(), &config.get_redirects())
                     };
                     (name, scan_info, restore_info, decision)
                 })

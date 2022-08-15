@@ -1,11 +1,10 @@
 use crate::{
-    config::{BackupFilter, RedirectConfig, RootsConfig, ToggledPaths, ToggledRegistry},
+    config::{BackupFilter, BackupFormats, RedirectConfig, RootsConfig, ToggledPaths, ToggledRegistry},
     layout::{Backup, GameLayout},
     manifest::{Game, GameFileConstraint, Os, Store},
 };
 use fuzzy_matcher::FuzzyMatcher;
 use rayon::prelude::*;
-use std::io::Read;
 
 pub use crate::path::StrictPath;
 pub use crate::registry_compat::RegistryItem;
@@ -114,8 +113,6 @@ pub struct ScanInfo {
     pub game_name: String,
     pub found_files: std::collections::HashSet<ScannedFile>,
     pub found_registry_keys: std::collections::HashSet<ScannedRegistry>,
-    /// Only populated by a restoration scan.
-    pub registry_file: Option<StrictPath>,
     /// Only populated by a restoration scan.
     pub available_backups: Vec<Backup>,
     /// Only populated by a restoration scan.
@@ -794,7 +791,6 @@ pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &GameLayout)
     #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
     #[allow(unused_mut)]
-    let mut registry_file = None;
     let mut available_backups = vec![];
     let mut backup = None;
 
@@ -809,7 +805,6 @@ pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &GameLayout)
     #[cfg(target_os = "windows")]
     {
         if let Some(hives) = crate::registry::Hives::load(&layout.registry_file(&id)) {
-            registry_file = Some(layout.registry_file(&id));
             for (hive_name, keys) in hives.0.iter() {
                 for (key_name, _) in keys.0.iter() {
                     found_registry_keys.insert(ScannedRegistry {
@@ -825,7 +820,6 @@ pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &GameLayout)
         game_name: name.to_string(),
         found_files,
         found_registry_keys,
-        registry_file,
         available_backups,
         backup,
     }
@@ -846,40 +840,19 @@ pub fn prepare_backup_target(target: &StrictPath, merge: bool) -> Result<(), Err
     Ok(())
 }
 
-pub fn are_files_identical(file1: &StrictPath, file2: &StrictPath) -> Result<bool, Box<dyn std::error::Error>> {
-    let f1 = std::fs::File::open(file1.interpret())?;
-    let mut f1r = std::io::BufReader::new(f1);
-    let f2 = std::fs::File::open(file2.interpret())?;
-    let mut f2r = std::io::BufReader::new(f2);
-
-    let mut f1b = [0; 1024];
-    let mut f2b = [0; 1024];
-    loop {
-        let f1n = f1r.read(&mut f1b[..])?;
-        let f2n = f2r.read(&mut f2b[..])?;
-
-        if f1n != f2n || f1b.iter().zip(f2b.iter()).any(|(a, b)| a != b) {
-            return Ok(false);
-        }
-        if f1n == 0 || f2n == 0 {
-            break;
-        }
-    }
-    Ok(true)
-}
-
 pub fn back_up_game(
     info: &ScanInfo,
     mut layout: GameLayout,
     merge: bool,
     now: &chrono::DateTime<chrono::Utc>,
+    format: &BackupFormats,
 ) -> BackupInfo {
     let able_to_prepare = info.found_anything_processable()
         && (merge || (layout.path.unset_readonly().is_ok() && layout.path.remove().is_ok()))
         && std::fs::create_dir_all(layout.path.interpret()).is_ok();
 
     if able_to_prepare {
-        layout.back_up(info, now)
+        layout.back_up(info, now, format)
     } else {
         let mut backup_info = BackupInfo::default();
 
@@ -897,59 +870,6 @@ pub fn back_up_game(
         }
 
         backup_info
-    }
-}
-
-pub fn restore_game(info: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo {
-    let mut failed_files = std::collections::HashSet::new();
-    let failed_registry = std::collections::HashSet::new();
-
-    'outer: for file in &info.found_files {
-        let original_path = match &file.original_path {
-            Some(x) => x,
-            None => continue,
-        };
-        let (target, _) = game_file_restoration_target(original_path, redirects);
-
-        if target.exists() {
-            match are_files_identical(&file.path, &target) {
-                Ok(true) => continue,
-                Ok(false) => (),
-                Err(_) => {
-                    failed_files.insert(file.clone());
-                    continue;
-                }
-            }
-        }
-
-        if target.create_parent_dir().is_err() {
-            failed_files.insert(file.clone());
-            continue;
-        }
-        for i in 0..99 {
-            if target.unset_readonly().is_ok() && std::fs::copy(&file.path.interpret(), &target.interpret()).is_ok() {
-                continue 'outer;
-            }
-            // File might be busy, especially if multiple games share a file,
-            // like in a collection, so retry after a delay:
-            std::thread::sleep(std::time::Duration::from_millis(i * info.game_name.len() as u64));
-        }
-        failed_files.insert(file.clone());
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        if let Some(registry_file) = &info.registry_file {
-            if let Some(hives) = crate::registry::Hives::load(registry_file) {
-                // TODO: Track failed keys.
-                let _ = hives.restore();
-            }
-        }
-    }
-
-    BackupInfo {
-        failed_files,
-        failed_registry,
     }
 }
 
@@ -1769,10 +1689,6 @@ mod tests {
                     found_registry_keys: hashset! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3")
                     },
-                    registry_file: Some(StrictPath::new(format!(
-                        "\\\\?\\{}\\tests\\backup\\game3-renamed/registry.yaml",
-                        repo().replace('/', "\\")
-                    ))),
                     available_backups: vec![Backup::Full(FullBackup {
                         name: ".".to_string(),
                         when: Some(now()),
@@ -1806,25 +1722,6 @@ mod tests {
                 scan_game_for_restoration("game3", &BackupId::Latest, &layout.game_layout("game3")),
             );
         }
-    }
-
-    #[test]
-    fn checks_if_files_are_identical() {
-        assert!(are_files_identical(
-            &StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo())),
-            &StrictPath::new(format!("{}/tests/root2/game2/file1.txt", repo())),
-        )
-        .unwrap());
-        assert!(!are_files_identical(
-            &StrictPath::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo())),
-            &StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo())),
-        )
-        .unwrap());
-        assert!(are_files_identical(
-            &StrictPath::new(format!("{}/tests/root1/game1/file1.txt", repo())),
-            &StrictPath::new(format!("{}/nonexistent.txt", repo())),
-        )
-        .is_err());
     }
 
     mod duplicate_detector {

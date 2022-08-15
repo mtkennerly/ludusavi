@@ -141,6 +141,39 @@ impl Default for Retention {
     }
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum BackupFormat {
+    #[default]
+    #[serde(rename = "simple")]
+    Simple,
+    #[serde(rename = "zip")]
+    Zip,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct BackupFormats {
+    pub chosen: BackupFormat,
+    pub zip: ZipConfig,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ZipConfig {
+    pub compression: ZipCompression,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub enum ZipCompression {
+    #[serde(rename = "none")]
+    None,
+    #[serde(rename = "deflate")]
+    Deflate,
+    #[default]
+    #[serde(rename = "bzip2")]
+    Bzip2,
+    #[serde(rename = "zstd")]
+    Zstd,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BackupConfig {
     pub path: StrictPath,
@@ -162,6 +195,8 @@ pub struct BackupConfig {
     pub sort: Sort,
     #[serde(default)]
     pub retention: Retention,
+    #[serde(default)]
+    pub format: BackupFormats,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -210,6 +245,7 @@ impl Default for BackupConfig {
             toggled_registry: Default::default(),
             sort: Default::default(),
             retention: Retention::default(),
+            format: Default::default(),
         }
     }
 }
@@ -659,6 +695,7 @@ mod tests {
                     toggled_registry: Default::default(),
                     sort: Default::default(),
                     retention: Retention::default(),
+                    format: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -751,6 +788,7 @@ mod tests {
                     toggled_registry: Default::default(),
                     sort: Default::default(),
                     retention: Retention::default(),
+                    format: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -828,6 +866,7 @@ mod tests {
                     toggled_registry: Default::default(),
                     sort: Default::default(),
                     retention: Retention::default(),
+                    format: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -875,6 +914,10 @@ backup:
   retention:
     full: 1
     differential: 0
+  format:
+    chosen: simple
+    zip:
+      compression: bzip2
 restore:
   path: ~/restore
   ignoredGames:
@@ -935,6 +978,7 @@ customGames:
                     toggled_registry: Default::default(),
                     sort: Default::default(),
                     retention: Retention::default(),
+                    format: Default::default(),
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),

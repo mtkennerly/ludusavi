@@ -366,7 +366,31 @@ impl StrictPath {
     }
 
     pub fn same_content(&self, other: &StrictPath) -> bool {
-        crate::prelude::are_files_identical(self, other).unwrap_or(false)
+        self.try_same_content(other).unwrap_or(false)
+    }
+
+    pub fn try_same_content(&self, other: &StrictPath) -> Result<bool, Box<dyn std::error::Error>> {
+        use std::io::Read;
+
+        let f1 = std::fs::File::open(self.interpret())?;
+        let mut f1r = std::io::BufReader::new(f1);
+        let f2 = std::fs::File::open(other.interpret())?;
+        let mut f2r = std::io::BufReader::new(f2);
+
+        let mut f1b = [0; 1024];
+        let mut f2b = [0; 1024];
+        loop {
+            let f1n = f1r.read(&mut f1b[..])?;
+            let f2n = f2r.read(&mut f2b[..])?;
+
+            if f1n != f2n || f1b.iter().zip(f2b.iter()).any(|(a, b)| a != b) {
+                return Ok(false);
+            }
+            if f1n == 0 || f2n == 0 {
+                break;
+            }
+        }
+        Ok(true)
     }
 }
 
@@ -800,6 +824,33 @@ mod tests {
                     StrictPath::new(s(r#"/foo/bar/baz"#)),
                 ])
             );
+        }
+
+        #[test]
+        fn checks_if_files_are_identical() {
+            assert!(StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo()))
+                .same_content(&StrictPath::new(format!("{}/tests/root2/game2/file1.txt", repo()))));
+            assert!(
+                !StrictPath::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()))
+                    .same_content(&StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo())))
+            );
+            assert!(!StrictPath::new(format!("{}/tests/root1/game1/file1.txt", repo()))
+                .same_content(&StrictPath::new(format!("{}/nonexistent.txt", repo()))));
+        }
+
+        #[test]
+        fn tries_to_check_if_files_are_identical() {
+            assert!(StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo()))
+                .try_same_content(&StrictPath::new(format!("{}/tests/root2/game2/file1.txt", repo())))
+                .unwrap());
+            assert!(
+                !StrictPath::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()))
+                    .try_same_content(&StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo())))
+                    .unwrap()
+            );
+            assert!(StrictPath::new(format!("{}/tests/root1/game1/file1.txt", repo()))
+                .try_same_content(&StrictPath::new(format!("{}/nonexistent.txt", repo())))
+                .is_err());
         }
     }
 }

@@ -3,9 +3,9 @@ use std::collections::{HashSet, VecDeque};
 use chrono::{Datelike, Timelike};
 
 use crate::{
-    config::Retention,
+    config::{BackupFormat, BackupFormats, RedirectConfig, Retention},
     path::StrictPath,
-    prelude::{BackupId, BackupInfo, ScanInfo, ScannedFile, ScannedRegistry},
+    prelude::{game_file_restoration_target, BackupId, BackupInfo, ScanInfo, ScannedFile, ScannedRegistry},
 };
 
 const SAFE: &str = "_";
@@ -599,19 +599,29 @@ impl GameLayout {
         )
     }
 
-    fn generate_full_backup_name(&self, now: &chrono::DateTime<chrono::Utc>) -> String {
-        if self.retention.full == 1 {
+    fn generate_backup_name(
+        &self,
+        kind: &BackupKind,
+        now: &chrono::DateTime<chrono::Utc>,
+        format: &BackupFormats,
+    ) -> String {
+        if *kind == BackupKind::Full && self.retention.full == 1 && format.chosen == BackupFormat::Simple {
             ".".to_string()
         } else {
-            format!("backup-{}", Self::generate_file_friendly_timestamp(now))
+            let name = format!("backup-{}", Self::generate_file_friendly_timestamp(now));
+            match format.chosen {
+                BackupFormat::Simple => name,
+                BackupFormat::Zip => format!("{name}.zip"),
+            }
         }
     }
 
-    fn generate_differential_backup_name(&self, now: &chrono::DateTime<chrono::Utc>) -> String {
-        format!("backup-{}", Self::generate_file_friendly_timestamp(now))
-    }
-
-    fn plan_backup(&self, scan: &ScanInfo, now: &chrono::DateTime<chrono::Utc>) -> Option<BackupPlan> {
+    fn plan_backup(
+        &self,
+        scan: &ScanInfo,
+        now: &chrono::DateTime<chrono::Utc>,
+        format: &BackupFormats,
+    ) -> Option<BackupPlan> {
         if !scan.found_anything() {
             return None;
         }
@@ -632,10 +642,7 @@ impl GameLayout {
             BackupKind::Full
         };
 
-        plan.name = match plan.kind {
-            BackupKind::Full => self.generate_full_backup_name(now),
-            BackupKind::Differential => self.generate_differential_backup_name(now),
-        };
+        plan.name = self.generate_backup_name(&plan.kind, now, format);
 
         match plan.kind {
             BackupKind::Full => {
@@ -789,10 +796,67 @@ impl GameLayout {
         backup_info
     }
 
-    pub fn back_up(&mut self, scan: &ScanInfo, now: &chrono::DateTime<chrono::Utc>) -> BackupInfo {
-        match self.plan_backup(scan, now) {
+    pub fn back_up(
+        &mut self,
+        scan: &ScanInfo,
+        now: &chrono::DateTime<chrono::Utc>,
+        format: &BackupFormats,
+    ) -> BackupInfo {
+        match self.plan_backup(scan, now, format) {
             None => BackupInfo::default(),
             Some(plan) => self.execute_backup(plan),
+        }
+    }
+
+    pub fn restore(&self, id: &BackupId, redirects: &[RedirectConfig]) -> BackupInfo {
+        let mut failed_files = std::collections::HashSet::new();
+        let failed_registry = std::collections::HashSet::new();
+
+        'outer: for file in self.restorable_files(id) {
+            let original_path = match &file.original_path {
+                Some(x) => x,
+                None => continue,
+            };
+            let (target, _) = game_file_restoration_target(original_path, redirects);
+
+            if target.exists() {
+                match file.path.try_same_content(&target) {
+                    Ok(true) => continue,
+                    Ok(false) => (),
+                    Err(_) => {
+                        failed_files.insert(file.clone());
+                        continue;
+                    }
+                }
+            }
+
+            if target.create_parent_dir().is_err() {
+                failed_files.insert(file.clone());
+                continue;
+            }
+            for i in 0..99 {
+                if target.unset_readonly().is_ok() && std::fs::copy(&file.path.interpret(), &target.interpret()).is_ok()
+                {
+                    continue 'outer;
+                }
+                // File might be busy, especially if multiple games share a file,
+                // like in a collection, so retry after a delay:
+                std::thread::sleep(std::time::Duration::from_millis(i * self.mapping.name.len() as u64));
+            }
+            failed_files.insert(file.clone());
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            if let Some(hives) = crate::registry::Hives::load(&self.registry_file(id)) {
+                // TODO: Track failed keys.
+                let _ = hives.restore();
+            }
+        }
+
+        BackupInfo {
+            failed_files,
+            failed_registry,
         }
     }
 
@@ -1114,7 +1178,7 @@ mod tests {
                 mapping: IndividualMapping::new("game1".to_string()),
                 retention: Retention::default(),
             };
-            assert_eq!(None, layout.plan_backup(&scan, &now()));
+            assert_eq!(None, layout.plan_backup(&scan, &now(), &BackupFormats::default()));
         }
 
         #[test]
@@ -1150,7 +1214,7 @@ mod tests {
                     files: scan.found_files.clone(),
                     registry: hashset! {},
                 }),
-                layout.plan_backup(&scan, &now()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
             );
         }
 
@@ -1197,7 +1261,7 @@ mod tests {
                     files: scan.found_files.clone(),
                     registry: hashset! {},
                 }),
-                layout.plan_backup(&scan, &now()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
             );
         }
 
@@ -1251,7 +1315,7 @@ mod tests {
                     files: scan.found_files.clone(),
                     registry: hashset! {},
                 }),
-                layout.plan_backup(&scan, &now()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
             );
         }
 
@@ -1312,7 +1376,7 @@ mod tests {
                     files: scan.found_files.clone(),
                     registry: hashset! {},
                 }),
-                layout.plan_backup(&scan, &now()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
             );
         }
 
@@ -1363,7 +1427,7 @@ mod tests {
                     files: scan.found_files.clone(),
                     registry: hashset! {},
                 }),
-                layout.plan_backup(&scan, &now()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
             );
         }
 
@@ -1425,7 +1489,7 @@ mod tests {
                     files: scan.found_files.clone(),
                     registry: hashset! {},
                 }),
-                layout.plan_backup(&scan, &now()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
             );
         }
 
@@ -1476,7 +1540,7 @@ mod tests {
                     files: scan.found_files.clone(),
                     registry: hashset! {},
                 }),
-                layout.plan_backup(&scan, &now()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
             );
         }
     }
