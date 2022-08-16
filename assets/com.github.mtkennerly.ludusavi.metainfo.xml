@@ -5,35 +5,33 @@
     <project_license>MIT</project_license>
     <name>ludusavi</name>
     <developer_name>mtkennerly</developer_name>
-    <url type="homepage">https://github.com/mtkennerly/ludusavi/</url>
     <summary>Ludusavi is a tool for backing up your PC video game save data.</summary>
+     <url type="homepage">https://github.com/mtkennerly/ludusavi/</url>
     <url type="bugtracker">https://github.com/mtkennerly/ludusavi/issues</url>
     <url type="translate">https://crowdin.com/project/ludusavi</url>
     <description>
-        <p>Ludusavi is a tool for backing up your PC video game save data,written in [Rust](https://www.rust-lang.org). It is cross-platform and supports multiple game stores.</p>
-        <p>
-            <b>Features</b>
-            <ul>
-                <li>Ability to back up data from more than 8,000 games plus your own custom entries.</li>
-                <li>Backup and restore for Steam as well as other game libraries.</li>
-                <li>Preview of the backup/restore before actually performing it.</li>
-                <li>Both a graphical interface and command line interface for scripting. (NOTE: Cli is named "com.github.mtkennerly.ludusavi" for flatpak) </li>
-                <li>Tab completion is available for Bash, Fish, Zsh, PowerShell, and Elvish.</li>
-                <li>Support for:</li>
-                <ul>
-                    <li>Saves that are stored as files and in the Windows registry.</li>
-                    <li>Proton saves with Steam.</li>
-                    <li>Steam screenshots.</li>
-                </ul>
-            </ul>
-        </p>
+        <p>Ludusavi is a tool for backing up your PC video game save data, written in Rust. It is cross-platform and supports multiple game stores.</p>
+        <p>Features</p>
+        <ul>
+            <li>Ability to back up data from more than 8,000 games plus your own custom entries.</li>
+            <li>Backup and restore for Steam as well as other game libraries.</li>
+            <li>Preview of the backup/restore before actually performing it.</li>
+            <li>Both a graphical interface and command line interface for scripting. (NOTE: Cli is named "com.github.mtkennerly.ludusavi" for flatpak) </li>
+            <li>Tab completion is available for Bash, Fish, Zsh, PowerShell, and Elvish.</li>
+        </ul>
+        <p>Support for:</p>
+        <ul>
+            <li>Saves that are stored as files and in the Windows registry.</li>
+            <li>Proton saves with Steam.</li>
+            <li>Steam screenshots.</li>
+        </ul>
     </description>
     <screenshots>
         <screenshot type="default">
             <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.10.0/docs/demo-gui.gif</image>
             <caption>Graphical user interface</caption>
         </screenshot>
-        <screenshot type="default">
+        <screenshot>
             <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.10.0/docs/demo-cli.gif</image>
             <caption>Command line interface</caption>
         </screenshot>
@@ -44,3 +42,4 @@
         <release version="0.10.0" date="2021-03-12"/>
     </releases>
 </component>
+ 
