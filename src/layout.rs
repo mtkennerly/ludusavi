@@ -114,6 +114,14 @@ impl FullBackup {
                 .to_string(),
         }
     }
+
+    pub fn format(&self) -> BackupFormat {
+        if self.name.ends_with(".zip") {
+            BackupFormat::Zip
+        } else {
+            BackupFormat::Simple
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -151,6 +159,14 @@ impl DifferentialBackup {
             Some(when) => chrono::DateTime::<chrono::Local>::from(when)
                 .format("%Y-%m-%dT%H:%M:%S")
                 .to_string(),
+        }
+    }
+
+    pub fn format(&self) -> BackupFormat {
+        if self.name.ends_with(".zip") {
+            BackupFormat::Zip
+        } else {
+            BackupFormat::Simple
         }
     }
 }
@@ -417,12 +433,12 @@ impl GameLayout {
         match self.find_by_id(id) {
             None => {}
             Some((full, None)) => {
-                files.extend(self.restorable_files_in(&full.name));
+                files.extend(self.restorable_files_in(&full.name, &full.format()));
             }
             Some((full, Some(diff))) => {
-                files.extend(self.restorable_files_in(&diff.name));
+                files.extend(self.restorable_files_in(&diff.name, &diff.format()));
 
-                for full_file in self.restorable_files_in(&full.name) {
+                for full_file in self.restorable_files_in(&full.name, &full.format()) {
                     let already_in_diff = files.iter().any(|x| {
                         x.original_path
                             .as_ref()
@@ -440,7 +456,14 @@ impl GameLayout {
         files
     }
 
-    fn restorable_files_in(&self, backup: &str) -> std::collections::HashSet<ScannedFile> {
+    fn restorable_files_in(&self, backup: &str, format: &BackupFormat) -> std::collections::HashSet<ScannedFile> {
+        match format {
+            BackupFormat::Simple => self.restorable_files_in_simple(backup),
+            BackupFormat::Zip => self.restorable_files_in_zip(backup).unwrap_or_default(),
+        }
+    }
+
+    fn restorable_files_in_simple(&self, backup: &str) -> std::collections::HashSet<ScannedFile> {
         let mut files = std::collections::HashSet::new();
         for drive_dir in walkdir::WalkDir::new(self.path.joined(backup).interpret())
             .max_depth(1)
@@ -471,10 +494,92 @@ impl GameLayout {
                     },
                     original_path,
                     ignored: false,
+                    container: None,
                 });
             }
         }
         files
+    }
+
+    fn restorable_files_in_zip(
+        &self,
+        backup: &str,
+    ) -> Result<std::collections::HashSet<ScannedFile>, Box<dyn std::error::Error>> {
+        let mut files = std::collections::HashSet::new();
+
+        let backup_path = self.path.joined(backup);
+        let handle = std::fs::File::open(&backup_path.interpret())?;
+        let mut archive = zip::ZipArchive::new(handle)?;
+
+        for i in 0..archive.len() {
+            let file = archive.by_index(i).unwrap();
+            if !file.is_file() {
+                continue;
+            }
+
+            let enclosed = match file.enclosed_name() {
+                Some(x) => crate::path::render_pathbuf(x),
+                None => continue,
+            };
+            if !enclosed.starts_with("drive-") {
+                continue;
+            }
+
+            let parts: Vec<_> = enclosed.splitn(2, '/').collect();
+            if parts.len() != 2 {
+                continue;
+            }
+            let drive = match self.mapping.drives.get::<str>(parts[0]) {
+                Some(x) => x,
+                None => continue,
+            };
+            let remainder = parts[1];
+            let path = format!("{drive}/{remainder}");
+
+            files.insert(ScannedFile {
+                path: StrictPath::new(enclosed),
+                size: file.size(),
+                original_path: Some(StrictPath::new(path)),
+                ignored: false,
+                container: Some(backup_path.clone()),
+            });
+        }
+
+        Ok(files)
+    }
+
+    #[allow(dead_code)]
+    pub fn registry_content(&self, id: &BackupId) -> Option<String> {
+        match self.find_by_id(id) {
+            None => None,
+            Some((full, None)) => self.registry_content_in(&full.name, &full.format()),
+            Some((full, Some(diff))) => {
+                let diff_reg = self.registry_content_in(&diff.name, &diff.format());
+                if diff_reg.is_some() {
+                    diff_reg
+                } else if diff.omits_registry() {
+                    None
+                } else {
+                    self.registry_content_in(&full.name, &full.format())
+                }
+            }
+        }
+    }
+
+    fn registry_content_in(&self, backup: &str, format: &BackupFormat) -> Option<String> {
+        match format {
+            BackupFormat::Simple => self.path.joined(backup).joined("registry.yaml").read(),
+            BackupFormat::Zip => {
+                let handle = std::fs::File::open(&self.path.joined(backup).interpret()).ok()?;
+                let mut archive = zip::ZipArchive::new(handle).ok()?;
+                let mut file = archive.by_name("registry.yaml").ok()?;
+
+                let mut buffer = vec![];
+                std::io::copy(&mut file, &mut buffer).ok()?;
+
+                String::from_utf8(buffer).ok()
+            }
+        }
     }
 
     #[allow(dead_code)]
@@ -536,13 +641,13 @@ impl GameLayout {
 
         // If scan is missing files:
         let mut stored_files: HashSet<_> = self
-            .restorable_files_in(&full.name)
+            .restorable_files_in(&full.name, &full.format())
             .iter()
             .filter_map(|x| x.original_path.as_ref().map(|y| y.interpret()))
             .collect();
         if let Some(diff) = &diff {
             stored_files.extend(
-                self.restorable_files_in(&diff.name)
+                self.restorable_files_in(&diff.name, &diff.format())
                     .iter()
                     .filter_map(|x| x.original_path.as_ref().map(|y| y.interpret())),
             );
@@ -672,6 +777,7 @@ impl GameLayout {
             })
         };
         let mut files = HashSet::new();
+        #[allow(unused_mut)]
         let mut registry = HashSet::new();
 
         for file in &scan.found_files {
@@ -694,7 +800,7 @@ impl GameLayout {
         if let Backup::Differential(backup) = &mut backup {
             if let Some(latest_full) = self.mapping.latest_full_backup() {
                 let mut full_file_list: HashSet<_> = self
-                    .restorable_files_in(&latest_full.name)
+                    .restorable_files_in(&latest_full.name, &latest_full.format())
                     .iter()
                     .map(|x| x.original_path.as_ref().unwrap().render())
                     .collect();
@@ -926,47 +1032,35 @@ impl GameLayout {
         }
     }
 
-    pub fn restore(&self, id: &BackupId, redirects: &[RedirectConfig]) -> BackupInfo {
+    pub fn restore(&self, scan: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo {
         let mut failed_files = std::collections::HashSet::new();
         let failed_registry = std::collections::HashSet::new();
 
-        'outer: for file in self.restorable_files(id) {
+        for file in &scan.found_files {
             let original_path = match &file.original_path {
                 Some(x) => x,
                 None => continue,
             };
             let (target, _) = game_file_restoration_target(original_path, redirects);
 
-            if target.exists() {
-                match file.path.try_same_content(&target) {
-                    Ok(true) => continue,
-                    Ok(false) => (),
-                    Err(_) => {
-                        failed_files.insert(file.clone());
-                        continue;
-                    }
-                }
+            if match &file.container {
+                None => self.restore_file_from_simple(&target, file),
+                Some(container) => self.restore_file_from_zip(&target, file, container),
             }
-
-            if target.create_parent_dir().is_err() {
+            .is_err()
+            {
                 failed_files.insert(file.clone());
-                continue;
             }
-            for i in 0..99 {
-                if target.unset_readonly().is_ok() && std::fs::copy(&file.path.interpret(), &target.interpret()).is_ok()
-                {
-                    continue 'outer;
-                }
-                // File might be busy, especially if multiple games share a file,
-                // like in a collection, so retry after a delay:
-                std::thread::sleep(std::time::Duration::from_millis(i * self.mapping.name.len() as u64));
-            }
-            failed_files.insert(file.clone());
         }
 
         #[cfg(target_os = "windows")]
         {
-            if let Some(hives) = crate::registry::Hives::load(&self.registry_file(id)) {
+            use crate::registry::Hives;
+
+            let mut hives = Hives::default();
+            let (found, _) = hives.incorporate(&scan.found_registry_keys);
+
+            if found {
                 // TODO: Track failed keys.
                 let _ = hives.restore();
             }
@@ -976,6 +1070,60 @@ impl GameLayout {
             failed_files,
             failed_registry,
         }
+    }
+
+    fn restore_file_from_simple(
+        &self,
+        target: &StrictPath,
+        file: &ScannedFile,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        if target.exists() && target.try_same_content(&file.path)? {
+            return Ok(());
+        }
+
+        target.create_parent_dir()?;
+        for i in 0..99 {
+            if target.unset_readonly().is_ok() && std::fs::copy(&file.path.interpret(), &target.interpret()).is_ok() {
+                return Ok(());
+            }
+            // File might be busy, especially if multiple games share a file,
+            // like in a collection, so retry after a delay:
+            std::thread::sleep(std::time::Duration::from_millis(i * self.mapping.name.len() as u64));
+        }
+
+        Err("Unable to restore file".into())
+    }
+
+    fn restore_file_from_zip(
+        &self,
+        target: &StrictPath,
+        file: &ScannedFile,
+        container: &StrictPath,
+    ) -> Result<(), Box<dyn std::error::Error>> {
+        let handle = std::fs::File::open(&container.interpret())?;
+        let mut archive = zip::ZipArchive::new(handle)?;
+
+        if target.exists() && target.try_same_content_as_zip(&mut archive.by_name(&file.path.raw())?)? {
+            return Ok(());
+        }
+
+        target.create_parent_dir()?;
+        for i in 0..99 {
+            if i > 0 {
+                // File might be busy, especially if multiple games share a file,
+                // like in a collection, so retry after a delay:
+                std::thread::sleep(std::time::Duration::from_millis(i * self.mapping.name.len() as u64));
+            }
+            if target.unset_readonly().is_err() {
+                continue;
+            }
+            let mut target_handle = std::fs::File::create(&target.interpret())?;
+            if std::io::copy(&mut archive.by_name(&file.path.raw())?, &mut target_handle).is_ok() {
+                return Ok(());
+            }
+        }
+
+        Err("Unable to restore file".into())
     }
 
     fn mapping_file(path: &StrictPath) -> StrictPath {

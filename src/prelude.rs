@@ -63,11 +63,16 @@ pub enum Error {
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ScannedFile {
+    /// The actual location on disk.
+    /// When `container` is set, this is the path inside of the container
+    /// and should be used in its raw form.
     pub path: StrictPath,
     pub size: u64,
     /// This is the restoration target path, without redirects applied.
     pub original_path: Option<StrictPath>,
     pub ignored: bool,
+    /// An enclosing archive file, if any, depending on the `BackupFormat`.
+    pub container: Option<StrictPath>,
 }
 
 #[cfg(test)]
@@ -78,6 +83,7 @@ impl ScannedFile {
             size,
             original_path: None,
             ignored: false,
+            container: None,
         }
     }
 
@@ -727,6 +733,7 @@ pub fn scan_game_for_backup(
                     },
                     original_path: None,
                     ignored,
+                    container: None,
                 });
             } else if p.is_dir() {
                 for child in walkdir::WalkDir::new(p.as_std_path_buf())
@@ -750,6 +757,7 @@ pub fn scan_game_for_backup(
                             },
                             original_path: None,
                             ignored,
+                            container: None,
                         });
                     }
                 }
@@ -804,13 +812,15 @@ pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &GameLayout)
 
     #[cfg(target_os = "windows")]
     {
-        if let Some(hives) = crate::registry::Hives::load(&layout.registry_file(&id)) {
-            for (hive_name, keys) in hives.0.iter() {
-                for (key_name, _) in keys.0.iter() {
-                    found_registry_keys.insert(ScannedRegistry {
-                        path: RegistryItem::new(format!("{}/{}", hive_name, key_name).replace('\\', "/")),
-                        ignored: false,
-                    });
+        if let Some(registry_content) = layout.registry_content(&id) {
+            if let Some(hives) = crate::registry::Hives::deserialize(&registry_content) {
+                for (hive_name, keys) in hives.0.iter() {
+                    for (key_name, _) in keys.0.iter() {
+                        found_registry_keys.insert(ScannedRegistry {
+                            path: RegistryItem::new(format!("{}/{}", hive_name, key_name).replace('\\', "/")),
+                            ignored: false,
+                        });
+                    }
                 }
             }
         }
@@ -1652,12 +1662,14 @@ mod tests {
                         size: 1,
                         original_path: Some(StrictPath::new(s(if cfg!(target_os = "windows") { "X:\\file1.txt" } else { "X:/file1.txt" }))),
                         ignored: false,
+                        container: None,
                     },
                     ScannedFile {
                         path: make_path("file2.txt"),
                         size: 2,
                         original_path: Some(StrictPath::new(s(if cfg!(target_os = "windows") { "X:\\file2.txt" } else { "X:/file2.txt" }))),
                         ignored: false,
+                        container: None,
                     },
                 },
                 available_backups: vec![Backup::Full(FullBackup {
@@ -1779,12 +1791,14 @@ mod tests {
                 size: 1,
                 original_path: Some(StrictPath::new(s("file1.txt"))),
                 ignored: false,
+                container: None,
             };
             let file1b = ScannedFile {
                 path: StrictPath::new(s("file1b.txt")),
                 size: 1,
                 original_path: Some(StrictPath::new(s("file1.txt"))),
                 ignored: false,
+                container: None,
             };
 
             detector.add_game(&ScanInfo {
@@ -1805,6 +1819,7 @@ mod tests {
                 size: 1,
                 original_path: None,
                 ignored: false,
+                container: None,
             }));
 
             assert!(detector.is_file_duplicated(&file1b));
@@ -1814,6 +1829,7 @@ mod tests {
                 size: 1,
                 original_path: None,
                 ignored: false,
+                container: None,
             }));
         }
     }

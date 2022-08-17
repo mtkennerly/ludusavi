@@ -258,7 +258,7 @@ impl App {
                     }
 
                     let backup_info = if scan_info.backup.is_some() && !preview {
-                        Some(layout.restore(&scan_info.backup.as_ref().unwrap().id(), &config.get_redirects()))
+                        Some(layout.restore(&scan_info, &config.get_redirects()))
                     } else {
                         None
                     };

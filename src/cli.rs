@@ -773,7 +773,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let restore_info = if scan_info.backup.is_none() || preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
-                        layout.restore(&scan_info.backup.as_ref().unwrap().id(), &config.get_redirects())
+                        layout.restore(&scan_info, &config.get_redirects())
                     };
                     (name, scan_info, restore_info, decision)
                 })
@@ -1229,12 +1229,14 @@ Overall:
                             size: 102_400,
                             original_path: None,
                             ignored: false,
+                            container: None,
                         },
                         ScannedFile {
                             path: StrictPath::new(s("/file2")),
                             size: 51_200,
                             original_path: None,
                             ignored: false,
+                            container: None,
                         },
                     },
                     found_registry_keys: hashset! {
@@ -1288,6 +1290,7 @@ Overall:
                             size: 1,
                             original_path: None,
                             ignored: false,
+                            container: None,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1311,6 +1314,7 @@ Overall:
                             size: 3,
                             original_path: None,
                             ignored: false,
+                            container: None,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1357,12 +1361,14 @@ Overall:
                             size: 102_400,
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                             ignored: false,
+                            container: None,
                         },
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
                             size: 51_200,
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                             ignored: false,
+                            container: None,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1555,12 +1561,14 @@ Overall:
                             size: 100,
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                             ignored: false,
+                            container: None,
                         },
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
                             size: 50,
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                             ignored: false,
+                            container: None,
                         },
                     },
                     found_registry_keys: hashset! {},

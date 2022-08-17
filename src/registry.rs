@@ -85,7 +85,7 @@ impl Hives {
     pub fn load(file: &StrictPath) -> Option<Self> {
         if file.is_file() {
             let content = std::fs::read_to_string(&file.interpret()).ok()?;
-            serde_yaml::from_str(&content).ok()
+            Self::deserialize(&content)
         } else {
             None
         }
@@ -108,6 +108,10 @@ impl Hives {
 
     pub fn serialize(&self) -> String {
         serde_yaml::to_string(self).unwrap()
+    }
+
+    pub fn deserialize(content: &str) -> Option<Self> {
+        serde_yaml::from_str(content).ok()
     }
 
     pub fn incorporate(&mut self, scan: &HashSet<ScannedRegistry>) -> (bool, HashSet<RegistryItem>) {
