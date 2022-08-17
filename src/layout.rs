@@ -610,22 +610,27 @@ impl GameLayout {
     }
 
     fn need_backup(&self, scan: &ScanInfo) -> bool {
-        let mut mapping = self.mapping.clone();
-
-        let (full, diff) = match mapping.latest_backup() {
+        let (full, diff) = match self.mapping.latest_backup() {
             Some((full, diff)) => (full.clone(), diff.cloned()),
             None => return true,
         };
 
+        let restorable_files_full = self.restorable_files_in(&full.name, &full.format());
+        let restorable_files_diff = diff
+            .as_ref()
+            .map(|diff| self.restorable_files_in(&diff.name, &diff.format()));
+
         // If scan contains new or changed files:
         for scanned in scan.found_files.iter().filter(|x| !x.ignored) {
             if let Some(diff) = &diff {
-                let stored_diff = mapping.game_file(&self.path, &scanned.path, &diff.name);
-
                 if diff.omits_file(&scanned.path) {
                     return true;
-                } else if stored_diff.is_file() {
-                    if stored_diff.same_content(&scanned.path) {
+                }
+                if let Some(stored) = restorable_files_diff
+                    .as_ref()
+                    .and_then(|xs| xs.iter().find(|stored| stored.same_path(&scanned.path)))
+                {
+                    if stored.same_content(&scanned.path) {
                         continue;
                     } else {
                         return true;
@@ -633,24 +638,27 @@ impl GameLayout {
                 }
             }
 
-            let stored_full = mapping.game_file(&self.path, &scanned.path, &full.name);
-            if !stored_full.is_file() || !stored_full.same_content(&scanned.path) {
+            if restorable_files_full
+                .iter()
+                .all(|stored| !stored.same_as(&scanned.path))
+            {
                 return true;
             }
         }
 
         // If scan is missing files:
-        let mut stored_files: HashSet<_> = self
-            .restorable_files_in(&full.name, &full.format())
+        let mut stored_files: HashSet<_> = restorable_files_full
             .iter()
             .filter_map(|x| x.original_path.as_ref().map(|y| y.interpret()))
             .collect();
         if let Some(diff) = &diff {
-            stored_files.extend(
-                self.restorable_files_in(&diff.name, &diff.format())
-                    .iter()
-                    .filter_map(|x| x.original_path.as_ref().map(|y| y.interpret())),
-            );
+            if let Some(restorable_files_diff) = &restorable_files_diff {
+                stored_files.extend(
+                    restorable_files_diff
+                        .iter()
+                        .filter_map(|x| x.original_path.as_ref().map(|y| y.interpret())),
+                );
+            }
             for omit in &diff.omit.files {
                 stored_files.remove(&StrictPath::from(omit).interpret());
             }
@@ -671,10 +679,12 @@ impl GameLayout {
             use crate::registry::Hives;
             let scanned_hives = Hives::from(scan);
 
-            let full_reg_file = self.path.joined(&full.name).joined("registry.yaml");
+            let full_hives = self
+                .registry_content_in(&full.name, &full.format())
+                .and_then(|x| Hives::deserialize(&x));
 
             match &diff {
-                None => match Hives::load(&full_reg_file) {
+                None => match full_hives {
                     None => {
                         if !scan.found_registry_keys.is_empty() {
                             return true;
@@ -687,9 +697,11 @@ impl GameLayout {
                     }
                 },
                 Some(diff) => {
-                    let diff_reg_file = self.path.joined(&diff.name).joined("registry.yaml");
+                    let diff_hives = self
+                        .registry_content_in(&diff.name, &diff.format())
+                        .and_then(|x| Hives::deserialize(&x));
 
-                    match (Hives::load(&full_reg_file), Hives::load(&diff_reg_file)) {
+                    match (full_hives, diff_hives) {
                         (None, None) => {
                             if !scan.found_registry_keys.is_empty() {
                                 return true;
@@ -760,8 +772,6 @@ impl GameLayout {
             return None;
         }
 
-        let mut mapping = self.mapping.clone();
-
         let (fulls, diffs) = self.count_backups();
         let mut backup = if fulls > 0 && diffs < self.retention.differential {
             Backup::Differential(DifferentialBackup {
@@ -780,15 +790,25 @@ impl GameLayout {
         #[allow(unused_mut)]
         let mut registry = HashSet::new();
 
+        let latest_full_restorable_files = if backup.full() {
+            None
+        } else {
+            self.mapping
+                .latest_full_backup()
+                .map(|full| self.restorable_files_in(&full.name, &full.format()))
+        };
+
         for file in &scan.found_files {
             if file.ignored {
                 continue;
             }
 
             if backup.differential() {
-                if let Some(latest_full) = self.mapping.latest_full_backup() {
-                    let stored = mapping.game_file(&self.path, &file.path, &latest_full.name);
-                    if stored.same_content(&file.path) {
+                if let Some(latest_full_restorable_files) = &latest_full_restorable_files {
+                    if latest_full_restorable_files
+                        .iter()
+                        .any(|stored| stored.same_as(&file.path))
+                    {
                         continue;
                     }
                 }
@@ -798,9 +818,8 @@ impl GameLayout {
         }
 
         if let Backup::Differential(backup) = &mut backup {
-            if let Some(latest_full) = self.mapping.latest_full_backup() {
-                let mut full_file_list: HashSet<_> = self
-                    .restorable_files_in(&latest_full.name, &latest_full.format())
+            if let Some(latest_full_restorable_files) = &latest_full_restorable_files {
+                let mut full_file_list: HashSet<_> = latest_full_restorable_files
                     .iter()
                     .map(|x| x.original_path.as_ref().unwrap().render())
                     .collect();
@@ -831,20 +850,24 @@ impl GameLayout {
                 }
                 BackupKind::Differential => {
                     if let Some(latest_full) = self.mapping.latest_full_backup() {
-                        let stored = Hives::load(&self.registry_file_in(&latest_full.name));
-                        match (found, stored) {
-                            (false, None) => {}
-                            (false, Some(_)) => {
-                                if let Backup::Differential(backup) = &mut backup {
-                                    backup.omit.registry = true;
+                        if let Some(registry_content) =
+                            self.registry_content_in(&latest_full.name, &latest_full.format())
+                        {
+                            let stored = Hives::deserialize(&registry_content);
+                            match (found, stored) {
+                                (false, None) => {}
+                                (false, Some(_)) => {
+                                    if let Backup::Differential(backup) = &mut backup {
+                                        backup.omit.registry = true;
+                                    }
                                 }
-                            }
-                            (true, None) => {
-                                registry = scan.found_registry_keys.clone();
-                            }
-                            (true, Some(stored)) => {
-                                if !hives.same_content(&stored) {
+                                (true, None) => {
                                     registry = scan.found_registry_keys.clone();
+                                }
+                                (true, Some(stored)) => {
+                                    if !hives.same_content(&stored) {
+                                        registry = scan.found_registry_keys.clone();
+                                    }
                                 }
                             }
                         }

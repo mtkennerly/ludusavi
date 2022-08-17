@@ -75,8 +75,8 @@ pub struct ScannedFile {
     pub container: Option<StrictPath>,
 }
 
-#[cfg(test)]
 impl ScannedFile {
+    #[cfg(test)]
     pub fn new<T: AsRef<str> + ToString>(path: T, size: u64) -> Self {
         Self {
             path: StrictPath::new(path.to_string()),
@@ -87,9 +87,44 @@ impl ScannedFile {
         }
     }
 
+    #[cfg(test)]
     pub fn ignored(mut self) -> Self {
         self.ignored = true;
         self
+    }
+
+    pub fn same_path(&self, other: &StrictPath) -> bool {
+        match &self.original_path {
+            None => self.path.same_path(other),
+            Some(original_path) => original_path.same_path(other),
+        }
+    }
+
+    pub fn same_content(&self, other: &StrictPath) -> bool {
+        self.try_same_content(other).unwrap_or_default()
+    }
+
+    pub fn try_same_content(&self, other: &StrictPath) -> Result<bool, Box<dyn std::error::Error>> {
+        match &self.container {
+            None => self.path.try_same_content(other),
+            Some(container) => {
+                let handle = std::fs::File::open(&container.interpret())?;
+                let mut archive = zip::ZipArchive::new(handle)?;
+                let contained = &mut archive.by_name(&self.path.raw())?;
+                other.try_same_content_as_zip(contained)
+            }
+        }
+    }
+
+    pub fn same_as(&self, other: &StrictPath) -> bool {
+        self.try_same_as(other).unwrap_or_default()
+    }
+
+    pub fn try_same_as(&self, other: &StrictPath) -> Result<bool, Box<dyn std::error::Error>> {
+        if !self.same_path(other) {
+            return Ok(false);
+        }
+        self.try_same_content(other)
     }
 }
 
