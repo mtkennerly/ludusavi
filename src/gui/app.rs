@@ -244,7 +244,7 @@ impl App {
             let backup_id = self.backups_to_restore.get(&name).cloned().unwrap_or(BackupId::Latest);
             commands.push(Command::perform(
                 async move {
-                    let layout = layout.game_layout(&name);
+                    let mut layout = layout.game_layout(&name);
 
                     if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                         // TODO: https://github.com/hecrj/iced/issues/436
@@ -252,7 +252,7 @@ impl App {
                         return (None, None, OperationStepDecision::Cancelled);
                     }
 
-                    let scan_info = scan_game_for_restoration(&name, &backup_id, &layout);
+                    let scan_info = scan_game_for_restoration(&name, &backup_id, &mut layout);
                     if !config.is_game_enabled_for_restore(&name) {
                         return (Some(scan_info), None, OperationStepDecision::Ignored);
                     }

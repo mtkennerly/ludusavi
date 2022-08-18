@@ -762,8 +762,8 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .par_iter()
                 .progress_count(subjects.len() as u64)
                 .map(|name| {
-                    let layout = layout.game_layout(name);
-                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &layout);
+                    let mut layout = layout.game_layout(name);
+                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &mut layout);
                     let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
@@ -1227,6 +1227,7 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(s("/file1")),
                             size: 102_400,
+                            hash: "1".to_string(),
                             original_path: None,
                             ignored: false,
                             container: None,
@@ -1234,6 +1235,7 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(s("/file2")),
                             size: 51_200,
+                            hash: "2".to_string(),
                             original_path: None,
                             ignored: false,
                             container: None,
@@ -1247,7 +1249,7 @@ Overall:
                 },
                 &BackupInfo {
                     failed_files: hashset! {
-                        ScannedFile::new("/file2", 51_200),
+                        ScannedFile::new("/file2", 51_200, "2"),
                     },
                     failed_registry: hashset! {
                         RegistryItem::new(s("HKEY_CURRENT_USER/Key1"))
@@ -1288,6 +1290,7 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(s("/file1")),
                             size: 1,
+                            hash: "1".to_string(),
                             original_path: None,
                             ignored: false,
                             container: None,
@@ -1312,6 +1315,7 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(s("/file2")),
                             size: 3,
+                            hash: "2".to_string(),
                             original_path: None,
                             ignored: false,
                             container: None,
@@ -1359,6 +1363,7 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file1", drive())),
                             size: 102_400,
+                            hash: "1".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                             ignored: false,
                             container: None,
@@ -1366,6 +1371,7 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
                             size: 51_200,
+                            hash: "2".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                             ignored: false,
                             container: None,
@@ -1405,7 +1411,7 @@ Overall:
                 duplicate_detector.add_game(&ScanInfo {
                     game_name: s(name),
                     found_files: hashset! {
-                        ScannedFile::new("/file1", 102_400),
+                        ScannedFile::new("/file1", 102_400, "1"),
                     },
                     found_registry_keys: hashset! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
@@ -1419,7 +1425,7 @@ Overall:
                 &ScanInfo {
                     game_name: s("foo"),
                     found_files: hashset! {
-                        ScannedFile::new("/file1", 102_400),
+                        ScannedFile::new("/file1", 102_400, "1"),
                     },
                     found_registry_keys: hashset! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
@@ -1486,8 +1492,8 @@ Overall:
                 &ScanInfo {
                     game_name: s("foo"),
                     found_files: hashset! {
-                        ScannedFile::new("/file1", 100),
-                        ScannedFile::new("/file2", 50),
+                        ScannedFile::new("/file1", 100, "1"),
+                        ScannedFile::new("/file2", 50, "2"),
                     },
                     found_registry_keys: hashset! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
@@ -1497,7 +1503,7 @@ Overall:
                 },
                 &BackupInfo {
                     failed_files: hashset! {
-                        ScannedFile::new("/file2", 50),
+                        ScannedFile::new("/file2", 50, "2"),
                     },
                     failed_registry: hashset! {
                         RegistryItem::new(s("HKEY_CURRENT_USER/Key1"))
@@ -1559,6 +1565,7 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file1", drive())),
                             size: 100,
+                            hash: "1".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                             ignored: false,
                             container: None,
@@ -1566,6 +1573,7 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
                             size: 50,
+                            hash: "2".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                             ignored: false,
                             container: None,
@@ -1619,7 +1627,7 @@ Overall:
                 duplicate_detector.add_game(&ScanInfo {
                     game_name: s(name),
                     found_files: hashset! {
-                        ScannedFile::new("/file1", 102_400),
+                        ScannedFile::new("/file1", 102_400, "1"),
                     },
                     found_registry_keys: hashset! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
@@ -1633,7 +1641,7 @@ Overall:
                 &ScanInfo {
                     game_name: s("foo"),
                     found_files: hashset! {
-                        ScannedFile::new("/file1", 100),
+                        ScannedFile::new("/file1", 100, "2"),
                     },
                     found_registry_keys: hashset! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),

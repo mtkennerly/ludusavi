@@ -1,6 +1,10 @@
+---
 name: game3
 drives: {}
 backups:
-  - name: .
-    when: '2000-01-02T03:04:05Z'
+  - name: "."
+    when: "2000-01-02T03:04:05Z"
+    files: {}
+    registry:
+      hash: 4e2cab4b4e3ab853e5767fae35f317c26c655c52
     children: []

@@ -418,6 +418,38 @@ impl StrictPath {
     pub fn read(&self) -> Option<String> {
         std::fs::read_to_string(&std::path::Path::new(&self.interpret())).ok()
     }
+
+    pub fn size(&self) -> u64 {
+        match self.metadata() {
+            Ok(m) => m.len(),
+            _ => 0,
+        }
+    }
+
+    pub fn sha1(&self) -> String {
+        self.try_sha1().unwrap_or_default()
+    }
+
+    fn try_sha1(&self) -> Result<String, Box<dyn std::error::Error>> {
+        use sha1::Digest;
+        use std::io::Read;
+
+        let mut hasher = sha1::Sha1::new();
+
+        let file = std::fs::File::open(self.interpret())?;
+        let mut reader = std::io::BufReader::new(file);
+
+        let mut buffer = [0; 1024];
+        loop {
+            let read = reader.read(&mut buffer[..])?;
+            if read == 0 {
+                break;
+            }
+            hasher.update(&buffer[..read]);
+        }
+
+        Ok(format!("{:x}", hasher.finalize()))
+    }
 }
 
 impl From<&str> for StrictPath {

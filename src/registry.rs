@@ -136,10 +136,6 @@ impl Hives {
         (found, failed)
     }
 
-    pub fn same_content(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-
     pub fn store_key_from_full_path(&mut self, path: &str) -> Result<(), Error> {
         let path = RegistryItem::new(path.to_string()).interpreted();
 
@@ -218,6 +214,10 @@ impl Hives {
         }
 
         Ok(())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 

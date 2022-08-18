@@ -1962,6 +1962,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_yaml",
+ "sha1",
  "steamlocate",
  "thiserror",
  "unic-langid",

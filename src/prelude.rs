@@ -68,6 +68,7 @@ pub struct ScannedFile {
     /// and should be used in its raw form.
     pub path: StrictPath,
     pub size: u64,
+    pub hash: String,
     /// This is the restoration target path, without redirects applied.
     pub original_path: Option<StrictPath>,
     pub ignored: bool,
@@ -77,10 +78,11 @@ pub struct ScannedFile {
 
 impl ScannedFile {
     #[cfg(test)]
-    pub fn new<T: AsRef<str> + ToString>(path: T, size: u64) -> Self {
+    pub fn new<T: AsRef<str> + ToString, H: ToString>(path: T, size: u64, hash: H) -> Self {
         Self {
             path: StrictPath::new(path.to_string()),
             size,
+            hash: hash.to_string(),
             original_path: None,
             ignored: false,
             container: None,
@@ -91,40 +93,6 @@ impl ScannedFile {
     pub fn ignored(mut self) -> Self {
         self.ignored = true;
         self
-    }
-
-    pub fn same_path(&self, other: &StrictPath) -> bool {
-        match &self.original_path {
-            None => self.path.same_path(other),
-            Some(original_path) => original_path.same_path(other),
-        }
-    }
-
-    pub fn same_content(&self, other: &StrictPath) -> bool {
-        self.try_same_content(other).unwrap_or_default()
-    }
-
-    pub fn try_same_content(&self, other: &StrictPath) -> Result<bool, Box<dyn std::error::Error>> {
-        match &self.container {
-            None => self.path.try_same_content(other),
-            Some(container) => {
-                let handle = std::fs::File::open(&container.interpret())?;
-                let mut archive = zip::ZipArchive::new(handle)?;
-                let contained = &mut archive.by_name(&self.path.raw())?;
-                other.try_same_content_as_zip(contained)
-            }
-        }
-    }
-
-    pub fn same_as(&self, other: &StrictPath) -> bool {
-        self.try_same_as(other).unwrap_or_default()
-    }
-
-    pub fn try_same_as(&self, other: &StrictPath) -> Result<bool, Box<dyn std::error::Error>> {
-        if !self.same_path(other) {
-            return Ok(false);
-        }
-        self.try_same_content(other)
     }
 }
 
@@ -759,13 +727,10 @@ pub fn scan_game_for_backup(
                     continue;
                 }
                 let ignored = ignored_paths.is_ignored(name, &p);
-                let metadata = p.metadata();
                 found_files.insert(ScannedFile {
+                    size: p.size(),
+                    hash: p.sha1(),
                     path: p,
-                    size: match metadata {
-                        Ok(m) => m.len(),
-                        _ => 0,
-                    },
                     original_path: None,
                     ignored,
                     container: None,
@@ -783,13 +748,10 @@ pub fn scan_game_for_backup(
                             continue;
                         }
                         let ignored = ignored_paths.is_ignored(name, &child);
-                        let metadata = child.metadata();
                         found_files.insert(ScannedFile {
+                            size: child.size(),
+                            hash: child.sha1(),
                             path: child,
-                            size: match metadata {
-                                Ok(m) => m.len(),
-                                _ => 0,
-                            },
                             original_path: None,
                             ignored,
                             container: None,
@@ -829,7 +791,7 @@ pub enum BackupId {
     Named(String),
 }
 
-pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &GameLayout) -> ScanInfo {
+pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &mut GameLayout) -> ScanInfo {
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
@@ -840,6 +802,7 @@ pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &GameLayout)
     let id = layout.verify_id(id);
 
     if layout.path.is_dir() {
+        layout.migrate_legacy_backup();
         found_files = layout.restorable_files(&id);
         available_backups = layout.restorable_backups_flattened();
         backup = layout.find_by_id_flattened(&id);
@@ -1082,14 +1045,23 @@ pub fn fuzzy_match(
     None
 }
 
+pub fn sha1(content: String) -> String {
+    use sha1::Digest;
+    let mut hasher = sha1::Sha1::new();
+    hasher.update(content);
+    format!("{:x}", hasher.finalize())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::config::{Config, Retention};
-    use crate::layout::{BackupLayout, FullBackup};
+    use crate::layout::{BackupLayout, FullBackup, IndividualMappingFile, IndividualMappingRegistry};
     use crate::manifest::Manifest;
     use maplit::*;
     use pretty_assertions::assert_eq;
+
+    const EMPTY_HASH: &str = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
 
     #[test]
     fn fuzzy_matching() {
@@ -1286,8 +1258,8 @@ mod tests {
             ScanInfo {
                 game_name: s("game1"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080"),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1310,7 +1282,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game 2"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1),
+                    ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1340,7 +1312,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game5"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1),
+                    ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1370,7 +1342,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game 2"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1),
+                    ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1401,10 +1373,10 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0),
-                    ScannedFile::new(format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo()), 0),
-                    ScannedFile::new(format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo()), 0),
-                    ScannedFile::new(format!("{}/tests/home/Documents/winDocuments.txt", repo()), 0),
+                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH),
+                    ScannedFile::new(format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo()), 0, EMPTY_HASH),
+                    ScannedFile::new(format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo()), 0, EMPTY_HASH),
+                    ScannedFile::new(format!("{}/tests/home/Documents/winDocuments.txt", repo()), 0, EMPTY_HASH),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1435,9 +1407,9 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0),
-                    ScannedFile::new(format!("{}/tests/home/.config/xdgConfig.txt", repo()), 0),
-                    ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0),
+                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH),
+                    ScannedFile::new(format!("{}/tests/home/.config/xdgConfig.txt", repo()), 0, EMPTY_HASH),
+                    ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0, EMPTY_HASH),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1463,8 +1435,8 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0),
-                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37),
+                    ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0, EMPTY_HASH),
+                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1494,7 +1466,7 @@ mod tests {
                 },
                 ToggledPaths::default(),
                 hashset! {
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
                 },
             ),
             (
@@ -1505,8 +1477,8 @@ mod tests {
                     }
                 }),
                 hashset! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2).ignored(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").ignored(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
                 },
             ),
             (
@@ -1517,8 +1489,8 @@ mod tests {
                     }
                 }),
                 hashset! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2).ignored(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").ignored(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
                 },
             ),
         ];
@@ -1677,16 +1649,30 @@ mod tests {
             Retention::default(),
         );
         let make_path = |x| {
-            if cfg!(target_os = "windows") {
-                StrictPath::new(format!(
-                    "\\\\?\\{}\\tests\\backup\\game1\\drive-X\\{}",
-                    repo().replace('/', "\\"),
-                    x
-                ))
-            } else {
-                StrictPath::new(format!("{}/tests/backup/game1/drive-X/{}", repo(), x))
-            }
+            StrictPath::relative(
+                format!("./drive-X/{x}"),
+                Some(if cfg!(target_os = "windows") {
+                    format!("\\\\?\\{}\\tests\\backup\\game1", repo().replace('/', "\\"))
+                } else {
+                    format!("{}/tests/backup/game1", repo())
+                }),
+            )
         };
+        let backups = vec![Backup::Full(FullBackup {
+            name: ".".to_string(),
+            when: Some(now()),
+            files: btreemap! {
+                "X:/file1.txt".into() => IndividualMappingFile {
+                    hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
+                    size: 1,
+                },
+                "X:/file2.txt".into() => IndividualMappingFile {
+                    hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
+                    size: 2,
+                },
+            },
+            ..Default::default()
+        })];
 
         assert_eq!(
             ScanInfo {
@@ -1695,31 +1681,25 @@ mod tests {
                     ScannedFile {
                         path: make_path("file1.txt"),
                         size: 1,
-                        original_path: Some(StrictPath::new(s(if cfg!(target_os = "windows") { "X:\\file1.txt" } else { "X:/file1.txt" }))),
+                        hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
+                        original_path: Some(StrictPath::new("X:/file1.txt".into())),
                         ignored: false,
                         container: None,
                     },
                     ScannedFile {
                         path: make_path("file2.txt"),
                         size: 2,
-                        original_path: Some(StrictPath::new(s(if cfg!(target_os = "windows") { "X:\\file2.txt" } else { "X:/file2.txt" }))),
+                        hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
+                        original_path: Some(StrictPath::new("X:/file2.txt".into())),
                         ignored: false,
                         container: None,
                     },
                 },
-                available_backups: vec![Backup::Full(FullBackup {
-                    name: ".".to_string(),
-                    when: Some(now()),
-                    children: vec![],
-                })],
-                backup: Some(Backup::Full(FullBackup {
-                    name: ".".to_string(),
-                    when: Some(now()),
-                    children: vec![],
-                })),
+                available_backups: backups.clone(),
+                backup: Some(backups[0].clone()),
                 ..Default::default()
             },
-            scan_game_for_restoration("game1", &BackupId::Latest, &layout.game_layout("game1")),
+            scan_game_for_restoration("game1", &BackupId::Latest, &mut layout.game_layout("game1")),
         );
     }
 
@@ -1739,16 +1719,22 @@ mod tests {
                     available_backups: vec![Backup::Full(FullBackup {
                         name: ".".to_string(),
                         when: Some(now()),
-                        children: vec![],
+                        registry: IndividualMappingRegistry {
+                            hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
+                        },
+                        ..Default::default()
                     })],
                     backup: Some(Backup::Full(FullBackup {
                         name: ".".to_string(),
                         when: Some(now()),
-                        children: vec![],
+                        registry: IndividualMappingRegistry {
+                            hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
+                        },
+                        ..Default::default()
                     })),
                     ..Default::default()
                 },
-                scan_game_for_restoration("game3", &BackupId::Latest, &layout.game_layout("game3")),
+                scan_game_for_restoration("game3", &BackupId::Latest, &mut layout.game_layout("game3")),
             );
         } else {
             assert_eq!(
@@ -1757,16 +1743,19 @@ mod tests {
                     available_backups: vec![Backup::Full(FullBackup {
                         name: ".".to_string(),
                         when: Some(now()),
-                        children: vec![],
+                        registry: IndividualMappingRegistry {
+                            hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
+                        },
+                        ..Default::default()
                     })],
                     backup: Some(Backup::Full(FullBackup {
                         name: ".".to_string(),
                         when: Some(now()),
-                        children: vec![],
+                        ..Default::default()
                     })),
                     ..Default::default()
                 },
-                scan_game_for_restoration("game3", &BackupId::Latest, &layout.game_layout("game3")),
+                scan_game_for_restoration("game3", &BackupId::Latest, &mut layout.game_layout("game3")),
             );
         }
     }
@@ -1781,8 +1770,8 @@ mod tests {
 
             let game1 = s("game1");
             let game2 = s("game2");
-            let file1 = ScannedFile::new("file1.txt", 1);
-            let file2 = ScannedFile::new("file2.txt", 2);
+            let file1 = ScannedFile::new("file1.txt", 1, "1");
+            let file2 = ScannedFile::new("file2.txt", 2, "2");
             let reg1 = s("reg1");
             let reg2 = s("reg2");
 
@@ -1824,6 +1813,7 @@ mod tests {
             let file1a = ScannedFile {
                 path: StrictPath::new(s("file1a.txt")),
                 size: 1,
+                hash: "1".to_string(),
                 original_path: Some(StrictPath::new(s("file1.txt"))),
                 ignored: false,
                 container: None,
@@ -1831,6 +1821,7 @@ mod tests {
             let file1b = ScannedFile {
                 path: StrictPath::new(s("file1b.txt")),
                 size: 1,
+                hash: "1b".to_string(),
                 original_path: Some(StrictPath::new(s("file1.txt"))),
                 ignored: false,
                 container: None,
@@ -1852,6 +1843,7 @@ mod tests {
             assert!(!detector.is_file_duplicated(&ScannedFile {
                 path: StrictPath::new(s("file1a.txt")),
                 size: 1,
+                hash: "1a".to_string(),
                 original_path: None,
                 ignored: false,
                 container: None,
@@ -1862,6 +1854,7 @@ mod tests {
             assert!(!detector.is_file_duplicated(&ScannedFile {
                 path: StrictPath::new(s("file1b.txt")),
                 size: 1,
+                hash: "1b".to_string(),
                 original_path: None,
                 ignored: false,
                 container: None,
