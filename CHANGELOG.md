@@ -1,10 +1,47 @@
 ## Unreleased
 
+* Added:
+  * Support for multiple full and differential backups per game.
+  * Support for compressed zip backups.
+  * Translations for German, Spanish, Filipino, Italian, Polish, and Brazilian Portuguese.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
+
+    Note that some of these translations are still incomplete. Also, when using some
+    translations, GUI sizing may not be optimal, but this will be further refined in the future.
+
+    The following translations have also been added, but only have experimental support
+    because of a [technical limitation](https://github.com/mtkennerly/ludusavi/issues/9).
+    You can enable them by editing the config file directly: Arabic (`ar-SA`),
+    Simplified Chinese (`zh-Hans`)
+  * During first-time setup, Ludusavi will now automatically detect roots for
+    secondary Steam library folders (Windows/Linux/Mac) and non-default Epic
+    install folders (Windows).
+  * It is now possible to ignore paths for backup across all games
+    and/or for specific games.
+  * GUI: Button to back up or restore an individual game from the list on demand.
+  * GUI: Button to find and add any missing roots. This is the same functionality
+    as the automatic first-time setup, but is now available on demand.
+  * Option to sort the game list by file size and to reverse the sorting.
+  * Support for Prime Gaming roots.
+  * Support for globs in root paths.
+  * On Windows, the version field is now set in the executable properties.
+  * On Windows, the executable icon is now included in the crates.io release as well.
+  * CLI: Blank line between games for better readability.
+* Fixed:
+  * GUI: Unable to start on KDE 5.25.3 when using Wayland.
+  * GUI: Performance has been improved generally, including for very large results (1,000+ games).
+  * GUI: Unresponsive while deleting the backup directory with `merge` disabled
+    if the folder was very large.
+  * GUI: Improved spacing/padding consistency between some elements.
+  * Removed `/games` from the end of the default Uplay (Ubisoft Connect) root
+    paths. The new default is `C:/Program Files/Ubisoft/Ubisoft Game Launcher`.
+  * Crash when launching Ludusavi after the user manually deleted the manifest.
+  * If duplicate files were found while a game's file list were already open,
+    then the files would not immediately be marked as duplicates until you
+    closed and reopened the file list.
 * Changed:
   * Localization now uses [Project Fluent](https://projectfluent.org) instead of pure Rust code internally.
-    Although English currently remains the only language available, this change
-    should make it easier for other people to contribute. If you're interested,
-    [check out the new Crowdin project](https://crowdin.com/project/ludusavi).
+    If you'd like to help translate Ludusavi, [check out the Crowdin project](https://crowdin.com/project/ludusavi).
   * Previously, as an optimization, Ludusavi would remember the games it found
     from its first backup/preview and only re-check those games on subsequent
     backups, until certain configuration changes were made (e.g., adding a root).
@@ -41,45 +78,6 @@
   * The app window's minimum size has increased from 640x480 to 800x600.
     It may be returned to 640x480 in the future, but there are currently
     some limitations that make it look poor at that size.
-* Added:
-  * Translations for German, Spanish, Filipino, Italian, Polish, and Brazilian Portuguese.
-    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
-
-    Note that some of these translations are still incomplete. Also, when using some
-    translations, GUI sizing may not be optimal, but this will be further refined in the future.
-
-    The following translations have also been added, but only have experimental support
-    because of a [technical limitation](https://github.com/mtkennerly/ludusavi/issues/9).
-    You can enable them by editing the config file directly: Arabic (`ar-SA`),
-    Simplified Chinese (`zh-Hans`)
-  * During first-time setup, Ludusavi will now automatically detect roots for
-    secondary Steam library folders (Windows/Linux/Mac) and non-default Epic
-    install folders (Windows).
-  * Support for multiple full and differential backups per game.
-  * Support for compressed zip backups.
-  * It is now possible to ignore paths for backup across all games
-    and/or for specific games.
-  * GUI: Button to back up or restore an individual game from the list on demand.
-  * GUI: Button to find and add any missing roots. This is the same functionality
-    as the automatic first-time setup, but is now available on demand.
-  * Support for Prime Gaming roots.
-  * Option to sort the game list by file size and to reverse the sorting.
-  * On Windows, the version field is now set in the executable properties.
-  * On Windows, the executable icon is now included in the crates.io release as well.
-  * Support for globs in root paths.
-  * CLI: Blank line between games for better readability.
-* Fixed:
-  * Removed `/games` from the end of the default Uplay (Ubisoft Connect) root
-    paths. The new default is `C:/Program Files/Ubisoft/Ubisoft Game Launcher`.
-  * Crash when launching Ludusavi after the user manually deleted the manifest.
-  * If duplicate files were found while a game's file list were already open,
-    then the files would not immediately be marked as duplicates until you
-    closed and reopened the file list.
-  * GUI: Unable to start on KDE 5.25.3 when using Wayland.
-  * GUI: Improved spacing/padding consistency between some elements.
-  * GUI: Unresponsive while deleting the backup directory with `merge` disabled
-    if the folder was very large.
-  * GUI: Performance has been improved generally, including for very large results (1,000+ games).
 
 ## v0.10.0 (2021-03-12)
 
