@@ -12,13 +12,13 @@ badge-duplicates = DUPLIKATE
 badge-duplicated = DUPLIZIERT
 badge-ignored = IGNORIERT
 badge-redirected-from = VON: { $path }
-some-entries-failed = Einige Einträge konnten nicht verarbeitet werden; Suche nach { label-failed } in der Ausgabe für Details. Überprüfen Sie, ob Sie auf diese Dateien zugreifen können oder ob ihre Pfade sehr lang sind.
+some-entries-failed = Einige Einträge konnten nicht verarbeitet werden; Suche nach { badge-failed } in der Ausgabe für Details. Überprüfen Sie, ob Sie auf diese Dateien zugreifen können oder ob ihre Pfade sehr lang sind.
 cli-game-line-item-redirected = Umgeleitet von: { $path }
 cli-summary =
     .succeeded =
         Insgesamt:
-          Spiele: { $total-games }
-          Größe: { $total-size }
+          Spiele: { $processed-games }
+          Größe: { $processed-size }
           Ort: { $path }
     .failed =
         Insgesamt:
@@ -71,7 +71,7 @@ field-restore-source = Wiederherstellen von:
 field-custom-files = Pfade:
 field-custom-registry = Registry:
 field-search = Suche:
-field-sort = Sort:
+field-sort = Sortierung:
 field-redirect-source =
     .placeholder = Quelle (Originalort)
 field-redirect-target =
@@ -80,9 +80,11 @@ field-custom-game-name =
     .placeholder = Name
 field-search-game-name =
     .placeholder = Name
-field-backup-excluded-items = Backup exclusions:
-field-retention-full = Full:
-field-retention-differential = Differential:
+field-backup-excluded-items = Sicherungsausschlüsse:
+field-retention-full = Komplett:
+field-retention-differential = Differenz:
+field-backup-format = Format:
+field-backup-compression = Komprimierung:
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -95,16 +97,23 @@ store-other-home = Home-Ordner
 store-other-wine = Wine prefix
 store-other = Sonstiges
 sort-name = Name
-sort-size = Size
-sort-reversed = Reversed
+sort-size = Größe
+sort-reversed = Umgekehrt
+backup-format-simple = Einfach
+backup-format-zip = Zip
+compression-none = Keiner
+# "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
+compression-deflate = Deflate
+compression-bzip2 = Bzip2
+compression-zstd = Zstd
 explanation-for-exclude-other-os-data =
     Ausschließen von Speicherorten, die nur auf einem anderen
-    -Betriebssystem bestätigt wurden. Einige Spiele stellen immer Speicherstände an derselben Stelle, aber die
+    Betriebssystem bestätigt wurden. Einige Spiele stellen immer Speicherstände an derselben Stelle, aber die
     Standorte sind möglicherweise nur für ein anderes Betriebssystem bestätigt worden, also kann es
     helfen, sie trotzdem zu überprüfen. Das Ausschließen dieser Daten kann helfen, Fehlerhafte Einträge zu vermeiden,
-    kann aber auch bedeuten, dass einige Speicherstände nicht mehr vorhanden sind. Unter Linux werden ungeachtet dieser Einstellung weiterhin Proton saves
+    kann aber auch bedeuten, dass einige Speicherstände nicht mehr vorhanden sind. Unter Linux werden ungeachtet dieser Einstellung weiterhin Proton speicherstände
     gesichert.
-explanation-for-exclude-store-screenshots = Schließe Starterspezifische Bildschirmfotos in Sicherungen aus. Dies gilt momentan nur für { store-steam }-Bildschirmfotos. Wenn ein Spiel eine eigene Bildschirmfotofunktion hat, werden Bildshirmfotos unabhängig dieser Einstellung gesichert.
+explanation-for-exclude-store-screenshots = Schließe Starterspezifische Bildschirmfotos in Sicherungen aus. Dies gilt momentan nur für { store-steam }-Bildschirmfotos. Wenn ein Spiel eine eigene Bildschirmfotofunktion hat, werden Bildschirmfotos unabhängig dieser Einstellung gesichert.
 consider-doing-a-preview =
     Falls du es noch nicht getan hast, erwäge zuerst eine Vorschau zu machen, damit
     keine Überraschungen gibt.
@@ -127,4 +136,4 @@ confirm-restore =
     { consider-doing-a-preview }
 confirm-add-missing-roots = Diese Wurzel hinzufügen?
 no-missing-roots = Keine zusätzlichen Wurzeln gefunden.
-preparing-backup-target = Preparing backup directory...
+preparing-backup-target = Sicherungsverzeichnis wird vorbereitet...

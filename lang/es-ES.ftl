@@ -12,13 +12,13 @@ badge-duplicates = DUPLICADOS
 badge-duplicated = DUPLICADO
 badge-ignored = IGNORADO
 badge-redirected-from = DESDE: { $path }
-some-entries-failed = Algunas entradas no se han podido procesar; busca { label-failed } en la salida para ver los detalles. Comprueba si puedes acceder a esos archivos o si sus rutas son muy largas.
+some-entries-failed = Algunas entradas no se han podido procesar; busca { badge-failed } en la salida para ver los detalles. Comprueba si puedes acceder a esos archivos o si sus rutas son muy largas.
 cli-game-line-item-redirected = Redirigido de: { $path }
 cli-summary =
     .succeeded =
         Global:
-          Juegos: { $total-games }
-          Tamaño: { $total-size }
+          Juegos: { $processed-games }
+          Tamaño: { $processed-size }
           Ubicación: { $path }
     .failed =
         Global:
@@ -83,6 +83,8 @@ field-search-game-name =
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
+field-backup-format = Format:
+field-backup-compression = Compression:
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -97,6 +99,13 @@ store-other = Otro
 sort-name = Name
 sort-size = Size
 sort-reversed = Reversed
+backup-format-simple = Simple
+backup-format-zip = Zip
+compression-none = None
+# "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
+compression-deflate = Deflate
+compression-bzip2 = Bzip2
+compression-zstd = Zstd
 explanation-for-exclude-other-os-data =
     En las copias de seguridad, excluye las ubicaciones de guardado que sólo han sido confirmadas en otro
     sistema operativo. Algunos juegos siempre colocan las partidas guardadas en el mismo lugar, pero las

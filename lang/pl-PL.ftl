@@ -12,13 +12,13 @@ badge-duplicates = DUPLIKATY
 badge-duplicated = ZDUPLIKOWANE
 badge-ignored = ZIGNOROWANE
 badge-redirected-from = Z: { $path }
-some-entries-failed = Błąd przetwarzania niektórych elementów; sprawdź { label-failed } w anych wyjściowych po więcej szczegółów. Upewnij się, że masz dostęp do tych plików oraz, czy ich ścieżki są zbyt długie.
+some-entries-failed = Błąd przetwarzania niektórych elementów; sprawdź { badge-failed } w anych wyjściowych po więcej szczegółów. Upewnij się, że masz dostęp do tych plików oraz, czy ich ścieżki są zbyt długie.
 cli-game-line-item-redirected = Przekierowano z: { $path }
 cli-summary =
     .succeeded =
         W sumie:
-          Gry: { $total-games }
-          Rozmiar: { $total-size }
+          Gry: { $processed-games }
+          Rozmiar: { $processed-size }
           Lokalizacja: { $path }
     .failed =
         W sumie:
@@ -83,6 +83,8 @@ field-search-game-name =
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
+field-backup-format = Format:
+field-backup-compression = Compression:
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -97,6 +99,13 @@ store-other = Pozostałe
 sort-name = Name
 sort-size = Size
 sort-reversed = Reversed
+backup-format-simple = Simple
+backup-format-zip = Zip
+compression-none = None
+# "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
+compression-deflate = Deflate
+compression-bzip2 = Bzip2
+compression-zstd = Zstd
 explanation-for-exclude-other-os-data = Nie zawieraj w kopiach zapasowych lokalizacji zapisów, które zostały sprawdzone tylko na innym systemie. Niektóre gry zawsze umieszczają zapisy w tym samym miejscu, ale lokalizacje mogą być sprawdzane tylko dla innego systemu operacyjnego, więc możesz je sprawdzić mimo wszystko. Wykluczenie tych danych może pomóc uniknąć fałszywego wykrycia zagrożeń, ale może również wykluczyć niektóre zapisy. W systemach Linux, zapisy Proton będą nadal kopiowane bez względu na to ustawienie.
 explanation-for-exclude-store-screenshots = Nie zawieraj w kopiach zapasowych zrzutów ekranu dla konkretnego sklepu. Obecnie ma to tylko zastosowanie do zrzutów ekranu ze { store-steam }. Jeśli gra ma swoją własną funkcję zrzutów ekranu, to ustawienie nie będzie mieć wpływu na ich kopiowanie.
 consider-doing-a-preview = Jeśli jeszcze tego nie zrobiono, rozważ wykonanie pierwszego testu, aby zobaczyć, czy wszystko działa.

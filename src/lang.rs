@@ -19,8 +19,15 @@ const PROCESSED_SIZE: &str = "processed-size";
 const TOTAL_GAMES: &str = "total-games";
 const TOTAL_SIZE: &str = "total-size";
 
+// TODO: Some are blocked by https://github.com/mtkennerly/ludusavi/issues/9.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Language {
+    #[allow(dead_code)]
+    #[serde(rename = "ar-SA")]
+    Arabic,
+    #[allow(dead_code)]
+    #[serde(rename = "zh-Hans")]
+    ChineseSimplified,
     #[default]
     #[serde(rename = "en-US")]
     English,
@@ -28,14 +35,14 @@ pub enum Language {
     Filipino,
     #[serde(rename = "de-DE")]
     German,
+    #[serde(rename = "it-IT")]
+    Italian,
     #[serde(rename = "pt-BR")]
     PortugueseBrazilian,
     #[serde(rename = "pl-PL")]
     Polish,
     #[serde(rename = "es-ES")]
     Spanish,
-    // TODO: Blocked by https://github.com/mtkennerly/ludusavi/issues/9.
-    // ChineseSimplified,
 }
 
 impl Language {
@@ -44,15 +51,19 @@ impl Language {
         Self::English,
         Self::Spanish,
         Self::Filipino,
+        Self::Italian,
         Self::Polish,
         Self::PortugueseBrazilian,
     ];
 
     pub fn id(&self) -> LanguageIdentifier {
         let id = match self {
+            Self::Arabic => "ar-SA",
+            Self::ChineseSimplified => "zh-Hans",
             Self::English => "en-US",
             Self::Filipino => "fil-PH",
             Self::German => "de-DE",
+            Self::Italian => "it-IT",
             Self::Polish => "pl-PL",
             Self::PortugueseBrazilian => "pt-BR",
             Self::Spanish => "es-ES",
@@ -64,9 +75,12 @@ impl Language {
 impl ToString for Language {
     fn to_string(&self) -> String {
         match self {
+            Self::Arabic => "العربية",
+            Self::ChineseSimplified => "中文（简体）",
             Self::English => "English",
             Self::Filipino => "Filipino",
             Self::German => "Deutsch",
+            Self::Italian => "Italiano",
             Self::Polish => "Polski",
             Self::PortugueseBrazilian => "Português brasileiro",
             Self::Spanish => "Español",
@@ -96,9 +110,12 @@ fn set_language(language: Language) {
     let mut bundle = BUNDLE.lock().unwrap();
 
     let ftl = match language {
+        Language::Arabic => include_str!("../lang/ar-SA.ftl"),
+        Language::ChineseSimplified => include_str!("../lang/zh-CN.ftl"),
         Language::English => include_str!("../lang/en-US.ftl"),
         Language::Filipino => include_str!("../lang/fil-PH.ftl"),
         Language::German => include_str!("../lang/de-DE.ftl"),
+        Language::Italian => include_str!("../lang/it-IT.ftl"),
         Language::Polish => include_str!("../lang/pl-PL.ftl"),
         Language::PortugueseBrazilian => include_str!("../lang/pt-BR.ftl"),
         Language::Spanish => include_str!("../lang/es-ES.ftl"),

@@ -12,13 +12,13 @@ badge-duplicates = 复制为副本
 badge-duplicated = 已复制为副本
 badge-ignored = 已忽略
 badge-redirected-from = 来自：{ $path }
-some-entries-failed = 有些条目无法处理；详情请参阅输出中的 { label-failed }。请仔细检查您是否可以访问这些文件，或者它们的路径是否太长。
+some-entries-failed = 有些条目无法处理；详情请参阅输出中的 { badge-failed }。请仔细检查您是否可以访问这些文件，或者它们的路径是否太长。
 cli-game-line-item-redirected = 重定向自：{ $path }
 cli-summary =
     .succeeded =
         总体：
-          游戏：{ $total-games }
-          大小：{ $total-size }
+          游戏：{ $processed-games }
+          大小：{ $processed-size }
           位置：{ $path }
     .failed =
         总体：
@@ -54,16 +54,8 @@ registry-issue = 错误：一些注册表条目被跳过。
 unable-to-browse-file-system = 错误：无法浏览您的系统。
 unable-to-open-directory = 错误：无法打开目录：
 unable-to-open-url = 错误：无法打开链接：
-processed-games =
-    { $total-games } { $total-games ->
-        [one] 游戏
-       *[other] 游戏
-    }
-processed-games-subset =
-    { $processed-games }，共 { $total-games } { $total-games ->
-        [one] 游戏
-       *[other] 游戏
-    }
+processed-games = { $total-games } 游戏
+processed-games-subset = { $processed-games }，共 { $total-games } 游戏
 processed-size-subset = { $processed-size } of { $total-size }
 field-backup-target = Back up to:
 toggle-backup-merge = Merge
@@ -83,6 +75,8 @@ field-search-game-name =
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
+field-backup-format = Format:
+field-backup-compression = Compression:
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -97,6 +91,13 @@ store-other = Other
 sort-name = Name
 sort-size = Size
 sort-reversed = Reversed
+backup-format-simple = Simple
+backup-format-zip = Zip
+compression-none = None
+# "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
+compression-deflate = Deflate
+compression-bzip2 = Bzip2
+compression-zstd = Zstd
 explanation-for-exclude-other-os-data =
     In backups, exclude save locations that have only been confirmed on another
     operating system. Some games always put saves in the same place, but the

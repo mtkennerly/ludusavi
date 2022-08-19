@@ -12,13 +12,13 @@ badge-duplicates = KAPAREHO
 badge-duplicated = KINOPYA
 badge-ignored = DEDMA
 badge-redirected-from = MULA SA: { $path }
-some-entries-failed = Mayroon mali sa proseso; hanapin mo ng { label-failed } sa output. Paki-tiyak kung kaya mong buksan ang mga files o kung masyado mahaba ang mga paths.
+some-entries-failed = Mayroon mali sa proseso; hanapin mo ng { badge-failed } sa output. Paki-tiyak kung kaya mong buksan ang mga files o kung masyado mahaba ang mga paths.
 cli-game-line-item-redirected = Na-redirect mula sa: { $path }
 cli-summary =
     .succeeded =
         Buod:
-          Games: { $total-games }
-          Sukat: { $total-size }
+          Games: { $processed-games }
+          Sukat: { $processed-size }
           Lokasyon: { $path }
     .failed =
         Buod:
@@ -83,6 +83,8 @@ field-search-game-name =
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
+field-backup-format = Format:
+field-backup-compression = Compression:
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -97,6 +99,13 @@ store-other = Other
 sort-name = Name
 sort-size = Size
 sort-reversed = Reversed
+backup-format-simple = Simple
+backup-format-zip = Zip
+compression-none = None
+# "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
+compression-deflate = Deflate
+compression-bzip2 = Bzip2
+compression-zstd = Zstd
 explanation-for-exclude-other-os-data = Para sa mga backups, ibukod ang save locations na na-confirm lamang sa ibang operating system. May mga games na palaging naglalagay ng mga save sa parehong lugar, ngunit ang mga lokasyon ay maaaring na-confirm lamang sa ibang OS, kaya makakatulong masuri mga ito. Maaaring makakatulong ibukod ang data para maiwasan ng mga false positives, kaso maaaring lalakdaw din ang ibang saves. Sa Linux, ang mga save sa Proton ay ma-baback up pa rin anuman ang setting na ito.
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies

@@ -12,18 +12,18 @@ badge-duplicates = DUPLICADOS
 badge-duplicated = DUPLICADO
 badge-ignored = IGNORADO
 badge-redirected-from = DE: { $path }
-some-entries-failed = Algumas entradas não conseguiram processar; procure por { label-failed } na saída para mais detalhes. Verifique se você pode acessar esses arquivos ou se os caminhos deles são muito longos.
+some-entries-failed = Algumas entradas não conseguiram processar; procure por { badge-failed } na saída para mais detalhes. Verifique se você pode acessar esses arquivos ou se os caminhos deles são muito longos.
 cli-game-line-item-redirected = Redirecionado de: { $path }
 cli-summary =
     .succeeded =
         Geral:
-          Jogos: { $total-games }
-          Tamanho: { $total-size }
-          Local: { $path }
+          Jogos: { $processed-games }
+          Tamanho: { $processed-size }
+          Localização: { $path }
     .failed =
         Geral:
           Jogos: { $processed-games } de { $total-games }
-          Size: { $processed-size } de { $total-size }
+          Tamanho: { $processed-size } de { $total-size }
           Localização: { $path }
 button-backup = Fazer backup
 button-preview = Visualizar
@@ -83,6 +83,8 @@ field-search-game-name =
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
+field-backup-format = Format:
+field-backup-compression = Compression:
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -97,6 +99,13 @@ store-other = Outro
 sort-name = Name
 sort-size = Size
 sort-reversed = Reversed
+backup-format-simple = Simple
+backup-format-zip = Zip
+compression-none = None
+# "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
+compression-deflate = Deflate
+compression-bzip2 = Bzip2
+compression-zstd = Zstd
 explanation-for-exclude-other-os-data =
     Nos backups, exclui locais de salvamento que só foram confirmados em outro
     sistema operacional. Alguns jogos sempre colocam o saves no mesmo lugar, mas os locais
