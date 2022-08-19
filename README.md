@@ -61,6 +61,10 @@ You can install Ludusavi one of these ways:
   scoop update ludusavi
   ```
 
+* For Linux, Ludusavi is available on [Flathub](https://flathub.org/apps/details/com.github.mtkennerly.ludusavi).
+  Note that it has limited file system access by default (`~` and `/run/media`).
+  If you'd like to enable broader access, [see here](https://github.com/flathub/com.github.mtkennerly.ludusavi/blob/master/README.md).
+
 * If you have [Rust](https://www.rust-lang.org), you can use Cargo. To install or update, run:
 
   ```
