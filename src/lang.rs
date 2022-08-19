@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use unic_langid::LanguageIdentifier;
 
 use crate::{
-    config::SortKey,
+    config::{BackupFormat, SortKey, ZipCompression},
     manifest::Store,
     prelude::{Error, OperationStatus, OperationStepDecision, StrictPath},
 };
@@ -564,6 +564,22 @@ impl Translator {
         translate("sort-reversed")
     }
 
+    pub fn backup_format(&self, key: &BackupFormat) -> String {
+        translate(match key {
+            BackupFormat::Simple => "backup-format-simple",
+            BackupFormat::Zip => "backup-format-zip",
+        })
+    }
+
+    pub fn backup_compression(&self, key: &ZipCompression) -> String {
+        translate(match key {
+            ZipCompression::None => "compression-none",
+            ZipCompression::Deflate => "compression-deflate",
+            ZipCompression::Bzip2 => "compression-bzip2",
+            ZipCompression::Zstd => "compression-zstd",
+        })
+    }
+
     pub fn redirect_source_placeholder(&self) -> String {
         translate("field-redirect-source.placeholder")
     }
@@ -598,6 +614,14 @@ impl Translator {
 
     pub fn differential_retention(&self) -> String {
         translate("field-retention-differential")
+    }
+
+    pub fn backup_format_field(&self) -> String {
+        translate("field-backup-format")
+    }
+
+    pub fn backup_compression_field(&self) -> String {
+        translate("field-backup-compression")
     }
 
     pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool) -> String {

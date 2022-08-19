@@ -52,6 +52,7 @@
     secondary Steam library folders (Windows/Linux/Mac) and non-default Epic
     install folders (Windows).
   * Support for multiple full and differential backups per game.
+  * Support for compressed zip backups.
   * It is now possible to ignore paths for backup across all games
     and/or for specific games.
   * GUI: Button to back up or restore an individual game from the list on demand.

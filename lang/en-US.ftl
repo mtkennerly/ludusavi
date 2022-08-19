@@ -91,6 +91,8 @@ field-search-game-name =
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
+field-backup-format = Format:
+field-backup-compression = Compression:
 
 store-epic = Epic
 store-gog = GOG
@@ -107,6 +109,15 @@ store-other = Other
 sort-name = Name
 sort-size = Size
 sort-reversed = Reversed
+
+backup-format-simple = Simple
+backup-format-zip = Zip
+
+compression-none = None
+# "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
+compression-deflate = Deflate
+compression-bzip2 = Bzip2
+compression-zstd = Zstd
 
 explanation-for-exclude-other-os-data =
     In backups, exclude save locations that have only been confirmed on another

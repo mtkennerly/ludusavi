@@ -141,13 +141,23 @@ impl Default for Retention {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum BackupFormat {
     #[default]
     #[serde(rename = "simple")]
     Simple,
     #[serde(rename = "zip")]
     Zip,
+}
+
+impl BackupFormat {
+    pub const ALL: &'static [Self] = &[Self::Simple, Self::Zip];
+}
+
+impl ToString for BackupFormat {
+    fn to_string(&self) -> String {
+        crate::lang::Translator::default().backup_format(self)
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -161,7 +171,7 @@ pub struct ZipConfig {
     pub compression: ZipCompression,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum ZipCompression {
     #[serde(rename = "none")]
     None,
@@ -172,6 +182,16 @@ pub enum ZipCompression {
     Bzip2,
     #[serde(rename = "zstd")]
     Zstd,
+}
+
+impl ZipCompression {
+    pub const ALL: &'static [Self] = &[Self::None, Self::Deflate, Self::Bzip2, Self::Zstd];
+}
+
+impl ToString for ZipCompression {
+    fn to_string(&self) -> String {
+        crate::lang::Translator::default().backup_compression(self)
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

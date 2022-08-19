@@ -1,5 +1,5 @@
 use crate::{
-    config::Config,
+    config::{BackupFormat, Config, ZipCompression},
     gui::{
         common::*,
         game_list::GameList,
@@ -14,8 +14,8 @@ use crate::{
 };
 
 use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, text_input, Alignment, Button, Checkbox, Column, Container,
-    Length, Row, Text, TextInput,
+    alignment::Horizontal as HorizontalAlignment, button, pick_list, text_input, Alignment, Button, Checkbox, Column,
+    Container, Length, PickList, Row, Text, TextInput,
 };
 
 #[derive(Default)]
@@ -35,6 +35,10 @@ pub struct BackupScreenComponent {
     pub duplicate_detector: DuplicateDetector,
     full_retention_input: crate::gui::number_input::NumberInput,
     diff_retention_input: crate::gui::number_input::NumberInput,
+    format_selector: pick_list::State<BackupFormat>,
+    compression_selector: pick_list::State<ZipCompression>,
+    settings_button: button::State,
+    pub show_settings: bool,
 }
 
 impl BackupScreenComponent {
@@ -183,33 +187,15 @@ impl BackupScreenComponent {
                             )
                             .padding(5),
                         )
-                        .push_if(
-                            || config.backup.merge,
-                            || {
-                                self.full_retention_input.view(
-                                    config.backup.retention.full,
-                                    &translator.full_retention(),
-                                    1..=u8::MAX,
-                                    Message::EditedFullRetention,
-                                )
-                            },
+                        .push(
+                            Button::new(&mut self.settings_button, Icon::Settings.as_text())
+                                .on_press(Message::ToggleBackupSettings)
+                                .style(if self.show_settings {
+                                    style::Button::Negative
+                                } else {
+                                    style::Button::Primary
+                                }),
                         )
-                        .push_if(
-                            || config.backup.merge,
-                            || {
-                                self.diff_retention_input.view(
-                                    config.backup.retention.differential,
-                                    &translator.differential_retention(),
-                                    0..=u8::MAX,
-                                    Message::EditedDiffRetention,
-                                )
-                            },
-                        )
-                        .push(Checkbox::new(
-                            config.backup.merge,
-                            translator.backup_merge_label(),
-                            Message::EditedBackupMerge,
-                        ))
                         .push(
                             Button::new(&mut self.backup_target_browse_button, Icon::FolderOpen.as_text())
                                 .on_press(match operation {
@@ -221,6 +207,85 @@ impl BackupScreenComponent {
                                     Some(_) => style::Button::Disabled,
                                 }),
                         ),
+                )
+                .push_if(
+                    || self.show_settings,
+                    || {
+                        Row::new()
+                            .padding([0, 20, 0, 20])
+                            .spacing(20)
+                            .height(Length::Units(30))
+                            .align_items(Alignment::Center)
+                            .push(Checkbox::new(
+                                config.backup.merge,
+                                translator.backup_merge_label(),
+                                Message::EditedBackupMerge,
+                            ))
+                            .push_if(
+                                || config.backup.merge,
+                                || {
+                                    self.full_retention_input.view(
+                                        config.backup.retention.full,
+                                        &translator.full_retention(),
+                                        1..=u8::MAX,
+                                        Message::EditedFullRetention,
+                                    )
+                                },
+                            )
+                            .push_if(
+                                || config.backup.merge,
+                                || {
+                                    self.diff_retention_input.view(
+                                        config.backup.retention.differential,
+                                        &translator.differential_retention(),
+                                        0..=u8::MAX,
+                                        Message::EditedDiffRetention,
+                                    )
+                                },
+                            )
+                    },
+                )
+                .push_if(
+                    || self.show_settings,
+                    || {
+                        Row::new()
+                            .padding([0, 20, 0, 20])
+                            .spacing(20)
+                            .align_items(Alignment::Center)
+                            .push(
+                                Row::new()
+                                    .spacing(5)
+                                    .align_items(Alignment::Center)
+                                    .push(Text::new(translator.backup_format_field()))
+                                    .push(
+                                        PickList::new(
+                                            &mut self.format_selector,
+                                            BackupFormat::ALL,
+                                            Some(config.backup.format.chosen),
+                                            Message::SelectedBackupFormat,
+                                        )
+                                        .style(style::PickList::Primary),
+                                    ),
+                            )
+                            .push_if(
+                                || config.backup.format.chosen == BackupFormat::Zip,
+                                || {
+                                    Row::new()
+                                        .spacing(5)
+                                        .align_items(Alignment::Center)
+                                        .push(Text::new(translator.backup_compression_field()))
+                                        .push(
+                                            PickList::new(
+                                                &mut self.compression_selector,
+                                                ZipCompression::ALL,
+                                                Some(config.backup.format.zip.compression),
+                                                Message::SelectedBackupCompression,
+                                            )
+                                            .style(style::PickList::Primary),
+                                        )
+                                },
+                            )
+                    },
                 )
                 .push(self.root_editor.view(config, translator, operation))
                 .push(

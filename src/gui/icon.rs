@@ -20,6 +20,7 @@ pub enum Icon {
     SubdirectoryArrowRight,
     Delete,
     PlayCircleOutline,
+    Settings,
 }
 
 impl Icon {
@@ -39,6 +40,7 @@ impl Icon {
             Self::SubdirectoryArrowRight => '\u{E5DA}',
             Self::Delete => '\u{E872}',
             Self::PlayCircleOutline => '\u{E039}',
+            Self::Settings => '\u{E8B8}',
         };
         Text::new(&character.to_string())
             .font(ICONS)

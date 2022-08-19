@@ -1178,6 +1178,20 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::SelectedBackupFormat(format) => {
+                self.config.backup.format.chosen = format;
+                self.config.save();
+                Command::none()
+            }
+            Message::SelectedBackupCompression(compression) => {
+                self.config.backup.format.zip.compression = compression;
+                self.config.save();
+                Command::none()
+            }
+            Message::ToggleBackupSettings => {
+                self.backup_screen.show_settings = !self.backup_screen.show_settings;
+                Command::none()
+            }
         }
     }
 

@@ -1,5 +1,5 @@
 use crate::{
-    config::{RootsConfig, SortKey},
+    config::{BackupFormat, RootsConfig, SortKey, ZipCompression},
     gui::badge::Badge,
     lang::{Language, Translator},
     layout::Backup,
@@ -137,6 +137,9 @@ pub enum Message {
         backup: Backup,
     },
     SelectedLanguage(Language),
+    SelectedBackupFormat(BackupFormat),
+    SelectedBackupCompression(ZipCompression),
+    ToggleBackupSettings,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
