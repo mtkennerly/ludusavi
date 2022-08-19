@@ -237,7 +237,7 @@ impl StrictPath {
     }
 
     pub fn joined(&self, other: &str) -> Self {
-        Self::new(format!("{}/{}", self.interpret(), other))
+        Self::new(format!("{}{}{}", self.interpret(), TYPICAL_SEPARATOR, other))
     }
 
     pub fn create_parent_dir(&self) -> std::io::Result<()> {
@@ -359,10 +359,6 @@ impl StrictPath {
             Ok(xs) => xs.filter_map(|r| r.ok()).map(StrictPath::from).collect(),
             Err(_) => vec![],
         }
-    }
-
-    pub fn same_path(&self, other: &Self) -> bool {
-        self.interpret() == other.interpret()
     }
 
     pub fn same_content(&self, other: &StrictPath) -> bool {

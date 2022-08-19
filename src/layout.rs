@@ -110,6 +110,15 @@ impl Backup {
             Self::Differential(backup) => backup.registry.as_ref().map(|x| x.hash.is_some()).unwrap_or_default(),
         }
     }
+
+    /// In this case, we just need to update the mapping file,
+    /// but we don't want to end up creating an empty folder/archive.
+    pub fn only_inherits_and_overrides(&self) -> bool {
+        match self {
+            Self::Full(_) => false,
+            Self::Differential(backup) => backup.files.values().all(|x| x.is_none()) && backup.registry.is_none(),
+        }
+    }
 }
 
 impl std::fmt::Display for Backup {
@@ -148,17 +157,11 @@ impl FullBackup {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-pub struct BackupOmission {
-    /// Strings are StrictPath in rendered form.
-    #[serde(
-        default,
-        serialize_with = "crate::serialization::ordered_set",
-        skip_serializing_if = "crate::serialization::is_empty_set"
-    )]
-    pub files: HashSet<String>,
-    #[serde(default, skip_serializing_if = "crate::serialization::is_false")]
-    pub registry: bool,
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BackupInclusion {
+    Included,
+    Inherited,
+    Excluded,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -173,8 +176,14 @@ pub struct DifferentialBackup {
 
 impl DifferentialBackup {
     /// File path must be in rendered form.
-    pub fn includes_file(&self, file: String) -> bool {
-        self.files.get(&file).map(|info| info.is_some()).unwrap_or_default()
+    pub fn file(&self, file: String) -> BackupInclusion {
+        match self.files.get(&file) {
+            None => BackupInclusion::Inherited,
+            Some(info) => match info {
+                None => BackupInclusion::Excluded,
+                Some(_) => BackupInclusion::Included,
+            },
+        }
     }
 
     pub fn omits_registry(&self) -> bool {
@@ -497,14 +506,8 @@ impl GameLayout {
                 files.extend(self.restorable_files_from_diff_backup(diff));
 
                 for full_file in self.restorable_files_from_full_backup(full) {
-                    let already_in_diff = files.iter().any(|x| {
-                        x.original_path
-                            .as_ref()
-                            .unwrap()
-                            .same_path(full_file.original_path.as_ref().unwrap())
-                    });
-                    let omitted_in_diff = !diff.includes_file(full_file.original_path.as_ref().unwrap().render());
-                    if !already_in_diff && !omitted_in_diff {
+                    let original_path = full_file.original_path.as_ref().unwrap().render();
+                    if diff.file(original_path) == BackupInclusion::Inherited {
                         files.insert(full_file);
                     }
                 }
@@ -582,13 +585,6 @@ impl GameLayout {
 
         restorables
     }
-
-    // fn restorable_files_in(&self, backup: &str, format: &BackupFormat) -> std::collections::HashSet<ScannedFile> {
-    //     match format {
-    //         BackupFormat::Simple => self.restorable_files_in_simple(backup),
-    //         BackupFormat::Zip => self.restorable_files_in_zip(backup).unwrap_or_default(),
-    //     }
-    // }
 
     fn restorable_files_in_simple(&self, backup: &str) -> std::collections::HashSet<ScannedFile> {
         let mut files = std::collections::HashSet::new();
@@ -692,9 +688,11 @@ impl GameLayout {
             Some((full, diff)) => (full, diff),
         };
 
-        if let Backup::Differential(backup) = backup {
-            if backup.files.is_empty() && backup.registry.is_none() {
-                return false;
+        if let Backup::Differential(current_diff) = backup {
+            if let Some(prior_diff) = prior_diff {
+                if prior_diff.files == current_diff.files && prior_diff.registry == current_diff.registry {
+                    return false;
+                }
             }
         }
 
@@ -702,7 +700,14 @@ impl GameLayout {
         let mut prior_registry = prior_full.registry.clone();
         if let Some(diff) = prior_diff {
             for (k, v) in &diff.files {
-                prior_files.insert(k.clone(), some_or_continue!(v).clone());
+                match v {
+                    None => {
+                        prior_files.remove(k);
+                    }
+                    Some(v) => {
+                        prior_files.insert(k.clone(), v.clone());
+                    }
+                }
             }
             if let Some(registry) = &diff.registry {
                 prior_registry = registry.clone();
@@ -716,7 +721,14 @@ impl GameLayout {
                 let mut current_registry = prior_full.registry.clone();
 
                 for (k, v) in &current_diff.files {
-                    current_files.insert(k.clone(), some_or_continue!(v).clone());
+                    match v {
+                        None => {
+                            current_files.remove(k);
+                        }
+                        Some(v) => {
+                            current_files.insert(k.clone(), v.clone());
+                        }
+                    }
                 }
                 if let Some(registry) = &current_diff.registry {
                     current_registry = registry.clone();
@@ -1029,9 +1041,13 @@ impl GameLayout {
     }
 
     fn execute_backup(&mut self, backup: &Backup, scan: &ScanInfo, format: &BackupFormats) -> BackupInfo {
-        let backup_info = match format.chosen {
-            BackupFormat::Simple => self.execute_backup_as_simple(backup, scan),
-            BackupFormat::Zip => self.execute_backup_as_zip(backup, scan, format),
+        let backup_info = if backup.only_inherits_and_overrides() {
+            BackupInfo::default()
+        } else {
+            match format.chosen {
+                BackupFormat::Simple => self.execute_backup_as_simple(backup, scan),
+                BackupFormat::Zip => self.execute_backup_as_zip(backup, scan, format),
+            }
         };
 
         for irrelevant_parent in self.mapping.irrelevant_parents(&self.path) {
@@ -1384,7 +1400,7 @@ mod tests {
         fn can_determine_game_folder_that_does_not_exist_without_rename() {
             assert_eq!(
                 if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup/nonexistent", repo()))
+                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\nonexistent", repo()))
                 } else {
                     StrictPath::new(format!("{}/tests/backup/nonexistent", repo()))
                 },
@@ -1396,7 +1412,7 @@ mod tests {
         fn can_determine_game_folder_that_does_not_exist_with_partial_rename() {
             assert_eq!(
                 if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup/foo_bar", repo()))
+                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\foo_bar", repo()))
                 } else {
                     StrictPath::new(format!("{}/tests/backup/foo_bar", repo()))
                 },
@@ -1408,7 +1424,7 @@ mod tests {
         fn can_determine_game_folder_that_does_not_exist_with_total_rename() {
             assert_eq!(
                 if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup/ludusavi-renamed-Kioq", repo()))
+                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\ludusavi-renamed-Kioq", repo()))
                 } else {
                     StrictPath::new(format!("{}/tests/backup/ludusavi-renamed-Kioq", repo()))
                 },
@@ -1420,7 +1436,7 @@ mod tests {
         fn can_determine_game_folder_by_escaping_dots_at_start_and_end() {
             assert_eq!(
                 if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup/_._", repo()))
+                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\_._", repo()))
                 } else {
                     StrictPath::new(format!("{}/tests/backup/_._", repo()))
                 },
@@ -1720,6 +1736,65 @@ mod tests {
         }
 
         #[test]
+        fn can_plan_backup_when_second_differential() {
+            let scan = ScanInfo {
+                game_name: "game1".to_string(),
+                found_files: hashset! {
+                    ScannedFile::new(format!("{}/tests/root/game1/changed.txt", repo()), 2, "newer"),
+                },
+                found_registry_keys: hashset! {},
+                ..Default::default()
+            };
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                mapping: IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: drives(),
+                    backups: VecDeque::from_iter(vec![FullBackup {
+                        name: ".".to_string(),
+                        when: Some(past()),
+                        files: btreemap! {
+                            StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 3 },
+                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
+                        },
+                        children: vec![DifferentialBackup {
+                            name: format!("backup-{}", now_str()),
+                            when: Some(now()),
+                            files: btreemap! {
+                                StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                                StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => None,
+                                StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
+                                StrictPath::new(format!("{}/tests/root/game1/added.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
+                            },
+                            ..Default::default()
+                        }],
+                        ..Default::default()
+                    }]),
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 2,
+                },
+            };
+            assert_eq!(
+                Some(Backup::Differential(DifferentialBackup {
+                    name: format!("backup-{}", now_str()),
+                    when: Some(now()),
+                    files: btreemap! {
+                        StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => None,
+                        StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "newer".into(), size: 2 }),
+                        StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => None,
+                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
+                    },
+                    ..Default::default()
+                })),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+            );
+        }
+
+        #[test]
         fn can_plan_backup_when_unchanged_since_last_differential() {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
@@ -1760,6 +1835,145 @@ mod tests {
                 },
             };
             assert_eq!(None, layout.plan_backup(&scan, &now(), &BackupFormats::default()));
+        }
+
+        #[test]
+        fn can_plan_backup_when_changed_since_last_differential_but_matches_last_full() {
+            let scan = ScanInfo {
+                game_name: "game1".to_string(),
+                found_files: hashset! {
+                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo()), 1, "old"),
+                },
+                found_registry_keys: hashset! {},
+                ..Default::default()
+            };
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                mapping: IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: drives(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: ".".to_string(),
+                        when: Some(past()),
+                        files: btreemap! {
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                        },
+                        children: vec![DifferentialBackup {
+                            name: format!("backup-{}", past2_str()),
+                            when: Some(past2()),
+                            files: btreemap! {
+                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
+                            },
+                            ..Default::default()
+                        }],
+                        ..Default::default()
+                    }]),
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 2,
+                },
+            };
+            assert_eq!(
+                Some(Backup::Differential(DifferentialBackup {
+                    name: format!("backup-{}", now_str()),
+                    when: Some(now()),
+                    ..Default::default()
+                })),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+            );
+        }
+
+        #[test]
+        fn can_plan_backup_when_differential_ignores_something_from_last_full() {
+            let scan = ScanInfo {
+                game_name: "game1".to_string(),
+                found_files: hashset! {
+                    ScannedFile::new(format!("{}/tests/root/game1/ignore.txt", repo()), 2, "new").ignored(),
+                },
+                found_registry_keys: hashset! {},
+                ..Default::default()
+            };
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                mapping: IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: drives(),
+                    backups: VecDeque::from_iter(vec![FullBackup {
+                        name: ".".to_string(),
+                        when: Some(past()),
+                        files: btreemap! {
+                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
+                        },
+                        ..Default::default()
+                    }]),
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 2,
+                },
+            };
+            assert_eq!(
+                Some(Backup::Differential(DifferentialBackup {
+                    name: format!("backup-{}", now_str()),
+                    when: Some(now()),
+                    files: btreemap! {
+                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
+                    },
+                    ..Default::default()
+                })),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+            );
+        }
+
+        #[test]
+        fn can_plan_backup_when_differential_unignores_something_from_last_differential() {
+            let scan = ScanInfo {
+                game_name: "game1".to_string(),
+                found_files: hashset! {
+                    ScannedFile::new(format!("{}/tests/root/game1/ignore.txt", repo()), 2, "new"),
+                },
+                found_registry_keys: hashset! {},
+                ..Default::default()
+            };
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                mapping: IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: drives(),
+                    backups: VecDeque::from_iter(vec![FullBackup {
+                        name: ".".to_string(),
+                        when: Some(past()),
+                        files: btreemap! {
+                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
+                        },
+                        children: vec![DifferentialBackup {
+                            name: format!("backup-{}", now_str()),
+                            when: Some(now()),
+                            files: btreemap! {
+                                StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
+                            },
+                            ..Default::default()
+                        }],
+                        ..Default::default()
+                    }]),
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 2,
+                },
+            };
+            assert_eq!(
+                Some(Backup::Differential(DifferentialBackup {
+                    name: format!("backup-{}", now_str()),
+                    when: Some(now()),
+                    files: btreemap! {
+                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                    },
+                    ..Default::default()
+                })),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+            );
         }
 
         #[test]
@@ -1867,6 +2081,247 @@ mod tests {
                     ..Default::default()
                 })),
                 layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+            );
+        }
+
+        fn make_path(file: &str) -> StrictPath {
+            StrictPath::new(if cfg!(target_os = "windows") {
+                format!(
+                    "\\\\?\\{}\\tests\\backup\\game1\\{}",
+                    repo().replace('/', "\\"),
+                    file.replace('/', "\\")
+                )
+            } else {
+                format!("{}/tests/backup/game1/{}", repo(), file)
+            })
+        }
+
+        fn make_restorable_path(backup: &str, file: &str) -> StrictPath {
+            StrictPath::relative(
+                format!("{backup}/drive-X/{file}"),
+                Some(if cfg!(target_os = "windows") {
+                    format!("\\\\?\\{}\\tests\\backup\\game1", repo().replace('/', "\\"))
+                } else {
+                    format!("{}/tests/backup/game1", repo())
+                }),
+            )
+        }
+
+        #[test]
+        fn can_report_restorable_files_for_full_backup_in_simple_format() {
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                mapping: IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: hashmap! { "X:".into() => "drive-X".into() },
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "backup-1".into(),
+                        when: Some(past()),
+                        files: btreemap! {
+                            "X:/file1.txt".into() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            "X:/file2.txt".into() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                        },
+                        ..Default::default()
+                    }]),
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 1,
+                },
+            };
+            assert_eq!(
+                hashset! {
+                    ScannedFile {
+                        path: make_restorable_path("backup-1", "file1.txt"),
+                        size: 1,
+                        hash: "old".into(),
+                        original_path: Some(StrictPath::new("X:/file1.txt".into())),
+                        ignored: false,
+                        container: None,
+                    },
+                    ScannedFile {
+                        path: make_restorable_path("backup-1", "file2.txt"),
+                        size: 2,
+                        hash: "old".into(),
+                        original_path: Some(StrictPath::new("X:/file2.txt".into())),
+                        ignored: false,
+                        container: None,
+                    },
+                },
+                layout.restorable_files(&BackupId::Latest),
+            );
+        }
+
+        #[test]
+        fn can_report_restorable_files_for_full_backup_in_zip_format() {
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                mapping: IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: hashmap! { "X:".into() => "drive-X".into() },
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "backup-1.zip".into(),
+                        when: Some(past()),
+                        files: btreemap! {
+                            "X:/file1.txt".into() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            "X:/file2.txt".into() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                        },
+                        ..Default::default()
+                    }]),
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 1,
+                },
+            };
+            assert_eq!(
+                hashset! {
+                    ScannedFile {
+                        path: StrictPath::new("drive-X/file1.txt".into()),
+                        size: 1,
+                        hash: "old".into(),
+                        original_path: Some(StrictPath::new("X:/file1.txt".into())),
+                        ignored: false,
+                        container: Some(make_path("backup-1.zip")),
+                    },
+                    ScannedFile {
+                        path: StrictPath::new("drive-X/file2.txt".into()),
+                        size: 2,
+                        hash: "old".into(),
+                        original_path: Some(StrictPath::new("X:/file2.txt".into())),
+                        ignored: false,
+                        container: Some(make_path("backup-1.zip")),
+                    },
+                },
+                layout.restorable_files(&BackupId::Latest),
+            );
+        }
+
+        #[test]
+        fn can_report_restorable_files_for_differential_backup_in_simple_format() {
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                mapping: IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: hashmap! { "X:".into() => "drive-X".into() },
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "backup-1".into(),
+                        when: Some(past()),
+                        files: btreemap! {
+                            "X:/unchanged.txt".into() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            "X:/changed.txt".into() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            "X:/delete.txt".into() => IndividualMappingFile { hash: "old".into(), size: 3 },
+                        },
+                        children: vec![DifferentialBackup {
+                            name: "backup-2".into(),
+                            when: Some(past2()),
+                            files: btreemap! {
+                                "X:/changed.txt".into() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                                "X:/delete.txt".into() => None,
+                                "X:/added.txt".into() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
+                            },
+                            ..Default::default()
+                        }],
+                        ..Default::default()
+                    }]),
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 1,
+                },
+            };
+            assert_eq!(
+                hashset! {
+                    ScannedFile {
+                        path: make_restorable_path("backup-1", "unchanged.txt"),
+                        size: 1,
+                        hash: "old".into(),
+                        original_path: Some(StrictPath::new("X:/unchanged.txt".into())),
+                        ignored: false,
+                        container: None,
+                    },
+                    ScannedFile {
+                        path: make_restorable_path("backup-2", "changed.txt"),
+                        size: 2,
+                        hash: "new".into(),
+                        original_path: Some(StrictPath::new("X:/changed.txt".into())),
+                        ignored: false,
+                        container: None,
+                    },
+                    ScannedFile {
+                        path: make_restorable_path("backup-2", "added.txt"),
+                        size: 5,
+                        hash: "new".into(),
+                        original_path: Some(StrictPath::new("X:/added.txt".into())),
+                        ignored: false,
+                        container: None,
+                    },
+                },
+                layout.restorable_files(&BackupId::Latest),
+            );
+        }
+
+        #[test]
+        fn can_report_restorable_files_for_differential_backup_in_zip_format() {
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                mapping: IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: hashmap! { "X:".into() => "drive-X".into() },
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "backup-1.zip".into(),
+                        when: Some(past()),
+                        files: btreemap! {
+                            "X:/unchanged.txt".into() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            "X:/changed.txt".into() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            "X:/delete.txt".into() => IndividualMappingFile { hash: "old".into(), size: 3 },
+                        },
+                        children: vec![DifferentialBackup {
+                            name: "backup-2.zip".into(),
+                            when: Some(past2()),
+                            files: btreemap! {
+                                "X:/changed.txt".into() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                                "X:/delete.txt".into() => None,
+                                "X:/added.txt".into() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
+                            },
+                            ..Default::default()
+                        }],
+                        ..Default::default()
+                    }]),
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 1,
+                },
+            };
+            assert_eq!(
+                hashset! {
+                    ScannedFile {
+                        path: StrictPath::new("drive-X/unchanged.txt".into()),
+                        size: 1,
+                        hash: "old".into(),
+                        original_path: Some(StrictPath::new("X:/unchanged.txt".into())),
+                        ignored: false,
+                        container: Some(make_path("backup-1.zip")),
+                    },
+                    ScannedFile {
+                        path: StrictPath::new("drive-X/changed.txt".into()),
+                        size: 2,
+                        hash: "new".into(),
+                        original_path: Some(StrictPath::new("X:/changed.txt".into())),
+                        ignored: false,
+                        container: Some(make_path("backup-2.zip")),
+                    },
+                    ScannedFile {
+                        path: StrictPath::new("drive-X/added.txt".into()),
+                        size: 5,
+                        hash: "new".into(),
+                        original_path: Some(StrictPath::new("X:/added.txt".into())),
+                        ignored: false,
+                        container: Some(make_path("backup-2.zip")),
+                    },
+                },
+                layout.restorable_files(&BackupId::Latest),
             );
         }
     }
