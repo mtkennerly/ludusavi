@@ -1,6 +1,5 @@
 ludusavi = 录读加一
 language = 语言
-language-font-compatibility = 某些语言可能需要自定义字体。
 font = 字体
 cli-backup-target-already-exists = 备份目标已存在于 ( { $path } )。要么选择一个不同的 --path 参数，要么使用 --force 参数删除它。
 cli-unrecognized-games = 没有这些游戏的信息：

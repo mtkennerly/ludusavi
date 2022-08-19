@@ -1,6 +1,5 @@
 ludusavi = Ludusavi
 language = Język
-language-font-compatibility = Niektóre języki mogą wymagać niestandardowej czcionki.
 font = Czcionka
 cli-backup-target-already-exists = Docelowa kopia zapasowa już istnieje ( { $path } ). Wybierz inną ścieżkę --path lub usuń kopię poprzez --force.
 cli-unrecognized-games = Brak informacji dla tych gier:

@@ -1,7 +1,6 @@
 ludusavi = Ludusavi
 
 language = Language
-language-font-compatibility = Some languages may require a custom font.
 font = Font
 
 cli-backup-target-already-exists = The backup target already exists ( {$path} ). Either choose a different --path or delete it with --force.

@@ -1,6 +1,5 @@
 ludusavi = Ludusavi
 language = Wika
-language-font-compatibility = Some languages may require a custom font.
 font = Font
 cli-backup-target-already-exists = Mayroon siyang backup target ( { $path } ). Pumili ng ibang --path o tanggalin ito gamit ang --force.
 cli-unrecognized-games = Wala pang impormasyon para sa mga games na ito:

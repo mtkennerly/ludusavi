@@ -1,6 +1,5 @@
 ludusavi = Ludusavi
 language = Lingua
-language-font-compatibility = Alcune lingue potrebbero richiedere un font personalizzato.
 font = Font
 cli-backup-target-already-exists = Il target di backup esiste già ( { $path } ). Scegli un altro --path o eliminalo con --force.
 cli-unrecognized-games = Nessuna informazione per questi giochi:
