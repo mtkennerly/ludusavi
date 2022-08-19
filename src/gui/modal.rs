@@ -102,7 +102,6 @@ impl ModalComponent {
 
         Container::new(
             Column::new()
-                .padding(5)
                 .width(Length::Fill)
                 .align_items(Alignment::Center)
                 .push(
