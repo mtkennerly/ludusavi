@@ -78,6 +78,10 @@
   * The app window's minimum size has increased from 640x480 to 800x600.
     It may be returned to 640x480 in the future, but there are currently
     some limitations that make it look poor at that size.
+  * GUI: Previously, the overall game/size numbers would stay at the values
+    from the last scan, and if you started (de)selecting games, then a separate
+    badge would show the game/size totals for the new selection. Now, the main
+    numbers update progressively and the badge has been removed.
 
 ## v0.10.0 (2021-03-12)
 

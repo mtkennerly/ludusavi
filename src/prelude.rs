@@ -633,7 +633,7 @@ pub fn scan_game_for_backup(
         path: StrictPath::new(SKIP.to_string()),
         store: Store::Other,
     }];
-    roots_to_check.extend(roots.iter().cloned());
+    roots_to_check.extend(roots.iter().flat_map(|x| x.glob()));
 
     if let Some(wp) = wine_prefix {
         roots_to_check.push(RootsConfig {
@@ -650,7 +650,7 @@ pub fn scan_game_for_backup(
         ));
     }
 
-    for root in roots_to_check.iter().flat_map(|x| x.glob()) {
+    for root in roots_to_check {
         if root.path.raw().trim().is_empty() {
             continue;
         }
