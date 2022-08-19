@@ -15,6 +15,9 @@ mod shortcuts;
 #[cfg(target_os = "windows")]
 mod registry;
 
+#[cfg(test)]
+mod testing;
+
 fn main() {
     prelude::migrate_legacy_config();
 

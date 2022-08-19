@@ -1045,6 +1045,7 @@ pub fn fuzzy_match(
     None
 }
 
+#[cfg(target_os = "windows")]
 pub fn sha1(content: String) -> String {
     use sha1::Digest;
     let mut hasher = sha1::Sha1::new();
@@ -1054,14 +1055,17 @@ pub fn sha1(content: String) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::VecDeque;
+
     use super::*;
     use crate::config::{Config, Retention};
-    use crate::layout::{BackupLayout, FullBackup, IndividualMappingFile, IndividualMappingRegistry};
+    use crate::layout::{
+        BackupLayout, FullBackup, IndividualMapping, IndividualMappingFile, IndividualMappingRegistry,
+    };
     use crate::manifest::Manifest;
+    use crate::testing::*;
     use maplit::*;
     use pretty_assertions::assert_eq;
-
-    const EMPTY_HASH: &str = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
 
     #[test]
     fn fuzzy_matching() {
@@ -1642,31 +1646,51 @@ mod tests {
         }
     }
 
+    fn restorable_file_simple(backup: &str, file: &str) -> StrictPath {
+        StrictPath::relative(
+            format!(
+                "{backup}/drive-{}/{file}",
+                if cfg!(target_os = "windows") { "X" } else { "0" }
+            ),
+            Some(if cfg!(target_os = "windows") {
+                format!("\\\\?\\{}\\tests\\backup\\game1", repo().replace('/', "\\"))
+            } else {
+                format!("{}/tests/backup/game1", repo())
+            }),
+        )
+    }
+
     #[test]
     fn can_scan_game_for_restoration_with_files() {
-        let layout = BackupLayout::new(
-            StrictPath::new(format!("{}/tests/backup", repo())),
-            Retention::default(),
+        let mut layout = GameLayout::new(
+            StrictPath::new(format!("{}/tests/backup/game1", repo())),
+            IndividualMapping {
+                name: "game1".to_string(),
+                drives: drives_x(),
+                backups: VecDeque::from(vec![FullBackup {
+                    name: ".".into(),
+                    when: Some(now()),
+                    files: btreemap! {
+                        mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                        mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                    },
+                    ..Default::default()
+                }]),
+            },
+            Retention {
+                full: 1,
+                differential: 1,
+            },
         );
-        let make_path = |x| {
-            StrictPath::relative(
-                format!("./drive-X/{x}"),
-                Some(if cfg!(target_os = "windows") {
-                    format!("\\\\?\\{}\\tests\\backup\\game1", repo().replace('/', "\\"))
-                } else {
-                    format!("{}/tests/backup/game1", repo())
-                }),
-            )
-        };
         let backups = vec![Backup::Full(FullBackup {
             name: ".".to_string(),
             when: Some(now()),
             files: btreemap! {
-                "X:/file1.txt".into() => IndividualMappingFile {
+                mapping_file_key("/file1.txt") => IndividualMappingFile {
                     hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
                     size: 1,
                 },
-                "X:/file2.txt".into() => IndividualMappingFile {
+                mapping_file_key("/file2.txt") => IndividualMappingFile {
                     hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
                     size: 2,
                 },
@@ -1679,18 +1703,18 @@ mod tests {
                 game_name: s("game1"),
                 found_files: hashset! {
                     ScannedFile {
-                        path: make_path("file1.txt"),
+                        path: restorable_file_simple(".", "file1.txt"),
                         size: 1,
                         hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
-                        original_path: Some(StrictPath::new("X:/file1.txt".into())),
+                        original_path: Some(make_original_path("/file1.txt")),
                         ignored: false,
                         container: None,
                     },
                     ScannedFile {
-                        path: make_path("file2.txt"),
+                        path: restorable_file_simple(".", "file2.txt"),
                         size: 2,
                         hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
-                        original_path: Some(StrictPath::new("X:/file2.txt".into())),
+                        original_path: Some(make_original_path("/file2.txt")),
                         ignored: false,
                         container: None,
                     },
@@ -1699,11 +1723,12 @@ mod tests {
                 backup: Some(backups[0].clone()),
                 ..Default::default()
             },
-            scan_game_for_restoration("game1", &BackupId::Latest, &mut layout.game_layout("game1")),
+            scan_game_for_restoration("game1", &BackupId::Latest, &mut layout),
         );
     }
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn can_scan_game_for_restoration_with_registry() {
         let layout = BackupLayout::new(
             StrictPath::new(format!("{}/tests/backup", repo())),

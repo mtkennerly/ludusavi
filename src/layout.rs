@@ -104,6 +104,7 @@ impl Backup {
         }
     }
 
+    #[cfg(target_os = "windows")]
     pub fn includes_registry(&self) -> bool {
         match self {
             Self::Full(backup) => backup.registry.hash.is_some(),
@@ -411,6 +412,15 @@ pub struct GameLayout {
 }
 
 impl GameLayout {
+    #[cfg(test)]
+    pub fn new(path: StrictPath, mapping: IndividualMapping, retention: Retention) -> Self {
+        Self {
+            path,
+            mapping,
+            retention,
+        }
+    }
+
     pub fn load(path: StrictPath, retention: Retention) -> Result<Self, ()> {
         let mapping = Self::mapping_file(&path);
         Ok(Self {
@@ -1071,6 +1081,7 @@ impl GameLayout {
         }
 
         let mut files = BTreeMap::new();
+        #[allow(unused_mut)]
         let mut registry = IndividualMappingRegistry::default();
 
         for file in self.restorable_files_in_simple(&backup.name) {
@@ -1330,6 +1341,7 @@ impl BackupLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::*;
     use maplit::*;
 
     fn repo() -> String {
@@ -2098,12 +2110,22 @@ mod tests {
 
         fn make_restorable_path(backup: &str, file: &str) -> StrictPath {
             StrictPath::relative(
-                format!("{backup}/drive-X/{file}"),
+                format!(
+                    "{backup}/drive-{}/{file}",
+                    if cfg!(target_os = "windows") { "X" } else { "0" }
+                ),
                 Some(if cfg!(target_os = "windows") {
                     format!("\\\\?\\{}\\tests\\backup\\game1", repo().replace('/', "\\"))
                 } else {
                     format!("{}/tests/backup/game1", repo())
                 }),
+            )
+        }
+
+        fn make_restorable_path_zip(file: &str) -> StrictPath {
+            StrictPath::relative(
+                format!("drive-{}/{file}", if cfg!(target_os = "windows") { "X" } else { "0" }),
+                None,
             )
         }
 
@@ -2113,13 +2135,13 @@ mod tests {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
-                    drives: hashmap! { "X:".into() => "drive-X".into() },
+                    drives: drives_x(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1".into(),
                         when: Some(past()),
                         files: btreemap! {
-                            "X:/file1.txt".into() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            "X:/file2.txt".into() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -2135,7 +2157,7 @@ mod tests {
                         path: make_restorable_path("backup-1", "file1.txt"),
                         size: 1,
                         hash: "old".into(),
-                        original_path: Some(StrictPath::new("X:/file1.txt".into())),
+                        original_path: Some(make_original_path("/file1.txt")),
                         ignored: false,
                         container: None,
                     },
@@ -2143,7 +2165,7 @@ mod tests {
                         path: make_restorable_path("backup-1", "file2.txt"),
                         size: 2,
                         hash: "old".into(),
-                        original_path: Some(StrictPath::new("X:/file2.txt".into())),
+                        original_path: Some(make_original_path("/file2.txt")),
                         ignored: false,
                         container: None,
                     },
@@ -2158,13 +2180,13 @@ mod tests {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
-                    drives: hashmap! { "X:".into() => "drive-X".into() },
+                    drives: drives_x(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1.zip".into(),
                         when: Some(past()),
                         files: btreemap! {
-                            "X:/file1.txt".into() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            "X:/file2.txt".into() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -2177,18 +2199,18 @@ mod tests {
             assert_eq!(
                 hashset! {
                     ScannedFile {
-                        path: StrictPath::new("drive-X/file1.txt".into()),
+                        path: make_restorable_path_zip("file1.txt".into()),
                         size: 1,
                         hash: "old".into(),
-                        original_path: Some(StrictPath::new("X:/file1.txt".into())),
+                        original_path: Some(make_original_path("/file1.txt")),
                         ignored: false,
                         container: Some(make_path("backup-1.zip")),
                     },
                     ScannedFile {
-                        path: StrictPath::new("drive-X/file2.txt".into()),
+                        path: make_restorable_path_zip("file2.txt".into()),
                         size: 2,
                         hash: "old".into(),
-                        original_path: Some(StrictPath::new("X:/file2.txt".into())),
+                        original_path: Some(make_original_path("/file2.txt")),
                         ignored: false,
                         container: Some(make_path("backup-1.zip")),
                     },
@@ -2203,22 +2225,22 @@ mod tests {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
-                    drives: hashmap! { "X:".into() => "drive-X".into() },
+                    drives: drives_x(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1".into(),
                         when: Some(past()),
                         files: btreemap! {
-                            "X:/unchanged.txt".into() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            "X:/changed.txt".into() => IndividualMappingFile { hash: "old".into(), size: 2 },
-                            "X:/delete.txt".into() => IndividualMappingFile { hash: "old".into(), size: 3 },
+                            mapping_file_key("/unchanged.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            mapping_file_key("/delete.txt") => IndividualMappingFile { hash: "old".into(), size: 3 },
                         },
                         children: vec![DifferentialBackup {
                             name: "backup-2".into(),
                             when: Some(past2()),
                             files: btreemap! {
-                                "X:/changed.txt".into() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
-                                "X:/delete.txt".into() => None,
-                                "X:/added.txt".into() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
+                                mapping_file_key("/changed.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                                mapping_file_key("/delete.txt") => None,
+                                mapping_file_key("/added.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                             },
                             ..Default::default()
                         }],
@@ -2236,7 +2258,7 @@ mod tests {
                         path: make_restorable_path("backup-1", "unchanged.txt"),
                         size: 1,
                         hash: "old".into(),
-                        original_path: Some(StrictPath::new("X:/unchanged.txt".into())),
+                        original_path: Some(make_original_path("/unchanged.txt")),
                         ignored: false,
                         container: None,
                     },
@@ -2244,7 +2266,7 @@ mod tests {
                         path: make_restorable_path("backup-2", "changed.txt"),
                         size: 2,
                         hash: "new".into(),
-                        original_path: Some(StrictPath::new("X:/changed.txt".into())),
+                        original_path: Some(make_original_path("/changed.txt")),
                         ignored: false,
                         container: None,
                     },
@@ -2252,7 +2274,7 @@ mod tests {
                         path: make_restorable_path("backup-2", "added.txt"),
                         size: 5,
                         hash: "new".into(),
-                        original_path: Some(StrictPath::new("X:/added.txt".into())),
+                        original_path: Some(make_original_path("/added.txt")),
                         ignored: false,
                         container: None,
                     },
@@ -2267,22 +2289,22 @@ mod tests {
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
-                    drives: hashmap! { "X:".into() => "drive-X".into() },
+                    drives: drives_x(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1.zip".into(),
                         when: Some(past()),
                         files: btreemap! {
-                            "X:/unchanged.txt".into() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            "X:/changed.txt".into() => IndividualMappingFile { hash: "old".into(), size: 2 },
-                            "X:/delete.txt".into() => IndividualMappingFile { hash: "old".into(), size: 3 },
+                            mapping_file_key("/unchanged.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            mapping_file_key("/delete.txt") => IndividualMappingFile { hash: "old".into(), size: 3 },
                         },
                         children: vec![DifferentialBackup {
                             name: "backup-2.zip".into(),
                             when: Some(past2()),
                             files: btreemap! {
-                                "X:/changed.txt".into() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
-                                "X:/delete.txt".into() => None,
-                                "X:/added.txt".into() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
+                                mapping_file_key("/changed.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                                mapping_file_key("/delete.txt") => None,
+                                mapping_file_key("/added.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                             },
                             ..Default::default()
                         }],
@@ -2297,26 +2319,26 @@ mod tests {
             assert_eq!(
                 hashset! {
                     ScannedFile {
-                        path: StrictPath::new("drive-X/unchanged.txt".into()),
+                        path: make_restorable_path_zip("unchanged.txt"),
                         size: 1,
                         hash: "old".into(),
-                        original_path: Some(StrictPath::new("X:/unchanged.txt".into())),
+                        original_path: Some(make_original_path("/unchanged.txt")),
                         ignored: false,
                         container: Some(make_path("backup-1.zip")),
                     },
                     ScannedFile {
-                        path: StrictPath::new("drive-X/changed.txt".into()),
+                        path: make_restorable_path_zip("changed.txt".into()),
                         size: 2,
                         hash: "new".into(),
-                        original_path: Some(StrictPath::new("X:/changed.txt".into())),
+                        original_path: Some(make_original_path("/changed.txt")),
                         ignored: false,
                         container: Some(make_path("backup-2.zip")),
                     },
                     ScannedFile {
-                        path: StrictPath::new("drive-X/added.txt".into()),
+                        path: make_restorable_path_zip("added.txt".into()),
                         size: 5,
                         hash: "new".into(),
-                        original_path: Some(StrictPath::new("X:/added.txt".into())),
+                        original_path: Some(make_original_path("/added.txt")),
                         ignored: false,
                         container: Some(make_path("backup-2.zip")),
                     },

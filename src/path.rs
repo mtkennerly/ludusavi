@@ -91,6 +91,7 @@ fn interpret<P: Into<String>>(path: P, basis: &Option<String>) -> String {
     if normalized.is_empty() {
         return normalized;
     }
+
     let absolutized = if std::path::Path::new(&normalized).is_absolute() {
         normalized
     } else {
