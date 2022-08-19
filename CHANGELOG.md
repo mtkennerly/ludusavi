@@ -82,6 +82,10 @@
     from the last scan, and if you started (de)selecting games, then a separate
     badge would show the game/size totals for the new selection. Now, the main
     numbers update progressively and the badge has been removed.
+  * GUI: When you launch the program, if the config file is invalid, it gets
+    reset with a default copy. Previously, this would delete the invalid copy
+    without any means of getting it back. Now, the invalid copy is renamed to
+    `config.invalid.yaml` in case you would like to inspect/fix it.
 
 ## v0.10.0 (2021-03-12)
 

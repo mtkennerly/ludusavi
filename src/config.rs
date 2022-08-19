@@ -288,6 +288,12 @@ impl Config {
         path
     }
 
+    fn file_archived_invalid() -> std::path::PathBuf {
+        let mut path = app_dir();
+        path.push("config.invalid.yaml");
+        path
+    }
+
     pub fn save(&self) {
         let new_content = serde_yaml::to_string(&self).unwrap();
 
@@ -315,6 +321,11 @@ impl Config {
 
     pub fn load_from_string(content: &str) -> Result<Self, Error> {
         serde_yaml::from_str(content).map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
+    }
+
+    pub fn archive_invalid() -> Result<(), Box<dyn std::error::Error>> {
+        std::fs::rename(&Self::file(), &Self::file_archived_invalid())?;
+        Ok(())
     }
 
     pub fn find_missing_roots(&self) -> Vec<RootsConfig> {

@@ -288,6 +288,7 @@ impl Application for App {
             Ok(x) => x,
             Err(x) => {
                 modal_theme = Some(ModalTheme::Error { variant: x });
+                let _ = Config::archive_invalid();
                 Config::default()
             }
         };
