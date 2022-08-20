@@ -457,9 +457,9 @@ cross-platform and cross-store solution:
   * No command line interface.
 * [Game Backup Monitor](https://mikemaximus.github.io/gbm-web) (as of v1.2.2):
   * Does not support Mac.
-  * Database only covers 479 games (as of 2020-09-30).
+  * Database only covers 479 games (as of 2020-09-30), although it can also import
+    the Ludusavi manifest starting in 1.3.1.
   * No command line interface.
-  * Can compress and keep multiple copies of saves (not currently supported by Ludusavi).
   * Can automatically back up saves for a game after you play it
     (Ludusavi can only do that in conjunction with a launcher like Playnite).
 

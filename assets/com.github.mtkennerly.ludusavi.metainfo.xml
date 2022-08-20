@@ -23,12 +23,8 @@
     </description>
     <screenshots>
         <screenshot type="default">
-            <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.10.0%2Bflatpak2/docs/demo-gui.png</image>
+            <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.11.0/docs/sample-gui-linux.png</image>
             <caption>Graphical user interface</caption>
-        </screenshot>
-        <screenshot>
-            <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.10.0%2Bflatpak2/docs/demo-cli.png</image>
-            <caption>Command line interface</caption>
         </screenshot>
     </screenshots>
     <content_rating type="oars-1.1" />
