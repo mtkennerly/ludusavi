@@ -1,6 +1,11 @@
 ludusavi = Ludusavi
 language = اللغة
 font = الخط
+game-name = Name
+total-games = Games
+file-size = Size
+file-location = Location
+overall = Overall
 cli-backup-target-already-exists = النسخ الإحتياطي موجود بالفعل ( { $path } ) إما أن تختار مسارا مختلفا أو تحذفه باستخدام --force.
 cli-unrecognized-games = لا توجد معلومات عن هذه الألعاب:
 cli-confirm-restoration = هل تريد الاستعادة من { $path }؟
@@ -13,17 +18,6 @@ badge-ignored = تجاهل
 badge-redirected-from = من: { $path }
 some-entries-failed = فشلت بعض الإدخالات في المعالجة؛ ابحث عن { badge-failed } في الإخراج للحصول على التفاصيل. تحقق مرة أخرى مما إذا كان يمكنك الوصول إلى هذه الملفات أو ما إذا كانت مساراتها طويلة جدا.
 cli-game-line-item-redirected = أعيد توجيهه من: { $path }
-cli-summary =
-    .succeeded =
-        عموما:
-        الألعاب: { $processed-games }
-        الحجم: { $processed-size }
-        الموقع: { $path }
-    .failed =
-        عموما:
-        الألعاب: { $processed-games } من اصل { $total-games }
-        الحجم: { $processed-size } من اصل { $total-size }
-        الموقع: { $path }
 button-backup = النسخ الاحتياطي
 button-preview = معاينة
 button-restore = استعادة
@@ -75,10 +69,6 @@ field-redirect-source =
     .placeholder = Source (original location)
 field-redirect-target =
     .placeholder = Target (new location)
-field-custom-game-name =
-    .placeholder = Name
-field-search-game-name =
-    .placeholder = Name
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
@@ -122,21 +112,13 @@ consider-doing-a-preview =
     are no surprises.
 confirm-backup =
     Are you sure you want to proceed with the backup? { $path-action ->
-        [merge] New save data will be merged into the target folder
-        [recreate] The target folder will be deleted and recreated from scratch
-       *[create] The target folder will be created
-    }:
-
-    { $path }
-
-    { consider-doing-a-preview }
+        [merge] New save data will be merged into the target folder:
+        [recreate] The target folder will be deleted and recreated from scratch:
+       *[create] The target folder will be created:
+    }
 confirm-restore =
     Are you sure you want to proceed with the restoration?
     This will overwrite any current files with the backups from here:
-
-    { $path }
-
-    { consider-doing-a-preview }
 confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 preparing-backup-target = Preparing backup directory...

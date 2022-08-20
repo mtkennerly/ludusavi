@@ -1,6 +1,11 @@
 ludusavi = Ludusavi
 language = Wika
 font = Font
+game-name = Pamagat
+total-games = Games
+file-size = Sukat
+file-location = Lokasyon
+overall = Buod
 cli-backup-target-already-exists = Mayroon siyang backup target ( { $path } ). Pumili ng ibang --path o tanggalin ito gamit ang --force.
 cli-unrecognized-games = Wala pang impormasyon para sa mga games na ito:
 cli-confirm-restoration = Gusto mo bang i-restore sa { $path }?
@@ -13,17 +18,6 @@ badge-ignored = DEDMA
 badge-redirected-from = MULA SA: { $path }
 some-entries-failed = Mayroon mali sa proseso; hanapin mo ng { badge-failed } sa output. Paki-tiyak kung kaya mong buksan ang mga files o kung masyado mahaba ang mga paths.
 cli-game-line-item-redirected = Na-redirect mula sa: { $path }
-cli-summary =
-    .succeeded =
-        Buod:
-          Games: { $processed-games }
-          Sukat: { $processed-size }
-          Lokasyon: { $path }
-    .failed =
-        Buod:
-          Games: { $processed-games } sa { $total-games }
-          Sukat: { $processed-size } sa { $total-size }
-          Lokasyon: { $path }
 button-backup = Back up
 button-preview = Preview
 button-restore = Restore
@@ -75,10 +69,6 @@ field-redirect-source =
     .placeholder = Source (orihinal na lokasyon)
 field-redirect-target =
     .placeholder = Target (bagong lokasyon)
-field-custom-game-name =
-    .placeholder = Pamagat
-field-search-game-name =
-    .placeholder = Pamagat
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
@@ -95,7 +85,7 @@ store-uplay = Uplay
 store-other-home = Home folder
 store-other-wine = Wine prefix
 store-other = Other
-sort-name = Name
+sort-name = Pamagat
 sort-size = Size
 sort-reversed = Reversed
 backup-format-simple = Simple
@@ -116,21 +106,13 @@ consider-doing-a-preview =
     are no surprises.
 confirm-backup =
     Are you sure you want to proceed with the backup? { $path-action ->
-        [merge] New save data will be merged into the target folder
-        [recreate] The target folder will be deleted and recreated from scratch
-       *[create] The target folder will be created
-    }:
-
-    { $path }
-
-    { consider-doing-a-preview }
+        [merge] New save data will be merged into the target folder:
+        [recreate] The target folder will be deleted and recreated from scratch:
+       *[create] The target folder will be created:
+    }
 confirm-restore =
     Are you sure you want to proceed with the restoration?
     This will overwrite any current files with the backups from here:
-
-    { $path }
-
-    { consider-doing-a-preview }
 confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 preparing-backup-target = Preparing backup directory...

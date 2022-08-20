@@ -1268,8 +1268,8 @@ foo [100.00 KiB]:
   - HKEY_CURRENT_USER/Key2
 
 Overall:
-  Games: 1 of 1
-  Size: 100.00 KiB of 150.00 KiB
+  Games: 1
+  Size: 100.00 KiB / 150.00 KiB
   Location: <drive>/dev/null
                 "#
                 .trim()

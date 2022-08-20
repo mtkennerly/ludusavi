@@ -1,6 +1,11 @@
 ludusavi = Ludusavi
 language = Język
 font = Czcionka
+game-name = Nazwa
+total-games = Gry
+file-size = Rozmiar
+file-location = Lokalizacja
+overall = W sumie
 cli-backup-target-already-exists = Docelowa kopia zapasowa już istnieje ( { $path } ). Wybierz inną ścieżkę --path lub usuń kopię poprzez --force.
 cli-unrecognized-games = Brak informacji dla tych gier:
 cli-confirm-restoration = Czy chcesz przywrócić z { $path }?
@@ -13,17 +18,6 @@ badge-ignored = ZIGNOROWANE
 badge-redirected-from = Z: { $path }
 some-entries-failed = Błąd przetwarzania niektórych elementów; sprawdź { badge-failed } w anych wyjściowych po więcej szczegółów. Upewnij się, że masz dostęp do tych plików oraz, czy ich ścieżki są zbyt długie.
 cli-game-line-item-redirected = Przekierowano z: { $path }
-cli-summary =
-    .succeeded =
-        W sumie:
-          Gry: { $processed-games }
-          Rozmiar: { $processed-size }
-          Lokalizacja: { $path }
-    .failed =
-        W sumie:
-          Gry: { $processed-games } z { $total-games }
-          Rozmiar: { $processed-size } z { $total-size }
-          Lokalizacja: { $path }
 button-backup = Utwórz kopię
 button-preview = Podgląd
 button-restore = Przywróć
@@ -75,10 +69,6 @@ field-redirect-source =
     .placeholder = Źródło (oryginalna lokalizacja)
 field-redirect-target =
     .placeholder = Cel (nowa lokalizacja)
-field-custom-game-name =
-    .placeholder = Nazwa
-field-search-game-name =
-    .placeholder = Nazwa
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
@@ -95,7 +85,7 @@ store-uplay = Uplay
 store-other-home = Folder główny
 store-other-wine = Prefiks Wine
 store-other = Pozostałe
-sort-name = Name
+sort-name = Nazwa
 sort-size = Size
 sort-reversed = Reversed
 backup-format-simple = Simple
@@ -110,21 +100,13 @@ explanation-for-exclude-store-screenshots = Nie zawieraj w kopiach zapasowych zr
 consider-doing-a-preview = Jeśli jeszcze tego nie zrobiono, rozważ wykonanie pierwszego testu, aby zobaczyć, czy wszystko działa.
 confirm-backup =
     Czy na pewno chcesz kontynuować z kopią zapasową? { $path-action ->
-        [merge] Nowe dane zapisu zostaną scalone z folderem docelowym
-        [recreate] Folder docelowy zostanie usunięty i odtworzony od zera
-       *[create] Folder docelowy zostanie utworzony
-    }:
-
-    { $path }
-
-    { consider-doing-a-preview }
+        [merge] Nowe dane zapisu zostaną scalone z folderem docelowym:
+        [recreate] Folder docelowy zostanie usunięty i odtworzony od zera:
+       *[create] Folder docelowy zostanie utworzony:
+    }
 confirm-restore =
     Czy na pewno chcesz kontynuować przywracanie?
     Jakiekolwiek bieżące pliki z kopią zapasową zostaną zastąpione:
-
-    { $path }
-
-    { consider-doing-a-preview }
 confirm-add-missing-roots = Czy to są katalogi główne?
 no-missing-roots = Nie znaleziono więcej katalogów głównych.
 preparing-backup-target = Preparing backup directory...

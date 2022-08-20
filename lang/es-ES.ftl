@@ -1,6 +1,11 @@
 ludusavi = Ludusavi
 language = Idioma
 font = Fuente
+game-name = Nombre
+total-games = Juegos
+file-size = Tamaño
+file-location = Ubicación
+overall = Global
 cli-backup-target-already-exists = El objetivo de la copia de seguridad ya existe ( { $path } ). Elija un --path diferente o borre con --force.
 cli-unrecognized-games = No hay información para estos juegos:
 cli-confirm-restoration = ¿Quieres restaurar desde { $path }?
@@ -13,17 +18,6 @@ badge-ignored = IGNORADO
 badge-redirected-from = DESDE: { $path }
 some-entries-failed = Algunas entradas no se han podido procesar; busca { badge-failed } en la salida para ver los detalles. Comprueba si puedes acceder a esos archivos o si sus rutas son muy largas.
 cli-game-line-item-redirected = Redirigido de: { $path }
-cli-summary =
-    .succeeded =
-        Global:
-          Juegos: { $processed-games }
-          Tamaño: { $processed-size }
-          Ubicación: { $path }
-    .failed =
-        Global:
-          Juegos: { $processed-games } de { $total-games }
-          Tamaño: { $processed-size } de { $total-size }
-          Ubicación: { $path }
 button-backup = Respaldar
 button-preview = Previsualizar
 button-restore = Restaurar
@@ -75,10 +69,6 @@ field-redirect-source =
     .placeholder = Origen (ubicación original)
 field-redirect-target =
     .placeholder = Destino (nueva ubicación)
-field-custom-game-name =
-    .placeholder = Nombre
-field-search-game-name =
-    .placeholder = Nombre
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
@@ -95,7 +85,7 @@ store-uplay = Uplay
 store-other-home = Carpeta Home
 store-other-wine = Prefijo de Wine
 store-other = Otro
-sort-name = Name
+sort-name = Nombre
 sort-size = Size
 sort-reversed = Reversed
 backup-format-simple = Simple
@@ -118,21 +108,13 @@ consider-doing-a-preview =
     no haya sorpresas.
 confirm-backup =
     ¿Estás seguro de que quieres proceder con la copia de seguridad? { $path-action ->
-        [merge] Los nuevos datos guardados se combinaran en la carpeta de destino
-        [recreate] La carpeta de destino será eliminada y recreada desde cero
-       *[create] Se creará la carpeta de destino
-    }:
-
-    { $path }
-
-    { consider-doing-a-preview }
+        [merge] Los nuevos datos guardados se combinaran en la carpeta de destino:
+        [recreate] La carpeta de destino será eliminada y recreada desde cero:
+       *[create] Se creará la carpeta de destino:
+    }
 confirm-restore =
     ¿Estás seguro de que deseas continuar con la restauración?
     Esto sobrescribirá cualquier archivo actual con las copias de seguridad desde aquí:
-
-    { $path }
-
-    { consider-doing-a-preview }
 confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 preparing-backup-target = Preparing backup directory...

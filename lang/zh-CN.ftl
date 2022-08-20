@@ -1,6 +1,11 @@
 ludusavi = 录读加一
 language = 语言
 font = 字体
+game-name = Name
+total-games = 游戏
+file-size = 大小
+file-location = 位置
+overall = 总体
 cli-backup-target-already-exists = 备份目标已存在于 ( { $path } )。要么选择一个不同的 --path 参数，要么使用 --force 参数删除它。
 cli-unrecognized-games = 没有这些游戏的信息：
 cli-confirm-restoration = 您想从 { $path } 恢复吗？
@@ -13,17 +18,6 @@ badge-ignored = 已忽略
 badge-redirected-from = 来自：{ $path }
 some-entries-failed = 有些条目无法处理；详情请参阅输出中的 { badge-failed }。请仔细检查您是否可以访问这些文件，或者它们的路径是否太长。
 cli-game-line-item-redirected = 重定向自：{ $path }
-cli-summary =
-    .succeeded =
-        总体：
-          游戏：{ $processed-games }
-          大小：{ $processed-size }
-          位置：{ $path }
-    .failed =
-        总体：
-          游戏：{ $processed-games }，共 { $total-games }
-          大小：{ $processed-size }，共 { $total-size }
-          位置：{ $path }
 button-backup = 备份
 button-preview = 预览
 button-restore = 恢复
@@ -67,10 +61,6 @@ field-redirect-source =
     .placeholder = Source (original location)
 field-redirect-target =
     .placeholder = Target (new location)
-field-custom-game-name =
-    .placeholder = Name
-field-search-game-name =
-    .placeholder = Name
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
@@ -114,21 +104,13 @@ consider-doing-a-preview =
     are no surprises.
 confirm-backup =
     Are you sure you want to proceed with the backup? { $path-action ->
-        [merge] New save data will be merged into the target folder
-        [recreate] The target folder will be deleted and recreated from scratch
-       *[create] The target folder will be created
-    }:
-
-    { $path }
-
-    { consider-doing-a-preview }
+        [merge] New save data will be merged into the target folder:
+        [recreate] The target folder will be deleted and recreated from scratch:
+       *[create] The target folder will be created:
+    }
 confirm-restore =
     Are you sure you want to proceed with the restoration?
     This will overwrite any current files with the backups from here:
-
-    { $path }
-
-    { consider-doing-a-preview }
 confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 preparing-backup-target = Preparing backup directory...

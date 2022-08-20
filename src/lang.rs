@@ -337,18 +337,28 @@ impl Translator {
     }
 
     pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {
-        let mut args = FluentArgs::new();
-        args.set(PATH, location.render());
-        args.set(TOTAL_GAMES, status.total_games);
-        args.set(PROCESSED_GAMES, status.processed_games);
-        args.set(TOTAL_SIZE, self.adjusted_size(status.total_bytes));
-        args.set(PROCESSED_SIZE, self.adjusted_size(status.processed_bytes));
-
-        if status.processed_all() {
-            translate_args("cli-summary.succeeded", &args)
-        } else {
-            translate_args("cli-summary.failed", &args)
-        }
+        format!(
+            "{}:\n  {}: {}\n  {}: {}\n  {}: {}",
+            translate("overall"),
+            translate("total-games"),
+            if status.processed_all_games() {
+                status.processed_games.to_string()
+            } else {
+                format!("{} / {}", status.processed_games, status.total_games)
+            },
+            translate("file-size"),
+            if status.processed_all_bytes() {
+                self.adjusted_size(status.processed_bytes)
+            } else {
+                format!(
+                    "{} / {}",
+                    self.adjusted_size(status.processed_bytes),
+                    self.adjusted_size(status.total_bytes)
+                )
+            },
+            translate("file-location"),
+            location.render(),
+        )
     }
 
     pub fn backup_button(&self) -> String {
@@ -606,11 +616,11 @@ impl Translator {
     }
 
     pub fn custom_game_name_placeholder(&self) -> String {
-        translate("field-custom-game-name.placeholder")
+        translate("game-name")
     }
 
     pub fn search_game_name_placeholder(&self) -> String {
-        translate("field-search-game-name.placeholder")
+        translate("game-name")
     }
 
     pub fn explanation_for_exclude_other_os_data(&self) -> String {
@@ -641,9 +651,12 @@ impl Translator {
         translate("field-backup-compression")
     }
 
+    fn consider_doing_a_preview(&self) -> String {
+        translate("consider-doing-a-preview")
+    }
+
     pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool) -> String {
         let mut args = FluentArgs::new();
-        args.set(PATH, target.render());
         args.set(
             PATH_ACTION,
             match (target_exists, merge) {
@@ -652,12 +665,20 @@ impl Translator {
                 (true, true) => "merge",
             },
         );
-        translate_args("confirm-backup", &args)
+        format!(
+            "{}\n\n{}\n\n{}",
+            translate_args("confirm-backup", &args),
+            target.render(),
+            self.consider_doing_a_preview(),
+        )
     }
 
     pub fn modal_confirm_restore(&self, source: &StrictPath) -> String {
-        let mut args = FluentArgs::new();
-        args.set(PATH, source.render());
-        translate_args("confirm-restore", &args)
+        format!(
+            "{}\n\n{}\n\n{}",
+            translate("confirm-restore"),
+            source.render(),
+            self.consider_doing_a_preview(),
+        )
     }
 }

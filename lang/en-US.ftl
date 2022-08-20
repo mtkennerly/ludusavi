@@ -2,6 +2,11 @@ ludusavi = Ludusavi
 
 language = Language
 font = Font
+game-name = Name
+total-games = Games
+file-size = Size
+file-location = Location
+overall = Overall
 
 cli-backup-target-already-exists = The backup target already exists ( {$path} ). Either choose a different --path or delete it with --force.
 cli-unrecognized-games = No info for these games:
@@ -18,17 +23,6 @@ badge-redirected-from = FROM: {$path}
 some-entries-failed = Some entries failed to process; look for {badge-failed} in the output for details. Double check whether you can access those files or whether their paths are very long.
 
 cli-game-line-item-redirected = Redirected from: {$path}
-cli-summary =
-    .succeeded =
-        Overall:
-          Games: {$processed-games}
-          Size: {$processed-size}
-          Location: {$path}
-    .failed =
-        Overall:
-          Games: {$processed-games} of {$total-games}
-          Size: {$processed-size} of {$total-size}
-          Location: {$path}
 
 button-backup = Back up
 button-preview = Preview
@@ -83,10 +77,6 @@ field-redirect-source =
     .placeholder = Source (original location)
 field-redirect-target =
     .placeholder = Target (new location)
-field-custom-game-name =
-    .placeholder = Name
-field-search-game-name =
-    .placeholder = Name
 field-backup-excluded-items = Backup exclusions:
 field-retention-full = Full:
 field-retention-differential = Differential:
@@ -138,22 +128,14 @@ consider-doing-a-preview =
 
 confirm-backup =
     Are you sure you want to proceed with the backup? {$path-action ->
-        [merge] New save data will be merged into the target folder
-        [recreate] The target folder will be deleted and recreated from scratch
-        *[create] The target folder will be created
-    }:
-
-    {$path}
-
-    {consider-doing-a-preview}
+        [merge] New save data will be merged into the target folder:
+        [recreate] The target folder will be deleted and recreated from scratch:
+        *[create] The target folder will be created:
+    }
 
 confirm-restore =
     Are you sure you want to proceed with the restoration?
     This will overwrite any current files with the backups from here:
-
-    {$path}
-
-    {consider-doing-a-preview}
 
 confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.

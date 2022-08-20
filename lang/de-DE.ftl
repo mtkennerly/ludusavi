@@ -1,6 +1,11 @@
 ludusavi = Ludusavi
 language = Sprache
 font = Schriftart
+game-name = Name
+total-games = Spiele
+file-size = Größe
+file-location = Ort
+overall = Insgesamt
 cli-backup-target-already-exists = Das Sicherungsziel exitiert bereits ( { $path } ). Wähle einen anderen Ort mit --path oder lösche ihn mit --force.
 cli-unrecognized-games = Keine Informationen für diese Spiele:
 cli-confirm-restoration = Wollen Sie von { $path } wiederherstellen?
@@ -13,17 +18,6 @@ badge-ignored = IGNORIERT
 badge-redirected-from = VON: { $path }
 some-entries-failed = Einige Einträge konnten nicht verarbeitet werden; Suche nach { badge-failed } in der Ausgabe für Details. Überprüfen Sie, ob Sie auf diese Dateien zugreifen können oder ob ihre Pfade sehr lang sind.
 cli-game-line-item-redirected = Umgeleitet von: { $path }
-cli-summary =
-    .succeeded =
-        Insgesamt:
-          Spiele: { $processed-games }
-          Größe: { $processed-size }
-          Ort: { $path }
-    .failed =
-        Insgesamt:
-          Spiele: { $processed-games } von { $total-games }
-          Größe: { $processed-size } von { $total-size }
-          Ort: { $path }
 button-backup = Sichern
 button-preview = Vorschau
 button-restore = Wiederherstellen
@@ -75,10 +69,6 @@ field-redirect-source =
     .placeholder = Quelle (Originalort)
 field-redirect-target =
     .placeholder = Ziel (neuer Ort)
-field-custom-game-name =
-    .placeholder = Name
-field-search-game-name =
-    .placeholder = Name
 field-backup-excluded-items = Sicherungsausschlüsse:
 field-retention-full = Komplett:
 field-retention-differential = Differenz:
@@ -118,21 +108,13 @@ consider-doing-a-preview =
     keine Überraschungen gibt.
 confirm-backup =
     Sind Sie sicher, dass Sie die Sicherung fortsetzen möchten? { $path-action ->
-        [merge] Neue Speicherdaten werden in den Zielordner zusammengeführt
-        [recreate] Der Zielordner wird gelöscht und von Grund auf neu erstellt,
-       *[create] Der Zielordner wird erstellt
-    }:
-
-    { $path }
-
-    { consider-doing-a-preview }
+        [merge] Neue Speicherdaten werden in den Zielordner zusammengeführt:
+        [recreate] Der Zielordner wird gelöscht und von Grund auf neu erstellt:
+       *[create] Der Zielordner wird erstellt:
+    }
 confirm-restore =
     Sind Sie sicher, dass Sie die Wiederherstellung fortsetzen möchten?
     Dies überschreibt alle aktuellen Dateien mit den Sicherungen von hier:
-
-    { $path }
-
-    { consider-doing-a-preview }
 confirm-add-missing-roots = Diese Wurzel hinzufügen?
 no-missing-roots = Keine zusätzlichen Wurzeln gefunden.
 preparing-backup-target = Sicherungsverzeichnis wird vorbereitet...

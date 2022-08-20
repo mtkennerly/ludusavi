@@ -1,6 +1,11 @@
 ludusavi = Ludusavi
 language = Lingua
 font = Font
+game-name = Nome
+total-games = Giochi
+file-size = Dimensione
+file-location = Posizione
+overall = Nel complesso
 cli-backup-target-already-exists = Il target di backup esiste già ( { $path } ). Scegli un altro --path o eliminalo con --force.
 cli-unrecognized-games = Nessuna informazione per questi giochi:
 cli-confirm-restoration = Vuoi ripristinare da { $path }?
@@ -13,17 +18,6 @@ badge-ignored = IGNORATO
 badge-redirected-from = DA: { $path }
 some-entries-failed = Alcune voci non sono riuscite a elaborare; cerca { badge-failed } nell'output per i dettagli. Controlla se è possibile accedere a questi file o se i loro percorsi sono molto lunghi.
 cli-game-line-item-redirected = Reindirizzato da: { $path }
-cli-summary =
-    .succeeded =
-        Nel complesso:
-          Giochi: { $processed-games }
-          Dimensione: { $processed-size }
-          Posizione: { $path }
-    .failed =
-        Complessivo:
-          Giochi: { $processed-games } di { $total-games }
-          Dimensione: { $processed-size } di { $total-size }
-          Posizione: { $path }
 button-backup = Backup
 button-preview = Anteprima
 button-restore = Ripristina
@@ -75,10 +69,6 @@ field-redirect-source =
     .placeholder = Origine (posizione originale)
 field-redirect-target =
     .placeholder = Destinazione (nuova posizione)
-field-custom-game-name =
-    .placeholder = Nome
-field-search-game-name =
-    .placeholder = Nome
 field-backup-excluded-items = Esclusioni dal backup:
 field-retention-full = Pieno:
 field-retention-differential = Differenziale:
@@ -121,21 +111,13 @@ consider-doing-a-preview =
     sorprese.
 confirm-backup =
     Sei sicuro di voler procedere con il backup? { $path-action ->
-        [merge] Nuovi dati di salvataggio verranno uniti nella cartella di destinazione
-        [recreate] La cartella di destinazione verrà eliminata e ricreata da zero
-       *[create] La cartella di destinazione verrà creata
-    }:
-
-    { $path }
-
-    { consider-doing-a-preview }
+        [merge] Nuovi dati di salvataggio verranno uniti nella cartella di destinazione:
+        [recreate] La cartella di destinazione verrà eliminata e ricreata da zero:
+       *[create] La cartella di destinazione verrà creata:
+    }
 confirm-restore =
     Sei sicuro di voler procedere con il ripristino?
     Questo sovrascriverà tutti i file attuali con i backup da qui:
-
-    { $path }
-
-    { consider-doing-a-preview }
 confirm-add-missing-roots = Aggiungere queste radici?
 no-missing-roots = Nessuna radice aggiuntiva trovata.
 preparing-backup-target = Preparazione directory di backup...

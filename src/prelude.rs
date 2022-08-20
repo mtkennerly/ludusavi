@@ -225,10 +225,6 @@ impl OperationStatus {
         }
     }
 
-    pub fn processed_all(&self) -> bool {
-        self.processed_all_games() && self.processed_all_bytes()
-    }
-
     pub fn processed_all_games(&self) -> bool {
         self.total_games == self.processed_games
     }
