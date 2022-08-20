@@ -108,6 +108,10 @@ compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
 
+theme = Theme
+theme-light = Light
+theme-dark = Dark
+
 explanation-for-exclude-other-os-data =
     In backups, exclude save locations that have only been confirmed on another
     operating system. Some games always put saves in the same place, but the
