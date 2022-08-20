@@ -100,28 +100,33 @@ If you are on Mac:
 * You can press `preview` to see what the backup will include,
   without actually performing it.
 
-  After you've done one preview or backup, Ludusavi will remember which games
-  it found and only re-scan those games the next time. If you change your root
-  configuration, change the "other" settings, or reopen the program, then
-  it will do another full scan.
-  <!--
-  After you've done one preview, Ludusavi will remember which games it found
-  and only back up those games. If you then do another preview or do multiple
-  consecutive backups, then Ludusavi will do another full scan.
-  -->
+  If you do a preview, then Ludusavi will use that list of games for the next
+  backup, so that the next backup doesn't have to do another full scan.
+* The gear icon will reveal some additional options:
+
+  * You can set a number of full and differential backups to keep.
+    For example, if you set 2 full and 2 differential, then the first backup
+    for a game will be a full, and then the next two backups will be differential.
+    That repeats for the next three backups. When a third full backup is made,
+    the first full backup and its two associated differentials are deleted.
+  * You can enable compressed zip backups instead of plain files/folders.
 * You can press `back up` to perform the backup for real.
-  * If the target folder already exists, it will be deleted first and
-    recreated, unless you've enabled the merge option.
+  * If you've disabled the merge option, then the target folder will be
+    deleted first if it exists, then recreated.
   * Within the target folder, for every game with data to back up, a subfolder
     will be created based on the game's name, where some invalid characters are
     replaced by `_`. In rare cases, if the whole name is invalid characters,
     then it will be renamed to `ludusavi-renamed-<ENCODED_NAME>`.
   * Within each game's subfolder, there will be a `mapping.yaml` file that
-    Ludusavi needs to identify the game. There will be some drive folders
+    Ludusavi needs to identify the game.
+
+    When using the simple backup format, there will be some drive folders
     (e.g., `drive-C` on Windows or `drive-0` on Linux and Mac) containing the
     backup files, matching the normal file locations on your computer.
+    When using the zip backup format, there will be zip files instead.
   * If the game has save data in the registry and you are using Windows, then
-    the game's subfolder will also contain a `registry.yaml` file.
+    the game's subfolder will also contain a `registry.yaml` file (or it will
+    be placed in each backup's zip file).
     If you are using Steam and Proton instead of Windows, then the Proton `*.reg`
     files will be backed up along with the other game files instead.
 * Roots are folders that Ludusavi can check for additional game data. When you
@@ -144,6 +149,8 @@ If you are on Mac:
   * For a Wine prefix root, this should be the folder containing `drive_c`.
     Currently, Ludusavi does not back up registry-based saves from the prefix,
     but will back up any file-based saves.
+
+  You may use globs in root paths to identify multiple roots at once.
 * To select/deselect specific games, you can run a preview, then click the
   checkboxes by each game. You can also press the `deselect all` button
   (when all games are selected) or the `select all` button (when at least
@@ -153,11 +160,14 @@ If you are on Mac:
   game entry with the same name, allowing you to override that game's data.
   See the [custom games](#custom-games) section for more information.
 
+  The play icon will trigger an on-demand backup for that specific game.
+
   There is also a globe icon, which will open the game's PCGamingWiki article
   so that you can quickly double check or update its information if needed.
 * You can click the search icon and enter some text to just see games with
   matching names. Note that this only affects which games you see in the list,
-  but Ludusavi will still back up the full set of games.
+  but Ludusavi will still back up the full set of games. This also provides
+  some sorting options.
 * You may see a "duplicates" badge next to some games. This means that some of
   the same files were also backed up for another game. That could be intentional
   (e.g., an HD remaster may reuse the original save locations), but it could
@@ -177,13 +187,13 @@ If you are on Mac:
   * For each subfolder in the source directory, Ludusavi looks for a `mapping.yaml`
     file in order to identify each game. Subfolders without that file, or with an
     invalid one, are ignored.
-  * All files from the drive folders are copied back to their original locations
+  * All files from the drive folders (or zips) are copied back to their original locations
     on the respective drive. Any necessary parent directories will be created
     as well before the copy, but if the directories already exist, then their
     current files will be left alone (other than overwriting the ones that are
     being restored from the backup).
-  * If the game subfolder includes a `registry.yaml` file, then the Windows
-    registry data will be restored as well.
+  * If the backup includes a `registry.yaml` file, then the Windows registry
+    data will be restored as well.
 * You can use redirects to restore to a different location than the original file.
   Click `add redirect`, and then enter both the old and new location. For example,
   if you backed up some saves from `C:/Games`, but then you moved it to `D:/Games`,
@@ -229,6 +239,8 @@ If you are on Mac:
 #### Other settings
 * Switch to this screen by clicking the `other` button.
 * This screen contains some additional settings that are less commonly used.
+  * Backup exclusions let you set paths and registry keys to completely ignore
+    from all games. They will not be shown at all during backup scans.
 
 ### CLI
 Run `ludusavi --help` for the full usage information.
@@ -263,6 +275,7 @@ will have the following structure:
     * `files` (map):
       * Each key is a file path, and each value is a map with these fields:
         * `failed` (optional, boolean): Whether this entry failed to process.
+        * `ignored` (optional, boolean): Whether this entry was ignored.
         * `bytes` (number): Size of the file.
         * `originalPath` (optional, string): If the file was restored to a
           redirected location, then this is its original path.
@@ -271,6 +284,7 @@ will have the following structure:
     * `registry` (map):
       * Each key is a registry path, and each value is a map with these fields:
         * `failed` (optional, boolean): Whether this entry failed to process.
+        * `ignored` (optional, boolean): Whether this entry was ignored.
         * `duplicatedBy` (optional, array of strings): Any other games that
           also have the same registry path.
 
@@ -344,11 +358,16 @@ Here are the available settings (all are required unless otherwise noted):
   * `url` (string): Where to download the primary manifest.
   * `etag` (string or null): An identifier for the current version of the manifest.
     This is generated automatically when the manifest is updated.
+* `language` (string, optional): Display language. Valid options:
+  `en-US` (English, default), `fil-PH` (Filipino), `de-DE` (German), `it-IT` (Italian), `pt-BR` (Brazilian Portuguese), `pl-PL` (Polish), `es-ES` (Spanish).
+
+  Experimental options that currently have graphical display issues:
+  `ar-SA` (Arabic), `zh-Hans` (Simplified Chinese).
 * `roots` (list):
   * Each entry in the list should be a map with these fields:
     * `path` (string): Where the root is located on your system.
     * `store` (string): Game store associated with the root. Valid options:
-      `epic`, `gog`, `gogGalaxy`, `microsoft`, `origin`, <!-- `prime`, -->
+      `epic`, `gog`, `gogGalaxy`, `microsoft`, `origin`, `prime`,
       `steam`, `uplay`, `otherHome`, `otherWine`, `other`
 * `backup` (map):
   * `path` (string): Full path to a directory in which to save backups.
@@ -356,7 +375,7 @@ Here are the available settings (all are required unless otherwise noted):
   * `ignoredGames` (optional, array of strings): Names of games to skip when backing up.
     This can be overridden in the CLI by passing a list of games.
   * `merge` (optional, boolean): Whether to merge save data into the target
-    directory rather than deleting the directory first. Default: false.
+    directory rather than deleting the directory first. Default: true.
   * `filter` (optional, map):
     * `excludeOtherOsData` (optional, boolean): If true, then the backup should
       exclude any files that have only been confirmed for a different operating
@@ -364,6 +383,23 @@ Here are the available settings (all are required unless otherwise noted):
       backed up regardless of this setting. Default: false.
     * `excludeStoreScreenshots` (optional, boolean): If true, then the backup
       should exclude screenshots from stores like Steam. Default: false.
+    * `ignoredPaths` (list of strings): Globally ignored paths.
+    * `ignoredRegistry` (list of strings): Globally ignored registry keys.
+  * `toggledPaths` (map): Paths overridden for inclusion/exclusion in the backup.
+    Each key is a game name, and the value is another map. In the inner map,
+    each key is a path, and the value is a boolean (true = included).
+    Settings on child paths override settings on parent paths.
+  * `toggledRegistry` (map): Same as `toggledPaths`, but for registry entries.
+  * `sort` (map):
+    * `key` (string): One of `name`, `size`.
+    * `reversed` (boolean): If true, sort reverse alphabetical or from the largest size.
+  * `retention` (map):
+    * `full` (integer): Full backups to keep. Range: 1-255.
+    * `differential` (integer): Full backups to keep. Range: 0-255.
+  * `format` (map):
+    * `chosen` (string): One of `simple`, `zip`.
+    * `zip` (map): Settings for the zip format.
+      * `compression` (string): One of `none`, `deflate`, `bzip2`, `zstd`.
 * `restore` (map):
   * `path` (string): Full path to a directory from which to restore data.
     This can be overridden in the CLI with `--path`.
@@ -373,6 +409,9 @@ Here are the available settings (all are required unless otherwise noted):
     * Each entry in the list should be a map with these fields:
       * `source` (string): The original location when the backup was performed.
       * `target` (string): The new location.
+  * `sort` (map):
+    * `key` (string): One of `name`, `size`.
+    * `reversed` (boolean): If true, sort reverse alphabetical or from the largest size.
 * `customGames` (optional, list):
   * Each entry in the list should be a map with these fields:
     * `name` (string): Name of the game.

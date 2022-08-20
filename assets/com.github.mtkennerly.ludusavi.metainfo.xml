@@ -34,6 +34,7 @@
     <content_rating type="oars-1.1" />
     <launchable type="desktop-id">com.github.mtkennerly.ludusavi.desktop</launchable>
     <releases>
+        <release version="0.11.0" date="2022-08-20"/>
         <release version="0.10.0" date="2021-03-12"/>
     </releases>
 </component>

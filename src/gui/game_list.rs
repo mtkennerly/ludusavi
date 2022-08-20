@@ -134,7 +134,7 @@ impl GameListEntry {
                                 self.scan_info.backup.as_ref().map(|backup| {
                                     Container::new(Text::new(backup.label()).size(18))
                                         .padding([2, 0, 0, 15])
-                                        .width(Length::Units(175))
+                                        .width(Length::Units(185))
                                         .align_x(HorizontalAlignment::Center)
                                 })
                             } else if !self.scan_info.available_backups.is_empty() {
@@ -166,7 +166,7 @@ impl GameListEntry {
                                     .style(style::PickList::Backup),
                                 )
                                 .padding([0, 0, 0, 15])
-                                .width(Length::Units(175))
+                                .width(Length::Units(185))
                                 .align_x(HorizontalAlignment::Center);
                                 Some(content)
                             } else {

@@ -239,6 +239,8 @@ struct ApiFile {
 struct ApiRegistry {
     #[serde(skip_serializing_if = "crate::serialization::is_false")]
     failed: bool,
+    #[serde(skip_serializing_if = "crate::serialization::is_false")]
+    ignored: bool,
     #[serde(
         rename = "duplicatedBy",
         serialize_with = "crate::serialization::ordered_set",
@@ -429,16 +431,17 @@ impl Reporter {
                     api_game.files.insert(readable.render(), api_file);
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
-                    let mut api_registry = ApiRegistry::default();
+                    let mut api_registry = ApiRegistry {
+                        failed: backup_info.failed_registry.contains(&entry.path),
+                        ignored: entry.ignored,
+                        ..Default::default()
+                    };
                     if duplicate_detector.is_registry_duplicated(&entry.path) {
                         let mut duplicated_by = duplicate_detector.registry(&entry.path);
                         duplicated_by.remove(&scan_info.game_name);
                         api_registry.duplicated_by = duplicated_by;
                     }
 
-                    if backup_info.failed_registry.contains(&entry.path) {
-                        api_registry.failed = true;
-                    }
                     if api_registry.failed {
                         successful = false;
                     }

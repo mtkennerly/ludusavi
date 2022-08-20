@@ -1,4 +1,4 @@
-## Unreleased
+## v0.11.0 (2022-08-20)
 
 * Added:
   * Support for multiple full and differential backups per game.
