@@ -582,8 +582,8 @@ impl Translator {
 
     pub fn sort_key(&self, key: &SortKey) -> String {
         translate(match key {
-            SortKey::Name => "sort-name",
-            SortKey::Size => "sort-size",
+            SortKey::Name => "game-name",
+            SortKey::Size => "file-size",
         })
     }
 

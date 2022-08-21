@@ -78,7 +78,11 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Target (new location)
 field-backup-excluded-items = Backup exclusions:
+# This appears next to the number of full backups that you'd like to keep.
+# A full backup includes all save files for a game.
 field-retention-full = Full:
+# This appears next to the number of differential backups that you'd like to keep.
+# A differential backup includes only the files that have changed since the last full backup.
 field-retention-differential = Differential:
 field-backup-format = Format:
 field-backup-compression = Compression:
@@ -95,8 +99,6 @@ store-other-home = Home folder
 store-other-wine = Wine prefix
 store-other = Other
 
-sort-name = Name
-sort-size = Size
 sort-reversed = Reversed
 
 backup-format-simple = Simple
