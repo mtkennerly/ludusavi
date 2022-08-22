@@ -45,10 +45,6 @@ pub enum Message {
         decision: OperationStepDecision,
     },
     CancelOperation,
-    BackupComplete {
-        preview: bool,
-    },
-    RestoreComplete,
     ProcessGameOnDemand {
         game: String,
         restore: bool,

@@ -1,3 +1,8 @@
+## Unreleased
+
+* Fixed:
+  * GUI: Cancelling a backup/restore no longer has a long delay.
+
 ## v0.11.0 (2022-08-20)
 
 * Added:

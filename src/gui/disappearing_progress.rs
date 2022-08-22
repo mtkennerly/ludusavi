@@ -11,8 +11,4 @@ impl DisappearingProgress {
         let visible = self.current > 0.0 && self.current < self.max;
         ProgressBar::new(0.0..=self.max, self.current).height(Length::FillPortion(if visible { 100 } else { 1 }))
     }
-
-    pub fn complete(&self) -> bool {
-        self.current >= self.max
-    }
 }

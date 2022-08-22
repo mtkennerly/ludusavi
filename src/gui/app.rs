@@ -74,11 +74,24 @@ pub struct App {
     custom_games_screen: CustomGamesScreenComponent,
     other_screen: OtherScreenComponent,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    operation_steps: Vec<Command<Message>>,
+    operation_steps_active: usize,
     progress: DisappearingProgress,
     backups_to_restore: std::collections::HashMap<String, BackupId>,
 }
 
 impl App {
+    fn go_idle(&mut self) {
+        self.operation = None;
+        self.operation_steps.clear();
+        self.operation_steps_active = 0;
+        self.modal_theme = None;
+        self.progress.current = 0.0;
+        self.progress.max = 0.0;
+        self.operation_should_cancel
+            .swap(false, std::sync::atomic::Ordering::Relaxed);
+    }
+
     fn start_backup(&mut self, preview: bool, games: Option<Vec<String>>) -> Command<Message> {
         if self.operation.is_some() {
             return Command::none();
@@ -131,7 +144,6 @@ impl App {
         let filter = std::sync::Arc::new(self.config.backup.filter.clone());
         let ranking = std::sync::Arc::new(InstallDirRanking::scan(&self.config.roots, &all_games, &subjects));
 
-        let mut commands: Vec<Command<Message>> = vec![];
         for key in subjects {
             let game = all_games.0[&key].clone();
             let config = config.clone();
@@ -141,7 +153,7 @@ impl App {
             let steam_id = game.steam.as_ref().and_then(|x| x.id);
             let cancel_flag = self.operation_should_cancel.clone();
             let merge = self.config.backup.merge;
-            commands.push(Command::perform(
+            self.operation_steps.push(Command::perform(
                 async move {
                     if key.trim().is_empty() {
                         return (None, None, OperationStepDecision::Ignored);
@@ -190,7 +202,8 @@ impl App {
             ));
         }
 
-        Command::batch(commands)
+        self.operation_steps_active = 100.min(self.operation_steps.len());
+        Command::batch(self.operation_steps.drain(..self.operation_steps_active))
     }
 
     fn start_restore(&mut self, preview: bool, games: Option<Vec<String>>) -> Command<Message> {
@@ -236,13 +249,12 @@ impl App {
         self.progress.current = 0.0;
         self.progress.max = restorables.len() as f32;
 
-        let mut commands: Vec<Command<Message>> = vec![];
         for name in restorables {
             let config = config.clone();
             let layout = layout.clone();
             let cancel_flag = self.operation_should_cancel.clone();
             let backup_id = self.backups_to_restore.get(&name).cloned().unwrap_or(BackupId::Latest);
-            commands.push(Command::perform(
+            self.operation_steps.push(Command::perform(
                 async move {
                     let mut layout = layout.game_layout(&name);
 
@@ -272,7 +284,39 @@ impl App {
             ));
         }
 
-        Command::batch(commands)
+        self.operation_steps_active = 100.min(self.operation_steps.len());
+        Command::batch(self.operation_steps.drain(..self.operation_steps_active))
+    }
+
+    fn complete_backup(&mut self, preview: bool) {
+        for entry in &self.backup_screen.log.entries {
+            if let Some(backup_info) = &entry.backup_info {
+                if !backup_info.successful() {
+                    self.modal_theme = Some(ModalTheme::Error {
+                        variant: Error::SomeEntriesFailed,
+                    });
+                    return;
+                }
+            }
+        }
+        if !preview {
+            self.backup_screen.recent_found_games.clear();
+        }
+        self.go_idle();
+    }
+
+    fn complete_restore(&mut self) {
+        for entry in &self.restore_screen.log.entries {
+            if let Some(backup_info) = &entry.backup_info {
+                if !backup_info.successful() {
+                    self.modal_theme = Some(ModalTheme::Error {
+                        variant: Error::SomeEntriesFailed,
+                    });
+                    return;
+                }
+            }
+        }
+        self.go_idle();
     }
 }
 
@@ -327,12 +371,7 @@ impl Application for App {
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Idle => {
-                self.operation = None;
-                self.modal_theme = None;
-                self.progress.current = 0.0;
-                self.progress.max = 0.0;
-                self.operation_should_cancel
-                    .swap(false, std::sync::atomic::Ordering::Relaxed);
+                self.go_idle();
                 Command::none()
             }
             Message::Ignore => Command::none(),
@@ -400,10 +439,16 @@ impl Application for App {
                         self.backup_screen.log.sort(&self.config.backup.sort);
                     }
                 }
-                if self.progress.complete() {
-                    Command::perform(async move {}, move |_| Message::BackupComplete { preview })
-                } else {
-                    Command::none()
+
+                match self.operation_steps.pop() {
+                    Some(step) => step,
+                    None => {
+                        self.operation_steps_active -= 1;
+                        if self.operation_steps_active == 0 {
+                            self.complete_backup(preview);
+                        }
+                        Command::none()
+                    }
                 }
             }
             Message::RestoreStep {
@@ -423,15 +468,22 @@ impl Application for App {
                         self.restore_screen.log.sort(&self.config.restore.sort);
                     }
                 }
-                if self.progress.complete() {
-                    Command::perform(async move {}, move |_| Message::RestoreComplete)
-                } else {
-                    Command::none()
+
+                match self.operation_steps.pop() {
+                    Some(step) => step,
+                    None => {
+                        self.operation_steps_active -= 1;
+                        if self.operation_steps_active == 0 {
+                            self.complete_restore();
+                        }
+                        Command::none()
+                    }
                 }
             }
             Message::CancelOperation => {
                 self.operation_should_cancel
                     .swap(true, std::sync::atomic::Ordering::Relaxed);
+                self.operation_steps.clear();
                 match self.operation {
                     Some(OngoingOperation::Backup) => {
                         self.operation = Some(OngoingOperation::CancelBackup);
@@ -448,35 +500,6 @@ impl Application for App {
                     _ => {}
                 };
                 Command::none()
-            }
-            Message::BackupComplete { preview } => {
-                for entry in &self.backup_screen.log.entries {
-                    if let Some(backup_info) = &entry.backup_info {
-                        if !backup_info.successful() {
-                            self.modal_theme = Some(ModalTheme::Error {
-                                variant: Error::SomeEntriesFailed,
-                            });
-                            return Command::none();
-                        }
-                    }
-                }
-                if !preview {
-                    self.backup_screen.recent_found_games.clear();
-                }
-                Command::perform(async move {}, move |_| Message::Idle)
-            }
-            Message::RestoreComplete => {
-                for entry in &self.restore_screen.log.entries {
-                    if let Some(backup_info) = &entry.backup_info {
-                        if !backup_info.successful() {
-                            self.modal_theme = Some(ModalTheme::Error {
-                                variant: Error::SomeEntriesFailed,
-                            });
-                            return Command::none();
-                        }
-                    }
-                }
-                Command::perform(async move {}, move |_| Message::Idle)
             }
             Message::ProcessGameOnDemand { game, restore } => {
                 if restore {
