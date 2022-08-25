@@ -1,5 +1,5 @@
 use crate::{
-    config::Config,
+    config::{Config, Theme},
     gui::{
         common::{Message, OngoingOperation},
         ignored_items_editor::IgnoredItemsEditor,
@@ -15,6 +15,7 @@ pub struct OtherScreenComponent {
     scroll: scrollable::State,
     pub ignored_items_editor: IgnoredItemsEditor,
     language_selector: pick_list::State<Language>,
+    theme_selector: pick_list::State<Theme>,
 }
 
 impl OtherScreenComponent {
@@ -34,7 +35,7 @@ impl OtherScreenComponent {
         Container::new(
             Scrollable::new(&mut self.scroll)
                 .width(Length::Fill)
-                .style(style::Scrollable)
+                .style(style::Scrollable(config.theme))
                 .padding([0, 15, 5, 15])
                 .push(
                     Column::new()
@@ -51,19 +52,40 @@ impl OtherScreenComponent {
                                         Some(config.language),
                                         Message::SelectedLanguage,
                                     )
-                                    .style(style::PickList::Primary),
+                                    .style(style::PickList::Primary(config.theme)),
                                 ),
                         )
-                        .push(Checkbox::new(
-                            config.backup.filter.exclude_other_os_data,
-                            translator.explanation_for_exclude_other_os_data(),
-                            Message::EditedExcludeOtherOsData,
-                        ))
-                        .push(Checkbox::new(
-                            config.backup.filter.exclude_store_screenshots,
-                            translator.explanation_for_exclude_store_screenshots(),
-                            Message::EditedExcludeStoreScreenshots,
-                        ))
+                        .push(
+                            Row::new()
+                                .align_items(iced::Alignment::Center)
+                                .spacing(20)
+                                .push(Text::new(translator.field_theme()))
+                                .push(
+                                    PickList::new(
+                                        &mut self.theme_selector,
+                                        Theme::ALL,
+                                        Some(config.theme),
+                                        Message::SelectedTheme,
+                                    )
+                                    .style(style::PickList::Primary(config.theme)),
+                                ),
+                        )
+                        .push(
+                            Checkbox::new(
+                                config.backup.filter.exclude_other_os_data,
+                                translator.explanation_for_exclude_other_os_data(),
+                                Message::EditedExcludeOtherOsData,
+                            )
+                            .style(style::Checkbox(config.theme)),
+                        )
+                        .push(
+                            Checkbox::new(
+                                config.backup.filter.exclude_store_screenshots,
+                                translator.explanation_for_exclude_store_screenshots(),
+                                Message::EditedExcludeStoreScreenshots,
+                            )
+                            .style(style::Checkbox(config.theme)),
+                        )
                         .push(
                             Column::new().push(Text::new(translator.ignored_items_label())).push(
                                 self.ignored_items_editor

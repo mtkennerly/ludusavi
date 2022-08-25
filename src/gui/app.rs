@@ -1,5 +1,5 @@
 use crate::{
-    config::{Config, CustomGame, RootsConfig},
+    config::{Config, CustomGame, RootsConfig, Theme},
     gui::{
         backup_screen::BackupScreenComponent,
         common::*,
@@ -30,7 +30,7 @@ use iced::{
     alignment::Horizontal as HorizontalAlignment,
     button, executor,
     keyboard::{KeyCode, Modifiers},
-    Alignment, Application, Button, Column, Command, Element, Length, Row, Subscription, Text,
+    Alignment, Application, Button, Column, Command, Container, Element, Length, Row, Subscription, Text,
 };
 
 pub fn get_key_pressed(event: iced::keyboard::Event) -> Option<(KeyCode, Modifiers)> {
@@ -40,7 +40,13 @@ pub fn get_key_pressed(event: iced::keyboard::Event) -> Option<(KeyCode, Modifie
     }
 }
 
-fn make_nav_button(state: &mut button::State, text: String, screen: Screen, current_screen: Screen) -> Button<Message> {
+fn make_nav_button(
+    state: &mut button::State,
+    text: String,
+    screen: Screen,
+    current_screen: Screen,
+    theme: Theme,
+) -> Button<Message> {
     Button::new(
         state,
         Text::new(text)
@@ -50,9 +56,9 @@ fn make_nav_button(state: &mut button::State, text: String, screen: Screen, curr
     .on_press(Message::SwitchScreen(screen))
     .padding([5, 20, 5, 20])
     .style(if current_screen == screen {
-        style::NavButton::Active
+        style::NavButton::Active(theme)
     } else {
-        style::NavButton::Inactive
+        style::NavButton::Inactive(theme)
     })
 }
 
@@ -1202,6 +1208,11 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::SelectedTheme(theme) => {
+                self.config.theme = theme;
+                self.config.save();
+                Command::none()
+            }
             Message::SelectedBackupFormat(format) => {
                 self.config.backup.format.chosen = format;
                 self.config.save();
@@ -1225,10 +1236,14 @@ impl Application for App {
 
     fn view(&mut self) -> Element<Message> {
         if let Some(m) = &self.modal_theme {
-            return self.modal.view(m, &self.config, &self.translator).into();
+            return self
+                .modal
+                .view(m, &self.config, &self.translator)
+                .style(style::Container::Primary(self.config.theme))
+                .into();
         }
 
-        Column::new()
+        let content = Column::new()
             .align_items(Alignment::Center)
             .push(
                 Row::new()
@@ -1239,24 +1254,28 @@ impl Application for App {
                         self.translator.nav_backup_button(),
                         Screen::Backup,
                         self.screen,
+                        self.config.theme,
                     ))
                     .push(make_nav_button(
                         &mut self.nav_to_restore_button,
                         self.translator.nav_restore_button(),
                         Screen::Restore,
                         self.screen,
+                        self.config.theme,
                     ))
                     .push(make_nav_button(
                         &mut self.nav_to_custom_games_button,
                         self.translator.nav_custom_games_button(),
                         Screen::CustomGames,
                         self.screen,
+                        self.config.theme,
                     ))
                     .push(make_nav_button(
                         &mut self.nav_to_other_button,
                         self.translator.nav_other_button(),
                         Screen::Other,
                         self.screen,
+                        self.config.theme,
                     )),
             )
             .push(
@@ -1278,7 +1297,10 @@ impl Application for App {
                 .padding([0, 5, 5, 5])
                 .height(Length::FillPortion(10_000)),
             )
-            .push(self.progress.view())
+            .push(self.progress.view());
+
+        Container::new(content)
+            .style(style::Container::Primary(self.config.theme))
             .into()
     }
 }

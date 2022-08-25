@@ -91,9 +91,9 @@ impl BackupScreenComponent {
                             })
                             .width(Length::Units(125))
                             .style(match operation {
-                                None => style::Button::Primary,
-                                Some(OngoingOperation::PreviewBackup) => style::Button::Negative,
-                                _ => style::Button::Disabled,
+                                None => style::Button::Primary(config.theme),
+                                Some(OngoingOperation::PreviewBackup) => style::Button::Negative(config.theme),
+                                _ => style::Button::Disabled(config.theme),
                             }),
                         )
                         .push(
@@ -113,9 +113,9 @@ impl BackupScreenComponent {
                             })
                             .width(Length::Units(125))
                             .style(match operation {
-                                None => style::Button::Primary,
-                                Some(OngoingOperation::Backup) => style::Button::Negative,
-                                _ => style::Button::Disabled,
+                                None => style::Button::Primary(config.theme),
+                                Some(OngoingOperation::Backup) => style::Button::Negative(config.theme),
+                                _ => style::Button::Disabled(config.theme),
                             }),
                         )
                         .push(
@@ -126,7 +126,7 @@ impl BackupScreenComponent {
                             )
                             .on_press(Message::EditedRoot(EditAction::Add))
                             .width(Length::Units(125))
-                            .style(style::Button::Primary),
+                            .style(style::Button::Primary(config.theme)),
                         )
                         .push(
                             Button::new(
@@ -136,7 +136,7 @@ impl BackupScreenComponent {
                             )
                             .on_press(Message::FindRoots)
                             .width(Length::Units(125))
-                            .style(style::Button::Primary),
+                            .style(style::Button::Primary(config.theme)),
                         )
                         .push({
                             let restoring = false;
@@ -155,15 +155,15 @@ impl BackupScreenComponent {
                                 Message::SelectAllGames
                             })
                             .width(Length::Units(125))
-                            .style(style::Button::Primary)
+                            .style(style::Button::Primary(config.theme))
                         })
                         .push(
                             Button::new(&mut self.toggle_search_button, Icon::Search.as_text())
                                 .on_press(Message::ToggleSearch { screen: Screen::Backup })
                                 .style(if self.log.search.show {
-                                    style::Button::Negative
+                                    style::Button::Negative(config.theme)
                                 } else {
-                                    style::Button::Primary
+                                    style::Button::Primary(config.theme)
                                 }),
                         ),
                 )
@@ -171,6 +171,7 @@ impl BackupScreenComponent {
                     translator,
                     &self.log.compute_operation_status(config, false),
                     self.duplicate_detector.any_duplicates(),
+                    config.theme,
                 ))
                 .push(
                     Row::new()
@@ -185,15 +186,16 @@ impl BackupScreenComponent {
                                 &config.backup.path.raw(),
                                 Message::EditedBackupTarget,
                             )
+                            .style(style::TextInput(config.theme))
                             .padding(5),
                         )
                         .push(
                             Button::new(&mut self.settings_button, Icon::Settings.as_text())
                                 .on_press(Message::ToggleBackupSettings)
                                 .style(if self.show_settings {
-                                    style::Button::Negative
+                                    style::Button::Negative(config.theme)
                                 } else {
-                                    style::Button::Primary
+                                    style::Button::Primary(config.theme)
                                 }),
                         )
                         .push(
@@ -203,8 +205,8 @@ impl BackupScreenComponent {
                                     Some(_) => Message::Ignore,
                                 })
                                 .style(match operation {
-                                    None => style::Button::Primary,
-                                    Some(_) => style::Button::Disabled,
+                                    None => style::Button::Primary(config.theme),
+                                    Some(_) => style::Button::Disabled(config.theme),
                                 }),
                         ),
                 )
@@ -216,11 +218,14 @@ impl BackupScreenComponent {
                             .spacing(20)
                             .height(Length::Units(30))
                             .align_items(Alignment::Center)
-                            .push(Checkbox::new(
-                                config.backup.merge,
-                                translator.backup_merge_label(),
-                                Message::EditedBackupMerge,
-                            ))
+                            .push(
+                                Checkbox::new(
+                                    config.backup.merge,
+                                    translator.backup_merge_label(),
+                                    Message::EditedBackupMerge,
+                                )
+                                .style(style::Checkbox(config.theme)),
+                            )
                             .push_if(
                                 || config.backup.merge,
                                 || {
@@ -229,6 +234,7 @@ impl BackupScreenComponent {
                                         &translator.full_retention(),
                                         1..=u8::MAX,
                                         Message::EditedFullRetention,
+                                        config.theme,
                                     )
                                 },
                             )
@@ -240,6 +246,7 @@ impl BackupScreenComponent {
                                         &translator.differential_retention(),
                                         0..=u8::MAX,
                                         Message::EditedDiffRetention,
+                                        config.theme,
                                     )
                                 },
                             )
@@ -264,7 +271,7 @@ impl BackupScreenComponent {
                                             Some(config.backup.format.chosen),
                                             Message::SelectedBackupFormat,
                                         )
-                                        .style(style::PickList::Primary),
+                                        .style(style::PickList::Primary(config.theme)),
                                     ),
                             )
                             .push_if(
@@ -281,7 +288,7 @@ impl BackupScreenComponent {
                                                 Some(config.backup.format.zip.compression),
                                                 Message::SelectedBackupCompression,
                                             )
-                                            .style(style::PickList::Primary),
+                                            .style(style::PickList::Primary(config.theme)),
                                         )
                                 },
                             )
@@ -293,6 +300,7 @@ impl BackupScreenComponent {
                         .view(false, translator, config, manifest, &self.duplicate_detector, operation),
                 ),
         )
+        .style(style::Container::Primary(config.theme))
         .height(Length::Fill)
         .width(Length::Fill)
         .center_x()

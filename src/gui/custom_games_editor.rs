@@ -77,7 +77,7 @@ impl CustomGamesEditor {
                     .height(Length::Fill)
                     .padding([0, 15, 5, 15])
                     .spacing(10)
-                    .style(style::Scrollable),
+                    .style(style::Scrollable(config.theme)),
                 |parent: Scrollable<'_, Message>, (i, x)| {
                     parent.push(
                         Container::new(
@@ -87,11 +87,14 @@ impl CustomGamesEditor {
                                 .push(
                                     Row::new()
                                         .spacing(20)
-                                        .push(Column::new().width(Length::Units(80)).push(Checkbox::new(
-                                            config.is_custom_game_enabled(i),
-                                            "",
-                                            move |enabled| Message::ToggleCustomGameEnabled { index: i, enabled },
-                                        )))
+                                        .push(
+                                            Column::new().width(Length::Units(80)).push(
+                                                Checkbox::new(config.is_custom_game_enabled(i), "", move |enabled| {
+                                                    Message::ToggleCustomGameEnabled { index: i, enabled }
+                                                })
+                                                .style(style::Checkbox(config.theme)),
+                                            ),
+                                        )
                                         .push(
                                             TextInput::new(
                                                 &mut x.text_state,
@@ -99,13 +102,14 @@ impl CustomGamesEditor {
                                                 &config.custom_games[i].name,
                                                 move |v| Message::EditedCustomGame(EditAction::Change(i, v)),
                                             )
+                                            .style(style::TextInput(config.theme))
                                             .width(Length::Fill)
                                             .padding(5),
                                         )
                                         .push(
                                             Button::new(&mut x.remove_button_state, Icon::Delete.as_text())
                                                 .on_press(Message::EditedCustomGame(EditAction::Remove(i)))
-                                                .style(style::Button::Negative),
+                                                .style(style::Button::Negative(config.theme)),
                                         ),
                                 )
                                 .push(
@@ -135,6 +139,7 @@ impl CustomGamesEditor {
                                                                         )
                                                                     },
                                                                 )
+                                                                .style(style::TextInput(config.theme))
                                                                 .padding(5),
                                                             )
                                                             .push(
@@ -149,8 +154,8 @@ impl CustomGamesEditor {
                                                                     Some(_) => Message::Ignore,
                                                                 })
                                                                 .style(match operation {
-                                                                    None => style::Button::Primary,
-                                                                    Some(_) => style::Button::Disabled,
+                                                                    None => style::Button::Primary(config.theme),
+                                                                    Some(_) => style::Button::Disabled(config.theme),
                                                                 }),
                                                             )
                                                             .push(
@@ -162,7 +167,7 @@ impl CustomGamesEditor {
                                                                     i,
                                                                     EditAction::Remove(ii),
                                                                 ))
-                                                                .style(style::Button::Negative),
+                                                                .style(style::Button::Negative(config.theme)),
                                                             ),
                                                     )
                                                 })
@@ -172,7 +177,7 @@ impl CustomGamesEditor {
                                                         Icon::AddCircle.as_text(),
                                                     )
                                                     .on_press(Message::EditedCustomGameFile(i, EditAction::Add))
-                                                    .style(style::Button::Primary),
+                                                    .style(style::Button::Primary(config.theme)),
                                                 ),
                                         ),
                                 )
@@ -203,6 +208,7 @@ impl CustomGamesEditor {
                                                                         )
                                                                     },
                                                                 )
+                                                                .style(style::TextInput(config.theme))
                                                                 .padding(5),
                                                             )
                                                             .push(
@@ -214,7 +220,7 @@ impl CustomGamesEditor {
                                                                     i,
                                                                     EditAction::Remove(ii),
                                                                 ))
-                                                                .style(style::Button::Negative),
+                                                                .style(style::Button::Negative(config.theme)),
                                                             ),
                                                     )
                                                 })
@@ -224,12 +230,12 @@ impl CustomGamesEditor {
                                                         Icon::AddCircle.as_text(),
                                                     )
                                                     .on_press(Message::EditedCustomGameRegistry(i, EditAction::Add))
-                                                    .style(style::Button::Primary),
+                                                    .style(style::Button::Primary(config.theme)),
                                                 ),
                                         ),
                                 ),
                         )
-                        .style(style::Container::GameListEntry),
+                        .style(style::Container::GameListEntry(config.theme)),
                     )
                 },
             )

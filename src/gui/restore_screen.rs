@@ -86,9 +86,9 @@ impl RestoreScreenComponent {
                             })
                             .width(Length::Units(125))
                             .style(match operation {
-                                None => style::Button::Primary,
-                                Some(OngoingOperation::PreviewRestore) => style::Button::Negative,
-                                _ => style::Button::Disabled,
+                                None => style::Button::Primary(config.theme),
+                                Some(OngoingOperation::PreviewRestore) => style::Button::Negative(config.theme),
+                                _ => style::Button::Disabled(config.theme),
                             }),
                         )
                         .push(
@@ -108,9 +108,9 @@ impl RestoreScreenComponent {
                             })
                             .width(Length::Units(125))
                             .style(match operation {
-                                None => style::Button::Primary,
-                                Some(OngoingOperation::Restore) => style::Button::Negative,
-                                _ => style::Button::Disabled,
+                                None => style::Button::Primary(config.theme),
+                                Some(OngoingOperation::Restore) => style::Button::Negative(config.theme),
+                                _ => style::Button::Disabled(config.theme),
                             }),
                         )
                         .push(
@@ -121,7 +121,7 @@ impl RestoreScreenComponent {
                             )
                             .on_press(Message::EditedRedirect(EditAction::Add, None))
                             .width(Length::Units(150))
-                            .style(style::Button::Primary),
+                            .style(style::Button::Primary(config.theme)),
                         )
                         .push({
                             let restoring = true;
@@ -140,7 +140,7 @@ impl RestoreScreenComponent {
                                 Message::SelectAllGames
                             })
                             .width(Length::Units(125))
-                            .style(style::Button::Primary)
+                            .style(style::Button::Primary(config.theme))
                         })
                         .push(
                             Button::new(&mut self.toggle_search_button, Icon::Search.as_text())
@@ -148,9 +148,9 @@ impl RestoreScreenComponent {
                                     screen: Screen::Restore,
                                 })
                                 .style(if self.log.search.show {
-                                    style::Button::Negative
+                                    style::Button::Negative(config.theme)
                                 } else {
-                                    style::Button::Primary
+                                    style::Button::Primary(config.theme)
                                 }),
                         ),
                 )
@@ -158,6 +158,7 @@ impl RestoreScreenComponent {
                     translator,
                     &self.log.compute_operation_status(config, true),
                     self.duplicate_detector.any_duplicates(),
+                    config.theme,
                 ))
                 .push(
                     Row::new()
@@ -172,6 +173,7 @@ impl RestoreScreenComponent {
                                 &config.restore.path.raw(),
                                 Message::EditedRestoreSource,
                             )
+                            .style(style::TextInput(config.theme))
                             .padding(5),
                         )
                         .push(
@@ -181,8 +183,8 @@ impl RestoreScreenComponent {
                                     Some(_) => Message::Ignore,
                                 })
                                 .style(match operation {
-                                    None => style::Button::Primary,
-                                    Some(_) => style::Button::Disabled,
+                                    None => style::Button::Primary(config.theme),
+                                    Some(_) => style::Button::Disabled(config.theme),
                                 }),
                         ),
                 )

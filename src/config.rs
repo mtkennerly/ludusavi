@@ -17,6 +17,8 @@ pub struct Config {
     pub manifest: ManifestConfig,
     #[serde(default)]
     pub language: Language,
+    #[serde(default)]
+    pub theme: Theme,
     pub roots: Vec<RootsConfig>,
     pub backup: BackupConfig,
     pub restore: RestoreConfig,
@@ -28,6 +30,25 @@ pub struct Config {
 pub struct ManifestConfig {
     pub url: String,
     pub etag: Option<String>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum Theme {
+    #[default]
+    #[serde(rename = "light")]
+    Light,
+    #[serde(rename = "dark")]
+    Dark,
+}
+
+impl Theme {
+    pub const ALL: &'static [Self] = &[Self::Light, Self::Dark];
+}
+
+impl ToString for Theme {
+    fn to_string(&self) -> String {
+        crate::lang::Translator::default().theme_name(self)
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
@@ -712,6 +733,7 @@ mod tests {
                     etag: None,
                 },
                 language: Language::English,
+                theme: Theme::Light,
                 roots: vec![],
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
@@ -793,6 +815,7 @@ mod tests {
                     etag: Some(s("foo")),
                 },
                 language: Language::English,
+                theme: Theme::Light,
                 roots: vec![
                     RootsConfig {
                         path: StrictPath::new(s("~/steam")),
@@ -880,6 +903,7 @@ mod tests {
                     etag: None,
                 },
                 language: Language::English,
+                theme: Theme::Light,
                 roots: vec![RootsConfig {
                     path: StrictPath::new(s("~/other")),
                     store: Store::Other,
@@ -920,6 +944,7 @@ manifest:
   url: example.com
   etag: foo
 language: en-US
+theme: light
 roots:
   - path: ~/steam
     store: steam
@@ -982,6 +1007,7 @@ customGames:
                     etag: Some(s("foo")),
                 },
                 language: Language::English,
+                theme: Theme::Light,
                 roots: vec![
                     RootsConfig {
                         path: StrictPath::new(s("~/steam")),

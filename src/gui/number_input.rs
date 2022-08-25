@@ -1,4 +1,7 @@
-use crate::gui::{common::Message, icon::Icon, style};
+use crate::{
+    config::Theme,
+    gui::{common::Message, icon::Icon, style},
+};
 use iced::{
     button::{self, Button},
     Alignment, Container, Length, Row, Text,
@@ -18,6 +21,7 @@ impl NumberInput {
         label: &str,
         range: RangeInclusive<u8>,
         change: fn(u8) -> Message,
+        theme: Theme,
     ) -> Container<Message> {
         Container::new(
             Row::new()
@@ -28,17 +32,21 @@ impl NumberInput {
                 .push({
                     let button = Button::new(&mut self.down_state, Icon::Remove.as_text().width(Length::Shrink));
                     if &value > range.start() {
-                        button.on_press((change)(value - 1)).style(style::Button::Negative)
+                        button
+                            .on_press((change)(value - 1))
+                            .style(style::Button::Negative(theme))
                     } else {
-                        button.style(style::Button::Disabled)
+                        button.style(style::Button::Disabled(theme))
                     }
                 })
                 .push({
                     let button = Button::new(&mut self.up_state, Icon::Add.as_text().width(Length::Shrink));
                     if &value < range.end() {
-                        button.on_press((change)(value + 1)).style(style::Button::Primary)
+                        button
+                            .on_press((change)(value + 1))
+                            .style(style::Button::Primary(theme))
                     } else {
-                        button.style(style::Button::Disabled)
+                        button.style(style::Button::Disabled(theme))
                     }
                 }),
         )

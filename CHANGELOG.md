@@ -1,6 +1,7 @@
 ## Unreleased
 
 * Added:
+  * GUI: Dark theme.
   * If you set the `LUDUSAVI_DEBUG` environment variable, then Ludusavi will
     not detach from the console on Windows. This may be helpful if you want to
     troubleshoot an issue that involves Ludusavi crashing.

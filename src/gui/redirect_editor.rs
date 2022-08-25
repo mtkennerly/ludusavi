@@ -63,7 +63,7 @@ impl RedirectEditor {
                     })
                     .max_height(100)
                     .spacing(5)
-                    .style(style::Scrollable),
+                    .style(style::Scrollable(config.theme)),
                 |parent: Scrollable<'_, Message>, (i, x)| {
                     parent.push(
                         Row::new()
@@ -72,7 +72,7 @@ impl RedirectEditor {
                             .push(
                                 Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())
                                     .on_press(Message::EditedRedirect(EditAction::Remove(i), None))
-                                    .style(style::Button::Negative),
+                                    .style(style::Button::Negative(config.theme)),
                             )
                             .push(
                                 TextInput::new(
@@ -86,6 +86,7 @@ impl RedirectEditor {
                                         )
                                     },
                                 )
+                                .style(style::TextInput(config.theme))
                                 .width(Length::FillPortion(3))
                                 .padding(5),
                             )
@@ -96,8 +97,8 @@ impl RedirectEditor {
                                         Some(_) => Message::Ignore,
                                     })
                                     .style(match operation {
-                                        None => style::Button::Primary,
-                                        Some(_) => style::Button::Disabled,
+                                        None => style::Button::Primary(config.theme),
+                                        Some(_) => style::Button::Disabled(config.theme),
                                     }),
                             )
                             .push(
@@ -112,6 +113,7 @@ impl RedirectEditor {
                                         )
                                     },
                                 )
+                                .style(style::TextInput(config.theme))
                                 .width(Length::FillPortion(3))
                                 .padding(5),
                             )
@@ -122,8 +124,8 @@ impl RedirectEditor {
                                         Some(_) => Message::Ignore,
                                     })
                                     .style(match operation {
-                                        None => style::Button::Primary,
-                                        Some(_) => style::Button::Disabled,
+                                        None => style::Button::Primary(config.theme),
+                                        Some(_) => style::Button::Disabled(config.theme),
                                     }),
                             ),
                     )

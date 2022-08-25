@@ -86,7 +86,7 @@ impl ModalComponent {
             .horizontal_alignment(HorizontalAlignment::Center),
         )
         .width(Length::Units(125))
-        .style(style::Button::Primary);
+        .style(style::Button::Primary(config.theme));
 
         if let Some(message) = theme.message() {
             positive_button = positive_button.on_press(message);
@@ -98,7 +98,7 @@ impl ModalComponent {
         )
         .on_press(Message::Idle)
         .width(Length::Units(125))
-        .style(style::Button::Negative);
+        .style(style::Button::Negative(config.theme));
 
         Container::new(
             Column::new()
@@ -108,7 +108,7 @@ impl ModalComponent {
                     Container::new(Space::new(Length::Shrink, Length::Shrink))
                         .width(Length::Fill)
                         .height(Length::FillPortion(1))
-                        .style(style::Container::ModalBackground),
+                        .style(style::Container::ModalBackground(config.theme)),
                 )
                 .push(
                     Column::new()
@@ -122,7 +122,7 @@ impl ModalComponent {
                                     Scrollable::new(&mut self.scroll)
                                         .width(Length::Fill)
                                         .height(Length::Fill)
-                                        .style(style::Scrollable)
+                                        .style(style::Scrollable(config.theme))
                                         .push(Text::new(theme.text(config, translator)))
                                         .align_items(Alignment::Center),
                                 )
@@ -144,7 +144,7 @@ impl ModalComponent {
                     Container::new(Space::new(Length::Shrink, Length::Shrink))
                         .width(Length::Fill)
                         .height(Length::FillPortion(1))
-                        .style(style::Container::ModalBackground),
+                        .style(style::Container::ModalBackground(config.theme)),
                 ),
         )
         .height(Length::Fill)

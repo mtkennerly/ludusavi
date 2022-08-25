@@ -64,7 +64,7 @@ impl CustomGamesScreenComponent {
                             )
                             .on_press(Message::EditedCustomGame(EditAction::Add))
                             .width(Length::Units(125))
-                            .style(style::Button::Primary),
+                            .style(style::Button::Primary(config.theme)),
                         )
                         .push({
                             Button::new(
@@ -82,7 +82,7 @@ impl CustomGamesScreenComponent {
                                 Message::SelectAllGames
                             })
                             .width(Length::Units(125))
-                            .style(style::Button::Primary)
+                            .style(style::Button::Primary(config.theme))
                         }),
                 )
                 .push(self.games_editor.view(config, translator, operation)),

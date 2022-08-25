@@ -62,7 +62,7 @@ impl RootEditor {
                         })
                         .max_height(100)
                         .spacing(5)
-                        .style(style::Scrollable),
+                        .style(style::Scrollable(config.theme)),
                     |parent: Scrollable<'_, Message>, (i, x)| {
                         parent.push(
                             Row::new()
@@ -71,12 +71,13 @@ impl RootEditor {
                                 .push(
                                     Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())
                                         .on_press(Message::EditedRoot(EditAction::Remove(i)))
-                                        .style(style::Button::Negative),
+                                        .style(style::Button::Negative(config.theme)),
                                 )
                                 .push(
                                     TextInput::new(&mut x.text_state, "", &roots[i].path.raw(), move |v| {
                                         Message::EditedRoot(EditAction::Change(i, v))
                                     })
+                                    .style(style::TextInput(config.theme))
                                     .width(Length::FillPortion(3))
                                     .padding(5),
                                 )
@@ -84,7 +85,7 @@ impl RootEditor {
                                     PickList::new(&mut x.pick_list, Store::ALL, Some(roots[i].store), move |v| {
                                         Message::SelectedRootStore(i, v)
                                     })
-                                    .style(style::PickList::Primary),
+                                    .style(style::PickList::Primary(config.theme)),
                                 )
                                 .push(
                                     Button::new(&mut x.browse_button_state, Icon::FolderOpen.as_text())
@@ -93,8 +94,8 @@ impl RootEditor {
                                             Some(_) => Message::Ignore,
                                         })
                                         .style(match operation {
-                                            None => style::Button::Primary,
-                                            Some(_) => style::Button::Disabled,
+                                            None => style::Button::Primary(config.theme),
+                                            Some(_) => style::Button::Disabled(config.theme),
                                         }),
                                 ),
                         )

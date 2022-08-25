@@ -1,4 +1,7 @@
-use crate::gui::{common::Message, style};
+use crate::{
+    config::Theme,
+    gui::{common::Message, style},
+};
 use iced::{Container, Text};
 
 #[derive(Default)]
@@ -20,11 +23,11 @@ impl Badge {
         self
     }
 
-    pub fn view(self) -> Container<'static, Message> {
+    pub fn view(self, theme: Theme) -> Container<'static, Message> {
         Container::new(
             Container::new(Text::new(self.text).size(14))
                 .padding([2, 12, 2, 12])
-                .style(style::Container::Badge),
+                .style(style::Container::Badge(theme)),
         )
         .padding([3, 0, 0, self.left_margin])
         .center_x()

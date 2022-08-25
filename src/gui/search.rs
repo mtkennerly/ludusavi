@@ -1,6 +1,9 @@
 use crate::{
-    config::{Sort, SortKey},
-    gui::common::{Message, Screen},
+    config::{Sort, SortKey, Theme},
+    gui::{
+        common::{Message, Screen},
+        style,
+    },
     lang::Translator,
     shortcuts::TextHistory,
 };
@@ -20,7 +23,13 @@ pub struct SearchComponent {
 }
 
 impl SearchComponent {
-    pub fn view(&mut self, screen: Screen, translator: &Translator, sort: &Sort) -> Option<Container<Message>> {
+    pub fn view(
+        &mut self,
+        screen: Screen,
+        translator: &Translator,
+        sort: &Sort,
+        theme: Theme,
+    ) -> Option<Container<Message>> {
         if !self.show {
             return None;
         }
@@ -37,18 +46,22 @@ impl SearchComponent {
                         &self.game_name,
                         move |value| Message::EditedSearchGameName { screen, value },
                     )
+                    .style(style::TextInput(theme))
                     .padding(5),
                 )
                 .push(Text::new(translator.sort_label()))
-                .push(PickList::new(
-                    &mut self.sort_key_state,
-                    SortKey::ALL,
-                    Some(sort.key),
-                    move |value| Message::EditedSortKey { screen, value },
-                ))
-                .push(Checkbox::new(sort.reversed, translator.sort_reversed(), move |value| {
-                    Message::EditedSortReversed { screen, value }
-                })),
+                .push(
+                    PickList::new(&mut self.sort_key_state, SortKey::ALL, Some(sort.key), move |value| {
+                        Message::EditedSortKey { screen, value }
+                    })
+                    .style(style::PickList::Primary(theme)),
+                )
+                .push(
+                    Checkbox::new(sort.reversed, translator.sort_reversed(), move |value| {
+                        Message::EditedSortReversed { screen, value }
+                    })
+                    .style(style::Checkbox(theme)),
+                ),
         ))
     }
 }

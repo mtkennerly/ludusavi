@@ -1,5 +1,5 @@
 use crate::{
-    config::{BackupFormat, RootsConfig, SortKey, ZipCompression},
+    config::{BackupFormat, RootsConfig, SortKey, Theme, ZipCompression},
     gui::badge::Badge,
     lang::{Language, Translator},
     layout::Backup,
@@ -133,6 +133,7 @@ pub enum Message {
         backup: Backup,
     },
     SelectedLanguage(Language),
+    SelectedTheme(Theme),
     SelectedBackupFormat(BackupFormat),
     SelectedBackupCompression(ZipCompression),
     ToggleBackupSettings,
@@ -229,6 +230,7 @@ pub fn make_status_row<'a>(
     translator: &Translator,
     status: &OperationStatus,
     found_any_duplicates: bool,
+    theme: Theme,
 ) -> Row<'a, Message> {
     Row::new()
         .padding([0, 20, 0, 20])
@@ -238,7 +240,7 @@ pub fn make_status_row<'a>(
         .push(Text::new(translator.processed_bytes(status)).size(35))
         .push_if(
             || found_any_duplicates,
-            || Badge::new(&translator.badge_duplicates()).left_margin(15).view(),
+            || Badge::new(&translator.badge_duplicates()).left_margin(15).view(theme),
         )
 }
 

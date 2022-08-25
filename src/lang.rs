@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use unic_langid::LanguageIdentifier;
 
 use crate::{
-    config::{BackupFormat, SortKey, ZipCompression},
+    config::{BackupFormat, SortKey, Theme, ZipCompression},
     manifest::Store,
     prelude::{Error, OperationStatus, OperationStepDecision, StrictPath},
 };
@@ -268,6 +268,10 @@ impl Translator {
 
     pub fn field_language(&self) -> String {
         self.field(&translate("language"))
+    }
+
+    pub fn field_theme(&self) -> String {
+        self.field(&translate("theme"))
     }
 
     pub fn badge_failed(&self) -> String {
@@ -604,6 +608,13 @@ impl Translator {
             ZipCompression::Deflate => "compression-deflate",
             ZipCompression::Bzip2 => "compression-bzip2",
             ZipCompression::Zstd => "compression-zstd",
+        })
+    }
+
+    pub fn theme_name(&self, theme: &Theme) -> String {
+        translate(match theme {
+            Theme::Light => "theme-light",
+            Theme::Dark => "theme-dark",
         })
     }
 

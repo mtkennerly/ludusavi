@@ -86,18 +86,21 @@ impl FileTreeNode {
                 let game_name = game_name.to_string();
                 let path = path.clone();
                 return Some(
-                    Container::new(Checkbox::new(!self.ignored, "", move |enabled| match &path {
-                        FileTreeNodePath::File(path) => Message::ToggleSpecificBackupPathIgnored {
-                            name: game_name.clone(),
-                            path: path.clone(),
-                            enabled,
-                        },
-                        FileTreeNodePath::Registry(path) => Message::ToggleSpecificBackupRegistryIgnored {
-                            name: game_name.clone(),
-                            path: path.clone(),
-                            enabled,
-                        },
-                    }))
+                    Container::new(
+                        Checkbox::new(!self.ignored, "", move |enabled| match &path {
+                            FileTreeNodePath::File(path) => Message::ToggleSpecificBackupPathIgnored {
+                                name: game_name.clone(),
+                                path: path.clone(),
+                                enabled,
+                            },
+                            FileTreeNodePath::Registry(path) => Message::ToggleSpecificBackupRegistryIgnored {
+                                name: game_name.clone(),
+                                path: path.clone(),
+                                enabled,
+                            },
+                        })
+                        .style(style::Checkbox(config.theme)),
+                    )
                     .align_x(iced::alignment::Horizontal::Center)
                     .align_y(iced::alignment::Vertical::Center),
                 );
@@ -121,16 +124,26 @@ impl FileTreeNode {
                     .push(Text::new(label))
                     .push_if(
                         || self.duplicated,
-                        || Badge::new(&translator.badge_duplicated()).left_margin(15).view(),
+                        || {
+                            Badge::new(&translator.badge_duplicated())
+                                .left_margin(15)
+                                .view(config.theme)
+                        },
                     )
                     .push_if(
                         || !self.successful,
-                        || Badge::new(&translator.badge_failed()).left_margin(15).view(),
+                        || {
+                            Badge::new(&translator.badge_failed())
+                                .left_margin(15)
+                                .view(config.theme)
+                        },
                     )
                     .push_some(|| {
-                        self.redirected_from
-                            .as_ref()
-                            .map(|r| Badge::new(&translator.badge_redirected_from(r)).left_margin(15).view())
+                        self.redirected_from.as_ref().map(|r| {
+                            Badge::new(&translator.badge_redirected_from(r))
+                                .left_margin(15)
+                                .view(config.theme)
+                        })
                     }),
             );
         } else if self.nodes.len() == 1 {
@@ -170,7 +183,7 @@ impl FileTreeNode {
                                 name: game_name.to_string(),
                                 keys: self.keys.clone(),
                             })
-                            .style(style::Button::Primary)
+                            .style(style::Button::Primary(config.theme))
                             .height(Length::Units(25))
                             .width(Length::Units(25)),
                         )
@@ -186,7 +199,7 @@ impl FileTreeNode {
                                         Icon::OpenInNew.as_text().width(Length::Shrink).size(15),
                                     )
                                     .on_press(Message::OpenDir { path: path.clone() })
-                                    .style(style::Button::Primary)
+                                    .style(style::Button::Primary(config.theme))
                                     .height(Length::Units(25)),
                                 );
                             }

@@ -80,13 +80,14 @@ impl GameListEntry {
                 .align_items(Alignment::Center)
                 .push(
                     Row::new()
-                        .push(Checkbox::new(enabled, "", move |enabled| {
-                            Message::ToggleGameListEntryEnabled {
+                        .push(
+                            Checkbox::new(enabled, "", move |enabled| Message::ToggleGameListEntryEnabled {
                                 name: name_for_checkbox.clone(),
                                 enabled,
                                 restoring,
-                            }
-                        }))
+                            })
+                            .style(style::Checkbox(config.theme)),
+                        )
                         .push(
                             Button::new(
                                 &mut self.expand_button,
@@ -97,11 +98,11 @@ impl GameListEntry {
                                 name: self.scan_info.game_name.clone(),
                             })
                             .style(if !enabled {
-                                style::Button::GameListEntryTitleDisabled
+                                style::Button::GameListEntryTitleDisabled(config.theme)
                             } else if successful {
-                                style::Button::GameListEntryTitle
+                                style::Button::GameListEntryTitle(config.theme)
                             } else {
-                                style::Button::GameListEntryTitleFailed
+                                style::Button::GameListEntryTitleFailed(config.theme)
                             })
                             .width(Length::Fill)
                             .padding(2),
@@ -114,16 +115,24 @@ impl GameListEntry {
                                         .processed_subset(self.scan_info.total_items(), self.scan_info.enabled_items()),
                                 )
                                 .left_margin(15)
-                                .view()
+                                .view(config.theme)
                             },
                         )
                         .push_if(
                             || duplicate_detector.is_game_duplicated(&self.scan_info),
-                            || Badge::new(&translator.badge_duplicates()).left_margin(15).view(),
+                            || {
+                                Badge::new(&translator.badge_duplicates())
+                                    .left_margin(15)
+                                    .view(config.theme)
+                            },
                         )
                         .push_if(
                             || !successful,
-                            || Badge::new(&translator.badge_failed()).left_margin(15).view(),
+                            || {
+                                Badge::new(&translator.badge_failed())
+                                    .left_margin(15)
+                                    .view(config.theme)
+                            },
                         )
                         .push(Space::new(
                             Length::Units(if restoring { 0 } else { 15 }),
@@ -145,7 +154,7 @@ impl GameListEntry {
                                                 .padding(2)
                                                 .width(Length::Units(160))
                                                 .align_x(HorizontalAlignment::Center)
-                                                .style(style::Container::DisabledBackup),
+                                                .style(style::Container::DisabledBackup(config.theme)),
                                         )
                                         .padding([2, 0, 0, 15])
                                     });
@@ -163,7 +172,7 @@ impl GameListEntry {
                                         },
                                     )
                                     .text_size(15)
-                                    .style(style::PickList::Backup),
+                                    .style(style::PickList::Backup(config.theme)),
                                 )
                                 .padding([0, 0, 0, 15])
                                 .width(Length::Units(185))
@@ -189,9 +198,9 @@ impl GameListEntry {
                                         }
                                     })
                                     .style(if customized {
-                                        style::Button::Disabled
+                                        style::Button::Disabled(config.theme)
                                     } else {
-                                        style::Button::Primary
+                                        style::Button::Primary(config.theme)
                                     })
                                     .padding(2),
                                 )
@@ -211,9 +220,9 @@ impl GameListEntry {
                                 Some(_) => Message::Ignore,
                             })
                             .style(if operation.is_some() {
-                                style::Button::Disabled
+                                style::Button::Disabled(config.theme)
                             } else {
-                                style::Button::Primary
+                                style::Button::Primary(config.theme)
                             })
                             .padding(2),
                         ))
@@ -228,9 +237,9 @@ impl GameListEntry {
                                     }
                                 })
                                 .style(if customized_pure {
-                                    style::Button::Disabled
+                                    style::Button::Disabled(config.theme)
                                 } else {
-                                    style::Button::Primary
+                                    style::Button::Primary(config.theme)
                                 })
                                 .padding(2),
                         ))
@@ -251,7 +260,7 @@ impl GameListEntry {
                     },
                 ),
         )
-        .style(style::Container::GameListEntry)
+        .style(style::Container::GameListEntry(config.theme))
     }
 }
 
@@ -287,6 +296,7 @@ impl GameList {
                         } else {
                             &config.backup.sort
                         },
+                        config.theme,
                     )
                 })
                 .push({
@@ -295,7 +305,7 @@ impl GameList {
                             .width(Length::Fill)
                             .padding([0, 15, 5, 15])
                             .spacing(10)
-                            .style(style::Scrollable),
+                            .style(style::Scrollable(config.theme)),
                         |parent: Scrollable<'_, Message>, (_i, x)| {
                             if !use_search
                                 || fuzzy_matcher::skim::SkimMatcherV2::default()

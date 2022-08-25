@@ -106,6 +106,7 @@ impl IgnoredItemsEditor {
                                                                 )
                                                             },
                                                         )
+                                                        .style(style::TextInput(config.theme))
                                                         .padding(5),
                                                     )
                                                     .push(
@@ -120,8 +121,8 @@ impl IgnoredItemsEditor {
                                                             Some(_) => Message::Ignore,
                                                         })
                                                         .style(match operation {
-                                                            None => style::Button::Primary,
-                                                            Some(_) => style::Button::Disabled,
+                                                            None => style::Button::Primary(config.theme),
+                                                            Some(_) => style::Button::Disabled(config.theme),
                                                         }),
                                                     )
                                                     .push(
@@ -129,7 +130,7 @@ impl IgnoredItemsEditor {
                                                             .on_press(Message::EditedBackupFilterIgnoredPath(
                                                                 EditAction::Remove(ii),
                                                             ))
-                                                            .style(style::Button::Negative),
+                                                            .style(style::Button::Negative(config.theme)),
                                                     ),
                                             )
                                         })
@@ -139,7 +140,7 @@ impl IgnoredItemsEditor {
                                                 Icon::AddCircle.as_text(),
                                             )
                                             .on_press(Message::EditedBackupFilterIgnoredPath(EditAction::Add))
-                                            .style(style::Button::Primary),
+                                            .style(style::Button::Primary(config.theme)),
                                         ),
                                 ),
                         )
@@ -170,6 +171,7 @@ impl IgnoredItemsEditor {
                                                                 )
                                                             },
                                                         )
+                                                        .style(style::TextInput(config.theme))
                                                         .padding(5),
                                                     )
                                                     .push(
@@ -177,7 +179,7 @@ impl IgnoredItemsEditor {
                                                             .on_press(Message::EditedBackupFilterIgnoredRegistry(
                                                                 EditAction::Remove(ii),
                                                             ))
-                                                            .style(style::Button::Negative),
+                                                            .style(style::Button::Negative(config.theme)),
                                                     ),
                                             )
                                         })
@@ -187,12 +189,12 @@ impl IgnoredItemsEditor {
                                                 Icon::AddCircle.as_text(),
                                             )
                                             .on_press(Message::EditedBackupFilterIgnoredRegistry(EditAction::Add))
-                                            .style(style::Button::Primary),
+                                            .style(style::Button::Primary(config.theme)),
                                         ),
                                 ),
                         ),
                 )
-                .style(style::Container::GameListEntry),
+                .style(style::Container::GameListEntry(config.theme)),
             )
         })
     }
