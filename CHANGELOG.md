@@ -7,6 +7,7 @@
     troubleshoot an issue that involves Ludusavi crashing.
 * Fixed:
   * GUI: Cancelling a backup/restore no longer has a long delay.
+  * Performance regressions from v0.10.0 related to duplicate detection and root globbing.
 
 ## v0.11.0 (2022-08-20)
 

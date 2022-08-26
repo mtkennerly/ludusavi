@@ -874,6 +874,10 @@ pub struct DuplicateDetector {
 
 impl DuplicateDetector {
     pub fn add_game(&mut self, scan_info: &ScanInfo) {
+        if !scan_info.found_anything() {
+            return;
+        }
+
         let mut stale = std::collections::HashSet::new();
         stale.insert(scan_info.game_name.clone());
 
