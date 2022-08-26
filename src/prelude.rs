@@ -373,14 +373,16 @@ pub fn parse_paths(
         None => SKIP,
     };
 
+    let root_interpreted = root.path.interpret();
+
     paths.insert(
-        path.replace("<root>", &root.path.interpret())
+        path.replace("<root>", &root_interpreted)
             .replace("<game>", install_dir)
             .replace(
                 "<base>",
                 &match root.store {
-                    Store::Steam => format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
-                    _ => format!("{}/{}", root.path.interpret(), install_dir),
+                    Store::Steam => format!("{}/steamapps/common/{}", &root_interpreted, install_dir),
+                    _ => format!("{}/{}", &root_interpreted, install_dir),
                 },
             )
             .replace(
@@ -402,9 +404,9 @@ pub fn parse_paths(
     );
     if root.store == Store::OtherHome {
         paths.insert(
-            path.replace("<root>", &root.path.interpret())
+            path.replace("<root>", &root_interpreted)
                 .replace("<game>", install_dir)
-                .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
+                .replace("<base>", &format!("{}/{}", &root_interpreted, install_dir))
                 .replace("<storeUserId>", SKIP)
                 .replace("<osUserName>", &whoami::username())
                 .replace("<winAppData>", &check_windows_path_str("<home>/AppData/Roaming"))
@@ -417,21 +419,21 @@ pub fn parse_paths(
                 .replace("<xdgConfig>", &check_nonwindows_path_str("<home>/.config"))
                 .replace("<regHkcu>", SKIP)
                 .replace("<regHklm>", SKIP)
-                .replace("<home>", &root.path.interpret()),
+                .replace("<home>", &root_interpreted),
         );
     }
     if get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some() {
         let prefix = format!(
             "{}/steamapps/compatdata/{}/pfx/drive_c",
-            root.path.interpret(),
+            &root_interpreted,
             steam_id.unwrap()
         );
         let path2 = path
-            .replace("<root>", &root.path.interpret())
+            .replace("<root>", &root_interpreted)
             .replace("<game>", install_dir)
             .replace(
                 "<base>",
-                &format!("{}/steamapps/common/{}", root.path.interpret(), install_dir),
+                &format!("{}/steamapps/common/{}", &root_interpreted, install_dir),
             )
             .replace("<home>", &format!("{}/users/steamuser", prefix))
             .replace("<storeUserId>", "*")
@@ -463,11 +465,11 @@ pub fn parse_paths(
         );
     }
     if root.store == Store::OtherWine {
-        let prefix = format!("{}/drive_*", root.path.interpret());
+        let prefix = format!("{}/drive_*", &root_interpreted);
         let path2 = path
-            .replace("<root>", &root.path.interpret())
+            .replace("<root>", &root_interpreted)
             .replace("<game>", install_dir)
-            .replace("<base>", &format!("{}/{}", root.path.interpret(), install_dir))
+            .replace("<base>", &format!("{}/{}", &root_interpreted, install_dir))
             .replace("<home>", &format!("{}/users/*", prefix))
             .replace("<storeUserId>", "*")
             .replace("<osUserName>", "*")
@@ -631,6 +633,8 @@ pub fn scan_game_for_backup(
     }];
     roots_to_check.extend(roots.iter().flat_map(|x| x.glob()));
 
+    let manifest_dir_interpreted = manifest_dir.interpret();
+
     if let Some(wp) = wine_prefix {
         roots_to_check.push(RootsConfig {
             path: wp.clone(),
@@ -642,7 +646,7 @@ pub fn scan_game_for_backup(
         // For other Wine roots, it would trigger for every game.
         paths_to_check.insert(StrictPath::relative(
             format!("{}/*.reg", wp.interpret()),
-            Some(manifest_dir.interpret()),
+            Some(manifest_dir_interpreted.clone()),
         ));
     }
 
@@ -650,6 +654,8 @@ pub fn scan_game_for_backup(
         if root.path.raw().trim().is_empty() {
             continue;
         }
+        let root_interpreted = root.path.interpret();
+
         if let Some(files) = &game.files {
             let maybe_proton = get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some();
             let install_dir = ranking.get(&root, name);
@@ -677,8 +683,8 @@ pub fn scan_game_for_backup(
         if root.store == Store::Steam && steam_id.is_some() {
             // Cloud saves:
             paths_to_check.insert(StrictPath::relative(
-                format!("{}/userdata/*/{}/remote/", root.path.interpret(), &steam_id.unwrap()),
-                Some(manifest_dir.interpret()),
+                format!("{}/userdata/*/{}/remote/", root_interpreted.clone(), &steam_id.unwrap()),
+                Some(manifest_dir_interpreted.clone()),
             ));
 
             // Screenshots:
@@ -686,23 +692,19 @@ pub fn scan_game_for_backup(
                 paths_to_check.insert(StrictPath::relative(
                     format!(
                         "{}/userdata/*/760/remote/{}/screenshots/*.*",
-                        root.path.interpret(),
+                        &root_interpreted,
                         &steam_id.unwrap()
                     ),
-                    Some(manifest_dir.interpret()),
+                    Some(manifest_dir_interpreted.clone()),
                 ));
             }
 
             // Registry:
             if game.registry.is_some() {
-                let prefix = format!(
-                    "{}/steamapps/compatdata/{}/pfx",
-                    root.path.interpret(),
-                    steam_id.unwrap()
-                );
+                let prefix = format!("{}/steamapps/compatdata/{}/pfx", &root_interpreted, steam_id.unwrap());
                 paths_to_check.insert(StrictPath::relative(
                     format!("{}/*.reg", prefix),
-                    Some(manifest_dir.interpret()),
+                    Some(manifest_dir_interpreted.clone()),
                 ));
             }
         }
