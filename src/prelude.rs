@@ -705,6 +705,7 @@ pub fn scan_game_for_backup(
             continue;
         }
         for p in path.glob() {
+            let p = p.rendered();
             if p.is_file() {
                 if filter.is_path_ignored(&p) {
                     continue;
