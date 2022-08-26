@@ -99,6 +99,9 @@ pub struct BackupFilter {
 
 impl BackupFilter {
     pub fn is_path_ignored(&self, item: &StrictPath) -> bool {
+        if self.ignored_paths.is_empty() {
+            return false;
+        }
         let interpreted = item.interpret();
         self.ignored_paths
             .iter()
@@ -107,6 +110,9 @@ impl BackupFilter {
 
     #[allow(dead_code)]
     pub fn is_registry_ignored(&self, item: &RegistryItem) -> bool {
+        if self.ignored_registry.is_empty() {
+            return false;
+        }
         let interpreted = item.interpret();
         self.ignored_registry
             .iter()
