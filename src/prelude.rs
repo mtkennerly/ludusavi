@@ -909,11 +909,16 @@ impl DuplicateDetector {
                 .insert(scan_info.game_name.clone());
         }
 
-        for game in stale {
-            self.file_cache
-                .insert(game.to_string(), self.count_file_duplicates_for(&game));
-            self.registry_cache
-                .insert(game.to_string(), self.count_registry_duplicates_for(&game));
+        if stale.len() == 1 {
+            self.file_cache.insert(scan_info.game_name.clone(), 0);
+            self.registry_cache.insert(scan_info.game_name.clone(), 0);
+        } else {
+            for game in stale {
+                self.file_cache
+                    .insert(game.to_string(), self.count_file_duplicates_for(&game));
+                self.registry_cache
+                    .insert(game.to_string(), self.count_registry_duplicates_for(&game));
+            }
         }
     }
 
