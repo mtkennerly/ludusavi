@@ -533,6 +533,10 @@ impl Config {
     pub fn are_all_custom_games_enabled(&self) -> bool {
         self.custom_games.iter().all(|x| !x.ignore)
     }
+
+    pub fn expanded_roots(&self) -> Vec<RootsConfig> {
+        self.roots.iter().flat_map(|x| x.glob()).collect()
+    }
 }
 
 impl ToggledPaths {

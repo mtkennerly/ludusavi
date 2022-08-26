@@ -535,7 +535,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 None => config.backup.path.clone(),
                 Some(p) => p,
             };
-            let roots = &config.roots;
+            let roots = config.expanded_roots();
 
             if !preview {
                 if !force && !merge && backup_dir.exists() {
@@ -609,7 +609,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             let layout = BackupLayout::new(backup_dir.clone(), config.backup.retention.clone());
             let filter = config.backup.filter.clone();
-            let ranking = InstallDirRanking::scan(roots, &all_games, &subjects);
+            let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects);
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
 
@@ -623,7 +623,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let scan_info = scan_game_for_backup(
                         game,
                         name,
-                        roots,
+                        &roots,
                         &StrictPath::from_std_path_buf(&app_dir()),
                         steam_id,
                         &filter,

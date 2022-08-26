@@ -146,13 +146,15 @@ impl App {
         });
 
         let config = std::sync::Arc::new(self.config.clone());
+        let roots = std::sync::Arc::new(config.expanded_roots());
         let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone(), config.backup.retention.clone()));
         let filter = std::sync::Arc::new(self.config.backup.filter.clone());
-        let ranking = std::sync::Arc::new(InstallDirRanking::scan(&self.config.roots, &all_games, &subjects));
+        let ranking = std::sync::Arc::new(InstallDirRanking::scan(&roots, &all_games, &subjects));
 
         for key in subjects {
             let game = all_games.0[&key].clone();
             let config = config.clone();
+            let roots = roots.clone();
             let layout = layout.clone();
             let filter = filter.clone();
             let ranking = ranking.clone();
@@ -173,7 +175,7 @@ impl App {
                     let scan_info = scan_game_for_backup(
                         &game,
                         &key,
-                        &config.roots,
+                        &roots,
                         &StrictPath::from_std_path_buf(&app_dir()),
                         &steam_id,
                         &filter,

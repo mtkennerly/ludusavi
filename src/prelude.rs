@@ -542,8 +542,8 @@ impl InstallDirRanking {
 
     pub fn scan(roots: &[RootsConfig], manifest: &crate::manifest::Manifest, subjects: &[String]) -> Self {
         let mut ranking = Self::default();
-        for root in roots.iter().flat_map(|x| x.glob()) {
-            ranking.scan_root(&root, manifest, subjects);
+        for root in roots {
+            ranking.scan_root(root, manifest, subjects);
         }
         ranking
     }
@@ -631,7 +631,7 @@ pub fn scan_game_for_backup(
         path: StrictPath::new(SKIP.to_string()),
         store: Store::Other,
     }];
-    roots_to_check.extend(roots.iter().flat_map(|x| x.glob()));
+    roots_to_check.extend(roots.iter().cloned());
 
     let manifest_dir_interpreted = manifest_dir.interpret();
 
