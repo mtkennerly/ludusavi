@@ -503,16 +503,6 @@ pub fn parse_paths(
         .collect()
 }
 
-fn glob_any(path: &StrictPath) -> Result<glob::Paths, ()> {
-    let options = glob::MatchOptions {
-        case_sensitive: CASE_INSENSITIVE_OS,
-        require_literal_separator: true,
-        require_literal_leading_dot: false,
-    };
-    let entries = glob::glob_with(&path.render(), options).map_err(|_| ())?;
-    Ok(entries)
-}
-
 fn should_exclude_as_other_os_data(constraints: &[GameFileConstraint], host: Os, maybe_proton: bool) -> bool {
     let constrained = !constraints.is_empty();
     let unconstrained_by_os = constraints.iter().any(|x| x.os == None);
@@ -714,12 +704,7 @@ pub fn scan_game_for_backup(
         if filter.is_path_ignored(&path) {
             continue;
         }
-        let entries = match glob_any(&path) {
-            Ok(x) => x,
-            Err(_) => continue,
-        };
-        for entry in entries.filter_map(|r| r.ok()) {
-            let p = StrictPath::from(entry).rendered();
+        for p in path.glob() {
             if p.is_file() {
                 if filter.is_path_ignored(&p) {
                     continue;
