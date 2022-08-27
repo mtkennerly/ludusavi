@@ -31,7 +31,7 @@ pub struct BackupScreenComponent {
     pub backup_target_history: TextHistory,
     backup_target_browse_button: button::State,
     pub root_editor: RootEditor,
-    pub recent_found_games: std::collections::HashSet<String>,
+    pub previewed_games: std::collections::HashSet<String>,
     pub duplicate_detector: DuplicateDetector,
     full_retention_input: crate::gui::number_input::NumberInput,
     diff_retention_input: crate::gui::number_input::NumberInput,
@@ -49,6 +49,7 @@ impl BackupScreenComponent {
         }
 
         Self {
+            log: GameList::with_recent_games(&config.backup.recent_games, &config.backup.sort),
             root_editor,
             backup_target_history: TextHistory::new(&config.backup.path.raw(), 100),
             ..Default::default()

@@ -4,7 +4,7 @@ use crate::{
     config::{Config, Sort, SortKey, ToggledPaths, ToggledRegistry},
     gui::{
         badge::Badge,
-        common::{IcedExtension, Message, Screen},
+        common::{IcedButtonExt, IcedExtension, Message, Screen},
         file_tree::FileTree,
         icon::Icon,
         search::SearchComponent,
@@ -64,6 +64,7 @@ impl GameListEntry {
             self.tree.clear();
         }
 
+        let scanned = self.scan_info.found_anything();
         let enabled = if restoring {
             config.is_game_enabled_for_restore(&self.scan_info.game_name)
         } else {
@@ -94,10 +95,28 @@ impl GameListEntry {
                                 Text::new(self.scan_info.game_name.clone())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::ToggleGameListEntryExpanded {
-                                name: self.scan_info.game_name.clone(),
+                            .on_press_some(if scanned {
+                                Some(Message::ToggleGameListEntryExpanded {
+                                    name: self.scan_info.game_name.clone(),
+                                })
+                            } else if operation.is_none() {
+                                if restoring {
+                                    Some(Message::RestoreStart {
+                                        preview: true,
+                                        games: Some(vec![self.scan_info.game_name.clone()]),
+                                    })
+                                } else {
+                                    Some(Message::BackupStart {
+                                        preview: true,
+                                        games: Some(vec![self.scan_info.game_name.clone()]),
+                                    })
+                                }
+                            } else {
+                                None
                             })
-                            .style(if !enabled {
+                            .style(if !scanned {
+                                style::Button::GameListEntryTitleUnscanned(config.theme)
+                            } else if !enabled {
                                 style::Button::GameListEntryTitleDisabled(config.theme)
                             } else if successful {
                                 style::Button::GameListEntryTitle(config.theme)
@@ -244,9 +263,14 @@ impl GameListEntry {
                                 .padding(2),
                         ))
                         .push(
-                            Container::new(Text::new(
-                                translator.adjusted_size(self.scan_info.sum_bytes(&self.backup_info)),
-                            ))
+                            Container::new(Text::new({
+                                let summed = self.scan_info.sum_bytes(&self.backup_info);
+                                if summed == 0 && !self.scan_info.found_anything() {
+                                    "".to_string()
+                                } else {
+                                    translator.adjusted_size(summed)
+                                }
+                            }))
                             .width(Length::Units(115))
                             .center_x(),
                         ),
@@ -387,5 +411,67 @@ impl GameList {
     pub fn clear(&mut self) {
         self.entries.clear();
         self.expanded_games.clear();
+    }
+
+    pub fn with_recent_games(games: &std::collections::BTreeSet<String>, sort: &Sort) -> Self {
+        let mut log = Self::default();
+        for game in games {
+            log.update_game(
+                ScanInfo {
+                    game_name: game.clone(),
+                    ..Default::default()
+                },
+                Default::default(),
+                sort,
+            );
+        }
+        log
+    }
+
+    pub fn update_game(&mut self, scan_info: ScanInfo, backup_info: Option<BackupInfo>, sort: &Sort) {
+        let mut index = None;
+
+        for (i, entry) in self.entries.iter().enumerate() {
+            if entry.scan_info.game_name == scan_info.game_name {
+                index = Some(i);
+                break;
+            }
+        }
+
+        match index {
+            Some(i) => {
+                if scan_info.found_anything() {
+                    self.entries[i].scan_info = scan_info;
+                    self.entries[i].backup_info = backup_info;
+                } else {
+                    self.entries.remove(i);
+                }
+            }
+            None => {
+                self.entries.push(GameListEntry {
+                    scan_info,
+                    backup_info,
+                    ..Default::default()
+                });
+                self.sort(sort);
+            }
+        }
+    }
+
+    pub fn remove_game(&mut self, game: &str) {
+        self.entries.retain(|entry| entry.scan_info.game_name != game);
+    }
+
+    pub fn remove_games(&mut self, games: &[String]) {
+        self.entries.retain(|entry| !games.contains(&entry.scan_info.game_name));
+    }
+
+    pub fn unscan_games(&mut self, games: &[String]) {
+        for entry in self.entries.iter_mut() {
+            if games.contains(&entry.scan_info.game_name) {
+                entry.scan_info.found_files.clear();
+                entry.scan_info.found_registry_keys.clear();
+            }
+        }
     }
 }

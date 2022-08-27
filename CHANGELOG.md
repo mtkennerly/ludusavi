@@ -2,6 +2,10 @@
 
 * Added:
   * GUI: Dark theme.
+  * GUI: On app startup, games found during the most recent scan will be displayed
+    in an "unknown" state, allowing you to re-scan any of those specific games
+    on demand without doing a full scan of all games. This is especially useful
+    if full scans are slower on your system and you just want to back up one game.
   * If you set the `LUDUSAVI_DEBUG` environment variable, then Ludusavi will
     not detach from the console on Windows. This may be helpful if you want to
     troubleshoot an issue that involves Ludusavi crashing.

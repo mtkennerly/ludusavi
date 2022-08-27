@@ -6,7 +6,6 @@ use crate::{
         custom_games_editor::{CustomGamesEditorEntry, CustomGamesEditorEntryRow},
         custom_games_screen::CustomGamesScreenComponent,
         disappearing_progress::DisappearingProgress,
-        game_list::GameListEntry,
         modal::ModalComponent,
         modal::ModalTheme,
         other_screen::OtherScreenComponent,
@@ -113,24 +112,29 @@ impl App {
         }
 
         if preview {
-            self.backup_screen.recent_found_games.clear();
+            self.backup_screen.previewed_games.clear();
         }
 
-        if let Some(ref games) = games {
+        if let Some(games) = &games {
             all_games.0.retain(|k, _| games.contains(k));
-        } else if !self.backup_screen.recent_found_games.is_empty() {
+        } else if !self.backup_screen.previewed_games.is_empty() {
             all_games
                 .0
-                .retain(|k, _| self.backup_screen.recent_found_games.contains(k));
+                .retain(|k, _| self.backup_screen.previewed_games.contains(k));
         }
 
         let subjects: Vec<_> = all_games.0.keys().cloned().collect();
+        if subjects.is_empty() {
+            if let Some(games) = &games {
+                self.backup_screen.log.remove_games(games);
+                self.config.backup.recent_games.retain(|x| !games.contains(x));
+                self.config.save();
+            }
+            return Command::none();
+        }
 
-        if let Some(ref games) = games {
-            self.backup_screen
-                .log
-                .entries
-                .retain(|entry| !games.contains(&entry.scan_info.game_name))
+        if let Some(games) = &games {
+            self.backup_screen.log.unscan_games(games);
         } else {
             self.backup_screen.log.clear();
             self.backup_screen.duplicate_detector.clear();
@@ -233,12 +237,9 @@ impl App {
         let layout = std::sync::Arc::new(BackupLayout::new(restore_path.clone(), config.backup.retention.clone()));
         let mut restorables = layout.restorable_games();
 
-        if let Some(games) = games {
+        if let Some(games) = &games {
             restorables.retain(|v| games.contains(v));
-            self.restore_screen
-                .log
-                .entries
-                .retain(|entry| !games.contains(&entry.scan_info.game_name))
+            self.restore_screen.log.unscan_games(games);
         } else {
             self.restore_screen.log.clear();
             self.restore_screen.duplicate_detector.clear();
@@ -246,6 +247,11 @@ impl App {
         self.modal_theme = None;
 
         if restorables.is_empty() {
+            if let Some(games) = &games {
+                self.restore_screen.log.remove_games(games);
+                self.config.restore.recent_games.retain(|x| !games.contains(x));
+                self.config.save();
+            }
             return Command::none();
         }
 
@@ -297,33 +303,77 @@ impl App {
     }
 
     fn complete_backup(&mut self, preview: bool) {
+        let cancelled = self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed);
+        let mut failed = false;
+
+        if !cancelled {
+            self.config.backup.recent_games.clear();
+        }
+
         for entry in &self.backup_screen.log.entries {
+            if !cancelled {
+                self.config
+                    .backup
+                    .recent_games
+                    .insert(entry.scan_info.game_name.clone());
+            }
             if let Some(backup_info) = &entry.backup_info {
                 if !backup_info.successful() {
-                    self.modal_theme = Some(ModalTheme::Error {
-                        variant: Error::SomeEntriesFailed,
-                    });
-                    return;
+                    failed = true;
                 }
             }
         }
+
         if !preview {
-            self.backup_screen.recent_found_games.clear();
+            self.backup_screen.previewed_games.clear();
         }
+
+        if !cancelled {
+            self.config.save();
+        }
+
+        if failed {
+            self.modal_theme = Some(ModalTheme::Error {
+                variant: Error::SomeEntriesFailed,
+            });
+            return;
+        }
+
         self.go_idle();
     }
 
     fn complete_restore(&mut self) {
+        let cancelled = self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed);
+        let mut failed = false;
+
+        if !cancelled {
+            self.config.restore.recent_games.clear();
+        }
+
         for entry in &self.restore_screen.log.entries {
+            if !cancelled {
+                self.config
+                    .restore
+                    .recent_games
+                    .insert(entry.scan_info.game_name.clone());
+            }
             if let Some(backup_info) = &entry.backup_info {
                 if !backup_info.successful() {
-                    self.modal_theme = Some(ModalTheme::Error {
-                        variant: Error::SomeEntriesFailed,
-                    });
-                    return;
+                    failed = true;
                 }
             }
         }
+
+        if !cancelled {
+            self.config.save();
+        }
+
+        if failed {
+            self.modal_theme = Some(ModalTheme::Error {
+                variant: Error::SomeEntriesFailed,
+            });
+        }
+
         self.go_idle();
     }
 }
@@ -436,15 +486,13 @@ impl Application for App {
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
                         self.backup_screen.duplicate_detector.add_game(&scan_info);
+                        self.backup_screen.previewed_games.insert(scan_info.game_name.clone());
                         self.backup_screen
-                            .recent_found_games
-                            .insert(scan_info.game_name.clone());
-                        self.backup_screen.log.entries.push(GameListEntry {
-                            scan_info,
-                            backup_info,
-                            ..Default::default()
-                        });
-                        self.backup_screen.log.sort(&self.config.backup.sort);
+                            .log
+                            .update_game(scan_info, backup_info, &self.config.backup.sort);
+                    } else {
+                        self.config.backup.recent_games.remove(&scan_info.game_name);
+                        self.backup_screen.log.remove_game(&scan_info.game_name);
                     }
                 }
 
@@ -468,12 +516,12 @@ impl Application for App {
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
                         self.restore_screen.duplicate_detector.add_game(&scan_info);
-                        self.restore_screen.log.entries.push(GameListEntry {
-                            scan_info,
-                            backup_info,
-                            ..Default::default()
-                        });
-                        self.restore_screen.log.sort(&self.config.restore.sort);
+                        self.restore_screen
+                            .log
+                            .update_game(scan_info, backup_info, &self.config.backup.sort);
+                    } else {
+                        self.restore_screen.log.remove_game(&scan_info.game_name);
+                        self.config.restore.recent_games.remove(&scan_info.game_name);
                     }
                 }
 

@@ -301,3 +301,16 @@ impl<'a> IcedExtension<'a> for iced::Row<'a, Message> {
         }
     }
 }
+
+pub trait IcedButtonExt<'a> {
+    fn on_press_some(self, msg: Option<Message>) -> Self;
+}
+
+impl<'a> IcedButtonExt<'a> for iced::Button<'a, Message> {
+    fn on_press_some(self, msg: Option<Message>) -> Self {
+        match msg {
+            Some(msg) => self.on_press(msg),
+            None => self,
+        }
+    }
+}
