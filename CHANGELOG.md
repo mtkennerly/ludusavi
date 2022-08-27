@@ -10,8 +10,10 @@
     not detach from the console on Windows. This may be helpful if you want to
     troubleshoot an issue that involves Ludusavi crashing.
 * Fixed:
+  * Performance regressions from v0.11.0 related to duplicate detection and root globbing.
   * GUI: Cancelling a backup/restore no longer has a long delay.
-  * Performance regressions from v0.10.0 related to duplicate detection and root globbing.
+  * GUI: Doing a full preview, backing up one game, and then doing a full backup
+    would trigger a full scan instead of reusing the list from the initial preview.
 
 ## v0.11.0 (2022-08-20)
 

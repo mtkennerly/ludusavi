@@ -474,4 +474,8 @@ impl GameList {
             }
         }
     }
+
+    pub fn contains_unscanned_games(&self) -> bool {
+        self.entries.iter().any(|x| !x.scan_info.found_anything())
+    }
 }

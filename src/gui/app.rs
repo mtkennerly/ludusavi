@@ -101,6 +101,9 @@ impl App {
         if self.operation.is_some() {
             return Command::none();
         }
+
+        let full = games.is_none();
+
         let backup_path = &self.config.backup.path;
 
         let mut all_games = self.manifest.clone();
@@ -111,13 +114,13 @@ impl App {
             all_games.add_custom_game(custom_game.clone());
         }
 
-        if preview {
+        if preview && full {
             self.backup_screen.previewed_games.clear();
         }
 
         if let Some(games) = &games {
             all_games.0.retain(|k, _| games.contains(k));
-        } else if !self.backup_screen.previewed_games.is_empty() {
+        } else if !self.backup_screen.previewed_games.is_empty() && !self.backup_screen.log.contains_unscanned_games() {
             all_games
                 .0
                 .retain(|k, _| self.backup_screen.previewed_games.contains(k));
@@ -210,6 +213,7 @@ impl App {
                     backup_info,
                     decision,
                     preview,
+                    full,
                 },
             ));
         }
@@ -222,6 +226,8 @@ impl App {
         if self.operation.is_some() {
             return Command::none();
         }
+
+        let full = games.is_none();
 
         let restore_path = &self.config.restore.path;
         if !restore_path.is_dir() {
@@ -294,6 +300,7 @@ impl App {
                     scan_info,
                     backup_info,
                     decision,
+                    full,
                 },
             ));
         }
@@ -302,21 +309,18 @@ impl App {
         Command::batch(self.operation_steps.drain(..self.operation_steps_active))
     }
 
-    fn complete_backup(&mut self, preview: bool) {
-        let cancelled = self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed);
+    fn complete_backup(&mut self, preview: bool, full: bool) {
         let mut failed = false;
 
-        if !cancelled {
+        if full {
             self.config.backup.recent_games.clear();
         }
 
         for entry in &self.backup_screen.log.entries {
-            if !cancelled {
-                self.config
-                    .backup
-                    .recent_games
-                    .insert(entry.scan_info.game_name.clone());
-            }
+            self.config
+                .backup
+                .recent_games
+                .insert(entry.scan_info.game_name.clone());
             if let Some(backup_info) = &entry.backup_info {
                 if !backup_info.successful() {
                     failed = true;
@@ -324,13 +328,11 @@ impl App {
             }
         }
 
-        if !preview {
+        if !preview && full {
             self.backup_screen.previewed_games.clear();
         }
 
-        if !cancelled {
-            self.config.save();
-        }
+        self.config.save();
 
         if failed {
             self.modal_theme = Some(ModalTheme::Error {
@@ -342,21 +344,18 @@ impl App {
         self.go_idle();
     }
 
-    fn complete_restore(&mut self) {
-        let cancelled = self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed);
+    fn complete_restore(&mut self, full: bool) {
         let mut failed = false;
 
-        if !cancelled {
+        if full {
             self.config.restore.recent_games.clear();
         }
 
         for entry in &self.restore_screen.log.entries {
-            if !cancelled {
-                self.config
-                    .restore
-                    .recent_games
-                    .insert(entry.scan_info.game_name.clone());
-            }
+            self.config
+                .restore
+                .recent_games
+                .insert(entry.scan_info.game_name.clone());
             if let Some(backup_info) = &entry.backup_info {
                 if !backup_info.successful() {
                     failed = true;
@@ -364,9 +363,7 @@ impl App {
             }
         }
 
-        if !cancelled {
-            self.config.save();
-        }
+        self.config.save();
 
         if failed {
             self.modal_theme = Some(ModalTheme::Error {
@@ -481,6 +478,7 @@ impl Application for App {
                 backup_info,
                 decision: _,
                 preview,
+                full,
             } => {
                 self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
@@ -501,7 +499,7 @@ impl Application for App {
                     None => {
                         self.operation_steps_active -= 1;
                         if self.operation_steps_active == 0 {
-                            self.complete_backup(preview);
+                            self.complete_backup(preview, full);
                         }
                         Command::none()
                     }
@@ -511,6 +509,7 @@ impl Application for App {
                 scan_info,
                 backup_info,
                 decision: _,
+                full,
             } => {
                 self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
@@ -530,7 +529,7 @@ impl Application for App {
                     None => {
                         self.operation_steps_active -= 1;
                         if self.operation_steps_active == 0 {
-                            self.complete_restore();
+                            self.complete_restore(full);
                         }
                         Command::none()
                     }

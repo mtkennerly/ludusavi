@@ -38,11 +38,13 @@ pub enum Message {
         backup_info: Option<BackupInfo>,
         decision: OperationStepDecision,
         preview: bool,
+        full: bool,
     },
     RestoreStep {
         scan_info: Option<ScanInfo>,
         backup_info: Option<BackupInfo>,
         decision: OperationStepDecision,
+        full: bool,
     },
     CancelOperation,
     ProcessGameOnDemand {
