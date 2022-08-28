@@ -1,6 +1,6 @@
 use iced::{alignment::Horizontal as HorizontalAlignment, Font, Length, Text};
 
-const ICONS: Font = Font::External {
+pub const ICONS: Font = Font::External {
     name: "Material Icons",
     bytes: include_bytes!("../../assets/MaterialIcons-Regular.ttf"),
 };
@@ -8,10 +8,12 @@ const ICONS: Font = Font::External {
 pub enum Icon {
     Add,
     AddCircle,
+    #[allow(dead_code)]
     Edit,
     FolderOpen,
     KeyboardArrowRight,
     KeyboardArrowDown,
+    #[allow(dead_code)]
     Language,
     OpenInNew,
     Remove,
@@ -19,13 +21,15 @@ pub enum Icon {
     Search,
     SubdirectoryArrowRight,
     Delete,
+    #[allow(dead_code)]
     PlayCircleOutline,
     Settings,
+    MoreVert,
 }
 
 impl Icon {
-    pub fn as_text(&self) -> Text {
-        let character = match self {
+    pub fn as_char(&self) -> char {
+        match self {
             Self::Add => '\u{E145}',
             Self::AddCircle => '\u{E147}',
             Self::Edit => '\u{E150}',
@@ -41,8 +45,12 @@ impl Icon {
             Self::Delete => '\u{E872}',
             Self::PlayCircleOutline => '\u{E039}',
             Self::Settings => '\u{E8B8}',
-        };
-        Text::new(&character.to_string())
+            Self::MoreVert => '\u{E5D4}',
+        }
+    }
+
+    pub fn as_text(&self) -> Text {
+        Text::new(&self.as_char().to_string())
             .font(ICONS)
             .width(Length::Units(60))
             .horizontal_alignment(HorizontalAlignment::Center)

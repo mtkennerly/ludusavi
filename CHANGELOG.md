@@ -9,6 +9,8 @@
   * If you set the `LUDUSAVI_DEBUG` environment variable, then Ludusavi will
     not detach from the console on Windows. This may be helpful if you want to
     troubleshoot an issue that involves Ludusavi crashing.
+* Changed:
+  * GUI: Grouped per-game actions into a popup menu to save space.
 * Fixed:
   * Performance regressions from v0.11.0 related to duplicate detection and root globbing.
   * GUI: Cancelling a backup/restore no longer has a long delay.

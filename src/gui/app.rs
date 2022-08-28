@@ -556,17 +556,6 @@ impl Application for App {
                 };
                 Command::none()
             }
-            Message::ProcessGameOnDemand { game, restore } => {
-                if restore {
-                    Command::perform(async move {}, move |_| Message::ConfirmRestoreStart {
-                        games: Some(vec![game.clone()]),
-                    })
-                } else {
-                    Command::perform(async move {}, move |_| Message::ConfirmBackupStart {
-                        games: Some(vec![game.clone()]),
-                    })
-                }
-            }
             Message::EditedBackupTarget(text) => {
                 self.backup_screen.backup_target_history.push(&text);
                 self.config.backup.path.reset(text);
@@ -1275,6 +1264,23 @@ impl Application for App {
             Message::ToggleBackupSettings => {
                 self.backup_screen.show_settings = !self.backup_screen.show_settings;
                 Command::none()
+            }
+            Message::GameAction(action, game) => {
+                match action {
+                    GameAction::Customize => {
+                        Command::perform(async move {}, move |_| Message::CustomizeGame { name: game.clone() })
+                    }
+                    GameAction::Backup => Command::perform(async move {}, move |_| Message::ConfirmBackupStart {
+                        games: Some(vec![game.clone()]),
+                    }),
+                    GameAction::Restore => Command::perform(async move {}, move |_| Message::ConfirmRestoreStart {
+                        games: Some(vec![game.clone()]),
+                    }),
+                    GameAction::Wiki => {
+                        Command::perform(async move {}, move |_| Message::OpenWiki { game: game.clone() })
+                    }
+                }
+                // Command::none()
             }
         }
     }

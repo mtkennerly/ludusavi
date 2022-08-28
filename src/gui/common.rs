@@ -47,10 +47,6 @@ pub enum Message {
         full: bool,
     },
     CancelOperation,
-    ProcessGameOnDemand {
-        game: String,
-        restore: bool,
-    },
     EditedBackupTarget(String),
     EditedBackupMerge(bool),
     EditedRestoreSource(String),
@@ -139,6 +135,7 @@ pub enum Message {
     SelectedBackupFormat(BackupFormat),
     SelectedBackupCompression(ZipCompression),
     ToggleBackupSettings,
+    GameAction(GameAction, String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -183,6 +180,46 @@ pub enum BrowseSubject {
     RedirectTarget(usize),
     CustomGameFile(usize, usize),
     BackupFilterIgnoredPath(usize),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GameAction {
+    Customize,
+    Backup,
+    Restore,
+    Wiki,
+}
+
+impl GameAction {
+    pub fn options(restoring: bool, operating: bool, customized: bool, invented: bool) -> Vec<Self> {
+        let mut options = vec![];
+
+        if !operating {
+            options.push(if restoring { Self::Restore } else { Self::Backup });
+        }
+
+        if !restoring && !customized {
+            options.push(Self::Customize);
+        }
+
+        if !invented {
+            options.push(Self::Wiki);
+        }
+
+        options
+    }
+}
+
+impl ToString for GameAction {
+    fn to_string(&self) -> String {
+        let translator = Translator::default();
+        match self {
+            Self::Backup => translator.backup_button(),
+            Self::Restore => translator.restore_button(),
+            Self::Customize => translator.customize_button(),
+            Self::Wiki => translator.pcgamingwiki(),
+        }
+    }
 }
 
 impl Default for Screen {

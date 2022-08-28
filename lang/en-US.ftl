@@ -43,6 +43,7 @@ button-select-all = Select all
 button-deselect-all = Deselect all
 button-enable-all = Enable all
 button-disable-all = Disable all
+button-customize = Customize
 
 no-roots-are-configured = Add some roots to back up even more data.
 

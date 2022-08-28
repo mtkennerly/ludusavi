@@ -12,6 +12,7 @@ pub mod ignored_items_editor;
 pub mod modal;
 pub mod number_input;
 pub mod other_screen;
+pub mod popup_menu;
 pub mod redirect_editor;
 pub mod restore_screen;
 pub mod root_editor;

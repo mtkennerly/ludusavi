@@ -4,9 +4,8 @@ use crate::{
     config::{Config, Sort, SortKey, ToggledPaths, ToggledRegistry},
     gui::{
         badge::Badge,
-        common::{IcedButtonExt, IcedExtension, Message, Screen},
+        common::{GameAction, IcedButtonExt, IcedExtension, Message, Screen},
         file_tree::FileTree,
-        icon::Icon,
         search::SearchComponent,
         style,
     },
@@ -36,6 +35,7 @@ pub struct GameListEntry {
     pub operate_button: button::State,
     pub tree: FileTree,
     pub duplicates: usize,
+    pub popup_menu: crate::gui::popup_menu::State<GameAction>,
 }
 
 impl GameListEntry {
@@ -73,6 +73,7 @@ impl GameListEntry {
         let customized = config.is_game_customized(&self.scan_info.game_name);
         let customized_pure = customized && !manifest.0.contains_key(&self.scan_info.game_name);
         let name_for_checkbox = self.scan_info.game_name.clone();
+        let operating = operation.is_some();
 
         Container::new(
             Column::new()
@@ -193,7 +194,6 @@ impl GameListEntry {
                                     .text_size(15)
                                     .style(style::PickList::Backup(config.theme)),
                                 )
-                                .padding([0, 0, 0, 15])
                                 .width(Length::Units(185))
                                 .align_x(HorizontalAlignment::Center);
                                 Some(content)
@@ -201,67 +201,22 @@ impl GameListEntry {
                                 None
                             }
                         })
-                        .push_if(
-                            || !restoring,
-                            || {
-                                Container::new(
-                                    Button::new(
-                                        &mut self.customize_button,
-                                        Icon::Edit.as_text().width(Length::Units(45)),
-                                    )
-                                    .on_press(if customized {
-                                        Message::Ignore
-                                    } else {
-                                        Message::CustomizeGame {
-                                            name: self.scan_info.game_name.clone(),
-                                        }
-                                    })
-                                    .style(if customized {
-                                        style::Button::Disabled(config.theme)
-                                    } else {
-                                        style::Button::Primary(config.theme)
-                                    })
-                                    .padding(2),
-                                )
-                            },
-                        )
-                        .push(Space::new(Length::Units(15), Length::Shrink))
-                        .push(Container::new(
-                            Button::new(
-                                &mut self.operate_button,
-                                Icon::PlayCircleOutline.as_text().width(Length::Units(45)),
-                            )
-                            .on_press(match operation {
-                                None => Message::ProcessGameOnDemand {
-                                    game: self.scan_info.game_name.clone(),
-                                    restore: restoring,
-                                },
-                                Some(_) => Message::Ignore,
-                            })
-                            .style(if operation.is_some() {
-                                style::Button::Disabled(config.theme)
+                        .push_some(|| {
+                            let options = GameAction::options(restoring, operating, customized, customized_pure);
+
+                            if options.is_empty() {
+                                None
                             } else {
-                                style::Button::Primary(config.theme)
-                            })
-                            .padding(2),
-                        ))
-                        .push(Space::new(Length::Units(15), Length::Shrink))
-                        .push(Container::new(
-                            Button::new(&mut self.wiki_button, Icon::Language.as_text().width(Length::Units(45)))
-                                .on_press(if customized_pure {
-                                    Message::Ignore
-                                } else {
-                                    Message::OpenWiki {
-                                        game: self.scan_info.game_name.clone(),
-                                    }
-                                })
-                                .style(if customized_pure {
-                                    style::Button::Disabled(config.theme)
-                                } else {
-                                    style::Button::Primary(config.theme)
-                                })
-                                .padding(2),
-                        ))
+                                let game_name = self.scan_info.game_name.clone();
+                                let menu = crate::gui::popup_menu::PopupMenu::new(
+                                    &mut self.popup_menu,
+                                    options,
+                                    move |choice| Message::GameAction(choice, game_name.clone()),
+                                )
+                                .style(style::PickList::Primary(config.theme));
+                                Some(menu)
+                            }
+                        })
                         .push(
                             Container::new(Text::new({
                                 let summed = self.scan_info.sum_bytes(&self.backup_info);
