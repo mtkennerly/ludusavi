@@ -44,7 +44,7 @@ impl RestoreScreenComponent {
         }
 
         Self {
-            log: GameList::with_recent_games(&config.restore.recent_games, &config.restore.sort),
+            log: GameList::with_recent_games(true, config),
             restore_source_history: TextHistory::new(&config.backup.path.raw(), 100),
             redirect_editor,
             ..Default::default()

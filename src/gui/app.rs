@@ -129,7 +129,15 @@ impl App {
         let subjects: Vec<_> = all_games.0.keys().cloned().collect();
         if subjects.is_empty() {
             if let Some(games) = &games {
-                self.backup_screen.log.remove_games(games);
+                for game in games {
+                    let duplicates = self.backup_screen.duplicate_detector.remove_game(game);
+                    self.backup_screen.log.remove_game(
+                        game,
+                        &self.config,
+                        &self.backup_screen.duplicate_detector,
+                        &duplicates,
+                    );
+                }
                 self.config.backup.recent_games.retain(|x| !games.contains(x));
                 self.config.save();
             }
@@ -254,7 +262,15 @@ impl App {
 
         if restorables.is_empty() {
             if let Some(games) = &games {
-                self.restore_screen.log.remove_games(games);
+                for game in games {
+                    let duplicates = self.restore_screen.duplicate_detector.remove_game(game);
+                    self.restore_screen.log.remove_game(
+                        game,
+                        &self.config,
+                        &self.restore_screen.duplicate_detector,
+                        &duplicates,
+                    );
+                }
                 self.config.restore.recent_games.retain(|x| !games.contains(x));
                 self.config.save();
             }
@@ -483,14 +499,25 @@ impl Application for App {
                 self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
-                        self.backup_screen.duplicate_detector.add_game(&scan_info);
+                        let duplicates = self.backup_screen.duplicate_detector.add_game(&scan_info);
                         self.backup_screen.previewed_games.insert(scan_info.game_name.clone());
-                        self.backup_screen
-                            .log
-                            .update_game(scan_info, backup_info, &self.config.backup.sort);
-                    } else {
+                        self.backup_screen.log.update_game(
+                            scan_info,
+                            backup_info,
+                            &self.config.backup.sort,
+                            &self.config,
+                            &self.backup_screen.duplicate_detector,
+                            &duplicates,
+                        );
+                    } else if !full {
+                        let duplicates = self.backup_screen.duplicate_detector.remove_game(&scan_info.game_name);
+                        self.backup_screen.log.remove_game(
+                            &scan_info.game_name,
+                            &self.config,
+                            &self.backup_screen.duplicate_detector,
+                            &duplicates,
+                        );
                         self.config.backup.recent_games.remove(&scan_info.game_name);
-                        self.backup_screen.log.remove_game(&scan_info.game_name);
                     }
                 }
 
@@ -514,12 +541,23 @@ impl Application for App {
                 self.progress.current += 1.0;
                 if let Some(scan_info) = scan_info {
                     if scan_info.found_anything() {
-                        self.restore_screen.duplicate_detector.add_game(&scan_info);
-                        self.restore_screen
-                            .log
-                            .update_game(scan_info, backup_info, &self.config.backup.sort);
-                    } else {
-                        self.restore_screen.log.remove_game(&scan_info.game_name);
+                        let duplicates = self.restore_screen.duplicate_detector.add_game(&scan_info);
+                        self.restore_screen.log.update_game(
+                            scan_info,
+                            backup_info,
+                            &self.config.backup.sort,
+                            &self.config,
+                            &self.restore_screen.duplicate_detector,
+                            &duplicates,
+                        );
+                    } else if !full {
+                        let duplicates = self.restore_screen.duplicate_detector.remove_game(&scan_info.game_name);
+                        self.restore_screen.log.remove_game(
+                            &scan_info.game_name,
+                            &self.config,
+                            &self.restore_screen.duplicate_detector,
+                            &duplicates,
+                        );
                         self.config.restore.recent_games.remove(&scan_info.game_name);
                     }
                 }
@@ -1265,23 +1303,26 @@ impl Application for App {
                 self.backup_screen.show_settings = !self.backup_screen.show_settings;
                 Command::none()
             }
-            Message::GameAction(action, game) => {
-                match action {
-                    GameAction::Customize => {
-                        Command::perform(async move {}, move |_| Message::CustomizeGame { name: game.clone() })
-                    }
-                    GameAction::Backup => Command::perform(async move {}, move |_| Message::ConfirmBackupStart {
-                        games: Some(vec![game.clone()]),
-                    }),
-                    GameAction::Restore => Command::perform(async move {}, move |_| Message::ConfirmRestoreStart {
-                        games: Some(vec![game.clone()]),
-                    }),
-                    GameAction::Wiki => {
-                        Command::perform(async move {}, move |_| Message::OpenWiki { game: game.clone() })
-                    }
+            Message::GameAction(action, game) => match action {
+                GameAction::PreviewBackup => Command::perform(async move {}, move |_| Message::BackupStart {
+                    preview: true,
+                    games: Some(vec![game.clone()]),
+                }),
+                GameAction::Backup => Command::perform(async move {}, move |_| Message::ConfirmBackupStart {
+                    games: Some(vec![game.clone()]),
+                }),
+                GameAction::PreviewRestore => Command::perform(async move {}, move |_| Message::RestoreStart {
+                    preview: true,
+                    games: Some(vec![game.clone()]),
+                }),
+                GameAction::Restore => Command::perform(async move {}, move |_| Message::ConfirmRestoreStart {
+                    games: Some(vec![game.clone()]),
+                }),
+                GameAction::Customize => {
+                    Command::perform(async move {}, move |_| Message::CustomizeGame { name: game.clone() })
                 }
-                // Command::none()
-            }
+                GameAction::Wiki => Command::perform(async move {}, move |_| Message::OpenWiki { game: game.clone() }),
+            },
         }
     }
 

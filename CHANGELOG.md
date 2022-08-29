@@ -6,6 +6,7 @@
     in an "unknown" state, allowing you to re-scan any of those specific games
     on demand without doing a full scan of all games. This is especially useful
     if full scans are slower on your system and you just want to back up one game.
+  * GUI: Added an option to re-preview a specific game on demand.
   * If you set the `LUDUSAVI_DEBUG` environment variable, then Ludusavi will
     not detach from the console on Windows. This may be helpful if you want to
     troubleshoot an issue that involves Ludusavi crashing.
@@ -16,6 +17,8 @@
   * GUI: Cancelling a backup/restore no longer has a long delay.
   * GUI: Doing a full preview, backing up one game, and then doing a full backup
     would trigger a full scan instead of reusing the list from the initial preview.
+  * GUI: When backing up a single game by using the button next to its name,
+    other games with duplicate files did not update their duplicate status.
 
 ## v0.11.0 (2022-08-20)
 

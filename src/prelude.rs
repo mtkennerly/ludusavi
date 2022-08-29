@@ -869,57 +869,105 @@ pub fn back_up_game(
 pub struct DuplicateDetector {
     files: std::collections::HashMap<StrictPath, std::collections::HashSet<String>>,
     registry: std::collections::HashMap<RegistryItem, std::collections::HashSet<String>>,
-    file_cache: std::collections::HashMap<String, usize>,
-    registry_cache: std::collections::HashMap<String, usize>,
+    game_files: std::collections::HashMap<String, std::collections::HashSet<StrictPath>>,
+    game_registry: std::collections::HashMap<String, std::collections::HashSet<RegistryItem>>,
+    game_duplicated_items: std::collections::HashMap<String, usize>,
 }
 
 impl DuplicateDetector {
-    pub fn add_game(&mut self, scan_info: &ScanInfo) {
-        if !scan_info.found_anything() {
-            return;
-        }
-
-        let mut stale = std::collections::HashSet::new();
+    pub fn add_game(&mut self, scan_info: &ScanInfo) -> std::collections::HashSet<String> {
+        let mut stale = self.remove_game_and_refresh(&scan_info.game_name, false);
         stale.insert(scan_info.game_name.clone());
 
-        for item in scan_info.found_files.iter() {
-            let path = self.pick_path(item);
-            if let Some(existing) = self.files.get(&path) {
-                // Len 0: No games to update counts for.
-                // Len 2+: These games already include the item in their duplicate counts.
-                if existing.len() == 1 {
-                    stale.extend(existing.clone());
+        if scan_info.found_anything() {
+            for item in scan_info.found_files.iter() {
+                let path = self.pick_path(item);
+                if let Some(existing) = self.files.get(&path) {
+                    // Len 0: No games to update counts for.
+                    // Len 2+: These games already include the item in their duplicate counts.
+                    if existing.len() == 1 {
+                        stale.extend(existing.clone());
+                    }
                 }
+                self.files
+                    .entry(path.clone())
+                    .or_insert_with(Default::default)
+                    .insert(scan_info.game_name.clone());
+                self.game_files
+                    .entry(scan_info.game_name.clone())
+                    .or_insert_with(Default::default)
+                    .insert(path);
             }
-            self.files
-                .entry(path)
-                .or_insert_with(Default::default)
-                .insert(scan_info.game_name.clone());
-        }
-        for item in scan_info.found_registry_keys.iter() {
-            let path = item.path.clone();
-            if let Some(existing) = self.registry.get(&path) {
-                if existing.len() == 1 {
-                    stale.extend(existing.clone());
+            for item in scan_info.found_registry_keys.iter() {
+                let path = item.path.clone();
+                if let Some(existing) = self.registry.get(&path) {
+                    if existing.len() == 1 {
+                        stale.extend(existing.clone());
+                    }
                 }
+                self.registry
+                    .entry(path.clone())
+                    .or_insert_with(Default::default)
+                    .insert(scan_info.game_name.clone());
+                self.game_registry
+                    .entry(scan_info.game_name.clone())
+                    .or_insert_with(Default::default)
+                    .insert(path);
             }
-            self.registry
-                .entry(path)
-                .or_insert_with(Default::default)
-                .insert(scan_info.game_name.clone());
         }
 
         if stale.len() == 1 {
-            self.file_cache.insert(scan_info.game_name.clone(), 0);
-            self.registry_cache.insert(scan_info.game_name.clone(), 0);
+            self.game_duplicated_items.insert(scan_info.game_name.clone(), 0);
         } else {
-            for game in stale {
-                self.file_cache
-                    .insert(game.to_string(), self.count_file_duplicates_for(&game));
-                self.registry_cache
-                    .insert(game.to_string(), self.count_registry_duplicates_for(&game));
+            for game in &stale {
+                self.game_duplicated_items
+                    .insert(game.clone(), self.count_duplicated_items_for(game));
             }
         }
+
+        stale.extend(self.duplicate_games(&scan_info.game_name));
+        stale.remove(&scan_info.game_name);
+        stale
+    }
+
+    pub fn remove_game(&mut self, game: &str) -> std::collections::HashSet<String> {
+        self.remove_game_and_refresh(game, true)
+    }
+
+    fn remove_game_and_refresh(&mut self, game: &str, refresh: bool) -> std::collections::HashSet<String> {
+        let mut stale = std::collections::HashSet::new();
+
+        self.game_duplicated_items.remove(game);
+
+        if let Some(files) = self.game_files.remove(game) {
+            for file in files {
+                if let Some(games) = self.files.get_mut(&file) {
+                    games.remove(game);
+                    for duplicate in games.iter() {
+                        stale.insert(duplicate.clone());
+                    }
+                }
+            }
+        }
+        if let Some(registry_keys) = self.game_registry.remove(game) {
+            for registry in registry_keys {
+                if let Some(games) = self.registry.get_mut(&registry) {
+                    games.remove(game);
+                    for duplicate in games.iter() {
+                        stale.insert(duplicate.clone());
+                    }
+                }
+            }
+        }
+
+        if refresh {
+            for game in &stale {
+                self.game_duplicated_items
+                    .insert(game.clone(), self.count_duplicated_items_for(game));
+            }
+        }
+
+        stale
     }
 
     pub fn is_game_duplicated(&self, scan_info: &ScanInfo) -> bool {
@@ -958,17 +1006,11 @@ impl DuplicateDetector {
     pub fn clear(&mut self) {
         self.files.clear();
         self.registry.clear();
-        self.file_cache.clear();
-        self.registry_cache.clear();
+        self.game_duplicated_items.clear();
     }
 
     pub fn any_duplicates(&self) -> bool {
-        for item in self.file_cache.values() {
-            if *item > 0 {
-                return true;
-            }
-        }
-        for item in self.registry_cache.values() {
+        for item in self.game_duplicated_items.values() {
             if *item > 0 {
                 return true;
             }
@@ -976,26 +1018,13 @@ impl DuplicateDetector {
         false
     }
 
-    fn cached_file_duplicates_for(&self, game: &str) -> usize {
-        self.file_cache.get(game).copied().unwrap_or(0)
-    }
-
-    fn cached_registry_duplicates_for(&self, game: &str) -> usize {
-        self.registry_cache.get(game).copied().unwrap_or(0)
-    }
-
-    fn count_file_duplicates_for(&self, game: &str) -> usize {
+    fn count_duplicated_items_for(&self, game: &str) -> usize {
         let mut tally = 0;
         for item in self.files.values() {
             if item.contains(game) && item.len() > 1 {
                 tally += 1;
             }
         }
-        tally
-    }
-
-    fn count_registry_duplicates_for(&self, game: &str) -> usize {
-        let mut tally = 0;
         for item in self.registry.values() {
             if item.contains(game) && item.len() > 1 {
                 tally += 1;
@@ -1005,7 +1034,39 @@ impl DuplicateDetector {
     }
 
     pub fn count_duplicates_for(&self, game: &str) -> usize {
-        self.cached_file_duplicates_for(game) + self.cached_registry_duplicates_for(game)
+        self.game_duplicated_items.get(game).copied().unwrap_or_default()
+    }
+
+    pub fn duplicate_games(&self, game: &str) -> std::collections::HashSet<String> {
+        let mut duplicates = std::collections::HashSet::new();
+
+        if let Some(files) = self.game_files.get(game) {
+            for file in files {
+                if let Some(games) = self.files.get(file) {
+                    if games.len() < 2 {
+                        continue;
+                    }
+                    for duplicate in games.iter() {
+                        duplicates.insert(duplicate.clone());
+                    }
+                }
+            }
+        }
+        if let Some(registry_keys) = self.game_registry.get(game) {
+            for registry in registry_keys {
+                if let Some(games) = self.registry.get(registry) {
+                    if games.len() < 2 {
+                        continue;
+                    }
+                    for duplicate in games.iter() {
+                        duplicates.insert(duplicate.clone());
+                    }
+                }
+            }
+        }
+
+        duplicates.remove(game);
+        duplicates
     }
 }
 

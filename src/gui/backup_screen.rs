@@ -49,7 +49,7 @@ impl BackupScreenComponent {
         }
 
         Self {
-            log: GameList::with_recent_games(&config.backup.recent_games, &config.backup.sort),
+            log: GameList::with_recent_games(false, config),
             root_editor,
             backup_target_history: TextHistory::new(&config.backup.path.raw(), 100),
             ..Default::default()

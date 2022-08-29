@@ -185,7 +185,9 @@ pub enum BrowseSubject {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameAction {
     Customize,
+    PreviewBackup,
     Backup,
+    PreviewRestore,
     Restore,
     Wiki,
 }
@@ -195,6 +197,11 @@ impl GameAction {
         let mut options = vec![];
 
         if !operating {
+            options.push(if restoring {
+                Self::PreviewRestore
+            } else {
+                Self::PreviewBackup
+            });
             options.push(if restoring { Self::Restore } else { Self::Backup });
         }
 
@@ -214,6 +221,7 @@ impl ToString for GameAction {
     fn to_string(&self) -> String {
         let translator = Translator::default();
         match self {
+            Self::PreviewBackup | Self::PreviewRestore => translator.preview_button(),
             Self::Backup => translator.backup_button(),
             Self::Restore => translator.restore_button(),
             Self::Customize => translator.customize_button(),

@@ -654,6 +654,9 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .collect();
 
             for (_, scan_info, _, _) in info.iter() {
+                if !scan_info.found_anything() {
+                    continue;
+                }
                 duplicate_detector.add_game(scan_info);
             }
 
@@ -783,6 +786,9 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .collect();
 
             for (_, scan_info, _, _) in info.iter() {
+                if !scan_info.found_anything() {
+                    continue;
+                }
                 duplicate_detector.add_game(scan_info);
             }
 

@@ -391,14 +391,6 @@ impl FileTree {
         )
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
-    }
-
-    pub fn clear(&mut self) {
-        self.nodes.clear();
-    }
-
     pub fn expand_or_collapse_keys(&mut self, keys: &[String]) {
         if keys.is_empty() {
             return;
