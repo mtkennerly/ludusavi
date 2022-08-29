@@ -173,7 +173,8 @@ where
         limits.resolve(intrinsic).pad(padding)
     };
 
-    layout::Node::new(size)
+    // layout::Node::new(size)
+    layout::Node::new(Size::new(size.width, 25.0))
 }
 
 /// Processes an [`Event`] and updates the [`State`] of a [`PopupMenu`]
@@ -206,7 +207,7 @@ where
                 }
                 event::Status::Captured
             } else if layout.bounds().contains(cursor_position) {
-                state.is_open = true;
+                state.is_open = !options.is_empty();
                 state.hovered_option = options.iter().position(|option| Some(option) == selected);
 
                 event::Status::Captured
@@ -234,11 +235,11 @@ where
 }
 
 /// Returns the current [`mouse::Interaction`] of a [`PopupMenu`].
-pub fn mouse_interaction(layout: Layout<'_>, cursor_position: Point) -> mouse::Interaction {
+pub fn mouse_interaction(layout: Layout<'_>, cursor_position: Point, usable: bool) -> mouse::Interaction {
     let bounds = layout.bounds();
     let is_mouse_over = bounds.contains(cursor_position);
 
-    if is_mouse_over {
+    if is_mouse_over && usable {
         mouse::Interaction::Pointer
     } else {
         mouse::Interaction::default()
@@ -308,6 +309,18 @@ pub fn draw<Renderer>(
     } else {
         style_sheet.active()
     };
+
+    if is_mouse_over {
+        renderer.fill_quad(
+            renderer::Quad {
+                bounds,
+                border_color: style.border_color,
+                border_width: style.border_width,
+                border_radius: style.border_radius,
+            },
+            style.background,
+        );
+    }
 
     renderer.fill_text(Text {
         // content: "more",
@@ -384,7 +397,7 @@ where
         _viewport: &Rectangle,
         _renderer: &Renderer,
     ) -> mouse::Interaction {
-        mouse_interaction(layout, cursor_position)
+        mouse_interaction(layout, cursor_position, !self.options.is_empty())
     }
 
     fn draw(
@@ -395,6 +408,9 @@ where
         cursor_position: Point,
         _viewport: &Rectangle,
     ) {
+        if self.options.is_empty() {
+            return;
+        }
         draw(
             renderer,
             layout,

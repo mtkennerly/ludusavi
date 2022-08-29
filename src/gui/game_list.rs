@@ -191,21 +191,14 @@ impl GameListEntry {
                                 None
                             }
                         })
-                        .push_some(|| {
+                        .push({
                             let options = GameAction::options(restoring, operating, customized, customized_pure);
+                            let game_name = self.scan_info.game_name.clone();
 
-                            if options.is_empty() {
-                                None
-                            } else {
-                                let game_name = self.scan_info.game_name.clone();
-                                let menu = crate::gui::popup_menu::PopupMenu::new(
-                                    &mut self.popup_menu,
-                                    options,
-                                    move |choice| Message::GameAction(choice, game_name.clone()),
-                                )
-                                .style(style::PickList::Primary(config.theme));
-                                Some(menu)
-                            }
+                            crate::gui::popup_menu::PopupMenu::new(&mut self.popup_menu, options, move |choice| {
+                                Message::GameAction(choice, game_name.clone())
+                            })
+                            .style(style::PickList::Popup(config.theme))
                         })
                         .push(
                             Container::new(Text::new({

@@ -5,7 +5,6 @@ use crate::{
         common::*,
         custom_games_editor::{CustomGamesEditorEntry, CustomGamesEditorEntryRow},
         custom_games_screen::CustomGamesScreenComponent,
-        disappearing_progress::DisappearingProgress,
         modal::ModalComponent,
         modal::ModalTheme,
         other_screen::OtherScreenComponent,
@@ -29,7 +28,7 @@ use iced::{
     alignment::Horizontal as HorizontalAlignment,
     button, executor,
     keyboard::{KeyCode, Modifiers},
-    Alignment, Application, Button, Column, Command, Container, Element, Length, Row, Subscription, Text,
+    Alignment, Application, Button, Column, Command, Container, Element, Length, ProgressBar, Row, Subscription, Text,
 };
 
 pub fn get_key_pressed(event: iced::keyboard::Event) -> Option<(KeyCode, Modifiers)> {
@@ -62,6 +61,12 @@ fn make_nav_button(
 }
 
 #[derive(Default)]
+struct Progress {
+    pub max: f32,
+    pub current: f32,
+}
+
+#[derive(Default)]
 pub struct App {
     config: Config,
     manifest: Manifest,
@@ -81,7 +86,7 @@ pub struct App {
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     operation_steps: Vec<Command<Message>>,
     operation_steps_active: usize,
-    progress: DisappearingProgress,
+    progress: Progress,
     backups_to_restore: std::collections::HashMap<String, BackupId>,
 }
 
@@ -1391,9 +1396,12 @@ impl Application for App {
                     Screen::Other => self.other_screen.view(&self.config, &self.translator, &self.operation),
                 }
                 .padding([0, 5, 5, 5])
-                .height(Length::FillPortion(10_000)),
+                .height(Length::Fill),
             )
-            .push(self.progress.view());
+            .push_if(
+                || self.progress.max > 1.0,
+                || ProgressBar::new(0.0..=self.progress.max, self.progress.current).height(Length::Units(5)),
+            );
 
         Container::new(content)
             .style(style::Container::Primary(self.config.theme))

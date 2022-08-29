@@ -338,12 +338,14 @@ impl scrollable::StyleSheet for Scrollable {
 pub enum PickList {
     Primary(Theme),
     Backup(Theme),
+    Popup(Theme),
 }
 impl PickList {
     fn theme(&self) -> &Theme {
         match self {
             Self::Primary(theme) => theme,
             Self::Backup(theme) => theme,
+            Self::Popup(theme) => theme,
         }
     }
 }
@@ -353,7 +355,7 @@ impl pick_list::StyleSheet for PickList {
         pick_list::Style {
             border_radius: match self {
                 Self::Primary(_) => 5.0,
-                Self::Backup(_) => 10.0,
+                Self::Backup(_) | Self::Popup(_) => 10.0,
             },
             background: t.field().alpha(0.6).into(),
             border_color: t.text().alpha(0.7),

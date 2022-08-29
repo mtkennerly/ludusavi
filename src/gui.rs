@@ -4,7 +4,6 @@ pub mod badge;
 pub mod common;
 pub mod custom_games_editor;
 pub mod custom_games_screen;
-pub mod disappearing_progress;
 pub mod file_tree;
 pub mod game_list;
 pub mod icon;
