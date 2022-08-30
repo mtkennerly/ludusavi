@@ -922,13 +922,9 @@ impl DuplicateDetector {
             }
         }
 
-        if stale.len() == 1 {
-            self.game_duplicated_items.insert(scan_info.game_name.clone(), 0);
-        } else {
-            for game in &stale {
-                self.game_duplicated_items
-                    .insert(game.clone(), self.count_duplicated_items_for(game));
-            }
+        for game in &stale {
+            self.game_duplicated_items
+                .insert(game.clone(), self.count_duplicated_items_for(game));
         }
 
         stale.extend(self.duplicate_games(&scan_info.game_name));
