@@ -11,7 +11,7 @@
     use keyboard shortcuts to convert the menu into some specific shortcuts:
     * preview: shift
     * backup/restore: ctrl (Mac: cmd)
-    * backup/restore without confirmation: ctrl + alt (Mac: cmd + alt)
+    * backup/restore without confirmation: ctrl + alt (Mac: cmd + option)
   * If you set the `LUDUSAVI_DEBUG` environment variable, then Ludusavi will
     not detach from the console on Windows. This may be helpful if you want to
     troubleshoot an issue that involves Ludusavi crashing.
@@ -22,6 +22,11 @@
     would trigger a full scan instead of reusing the list from the initial preview.
   * GUI: When backing up a single game by using the button next to its name,
     other games with duplicate files did not update their duplicate status.
+  * GUI: When backing up a single game by using the button next to its name,
+    if its information changed, then it would immediately re-sort in the list.
+    While that made sense, it could be hard to use since you would then have to
+    go looking for its new position. Now, the position stays stable unless you
+    do a new full scan or manually change the sorting options.
 
 ## v0.11.0 (2022-08-20)
 
