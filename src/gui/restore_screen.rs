@@ -179,17 +179,11 @@ impl RestoreScreenComponent {
                         )
                         .push(
                             Button::new(&mut self.restore_source_browse_button, Icon::FolderOpen.as_text())
-                                .on_press(match operation {
-                                    None => Message::BrowseDir(BrowseSubject::RestoreSource),
-                                    Some(_) => Message::Ignore,
-                                })
-                                .style(match operation {
-                                    None => style::Button::Primary(config.theme),
-                                    Some(_) => style::Button::Disabled(config.theme),
-                                }),
+                                .on_press(Message::BrowseDir(BrowseSubject::RestoreSource))
+                                .style(style::Button::Primary(config.theme)),
                         ),
                 )
-                .push(self.redirect_editor.view(config, translator, operation))
+                .push(self.redirect_editor.view(config, translator))
                 .push(
                     self.log
                         .view(true, translator, config, manifest, &self.duplicate_detector, operation),

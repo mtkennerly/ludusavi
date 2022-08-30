@@ -108,17 +108,11 @@ pub enum Message {
     BrowseDirFailure,
     SelectAllGames,
     DeselectAllGames,
-    CustomizeGame {
-        name: String,
-    },
     OpenDir {
         path: StrictPath,
     },
     OpenDirFailure {
         path: StrictPath,
-    },
-    OpenWiki {
-        game: String,
     },
     OpenUrlFailure {
         url: String,
@@ -135,7 +129,10 @@ pub enum Message {
     SelectedBackupFormat(BackupFormat),
     SelectedBackupCompression(ZipCompression),
     ToggleBackupSettings,
-    GameAction(GameAction, String),
+    GameAction {
+        action: GameAction,
+        game: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -186,9 +183,9 @@ pub enum BrowseSubject {
 pub enum GameAction {
     Customize,
     PreviewBackup,
-    Backup,
+    Backup { confirm: bool },
     PreviewRestore,
-    Restore,
+    Restore { confirm: bool },
     Wiki,
 }
 
@@ -197,12 +194,13 @@ impl GameAction {
         let mut options = vec![];
 
         if !operating {
-            options.push(if restoring {
-                Self::PreviewRestore
+            if restoring {
+                options.push(Self::PreviewRestore);
+                options.push(Self::Restore { confirm: true });
             } else {
-                Self::PreviewBackup
-            });
-            options.push(if restoring { Self::Restore } else { Self::Backup });
+                options.push(Self::PreviewBackup);
+                options.push(Self::Backup { confirm: true });
+            }
         }
 
         if !restoring && !customized {
@@ -218,22 +216,10 @@ impl GameAction {
 }
 
 impl GameAction {
-    pub fn message(&self, confirm: bool, games: Option<Vec<String>>) -> Message {
+    pub fn icon(&self) -> Icon {
         match self {
-            GameAction::PreviewBackup => Message::BackupStart { preview: true, games },
-            GameAction::Backup if !confirm => Message::BackupStart { preview: false, games },
-            GameAction::Backup if confirm => Message::ConfirmBackupStart { games },
-            GameAction::PreviewRestore => Message::RestoreStart { preview: true, games },
-            GameAction::Restore if !confirm => Message::RestoreStart { preview: false, games },
-            GameAction::Restore if confirm => Message::ConfirmRestoreStart { games },
-            _ => Message::Ignore,
-        }
-    }
-
-    pub fn icon(&self, confirm: bool) -> Icon {
-        match self {
-            GameAction::Backup | GameAction::Restore => {
-                if confirm {
+            GameAction::Backup { confirm } | GameAction::Restore { confirm } => {
+                if *confirm {
                     Icon::PlayCircleOutline
                 } else {
                     Icon::FastForward
@@ -251,8 +237,8 @@ impl ToString for GameAction {
         let translator = Translator::default();
         match self {
             Self::PreviewBackup | Self::PreviewRestore => translator.preview_button(),
-            Self::Backup => translator.backup_button(),
-            Self::Restore => translator.restore_button(),
+            Self::Backup { .. } => translator.backup_button(),
+            Self::Restore { .. } => translator.restore_button(),
             Self::Customize => translator.customize_button(),
             Self::Wiki => translator.pcgamingwiki(),
         }

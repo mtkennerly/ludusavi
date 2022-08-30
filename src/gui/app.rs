@@ -102,6 +102,16 @@ impl App {
             .swap(false, std::sync::atomic::Ordering::Relaxed);
     }
 
+    fn confirm_backup_start(&mut self, games: Option<Vec<String>>) -> Command<Message> {
+        self.modal_theme = Some(ModalTheme::ConfirmBackup { games });
+        Command::none()
+    }
+
+    fn confirm_restore_start(&mut self, games: Option<Vec<String>>) -> Command<Message> {
+        self.modal_theme = Some(ModalTheme::ConfirmRestore { games });
+        Command::none()
+    }
+
     fn start_backup(&mut self, preview: bool, games: Option<Vec<String>>) -> Command<Message> {
         if self.operation.is_some() {
             return Command::none();
@@ -394,6 +404,48 @@ impl App {
 
         self.go_idle();
     }
+
+    fn customize_game(&mut self, name: String) -> Command<Message> {
+        let game = if let Some(standard) = self.manifest.0.get(&name) {
+            CustomGame {
+                name: name.clone(),
+                ignore: false,
+                files: standard.files.clone().unwrap_or_default().keys().cloned().collect(),
+                registry: standard.registry.clone().unwrap_or_default().keys().cloned().collect(),
+            }
+        } else {
+            CustomGame {
+                name: name.clone(),
+                ignore: false,
+                files: vec![],
+                registry: vec![],
+            }
+        };
+
+        let mut gui_entry = CustomGamesEditorEntry::new(&name);
+        for item in game.files.iter() {
+            gui_entry.files.push(CustomGamesEditorEntryRow::new(item));
+        }
+        for item in game.registry.iter() {
+            gui_entry.registry.push(CustomGamesEditorEntryRow::new(item));
+        }
+        self.custom_games_screen.games_editor.entries.push(gui_entry);
+
+        self.config.custom_games.push(game);
+        self.config.save();
+
+        self.screen = Screen::CustomGames;
+        Command::none()
+    }
+
+    fn open_wiki(game: String) -> Command<Message> {
+        let url = format!("https://www.pcgamingwiki.com/wiki/{}", game.replace(' ', "_"));
+        let url2 = url.clone();
+        Command::perform(async { opener::open(url) }, move |res| match res {
+            Ok(_) => Message::Ignore,
+            Err(_) => Message::OpenUrlFailure { url: url2.clone() },
+        })
+    }
 }
 
 impl Application for App {
@@ -455,14 +507,8 @@ impl Application for App {
                 self.modal_theme = Some(ModalTheme::Error { variant: error });
                 Command::none()
             }
-            Message::ConfirmBackupStart { games } => {
-                self.modal_theme = Some(ModalTheme::ConfirmBackup { games });
-                Command::none()
-            }
-            Message::ConfirmRestoreStart { games } => {
-                self.modal_theme = Some(ModalTheme::ConfirmRestore { games });
-                Command::none()
-            }
+            Message::ConfirmBackupStart { games } => self.confirm_backup_start(games),
+            Message::ConfirmRestoreStart { games } => self.confirm_restore_start(games),
             Message::BackupPrep { preview, games } => {
                 if self.operation.is_some() {
                     return Command::none();
@@ -633,7 +679,8 @@ impl Application for App {
                     self.config.roots.push(root);
                 }
                 self.config.save();
-                Command::perform(async move {}, move |_| Message::Idle)
+                self.go_idle();
+                Command::none()
             }
             Message::EditedRoot(action) => {
                 match action {
@@ -1045,58 +1092,18 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
-            Message::CustomizeGame { name } => {
-                let game = if let Some(standard) = self.manifest.0.get(&name) {
-                    CustomGame {
-                        name: name.clone(),
-                        ignore: false,
-                        files: standard.files.clone().unwrap_or_default().keys().cloned().collect(),
-                        registry: standard.registry.clone().unwrap_or_default().keys().cloned().collect(),
-                    }
-                } else {
-                    CustomGame {
-                        name: name.clone(),
-                        ignore: false,
-                        files: vec![],
-                        registry: vec![],
-                    }
-                };
-
-                let mut gui_entry = CustomGamesEditorEntry::new(&name);
-                for item in game.files.iter() {
-                    gui_entry.files.push(CustomGamesEditorEntryRow::new(item));
-                }
-                for item in game.registry.iter() {
-                    gui_entry.registry.push(CustomGamesEditorEntryRow::new(item));
-                }
-                self.custom_games_screen.games_editor.entries.push(gui_entry);
-
-                self.config.custom_games.push(game);
-                self.config.save();
-
-                self.screen = Screen::CustomGames;
-                Command::none()
-            }
             Message::OpenDir { path } => {
                 let path2 = path.clone();
-                match std::thread::spawn(move || opener::open(&path.interpret())).join() {
-                    Ok(Ok(_)) => Command::none(),
-                    _ => Command::perform(async {}, move |_| Message::OpenDirFailure { path: path2.clone() }),
-                }
+                Command::perform(async move { opener::open(path.interpret()) }, move |res| match res {
+                    Ok(_) => Message::Ignore,
+                    Err(_) => Message::OpenDirFailure { path: path2.clone() },
+                })
             }
             Message::OpenDirFailure { path } => {
                 self.modal_theme = Some(ModalTheme::Error {
                     variant: Error::UnableToOpenDir(path),
                 });
                 Command::none()
-            }
-            Message::OpenWiki { game } => {
-                let url = format!("https://www.pcgamingwiki.com/wiki/{}", game.replace(' ', "_"));
-                let url2 = url.clone();
-                match std::thread::spawn(move || opener::open(&url)).join() {
-                    Ok(Ok(_)) => Command::none(),
-                    _ => Command::perform(async {}, move |_| Message::OpenUrlFailure { url: url2.clone() }),
-                }
             }
             Message::OpenUrlFailure { url } => {
                 self.modal_theme = Some(ModalTheme::Error {
@@ -1312,25 +1319,25 @@ impl Application for App {
                 self.backup_screen.show_settings = !self.backup_screen.show_settings;
                 Command::none()
             }
-            Message::GameAction(action, game) => match action {
-                GameAction::PreviewBackup => Command::perform(async move {}, move |_| Message::BackupStart {
-                    preview: true,
-                    games: Some(vec![game.clone()]),
-                }),
-                GameAction::Backup => Command::perform(async move {}, move |_| Message::ConfirmBackupStart {
-                    games: Some(vec![game.clone()]),
-                }),
-                GameAction::PreviewRestore => Command::perform(async move {}, move |_| Message::RestoreStart {
-                    preview: true,
-                    games: Some(vec![game.clone()]),
-                }),
-                GameAction::Restore => Command::perform(async move {}, move |_| Message::ConfirmRestoreStart {
-                    games: Some(vec![game.clone()]),
-                }),
-                GameAction::Customize => {
-                    Command::perform(async move {}, move |_| Message::CustomizeGame { name: game.clone() })
+            Message::GameAction { action, game } => match action {
+                GameAction::PreviewBackup => self.start_backup(true, Some(vec![game])),
+                GameAction::Backup { confirm } => {
+                    if confirm {
+                        self.confirm_backup_start(Some(vec![game]))
+                    } else {
+                        self.start_backup(false, Some(vec![game]))
+                    }
                 }
-                GameAction::Wiki => Command::perform(async move {}, move |_| Message::OpenWiki { game: game.clone() }),
+                GameAction::PreviewRestore => self.start_restore(true, Some(vec![game])),
+                GameAction::Restore { confirm } => {
+                    if confirm {
+                        self.confirm_restore_start(Some(vec![game]))
+                    } else {
+                        self.start_restore(false, Some(vec![game]))
+                    }
+                }
+                GameAction::Customize => self.customize_game(game),
+                GameAction::Wiki => Self::open_wiki(game),
             },
         }
     }
@@ -1393,11 +1400,8 @@ impl Application for App {
                         self.restore_screen
                             .view(&self.config, &self.manifest, &self.translator, &self.operation)
                     }
-                    Screen::CustomGames => {
-                        self.custom_games_screen
-                            .view(&self.config, &self.translator, &self.operation)
-                    }
-                    Screen::Other => self.other_screen.view(&self.config, &self.translator, &self.operation),
+                    Screen::CustomGames => self.custom_games_screen.view(&self.config, &self.translator),
+                    Screen::Other => self.other_screen.view(&self.config, &self.translator),
                 }
                 .padding([0, 5, 5, 5])
                 .height(Length::Fill),

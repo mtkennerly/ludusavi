@@ -2,7 +2,6 @@ use crate::{
     config::Config,
     gui::{
         common::Message,
-        common::OngoingOperation,
         common::{BrowseSubject, EditAction},
         icon::Icon,
         style,
@@ -60,12 +59,7 @@ pub struct CustomGamesEditor {
 }
 
 impl CustomGamesEditor {
-    pub fn view(
-        &mut self,
-        config: &Config,
-        translator: &Translator,
-        operation: &Option<OngoingOperation>,
-    ) -> Container<Message> {
+    pub fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
         if config.custom_games.is_empty() {
             return Container::new(Space::new(Length::Shrink, Length::Shrink));
         }
@@ -147,16 +141,10 @@ impl CustomGamesEditor {
                                                                     &mut xx.browse_button_state,
                                                                     Icon::FolderOpen.as_text(),
                                                                 )
-                                                                .on_press(match operation {
-                                                                    None => Message::BrowseDir(
-                                                                        BrowseSubject::CustomGameFile(i, ii),
-                                                                    ),
-                                                                    Some(_) => Message::Ignore,
-                                                                })
-                                                                .style(match operation {
-                                                                    None => style::Button::Primary(config.theme),
-                                                                    Some(_) => style::Button::Disabled(config.theme),
-                                                                }),
+                                                                .on_press(Message::BrowseDir(
+                                                                    BrowseSubject::CustomGameFile(i, ii),
+                                                                ))
+                                                                .style(style::Button::Primary(config.theme)),
                                                             )
                                                             .push(
                                                                 Button::new(

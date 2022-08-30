@@ -194,6 +194,7 @@ impl GameListEntry {
                             }
                         })
                         .push({
+                            let confirm = !modifiers.alt();
                             let action = if modifiers.shift() {
                                 Some(if restoring {
                                     GameAction::PreviewRestore
@@ -202,22 +203,24 @@ impl GameListEntry {
                                 })
                             } else if modifiers.command() {
                                 Some(if restoring {
-                                    GameAction::Restore
+                                    GameAction::Restore { confirm }
                                 } else {
-                                    GameAction::Backup
+                                    GameAction::Backup { confirm }
                                 })
                             } else {
                                 None
                             };
                             if let Some(action) = action {
-                                let confirm = !modifiers.alt();
                                 let button = Button::new(
                                     &mut self.quick_action,
-                                    action.icon(confirm).as_text().width(Length::Units(45)),
+                                    action.icon().as_text().width(Length::Units(45)),
                                 )
                                 .on_press_if(
                                     || !operating,
-                                    || action.message(confirm, Some(vec![self.scan_info.game_name.clone()])),
+                                    || Message::GameAction {
+                                        action,
+                                        game: self.scan_info.game_name.clone(),
+                                    },
                                 )
                                 .style(if operating {
                                     style::Button::Disabled(config.theme)
@@ -233,7 +236,10 @@ impl GameListEntry {
                                 let menu = crate::gui::popup_menu::PopupMenu::new(
                                     &mut self.popup_menu,
                                     options,
-                                    move |choice| Message::GameAction(choice, game_name.clone()),
+                                    move |action| Message::GameAction {
+                                        action,
+                                        game: game_name.clone(),
+                                    },
                                 )
                                 .style(style::PickList::Popup(config.theme));
                                 Container::new(menu)

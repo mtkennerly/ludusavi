@@ -201,14 +201,8 @@ impl BackupScreenComponent {
                         )
                         .push(
                             Button::new(&mut self.backup_target_browse_button, Icon::FolderOpen.as_text())
-                                .on_press(match operation {
-                                    None => Message::BrowseDir(BrowseSubject::BackupTarget),
-                                    Some(_) => Message::Ignore,
-                                })
-                                .style(match operation {
-                                    None => style::Button::Primary(config.theme),
-                                    Some(_) => style::Button::Disabled(config.theme),
-                                }),
+                                .on_press(Message::BrowseDir(BrowseSubject::BackupTarget))
+                                .style(style::Button::Primary(config.theme)),
                         ),
                 )
                 .push_if(
@@ -295,7 +289,7 @@ impl BackupScreenComponent {
                             )
                     },
                 )
-                .push(self.root_editor.view(config, translator, operation))
+                .push(self.root_editor.view(config, translator))
                 .push(
                     self.log
                         .view(false, translator, config, manifest, &self.duplicate_detector, operation),
