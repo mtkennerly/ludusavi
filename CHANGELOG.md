@@ -12,6 +12,7 @@
     * preview: shift
     * backup/restore: ctrl (Mac: cmd)
     * backup/restore without confirmation: ctrl + alt (Mac: cmd + option)
+  * CLI: `backups` command to list backups for each game.
   * On Linux, GOG roots now additionally check for a `game` subfolder when
     parsing the `<base>` and `<game>` placeholders.
     ([contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/121))
@@ -24,6 +25,8 @@
     same style as a disabled game.
 * Fixed:
   * Performance regressions from v0.11.0 related to duplicate detection and root globbing.
+  * CLI: `restore --by-steam-id 123` would restore all games with a Steam ID
+    instead of just the game with the matching ID 123.
   * GUI: Cancelling a backup/restore no longer has a long delay.
   * GUI: Doing a full preview, backing up one game, and then doing a full backup
     would trigger a full scan instead of reusing the list from the initial preview.

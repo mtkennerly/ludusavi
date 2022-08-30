@@ -71,6 +71,17 @@ impl Backup {
         }
     }
 
+    pub fn when(&self) -> &Option<chrono::DateTime<chrono::Utc>> {
+        match self {
+            Self::Full(x) => &x.when,
+            Self::Differential(x) => &x.when,
+        }
+    }
+
+    pub fn when_local(&self) -> Option<chrono::DateTime<chrono::Local>> {
+        self.when().map(chrono::DateTime::<chrono::Local>::from)
+    }
+
     pub fn label(&self) -> String {
         match self {
             Self::Full(x) => x.label(),

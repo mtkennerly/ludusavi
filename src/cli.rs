@@ -192,6 +192,28 @@ pub enum Subcommand {
         #[clap(subcommand)]
         shell: CompletionShell,
     },
+    #[clap(about = "Show backups")]
+    Backups {
+        /// Directory in which to find backups.
+        /// When unset, this defaults to the restore path from Ludusavi's config file.
+        #[clap(long, parse(from_str = parse_strict_path))]
+        path: Option<StrictPath>,
+
+        /// When naming specific games to process, this means that you'll
+        /// provide the Steam IDs instead of the manifest names, and Ludusavi will
+        /// look up those IDs in the manifest to find the corresponding names.
+        #[clap(long)]
+        by_steam_id: bool,
+
+        /// Print information to stdout in machine-readable JSON.
+        /// This replaces the default, human-readable output.
+        #[clap(long)]
+        api: bool,
+
+        /// Only report these specific games.
+        #[clap()]
+        games: Vec<String>,
+    },
 }
 
 #[derive(clap::Parser, Clone, Debug, PartialEq, Eq)]
@@ -249,20 +271,33 @@ struct ApiRegistry {
     duplicated_by: std::collections::HashSet<String>,
 }
 
-#[derive(Debug, Default, serde::Serialize)]
-struct ApiGame {
-    decision: OperationStepDecision,
-    #[serde(serialize_with = "crate::serialization::ordered_map")]
-    files: std::collections::HashMap<String, ApiFile>,
-    #[serde(serialize_with = "crate::serialization::ordered_map")]
-    registry: std::collections::HashMap<String, ApiRegistry>,
+#[derive(Debug, serde::Serialize)]
+#[serde(untagged)]
+enum ApiGame {
+    Operative {
+        decision: OperationStepDecision,
+        #[serde(serialize_with = "crate::serialization::ordered_map")]
+        files: std::collections::HashMap<String, ApiFile>,
+        #[serde(serialize_with = "crate::serialization::ordered_map")]
+        registry: std::collections::HashMap<String, ApiRegistry>,
+    },
+    Stored {
+        backups: Vec<ApiBackup>,
+    },
+}
+
+#[derive(Debug, serde::Serialize)]
+struct ApiBackup {
+    name: String,
+    when: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
 struct JsonOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     errors: Option<ApiErrors>,
-    overall: OperationStatus,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    overall: Option<OperationStatus>,
     #[serde(serialize_with = "crate::serialization::ordered_map")]
     games: std::collections::HashMap<String, ApiGame>,
 }
@@ -272,7 +307,7 @@ enum Reporter {
     Standard {
         translator: Translator,
         parts: Vec<String>,
-        status: OperationStatus,
+        status: Option<OperationStatus>,
     },
     Json {
         output: JsonOutput,
@@ -284,13 +319,17 @@ impl Reporter {
         Self::Standard {
             translator,
             parts: vec![],
-            status: Default::default(),
+            status: Some(Default::default()),
         }
     }
 
     fn json() -> Self {
         Self::Json {
-            output: Default::default(),
+            output: JsonOutput {
+                errors: Default::default(),
+                overall: Some(Default::default()),
+                games: Default::default(),
+            },
         }
     }
 
@@ -388,21 +427,22 @@ impl Reporter {
                 // Blank line between games.
                 parts.push("".to_string());
 
-                status.add_game(
-                    scan_info,
-                    &Some(backup_info.clone()),
-                    decision == &OperationStepDecision::Processed,
-                );
+                if let Some(status) = status.as_mut() {
+                    status.add_game(
+                        scan_info,
+                        &Some(backup_info.clone()),
+                        decision == &OperationStepDecision::Processed,
+                    );
+                }
             }
             Self::Json { output } => {
                 if !scan_info.found_anything() {
                     return true;
                 }
 
-                let mut api_game = ApiGame {
-                    decision: decision.clone(),
-                    ..Default::default()
-                };
+                let decision = decision.clone();
+                let mut files = std::collections::HashMap::new();
+                let mut registry = std::collections::HashMap::new();
 
                 for entry in itertools::sorted(&scan_info.found_files) {
                     let mut api_file = ApiFile {
@@ -428,7 +468,7 @@ impl Reporter {
                         successful = false;
                     }
 
-                    api_game.files.insert(readable.render(), api_file);
+                    files.insert(readable.render(), api_file);
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
                     let mut api_registry = ApiRegistry {
@@ -446,14 +486,23 @@ impl Reporter {
                         successful = false;
                     }
 
-                    api_game.registry.insert(entry.path.render(), api_registry);
+                    registry.insert(entry.path.render(), api_registry);
                 }
 
-                output.games.insert(name.to_string(), api_game);
-                output.overall.add_game(
-                    scan_info,
-                    &Some(backup_info.clone()),
-                    decision == &OperationStepDecision::Processed,
+                if let Some(overall) = output.overall.as_mut() {
+                    overall.add_game(
+                        scan_info,
+                        &Some(backup_info.clone()),
+                        decision == OperationStepDecision::Processed,
+                    );
+                }
+                output.games.insert(
+                    name.to_string(),
+                    ApiGame::Operative {
+                        decision,
+                        files,
+                        registry,
+                    },
                 );
             }
         }
@@ -464,13 +513,58 @@ impl Reporter {
         successful
     }
 
+    fn add_backup(&mut self, name: &str, scan_info: &ScanInfo) {
+        match self {
+            Self::Standard { parts, status, .. } => {
+                *status = None;
+                if scan_info.available_backups.is_empty() {
+                    return;
+                }
+
+                parts.push(format!("{}:", name));
+                for backup in &scan_info.available_backups {
+                    match backup.when_local() {
+                        Some(when) => {
+                            parts.push(format!("  - {} ({})", backup.name(), when.format("%Y-%m-%dT%H:%M:%S")));
+                        }
+                        None => {
+                            parts.push(format!("  - {}", backup.name()));
+                        }
+                    }
+                }
+
+                // Blank line between games.
+                parts.push("".to_string());
+            }
+            Self::Json { output } => {
+                output.overall = None;
+                if scan_info.available_backups.is_empty() {
+                    return;
+                }
+
+                let mut backups = vec![];
+                for backup in &scan_info.available_backups {
+                    backups.push(ApiBackup {
+                        name: backup.name().to_string(),
+                        when: *backup.when(),
+                    });
+                }
+
+                output.games.insert(name.to_string(), ApiGame::Stored { backups });
+            }
+        }
+    }
+
     fn render(&self, path: &StrictPath) -> String {
         match self {
             Self::Standard {
                 parts,
                 status,
                 translator,
-            } => parts.join("\n") + "\n" + &translator.cli_summary(status, path),
+            } => match status {
+                Some(status) => parts.join("\n") + "\n" + &translator.cli_summary(status, path),
+                None => parts.join("\n"),
+            },
             Self::Json { output } => serde_json::to_string_pretty(&output).unwrap(),
         }
     }
@@ -748,17 +842,15 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             let mut subjects: Vec<_> = if !&games.is_empty() {
-                restorable_names
-                    .iter()
-                    .filter_map(|x| {
-                        if (by_steam_id && steam_ids_to_names.values().cloned().any(|y| &y == x)) || (games.contains(x))
-                        {
-                            Some(x.to_owned())
-                        } else {
-                            None
-                        }
-                    })
-                    .collect()
+                if by_steam_id {
+                    games
+                        .iter()
+                        .map(|game| &steam_ids_to_names[&game.parse::<u32>().unwrap()])
+                        .cloned()
+                        .collect()
+                } else {
+                    games
+                }
             } else {
                 restorable_names
             };
@@ -831,6 +923,90 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 env!("CARGO_PKG_NAME"),
                 &mut std::io::stdout(),
             )
+        }
+        Subcommand::Backups {
+            path,
+            by_steam_id,
+            api,
+            games,
+        } => {
+            let mut reporter = if api {
+                Reporter::json()
+            } else {
+                Reporter::standard(translator)
+            };
+
+            let manifest = Manifest::load(&mut config, false)?;
+
+            let restore_dir = match path {
+                None => config.restore.path.clone(),
+                Some(p) => p,
+            };
+
+            let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
+
+            let steam_ids_to_names = &manifest.map_steam_ids_to_names();
+            let restorable_names = layout.restorable_games();
+
+            let mut invalid_games: Vec<_> = games
+                .iter()
+                .filter_map(|game| {
+                    if by_steam_id {
+                        match game.parse::<u32>() {
+                            Ok(id) => {
+                                if !steam_ids_to_names.contains_key(&id)
+                                    || !restorable_names.contains(&steam_ids_to_names[&id])
+                                {
+                                    Some(game.to_owned())
+                                } else {
+                                    None
+                                }
+                            }
+                            Err(_) => Some(game.to_owned()),
+                        }
+                    } else if !restorable_names.contains(game) {
+                        Some(game.to_owned())
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            if !invalid_games.is_empty() {
+                invalid_games.sort();
+                reporter.trip_unknown_games(invalid_games.clone());
+                reporter.print_failure();
+                return Err(crate::prelude::Error::CliUnrecognizedGames { games: invalid_games });
+            }
+
+            let mut subjects: Vec<_> = if !&games.is_empty() {
+                if by_steam_id {
+                    games
+                        .iter()
+                        .map(|game| &steam_ids_to_names[&game.parse::<u32>().unwrap()])
+                        .cloned()
+                        .collect()
+                } else {
+                    games
+                }
+            } else {
+                restorable_names
+            };
+            subjects.sort();
+
+            let info: Vec<_> = subjects
+                .par_iter()
+                .progress_count(subjects.len() as u64)
+                .map(|name| {
+                    let mut layout = layout.game_layout(name);
+                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &mut layout);
+                    (name, scan_info)
+                })
+                .collect();
+
+            for (name, scan_info) in info {
+                reporter.add_backup(name, &scan_info);
+            }
+            reporter.print(&restore_dir);
         }
     }
 
