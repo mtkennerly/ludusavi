@@ -402,7 +402,7 @@ pub fn parse_paths(
             .replace("<regHkcu>", SKIP)
             .replace("<regHklm>", SKIP),
     );
-    if root.store == Store::GogLinux {
+    if root.store == Store::Gog  && get_os() == Os::Linux {
         paths.insert(
             path.replace("<game>", &format!("{}/game", install_dir))
                 .replace("<base>", &format!("{}/{}/game", root.path.interpret(), install_dir)),

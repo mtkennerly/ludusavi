@@ -581,7 +581,6 @@ impl Translator {
             Store::Epic => "store-epic",
             Store::Gog => "store-gog",
             Store::GogGalaxy => "store-gog-galaxy",
-            Store::GogLinux => "store-gog-linux",
             Store::Microsoft => "store-microsoft",
             Store::Origin => "store-origin",
             Store::Prime => "store-prime",

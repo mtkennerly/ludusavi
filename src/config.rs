@@ -388,8 +388,6 @@ impl Config {
             // GOG Galaxy:
             (format!("{}/GOG Galaxy/Games", pf32), Store::GogGalaxy),
             (format!("{}/GOG Galaxy/Games", pf64), Store::GogGalaxy),
-            // GOG Linux:
-            ("~/GOG Games".to_string(), Store::GogLinux),
             // Uplay:
             (format!("{}/Ubisoft/Ubisoft Game Launcher", pf32), Store::Uplay),
             (format!("{}/Ubisoft/Ubisoft Game Launcher", pf64), Store::Uplay),
