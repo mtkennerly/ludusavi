@@ -400,6 +400,12 @@ pub fn parse_paths(
             .replace("<regHkcu>", SKIP)
             .replace("<regHklm>", SKIP),
     );
+    if root.store == Store::GogLinux {
+        paths.insert(
+            path.replace("<game>", &format!("{}/game", install_dir))
+                .replace("<base>", &format!("{}/{}/game", root.path.interpret(), install_dir)),
+        );
+    }
     if root.store == Store::OtherHome {
         paths.insert(
             path.replace("<root>", &root.path.interpret())

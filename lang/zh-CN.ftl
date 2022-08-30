@@ -69,6 +69,7 @@ field-backup-compression = Compression:
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
+store-gog-linux = GOG Linux
 store-microsoft = Microsoft
 store-origin = Origin
 store-prime = Prime Gaming
