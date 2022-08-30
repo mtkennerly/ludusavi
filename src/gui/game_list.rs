@@ -187,6 +187,7 @@ impl GameListEntry {
                                     .style(style::PickList::Backup(config.theme)),
                                 )
                                 .width(Length::Units(185))
+                                .padding([0, 0, 0, 15])
                                 .align_x(HorizontalAlignment::Center);
                                 Some(content)
                             } else {
@@ -223,9 +224,9 @@ impl GameListEntry {
                                     },
                                 )
                                 .style(if operating {
-                                    style::Button::Disabled(config.theme)
+                                    style::Button::GameActionDisabled(config.theme)
                                 } else {
-                                    style::Button::Primary(config.theme)
+                                    style::Button::GameActionPrimary(config.theme)
                                 })
                                 .padding(2);
                                 Container::new(button)

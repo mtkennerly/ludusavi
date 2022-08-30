@@ -150,6 +150,8 @@ pub enum Button {
     Primary(Theme),
     Disabled(Theme),
     Negative(Theme),
+    GameActionPrimary(Theme),
+    GameActionDisabled(Theme),
     GameListEntryTitle(Theme),
     GameListEntryTitleFailed(Theme),
     GameListEntryTitleDisabled(Theme),
@@ -161,6 +163,8 @@ impl Button {
             Self::Primary(theme) => theme,
             Self::Disabled(theme) => theme,
             Self::Negative(theme) => theme,
+            Self::GameActionPrimary(theme) => theme,
+            Self::GameActionDisabled(theme) => theme,
             Self::GameListEntryTitle(theme) => theme,
             Self::GameListEntryTitleFailed(theme) => theme,
             Self::GameListEntryTitleDisabled(theme) => theme,
@@ -173,16 +177,18 @@ impl button::StyleSheet for Button {
         let t = self.theme();
         button::Style {
             background: match self {
-                Self::Primary(_) => Some(t.positive().into()),
+                Self::Primary(_) | Self::GameActionPrimary(_) => Some(t.positive().into()),
                 Self::GameListEntryTitle(_) => Some(t.success().into()),
                 Self::GameListEntryTitleFailed(_) => Some(t.failure().into()),
                 Self::GameListEntryTitleDisabled(_) => Some(t.skipped().into()),
                 Self::GameListEntryTitleUnscanned(_) => None,
-                Self::Disabled(_) => Some(t.disabled().into()),
+                Self::Disabled(_) | Self::GameActionDisabled(_) => Some(t.disabled().into()),
                 Self::Negative(_) => Some(t.negative().into()),
             },
             border_radius: match self {
-                Self::GameListEntryTitle(_)
+                Self::GameActionPrimary(_)
+                | Self::GameActionDisabled(_)
+                | Self::GameListEntryTitle(_)
                 | Self::GameListEntryTitleFailed(_)
                 | Self::GameListEntryTitleDisabled(_)
                 | Self::GameListEntryTitleUnscanned(_) => 10.0,
