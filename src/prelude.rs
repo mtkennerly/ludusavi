@@ -177,6 +177,13 @@ impl ScanInfo {
             .collect();
     }
 
+    pub fn all_ignored(&self) -> bool {
+        if self.found_files.is_empty() && self.found_registry_keys.is_empty() {
+            return false;
+        }
+        self.found_files.iter().all(|x| x.ignored) && self.found_registry_keys.iter().all(|x| x.ignored)
+    }
+
     pub fn any_ignored(&self) -> bool {
         self.found_files.iter().any(|x| x.ignored) || self.found_registry_keys.iter().any(|x| x.ignored)
     }

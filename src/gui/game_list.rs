@@ -62,6 +62,7 @@ impl GameListEntry {
         } else {
             config.is_game_enabled_for_backup(&self.scan_info.game_name)
         };
+        let all_items_ignored = self.scan_info.all_ignored();
         let customized = config.is_game_customized(&self.scan_info.game_name);
         let customized_pure = customized && !manifest.0.contains_key(&self.scan_info.game_name);
         let name_for_checkbox = self.scan_info.game_name.clone();
@@ -109,7 +110,7 @@ impl GameListEntry {
                             })
                             .style(if !scanned {
                                 style::Button::GameListEntryTitleUnscanned(config.theme)
-                            } else if !enabled {
+                            } else if !enabled || all_items_ignored {
                                 style::Button::GameListEntryTitleDisabled(config.theme)
                             } else if successful {
                                 style::Button::GameListEntryTitle(config.theme)
@@ -359,8 +360,9 @@ impl GameList {
         for entry in self.entries.iter() {
             status.total_games += 1;
             status.total_bytes += entry.scan_info.total_possible_bytes();
-            if (restoring && config.is_game_enabled_for_restore(&entry.scan_info.game_name))
-                || (!restoring && config.is_game_enabled_for_backup(&entry.scan_info.game_name))
+            if !entry.scan_info.all_ignored()
+                && ((restoring && config.is_game_enabled_for_restore(&entry.scan_info.game_name))
+                    || (!restoring && config.is_game_enabled_for_backup(&entry.scan_info.game_name)))
             {
                 status.processed_games += 1;
                 status.processed_bytes += entry.scan_info.sum_bytes(&None);
