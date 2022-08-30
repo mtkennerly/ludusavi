@@ -1,8 +1,7 @@
 use crate::{
     config::Config,
     gui::{
-        common::{BrowseSubject, EditAction, RedirectEditActionField},
-        common::{Message, OngoingOperation},
+        common::{BrowseSubject, EditAction, Message, RedirectEditActionField},
         icon::Icon,
         style,
     },
@@ -40,12 +39,7 @@ pub struct RedirectEditor {
 }
 
 impl RedirectEditor {
-    pub fn view(
-        &mut self,
-        config: &Config,
-        translator: &Translator,
-        operation: &Option<OngoingOperation>,
-    ) -> Container<Message> {
+    pub fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
         let redirects = config.get_redirects();
         if redirects.is_empty() {
             return Container::new(Space::new(Length::Shrink, Length::Shrink));
@@ -92,14 +86,8 @@ impl RedirectEditor {
                             )
                             .push(
                                 Button::new(&mut x.source_browse_button_state, Icon::FolderOpen.as_text())
-                                    .on_press(match operation {
-                                        None => Message::BrowseDir(BrowseSubject::RedirectSource(i)),
-                                        Some(_) => Message::Ignore,
-                                    })
-                                    .style(match operation {
-                                        None => style::Button::Primary(config.theme),
-                                        Some(_) => style::Button::Disabled(config.theme),
-                                    }),
+                                    .on_press(Message::BrowseDir(BrowseSubject::RedirectSource(i)))
+                                    .style(style::Button::Primary(config.theme)),
                             )
                             .push(
                                 TextInput::new(
@@ -119,14 +107,8 @@ impl RedirectEditor {
                             )
                             .push(
                                 Button::new(&mut x.target_browse_button_state, Icon::FolderOpen.as_text())
-                                    .on_press(match operation {
-                                        None => Message::BrowseDir(BrowseSubject::RedirectTarget(i)),
-                                        Some(_) => Message::Ignore,
-                                    })
-                                    .style(match operation {
-                                        None => style::Button::Primary(config.theme),
-                                        Some(_) => style::Button::Disabled(config.theme),
-                                    }),
+                                    .on_press(Message::BrowseDir(BrowseSubject::RedirectTarget(i)))
+                                    .style(style::Button::Primary(config.theme)),
                             ),
                     )
                 },

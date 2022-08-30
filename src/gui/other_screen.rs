@@ -1,10 +1,6 @@
 use crate::{
     config::{Config, Theme},
-    gui::{
-        common::{Message, OngoingOperation},
-        ignored_items_editor::IgnoredItemsEditor,
-        style,
-    },
+    gui::{common::Message, ignored_items_editor::IgnoredItemsEditor, style},
     lang::{Language, Translator},
 };
 
@@ -26,12 +22,7 @@ impl OtherScreenComponent {
         }
     }
 
-    pub fn view(
-        &mut self,
-        config: &Config,
-        translator: &Translator,
-        operation: &Option<OngoingOperation>,
-    ) -> Container<Message> {
+    pub fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
         Container::new(
             Scrollable::new(&mut self.scroll)
                 .width(Length::Fill)
@@ -89,7 +80,7 @@ impl OtherScreenComponent {
                         .push(
                             Column::new().push(Text::new(translator.ignored_items_label())).push(
                                 self.ignored_items_editor
-                                    .view(config, translator, operation)
+                                    .view(config, translator)
                                     .padding([10, 0, 0, 0]),
                             ),
                         ),

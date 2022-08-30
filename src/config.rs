@@ -99,6 +99,9 @@ pub struct BackupFilter {
 
 impl BackupFilter {
     pub fn is_path_ignored(&self, item: &StrictPath) -> bool {
+        if self.ignored_paths.is_empty() {
+            return false;
+        }
         let interpreted = item.interpret();
         self.ignored_paths
             .iter()
@@ -107,6 +110,9 @@ impl BackupFilter {
 
     #[allow(dead_code)]
     pub fn is_registry_ignored(&self, item: &RegistryItem) -> bool {
+        if self.ignored_registry.is_empty() {
+            return false;
+        }
         let interpreted = item.interpret();
         self.ignored_registry
             .iter()
@@ -224,6 +230,8 @@ pub struct BackupConfig {
         serialize_with = "crate::serialization::ordered_set"
     )]
     pub ignored_games: std::collections::HashSet<String>,
+    #[serde(default, rename = "recentGames")]
+    pub recent_games: std::collections::BTreeSet<String>,
     #[serde(default = "crate::serialization::default_true")]
     pub merge: bool,
     #[serde(default)]
@@ -249,6 +257,8 @@ pub struct RestoreConfig {
         serialize_with = "crate::serialization::ordered_set"
     )]
     pub ignored_games: std::collections::HashSet<String>,
+    #[serde(default, rename = "recentGames")]
+    pub recent_games: std::collections::BTreeSet<String>,
     #[serde(default)]
     pub redirects: Vec<RedirectConfig>,
     #[serde(default)]
@@ -280,6 +290,7 @@ impl Default for BackupConfig {
         Self {
             path: default_backup_dir(),
             ignored_games: std::collections::HashSet::new(),
+            recent_games: std::collections::BTreeSet::new(),
             merge: true,
             filter: BackupFilter::default(),
             toggled_paths: Default::default(),
@@ -296,6 +307,7 @@ impl Default for RestoreConfig {
         Self {
             path: default_backup_dir(),
             ignored_games: std::collections::HashSet::new(),
+            recent_games: std::collections::BTreeSet::new(),
             redirects: vec![],
             sort: Default::default(),
         }
@@ -529,6 +541,10 @@ impl Config {
     pub fn are_all_custom_games_enabled(&self) -> bool {
         self.custom_games.iter().all(|x| !x.ignore)
     }
+
+    pub fn expanded_roots(&self) -> Vec<RootsConfig> {
+        self.roots.iter().flat_map(|x| x.glob()).collect()
+    }
 }
 
 impl ToggledPaths {
@@ -740,6 +756,7 @@ mod tests {
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: std::collections::HashSet::new(),
+                    recent_games: Default::default(),
                     merge: true,
                     filter: BackupFilter {
                         exclude_other_os_data: false,
@@ -755,6 +772,7 @@ mod tests {
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
                     ignored_games: std::collections::HashSet::new(),
+                    recent_games: Default::default(),
                     redirects: vec![],
                     sort: Default::default(),
                 },
@@ -834,6 +852,7 @@ mod tests {
                         s("Backup Game 1"),
                         s("Backup Game 2"),
                     },
+                    recent_games: Default::default(),
                     merge: true,
                     filter: BackupFilter {
                         exclude_other_os_data: true,
@@ -852,6 +871,7 @@ mod tests {
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
+                    recent_games: Default::default(),
                     redirects: vec![RedirectConfig {
                         source: StrictPath::new(s("~/old")),
                         target: StrictPath::new(s("~/new")),
@@ -913,6 +933,7 @@ mod tests {
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: std::collections::HashSet::new(),
+                    recent_games: Default::default(),
                     merge: true,
                     filter: BackupFilter {
                         exclude_other_os_data: false,
@@ -928,6 +949,7 @@ mod tests {
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
                     ignored_games: std::collections::HashSet::new(),
+                    recent_games: Default::default(),
                     redirects: vec![],
                     sort: Default::default(),
                 },
@@ -958,6 +980,7 @@ backup:
     - Backup Game 1
     - Backup Game 2
     - Backup Game 3
+  recentGames: []
   merge: true
   filter:
     excludeOtherOsData: true
@@ -982,6 +1005,7 @@ restore:
     - Restore Game 1
     - Restore Game 2
     - Restore Game 3
+  recentGames: []
   redirects:
     - source: ~/old
       target: ~/new
@@ -1027,6 +1051,7 @@ customGames:
                         s("Backup Game 1"),
                         s("Backup Game 2"),
                     },
+                    recent_games: Default::default(),
                     merge: true,
                     filter: BackupFilter {
                         exclude_other_os_data: true,
@@ -1046,6 +1071,7 @@ customGames:
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
+                    recent_games: Default::default(),
                     redirects: vec![RedirectConfig {
                         source: StrictPath::new(s("~/old")),
                         target: StrictPath::new(s("~/new")),

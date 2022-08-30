@@ -1,6 +1,6 @@
 use crate::{
     config::{BackupFormat, RootsConfig, SortKey, Theme, ZipCompression},
-    gui::badge::Badge,
+    gui::{badge::Badge, icon::Icon},
     lang::{Language, Translator},
     layout::Backup,
     manifest::Store,
@@ -38,17 +38,15 @@ pub enum Message {
         backup_info: Option<BackupInfo>,
         decision: OperationStepDecision,
         preview: bool,
+        full: bool,
     },
     RestoreStep {
         scan_info: Option<ScanInfo>,
         backup_info: Option<BackupInfo>,
         decision: OperationStepDecision,
+        full: bool,
     },
     CancelOperation,
-    ProcessGameOnDemand {
-        game: String,
-        restore: bool,
-    },
     EditedBackupTarget(String),
     EditedBackupMerge(bool),
     EditedRestoreSource(String),
@@ -110,17 +108,11 @@ pub enum Message {
     BrowseDirFailure,
     SelectAllGames,
     DeselectAllGames,
-    CustomizeGame {
-        name: String,
-    },
     OpenDir {
         path: StrictPath,
     },
     OpenDirFailure {
         path: StrictPath,
-    },
-    OpenWiki {
-        game: String,
     },
     OpenUrlFailure {
         url: String,
@@ -137,6 +129,10 @@ pub enum Message {
     SelectedBackupFormat(BackupFormat),
     SelectedBackupCompression(ZipCompression),
     ToggleBackupSettings,
+    GameAction {
+        action: GameAction,
+        game: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -181,6 +177,72 @@ pub enum BrowseSubject {
     RedirectTarget(usize),
     CustomGameFile(usize, usize),
     BackupFilterIgnoredPath(usize),
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GameAction {
+    Customize,
+    PreviewBackup,
+    Backup { confirm: bool },
+    PreviewRestore,
+    Restore { confirm: bool },
+    Wiki,
+}
+
+impl GameAction {
+    pub fn options(restoring: bool, operating: bool, customized: bool, invented: bool) -> Vec<Self> {
+        let mut options = vec![];
+
+        if !operating {
+            if restoring {
+                options.push(Self::PreviewRestore);
+                options.push(Self::Restore { confirm: true });
+            } else {
+                options.push(Self::PreviewBackup);
+                options.push(Self::Backup { confirm: true });
+            }
+        }
+
+        if !restoring && !customized {
+            options.push(Self::Customize);
+        }
+
+        if !invented {
+            options.push(Self::Wiki);
+        }
+
+        options
+    }
+}
+
+impl GameAction {
+    pub fn icon(&self) -> Icon {
+        match self {
+            GameAction::Backup { confirm } | GameAction::Restore { confirm } => {
+                if *confirm {
+                    Icon::PlayCircleOutline
+                } else {
+                    Icon::FastForward
+                }
+            }
+            GameAction::PreviewBackup | GameAction::PreviewRestore => Icon::Refresh,
+            GameAction::Customize => Icon::Edit,
+            GameAction::Wiki => Icon::Language,
+        }
+    }
+}
+
+impl ToString for GameAction {
+    fn to_string(&self) -> String {
+        let translator = Translator::default();
+        match self {
+            Self::PreviewBackup | Self::PreviewRestore => translator.preview_button(),
+            Self::Backup { .. } => translator.backup_button(),
+            Self::Restore { .. } => translator.restore_button(),
+            Self::Customize => translator.customize_button(),
+            Self::Wiki => translator.pcgamingwiki(),
+        }
+    }
 }
 
 impl Default for Screen {
@@ -298,6 +360,28 @@ impl<'a> IcedExtension<'a> for iced::Row<'a, Message> {
             self.push(element.into())
         } else {
             self
+        }
+    }
+}
+
+pub trait IcedButtonExt<'a> {
+    fn on_press_if(self, condition: impl FnOnce() -> bool, msg: impl FnOnce() -> Message) -> Self;
+    fn on_press_some(self, msg: Option<Message>) -> Self;
+}
+
+impl<'a> IcedButtonExt<'a> for iced::Button<'a, Message> {
+    fn on_press_if(self, condition: impl FnOnce() -> bool, msg: impl FnOnce() -> Message) -> Self {
+        if condition() {
+            self.on_press(msg())
+        } else {
+            self
+        }
+    }
+
+    fn on_press_some(self, msg: Option<Message>) -> Self {
+        match msg {
+            Some(msg) => self.on_press(msg),
+            None => self,
         }
     }
 }

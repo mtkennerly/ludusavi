@@ -4,9 +4,8 @@ use crate::{
     config::{Config, Sort, SortKey, ToggledPaths, ToggledRegistry},
     gui::{
         badge::Badge,
-        common::{IcedExtension, Message, Screen},
+        common::{GameAction, IcedButtonExt, IcedExtension, Message, Screen},
         file_tree::FileTree,
-        icon::Icon,
         search::SearchComponent,
         style,
     },
@@ -18,8 +17,8 @@ use crate::{
 
 use fuzzy_matcher::FuzzyMatcher;
 use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, pick_list, scrollable, Alignment, Button, Checkbox, Column,
-    Container, Length, PickList, Row, Scrollable, Space, Text,
+    alignment::Horizontal as HorizontalAlignment, button, keyboard::Modifiers, pick_list, scrollable, Alignment,
+    Button, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Space, Text,
 };
 
 use super::common::OngoingOperation;
@@ -36,6 +35,8 @@ pub struct GameListEntry {
     pub operate_button: button::State,
     pub tree: FileTree,
     pub duplicates: usize,
+    pub popup_menu: crate::gui::popup_menu::State<GameAction>,
+    pub quick_action: button::State,
 }
 
 impl GameListEntry {
@@ -48,22 +49,14 @@ impl GameListEntry {
         duplicate_detector: &DuplicateDetector,
         operation: &Option<OngoingOperation>,
         expanded: bool,
+        modifiers: &Modifiers,
     ) -> Container<Message> {
         let successful = match &self.backup_info {
             Some(x) => x.successful(),
             _ => true,
         };
 
-        let duplicates = duplicate_detector.count_duplicates_for(&self.scan_info.game_name);
-        if expanded {
-            if self.tree.is_empty() || duplicates != self.duplicates {
-                self.tree = FileTree::new(self.scan_info.clone(), config, &self.backup_info, duplicate_detector);
-                self.duplicates = duplicates;
-            }
-        } else {
-            self.tree.clear();
-        }
-
+        let scanned = self.scan_info.found_anything();
         let enabled = if restoring {
             config.is_game_enabled_for_restore(&self.scan_info.game_name)
         } else {
@@ -72,6 +65,7 @@ impl GameListEntry {
         let customized = config.is_game_customized(&self.scan_info.game_name);
         let customized_pure = customized && !manifest.0.contains_key(&self.scan_info.game_name);
         let name_for_checkbox = self.scan_info.game_name.clone();
+        let operating = operation.is_some();
 
         Container::new(
             Column::new()
@@ -94,10 +88,28 @@ impl GameListEntry {
                                 Text::new(self.scan_info.game_name.clone())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(Message::ToggleGameListEntryExpanded {
-                                name: self.scan_info.game_name.clone(),
+                            .on_press_some(if scanned {
+                                Some(Message::ToggleGameListEntryExpanded {
+                                    name: self.scan_info.game_name.clone(),
+                                })
+                            } else if !operating {
+                                if restoring {
+                                    Some(Message::RestoreStart {
+                                        preview: true,
+                                        games: Some(vec![self.scan_info.game_name.clone()]),
+                                    })
+                                } else {
+                                    Some(Message::BackupStart {
+                                        preview: true,
+                                        games: Some(vec![self.scan_info.game_name.clone()]),
+                                    })
+                                }
+                            } else {
+                                None
                             })
-                            .style(if !enabled {
+                            .style(if !scanned {
+                                style::Button::GameListEntryTitleUnscanned(config.theme)
+                            } else if !enabled {
                                 style::Button::GameListEntryTitleDisabled(config.theme)
                             } else if successful {
                                 style::Button::GameListEntryTitle(config.theme)
@@ -147,7 +159,7 @@ impl GameListEntry {
                                         .align_x(HorizontalAlignment::Center)
                                 })
                             } else if !self.scan_info.available_backups.is_empty() {
-                                if operation.is_some() {
+                                if operating {
                                     return self.scan_info.backup.as_ref().map(|backup| {
                                         Container::new(
                                             Container::new(Text::new(backup.label()).size(15))
@@ -174,7 +186,6 @@ impl GameListEntry {
                                     .text_size(15)
                                     .style(style::PickList::Backup(config.theme)),
                                 )
-                                .padding([0, 0, 0, 15])
                                 .width(Length::Units(185))
                                 .align_x(HorizontalAlignment::Center);
                                 Some(content)
@@ -182,71 +193,67 @@ impl GameListEntry {
                                 None
                             }
                         })
-                        .push_if(
-                            || !restoring,
-                            || {
-                                Container::new(
-                                    Button::new(
-                                        &mut self.customize_button,
-                                        Icon::Edit.as_text().width(Length::Units(45)),
-                                    )
-                                    .on_press(if customized {
-                                        Message::Ignore
-                                    } else {
-                                        Message::CustomizeGame {
-                                            name: self.scan_info.game_name.clone(),
-                                        }
-                                    })
-                                    .style(if customized {
-                                        style::Button::Disabled(config.theme)
-                                    } else {
-                                        style::Button::Primary(config.theme)
-                                    })
-                                    .padding(2),
-                                )
-                            },
-                        )
-                        .push(Space::new(Length::Units(15), Length::Shrink))
-                        .push(Container::new(
-                            Button::new(
-                                &mut self.operate_button,
-                                Icon::PlayCircleOutline.as_text().width(Length::Units(45)),
-                            )
-                            .on_press(match operation {
-                                None => Message::ProcessGameOnDemand {
-                                    game: self.scan_info.game_name.clone(),
-                                    restore: restoring,
-                                },
-                                Some(_) => Message::Ignore,
-                            })
-                            .style(if operation.is_some() {
-                                style::Button::Disabled(config.theme)
-                            } else {
-                                style::Button::Primary(config.theme)
-                            })
-                            .padding(2),
-                        ))
-                        .push(Space::new(Length::Units(15), Length::Shrink))
-                        .push(Container::new(
-                            Button::new(&mut self.wiki_button, Icon::Language.as_text().width(Length::Units(45)))
-                                .on_press(if customized_pure {
-                                    Message::Ignore
+                        .push({
+                            let confirm = !modifiers.alt();
+                            let action = if modifiers.shift() {
+                                Some(if restoring {
+                                    GameAction::PreviewRestore
                                 } else {
-                                    Message::OpenWiki {
-                                        game: self.scan_info.game_name.clone(),
-                                    }
+                                    GameAction::PreviewBackup
                                 })
-                                .style(if customized_pure {
+                            } else if modifiers.command() {
+                                Some(if restoring {
+                                    GameAction::Restore { confirm }
+                                } else {
+                                    GameAction::Backup { confirm }
+                                })
+                            } else {
+                                None
+                            };
+                            if let Some(action) = action {
+                                let button = Button::new(
+                                    &mut self.quick_action,
+                                    action.icon().as_text().width(Length::Units(45)),
+                                )
+                                .on_press_if(
+                                    || !operating,
+                                    || Message::GameAction {
+                                        action,
+                                        game: self.scan_info.game_name.clone(),
+                                    },
+                                )
+                                .style(if operating {
                                     style::Button::Disabled(config.theme)
                                 } else {
                                     style::Button::Primary(config.theme)
                                 })
-                                .padding(2),
-                        ))
+                                .padding(2);
+                                Container::new(button)
+                            } else {
+                                let options = GameAction::options(restoring, operating, customized, customized_pure);
+                                let game_name = self.scan_info.game_name.clone();
+
+                                let menu = crate::gui::popup_menu::PopupMenu::new(
+                                    &mut self.popup_menu,
+                                    options,
+                                    move |action| Message::GameAction {
+                                        action,
+                                        game: game_name.clone(),
+                                    },
+                                )
+                                .style(style::PickList::Popup(config.theme));
+                                Container::new(menu)
+                            }
+                        })
                         .push(
-                            Container::new(Text::new(
-                                translator.adjusted_size(self.scan_info.sum_bytes(&self.backup_info)),
-                            ))
+                            Container::new(Text::new({
+                                let summed = self.scan_info.sum_bytes(&self.backup_info);
+                                if summed == 0 && !self.scan_info.found_anything() {
+                                    "".to_string()
+                                } else {
+                                    translator.adjusted_size(summed)
+                                }
+                            }))
                             .width(Length::Units(115))
                             .center_x(),
                         ),
@@ -262,6 +269,10 @@ impl GameListEntry {
         )
         .style(style::Container::GameListEntry(config.theme))
     }
+
+    pub fn populate_tree(&mut self, config: &Config, duplicate_detector: &DuplicateDetector) {
+        self.tree = FileTree::new(self.scan_info.clone(), config, &self.backup_info, duplicate_detector);
+    }
 }
 
 #[derive(Default)]
@@ -270,6 +281,7 @@ pub struct GameList {
     scroll: scrollable::State,
     pub search: SearchComponent,
     expanded_games: HashSet<String>,
+    pub modifiers: Modifiers,
 }
 
 impl GameList {
@@ -320,6 +332,7 @@ impl GameList {
                                     duplicate_detector,
                                     operation,
                                     self.expanded_games.contains(&x.scan_info.game_name),
+                                    &self.modifiers,
                                 ))
                             } else {
                                 parent
@@ -387,5 +400,109 @@ impl GameList {
     pub fn clear(&mut self) {
         self.entries.clear();
         self.expanded_games.clear();
+    }
+
+    pub fn with_recent_games(restoring: bool, config: &Config) -> Self {
+        let games = if restoring {
+            &config.restore.recent_games
+        } else {
+            &config.backup.recent_games
+        };
+        let sort = if restoring {
+            &config.restore.sort
+        } else {
+            &config.backup.sort
+        };
+
+        let mut log = Self::default();
+        for game in games {
+            log.update_game(
+                ScanInfo {
+                    game_name: game.clone(),
+                    ..Default::default()
+                },
+                Default::default(),
+                sort,
+                config,
+                &DuplicateDetector::default(),
+                &Default::default(),
+            );
+        }
+        log
+    }
+
+    pub fn update_game(
+        &mut self,
+        scan_info: ScanInfo,
+        backup_info: Option<BackupInfo>,
+        sort: &Sort,
+        config: &Config,
+        duplicate_detector: &DuplicateDetector,
+        duplicates: &std::collections::HashSet<String>,
+    ) {
+        let mut index = None;
+
+        for (i, entry) in self.entries.iter().enumerate() {
+            if entry.scan_info.game_name == scan_info.game_name {
+                index = Some(i);
+                break;
+            }
+        }
+
+        match index {
+            Some(i) => {
+                if scan_info.found_anything() {
+                    self.entries[i].scan_info = scan_info;
+                    self.entries[i].backup_info = backup_info;
+                    self.entries[i].populate_tree(config, duplicate_detector);
+                } else {
+                    self.entries.remove(i);
+                }
+            }
+            None => {
+                let mut entry = GameListEntry {
+                    scan_info,
+                    backup_info,
+                    ..Default::default()
+                };
+                entry.populate_tree(config, duplicate_detector);
+                self.entries.push(entry);
+                self.sort(sort);
+            }
+        }
+
+        for entry in self.entries.iter_mut() {
+            if duplicates.contains(&entry.scan_info.game_name) {
+                entry.populate_tree(config, duplicate_detector);
+            }
+        }
+    }
+
+    pub fn remove_game(
+        &mut self,
+        game: &str,
+        config: &Config,
+        duplicate_detector: &DuplicateDetector,
+        duplicates: &std::collections::HashSet<String>,
+    ) {
+        self.entries.retain(|entry| entry.scan_info.game_name != game);
+        for entry in self.entries.iter_mut() {
+            if duplicates.contains(&entry.scan_info.game_name) {
+                entry.populate_tree(config, duplicate_detector);
+            }
+        }
+    }
+
+    pub fn unscan_games(&mut self, games: &[String]) {
+        for entry in self.entries.iter_mut() {
+            if games.contains(&entry.scan_info.game_name) {
+                entry.scan_info.found_files.clear();
+                entry.scan_info.found_registry_keys.clear();
+            }
+        }
+    }
+
+    pub fn contains_unscanned_games(&self) -> bool {
+        self.entries.iter().any(|x| !x.scan_info.found_anything())
     }
 }

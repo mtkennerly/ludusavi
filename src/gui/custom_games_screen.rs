@@ -1,7 +1,6 @@
 use crate::{
     config::Config,
     gui::{
-        common::OngoingOperation,
         common::{EditAction, Message},
         custom_games_editor::CustomGamesEditor,
         custom_games_editor::{CustomGamesEditorEntry, CustomGamesEditorEntryRow},
@@ -41,12 +40,7 @@ impl CustomGamesScreenComponent {
         }
     }
 
-    pub fn view(
-        &mut self,
-        config: &Config,
-        translator: &Translator,
-        operation: &Option<OngoingOperation>,
-    ) -> Container<Message> {
+    pub fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
         Container::new(
             Column::new()
                 .spacing(20)
@@ -85,7 +79,7 @@ impl CustomGamesScreenComponent {
                             .style(style::Button::Primary(config.theme))
                         }),
                 )
-                .push(self.games_editor.view(config, translator, operation)),
+                .push(self.games_editor.view(config, translator)),
         )
         .height(Length::Fill)
         .width(Length::Fill)

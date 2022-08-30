@@ -153,6 +153,7 @@ pub enum Button {
     GameListEntryTitle(Theme),
     GameListEntryTitleFailed(Theme),
     GameListEntryTitleDisabled(Theme),
+    GameListEntryTitleUnscanned(Theme),
 }
 impl Button {
     fn theme(&self) -> &Theme {
@@ -163,6 +164,7 @@ impl Button {
             Self::GameListEntryTitle(theme) => theme,
             Self::GameListEntryTitleFailed(theme) => theme,
             Self::GameListEntryTitleDisabled(theme) => theme,
+            Self::GameListEntryTitleUnscanned(theme) => theme,
         }
     }
 }
@@ -175,18 +177,21 @@ impl button::StyleSheet for Button {
                 Self::GameListEntryTitle(_) => Some(t.success().into()),
                 Self::GameListEntryTitleFailed(_) => Some(t.failure().into()),
                 Self::GameListEntryTitleDisabled(_) => Some(t.skipped().into()),
+                Self::GameListEntryTitleUnscanned(_) => None,
                 Self::Disabled(_) => Some(t.disabled().into()),
                 Self::Negative(_) => Some(t.negative().into()),
             },
             border_radius: match self {
                 Self::GameListEntryTitle(_)
                 | Self::GameListEntryTitleFailed(_)
-                | Self::GameListEntryTitleDisabled(_) => 10.0,
+                | Self::GameListEntryTitleDisabled(_)
+                | Self::GameListEntryTitleUnscanned(_) => 10.0,
                 _ => 4.0,
             },
             shadow_offset: Vector::new(1.0, 1.0),
             text_color: match self {
                 Self::GameListEntryTitleDisabled(_) => t.text_skipped().alpha(0.8),
+                Self::GameListEntryTitleUnscanned(_) => t.text().alpha(0.8),
                 _ => t.text_button().alpha(0.8),
             },
             ..button::Style::default()
@@ -198,6 +203,7 @@ impl button::StyleSheet for Button {
         button::Style {
             text_color: match self {
                 Self::GameListEntryTitleDisabled(_) => t.text_skipped(),
+                Self::GameListEntryTitleUnscanned(_) => t.text(),
                 _ => t.text_button(),
             },
             shadow_offset: Vector::new(1.0, 2.0),
@@ -332,12 +338,14 @@ impl scrollable::StyleSheet for Scrollable {
 pub enum PickList {
     Primary(Theme),
     Backup(Theme),
+    Popup(Theme),
 }
 impl PickList {
     fn theme(&self) -> &Theme {
         match self {
             Self::Primary(theme) => theme,
             Self::Backup(theme) => theme,
+            Self::Popup(theme) => theme,
         }
     }
 }
@@ -347,7 +355,7 @@ impl pick_list::StyleSheet for PickList {
         pick_list::Style {
             border_radius: match self {
                 Self::Primary(_) => 5.0,
-                Self::Backup(_) => 10.0,
+                Self::Backup(_) | Self::Popup(_) => 10.0,
             },
             background: t.field().alpha(0.6).into(),
             border_color: t.text().alpha(0.7),

@@ -31,7 +31,7 @@ pub struct BackupScreenComponent {
     pub backup_target_history: TextHistory,
     backup_target_browse_button: button::State,
     pub root_editor: RootEditor,
-    pub recent_found_games: std::collections::HashSet<String>,
+    pub previewed_games: std::collections::HashSet<String>,
     pub duplicate_detector: DuplicateDetector,
     full_retention_input: crate::gui::number_input::NumberInput,
     diff_retention_input: crate::gui::number_input::NumberInput,
@@ -49,6 +49,7 @@ impl BackupScreenComponent {
         }
 
         Self {
+            log: GameList::with_recent_games(false, config),
             root_editor,
             backup_target_history: TextHistory::new(&config.backup.path.raw(), 100),
             ..Default::default()
@@ -200,14 +201,8 @@ impl BackupScreenComponent {
                         )
                         .push(
                             Button::new(&mut self.backup_target_browse_button, Icon::FolderOpen.as_text())
-                                .on_press(match operation {
-                                    None => Message::BrowseDir(BrowseSubject::BackupTarget),
-                                    Some(_) => Message::Ignore,
-                                })
-                                .style(match operation {
-                                    None => style::Button::Primary(config.theme),
-                                    Some(_) => style::Button::Disabled(config.theme),
-                                }),
+                                .on_press(Message::BrowseDir(BrowseSubject::BackupTarget))
+                                .style(style::Button::Primary(config.theme)),
                         ),
                 )
                 .push_if(
@@ -294,7 +289,7 @@ impl BackupScreenComponent {
                             )
                     },
                 )
-                .push(self.root_editor.view(config, translator, operation))
+                .push(self.root_editor.view(config, translator))
                 .push(
                     self.log
                         .view(false, translator, config, manifest, &self.duplicate_detector, operation),

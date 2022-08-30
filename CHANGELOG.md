@@ -2,11 +2,33 @@
 
 * Added:
   * GUI: Dark theme.
+  * GUI: On app startup, games found during the most recent scan will be displayed
+    in an "unknown" state, allowing you to re-scan any of those specific games
+    on demand without doing a full scan of all games. This is especially useful
+    if full scans are slower on your system and you just want to back up one game.
+  * GUI: Added an option to re-preview a specific game on demand. This and other
+    per-game actions have been grouped into a popup menu to save space. You can
+    use keyboard shortcuts to convert the menu into some specific shortcuts:
+    * preview: shift
+    * backup/restore: ctrl (Mac: cmd)
+    * backup/restore without confirmation: ctrl + alt (Mac: cmd + option)
   * If you set the `LUDUSAVI_DEBUG` environment variable, then Ludusavi will
     not detach from the console on Windows. This may be helpful if you want to
     troubleshoot an issue that involves Ludusavi crashing.
+* Changed:
+  * GUI: You can now use folder pickers while a backup/restore is underway.
 * Fixed:
+  * Performance regressions from v0.11.0 related to duplicate detection and root globbing.
   * GUI: Cancelling a backup/restore no longer has a long delay.
+  * GUI: Doing a full preview, backing up one game, and then doing a full backup
+    would trigger a full scan instead of reusing the list from the initial preview.
+  * GUI: When backing up a single game by using the button next to its name,
+    other games with duplicate files did not update their duplicate status.
+  * GUI: When backing up a single game by using the button next to its name,
+    if its information changed, then it would immediately re-sort in the list.
+    While that made sense, it could be hard to use since you would then have to
+    go looking for its new position. Now, the position stays stable unless you
+    do a new full scan or manually change the sorting options.
 
 ## v0.11.0 (2022-08-20)
 

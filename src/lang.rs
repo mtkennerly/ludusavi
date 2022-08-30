@@ -192,6 +192,10 @@ impl Translator {
         }
     }
 
+    pub fn pcgamingwiki(&self) -> String {
+        "PCGamingWiki".to_string()
+    }
+
     pub fn handle_error(&self, error: &Error) -> String {
         match error {
             Error::ConfigInvalid { why } => self.config_is_invalid(why),
@@ -399,6 +403,10 @@ impl Translator {
 
     pub fn find_roots_button(&self) -> String {
         translate("button-find-roots")
+    }
+
+    pub fn customize_button(&self) -> String {
+        translate("button-customize")
     }
 
     pub fn no_missing_roots(&self) -> String {

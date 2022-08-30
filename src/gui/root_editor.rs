@@ -1,8 +1,7 @@
 use crate::{
     config::Config,
     gui::{
-        common::{BrowseSubject, EditAction},
-        common::{Message, OngoingOperation},
+        common::{BrowseSubject, EditAction, Message},
         icon::Icon,
         style,
     },
@@ -40,12 +39,7 @@ pub struct RootEditor {
 }
 
 impl RootEditor {
-    pub fn view(
-        &mut self,
-        config: &Config,
-        translator: &Translator,
-        operation: &Option<OngoingOperation>,
-    ) -> Container<Message> {
+    pub fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
         let roots = config.roots.clone();
         if roots.is_empty() {
             Container::new(Text::new(translator.no_roots_are_configured()))
@@ -89,14 +83,8 @@ impl RootEditor {
                                 )
                                 .push(
                                     Button::new(&mut x.browse_button_state, Icon::FolderOpen.as_text())
-                                        .on_press(match operation {
-                                            None => Message::BrowseDir(BrowseSubject::Root(i)),
-                                            Some(_) => Message::Ignore,
-                                        })
-                                        .style(match operation {
-                                            None => style::Button::Primary(config.theme),
-                                            Some(_) => style::Button::Disabled(config.theme),
-                                        }),
+                                        .on_press(Message::BrowseDir(BrowseSubject::Root(i)))
+                                        .style(style::Button::Primary(config.theme)),
                                 ),
                         )
                     },

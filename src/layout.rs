@@ -2199,7 +2199,7 @@ mod tests {
             assert_eq!(
                 hashset! {
                     ScannedFile {
-                        path: make_restorable_path_zip("file1.txt".into()),
+                        path: make_restorable_path_zip("file1.txt"),
                         size: 1,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/file1.txt")),
@@ -2207,7 +2207,7 @@ mod tests {
                         container: Some(make_path("backup-1.zip")),
                     },
                     ScannedFile {
-                        path: make_restorable_path_zip("file2.txt".into()),
+                        path: make_restorable_path_zip("file2.txt"),
                         size: 2,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/file2.txt")),
@@ -2327,7 +2327,7 @@ mod tests {
                         container: Some(make_path("backup-1.zip")),
                     },
                     ScannedFile {
-                        path: make_restorable_path_zip("changed.txt".into()),
+                        path: make_restorable_path_zip("changed.txt"),
                         size: 2,
                         hash: "new".into(),
                         original_path: Some(make_original_path("/changed.txt")),
@@ -2335,7 +2335,7 @@ mod tests {
                         container: Some(make_path("backup-2.zip")),
                     },
                     ScannedFile {
-                        path: make_restorable_path_zip("added.txt".into()),
+                        path: make_restorable_path_zip("added.txt"),
                         size: 5,
                         hash: "new".into(),
                         original_path: Some(make_original_path("/added.txt")),

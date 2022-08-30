@@ -2,7 +2,6 @@ use crate::{
     config::Config,
     gui::{
         common::Message,
-        common::OngoingOperation,
         common::{BrowseSubject, EditAction},
         icon::Icon,
         style,
@@ -67,12 +66,7 @@ impl IgnoredItemsEditor {
         editor
     }
 
-    pub fn view(
-        &mut self,
-        config: &Config,
-        translator: &Translator,
-        operation: &Option<OngoingOperation>,
-    ) -> Container<Message> {
+    pub fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
         Container::new({
             Column::new().width(Length::Fill).height(Length::Fill).spacing(10).push(
                 Container::new(
@@ -114,16 +108,10 @@ impl IgnoredItemsEditor {
                                                             &mut xx.browse_button_state,
                                                             Icon::FolderOpen.as_text(),
                                                         )
-                                                        .on_press(match operation {
-                                                            None => Message::BrowseDir(
-                                                                BrowseSubject::BackupFilterIgnoredPath(ii),
-                                                            ),
-                                                            Some(_) => Message::Ignore,
-                                                        })
-                                                        .style(match operation {
-                                                            None => style::Button::Primary(config.theme),
-                                                            Some(_) => style::Button::Disabled(config.theme),
-                                                        }),
+                                                        .on_press(Message::BrowseDir(
+                                                            BrowseSubject::BackupFilterIgnoredPath(ii),
+                                                        ))
+                                                        .style(style::Button::Primary(config.theme)),
                                                     )
                                                     .push(
                                                         Button::new(&mut xx.button_state, Icon::RemoveCircle.as_text())
