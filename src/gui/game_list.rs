@@ -17,8 +17,8 @@ use crate::{
 
 use fuzzy_matcher::FuzzyMatcher;
 use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, pick_list, scrollable, Alignment, Button, Checkbox, Column,
-    Container, Length, PickList, Row, Scrollable, Space, Text,
+    alignment::Horizontal as HorizontalAlignment, button, keyboard::Modifiers, pick_list, scrollable, Alignment,
+    Button, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Space, Text,
 };
 
 use super::common::OngoingOperation;
@@ -36,6 +36,7 @@ pub struct GameListEntry {
     pub tree: FileTree,
     pub duplicates: usize,
     pub popup_menu: crate::gui::popup_menu::State<GameAction>,
+    pub quick_action: button::State,
 }
 
 impl GameListEntry {
@@ -48,6 +49,7 @@ impl GameListEntry {
         duplicate_detector: &DuplicateDetector,
         operation: &Option<OngoingOperation>,
         expanded: bool,
+        modifiers: &Modifiers,
     ) -> Container<Message> {
         let successful = match &self.backup_info {
             Some(x) => x.successful(),
@@ -90,7 +92,7 @@ impl GameListEntry {
                                 Some(Message::ToggleGameListEntryExpanded {
                                     name: self.scan_info.game_name.clone(),
                                 })
-                            } else if operation.is_none() {
+                            } else if !operating {
                                 if restoring {
                                     Some(Message::RestoreStart {
                                         preview: true,
@@ -157,7 +159,7 @@ impl GameListEntry {
                                         .align_x(HorizontalAlignment::Center)
                                 })
                             } else if !self.scan_info.available_backups.is_empty() {
-                                if operation.is_some() {
+                                if operating {
                                     return self.scan_info.backup.as_ref().map(|backup| {
                                         Container::new(
                                             Container::new(Text::new(backup.label()).size(15))
@@ -192,13 +194,50 @@ impl GameListEntry {
                             }
                         })
                         .push({
-                            let options = GameAction::options(restoring, operating, customized, customized_pure);
-                            let game_name = self.scan_info.game_name.clone();
+                            let action = if modifiers.shift() {
+                                Some(if restoring {
+                                    GameAction::PreviewRestore
+                                } else {
+                                    GameAction::PreviewBackup
+                                })
+                            } else if modifiers.command() {
+                                Some(if restoring {
+                                    GameAction::Restore
+                                } else {
+                                    GameAction::Backup
+                                })
+                            } else {
+                                None
+                            };
+                            if let Some(action) = action {
+                                let confirm = !modifiers.alt();
+                                let button = Button::new(
+                                    &mut self.quick_action,
+                                    action.icon(confirm).as_text().width(Length::Units(45)),
+                                )
+                                .on_press_if(
+                                    || !operating,
+                                    || action.message(confirm, Some(vec![self.scan_info.game_name.clone()])),
+                                )
+                                .style(if operating {
+                                    style::Button::Disabled(config.theme)
+                                } else {
+                                    style::Button::Primary(config.theme)
+                                })
+                                .padding(2);
+                                Container::new(button)
+                            } else {
+                                let options = GameAction::options(restoring, operating, customized, customized_pure);
+                                let game_name = self.scan_info.game_name.clone();
 
-                            crate::gui::popup_menu::PopupMenu::new(&mut self.popup_menu, options, move |choice| {
-                                Message::GameAction(choice, game_name.clone())
-                            })
-                            .style(style::PickList::Popup(config.theme))
+                                let menu = crate::gui::popup_menu::PopupMenu::new(
+                                    &mut self.popup_menu,
+                                    options,
+                                    move |choice| Message::GameAction(choice, game_name.clone()),
+                                )
+                                .style(style::PickList::Popup(config.theme));
+                                Container::new(menu)
+                            }
                         })
                         .push(
                             Container::new(Text::new({
@@ -236,6 +275,7 @@ pub struct GameList {
     scroll: scrollable::State,
     pub search: SearchComponent,
     expanded_games: HashSet<String>,
+    pub modifiers: Modifiers,
 }
 
 impl GameList {
@@ -286,6 +326,7 @@ impl GameList {
                                     duplicate_detector,
                                     operation,
                                     self.expanded_games.contains(&x.scan_info.game_name),
+                                    &self.modifiers,
                                 ))
                             } else {
                                 parent

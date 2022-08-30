@@ -6,12 +6,15 @@
     in an "unknown" state, allowing you to re-scan any of those specific games
     on demand without doing a full scan of all games. This is especially useful
     if full scans are slower on your system and you just want to back up one game.
-  * GUI: Added an option to re-preview a specific game on demand.
+  * GUI: Added an option to re-preview a specific game on demand. This and other
+    per-game actions have been grouped into a popup menu to save space. You can
+    use keyboard shortcuts to convert the menu into some specific shortcuts:
+    * preview: shift
+    * backup/restore: ctrl (Mac: cmd)
+    * backup/restore without confirmation: ctrl + alt (Mac: cmd + alt)
   * If you set the `LUDUSAVI_DEBUG` environment variable, then Ludusavi will
     not detach from the console on Windows. This may be helpful if you want to
     troubleshoot an issue that involves Ludusavi crashing.
-* Changed:
-  * GUI: Grouped per-game actions into a popup menu to save space.
 * Fixed:
   * Performance regressions from v0.11.0 related to duplicate detection and root globbing.
   * GUI: Cancelling a backup/restore no longer has a long delay.

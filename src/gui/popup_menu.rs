@@ -174,7 +174,7 @@ where
     };
 
     // layout::Node::new(size)
-    layout::Node::new(Size::new(size.width, 25.0))
+    layout::Node::new(Size::new(size.width, 24.0))
 }
 
 /// Processes an [`Event`] and updates the [`State`] of a [`PopupMenu`]

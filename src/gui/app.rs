@@ -1106,6 +1106,10 @@ impl Application for App {
             }
             Message::SubscribedEvent(event) => {
                 if let iced_native::Event::Keyboard(key) = event {
+                    if let iced::keyboard::Event::ModifiersChanged(modifiers) = key {
+                        self.backup_screen.log.modifiers = modifiers;
+                        self.restore_screen.log.modifiers = modifiers;
+                    }
                     if let Some((key_code, modifiers)) = get_key_pressed(key) {
                         let activated = if cfg!(target_os = "mac") {
                             modifiers.logo() || modifiers.control()

@@ -1,6 +1,6 @@
 use crate::{
     config::{BackupFormat, RootsConfig, SortKey, Theme, ZipCompression},
-    gui::badge::Badge,
+    gui::{badge::Badge, icon::Icon},
     lang::{Language, Translator},
     layout::Backup,
     manifest::Store,
@@ -217,6 +217,35 @@ impl GameAction {
     }
 }
 
+impl GameAction {
+    pub fn message(&self, confirm: bool, games: Option<Vec<String>>) -> Message {
+        match self {
+            GameAction::PreviewBackup => Message::BackupStart { preview: true, games },
+            GameAction::Backup if !confirm => Message::BackupStart { preview: false, games },
+            GameAction::Backup if confirm => Message::ConfirmBackupStart { games },
+            GameAction::PreviewRestore => Message::RestoreStart { preview: true, games },
+            GameAction::Restore if !confirm => Message::RestoreStart { preview: false, games },
+            GameAction::Restore if confirm => Message::ConfirmRestoreStart { games },
+            _ => Message::Ignore,
+        }
+    }
+
+    pub fn icon(&self, confirm: bool) -> Icon {
+        match self {
+            GameAction::Backup | GameAction::Restore => {
+                if confirm {
+                    Icon::PlayCircleOutline
+                } else {
+                    Icon::FastForward
+                }
+            }
+            GameAction::PreviewBackup | GameAction::PreviewRestore => Icon::Refresh,
+            GameAction::Customize => Icon::Edit,
+            GameAction::Wiki => Icon::Language,
+        }
+    }
+}
+
 impl ToString for GameAction {
     fn to_string(&self) -> String {
         let translator = Translator::default();
@@ -350,10 +379,19 @@ impl<'a> IcedExtension<'a> for iced::Row<'a, Message> {
 }
 
 pub trait IcedButtonExt<'a> {
+    fn on_press_if(self, condition: impl FnOnce() -> bool, msg: impl FnOnce() -> Message) -> Self;
     fn on_press_some(self, msg: Option<Message>) -> Self;
 }
 
 impl<'a> IcedButtonExt<'a> for iced::Button<'a, Message> {
+    fn on_press_if(self, condition: impl FnOnce() -> bool, msg: impl FnOnce() -> Message) -> Self {
+        if condition() {
+            self.on_press(msg())
+        } else {
+            self
+        }
+    }
+
     fn on_press_some(self, msg: Option<Message>) -> Self {
         match msg {
             Some(msg) => self.on_press(msg),

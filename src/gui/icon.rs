@@ -8,12 +8,10 @@ pub const ICONS: Font = Font::External {
 pub enum Icon {
     Add,
     AddCircle,
-    #[allow(dead_code)]
     Edit,
     FolderOpen,
     KeyboardArrowRight,
     KeyboardArrowDown,
-    #[allow(dead_code)]
     Language,
     OpenInNew,
     Remove,
@@ -21,10 +19,11 @@ pub enum Icon {
     Search,
     SubdirectoryArrowRight,
     Delete,
-    #[allow(dead_code)]
     PlayCircleOutline,
     Settings,
     MoreVert,
+    Refresh,
+    FastForward,
 }
 
 impl Icon {
@@ -46,6 +45,8 @@ impl Icon {
             Self::PlayCircleOutline => '\u{E039}',
             Self::Settings => '\u{E8B8}',
             Self::MoreVert => '\u{E5D4}',
+            Self::Refresh => '\u{E5D5}',
+            Self::FastForward => '\u{E01F}',
         }
     }
 
