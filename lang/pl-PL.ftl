@@ -37,6 +37,7 @@ button-select-all = Zaznacz wszystkie
 button-deselect-all = Odznacz wszystkie
 button-enable-all = Włącz wszystkie
 button-disable-all = Wyłącz wszystkie
+button-customize = Customize
 no-roots-are-configured = Dodaj kilka katalogów głównych, aby utworzyć kopię większej ilości danych.
 config-is-invalid = Błąd: Plik konfiguracji jest nieprawidłowy.
 manifest-is-invalid = Błąd: Plik manifest jest nieprawidłowy.
@@ -70,7 +71,11 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Cel (nowa lokalizacja)
 field-backup-excluded-items = Backup exclusions:
+# This appears next to the number of full backups that you'd like to keep.
+# A full backup includes all save files for a game.
 field-retention-full = Full:
+# This appears next to the number of differential backups that you'd like to keep.
+# A differential backup includes only the files that have changed since the last full backup.
 field-retention-differential = Differential:
 field-backup-format = Format:
 field-backup-compression = Compression:
@@ -85,8 +90,6 @@ store-uplay = Uplay
 store-other-home = Folder główny
 store-other-wine = Prefiks Wine
 store-other = Pozostałe
-sort-name = Nazwa
-sort-size = Size
 sort-reversed = Reversed
 backup-format-simple = Simple
 backup-format-zip = Zip
@@ -95,6 +98,9 @@ compression-none = None
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
+theme = Theme
+theme-light = Light
+theme-dark = Dark
 explanation-for-exclude-other-os-data = Nie zawieraj w kopiach zapasowych lokalizacji zapisów, które zostały sprawdzone tylko na innym systemie. Niektóre gry zawsze umieszczają zapisy w tym samym miejscu, ale lokalizacje mogą być sprawdzane tylko dla innego systemu operacyjnego, więc możesz je sprawdzić mimo wszystko. Wykluczenie tych danych może pomóc uniknąć fałszywego wykrycia zagrożeń, ale może również wykluczyć niektóre zapisy. W systemach Linux, zapisy Proton będą nadal kopiowane bez względu na to ustawienie.
 explanation-for-exclude-store-screenshots = Nie zawieraj w kopiach zapasowych zrzutów ekranu dla konkretnego sklepu. Obecnie ma to tylko zastosowanie do zrzutów ekranu ze { store-steam }. Jeśli gra ma swoją własną funkcję zrzutów ekranu, to ustawienie nie będzie mieć wpływu na ich kopiowanie.
 consider-doing-a-preview = Jeśli jeszcze tego nie zrobiono, rozważ wykonanie pierwszego testu, aby zobaczyć, czy wszystko działa.

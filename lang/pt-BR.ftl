@@ -37,6 +37,7 @@ button-select-all = Selecionar tudo
 button-deselect-all = Desmarcar tudo
 button-enable-all = Ativar tudo
 button-disable-all = Desativar tudo
+button-customize = Customize
 no-roots-are-configured = Adicione algumas raízes para armazenar ainda mais dados.
 config-is-invalid = Erro: O arquivo de configuração é inválido.
 manifest-is-invalid = Erro: O arquivo de manifesto é inválido.
@@ -69,11 +70,15 @@ field-redirect-source =
     .placeholder = Fonte (local original)
 field-redirect-target =
     .placeholder = Alvo (novo local)
-field-backup-excluded-items = Backup exclusions:
-field-retention-full = Full:
-field-retention-differential = Differential:
-field-backup-format = Format:
-field-backup-compression = Compression:
+field-backup-excluded-items = Exclusões do backup:
+# This appears next to the number of full backups that you'd like to keep.
+# A full backup includes all save files for a game.
+field-retention-full = Todos:
+# This appears next to the number of differential backups that you'd like to keep.
+# A differential backup includes only the files that have changed since the last full backup.
+field-retention-differential = Diferencial:
+field-backup-format = Formato:
+field-backup-compression = Compressão:
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -85,23 +90,18 @@ store-uplay = Uplay
 store-other-home = Pasta padrão
 store-other-wine = Prefixo Wine
 store-other = Outro
-sort-name = Nome
-sort-size = Size
-sort-reversed = Reversed
-backup-format-simple = Simple
+sort-reversed = Invertido
+backup-format-simple = Simples
 backup-format-zip = Zip
-compression-none = None
+compression-none = Nenhum
 # "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
-explanation-for-exclude-other-os-data =
-    Nos backups, exclui locais de salvamento que só foram confirmados em outro
-    sistema operacional. Alguns jogos sempre colocam o saves no mesmo lugar, mas os locais
-    podem ter sido confirmados apenas por um sistema operacional diferente, então pode ajudar
-    a verificá-los mesmo assim. Excluir esses dados pode ajudar a evitar falsos positivos,
-    mas também pode significar perder alguns saves. No Linux, as aves do Proton ainda serão
-    salvas, independentemente dessa configuração.
+theme = Tema
+theme-light = Claro
+theme-dark = Escuro
+explanation-for-exclude-other-os-data = Nos backups, exclui locais de salvamento que só foram confirmados em outro sistema operacional. Alguns jogos sempre colocam o saves no mesmo lugar, mas os locais podem ter sido confirmados apenas por um sistema operacional diferente, então pode ajudar a verificá-los mesmo assim. Excluir esses dados pode ajudar a evitar falsos positivos, mas também pode significar perder alguns saves. No Linux, os saves do Proton ainda serão salvos, independentemente dessa configuração.
 explanation-for-exclude-store-screenshots =
     Nos backups, exclui capturas de tela específicas de armazenamento. No momento, isso só se aplica
     às capturas de tela de { store-steam } que você tirou. Se um jogo tem sua própria função de captura de tela
@@ -119,6 +119,6 @@ confirm-backup =
 confirm-restore =
     Tem certeza que deseja prosseguir com a restauração?
     Isto irá sobrescrever qualquer arquivo atual com os backups aqui:
-confirm-add-missing-roots = Add these roots?
-no-missing-roots = No additional roots found.
-preparing-backup-target = Preparing backup directory...
+confirm-add-missing-roots = Adicionar estas origens?
+no-missing-roots = Nenhuma origem adicional encontrada.
+preparing-backup-target = Preparando o diretório de backup...

@@ -37,6 +37,7 @@ button-select-all = Piliin ang lahat
 button-deselect-all = Alisin ang lahat
 button-enable-all = Enable ang lahat
 button-disable-all = Disable ang lahat
+button-customize = Customize
 no-roots-are-configured = Paki-lagay mga roots upang mag-back up ng higit pang data.
 config-is-invalid = Error: Invalid ang config file.
 manifest-is-invalid = Error: Invalid ang manifest file.
@@ -70,7 +71,11 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Target (bagong lokasyon)
 field-backup-excluded-items = Backup exclusions:
+# This appears next to the number of full backups that you'd like to keep.
+# A full backup includes all save files for a game.
 field-retention-full = Full:
+# This appears next to the number of differential backups that you'd like to keep.
+# A differential backup includes only the files that have changed since the last full backup.
 field-retention-differential = Differential:
 field-backup-format = Format:
 field-backup-compression = Compression:
@@ -85,8 +90,6 @@ store-uplay = Uplay
 store-other-home = Home folder
 store-other-wine = Wine prefix
 store-other = Other
-sort-name = Pamagat
-sort-size = Size
 sort-reversed = Reversed
 backup-format-simple = Simple
 backup-format-zip = Zip
@@ -95,6 +98,9 @@ compression-none = None
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
+theme = Theme
+theme-light = Light
+theme-dark = Dark
 explanation-for-exclude-other-os-data = Para sa mga backups, ibukod ang save locations na na-confirm lamang sa ibang operating system. May mga games na palaging naglalagay ng mga save sa parehong lugar, ngunit ang mga lokasyon ay maaaring na-confirm lamang sa ibang OS, kaya makakatulong masuri mga ito. Maaaring makakatulong ibukod ang data para maiwasan ng mga false positives, kaso maaaring lalakdaw din ang ibang saves. Sa Linux, ang mga save sa Proton ay ma-baback up pa rin anuman ang setting na ito.
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies

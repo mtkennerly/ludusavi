@@ -1,3 +1,10 @@
+## Unreleased
+
+* Fixed:
+  * Updated translations, including new ones for Esperanto and (experimentally) Korean.
+    This was meant to be included in 0.12.0, but was missed during the release preparation.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
+
 ## v0.12.0 (2022-08-31)
 
 * Added:

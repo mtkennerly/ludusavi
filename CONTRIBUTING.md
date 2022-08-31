@@ -49,8 +49,8 @@ The master icon is `assets/icon.kra`, which you can edit using
 Commands assume you are using [Git Bash](https://git-scm.com) on Windows.
 
 #### Dependencies (one-time)
-
 ```bash
+pip install invoke
 cargo install cargo-lichking
 
 # Verified with commit ba58a5c44ccb7d2e0ca0238d833d17de17c2b53b:
@@ -58,16 +58,11 @@ curl -o /c/opt/flatpak-cargo-generator.py https://raw.githubusercontent.com/flat
 pip install aiohttp toml
 ```
 
-#### Generate the license bundle:
-```bash
-rm -rf dist
-mkdir dist
-export VERSION=$(cargo pkgid | cut -d# -f2 | cut -d: -f2)
-cargo lichking bundle --file dist/ludusavi-v$VERSION-legal.txt
-sed -i -E 's/C:\\Users\\[^\\]+/~/g' dist/ludusavi-v$VERSION-legal.txt
-```
+Also install the Crowdin CLI manually.
 
-#### Generate Flatpak sources:
+#### Prepare
+Run:
+
 ```bash
-python /c/opt/flatpak-cargo-generator.py Cargo.lock -o dist/generated-sources.json
+invoke prerelease
 ```

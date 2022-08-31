@@ -37,6 +37,7 @@ button-select-all = Seleziona tutto
 button-deselect-all = Deseleziona tutto
 button-enable-all = Attiva tutto
 button-disable-all = Disattiva tutto
+button-customize = Customize
 no-roots-are-configured = Aggiungi alcune radici per eseguire il backup di ulteriori dati.
 config-is-invalid = Errore: File di configurazione non valido.
 manifest-is-invalid = Errore: File manifest non valido.
@@ -70,10 +71,14 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Destinazione (nuova posizione)
 field-backup-excluded-items = Esclusioni dal backup:
+# This appears next to the number of full backups that you'd like to keep.
+# A full backup includes all save files for a game.
 field-retention-full = Pieno:
+# This appears next to the number of differential backups that you'd like to keep.
+# A differential backup includes only the files that have changed since the last full backup.
 field-retention-differential = Differenziale:
-field-backup-format = Format:
-field-backup-compression = Compression:
+field-backup-format = Formato:
+field-backup-compression = Compressione:
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -85,16 +90,17 @@ store-uplay = Uplay
 store-other-home = Cartella principale
 store-other-wine = Prefisso wine
 store-other = Altro
-sort-name = Nome
-sort-size = Dimensione
 sort-reversed = Invertita
-backup-format-simple = Simple
-backup-format-zip = Zip
-compression-none = None
+backup-format-simple = Semplice
+backup-format-zip = Comprimi in Zip
+compression-none = Nessuna
 # "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
+theme = Tema
+theme-light = Chiaro
+theme-dark = Scuro
 explanation-for-exclude-other-os-data =
     Nei backup, escludere le posizioni di salvataggio che sono state confermate solo su un altro
     sistema operativo. Alcuni giochi mettono sempre i salvataggi nello stesso posto, ma le

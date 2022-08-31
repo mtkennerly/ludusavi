@@ -31,12 +31,17 @@ pub enum Language {
     #[default]
     #[serde(rename = "en-US")]
     English,
+    #[serde(rename = "eo")]
+    Esperanto,
     #[serde(rename = "fil-PH")]
     Filipino,
     #[serde(rename = "de-DE")]
     German,
     #[serde(rename = "it-IT")]
     Italian,
+    #[allow(dead_code)]
+    #[serde(rename = "ko-KR")]
+    Korean,
     #[serde(rename = "pt-BR")]
     PortugueseBrazilian,
     #[serde(rename = "pl-PL")]
@@ -49,6 +54,7 @@ impl Language {
     pub const ALL: &'static [Self] = &[
         Self::German,
         Self::English,
+        Self::Esperanto,
         Self::Spanish,
         Self::Filipino,
         Self::Italian,
@@ -61,9 +67,11 @@ impl Language {
             Self::Arabic => "ar-SA",
             Self::ChineseSimplified => "zh-Hans",
             Self::English => "en-US",
+            Self::Esperanto => "eo",
             Self::Filipino => "fil-PH",
             Self::German => "de-DE",
             Self::Italian => "it-IT",
+            Self::Korean => "ko-KR",
             Self::Polish => "pl-PL",
             Self::PortugueseBrazilian => "pt-BR",
             Self::Spanish => "es-ES",
@@ -76,14 +84,16 @@ impl ToString for Language {
     fn to_string(&self) -> String {
         match self {
             Self::Arabic => "العربية (41%)",
-            Self::ChineseSimplified => "中文（简体） (49%)",
+            Self::ChineseSimplified => "中文（简体） (58%)",
             Self::English => "English",
+            Self::Esperanto => "Esperanto (22%)",
             Self::Filipino => "Filipino (70%)",
-            Self::German => "Deutsch",
-            Self::Italian => "Italiano (98%)",
-            Self::Polish => "Polski (96%)",
-            Self::PortugueseBrazilian => "Português brasileiro (94%)",
-            Self::Spanish => "Español (94%)",
+            Self::German => "Deutsch (99%)",
+            Self::Italian => "Italiano (99%)",
+            Self::Korean => "한국어 (46%)",
+            Self::Polish => "Polski (95%)",
+            Self::PortugueseBrazilian => "Português brasileiro (99%)",
+            Self::Spanish => "Español (93%)",
         }
         .to_string()
     }
@@ -113,9 +123,11 @@ fn set_language(language: Language) {
         Language::Arabic => include_str!("../lang/ar-SA.ftl"),
         Language::ChineseSimplified => include_str!("../lang/zh-CN.ftl"),
         Language::English => include_str!("../lang/en-US.ftl"),
+        Language::Esperanto => include_str!("../lang/eo-UY.ftl"),
         Language::Filipino => include_str!("../lang/fil-PH.ftl"),
         Language::German => include_str!("../lang/de-DE.ftl"),
         Language::Italian => include_str!("../lang/it-IT.ftl"),
+        Language::Korean => include_str!("../lang/ko-KR.ftl"),
         Language::Polish => include_str!("../lang/pl-PL.ftl"),
         Language::PortugueseBrazilian => include_str!("../lang/pt-BR.ftl"),
         Language::Spanish => include_str!("../lang/es-ES.ftl"),

@@ -37,6 +37,7 @@ button-select-all = Alle auswählen
 button-deselect-all = Alle abwählen
 button-enable-all = Alle aktivieren
 button-disable-all = Alle deaktivieren
+button-customize = Customize
 no-roots-are-configured = Fügen Sie einige Wurzeln hinzu, um noch mehr Daten zu sichern.
 config-is-invalid = Fehler: Die Konfigurationsdatei ist ungültig.
 manifest-is-invalid = Fehler: Die Manifest-Datei ist ungültig.
@@ -70,7 +71,11 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Ziel (neuer Ort)
 field-backup-excluded-items = Sicherungsausschlüsse:
+# This appears next to the number of full backups that you'd like to keep.
+# A full backup includes all save files for a game.
 field-retention-full = Komplett:
+# This appears next to the number of differential backups that you'd like to keep.
+# A differential backup includes only the files that have changed since the last full backup.
 field-retention-differential = Differenz:
 field-backup-format = Format:
 field-backup-compression = Komprimierung:
@@ -85,8 +90,6 @@ store-uplay = Uplay
 store-other-home = Home-Ordner
 store-other-wine = Wine prefix
 store-other = Sonstiges
-sort-name = Name
-sort-size = Größe
 sort-reversed = Umgekehrt
 backup-format-simple = Einfach
 backup-format-zip = Zip
@@ -95,11 +98,14 @@ compression-none = Keiner
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
+theme = Theme
+theme-light = Light
+theme-dark = Dark
 explanation-for-exclude-other-os-data =
     Ausschließen von Speicherorten, die nur auf einem anderen
     Betriebssystem bestätigt wurden. Einige Spiele stellen immer Speicherstände an derselben Stelle, aber die
     Standorte sind möglicherweise nur für ein anderes Betriebssystem bestätigt worden, also kann es
-    helfen, sie trotzdem zu überprüfen. Das Ausschließen dieser Daten kann helfen, Fehlerhafte Einträge zu vermeiden,
+    helfen, sie trotzdem zu überprüfen. Das Ausschließen dieser Daten kann helfen, ungültige Einträge zu vermeiden,
     kann aber auch bedeuten, dass einige Speicherstände nicht mehr vorhanden sind. Unter Linux werden ungeachtet dieser Einstellung weiterhin Proton speicherstände
     gesichert.
 explanation-for-exclude-store-screenshots = Schließe Starterspezifische Bildschirmfotos in Sicherungen aus. Dies gilt momentan nur für { store-steam }-Bildschirmfotos. Wenn ein Spiel eine eigene Bildschirmfotofunktion hat, werden Bildschirmfotos unabhängig dieser Einstellung gesichert.

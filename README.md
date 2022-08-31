@@ -369,7 +369,7 @@ Here are the available settings (all are required unless otherwise noted):
   `en-US` (English, default), `fil-PH` (Filipino), `de-DE` (German), `it-IT` (Italian), `pt-BR` (Brazilian Portuguese), `pl-PL` (Polish), `es-ES` (Spanish).
 
   Experimental options that currently have graphical display issues:
-  `ar-SA` (Arabic), `zh-Hans` (Simplified Chinese).
+  `ar-SA` (Arabic), `zh-Hans` (Simplified Chinese), `ko-KR` (Korean).
 * `theme` (string, optional): Visual theme. Valid options:
   `light` (default), `dark`.
 * `roots` (list):

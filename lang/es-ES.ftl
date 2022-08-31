@@ -37,6 +37,7 @@ button-select-all = Seleccionar todos
 button-deselect-all = Deseleccionar todos
 button-enable-all = Habilitar todos
 button-disable-all = Deshabilitar todos
+button-customize = Customize
 no-roots-are-configured = Añade algunas raíces para respaldar aún más datos.
 config-is-invalid = Error: El archivo de configuración no es válido.
 manifest-is-invalid = Error: El archivo de manifiesto no es válido.
@@ -70,7 +71,11 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Destino (nueva ubicación)
 field-backup-excluded-items = Backup exclusions:
+# This appears next to the number of full backups that you'd like to keep.
+# A full backup includes all save files for a game.
 field-retention-full = Full:
+# This appears next to the number of differential backups that you'd like to keep.
+# A differential backup includes only the files that have changed since the last full backup.
 field-retention-differential = Differential:
 field-backup-format = Format:
 field-backup-compression = Compression:
@@ -85,8 +90,6 @@ store-uplay = Uplay
 store-other-home = Carpeta Home
 store-other-wine = Prefijo de Wine
 store-other = Otro
-sort-name = Nombre
-sort-size = Size
 sort-reversed = Reversed
 backup-format-simple = Simple
 backup-format-zip = Zip
@@ -95,6 +98,9 @@ compression-none = None
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
+theme = Theme
+theme-light = Light
+theme-dark = Dark
 explanation-for-exclude-other-os-data =
     En las copias de seguridad, excluye las ubicaciones de guardado que sólo han sido confirmadas en otro
     sistema operativo. Algunos juegos siempre colocan las partidas guardadas en el mismo lugar, pero las
