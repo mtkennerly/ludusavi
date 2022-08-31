@@ -1,4 +1,4 @@
-## Unreleased
+## v0.12.1 (2022-08-31)
 
 * Fixed:
   * Updated translations, including new ones for Esperanto and (experimentally) Korean.
