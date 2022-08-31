@@ -305,7 +305,7 @@ enum ApiGame {
 #[derive(Debug, serde::Serialize)]
 struct ApiBackup {
     name: String,
-    when: Option<chrono::DateTime<chrono::Utc>>,
+    when: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -539,14 +539,11 @@ impl Reporter {
 
                 parts.push(format!("{}:", name));
                 for backup in &scan_info.available_backups {
-                    match backup.when_local() {
-                        Some(when) => {
-                            parts.push(format!("  - {} ({})", backup.name(), when.format("%Y-%m-%dT%H:%M:%S")));
-                        }
-                        None => {
-                            parts.push(format!("  - {}", backup.name()));
-                        }
-                    }
+                    parts.push(format!(
+                        "  - {} ({})",
+                        backup.name(),
+                        backup.when_local().format("%Y-%m-%dT%H:%M:%S")
+                    ));
                 }
 
                 // Blank line between games.

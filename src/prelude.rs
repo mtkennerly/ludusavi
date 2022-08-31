@@ -1738,7 +1738,7 @@ mod tests {
                 drives: drives_x(),
                 backups: VecDeque::from(vec![FullBackup {
                     name: ".".into(),
-                    when: Some(now()),
+                    when: now(),
                     files: btreemap! {
                         mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
                         mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
@@ -1753,7 +1753,7 @@ mod tests {
         );
         let backups = vec![Backup::Full(FullBackup {
             name: ".".to_string(),
-            when: Some(now()),
+            when: now(),
             files: btreemap! {
                 mapping_file_key("/file1.txt") => IndividualMappingFile {
                     hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
@@ -1812,7 +1812,7 @@ mod tests {
                     },
                     available_backups: vec![Backup::Full(FullBackup {
                         name: ".".to_string(),
-                        when: Some(now()),
+                        when: now(),
                         registry: IndividualMappingRegistry {
                             hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
                         },
@@ -1820,7 +1820,7 @@ mod tests {
                     })],
                     backup: Some(Backup::Full(FullBackup {
                         name: ".".to_string(),
-                        when: Some(now()),
+                        when: now(),
                         registry: IndividualMappingRegistry {
                             hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
                         },
@@ -1836,7 +1836,7 @@ mod tests {
                     game_name: s("game3"),
                     available_backups: vec![Backup::Full(FullBackup {
                         name: ".".to_string(),
-                        when: Some(now()),
+                        when: now(),
                         registry: IndividualMappingRegistry {
                             hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
                         },
@@ -1844,7 +1844,7 @@ mod tests {
                     })],
                     backup: Some(Backup::Full(FullBackup {
                         name: ".".to_string(),
-                        when: Some(now()),
+                        when: now(),
                         ..Default::default()
                     })),
                     ..Default::default()

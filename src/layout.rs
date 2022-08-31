@@ -71,15 +71,15 @@ impl Backup {
         }
     }
 
-    pub fn when(&self) -> &Option<chrono::DateTime<chrono::Utc>> {
+    pub fn when(&self) -> &chrono::DateTime<chrono::Utc> {
         match self {
             Self::Full(x) => &x.when,
             Self::Differential(x) => &x.when,
         }
     }
 
-    pub fn when_local(&self) -> Option<chrono::DateTime<chrono::Local>> {
-        self.when().map(chrono::DateTime::<chrono::Local>::from)
+    pub fn when_local(&self) -> chrono::DateTime<chrono::Local> {
+        chrono::DateTime::<chrono::Local>::from(*self.when())
     }
 
     pub fn label(&self) -> String {
@@ -142,7 +142,7 @@ impl std::fmt::Display for Backup {
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct FullBackup {
     pub name: String,
-    pub when: Option<chrono::DateTime<chrono::Utc>>,
+    pub when: chrono::DateTime<chrono::Utc>,
     #[serde(default)]
     pub files: BTreeMap<String, IndividualMappingFile>,
     #[serde(default)]
@@ -152,12 +152,9 @@ pub struct FullBackup {
 
 impl FullBackup {
     pub fn label(&self) -> String {
-        match self.when {
-            None => self.name.clone(),
-            Some(when) => chrono::DateTime::<chrono::Local>::from(when)
-                .format("%Y-%m-%dT%H:%M:%S")
-                .to_string(),
-        }
+        chrono::DateTime::<chrono::Local>::from(self.when)
+            .format("%Y-%m-%dT%H:%M:%S")
+            .to_string()
     }
 
     pub fn format(&self) -> BackupFormat {
@@ -179,7 +176,7 @@ pub enum BackupInclusion {
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DifferentialBackup {
     pub name: String,
-    pub when: Option<chrono::DateTime<chrono::Utc>>,
+    pub when: chrono::DateTime<chrono::Utc>,
     #[serde(default)]
     pub files: BTreeMap<String, Option<IndividualMappingFile>>,
     #[serde(default)]
@@ -203,12 +200,9 @@ impl DifferentialBackup {
     }
 
     pub fn label(&self) -> String {
-        match self.when {
-            None => self.name.clone(),
-            Some(when) => chrono::DateTime::<chrono::Local>::from(when)
-                .format("%Y-%m-%dT%H:%M:%S")
-                .to_string(),
-        }
+        chrono::DateTime::<chrono::Local>::from(self.when)
+            .format("%Y-%m-%dT%H:%M:%S")
+            .to_string()
     }
 
     pub fn format(&self) -> BackupFormat {
@@ -351,11 +345,12 @@ impl IndividualMapping {
 
         // Handle legacy files without backup timestamps.
         for full in parsed.backups.iter_mut() {
-            if full.name == "." && full.when.is_none() {
+            if full.name == "." && full.when == chrono::DateTime::<chrono::Utc>::default() {
                 full.when = file
                     .metadata()
                     .ok()
-                    .and_then(|metadata| metadata.modified().ok().map(chrono::DateTime::from));
+                    .and_then(|metadata| metadata.modified().ok().map(chrono::DateTime::<chrono::Utc>::from))
+                    .unwrap_or_default();
             }
         }
 
@@ -847,7 +842,7 @@ impl GameLayout {
 
         FullBackup {
             name: self.generate_backup_name(&BackupKind::Full, now, format),
-            when: Some(*now),
+            when: *now,
             files,
             registry,
             children: vec![],
@@ -904,7 +899,7 @@ impl GameLayout {
 
         DifferentialBackup {
             name: self.generate_backup_name(&BackupKind::Differential, now, format),
-            when: Some(*now),
+            when: *now,
             files,
             registry,
         }
@@ -1568,7 +1563,7 @@ mod tests {
             assert_eq!(
                 Some(Backup::Full(FullBackup {
                     name: ".".to_string(),
-                    when: Some(now()),
+                    when: now(),
                     files: btreemap! {
                         StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
                     },
@@ -1595,7 +1590,7 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
                         name: ".".to_string(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                         },
@@ -1628,7 +1623,7 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
                         name: ".".to_string(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                             StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
@@ -1644,7 +1639,7 @@ mod tests {
             assert_eq!(
                 Some(Backup::Full(FullBackup {
                     name: ".".to_string(),
-                    when: Some(now()),
+                    when: now(),
                     files: btreemap! {
                         StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
                         StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
@@ -1673,7 +1668,7 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
                         name: ".".to_string(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                             StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
@@ -1689,7 +1684,7 @@ mod tests {
             assert_eq!(
                 Some(Backup::Full(FullBackup {
                     name: format!("backup-{}", now_str()),
-                    when: Some(now()),
+                    when: now(),
                     files: btreemap! {
                         StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
                         StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
@@ -1727,7 +1722,7 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
                         name: ".".to_string(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                             StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
@@ -1745,7 +1740,7 @@ mod tests {
             assert_eq!(
                 Some(Backup::Differential(DifferentialBackup {
                     name: format!("backup-{}", now_str()),
-                    when: Some(now()),
+                    when: now(),
                     files: btreemap! {
                         StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                         StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => None,
@@ -1775,7 +1770,7 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
                         name: ".".to_string(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                             StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
@@ -1784,7 +1779,7 @@ mod tests {
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", now_str()),
-                            when: Some(now()),
+                            when: now(),
                             files: btreemap! {
                                 StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                                 StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => None,
@@ -1804,7 +1799,7 @@ mod tests {
             assert_eq!(
                 Some(Backup::Differential(DifferentialBackup {
                     name: format!("backup-{}", now_str()),
-                    when: Some(now()),
+                    when: now(),
                     files: btreemap! {
                         StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => None,
                         StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "newer".into(), size: 2 }),
@@ -1835,14 +1830,14 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".to_string(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                             StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
-                            when: Some(past2()),
+                            when: past2(),
                             files: btreemap! {
                                 StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
                                 StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
@@ -1877,13 +1872,13 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".to_string(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
-                            when: Some(past2()),
+                            when: past2(),
                             files: btreemap! {
                                 StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
                             },
@@ -1900,7 +1895,7 @@ mod tests {
             assert_eq!(
                 Some(Backup::Differential(DifferentialBackup {
                     name: format!("backup-{}", now_str()),
-                    when: Some(now()),
+                    when: now(),
                     ..Default::default()
                 })),
                 layout.plan_backup(&scan, &now(), &BackupFormats::default()),
@@ -1924,7 +1919,7 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
                         name: ".".to_string(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
@@ -1939,7 +1934,7 @@ mod tests {
             assert_eq!(
                 Some(Backup::Differential(DifferentialBackup {
                     name: format!("backup-{}", now_str()),
-                    when: Some(now()),
+                    when: now(),
                     files: btreemap! {
                         StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
                     },
@@ -1966,13 +1961,13 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
                         name: ".".to_string(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", now_str()),
-                            when: Some(now()),
+                            when: now(),
                             files: btreemap! {
                                 StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
                             },
@@ -1989,7 +1984,7 @@ mod tests {
             assert_eq!(
                 Some(Backup::Differential(DifferentialBackup {
                     name: format!("backup-{}", now_str()),
-                    when: Some(now()),
+                    when: now(),
                     files: btreemap! {
                         StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                     },
@@ -2017,14 +2012,14 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".to_string(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                             StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
-                            when: Some(past2()),
+                            when: past2(),
                             files: btreemap! {
                                 StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
                                 StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
@@ -2042,7 +2037,7 @@ mod tests {
             assert_eq!(
                 Some(Backup::Full(FullBackup {
                     name: format!("backup-{}", now_str()),
-                    when: Some(now()),
+                    when: now(),
                     files: btreemap! {
                         StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "newer".into(), size: 1 },
                         StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
@@ -2071,14 +2066,14 @@ mod tests {
                     drives: drives(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: format!("backup-{}", past_str()),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                             StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
-                            when: Some(past2()),
+                            when: past2(),
                             files: btreemap! {
                                 StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
                                 StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
@@ -2096,7 +2091,7 @@ mod tests {
             assert_eq!(
                 Some(Backup::Full(FullBackup {
                     name: ".".to_string(),
-                    when: Some(now()),
+                    when: now(),
                     files: btreemap! {
                         StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                         StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 2 },
@@ -2149,7 +2144,7 @@ mod tests {
                     drives: drives_x(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1".into(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
                             mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
@@ -2194,7 +2189,7 @@ mod tests {
                     drives: drives_x(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1.zip".into(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
                             mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
@@ -2239,7 +2234,7 @@ mod tests {
                     drives: drives_x(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1".into(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             mapping_file_key("/unchanged.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
                             mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
@@ -2247,7 +2242,7 @@ mod tests {
                         },
                         children: vec![DifferentialBackup {
                             name: "backup-2".into(),
-                            when: Some(past2()),
+                            when: past2(),
                             files: btreemap! {
                                 mapping_file_key("/changed.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                                 mapping_file_key("/delete.txt") => None,
@@ -2303,7 +2298,7 @@ mod tests {
                     drives: drives_x(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1.zip".into(),
-                        when: Some(past()),
+                        when: past(),
                         files: btreemap! {
                             mapping_file_key("/unchanged.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
                             mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
@@ -2311,7 +2306,7 @@ mod tests {
                         },
                         children: vec![DifferentialBackup {
                             name: "backup-2.zip".into(),
-                            when: Some(past2()),
+                            when: past2(),
                             files: btreemap! {
                                 mapping_file_key("/changed.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                                 mapping_file_key("/delete.txt") => None,
