@@ -102,6 +102,9 @@ If you are on Mac:
 
   If you do a preview, then Ludusavi will use that list of games for the next
   backup, so that the next backup doesn't have to do another full scan.
+  It will also remember these games the next time you open the program
+  so that you can selectively preview just a few of them, if you like,
+  before or instead of running a full scan.
 * The gear icon will reveal some additional options:
 
   * You can set a number of full and differential backups to keep.
@@ -156,14 +159,13 @@ If you are on Mac:
   (when all games are selected) or the `select all` button (when at least
   one game is deselected) to quickly toggle all of them at once.
   Ludusavi will remember your most recent checkbox settings.
-* Next to each game's name is an edit icon. Clicking this will create a custom
-  game entry with the same name, allowing you to override that game's data.
-  See the [custom games](#custom-games) section for more information.
+* Next to each game's name is a menu with actions to perform on it.
+  You can also use keyboard shortcuts to replace the menu with some
+  specific action shortcuts:
 
-  The play icon will trigger an on-demand backup for that specific game.
-
-  There is also a globe icon, which will open the game's PCGamingWiki article
-  so that you can quickly double check or update its information if needed.
+  * preview: shift
+  * backup/restore: ctrl (Mac: cmd)
+  * backup/restore without confirmation: ctrl + alt (Mac: cmd + option)
 * You can click the search icon and enter some text to just see games with
   matching names. Note that this only affects which games you see in the list,
   but Ludusavi will still back up the full set of games. This also provides
@@ -251,7 +253,7 @@ Run `ludusavi --help` for the full usage information.
 
 CLI mode defaults to a human-readable format, but you can switch to a
 machine-readable JSON format with the `--api` flag. In that case, the output
-will have the following structure:
+will have the following structure for the `backup`/`restore` commands:
 
 * `errors` (optional, map):
   * `someGamesFailed` (optional, boolean): Whether any games failed.
@@ -288,8 +290,13 @@ will have the following structure:
         * `duplicatedBy` (optional, array of strings): Any other games that
           also have the same registry path.
 
+The `backups` command is similar, but without `overall`, and with each game containing
+`{"backups": [ {"name": <string>, "when": <string>} ]}`
+
 Note that, in some error conditions, there may not be any JSON output,
 so you should check if stdout was blank before trying to parse it.
+If the command line input cannot be parsed, then the output will not be
+in a stable format.
 
 Example:
 
@@ -363,6 +370,8 @@ Here are the available settings (all are required unless otherwise noted):
 
   Experimental options that currently have graphical display issues:
   `ar-SA` (Arabic), `zh-Hans` (Simplified Chinese).
+* `theme` (string, optional): Visual theme. Valid options:
+  `light` (default), `dark`.
 * `roots` (list):
   * Each entry in the list should be a map with these fields:
     * `path` (string): Where the root is located on your system.

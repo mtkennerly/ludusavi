@@ -63,7 +63,7 @@ pip install aiohttp toml
 rm -rf dist
 mkdir dist
 export VERSION=$(cargo pkgid | cut -d# -f2 | cut -d: -f2)
-cargo lichking bundle --file dist/ludusavi-v0.11.0-legal.txt
+cargo lichking bundle --file dist/ludusavi-v$VERSION-legal.txt
 sed -i -E 's/C:\\Users\\[^\\]+/~/g' dist/ludusavi-v$VERSION-legal.txt
 ```
 

@@ -13,7 +13,7 @@
         <p>Ludusavi is a tool for backing up your PC video game save data, written in Rust. It is cross-platform and supports multiple game stores.</p>
         <p>Features:</p>
         <ul>
-            <li>Ability to back up data from more than 8,000 games plus your own custom entries.</li>
+            <li>Ability to back up data from more than 10,000 games plus your own custom entries.</li>
             <li>Backup and restore for Steam as well as other game libraries.</li>
             <li>Preview of the backup/restore before actually performing it.</li>
             <li>Both a graphical interface and command line interface for scripting. (NOTE: CLI is named "com.github.mtkennerly.ludusavi" for Flatpak) </li>
@@ -23,13 +23,14 @@
     </description>
     <screenshots>
         <screenshot type="default">
-            <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.11.0/docs/sample-gui-linux.png</image>
+            <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.12.0/docs/sample-gui-linux.png</image>
             <caption>Graphical user interface</caption>
         </screenshot>
     </screenshots>
     <content_rating type="oars-1.1" />
     <launchable type="desktop-id">com.github.mtkennerly.ludusavi.desktop</launchable>
     <releases>
+        <release version="0.12.0" date="2022-08-31"/>
         <release version="0.11.0" date="2022-08-20"/>
         <release version="0.10.0" date="2021-03-12"/>
     </releases>

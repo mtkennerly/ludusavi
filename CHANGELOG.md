@@ -1,4 +1,4 @@
-## Unreleased
+## v0.12.0 (2022-08-31)
 
 * Added:
   * GUI: Dark theme.
