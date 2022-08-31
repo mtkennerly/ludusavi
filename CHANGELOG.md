@@ -12,7 +12,8 @@
     * preview: shift
     * backup/restore: ctrl (Mac: cmd)
     * backup/restore without confirmation: ctrl + alt (Mac: cmd + option)
-  * CLI: `backups` command to list backups for each game.
+  * CLI: `backups` command to list backups for each game,
+    and a `--backup` flag to restore a specific backup by ID.
   * On Linux, GOG roots now additionally check for a `game` subfolder when
     parsing the `<base>` and `<game>` placeholders.
     ([contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/121))

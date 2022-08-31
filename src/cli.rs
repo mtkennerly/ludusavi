@@ -183,6 +183,11 @@ pub enum Subcommand {
         #[clap(long, possible_values = CliSort::ALL)]
         sort: Option<CliSort>,
 
+        /// Restore a specific backup, using an ID returned by the `backups` command.
+        /// This is only valid when restoring a single game.
+        #[clap(long)]
+        backup: Option<String>,
+
         /// Only restore these specific games.
         #[clap()]
         games: Vec<String>,
@@ -779,6 +784,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             by_steam_id,
             api,
             sort,
+            backup,
             games,
         } => {
             let mut reporter = if api {
@@ -809,6 +815,11 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             let steam_ids_to_names = &manifest.map_steam_ids_to_names();
             let restorable_names = layout.restorable_games();
+
+            if backup.is_some() && games.len() != 1 {
+                return Err(Error::CliBackupIdWithMultipleGames);
+            }
+            let backup_id = backup.as_ref().map(|x| BackupId::Named(x.clone()));
 
             let games_specified = !games.is_empty();
             let mut invalid_games: Vec<_> = games
@@ -861,33 +872,52 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .progress_count(subjects.len() as u64)
                 .map(|name| {
                     let mut layout = layout.game_layout(name);
-                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &mut layout);
+                    let scan_info =
+                        scan_game_for_restoration(name, backup_id.as_ref().unwrap_or(&BackupId::Latest), &mut layout);
                     let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
                     } else {
                         OperationStepDecision::Processed
                     };
+
+                    if let Some(backup) = &backup {
+                        if let Some(BackupId::Named(scanned_backup)) = scan_info.backup.as_ref().map(|x| x.id()) {
+                            if backup != &scanned_backup {
+                                return (
+                                    name,
+                                    scan_info,
+                                    Default::default(),
+                                    decision,
+                                    Some(Err(Error::CliInvalidBackupId)),
+                                );
+                            }
+                        }
+                    }
+
                     let restore_info = if scan_info.backup.is_none() || preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
                         layout.restore(&scan_info, &config.get_redirects())
                     };
-                    (name, scan_info, restore_info, decision)
+                    (name, scan_info, restore_info, decision, None)
                 })
                 .collect();
 
-            for (_, scan_info, _, _) in info.iter() {
+            for (_, scan_info, _, _, failure) in info.iter() {
                 if !scan_info.found_anything() {
                     continue;
+                }
+                if let Some(failure) = failure {
+                    return failure.clone();
                 }
                 duplicate_detector.add_game(scan_info);
             }
 
             let sort = sort.map(From::from).unwrap_or_else(|| config.restore.sort.clone());
             match sort.key {
-                SortKey::Name => info.sort_by_key(|(name, _, _, _)| name.to_string()),
-                SortKey::Size => info.sort_by_key(|(name, scan_info, backup_info, _)| {
+                SortKey::Name => info.sort_by_key(|(name, _, _, _, _)| name.to_string()),
+                SortKey::Size => info.sort_by_key(|(name, scan_info, backup_info, _, _)| {
                     (scan_info.sum_bytes(&Some(backup_info.clone())), name.to_string())
                 }),
             }
@@ -895,7 +925,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 info.reverse();
             }
 
-            for (name, scan_info, backup_info, decision) in info {
+            for (name, scan_info, backup_info, decision, _) in info {
                 if !reporter.add_game(
                     name,
                     &scan_info,
@@ -1227,6 +1257,7 @@ mod tests {
                         by_steam_id: false,
                         api: false,
                         sort: None,
+                        backup: None,
                         games: vec![],
                     }),
                 },
@@ -1247,6 +1278,8 @@ mod tests {
                     "--api",
                     "--sort",
                     "name",
+                    "--backup",
+                    ".",
                     "game1",
                     "game2",
                 ],
@@ -1258,6 +1291,7 @@ mod tests {
                         by_steam_id: true,
                         api: true,
                         sort: Some(CliSort::Name),
+                        backup: Some(s(".")),
                         games: vec![s("game1"), s("game2")],
                     }),
                 },
@@ -1292,6 +1326,7 @@ mod tests {
                             by_steam_id: false,
                             api: false,
                             sort: Some(sort),
+                            backup: None,
                             games: vec![],
                         }),
                     },

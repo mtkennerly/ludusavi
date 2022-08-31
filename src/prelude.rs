@@ -38,6 +38,12 @@ pub enum Error {
     #[error("Unable to request confirmation")]
     CliUnableToRequestConfirmation,
 
+    #[error("Cannot specify backup ID when restoring multiple games")]
+    CliBackupIdWithMultipleGames,
+
+    #[error("Invalid backup ID")]
+    CliInvalidBackupId,
+
     #[error("Some entries failed")]
     SomeEntriesFailed,
 

@@ -13,6 +13,8 @@ cli-unrecognized-games = No info for these games:
 cli-confirm-restoration = Do you want to restore from {$path}?
 cli-unable-to-request-confirmation = Unable to request confirmation.
     .winpty-workaround = If you are using a Bash emulator (like Git Bash), try running winpty.
+cli-backup-id-with-multiple-games = Cannot specify backup ID when restoring multiple games.
+cli-invalid-backup-id = Invalid backup ID.
 
 badge-failed = FAILED
 badge-duplicates = DUPLICATES

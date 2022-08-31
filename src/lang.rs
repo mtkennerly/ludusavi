@@ -204,6 +204,8 @@ impl Translator {
             Error::CliBackupTargetExists { path } => self.cli_backup_target_exists(path),
             Error::CliUnrecognizedGames { games } => self.cli_unrecognized_games(games),
             Error::CliUnableToRequestConfirmation => self.cli_unable_to_request_confirmation(),
+            Error::CliBackupIdWithMultipleGames => self.cli_backup_id_with_multiple_games(),
+            Error::CliInvalidBackupId => self.cli_invalid_backup_id(),
             Error::SomeEntriesFailed => self.some_entries_failed(),
             Error::CannotPrepareBackupTarget { path } => self.cannot_prepare_backup_target(path),
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
@@ -240,6 +242,14 @@ impl Translator {
         let extra_note = "";
 
         format!("{} {}", translate("cli-unable-to-request-confirmation"), extra_note)
+    }
+
+    pub fn cli_backup_id_with_multiple_games(&self) -> String {
+        translate("cli-backup-id-with-multiple-games")
+    }
+
+    pub fn cli_invalid_backup_id(&self) -> String {
+        translate("cli-invalid-backup-id")
     }
 
     pub fn some_entries_failed(&self) -> String {
