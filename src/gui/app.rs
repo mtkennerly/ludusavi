@@ -884,10 +884,18 @@ impl Application for App {
             Message::ToggleGameListEntryExpanded { name } => {
                 match self.screen {
                     Screen::Backup => {
-                        self.backup_screen.log.toggle_game_expanded(&name);
+                        self.backup_screen.log.toggle_game_expanded(
+                            &name,
+                            &self.config,
+                            &self.backup_screen.duplicate_detector,
+                        );
                     }
                     Screen::Restore => {
-                        self.restore_screen.log.toggle_game_expanded(&name);
+                        self.restore_screen.log.toggle_game_expanded(
+                            &name,
+                            &self.config,
+                            &self.restore_screen.duplicate_detector,
+                        );
                     }
                     _ => {}
                 }

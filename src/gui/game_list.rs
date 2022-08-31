@@ -275,6 +275,10 @@ impl GameListEntry {
     pub fn populate_tree(&mut self, config: &Config, duplicate_detector: &DuplicateDetector) {
         self.tree = FileTree::new(self.scan_info.clone(), config, &self.backup_info, duplicate_detector);
     }
+
+    pub fn clear_tree(&mut self) {
+        self.tree = Default::default();
+    }
 }
 
 #[derive(Default)]
@@ -392,11 +396,23 @@ impl GameList {
         }
     }
 
-    pub fn toggle_game_expanded(&mut self, game: &str) {
+    pub fn toggle_game_expanded(&mut self, game: &str, config: &Config, duplicate_detector: &DuplicateDetector) {
         if self.expanded_games.contains(game) {
             self.expanded_games.remove(game);
+            for entry in self.entries.iter_mut() {
+                if entry.scan_info.game_name == game {
+                    entry.clear_tree();
+                    break;
+                }
+            }
         } else {
             self.expanded_games.insert(game.to_string());
+            for entry in self.entries.iter_mut() {
+                if entry.scan_info.game_name == game {
+                    entry.populate_tree(config, duplicate_detector);
+                    break;
+                }
+            }
         }
     }
 
@@ -444,9 +460,10 @@ impl GameList {
         duplicates: &std::collections::HashSet<String>,
     ) {
         let mut index = None;
+        let game_name = scan_info.game_name.clone();
 
         for (i, entry) in self.entries.iter().enumerate() {
-            if entry.scan_info.game_name == scan_info.game_name {
+            if entry.scan_info.game_name == game_name {
                 index = Some(i);
                 break;
             }
@@ -457,7 +474,9 @@ impl GameList {
                 if scan_info.found_anything() {
                     self.entries[i].scan_info = scan_info;
                     self.entries[i].backup_info = backup_info;
-                    self.entries[i].populate_tree(config, duplicate_detector);
+                    if self.expanded_games.contains(&game_name) {
+                        self.entries[i].populate_tree(config, duplicate_detector);
+                    }
                 } else {
                     self.entries.remove(i);
                 }
@@ -468,15 +487,21 @@ impl GameList {
                     backup_info,
                     ..Default::default()
                 };
-                entry.populate_tree(config, duplicate_detector);
+                if self.expanded_games.contains(&game_name) {
+                    entry.populate_tree(config, duplicate_detector);
+                }
                 self.entries.push(entry);
                 self.sort(sort);
             }
         }
 
-        for entry in self.entries.iter_mut() {
-            if duplicates.contains(&entry.scan_info.game_name) {
-                entry.populate_tree(config, duplicate_detector);
+        if !duplicates.is_empty() {
+            for entry in self.entries.iter_mut() {
+                if duplicates.contains(&entry.scan_info.game_name)
+                    && self.expanded_games.contains(&entry.scan_info.game_name)
+                {
+                    entry.populate_tree(config, duplicate_detector);
+                }
             }
         }
     }
