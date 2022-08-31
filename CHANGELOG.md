@@ -28,6 +28,9 @@
   * Performance regressions from v0.11.0 related to duplicate detection and root globbing.
   * CLI: `restore --by-steam-id 123` would restore all games with a Steam ID
     instead of just the game with the matching ID 123.
+  * CLI: When using `--api`, some non-JSON errors would be printed instead of or
+    in addition to the JSON info in certain situations. Now, as long as the CLI
+    input itself can be parsed, the output will either be valid JSON or blank.
   * GUI: Cancelling a backup/restore no longer has a long delay.
   * GUI: Doing a full preview, backing up one game, and then doing a full backup
     would trigger a full scan instead of reusing the list from the initial preview.

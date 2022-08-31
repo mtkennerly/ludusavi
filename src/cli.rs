@@ -221,6 +221,17 @@ pub enum Subcommand {
     },
 }
 
+impl Subcommand {
+    pub fn api(&self) -> bool {
+        match self {
+            Self::Backup { api, .. } => *api,
+            Self::Restore { api, .. } => *api,
+            Self::Backups { api, .. } => *api,
+            _ => false,
+        }
+    }
+}
+
 #[derive(clap::Parser, Clone, Debug, PartialEq, Eq)]
 #[clap(
     name = "ludusavi",
