@@ -17,6 +17,7 @@
   * On Linux, GOG roots now additionally check for a `game` subfolder when
     parsing the `<base>` and `<game>` placeholders.
     ([contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/121))
+  * The Steam root for Flatpak is now auto-detected.
   * If you set the `LUDUSAVI_DEBUG` environment variable, then Ludusavi will
     not detach from the console on Windows. This may be helpful if you want to
     troubleshoot an issue that involves Ludusavi crashing.

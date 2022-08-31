@@ -378,6 +378,10 @@ impl Config {
             (format!("{}/Steam", pf32), Store::Steam),
             (format!("{}/Steam", pf64), Store::Steam),
             ("~/.steam/steam".to_string(), Store::Steam),
+            (
+                "~/.var/app/com.valvesoftware.Steam/.steam/steam".to_string(),
+                Store::Steam,
+            ),
             ("~/Library/Application Support/Steam".to_string(), Store::Steam),
             // Epic:
             (format!("{}/Epic Games", pf32), Store::Epic),
