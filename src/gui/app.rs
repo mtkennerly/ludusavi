@@ -811,11 +811,6 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
-            Message::EditedExcludeOtherOsData(enabled) => {
-                self.config.backup.filter.exclude_other_os_data = enabled;
-                self.config.save();
-                Command::none()
-            }
             Message::EditedExcludeStoreScreenshots(enabled) => {
                 self.config.backup.filter.exclude_store_screenshots = enabled;
                 self.config.save();

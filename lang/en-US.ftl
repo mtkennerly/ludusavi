@@ -117,14 +117,6 @@ theme = Theme
 theme-light = Light
 theme-dark = Dark
 
-explanation-for-exclude-other-os-data =
-    In backups, exclude save locations that have only been confirmed on another
-    operating system. Some games always put saves in the same place, but the
-    locations may have only been confirmed for a different OS, so it can help
-    to check them anyway. Excluding that data may help to avoid false positives,
-    but may also mean missing out on some saves. On Linux, Proton saves will
-    still be backed up regardless of this setting.
-
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies
     to {store-steam} screenshots that you've taken. If a game has its own built-in

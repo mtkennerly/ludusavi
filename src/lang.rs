@@ -664,10 +664,6 @@ impl Translator {
         translate("game-name")
     }
 
-    pub fn explanation_for_exclude_other_os_data(&self) -> String {
-        translate("explanation-for-exclude-other-os-data")
-    }
-
     pub fn explanation_for_exclude_store_screenshots(&self) -> String {
         translate("explanation-for-exclude-store-screenshots")
     }

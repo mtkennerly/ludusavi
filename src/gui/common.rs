@@ -58,7 +58,6 @@ pub enum Message {
     EditedCustomGame(EditAction),
     EditedCustomGameFile(usize, EditAction),
     EditedCustomGameRegistry(usize, EditAction),
-    EditedExcludeOtherOsData(bool),
     EditedExcludeStoreScreenshots(bool),
     EditedBackupFilterIgnoredPath(EditAction),
     EditedBackupFilterIgnoredRegistry(EditAction),

@@ -1,3 +1,11 @@
+## Unreleased
+
+* Changed:
+  * Removed the option to "exclude save locations that have only been confirmed on another operating system"
+    (config key: `excludeOtherOsData`). This was primarily meant as an optimization for Windows users,
+    but in practice, it made little difference on Windows and would rarely be desired on other platforms,
+    leading to confusion.
+
 ## v0.12.1 (2022-08-31)
 
 * Fixed:

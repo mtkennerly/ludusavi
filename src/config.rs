@@ -82,12 +82,6 @@ pub struct BackupFilter {
     #[serde(
         default,
         skip_serializing_if = "crate::serialization::is_false",
-        rename = "excludeOtherOsData"
-    )]
-    pub exclude_other_os_data: bool,
-    #[serde(
-        default,
-        skip_serializing_if = "crate::serialization::is_false",
         rename = "excludeStoreScreenshots"
     )]
     pub exclude_store_screenshots: bool,
@@ -761,7 +755,6 @@ mod tests {
                     recent_games: Default::default(),
                     merge: true,
                     filter: BackupFilter {
-                        exclude_other_os_data: false,
                         exclude_store_screenshots: false,
                         ..Default::default()
                     },
@@ -804,7 +797,6 @@ mod tests {
                 - Backup Game 2
               merge: true
               filter:
-                excludeOtherOsData: true
                 excludeStoreScreenshots: true
             restore:
               path: ~/restore
@@ -857,7 +849,6 @@ mod tests {
                     recent_games: Default::default(),
                     merge: true,
                     filter: BackupFilter {
-                        exclude_other_os_data: true,
                         exclude_store_screenshots: true,
                         ..Default::default()
                     },
@@ -938,7 +929,6 @@ mod tests {
                     recent_games: Default::default(),
                     merge: true,
                     filter: BackupFilter {
-                        exclude_other_os_data: false,
                         exclude_store_screenshots: false,
                         ..Default::default()
                     },
@@ -985,7 +975,6 @@ backup:
   recentGames: []
   merge: true
   filter:
-    excludeOtherOsData: true
     excludeStoreScreenshots: true
     ignoredPaths: []
     ignoredRegistry: []
@@ -1056,7 +1045,6 @@ customGames:
                     recent_games: Default::default(),
                     merge: true,
                     filter: BackupFilter {
-                        exclude_other_os_data: true,
                         exclude_store_screenshots: true,
                         ..Default::default()
                     },

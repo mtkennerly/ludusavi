@@ -1,7 +1,7 @@
 use crate::{
     config::{BackupFilter, BackupFormats, RedirectConfig, RootsConfig, ToggledPaths, ToggledRegistry},
     layout::{Backup, GameLayout},
-    manifest::{Game, GameFileConstraint, Os, Store},
+    manifest::{Game, Os, Store},
 };
 use fuzzy_matcher::FuzzyMatcher;
 use rayon::prelude::*;
@@ -522,14 +522,6 @@ pub fn parse_paths(
         .collect()
 }
 
-fn should_exclude_as_other_os_data(constraints: &[GameFileConstraint], host: Os, maybe_proton: bool) -> bool {
-    let constrained = !constraints.is_empty();
-    let unconstrained_by_os = constraints.iter().any(|x| x.os == None);
-    let matches_os = constraints.iter().any(|x| x.os == Some(host.clone()));
-    let suitable_for_proton = maybe_proton && constraints.iter().any(|x| x.os == Some(Os::Windows));
-    constrained && !unconstrained_by_os && !matches_os && !suitable_for_proton
-}
-
 #[derive(Clone, Default)]
 pub struct InstallDirRanking(std::collections::HashMap<(RootsConfig, String), (i64, String)>);
 
@@ -666,19 +658,11 @@ pub fn scan_game_for_backup(
         let root_interpreted = root.path.interpret();
 
         if let Some(files) = &game.files {
-            let maybe_proton = get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some();
             let install_dir = ranking.get(&root, name);
 
-            for (raw_path, path_info) in files {
+            for raw_path in files.keys() {
                 if raw_path.trim().is_empty() {
                     continue;
-                }
-                if filter.exclude_other_os_data {
-                    if let Some(constraints) = &path_info.when {
-                        if should_exclude_as_other_os_data(constraints, get_os(), maybe_proton) {
-                            continue;
-                        }
-                    }
                 }
                 let candidates = parse_paths(raw_path, &root, &install_dir, steam_id, manifest_dir);
                 for candidate in candidates {
@@ -1240,89 +1224,6 @@ mod tests {
             "#,
         )
         .unwrap()
-    }
-
-    #[test]
-    fn should_not_exclude_as_other_os_data_when_os_matches() {
-        assert!(!should_exclude_as_other_os_data(
-            &[GameFileConstraint {
-                os: Some(Os::Windows),
-                store: None
-            }],
-            Os::Windows,
-            false
-        ));
-    }
-
-    #[test]
-    fn should_exclude_as_other_os_data_when_os_does_not_match() {
-        assert!(should_exclude_as_other_os_data(
-            &[GameFileConstraint {
-                os: Some(Os::Linux),
-                store: None
-            }],
-            Os::Windows,
-            false
-        ));
-    }
-
-    #[test]
-    fn should_not_exclude_as_other_os_data_when_no_os_constraint() {
-        assert!(!should_exclude_as_other_os_data(
-            &[GameFileConstraint {
-                os: None,
-                store: Some(Store::Steam)
-            }],
-            Os::Windows,
-            false
-        ));
-    }
-
-    #[test]
-    fn should_not_exclude_as_other_os_data_when_any_constraint_lacks_os() {
-        assert!(!should_exclude_as_other_os_data(
-            &[
-                GameFileConstraint {
-                    os: Some(Os::Linux),
-                    store: None
-                },
-                GameFileConstraint {
-                    os: None,
-                    store: Some(Store::Steam)
-                }
-            ],
-            Os::Windows,
-            false
-        ));
-    }
-
-    #[test]
-    fn should_exclude_as_other_os_data_when_constraint_has_store_and_other_os() {
-        assert!(should_exclude_as_other_os_data(
-            &[GameFileConstraint {
-                os: Some(Os::Linux),
-                store: Some(Store::Steam)
-            }],
-            Os::Windows,
-            false
-        ));
-    }
-
-    #[test]
-    fn should_not_exclude_as_other_os_data_when_no_constraints() {
-        assert!(!should_exclude_as_other_os_data(&[], Os::Windows, false));
-    }
-
-    #[test]
-    fn should_not_exclude_as_other_os_data_when_suitable_for_proton() {
-        assert!(!should_exclude_as_other_os_data(
-            &[GameFileConstraint {
-                os: Some(Os::Windows),
-                store: Some(Store::Steam)
-            }],
-            Os::Linux,
-            true
-        ));
     }
 
     #[test]

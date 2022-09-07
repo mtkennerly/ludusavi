@@ -63,14 +63,6 @@ impl OtherScreenComponent {
                         )
                         .push(
                             Checkbox::new(
-                                config.backup.filter.exclude_other_os_data,
-                                translator.explanation_for_exclude_other_os_data(),
-                                Message::EditedExcludeOtherOsData,
-                            )
-                            .style(style::Checkbox(config.theme)),
-                        )
-                        .push(
-                            Checkbox::new(
                                 config.backup.filter.exclude_store_screenshots,
                                 translator.explanation_for_exclude_store_screenshots(),
                                 Message::EditedExcludeStoreScreenshots,
