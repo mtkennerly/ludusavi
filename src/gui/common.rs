@@ -1,5 +1,5 @@
 use crate::{
-    config::{BackupFormat, RootsConfig, SortKey, Theme, ZipCompression},
+    config::{BackupFormat, ManifestConfig, RootsConfig, SortKey, Theme, ZipCompression},
     gui::{badge::Badge, icon::Icon},
     lang::{Language, Translator},
     layout::Backup,
@@ -15,6 +15,7 @@ pub enum Message {
     Idle,
     Ignore,
     Error(Error),
+    ManifestUpdated(ManifestConfig),
     ConfirmBackupStart {
         games: Option<Vec<String>>,
     },

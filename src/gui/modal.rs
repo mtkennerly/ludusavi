@@ -24,12 +24,13 @@ pub enum ModalTheme {
     NoMissingRoots,
     ConfirmAddMissingRoots(Vec<RootsConfig>),
     PreparingBackupDir,
+    UpdatingManifest,
 }
 
 impl ModalTheme {
     pub fn variant(&self) -> ModalVariant {
         match self {
-            Self::PreparingBackupDir => ModalVariant::Loading,
+            Self::PreparingBackupDir | Self::UpdatingManifest => ModalVariant::Loading,
             Self::Error { .. } | Self::NoMissingRoots => ModalVariant::Info,
             Self::ConfirmBackup { .. } | Self::ConfirmRestore { .. } | Self::ConfirmAddMissingRoots(..) => {
                 ModalVariant::Confirm
@@ -47,6 +48,7 @@ impl ModalTheme {
             Self::NoMissingRoots => translator.no_missing_roots(),
             Self::ConfirmAddMissingRoots(missing) => translator.confirm_add_missing_roots(missing),
             Self::PreparingBackupDir => translator.preparing_backup_dir(),
+            Self::UpdatingManifest => translator.updating_manifest(),
         }
     }
 
@@ -62,7 +64,7 @@ impl ModalTheme {
                 games: games.clone(),
             }),
             Self::ConfirmAddMissingRoots(missing) => Some(Message::ConfirmAddMissingRoots(missing.clone())),
-            Self::PreparingBackupDir => None,
+            Self::PreparingBackupDir | Self::UpdatingManifest => None,
         }
     }
 }

@@ -439,6 +439,10 @@ impl Translator {
         translate("preparing-backup-target")
     }
 
+    pub fn updating_manifest(&self) -> String {
+        translate("updating-manifest")
+    }
+
     pub fn confirm_add_missing_roots(&self, roots: &[crate::config::RootsConfig]) -> String {
         use std::fmt::Write;
         let mut msg = translate("confirm-add-missing-roots") + "\n";

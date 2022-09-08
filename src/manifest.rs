@@ -1,5 +1,5 @@
 use crate::{
-    config::{Config, CustomGame},
+    config::{Config, CustomGame, ManifestConfig},
     prelude::{app_dir, Error, StrictPath},
 };
 
@@ -165,9 +165,14 @@ impl Manifest {
 
     pub fn load(config: &mut Config, update: bool) -> Result<Self, Error> {
         if update || !StrictPath::from_std_path_buf(&Self::file()).exists() {
-            Self::update(config)?;
+            Self::update_mut(config)?;
         }
-        let content = std::fs::read_to_string(Self::file()).unwrap();
+        Self::load_local()
+    }
+
+    pub fn load_local() -> Result<Self, Error> {
+        let content =
+            std::fs::read_to_string(Self::file()).map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })?;
         Self::load_from_string(&content)
     }
 
@@ -175,9 +180,9 @@ impl Manifest {
         serde_yaml::from_str(content).map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })
     }
 
-    pub fn update(config: &mut Config) -> Result<(), Error> {
-        let mut req = reqwest::blocking::Client::new().get(&config.manifest.url);
-        if let Some(etag) = &config.manifest.etag {
+    pub fn update(mut config: ManifestConfig) -> Result<Option<ManifestConfig>, Error> {
+        let mut req = reqwest::blocking::Client::new().get(&config.url);
+        if let Some(etag) = &config.etag {
             if StrictPath::from_std_path_buf(&Self::file()).exists() {
                 req = req.header(reqwest::header::IF_NONE_MATCH, etag);
             }
@@ -190,20 +195,28 @@ impl Manifest {
                 res.copy_to(&mut file).map_err(|_| Error::ManifestCannotBeUpdated)?;
 
                 if let Some(etag) = res.headers().get(reqwest::header::ETAG) {
-                    match &config.manifest.etag {
+                    match &config.etag {
                         Some(old_etag) if etag == old_etag => (),
                         _ => {
-                            config.manifest.etag = Some(String::from_utf8_lossy(etag.as_bytes()).to_string());
-                            config.save();
+                            config.etag = Some(String::from_utf8_lossy(etag.as_bytes()).to_string());
                         }
                     }
                 }
 
-                Ok(())
+                Ok(Some(config))
             }
-            reqwest::StatusCode::NOT_MODIFIED => Ok(()),
+            reqwest::StatusCode::NOT_MODIFIED => Ok(None),
             _ => Err(Error::ManifestCannotBeUpdated),
         }
+    }
+
+    pub fn update_mut(config: &mut Config) -> Result<(), Error> {
+        let updated = Self::update(config.manifest.clone())?;
+        if let Some(updated) = updated {
+            config.manifest.etag = updated.etag;
+            config.save();
+        }
+        Ok(())
     }
 
     pub fn map_steam_ids_to_names(&self) -> std::collections::HashMap<u32, String> {

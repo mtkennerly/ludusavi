@@ -456,7 +456,7 @@ impl Application for App {
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let translator = Translator::default();
         let mut modal_theme: Option<ModalTheme> = None;
-        let mut config = match Config::load() {
+        let config = match Config::load() {
             Ok(x) => x,
             Err(x) => {
                 modal_theme = Some(ModalTheme::Error { variant: x });
@@ -465,16 +465,15 @@ impl Application for App {
             }
         };
         translator.set_language(config.language);
-        let manifest = match Manifest::load(&mut config, true) {
-            Ok(x) => x,
-            Err(x) => {
-                modal_theme = Some(ModalTheme::Error { variant: x });
-                match Manifest::load(&mut config, false) {
-                    Ok(y) => y,
-                    Err(_) => Manifest::default(),
-                }
+        let manifest = match Manifest::load_local() {
+            Ok(y) => y,
+            Err(_) => {
+                modal_theme = Some(ModalTheme::UpdatingManifest);
+                Manifest::default()
             }
         };
+
+        let manifest_config = config.manifest.clone();
 
         (
             Self {
@@ -488,7 +487,14 @@ impl Application for App {
                 modal_theme,
                 ..Self::default()
             },
-            Command::none(),
+            Command::perform(
+                async move { Manifest::update(manifest_config) },
+                move |result| match result {
+                    Ok(Some(updated)) => Message::ManifestUpdated(updated),
+                    Ok(None) => Message::Ignore,
+                    Err(e) => Message::Error(e),
+                },
+            ),
         )
     }
 
@@ -505,6 +511,20 @@ impl Application for App {
             Message::Ignore => Command::none(),
             Message::Error(error) => {
                 self.modal_theme = Some(ModalTheme::Error { variant: error });
+                Command::none()
+            }
+            Message::ManifestUpdated(updated) => {
+                self.modal_theme = None;
+                self.config.manifest.etag = updated.etag;
+                self.config.save();
+                match Manifest::load_local() {
+                    Ok(x) => {
+                        self.manifest = x;
+                    }
+                    Err(variant) => {
+                        self.modal_theme = Some(ModalTheme::Error { variant });
+                    }
+                }
                 Command::none()
             }
             Message::ConfirmBackupStart { games } => self.confirm_backup_start(games),
