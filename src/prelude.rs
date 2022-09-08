@@ -357,8 +357,11 @@ fn check_windows_path(path: Option<std::path::PathBuf>) -> String {
     }
 }
 
-fn check_windows_path_str(path: &str) -> String {
-    check_windows_path(Some(std::path::PathBuf::from(path)))
+fn check_windows_path_str(path: &str) -> &str {
+    match get_os() {
+        Os::Windows => path,
+        _ => SKIP,
+    }
 }
 
 fn check_nonwindows_path(path: Option<std::path::PathBuf>) -> String {
@@ -368,8 +371,11 @@ fn check_nonwindows_path(path: Option<std::path::PathBuf>) -> String {
     }
 }
 
-fn check_nonwindows_path_str(path: &str) -> String {
-    check_nonwindows_path(Some(std::path::PathBuf::from(path)))
+fn check_nonwindows_path_str(path: &str) -> &str {
+    match get_os() {
+        Os::Windows => SKIP,
+        _ => path,
+    }
 }
 
 pub fn parse_paths(
@@ -387,6 +393,9 @@ pub fn parse_paths(
     };
 
     let root_interpreted = root.path.interpret();
+    let data_dir = check_path(dirs::data_dir());
+    let data_local_dir = check_path(dirs::data_local_dir());
+    let config_dir = check_path(dirs::config_dir());
 
     paths.insert(
         path.replace("<root>", &root_interpreted)
@@ -404,17 +413,29 @@ pub fn parse_paths(
             )
             .replace("<storeUserId>", "*")
             .replace("<osUserName>", &whoami::username())
-            .replace("<winAppData>", &check_windows_path(dirs::data_dir()))
-            .replace("<winLocalAppData>", &check_windows_path(dirs::data_local_dir()))
+            .replace("<winAppData>", check_windows_path_str(&data_dir))
+            .replace("<winLocalAppData>", check_windows_path_str(&data_local_dir))
             .replace("<winDocuments>", &check_windows_path(dirs::document_dir()))
             .replace("<winPublic>", &check_windows_path(dirs::public_dir()))
-            .replace("<winProgramData>", &check_windows_path_str("C:/Windows/ProgramData"))
-            .replace("<winDir>", &check_windows_path_str("C:/Windows"))
-            .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
-            .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
+            .replace("<winProgramData>", check_windows_path_str("C:/Windows/ProgramData"))
+            .replace("<winDir>", check_windows_path_str("C:/Windows"))
+            .replace("<xdgData>", check_nonwindows_path_str(&data_dir))
+            .replace("<xdgConfig>", check_nonwindows_path_str(&config_dir))
             .replace("<regHkcu>", SKIP)
             .replace("<regHklm>", SKIP),
     );
+    if get_os() == Os::Windows {
+        let mut virtual_store = paths.iter().next().unwrap().clone();
+        for virtualized in ["Program Files (x86)", "Program Files", "Windows", "ProgramData"] {
+            for separator in ['/', '\\'] {
+                virtual_store = virtual_store.replace(
+                    &format!("C:{}{}", separator, virtualized),
+                    &format!("{}/VirtualStore/{}", &data_local_dir, virtualized),
+                );
+            }
+        }
+        paths.insert(virtual_store);
+    }
     if root.store == Store::Gog && get_os() == Os::Linux {
         paths.insert(
             path.replace("<game>", &format!("{}/game", install_dir))
@@ -428,14 +449,14 @@ pub fn parse_paths(
                 .replace("<base>", &format!("{}/{}", &root_interpreted, install_dir))
                 .replace("<storeUserId>", SKIP)
                 .replace("<osUserName>", &whoami::username())
-                .replace("<winAppData>", &check_windows_path_str("<home>/AppData/Roaming"))
-                .replace("<winLocalAppData>", &check_windows_path_str("<home>/AppData/Local"))
-                .replace("<winDocuments>", &check_windows_path_str("<home>/Documents"))
+                .replace("<winAppData>", check_windows_path_str("<home>/AppData/Roaming"))
+                .replace("<winLocalAppData>", check_windows_path_str("<home>/AppData/Local"))
+                .replace("<winDocuments>", check_windows_path_str("<home>/Documents"))
                 .replace("<winPublic>", &check_windows_path(dirs::public_dir()))
-                .replace("<winProgramData>", &check_windows_path_str("C:/Windows/ProgramData"))
-                .replace("<winDir>", &check_windows_path_str("C:/Windows"))
-                .replace("<xdgData>", &check_nonwindows_path_str("<home>/.local/share"))
-                .replace("<xdgConfig>", &check_nonwindows_path_str("<home>/.config"))
+                .replace("<winProgramData>", check_windows_path_str("C:/Windows/ProgramData"))
+                .replace("<winDir>", check_windows_path_str("C:/Windows"))
+                .replace("<xdgData>", check_nonwindows_path_str("<home>/.local/share"))
+                .replace("<xdgConfig>", check_nonwindows_path_str("<home>/.config"))
                 .replace("<regHkcu>", SKIP)
                 .replace("<regHklm>", SKIP)
                 .replace("<home>", &root_interpreted),
@@ -666,7 +687,8 @@ pub fn scan_game_for_backup(
                 }
                 let candidates = parse_paths(raw_path, &root, &install_dir, steam_id, manifest_dir);
                 for candidate in candidates {
-                    if candidate.raw().contains(SKIP) {
+                    if candidate.raw().contains('<') {
+                        // This covers `SKIP` and any other unmatched placeholders.
                         continue;
                     }
                     paths_to_check.insert(candidate);

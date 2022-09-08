@@ -1,10 +1,20 @@
 ## Unreleased
 
+* Added:
+  * On Windows, `%LocalAppData%/VirtualStore` will be checked for potential matches of:
+    * `C:/Program Files`
+    * `C:/Program Files (x86)`
+    * `C:/ProgramData`
+    * `C:/Windows`
 * Changed:
   * Removed the option to "exclude save locations that have only been confirmed on another operating system"
     (config key: `excludeOtherOsData`). This was primarily meant as an optimization for Windows users,
     but in practice, it made little difference on Windows and would rarely be desired on other platforms,
     leading to confusion.
+* Fixed:
+  * GUI: Window now appears immediately and updates the manifest in the background,
+    rather than waiting to show the window until the update is complete.
+    If there is no local manifest at all, a loading screen is shown while downloading.
 
 ## v0.12.1 (2022-08-31)
 
