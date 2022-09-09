@@ -386,7 +386,7 @@ impl IndividualMapping {
             .max_depth(1)
             .follow_links(false)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(crate::prelude::filter_map_walkdir)
         {
             let name = child.file_name().to_string_lossy();
 
@@ -608,7 +608,7 @@ impl GameLayout {
             .max_depth(1)
             .follow_links(false)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(crate::prelude::filter_map_walkdir)
         {
             let raw_drive_dir = drive_dir.path().display().to_string();
             let drive_mapping =
@@ -618,7 +618,7 @@ impl GameLayout {
                 .max_depth(100)
                 .follow_links(false)
                 .into_iter()
-                .filter_map(|e| e.ok())
+                .filter_map(crate::prelude::filter_map_walkdir)
                 .filter(|x| x.file_type().is_file())
             {
                 let raw_file = file.path().display().to_string();
@@ -911,22 +911,42 @@ impl GameLayout {
         let mut relevant_files = vec![];
         for file in &scan.found_files {
             if !backup.includes_file(file.path.render()) {
+                log::debug!("[{}] skipped: {}", self.mapping.name, file.path.raw());
                 continue;
             }
 
             let target_file = self.mapping.game_file(&self.path, &file.path, backup.name());
             if file.path.same_content(&target_file) {
+                log::info!("[{}] already matches: {}", self.mapping.name, file.path.raw());
                 relevant_files.push(target_file);
                 continue;
             }
-            if target_file.create_parent_dir().is_err() {
+            if let Err(e) = target_file.create_parent_dir() {
+                log::error!(
+                    "[{}] unable to create parent directories: {} -> {} | {e}",
+                    self.mapping.name,
+                    file.path.raw(),
+                    target_file.raw()
+                );
                 backup_info.failed_files.insert(file.clone());
                 continue;
             }
-            if std::fs::copy(&file.path.interpret(), &target_file.interpret()).is_err() {
+            if let Err(e) = std::fs::copy(&file.path.interpret(), &target_file.interpret()) {
+                log::error!(
+                    "[{}] unable to copy: {} -> {} | {e}",
+                    self.mapping.name,
+                    file.path.raw(),
+                    target_file.raw()
+                );
                 backup_info.failed_files.insert(file.clone());
                 continue;
             }
+            log::info!(
+                "[{}] backed up: {} -> {}",
+                self.mapping.name,
+                file.path.raw(),
+                target_file.raw()
+            );
             relevant_files.push(target_file);
         }
 
@@ -964,7 +984,12 @@ impl GameLayout {
         let archive_path = self.path.joined(backup.name());
         let archive_file = match std::fs::File::create(archive_path.interpret()) {
             Ok(x) => x,
-            Err(_) => {
+            Err(e) => {
+                log::error!(
+                    "[{}] unable to create zip file: {} | {e}",
+                    self.mapping.name,
+                    archive_path.raw()
+                );
                 fail_all(&mut backup_info);
                 return backup_info;
             }
@@ -981,13 +1006,18 @@ impl GameLayout {
 
         'item: for file in &scan.found_files {
             if !backup.includes_file(file.path.render()) {
+                log::debug!("[{}] skipped: {}", self.mapping.name, file.path.raw());
                 continue;
             }
 
-            if zip
-                .start_file(self.mapping.game_file_for_zip(&file.path), options)
-                .is_err()
-            {
+            let target_file_id = self.mapping.game_file_for_zip(&file.path);
+            if let Err(e) = zip.start_file(&target_file_id, options) {
+                log::error!(
+                    "[{}] unable to start zip file record: {} -> {} | {e}",
+                    self.mapping.name,
+                    file.path.raw(),
+                    &target_file_id
+                );
                 fail_file(file, &mut backup_info);
                 continue;
             }
@@ -995,7 +1025,12 @@ impl GameLayout {
             use std::io::Read;
             let handle = match std::fs::File::open(file.path.interpret()) {
                 Ok(x) => x,
-                Err(_) => {
+                Err(e) => {
+                    log::error!(
+                        "[{}] unable to open source: {} | {e}",
+                        self.mapping.name,
+                        file.path.raw()
+                    );
                     fail_file(file, &mut backup_info);
                     continue;
                 }
@@ -1006,15 +1041,32 @@ impl GameLayout {
             loop {
                 let read = match reader.read(&mut buffer[..]) {
                     Ok(x) => x,
-                    Err(_) => {
+                    Err(e) => {
+                        log::error!(
+                            "[{}] unable to read source: {} | {e}",
+                            self.mapping.name,
+                            file.path.raw()
+                        );
                         fail_file(file, &mut backup_info);
                         continue 'item;
                     }
                 };
                 if read == 0 {
+                    log::info!(
+                        "[{}] backed up: {} -> {}",
+                        self.mapping.name,
+                        file.path.raw(),
+                        &target_file_id
+                    );
                     break;
                 }
-                if zip.write_all(&buffer[0..read]).is_err() {
+                if let Err(e) = zip.write_all(&buffer[0..read]) {
+                    log::error!(
+                        "[{}] unable to write target: {} -> {} | {e}",
+                        self.mapping.name,
+                        file.path.raw(),
+                        &target_file_id
+                    );
                     fail_file(file, &mut backup_info);
                     continue 'item;
                 }
@@ -1124,8 +1176,17 @@ impl GameLayout {
     ) -> BackupInfo {
         self.migrate_legacy_backup();
         match self.plan_backup(scan, now, format) {
-            None => BackupInfo::default(),
+            None => {
+                log::info!("[{}] no need for new backup", &scan.game_name);
+                BackupInfo::default()
+            }
             Some(backup) => {
+                log::info!(
+                    "[{}] creating a {:?} backup: {}",
+                    &scan.game_name,
+                    backup.kind(),
+                    backup.name()
+                );
                 self.insert_backup(backup.clone());
                 self.execute_backup(&backup, scan, format)
             }
@@ -1133,6 +1194,8 @@ impl GameLayout {
     }
 
     pub fn restore(&self, scan: &ScanInfo, redirects: &[RedirectConfig]) -> BackupInfo {
+        log::trace!("[{}] beginning restore", &scan.game_name);
+
         let mut failed_files = std::collections::HashSet::new();
         let failed_registry = std::collections::HashSet::new();
 
@@ -1140,12 +1203,16 @@ impl GameLayout {
             let original_path = some_or_continue!(&file.original_path);
             let (target, _) = game_file_restoration_target(original_path, redirects);
 
-            if match &file.container {
+            if let Err(e) = match &file.container {
                 None => self.restore_file_from_simple(&target, file),
                 Some(container) => self.restore_file_from_zip(&target, file, container),
-            }
-            .is_err()
-            {
+            } {
+                log::error!(
+                    "[{}] failed to restore: {} -> {} | {e}",
+                    self.mapping.name,
+                    original_path.raw(),
+                    target.raw()
+                );
                 failed_files.insert(file.clone());
             }
         }
@@ -1163,6 +1230,8 @@ impl GameLayout {
             }
         }
 
+        log::trace!("[{}] completed restore", &scan.game_name);
+
         BackupInfo {
             failed_files,
             failed_registry,
@@ -1174,13 +1243,45 @@ impl GameLayout {
         target: &StrictPath,
         file: &ScannedFile,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        log::trace!(
+            "[{}] about to restore (simple): {} -> {}",
+            self.mapping.name,
+            file.path.raw(),
+            target.raw()
+        );
+
         if target.exists() && target.try_same_content(&file.path)? {
+            log::info!(
+                "[{}] already matches: {} -> {}",
+                self.mapping.name,
+                file.path.raw(),
+                target.raw()
+            );
             return Ok(());
         }
 
         target.create_parent_dir()?;
         for i in 0..99 {
-            if target.unset_readonly().is_ok() && std::fs::copy(&file.path.interpret(), &target.interpret()).is_ok() {
+            if let Err(e) = target.unset_readonly() {
+                log::warn!(
+                    "[{}] try {i}, failed to unset read-only on target: {} | {e}",
+                    self.mapping.name,
+                    target.raw()
+                );
+            } else if let Err(e) = std::fs::copy(&file.path.interpret(), &target.interpret()) {
+                log::warn!(
+                    "[{}] try {i}, failed to copy to target: {} -> {} | {e}",
+                    self.mapping.name,
+                    file.path.raw(),
+                    target.raw()
+                );
+            } else {
+                log::info!(
+                    "[{}] restored: {} -> {}",
+                    &self.mapping.name,
+                    file.path.raw(),
+                    target.raw()
+                );
                 return Ok(());
             }
             // File might be busy, especially if multiple games share a file,
@@ -1197,10 +1298,23 @@ impl GameLayout {
         file: &ScannedFile,
         container: &StrictPath,
     ) -> Result<(), Box<dyn std::error::Error>> {
+        log::debug!(
+            "[{}] about to restore (zip): {} -> {}",
+            self.mapping.name,
+            file.path.raw(),
+            target.raw()
+        );
+
         let handle = std::fs::File::open(&container.interpret())?;
         let mut archive = zip::ZipArchive::new(handle)?;
 
         if target.exists() && target.try_same_content_as_zip(&mut archive.by_name(&file.path.raw())?)? {
+            log::info!(
+                "[{}] already matches: {} -> {}",
+                self.mapping.name,
+                file.path.raw(),
+                target.raw()
+            );
             return Ok(());
         }
 
@@ -1211,11 +1325,40 @@ impl GameLayout {
                 // like in a collection, so retry after a delay:
                 std::thread::sleep(std::time::Duration::from_millis(i * self.mapping.name.len() as u64));
             }
-            if target.unset_readonly().is_err() {
+            if let Err(e) = target.unset_readonly() {
+                log::warn!(
+                    "[{}] try {i}, failed to unset read-only on target: {} | {e}",
+                    self.mapping.name,
+                    target.raw()
+                );
                 continue;
             }
-            let mut target_handle = std::fs::File::create(&target.interpret())?;
-            if std::io::copy(&mut archive.by_name(&file.path.raw())?, &mut target_handle).is_ok() {
+            let mut target_handle = match std::fs::File::create(&target.interpret()) {
+                Ok(x) => x,
+                Err(e) => {
+                    log::warn!(
+                        "[{}] try {i}, failed to get handle: {} -> {} | {e}",
+                        self.mapping.name,
+                        file.path.raw(),
+                        target.raw()
+                    );
+                    continue;
+                }
+            };
+            if let Err(e) = std::io::copy(&mut archive.by_name(&file.path.raw())?, &mut target_handle) {
+                log::warn!(
+                    "[{}] try {i}, failed to copy to target: {} -> {} | {e}",
+                    self.mapping.name,
+                    file.path.raw(),
+                    target.raw()
+                );
+            } else {
+                log::info!(
+                    "[{}] restored: {} -> {}",
+                    &self.mapping.name,
+                    file.path.raw(),
+                    target.raw()
+                );
                 return Ok(());
             }
         }
@@ -1236,14 +1379,14 @@ impl GameLayout {
             .max_depth(1)
             .follow_links(false)
             .into_iter()
-            .filter_map(|e| e.ok())
+            .filter_map(crate::prelude::filter_map_walkdir)
             .filter(|x| x.file_name().to_string_lossy().starts_with("drive-"))
         {
             for file in walkdir::WalkDir::new(drive_dir.path())
                 .max_depth(100)
                 .follow_links(false)
                 .into_iter()
-                .filter_map(|e| e.ok())
+                .filter_map(crate::prelude::filter_map_walkdir)
                 .filter(|x| x.file_type().is_file())
             {
                 let backup_file = StrictPath::new(file.path().display().to_string());
@@ -1257,9 +1400,20 @@ impl GameLayout {
     }
 
     pub fn remove_irrelevant_backup_files(&self, backup: &str, relevant_files: &[StrictPath]) {
+        log::trace!(
+            "[{}] looking for irrelevant backup files in {}",
+            self.mapping.name,
+            backup
+        );
         for file in self.find_irrelevant_backup_files(backup, relevant_files) {
+            log::debug!(
+                "[{}] removing irrelevant backup file: {}",
+                self.mapping.name,
+                file.raw()
+            );
             let _ = file.remove();
         }
+        log::trace!("[{}] done removing irrelevant backup files", self.mapping.name);
     }
 }
 
@@ -1291,7 +1445,7 @@ impl BackupLayout {
             .follow_links(false)
             .into_iter()
             .skip(1) // the base path itself
-            .filter_map(|e| e.ok())
+            .filter_map(crate::prelude::filter_map_walkdir)
             .filter(|x| x.file_type().is_dir())
         {
             let game_dir = StrictPath::from(&game_dir);

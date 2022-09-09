@@ -11,7 +11,10 @@ use crate::{
 };
 use clap::{CommandFactory, Parser};
 use indicatif::ParallelProgressIterator;
-use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rayon::{
+    iter::{IntoParallelRefIterator, ParallelIterator},
+    prelude::IndexedParallelIterator,
+};
 
 fn parse_strict_path(path: &str) -> StrictPath {
     StrictPath::new(path.to_owned())
@@ -720,10 +723,13 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
 
+            log::info!("beginning backup with {} steps", subjects.len());
             let mut info: Vec<_> = subjects
                 .par_iter()
+                .enumerate()
                 .progress_count(subjects.len() as u64)
-                .map(|name| {
+                .map(|(i, name)| {
+                    log::trace!("step {i} / {}: {name}", subjects.len());
                     let game = &all_games.0[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
@@ -756,9 +762,11 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                             &config.backup.format,
                         )
                     };
+                    log::trace!("step {i} completed");
                     (name, scan_info, backup_info, decision)
                 })
                 .collect();
+            log::info!("completed backup");
 
             for (_, scan_info, _, _) in info.iter() {
                 if !scan_info.found_anything() {
@@ -875,10 +883,13 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             };
             subjects.sort();
 
+            log::info!("beginning restore with {} steps", subjects.len());
             let mut info: Vec<_> = subjects
                 .par_iter()
+                .enumerate()
                 .progress_count(subjects.len() as u64)
-                .map(|name| {
+                .map(|(i, name)| {
+                    log::trace!("step {i} / {}: {name}", subjects.len());
                     let mut layout = layout.game_layout(name);
                     let scan_info =
                         scan_game_for_restoration(name, backup_id.as_ref().unwrap_or(&BackupId::Latest), &mut layout);
@@ -892,6 +903,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     if let Some(backup) = &backup {
                         if let Some(BackupId::Named(scanned_backup)) = scan_info.backup.as_ref().map(|x| x.id()) {
                             if backup != &scanned_backup {
+                                log::trace!("step {i} completed (backup mismatch)");
                                 return (
                                     name,
                                     scan_info,
@@ -908,9 +920,11 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     } else {
                         layout.restore(&scan_info, &config.get_redirects())
                     };
+                    log::trace!("step {i} completed");
                     (name, scan_info, restore_info, decision, None)
                 })
                 .collect();
+            log::info!("completed restore");
 
             for (_, scan_info, _, _, failure) in info.iter() {
                 if !scan_info.found_anything() {

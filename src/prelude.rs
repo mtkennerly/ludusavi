@@ -18,6 +18,8 @@ const APP_DIR_NAME: &str = "ludusavi";
 const PORTABLE_FLAG_FILE_NAME: &str = "ludusavi.portable";
 const MIGRATION_FLAG_FILE_NAME: &str = ".flag_migrated_legacy_config";
 
+pub type AnyError = Box<dyn std::error::Error>;
+
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
 pub enum Error {
     #[error("The manifest file is invalid: {why:?}")]
@@ -630,6 +632,13 @@ impl InstallDirRanking {
     }
 }
 
+pub fn filter_map_walkdir(e: Result<walkdir::DirEntry, walkdir::Error>) -> Option<walkdir::DirEntry> {
+    if let Err(e) = &e {
+        log::warn!("failed to walk: {:?} | {e:?}", e.path());
+    }
+    e.ok()
+}
+
 pub fn scan_game_for_backup(
     game: &Game,
     name: &str,
@@ -642,6 +651,8 @@ pub fn scan_game_for_backup(
     ignored_paths: &ToggledPaths,
     #[allow(unused_variables)] ignored_registry: &ToggledRegistry,
 ) -> ScanInfo {
+    log::trace!("[{name}] beginning scan for backup");
+
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
@@ -658,6 +669,7 @@ pub fn scan_game_for_backup(
     let manifest_dir_interpreted = manifest_dir.interpret();
 
     if let Some(wp) = wine_prefix {
+        log::trace!("[{name}] adding extra Wine prefix: {}", wp.raw());
         roots_to_check.push(RootsConfig {
             path: wp.clone(),
             store: Store::OtherWine,
@@ -673,6 +685,11 @@ pub fn scan_game_for_backup(
     }
 
     for root in roots_to_check {
+        log::trace!(
+            "[{name}] adding candidates from {:?} root: {}",
+            root.store,
+            root.path.raw()
+        );
         if root.path.raw().trim().is_empty() {
             continue;
         }
@@ -682,11 +699,13 @@ pub fn scan_game_for_backup(
             let install_dir = ranking.get(&root, name);
 
             for raw_path in files.keys() {
+                log::trace!("[{name}] parsing candidates from: {}", raw_path);
                 if raw_path.trim().is_empty() {
                     continue;
                 }
                 let candidates = parse_paths(raw_path, &root, &install_dir, steam_id, manifest_dir);
                 for candidate in candidates {
+                    log::trace!("[{name}] parsed candidate: {}", candidate.raw());
                     if candidate.raw().contains('<') {
                         // This covers `SKIP` and any other unmatched placeholders.
                         continue;
@@ -726,16 +745,20 @@ pub fn scan_game_for_backup(
     }
 
     for path in paths_to_check {
+        log::trace!("[{name}] checking: {}", path.raw());
         if filter.is_path_ignored(&path) {
+            log::debug!("[{name}] excluded: {}", path.raw());
             continue;
         }
         for p in path.glob() {
             let p = p.rendered();
             if p.is_file() {
                 if filter.is_path_ignored(&p) {
+                    log::debug!("[{name}] excluded: {}", p.raw());
                     continue;
                 }
                 let ignored = ignored_paths.is_ignored(name, &p);
+                log::debug!("[{name}] found: {}", p.raw());
                 found_files.insert(ScannedFile {
                     size: p.size(),
                     hash: p.sha1(),
@@ -745,18 +768,21 @@ pub fn scan_game_for_backup(
                     container: None,
                 });
             } else if p.is_dir() {
+                log::trace!("[{name}] looking for files in: {}", p.raw());
                 for child in walkdir::WalkDir::new(p.as_std_path_buf())
                     .max_depth(100)
                     .follow_links(true)
                     .into_iter()
-                    .filter_map(|e| e.ok())
+                    .filter_map(filter_map_walkdir)
                 {
                     if child.file_type().is_file() {
                         let child = StrictPath::from(&child).rendered();
                         if filter.is_path_ignored(&child) {
+                            log::debug!("[{name}] excluded: {}", child.raw());
                             continue;
                         }
                         let ignored = ignored_paths.is_ignored(name, &child);
+                        log::debug!("[{name}] found: {}", child.raw());
                         found_files.insert(ScannedFile {
                             size: child.size(),
                             hash: child.sha1(),
@@ -778,12 +804,16 @@ pub fn scan_game_for_backup(
                 if key.trim().is_empty() {
                     continue;
                 }
+                log::trace!("[{name}] checking registry: {key}");
                 for scanned in crate::registry::scan_registry(name, key, filter, ignored_registry).unwrap_or_default() {
+                    log::debug!("[{name}] found registry: {}", scanned.path.raw());
                     found_registry_keys.insert(scanned);
                 }
             }
         }
     }
+
+    log::trace!("[{name}] completed scan for backup");
 
     ScanInfo {
         game_name: name.to_string(),
@@ -801,6 +831,8 @@ pub enum BackupId {
 }
 
 pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &mut GameLayout) -> ScanInfo {
+    log::trace!("[{name}] beginning scan for restore");
+
     let mut found_files = std::collections::HashSet::new();
     #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
@@ -833,6 +865,8 @@ pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &mut GameLay
         }
     }
 
+    log::trace!("[{name}] completed scan for restore");
+
     ScanInfo {
         game_name: name.to_string(),
         found_files,
@@ -857,6 +891,18 @@ pub fn prepare_backup_target(target: &StrictPath, merge: bool) -> Result<(), Err
     Ok(())
 }
 
+fn prepare_game_backup_target(target: &StrictPath, merge: bool) -> Result<(), AnyError> {
+    if !merge {
+        target.unset_readonly()?;
+        target.remove()?;
+    } else if target.exists() && !target.is_dir() {
+        return Err("must merge into existing target, but target is not a directory".into());
+    }
+
+    std::fs::create_dir_all(target.interpret())?;
+    Ok(())
+}
+
 pub fn back_up_game(
     info: &ScanInfo,
     mut layout: GameLayout,
@@ -864,9 +910,23 @@ pub fn back_up_game(
     now: &chrono::DateTime<chrono::Utc>,
     format: &BackupFormats,
 ) -> BackupInfo {
-    let able_to_prepare = info.found_anything_processable()
-        && (merge || (layout.path.unset_readonly().is_ok() && layout.path.remove().is_ok()))
-        && std::fs::create_dir_all(layout.path.interpret()).is_ok();
+    log::trace!("[{}] preparing for backup", &info.game_name);
+
+    let able_to_prepare = if info.found_anything_processable() {
+        match prepare_game_backup_target(&layout.path, merge) {
+            Ok(_) => true,
+            Err(e) => {
+                log::error!(
+                    "[{}] failed to prepare backup target: {} | {e}",
+                    info.game_name,
+                    layout.path.raw()
+                );
+                false
+            }
+        }
+    } else {
+        false
+    };
 
     if able_to_prepare {
         layout.back_up(info, now, format)

@@ -19,6 +19,21 @@ mod registry;
 mod testing;
 
 fn main() {
+    // The logger must be assigned to a variable because we're using async logging.
+    // https://docs.rs/flexi_logger/0.23.1/flexi_logger/error_info/index.html#write
+    #[allow(unused)]
+    let logger = flexi_logger::Logger::try_with_env_or_str("ludusavi=warn")
+        .unwrap()
+        .log_to_file(flexi_logger::FileSpec::default().directory(prelude::app_dir()))
+        .write_mode(flexi_logger::WriteMode::Async)
+        .rotate(
+            flexi_logger::Criterion::Size(1024 * 1024 * 10),
+            flexi_logger::Naming::Timestamps,
+            flexi_logger::Cleanup::KeepLogFiles(4),
+        )
+        .use_utc()
+        .start();
+
     prelude::migrate_legacy_config();
 
     let args = cli::parse_cli();

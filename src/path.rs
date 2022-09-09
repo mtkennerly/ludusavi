@@ -1,3 +1,5 @@
+use crate::prelude::AnyError;
+
 #[cfg(target_os = "windows")]
 const TYPICAL_SEPARATOR: &str = "\\";
 #[cfg(target_os = "windows")]
@@ -285,13 +287,13 @@ impl StrictPath {
         )
     }
 
-    pub fn unset_readonly(&self) -> Result<(), ()> {
+    pub fn unset_readonly(&self) -> Result<(), AnyError> {
         let interpreted = self.interpret();
         if self.is_file() {
-            let mut perms = std::fs::metadata(&interpreted).map_err(|_| ())?.permissions();
+            let mut perms = std::fs::metadata(&interpreted)?.permissions();
             if perms.readonly() {
                 perms.set_readonly(false);
-                std::fs::set_permissions(&interpreted, perms).map_err(|_| ())?;
+                std::fs::set_permissions(&interpreted, perms)?;
             }
         } else {
             for entry in walkdir::WalkDir::new(interpreted)
@@ -299,14 +301,14 @@ impl StrictPath {
                 .follow_links(false)
                 .into_iter()
                 .skip(1) // the base path itself
-                .filter_map(|e| e.ok())
+                .filter_map(crate::prelude::filter_map_walkdir)
                 .filter(|x| x.file_type().is_file())
             {
                 let file = &mut entry.path().display().to_string();
-                let mut perms = std::fs::metadata(&file).map_err(|_| ())?.permissions();
+                let mut perms = std::fs::metadata(&file)?.permissions();
                 if perms.readonly() {
                     perms.set_readonly(false);
-                    std::fs::set_permissions(&file, perms).map_err(|_| ())?;
+                    std::fs::set_permissions(&file, perms)?;
                 }
             }
         }

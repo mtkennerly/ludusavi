@@ -242,6 +242,7 @@ impl App {
         }
 
         self.operation_steps_active = 100.min(self.operation_steps.len());
+        log::info!("beginning backup with {} steps", self.progress.max);
         Command::batch(self.operation_steps.drain(..self.operation_steps_active))
     }
 
@@ -337,10 +338,12 @@ impl App {
         }
 
         self.operation_steps_active = 100.min(self.operation_steps.len());
+        log::info!("beginning restore with {} steps", self.progress.max);
         Command::batch(self.operation_steps.drain(..self.operation_steps_active))
     }
 
     fn complete_backup(&mut self, preview: bool, full: bool) {
+        log::info!("completed backup");
         let mut failed = false;
 
         if full {
@@ -376,6 +379,7 @@ impl App {
     }
 
     fn complete_restore(&mut self, full: bool) {
+        log::info!("completed restore");
         let mut failed = false;
 
         if full {
@@ -568,7 +572,14 @@ impl Application for App {
                 full,
             } => {
                 self.progress.current += 1.0;
+
                 if let Some(scan_info) = scan_info {
+                    log::trace!(
+                        "step {} / {}: {}",
+                        self.progress.current,
+                        self.progress.max,
+                        scan_info.game_name
+                    );
                     if scan_info.found_anything() {
                         let duplicates = self.backup_screen.duplicate_detector.add_game(&scan_info);
                         self.backup_screen.previewed_games.insert(scan_info.game_name.clone());
@@ -590,6 +601,13 @@ impl Application for App {
                         );
                         self.config.backup.recent_games.remove(&scan_info.game_name);
                     }
+                } else {
+                    log::trace!(
+                        "step {} / {}, awaiting {}",
+                        self.progress.current,
+                        self.progress.max,
+                        self.operation_steps_active
+                    );
                 }
 
                 match self.operation_steps.pop() {
@@ -610,7 +628,14 @@ impl Application for App {
                 full,
             } => {
                 self.progress.current += 1.0;
+
                 if let Some(scan_info) = scan_info {
+                    log::trace!(
+                        "step {} / {}: {}",
+                        self.progress.current,
+                        self.progress.max,
+                        scan_info.game_name
+                    );
                     if scan_info.found_anything() {
                         let duplicates = self.restore_screen.duplicate_detector.add_game(&scan_info);
                         self.restore_screen.log.update_game(
@@ -631,6 +656,13 @@ impl Application for App {
                         );
                         self.config.restore.recent_games.remove(&scan_info.game_name);
                     }
+                } else {
+                    log::trace!(
+                        "step {} / {}, awaiting {}",
+                        self.progress.current,
+                        self.progress.max,
+                        self.operation_steps_active
+                    );
                 }
 
                 match self.operation_steps.pop() {
