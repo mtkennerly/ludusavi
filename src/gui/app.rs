@@ -175,6 +175,8 @@ impl App {
             OngoingOperation::Backup
         });
 
+        log::info!("beginning backup with {} steps", self.progress.max);
+
         let config = std::sync::Arc::new(self.config.clone());
         let roots = std::sync::Arc::new(config.expanded_roots());
         let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone(), config.backup.retention.clone()));
@@ -242,7 +244,6 @@ impl App {
         }
 
         self.operation_steps_active = 100.min(self.operation_steps.len());
-        log::info!("beginning backup with {} steps", self.progress.max);
         Command::batch(self.operation_steps.drain(..self.operation_steps_active))
     }
 
@@ -301,6 +302,8 @@ impl App {
         self.progress.current = 0.0;
         self.progress.max = restorables.len() as f32;
 
+        log::info!("beginning restore with {} steps", self.progress.max);
+
         for name in restorables {
             let config = config.clone();
             let layout = layout.clone();
@@ -338,7 +341,6 @@ impl App {
         }
 
         self.operation_steps_active = 100.min(self.operation_steps.len());
-        log::info!("beginning restore with {} steps", self.progress.max);
         Command::batch(self.operation_steps.drain(..self.operation_steps_active))
     }
 

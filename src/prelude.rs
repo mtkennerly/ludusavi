@@ -573,6 +573,8 @@ impl InstallDirRanking {
     }
 
     fn scan_root(&mut self, root: &RootsConfig, manifest: &crate::manifest::Manifest, subjects: &[String]) {
+        log::debug!("ranking installations for {:?}: {}", root.store, root.path.raw());
+
         let install_parent = match root.store {
             Store::Steam => root.path.joined("steamapps/common"),
             _ => root.path.clone(),
@@ -604,24 +606,32 @@ impl InstallDirRanking {
 
                 let mut best: Option<(i64, &String)> = None;
                 'dirs: for expected_dir in expected_install_dirs {
+                    log::trace!("[{name}] looking for install dir: {expected_dir}");
                     let ideal = matcher.fuzzy_match(expected_dir, expected_dir);
                     for actual_dir in &actual_dirs {
                         let score = fuzzy_match(&matcher, expected_dir, actual_dir, &ideal);
                         if let Some(score) = score {
                             if let Some((previous, _)) = best {
                                 if score > previous {
+                                    log::trace!("[{name}] score {score} beats previous {previous}: {actual_dir}");
                                     best = Some((score, actual_dir));
                                 }
                             } else {
+                                log::trace!("[{name}] new score {score}: {actual_dir}");
                                 best = Some((score, actual_dir));
                             }
+                        } else {
+                            log::trace!("[{name}] irrelevant: {actual_dir}");
                         }
                         if score == Some(i64::MAX) {
                             break 'dirs;
                         }
                     }
                 }
-                best.map(|(score, subdir)| (score, name, subdir))
+                best.map(|(score, subdir)| {
+                    log::debug!("[{name}] selecting subdir with score {score}: {subdir}");
+                    (score, name, subdir)
+                })
             })
             .collect();
 

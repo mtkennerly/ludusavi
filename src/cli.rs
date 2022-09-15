@@ -717,13 +717,14 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             };
             subjects.sort();
 
+            log::info!("beginning backup with {} steps", subjects.len());
+
             let layout = BackupLayout::new(backup_dir.clone(), config.backup.retention.clone());
             let filter = config.backup.filter.clone();
             let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects);
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
 
-            log::info!("beginning backup with {} steps", subjects.len());
             let mut info: Vec<_> = subjects
                 .par_iter()
                 .enumerate()
@@ -884,6 +885,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             subjects.sort();
 
             log::info!("beginning restore with {} steps", subjects.len());
+
             let mut info: Vec<_> = subjects
                 .par_iter()
                 .enumerate()
