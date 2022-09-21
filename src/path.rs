@@ -277,14 +277,19 @@ impl StrictPath {
 
     #[cfg(not(target_os = "windows"))]
     pub fn split_drive(&self) -> (String, String) {
-        (
-            "".to_owned(),
-            if self.raw.starts_with('/') {
-                self.raw[1..].to_string()
-            } else {
-                self.raw.to_string()
-            },
-        )
+        if &self.raw[1..3] == ":/" {
+            // Needed for the cased that a ZIP was created on Windows but we restore via Linux
+            (self.raw[0..1].to_owned(), self.raw[3..].to_owned())
+        } else {
+            (
+                "".to_owned(),
+                if self.raw.starts_with('/') {
+                    self.raw[1..].to_string()
+                } else {
+                    self.raw.to_string()
+                },
+            )
+        }
     }
 
     pub fn unset_readonly(&self) -> Result<(), AnyError> {
@@ -834,6 +839,15 @@ mod tests {
         #[cfg(not(target_os = "windows"))]
         fn can_split_drive_for_nonwindows_path() {
             assert_eq!((s(""), s("foo/bar")), StrictPath::new(s("/foo/bar")).split_drive());
+        }
+
+        #[test]
+        #[cfg(not(target_os = "windows"))]
+        fn can_split_drive_for_windows_path_in_linux() {
+            assert_eq!(
+                (s("C"), s("Users/gamer/AppData")),
+                StrictPath::new(s("C:/Users/gamer/AppData")).split_drive()
+            );
         }
 
         #[test]
