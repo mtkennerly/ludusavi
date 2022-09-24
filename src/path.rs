@@ -255,36 +255,52 @@ impl StrictPath {
     /// only has to deal with paths that can occur on the host OS.
     #[cfg(target_os = "windows")]
     pub fn split_drive(&self) -> (String, String) {
-        let interpreted = self.interpret();
-
-        if let Some(stripped) = interpreted.strip_prefix(UNC_LOCAL_PREFIX) {
-            // Local UNC path - simplify to a classic drive for user-friendliness:
-            let split: Vec<_> = stripped.splitn(2, '\\').collect();
-            if split.len() == 2 {
-                return (split[0].to_owned(), split[1].replace('\\', "/"));
+        if &self.raw[0..1] == "/" && &self.raw[1..2] != "/" { // Needed when restoring Linux created backups on Windows
+            (
+                "".to_owned(),
+                if self.raw.starts_with('/') {
+                    self.raw[1..].to_string()
+                } else {
+                    self.raw.to_string()
+                },
+            )
+        } else {
+            let interpreted = self.interpret();
+    
+            if let Some(stripped) = interpreted.strip_prefix(UNC_LOCAL_PREFIX) {
+                // Local UNC path - simplify to a classic drive for user-friendliness:
+                let split: Vec<_> = stripped.splitn(2, '\\').collect();
+                if split.len() == 2 {
+                    return (split[0].to_owned(), split[1].replace('\\', "/"));
+                }
+            } else if let Some(stripped) = interpreted.strip_prefix(UNC_PREFIX) {
+                // Remote UNC path - can't simplify to classic drive:
+                let split: Vec<_> = stripped.splitn(2, '\\').collect();
+                if split.len() == 2 {
+                    return (format!("{}{}", UNC_PREFIX, split[0]), split[1].replace('\\', "/"));
+                }
             }
-        } else if let Some(stripped) = interpreted.strip_prefix(UNC_PREFIX) {
-            // Remote UNC path - can't simplify to classic drive:
-            let split: Vec<_> = stripped.splitn(2, '\\').collect();
-            if split.len() == 2 {
-                return (format!("{}{}", UNC_PREFIX, split[0]), split[1].replace('\\', "/"));
-            }
+    
+            // This shouldn't normally happen, but we have a fallback just in case.
+            ("".to_owned(), self.raw.replace('\\', "/"))
         }
-
-        // This shouldn't normally happen, but we have a fallback just in case.
-        ("".to_owned(), self.raw.replace('\\', "/"))
     }
 
     #[cfg(not(target_os = "windows"))]
     pub fn split_drive(&self) -> (String, String) {
-        (
-            "".to_owned(),
-            if self.raw.starts_with('/') {
-                self.raw[1..].to_string()
-            } else {
-                self.raw.to_string()
-            },
-        )
+        if &self.raw[1..3] == ":/" {
+            // Needed for the cased that a ZIP was created on Windows but we restore via Linux
+            (self.raw[0..1].to_owned(), self.raw[3..].to_owned())
+        } else {
+            (
+                "".to_owned(),
+                if self.raw.starts_with('/') {
+                    self.raw[1..].to_string()
+                } else {
+                    self.raw.to_string()
+                },
+            )
+        }
     }
 
     pub fn unset_readonly(&self) -> Result<(), AnyError> {
@@ -836,6 +852,24 @@ mod tests {
             assert_eq!((s(""), s("foo/bar")), StrictPath::new(s("/foo/bar")).split_drive());
         }
 
+        #[test]
+        #[cfg(target_os = "windows")]
+        fn can_split_drive_for_linux_path_in_windows() {
+            assert_eq!(
+                (s(""), s("Users/foo/AppData")),
+                StrictPath::new(s("/Users/foo/AppData")).split_drive()
+            );
+        }
+        
+        #[test]
+        #[cfg(not(target_os = "windows"))]
+        fn can_split_drive_for_windows_path_in_linux() {
+            assert_eq!(
+                (s("C"), s("Users/foo/AppData")),
+                StrictPath::new(s("C:/Users/foo/AppData")).split_drive()
+            );
+        }
+        
         #[test]
         fn is_prefix_of() {
             assert!(StrictPath::new(s("/")).is_prefix_of(&StrictPath::new(s("/foo"))));
