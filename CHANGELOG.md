@@ -17,6 +17,9 @@
     but in practice, it made little difference on Windows and would rarely be desired on other platforms,
     leading to confusion.
 * Fixed:
+  * When restoring a backup that was made on a different OS,
+    it could get stuck before completing the process.
+    ([Contributed by Hizoul](https://github.com/mtkennerly/ludusavi/pull/127))
   * GUI: Window now appears immediately and updates the manifest in the background,
     rather than waiting to show the window until the update is complete.
     If there is no local manifest at all, a loading screen is shown while downloading.
