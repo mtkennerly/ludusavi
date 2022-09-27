@@ -11,8 +11,8 @@ cli-unrecognized-games = Keine Informationen für diese Spiele:
 cli-confirm-restoration = Wollen Sie von { $path } wiederherstellen?
 cli-unable-to-request-confirmation = Bestätigung konnte nicht angefordert werden.
     .winpty-workaround = Wenn du einen Bash Emulator (wie Git Bash) verwendest, versuche winpty auszuführen.
-cli-backup-id-with-multiple-games = Cannot specify backup ID when restoring multiple games.
-cli-invalid-backup-id = Invalid backup ID.
+cli-backup-id-with-multiple-games = Sicherungs-ID kann nicht angegeben werden, wenn mehrere Spiele wiederhergestellt werden.
+cli-invalid-backup-id = Ungültige Sicherungs-ID.
 badge-failed = FEHLGESCHLAGEN
 badge-duplicates = DUPLIKATE
 badge-duplicated = DUPLIZIERT
@@ -39,7 +39,7 @@ button-select-all = Alle auswählen
 button-deselect-all = Alle abwählen
 button-enable-all = Alle aktivieren
 button-disable-all = Alle deaktivieren
-button-customize = Customize
+button-customize = Anpassen
 no-roots-are-configured = Fügen Sie einige Wurzeln hinzu, um noch mehr Daten zu sichern.
 config-is-invalid = Fehler: Die Konfigurationsdatei ist ungültig.
 manifest-is-invalid = Fehler: Die Manifest-Datei ist ungültig.
@@ -100,16 +100,9 @@ compression-none = Keiner
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
-theme = Theme
-theme-light = Light
-theme-dark = Dark
-explanation-for-exclude-other-os-data =
-    Ausschließen von Speicherorten, die nur auf einem anderen
-    Betriebssystem bestätigt wurden. Einige Spiele stellen immer Speicherstände an derselben Stelle, aber die
-    Standorte sind möglicherweise nur für ein anderes Betriebssystem bestätigt worden, also kann es
-    helfen, sie trotzdem zu überprüfen. Das Ausschließen dieser Daten kann helfen, ungültige Einträge zu vermeiden,
-    kann aber auch bedeuten, dass einige Speicherstände nicht mehr vorhanden sind. Unter Linux werden ungeachtet dieser Einstellung weiterhin Proton speicherstände
-    gesichert.
+theme = Aussehen
+theme-light = Hell
+theme-dark = Dunkel
 explanation-for-exclude-store-screenshots = Schließe Starterspezifische Bildschirmfotos in Sicherungen aus. Dies gilt momentan nur für { store-steam }-Bildschirmfotos. Wenn ein Spiel eine eigene Bildschirmfotofunktion hat, werden Bildschirmfotos unabhängig dieser Einstellung gesichert.
 consider-doing-a-preview =
     Falls du es noch nicht getan hast, erwäge zuerst eine Vorschau zu machen, damit
@@ -123,6 +116,7 @@ confirm-backup =
 confirm-restore =
     Sind Sie sicher, dass Sie die Wiederherstellung fortsetzen möchten?
     Dies überschreibt alle aktuellen Dateien mit den Sicherungen von hier:
-confirm-add-missing-roots = Diese Wurzel hinzufügen?
+confirm-add-missing-roots = Diese Wurzeln hinzufügen?
 no-missing-roots = Keine zusätzlichen Wurzeln gefunden.
 preparing-backup-target = Sicherungsverzeichnis wird vorbereitet...
+updating-manifest = Updating manifest...

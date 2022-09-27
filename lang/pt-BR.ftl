@@ -103,7 +103,6 @@ compression-zstd = Zstd
 theme = Tema
 theme-light = Claro
 theme-dark = Escuro
-explanation-for-exclude-other-os-data = Nos backups, exclui locais de salvamento que só foram confirmados em outro sistema operacional. Alguns jogos sempre colocam o saves no mesmo lugar, mas os locais podem ter sido confirmados apenas por um sistema operacional diferente, então pode ajudar a verificá-los mesmo assim. Excluir esses dados pode ajudar a evitar falsos positivos, mas também pode significar perder alguns saves. No Linux, os saves do Proton ainda serão salvos, independentemente dessa configuração.
 explanation-for-exclude-store-screenshots =
     Nos backups, exclui capturas de tela específicas de armazenamento. No momento, isso só se aplica
     às capturas de tela de { store-steam } que você tirou. Se um jogo tem sua própria função de captura de tela
@@ -124,3 +123,4 @@ confirm-restore =
 confirm-add-missing-roots = Adicionar estas origens?
 no-missing-roots = Nenhuma origem adicional encontrada.
 preparing-backup-target = Preparando o diretório de backup...
+updating-manifest = Updating manifest...

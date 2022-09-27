@@ -11,8 +11,8 @@ cli-unrecognized-games = Nessuna informazione per questi giochi:
 cli-confirm-restoration = Vuoi ripristinare da { $path }?
 cli-unable-to-request-confirmation = Impossibile richiedere conferma.
     .winpty-workaround = Se stai usando un emulatore Bash (come Git Bash), prova ad eseguire winpty.
-cli-backup-id-with-multiple-games = Cannot specify backup ID when restoring multiple games.
-cli-invalid-backup-id = Invalid backup ID.
+cli-backup-id-with-multiple-games = Impossibile specificare l'ID di backup quando si ripristinano più giochi.
+cli-invalid-backup-id = ID Backup invalido.
 badge-failed = FALLITO
 badge-duplicates = DUPLICATI
 badge-duplicated = DUPLICATO
@@ -39,7 +39,7 @@ button-select-all = Seleziona tutto
 button-deselect-all = Deseleziona tutto
 button-enable-all = Attiva tutto
 button-disable-all = Disattiva tutto
-button-customize = Customize
+button-customize = Personalizza
 no-roots-are-configured = Aggiungi alcune radici per eseguire il backup di ulteriori dati.
 config-is-invalid = Errore: File di configurazione non valido.
 manifest-is-invalid = Errore: File manifest non valido.
@@ -103,13 +103,6 @@ compression-zstd = Zstd
 theme = Tema
 theme-light = Chiaro
 theme-dark = Scuro
-explanation-for-exclude-other-os-data =
-    Nei backup, escludere le posizioni di salvataggio che sono state confermate solo su un altro
-    sistema operativo. Alcuni giochi mettono sempre i salvataggi nello stesso posto, ma le
-    posizioni possono essere state confermate solo per un sistema operativo diverso, così può aiutare
-    a controllarli comunque. Escludere che i dati possono aiutare a evitare falsi positivi,
-    ma può anche significare perdere alcuni salvataggi. Su Linux, i salvataggi di Proton saranno
-    ancora salvati indipendentemente da questa impostazione.
 explanation-for-exclude-store-screenshots =
     Nei backup, escludi screenshot specifici dello store. In questo momento, questo si applica solo
     agli screenshot { store-steam } che hai fatto. Se un gioco ha la propria funzionalità screenshot integrata, questa impostazione non influirà sul backup di questi
@@ -129,3 +122,4 @@ confirm-restore =
 confirm-add-missing-roots = Aggiungere queste radici?
 no-missing-roots = Nessuna radice aggiuntiva trovata.
 preparing-backup-target = Preparazione directory di backup...
+updating-manifest = Aggiornamento manifest...

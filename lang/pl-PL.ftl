@@ -11,8 +11,8 @@ cli-unrecognized-games = Brak informacji dla tych gier:
 cli-confirm-restoration = Czy chcesz przywrócić z { $path }?
 cli-unable-to-request-confirmation = Błąd żądania potwierdzenia.
     .winpty-workaround = Jeśli korzystasz z emulatora Bash (takiego jak Git Bash), spróbuj uruchomić winpty.
-cli-backup-id-with-multiple-games = Cannot specify backup ID when restoring multiple games.
-cli-invalid-backup-id = Invalid backup ID.
+cli-backup-id-with-multiple-games = Nie można określić identyfikatora kopii zapasowej podczas przywracania wielu gier.
+cli-invalid-backup-id = Nieprawidłowy identyfikator kopii zapasowej.
 badge-failed = NIEPOWODZENIE
 badge-duplicates = DUPLIKATY
 badge-duplicated = ZDUPLIKOWANE
@@ -72,15 +72,15 @@ field-redirect-source =
     .placeholder = Źródło (oryginalna lokalizacja)
 field-redirect-target =
     .placeholder = Cel (nowa lokalizacja)
-field-backup-excluded-items = Backup exclusions:
+field-backup-excluded-items = Wykluczenia kopii zapasowych:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
-field-retention-full = Full:
+field-retention-full = Pełne:
 # This appears next to the number of differential backups that you'd like to keep.
 # A differential backup includes only the files that have changed since the last full backup.
-field-retention-differential = Differential:
+field-retention-differential = Różnicowe:
 field-backup-format = Format:
-field-backup-compression = Compression:
+field-backup-compression = Kompresja:
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -92,18 +92,17 @@ store-uplay = Uplay
 store-other-home = Folder główny
 store-other-wine = Prefiks Wine
 store-other = Pozostałe
-sort-reversed = Reversed
-backup-format-simple = Simple
+sort-reversed = Odwrotne
+backup-format-simple = Prosty
 backup-format-zip = Zip
-compression-none = None
+compression-none = Brak
 # "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
-theme = Theme
-theme-light = Light
-theme-dark = Dark
-explanation-for-exclude-other-os-data = Nie zawieraj w kopiach zapasowych lokalizacji zapisów, które zostały sprawdzone tylko na innym systemie. Niektóre gry zawsze umieszczają zapisy w tym samym miejscu, ale lokalizacje mogą być sprawdzane tylko dla innego systemu operacyjnego, więc możesz je sprawdzić mimo wszystko. Wykluczenie tych danych może pomóc uniknąć fałszywego wykrycia zagrożeń, ale może również wykluczyć niektóre zapisy. W systemach Linux, zapisy Proton będą nadal kopiowane bez względu na to ustawienie.
+theme = Motyw
+theme-light = Jasny
+theme-dark = Ciemny
 explanation-for-exclude-store-screenshots = Nie zawieraj w kopiach zapasowych zrzutów ekranu dla konkretnego sklepu. Obecnie ma to tylko zastosowanie do zrzutów ekranu ze { store-steam }. Jeśli gra ma swoją własną funkcję zrzutów ekranu, to ustawienie nie będzie mieć wpływu na ich kopiowanie.
 consider-doing-a-preview = Jeśli jeszcze tego nie zrobiono, rozważ wykonanie pierwszego testu, aby zobaczyć, czy wszystko działa.
 confirm-backup =
@@ -117,4 +116,5 @@ confirm-restore =
     Jakiekolwiek bieżące pliki z kopią zapasową zostaną zastąpione:
 confirm-add-missing-roots = Czy to są katalogi główne?
 no-missing-roots = Nie znaleziono więcej katalogów głównych.
-preparing-backup-target = Preparing backup directory...
+preparing-backup-target = Przygotowywanie katalogu kopii zapasowej...
+updating-manifest = Aktualizowanie manifestu...

@@ -83,17 +83,17 @@ impl Language {
 impl ToString for Language {
     fn to_string(&self) -> String {
         match self {
-            Self::Arabic => "العربية (40%)",
-            Self::ChineseSimplified => "中文（简体） (57%)",
+            Self::Arabic => "العربية (47%)",
+            Self::ChineseSimplified => "中文（简体） (66%)",
             Self::English => "English",
-            Self::Esperanto => "Esperanto (22%)",
-            Self::Filipino => "Filipino (68%)",
-            Self::German => "Deutsch (96%)",
-            Self::Italian => "Italiano (97%)",
-            Self::Korean => "한국어 (45%)",
-            Self::Polish => "Polski (93%)",
-            Self::PortugueseBrazilian => "Português brasileiro (97%)",
-            Self::Spanish => "Español (91%)",
+            Self::Esperanto => "Esperanto (26%)",
+            Self::Filipino => "Filipino (63%)",
+            Self::German => "Deutsch (99%)",
+            Self::Italian => "Italiano (100%)",
+            Self::Korean => "한국어 (52%)",
+            Self::Polish => "Polski (99%)",
+            Self::PortugueseBrazilian => "Português brasileiro (96%)",
+            Self::Spanish => "Español (89%)",
         }
         .to_string()
     }

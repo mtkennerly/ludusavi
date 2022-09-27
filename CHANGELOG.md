@@ -1,4 +1,4 @@
-## Unreleased
+## v0.13.0 (2022-09-28)
 
 * Added:
   * File-based logging in the same directory with the config and manifest files.
@@ -11,6 +11,8 @@
     * `C:/Program Files (x86)`
     * `C:/ProgramData`
     * `C:/Windows`
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Changed:
   * Removed the option to "exclude save locations that have only been confirmed on another operating system"
     (config key: `excludeOtherOsData`). This was primarily meant as an optimization for Windows users,

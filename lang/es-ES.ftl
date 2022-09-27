@@ -103,11 +103,6 @@ compression-zstd = Zstd
 theme = Theme
 theme-light = Light
 theme-dark = Dark
-explanation-for-exclude-other-os-data =
-    En las copias de seguridad, excluye las ubicaciones de guardado que sólo han sido confirmadas en otro
-    sistema operativo. Algunos juegos siempre colocan las partidas guardadas en el mismo lugar, pero las
-    pero las ubicaciones pueden haber sido confirmadas sólo para un sistema operativo diferente, por lo que puede ayudar comprobarlas de todos modos. Excluir esos datos puede ayudar a evitar falsos positivos,
-    pero también puede significar perder algunos datos de guardado. En Linux, las copias de seguridad de Proton se guardan independientemente de esta configuración.
 explanation-for-exclude-store-screenshots =
     En las copias de seguridad, excluye las capturas de pantalla específicas de la tienda. En este momento, esto sólo se aplica a las capturas de pantalla { store-steam } que has tomado. Si un juego tiene su propia funcionalidad de funcionalidad de capturas de pantalla, este ajuste no afectará a si esas
     capturas de pantalla son respaldadas.
@@ -126,3 +121,4 @@ confirm-restore =
 confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 preparing-backup-target = Preparing backup directory...
+updating-manifest = Updating manifest...
