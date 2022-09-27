@@ -255,7 +255,8 @@ impl StrictPath {
     /// only has to deal with paths that can occur on the host OS.
     #[cfg(target_os = "windows")]
     pub fn split_drive(&self) -> (String, String) {
-        if &self.raw[0..1] == "/" && &self.raw[1..2] != "/" { // Needed when restoring Linux created backups on Windows
+        if &self.raw[0..1] == "/" && &self.raw[1..2] != "/" {
+            // Needed when restoring Linux created backups on Windows
             (
                 "".to_owned(),
                 if self.raw.starts_with('/') {
@@ -266,7 +267,7 @@ impl StrictPath {
             )
         } else {
             let interpreted = self.interpret();
-    
+
             if let Some(stripped) = interpreted.strip_prefix(UNC_LOCAL_PREFIX) {
                 // Local UNC path - simplify to a classic drive for user-friendliness:
                 let split: Vec<_> = stripped.splitn(2, '\\').collect();
@@ -280,7 +281,7 @@ impl StrictPath {
                     return (format!("{}{}", UNC_PREFIX, split[0]), split[1].replace('\\', "/"));
                 }
             }
-    
+
             // This shouldn't normally happen, but we have a fallback just in case.
             ("".to_owned(), self.raw.replace('\\', "/"))
         }
@@ -860,7 +861,7 @@ mod tests {
                 StrictPath::new(s("/Users/foo/AppData")).split_drive()
             );
         }
-        
+
         #[test]
         #[cfg(not(target_os = "windows"))]
         fn can_split_drive_for_windows_path_in_linux() {
@@ -869,7 +870,7 @@ mod tests {
                 StrictPath::new(s("C:/Users/foo/AppData")).split_drive()
             );
         }
-        
+
         #[test]
         fn is_prefix_of() {
             assert!(StrictPath::new(s("/")).is_prefix_of(&StrictPath::new(s("/foo"))));
