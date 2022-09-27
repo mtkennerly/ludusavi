@@ -365,10 +365,6 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   * `merge` (optional, boolean): Whether to merge save data into the target
     directory rather than deleting the directory first. Default: true.
   * `filter` (optional, map):
-    * `excludeOtherOsData` (optional, boolean): If true, then the backup should
-      exclude any files that have only been confirmed for a different operating
-      system than the one you're using. On Linux, Proton saves will still be
-      backed up regardless of this setting. Default: false.
     * `excludeStoreScreenshots` (optional, boolean): If true, then the backup
       should exclude screenshots from stores like Steam. Default: false.
     * `ignoredPaths` (list of strings): Globally ignored paths.
