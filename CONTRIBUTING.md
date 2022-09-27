@@ -74,3 +74,4 @@ invoke prerelease
   including the `releases` section and the screenshot URL.
 * Update the translation percentages in src/lang.rs
 * Run `cargo build` to update the version in Cargo.lock
+* Add the new version to `.github/ISSUE_TEMPLATE/*.yaml`.

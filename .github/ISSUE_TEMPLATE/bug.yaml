@@ -1,0 +1,53 @@
+name: Problem
+description: Report a problem.
+labels: ["bug"]
+body:
+  - type: dropdown
+    attributes:
+      label: Ludusavi version
+      description: If you're not using the latest version, please update and make sure the problem still occurs.
+      options:
+        - v0.13.0
+        - v0.12.1
+        - v0.12.0
+        - v0.11.0
+        - v0.10.0
+        - Older
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Operating system
+      options:
+        - Windows
+        - Mac
+        - Linux
+        - Linux (Steam Deck)
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: Installation method
+      options:
+        - Standalone
+        - Cargo
+        - Flatpak
+        - Scoop
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: Description
+      description: What happened?
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: |
+        Please provide any relevant screenshots, CLI output, or log files.
+        Refer to the documentation to
+        [find your config file](https://github.com/mtkennerly/ludusavi/#configuration)
+        and/or [enable verbose logging](https://github.com/mtkennerly/ludusavi/#logging).
