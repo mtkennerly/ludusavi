@@ -46,7 +46,7 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: |
+      description: >-
         Please provide any relevant screenshots, CLI output, or log files.
         Refer to the documentation to
         [find your config file](https://github.com/mtkennerly/ludusavi/#configuration)

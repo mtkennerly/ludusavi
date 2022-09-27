@@ -1,0 +1,9 @@
+name: Feature
+description: Suggest a new feature or change.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    attributes:
+      label: What's your idea?
+    validations:
+      required: true
