@@ -91,169 +91,156 @@ If you are on Mac:
   specifically the section on `How to open an app [...] from an unidentified developer`.
 
 ## Usage
-### GUI
-#### Backup mode
-<details>
-<summary>Click to expand</summary>
+### Roots
+Roots are folders that Ludusavi can check for additional game data. When you
+first run Ludusavi, it will try to find some common roots on your system, but
+you may end up without any configured. You can click `add root` to configure
+as many as you need, along with the root's type:
 
-* This is the default mode when you open the program.
-* You can press `preview` to see what the backup will include,
-  without actually performing it.
+* For a Steam root, this should be the folder containing the `steamapps` and
+  `userdata` subdirectories. Here are some common/standard locations:
+  * Windows: `C:/Program Files (x86)/Steam`
+  * Linux: `~/.steam/steam`
+* For the "other" root type and the remaining store-specific roots,
+  this should be a folder whose direct children are individual games.
+  For example, in the Epic Games store, this would be what you choose as the
+  "install location" for your games (e.g., if you choose `D:/Epic` and it
+  creates a subfolder for `D:/Epic/Celeste`, then the root would be `D:/Epic`).
+* For a home folder root, you may specify any folder. Whenever Ludusavi
+  normally checks your standard home folder (Windows: `%USERPROFILE%`,
+  Linux/Mac: `~`), it will additionally check this root. This is useful if
+  you set a custom `HOME` to manipulate the location of save data.
+* For a Wine prefix root, this should be the folder containing `drive_c`.
+  Currently, Ludusavi does not back up registry-based saves from the prefix,
+  but will back up any file-based saves.
 
-  If you do a preview, then Ludusavi will use that list of games for the next
-  backup, so that the next backup doesn't have to do another full scan.
-  It will also remember these games the next time you open the program
-  so that you can selectively preview just a few of them, if you like,
-  before or instead of running a full scan.
-* The gear icon will reveal some additional options:
+You may use globs in root paths to identify multiple roots at once.
 
-  * You can set a number of full and differential backups to keep.
-    For example, if you set 2 full and 2 differential, then the first backup
-    for a game will be a full, and then the next two backups will be differential.
-    That repeats for the next three backups. When a third full backup is made,
-    the first full backup and its two associated differentials are deleted.
-  * You can enable compressed zip backups instead of plain files/folders.
-* You can press `back up` to perform the backup for real.
-  * If you've disabled the merge option, then the target folder will be
-    deleted first if it exists, then recreated.
-  * Within the target folder, for every game with data to back up, a subfolder
-    will be created based on the game's name, where some invalid characters are
-    replaced by `_`. In rare cases, if the whole name is invalid characters,
-    then it will be renamed to `ludusavi-renamed-<ENCODED_NAME>`.
-  * Within each game's subfolder, there will be a `mapping.yaml` file that
-    Ludusavi needs to identify the game.
+### Backup retention
+You can configure how many backups to keep by pressing the gear icon on the backup screen.
 
-    When using the simple backup format, there will be some drive folders
-    (e.g., `drive-C` on Windows or `drive-0` on Linux and Mac) containing the
-    backup files, matching the normal file locations on your computer.
-    When using the zip backup format, there will be zip files instead.
-  * If the game has save data in the registry and you are using Windows, then
-    the game's subfolder will also contain a `registry.yaml` file (or it will
-    be placed in each backup's zip file).
-    If you are using Steam and Proton instead of Windows, then the Proton `*.reg`
-    files will be backed up along with the other game files instead.
-* Roots are folders that Ludusavi can check for additional game data. When you
-  first run Ludusavi, it will try to find some common roots on your system, but
-  you may end up without any configured. You can click `add root` to configure
-  as many as you need, along with the root's type:
-  * For a Steam root, this should be the folder containing the `steamapps` and
-    `userdata` subdirectories. Here are some common/standard locations:
-    * Windows: `C:/Program Files (x86)/Steam`
-    * Linux: `~/.steam/steam`
-  * For the "other" root type and the remaining store-specific roots,
-    this should be a folder whose direct children are individual games.
-    For example, in the Epic Games store, this would be what you choose as the
-    "install location" for your games (e.g., if you choose `D:/Epic` and it
-    creates a subfolder for `D:/Epic/Celeste`, then the root would be `D:/Epic`).
-  * For a home folder root, you may specify any folder. Whenever Ludusavi
-    normally checks your standard home folder (Windows: `%USERPROFILE%`,
-    Linux/Mac: `~`), it will additionally check this root. This is useful if
-    you set a custom `HOME` to manipulate the location of save data.
-  * For a Wine prefix root, this should be the folder containing `drive_c`.
-    Currently, Ludusavi does not back up registry-based saves from the prefix,
-    but will back up any file-based saves.
+A differential backup contains just the changed files since the last full backup,
+and differential backup retention is tied to the associated full backup as well.
 
-  You may use globs in root paths to identify multiple roots at once.
-* To select/deselect specific games, you can run a preview, then click the
-  checkboxes by each game. You can also press the `deselect all` button
-  (when all games are selected) or the `select all` button (when at least
-  one game is deselected) to quickly toggle all of them at once.
-  Ludusavi will remember your most recent checkbox settings.
-* Next to each game's name is a menu with actions to perform on it.
-  You can also use keyboard shortcuts to replace the menu with some
-  specific action shortcuts:
+If you configure 2 full and 2 differential, then Ludusavi will create 2 differential backups
+for each full backup, like so:
 
-  * preview: shift
-  * backup/restore: ctrl (Mac: cmd)
-  * backup/restore without confirmation: ctrl + alt (Mac: cmd + option)
-* You can click the search icon and enter some text to just see games with
-  matching names. Note that this only affects which games you see in the list,
-  but Ludusavi will still back up the full set of games. This also provides
-  some sorting options.
-* You may see a "duplicates" badge next to some games. This means that some of
-  the same files were also backed up for another game. That could be intentional
-  (e.g., an HD remaster may reuse the original save locations), but it could
-  also be a sign of an issue in the manifest data. You can expand the game's
-  file list to see which exact entries are duplicated.
+* Backup #1: full
+  * Backup #2: differential
+  * Backup #3: differential
+* Backup #4: full
+  * Backup #5: differential
+  * Backup #6: differential
 
-</details>
+When backup #7 is created, because the full retention is set to 2,
+Ludusavi will delete backups 1 through 3.
 
-#### Restore mode
-<details>
-<summary>Click to expand</summary>
+### Selective scanning
+Once you've done at least one full scan (via the preview/backup buttons),
+Ludusavi will remember the games it found and show them to you the next time you run the program.
+That way, you can selectively preview or back up a single game without doing a full scan.
+Use the three-dot menu next to each game's title to operate on just that one game.
 
-* Switch to restore mode by clicking the `restore mode` button.
-* You can press `preview` to see what the restore will include,
-  without actually performing it.
-* You can press `restore` to perform the restore for real.
-  * For each subfolder in the source directory, Ludusavi looks for a `mapping.yaml`
-    file in order to identify each game. Subfolders without that file, or with an
-    invalid one, are ignored.
-  * All files from the drive folders (or zips) are copied back to their original locations
-    on the respective drive. Any necessary parent directories will be created
-    as well before the copy, but if the directories already exist, then their
-    current files will be left alone (other than overwriting the ones that are
-    being restored from the backup).
-  * If the backup includes a `registry.yaml` file, then the Windows registry
-    data will be restored as well.
-* You can use redirects to restore to a different location than the original file.
-  Click `add redirect`, and then enter both the old and new location. For example,
-  if you backed up some saves from `C:/Games`, but then you moved it to `D:/Games`,
-  then you would put `C:/Games` as the source and `D:/Games` as the target.
+You can also use keyboard shortcuts to swap the three-dot menu with some specific buttons:
 
-  Tip: As you're editing your redirects, try running a preview and expanding some
-  games' file lists. This will show you in real time what effect your redirects
-  will have when you perform the restore for real.
-* You can select/deselect specific games in restore mode just like you can in
-  backup mode. The checkbox settings are remembered separately for both modes.
-* You can click the search icon and enter some text to just see games with
-  matching names. Note that this only affects which games you see in the list,
-  but Ludusavi will still restore the full set of games.
+* preview: shift
+* backup/restore: ctrl (Mac: cmd)
+* backup/restore without confirmation: ctrl + alt (Mac: cmd + option)
 
-</details>
+### Backup structure
+* Within the target folder, for every game with data to back up, a subfolder
+  will be created based on the game's name, where some invalid characters are
+  replaced by `_`. In rare cases, if the whole name is invalid characters,
+  then it will be renamed to `ludusavi-renamed-<ENCODED_NAME>`.
+* Within each game's subfolder, there will be a `mapping.yaml` file that
+  Ludusavi needs to identify the game.
 
-#### Custom games
-<details>
-<summary>Click to expand</summary>
+  When using the simple backup format, there will be some drive folders
+  (e.g., `drive-C` on Windows or `drive-0` on Linux and Mac) containing the
+  backup files, matching the normal file locations on your computer.
+  When using the zip backup format, there will be zip files instead.
+* If the game has save data in the registry and you are using Windows, then
+  the game's subfolder will also contain a `registry.yaml` file (or it will
+  be placed in each backup's zip file).
+  If you are using Steam and Proton instead of Windows, then the Proton `*.reg`
+  files will be backed up along with the other game files instead.
 
-* Switch to this mode by clicking the `custom games` button.
-* You can click `add game` to add entries for as many games as you like.
-  Within each game's entry, you can click the plus icons to add paths
-  (files or directories) and registry keys.
-  * For paths, you can click the browse button to quickly select a folder.
-    The path can be a file too, but the browse button only lets you choose
-    folders at this time. You can just type in the file name afterwards.
-  * In addition to regular paths, you can also use
-    [globs](https://en.wikipedia.org/wiki/Glob_(programming))
-    (e.g., `C:/example/*.txt` selects all TXT files in that folder)
-    and the placeholders defined in the
-    [Ludusavi Manifest format](https://github.com/mtkennerly/ludusavi-manifest).
-* Make sure to give the game entry a name. Entries without names are ignored,
-  as are empty paths and empty registry keys.
+During a restore, Ludusavi only considers folders with a `mapping.yaml` file.
 
-  If the game name matches one from Ludusavi's primary data set, then your
-  custom entry will override it. This can be used to totally ignore a game
-  (just don't specify any paths or registry) or to customize what is included
-  in the backup.
+### Search
+You can click the search icon and enter some text to just see games with
+matching names. Note that this only affects which games you see in the list,
+but Ludusavi will still back up the full set of games.
 
-</details>
+Sorting options are also available while the search bar is open.
 
-#### Other settings
-* Switch to this screen by clicking the `other` button.
-* This screen contains some additional settings that are less commonly used.
-  * Backup exclusions let you set paths and registry keys to completely ignore
-    from all games. They will not be shown at all during backup scans.
+### Duplicates
+You may see a "duplicates" badge next to some games. This means that some of
+the same files were also backed up for another game. That could be intentional
+(e.g., an HD remaster may reuse the original save locations), but it could
+also be a sign of an issue in the manifest data. You can expand the game's
+file list to see which exact entries are duplicated.
 
-### CLI
-Run `ludusavi --help` for the full usage information.
+### Restoration redirect
+You can use redirects to restore to a different location than the original file.
+Click `add redirect` on the restore screen, and then enter both the old and new location.
+For example, if you backed up some saves from `C:/Games`, but then you moved it to `D:/Games`,
+then you would put `C:/Games` as the source and `D:/Games` as the target.
 
-#### API output
-<details>
-<summary>Click to expand</summary>
+Tip: As you're editing your redirects, try running a preview and expanding some
+games' file lists. This will show you in real time what effect your redirects
+will have when you perform the restore for real.
 
+### Custom games
+You can create your own game save definitions on the `custom games` screen.
+If the game name exactly matches a known game, then your custom entry will override it.
+
+For file paths, you can click the browse button to quickly select a folder.
+The path can be a file too, but the browse button only lets you choose
+folders at this time. You can just type in the file name afterwards.
+You can also use [globs](https://en.wikipedia.org/wiki/Glob_(programming))
+(e.g., `C:/example/*.txt` selects all TXT files in that folder)
+and the placeholders defined in the
+[Ludusavi Manifest format](https://github.com/mtkennerly/ludusavi-manifest).
+
+### Backup exclusions
+Backup exclusions let you set paths and registry keys to completely ignore
+from all games. They will not be shown at all during backup scans.
+
+Configure exclusions on the `other` screen.
+
+### Command line
+Run `ludusavi --help` for the full CLI usage information.
+
+### Configuration
+Ludusavi stores its configuration in the following locations:
+
+* Windows: `%APPDATA%/ludusavi`
+* Linux: `$XDG_CONFIG_HOME/ludusavi` or `~/.config/ludusavi`
+* Mac: `~/Library/Application Support/ludusavi`
+
+Alternatively, if you'd like Ludusavi to store its configuration in the same
+place as the executable, then simply create a file called `ludusavi.portable`
+in the directory that contains the executable file. You might want to do that
+if you're going to run Ludusavi from a flash drive on multiple computers.
+
+If you're using the GUI, then it will automatically update the config file
+as needed, so you don't need to worry about its content. However, if you're
+using the CLI exclusively, then you'll need to edit `config.yaml` yourself.
+
+Ludusavi also stores `manifest.yaml` (info on what to back up) here.
+You should not modify that file, because Ludusavi will overwrite your changes
+whenever it downloads a new copy.
+
+## Interfaces
+### CLI API
 CLI mode defaults to a human-readable format, but you can switch to a
-machine-readable JSON format with the `--api` flag. In that case, the output
-will have the following structure for the `backup`/`restore` commands:
+machine-readable JSON format with the `--api` flag.
+
+<details>
+<summary>Click to expand</summary>
+
+For the `backup`/`restore` commands:
 
 * `errors` (optional, map):
   * `someGamesFailed` (optional, boolean): Whether any games failed.
@@ -340,23 +327,8 @@ Example:
 
 </details>
 
-### Configuration
-Ludusavi stores its configuration in the following locations:
-
-* Windows: `%APPDATA%/ludusavi`
-* Linux: `$XDG_CONFIG_HOME/ludusavi` or `~/.config/ludusavi`
-* Mac: `~/Library/Application Support/ludusavi`
-
-Alternatively, if you'd like Ludusavi to store its configuration in the same
-place as the executable, then simply create a file called `ludusavi.portable`
-in the directory that contains the executable file. You might want to do that
-if you're going to run Ludusavi from a flash drive on multiple computers.
-
-If you're using the GUI, then it will automatically update the config file
-as needed, so you don't need to worry about its content. However, if you're
-using the CLI exclusively, then you'll need to edit `config.yaml` yourself.
-
-Here are the available settings (all are required unless otherwise noted):
+### Configuration file
+Here are the available settings in `config.yaml` (all are required unless otherwise noted):
 
 <details>
 <summary>Click to expand</summary>
@@ -444,10 +416,6 @@ restore:
 ```
 
 </details>
-
-Ludusavi also stores `manifest.yaml` (info on what to back up) here.
-You should not modify that file, because Ludusavi will overwrite your changes
-whenever it downloads a new copy.
 
 ## Comparison with other tools
 There are other excellent backup tools available, but not a singular
