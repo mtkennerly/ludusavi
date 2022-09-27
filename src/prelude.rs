@@ -555,8 +555,9 @@ impl InstallDirRanking {
             if candidate.0 == i64::MAX {
                 return Some(candidate.1.to_owned());
             }
-            for other in self.0.values() {
-                if other.0 > candidate.0 {
+            for ((other_root, other_game), (other_score, other_subdir)) in &self.0 {
+                if other_root == root && other_subdir == &candidate.1 && other_score > &candidate.0 {
+                    log::info!("[{name}] outranked by '{other_game}' for subdir '{other_subdir}'");
                     return None;
                 }
             }

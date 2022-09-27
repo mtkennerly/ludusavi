@@ -17,6 +17,9 @@
     but in practice, it made little difference on Windows and would rarely be desired on other platforms,
     leading to confusion.
 * Fixed:
+  * When looking for game install folders during a full scan,
+    Ludusavi did not recognize partial folder name matches.
+    ([Investigated by sluedecke][https://github.com/mtkennerly/ludusavi/issues/123])
   * When restoring a backup that was made on a different OS,
     it could get stuck before completing the process.
     ([Contributed by Hizoul](https://github.com/mtkennerly/ludusavi/pull/127))
