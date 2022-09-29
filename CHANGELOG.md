@@ -1,7 +1,8 @@
 ## Unreleased
 
 * Fixed:
-  * An extra console window appeared in GUI mode on Windows.
+  * In GUI mode on windows, an extra console window appeared.
+  * In CLI mode, when restoring with redirected paths, the original paths were not shown correctly.
 
 ## v0.13.0 (2022-09-28)
 

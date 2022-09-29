@@ -363,7 +363,7 @@ impl Translator {
     pub fn cli_game_line_item_redirected(&self, item: &str) -> String {
         let mut args = FluentArgs::new();
         args.set(PATH, item);
-        translate_args("cli-game-line-redirected-from", &args)
+        format!("    - {}", translate_args("cli-game-line-item-redirected", &args),)
     }
 
     pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {
