@@ -18,11 +18,10 @@ mod registry;
 #[cfg(test)]
 mod testing;
 
-fn main() {
-    // The logger must be assigned to a variable because we're using async logging.
-    // https://docs.rs/flexi_logger/0.23.1/flexi_logger/error_info/index.html#write
-    #[allow(unused)]
-    let logger = flexi_logger::Logger::try_with_env_or_str("ludusavi=warn")
+/// The logger must be assigned to a variable because we're using async logging.
+/// https://docs.rs/flexi_logger/0.23.1/flexi_logger/error_info/index.html#write
+fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLoggerError> {
+    flexi_logger::Logger::try_with_env_or_str("ludusavi=warn")
         .unwrap()
         .log_to_file(flexi_logger::FileSpec::default().directory(prelude::app_dir()))
         .write_mode(flexi_logger::WriteMode::Async)
@@ -32,8 +31,10 @@ fn main() {
             flexi_logger::Cleanup::KeepLogFiles(4),
         )
         .use_utc()
-        .start();
+        .start()
+}
 
+fn main() {
     prelude::migrate_legacy_config();
 
     let args = cli::parse_cli();
@@ -54,9 +55,17 @@ fn main() {
                     }
                 }
             }
+
+            // We must do this after detaching the console, or else it will still be present, somehow.
+            #[allow(unused)]
+            let logger = prepare_logging();
+
             gui::run_gui();
         }
         Some(sub) => {
+            #[allow(unused)]
+            let logger = prepare_logging();
+
             let api = sub.api();
             if let Err(e) = cli::run_cli(sub) {
                 let translator = crate::lang::Translator::default();

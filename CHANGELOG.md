@@ -1,3 +1,8 @@
+## Unreleased
+
+* Fixed:
+  * An extra console window appeared in GUI mode on Windows.
+
 ## v0.13.0 (2022-09-28)
 
 * Added:
