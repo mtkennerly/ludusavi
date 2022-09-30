@@ -98,25 +98,23 @@ pub enum Subcommand {
         #[clap(long)]
         preview: bool,
 
-        /// Directory in which to create the backup. The directory must not
-        /// already exist (unless you use --force), but it will be created if necessary.
-        /// When unset, this defaults to the value from Ludusavi's config file.
+        /// Directory in which to store the backup.
+        /// It will be created if it does not already exist.
+        /// When not specified, this defers to the config file.
         #[clap(long, parse(from_str = parse_strict_path))]
         path: Option<StrictPath>,
 
-        /// Delete the target directory if it already exists.
+        /// Don't ask for confirmation.
         #[clap(long)]
         force: bool,
 
         /// Merge into existing directory instead of deleting/recreating it.
-        /// Within the target directory, the subdirectories for individual
-        /// games will still be cleared out first, though.
-        /// When not specified, this defers to Ludusavi's config file.
+        /// When not specified, this defers to the config file.
         #[clap(long)]
         merge: bool,
 
         /// Don't merge; delete and recreate the target directory.
-        /// When not specified, this defers to Ludusavi's config file.
+        /// When not specified, this defers to the config file.
         #[clap(long, conflicts_with("merge"))]
         no_merge: bool,
 
@@ -147,7 +145,7 @@ pub enum Subcommand {
         api: bool,
 
         /// Sort the game list by different criteria.
-        /// When not specified, this defers to Ludusavi's config file.
+        /// When not specified, this defers to the config file.
         #[clap(long, possible_values = CliSort::ALL)]
         sort: Option<CliSort>,
 
@@ -161,8 +159,8 @@ pub enum Subcommand {
         #[clap(long)]
         preview: bool,
 
-        /// Directory containing a Ludusavi backup. When unset, this
-        /// defaults to the value from Ludusavi's config file.
+        /// Directory containing a Ludusavi backup.
+        /// When not specified, this defers to the config file.
         #[clap(long, parse(try_from_str = parse_existing_strict_path))]
         path: Option<StrictPath>,
 
@@ -203,7 +201,7 @@ pub enum Subcommand {
     #[clap(about = "Show backups")]
     Backups {
         /// Directory in which to find backups.
-        /// When unset, this defaults to the restore path from Ludusavi's config file.
+        /// When unset, this defaults to the restore path from the config file.
         #[clap(long, parse(from_str = parse_strict_path))]
         path: Option<StrictPath>,
 
@@ -647,21 +645,27 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             };
             let roots = config.expanded_roots();
 
-            if !preview {
-                if !force && !merge && backup_dir.exists() {
-                    return Err(crate::prelude::Error::CliBackupTargetExists { path: backup_dir });
-                } else if let Err(e) = prepare_backup_target(
-                    &backup_dir,
-                    if merge {
-                        true
-                    } else if no_merge {
-                        false
-                    } else {
-                        config.backup.merge
-                    },
-                ) {
-                    return Err(e);
+            let merge = if merge {
+                true
+            } else if no_merge {
+                false
+            } else {
+                config.backup.merge
+            };
+
+            if !preview && !force {
+                match dialoguer::Confirm::new()
+                    .with_prompt(translator.confirm_backup(&backup_dir, backup_dir.exists(), merge, false))
+                    .interact()
+                {
+                    Ok(true) => (),
+                    Ok(false) => return Ok(()),
+                    Err(_) => return Err(Error::CliUnableToRequestConfirmation),
                 }
+            }
+
+            if !preview {
+                prepare_backup_target(&backup_dir, merge)?;
             }
 
             let steam_ids_to_names = &manifest.map_steam_ids_to_names();
@@ -819,7 +823,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             if !preview && !force {
                 match dialoguer::Confirm::new()
-                    .with_prompt(translator.cli_confirm_restoration(&restore_dir))
+                    .with_prompt(translator.confirm_restore(&restore_dir, false))
                     .interact()
                 {
                     Ok(true) => (),

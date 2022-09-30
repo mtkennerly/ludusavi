@@ -213,7 +213,6 @@ impl Translator {
             Error::ConfigInvalid { why } => self.config_is_invalid(why),
             Error::ManifestInvalid { why } => self.manifest_is_invalid(why),
             Error::ManifestCannotBeUpdated => self.manifest_cannot_be_updated(),
-            Error::CliBackupTargetExists { path } => self.cli_backup_target_exists(path),
             Error::CliUnrecognizedGames { games } => self.cli_unrecognized_games(games),
             Error::CliUnableToRequestConfirmation => self.cli_unable_to_request_confirmation(),
             Error::CliBackupIdWithMultipleGames => self.cli_backup_id_with_multiple_games(),
@@ -228,22 +227,10 @@ impl Translator {
         }
     }
 
-    pub fn cli_backup_target_exists(&self, path: &StrictPath) -> String {
-        let mut args = FluentArgs::new();
-        args.set(PATH, path.render());
-        translate_args("cli-backup-target-already-exists", &args)
-    }
-
     pub fn cli_unrecognized_games(&self, games: &[String]) -> String {
         let prefix = translate("cli-unrecognized-games");
         let lines: Vec<_> = games.iter().map(|x| format!("  - {}", x)).collect();
         format!("{}\n{}", prefix, lines.join("\n"))
-    }
-
-    pub fn cli_confirm_restoration(&self, path: &StrictPath) -> String {
-        let mut args = FluentArgs::new();
-        args.set(PATH, path.render());
-        translate_args("cli-confirm-restoration", &args)
     }
 
     pub fn cli_unable_to_request_confirmation(&self) -> String {
@@ -696,7 +683,7 @@ impl Translator {
         translate("consider-doing-a-preview")
     }
 
-    pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool) -> String {
+    pub fn confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool, suggest: bool) -> String {
         let mut args = FluentArgs::new();
         args.set(
             PATH_ACTION,
@@ -706,20 +693,32 @@ impl Translator {
                 (true, true) => "merge",
             },
         );
-        format!(
-            "{}\n\n{}\n\n{}",
-            translate_args("confirm-backup", &args),
-            target.render(),
-            self.consider_doing_a_preview(),
-        )
+        let primary = translate_args("confirm-backup", &args);
+
+        if suggest {
+            format!(
+                "{}\n\n{}\n\n{}",
+                primary,
+                target.render(),
+                self.consider_doing_a_preview(),
+            )
+        } else {
+            format!("{}\n\n{}", primary, target.render(),)
+        }
     }
 
-    pub fn modal_confirm_restore(&self, source: &StrictPath) -> String {
-        format!(
-            "{}\n\n{}\n\n{}",
-            translate("confirm-restore"),
-            source.render(),
-            self.consider_doing_a_preview(),
-        )
+    pub fn confirm_restore(&self, source: &StrictPath, suggest: bool) -> String {
+        let primary = translate("confirm-restore");
+
+        if suggest {
+            format!(
+                "{}\n\n{}\n\n{}",
+                primary,
+                source.render(),
+                self.consider_doing_a_preview(),
+            )
+        } else {
+            format!("{}\n\n{}", primary, source.render(),)
+        }
     }
 }

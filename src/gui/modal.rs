@@ -41,10 +41,13 @@ impl ModalTheme {
     pub fn text(&self, config: &Config, translator: &Translator) -> String {
         match self {
             Self::Error { variant } => translator.handle_error(variant),
-            Self::ConfirmBackup { .. } => {
-                translator.modal_confirm_backup(&config.backup.path, config.backup.path.exists(), config.backup.merge)
-            }
-            Self::ConfirmRestore { .. } => translator.modal_confirm_restore(&config.restore.path),
+            Self::ConfirmBackup { .. } => translator.confirm_backup(
+                &config.backup.path,
+                config.backup.path.exists(),
+                config.backup.merge,
+                true,
+            ),
+            Self::ConfirmRestore { .. } => translator.confirm_restore(&config.restore.path, true),
             Self::NoMissingRoots => translator.no_missing_roots(),
             Self::ConfirmAddMissingRoots(missing) => translator.confirm_add_missing_roots(missing),
             Self::PreparingBackupDir => translator.preparing_backup_dir(),

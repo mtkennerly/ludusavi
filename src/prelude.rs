@@ -31,10 +31,7 @@ pub enum Error {
     #[error("The config file is invalid: {why:?}")]
     ConfigInvalid { why: String },
 
-    #[error("Target already exists")]
-    CliBackupTargetExists { path: StrictPath },
-
-    #[error("Target already exists")]
+    #[error("Unrecognized games: {games:?}")]
     CliUnrecognizedGames { games: Vec<String> },
 
     #[error("Unable to request confirmation")]

@@ -1,3 +1,15 @@
+## Unreleased
+
+* Fixed:
+  * CLI mode asked for confirmation when restoring, but backups behaved differently:
+
+    * If the target folder did not exist, then the backup would happen without confirmation.
+    * If it did exist, then the `--force` or `--merge` option had to be specified,
+      even if you already had merging enabled in your config.
+
+    Now, backups ask for confirmation unless you specify `--force` or `--preview`,
+    and the confirmation phrasing is aligned with GUI mode.
+
 ## v0.13.1 (2022-09-29)
 
 * Fixed:
