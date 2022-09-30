@@ -47,29 +47,18 @@ You can install Ludusavi one of these ways:
   on your system.
   **If you're unsure, choose this option.**
 
-* On Windows, you can use [Scoop](https://scoop.sh). To install, run:
+* On Windows, you can use [Scoop](https://scoop.sh).
 
-  ```
-  scoop bucket add extras
-  scoop install ludusavi
-  ```
-
-  To update, run:
-
-  ```
-  scoop update
-  scoop update ludusavi
-  ```
+  * To install: `scoop bucket add extras && scoop install ludusavi`
+  * To update: `scoop update && scoop update ludusavi`
 
 * For Linux, Ludusavi is available on [Flathub](https://flathub.org/apps/details/com.github.mtkennerly.ludusavi).
   Note that it has limited file system access by default (`~` and `/run/media`).
   If you'd like to enable broader access, [see here](https://github.com/flathub/com.github.mtkennerly.ludusavi/blob/master/README.md).
 
-* If you have [Rust](https://www.rust-lang.org), you can use Cargo. To install or update, run:
+* If you have [Rust](https://www.rust-lang.org), you can use Cargo.
 
-  ```
-  cargo install ludusavi
-  ```
+  * To install or update: `cargo install ludusavi`
 
   On Linux, this requires the following system packages, or their equivalents
   for your distribution:
@@ -217,6 +206,7 @@ Ludusavi stores its configuration in the following locations:
 
 * Windows: `%APPDATA%/ludusavi`
 * Linux: `$XDG_CONFIG_HOME/ludusavi` or `~/.config/ludusavi`
+  * Flatpak: `~/.var/app/com.github.mtkennerly.ludusavi/config/ludusavi`
 * Mac: `~/Library/Application Support/ludusavi`
 
 Alternatively, if you'd like Ludusavi to store its configuration in the same
