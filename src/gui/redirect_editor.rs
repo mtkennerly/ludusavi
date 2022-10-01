@@ -1,5 +1,5 @@
 use crate::{
-    config::Config,
+    config::{Config, RedirectKind},
     gui::{
         common::{BrowseSubject, EditAction, Message, RedirectEditActionField},
         icon::Icon,
@@ -9,17 +9,18 @@ use crate::{
     shortcuts::TextHistory,
 };
 
-use iced::{button, scrollable, text_input, Button, Container, Length, Row, Scrollable, Space, TextInput};
+use iced::{button, pick_list, text_input, Button, Column, Container, Length, PickList, Row, TextInput};
 
 #[derive(Default)]
 pub struct RedirectEditorRow {
-    button_state: button::State,
+    remove_button_state: button::State,
     pub source_text_state: text_input::State,
     pub source_text_history: TextHistory,
     source_browse_button_state: button::State,
     pub target_text_state: text_input::State,
     pub target_text_history: TextHistory,
     target_browse_button_state: button::State,
+    pick_list: pick_list::State<RedirectKind>,
 }
 
 impl RedirectEditorRow {
@@ -34,39 +35,27 @@ impl RedirectEditorRow {
 
 #[derive(Default)]
 pub struct RedirectEditor {
-    scroll: scrollable::State,
     pub rows: Vec<RedirectEditorRow>,
+    add_button_state: button::State,
 }
 
 impl RedirectEditor {
     pub fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
         let redirects = config.get_redirects();
-        if redirects.is_empty() {
-            return Container::new(Space::new(Length::Shrink, Length::Shrink));
-        }
 
-        Container::new({
-            self.rows.iter_mut().enumerate().fold(
-                Scrollable::new(&mut self.scroll)
-                    .width(Length::Fill)
-                    // TODO: https://github.com/iced-rs/iced/issues/1388
-                    .height(if config.restore.redirects.len() > 3 {
-                        Length::Units(100)
-                    } else {
-                        Length::Shrink
-                    })
-                    .max_height(100)
-                    .spacing(5)
-                    .style(style::Scrollable(config.theme)),
-                |parent: Scrollable<'_, Message>, (i, x)| {
+        let inner = Container::new({
+            self.rows
+                .iter_mut()
+                .enumerate()
+                .fold(Column::new().padding(5).spacing(4), |parent, (i, x)| {
                     parent.push(
                         Row::new()
-                            .padding([0, 20, 0, 20])
                             .spacing(20)
                             .push(
-                                Button::new(&mut x.button_state, Icon::RemoveCircle.as_text())
-                                    .on_press(Message::EditedRedirect(EditAction::Remove(i), None))
-                                    .style(style::Button::Negative(config.theme)),
+                                PickList::new(&mut x.pick_list, RedirectKind::ALL, Some(redirects[i].kind), move |v| {
+                                    Message::SelectedRedirectKind(i, v)
+                                })
+                                .style(style::PickList::Primary(config.theme)),
                             )
                             .push(
                                 TextInput::new(
@@ -109,10 +98,22 @@ impl RedirectEditor {
                                 Button::new(&mut x.target_browse_button_state, Icon::FolderOpen.as_text())
                                     .on_press(Message::BrowseDir(BrowseSubject::RedirectTarget(i)))
                                     .style(style::Button::Primary(config.theme)),
+                            )
+                            .push(
+                                Button::new(&mut x.remove_button_state, Icon::RemoveCircle.as_text())
+                                    .on_press(Message::EditedRedirect(EditAction::Remove(i), None))
+                                    .style(style::Button::Negative(config.theme)),
                             ),
                     )
-                },
-            )
+                })
+                .push(
+                    Button::new(&mut self.add_button_state, Icon::AddCircle.as_text())
+                        .on_press(Message::EditedRedirect(EditAction::Add, None))
+                        .style(style::Button::Primary(config.theme)),
+                )
         })
+        .style(style::Container::GameListEntry(config.theme));
+
+        Container::new(inner)
     }
 }

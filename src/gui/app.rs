@@ -762,10 +762,15 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::SelectedRedirectKind(index, kind) => {
+                self.config.redirects[index].kind = kind;
+                self.config.save();
+                Command::none()
+            }
             Message::EditedRedirect(action, field) => {
                 match action {
                     EditAction::Add => {
-                        self.restore_screen
+                        self.other_screen
                             .redirect_editor
                             .rows
                             .push(RedirectEditorRow::default());
@@ -773,22 +778,22 @@ impl Application for App {
                     }
                     EditAction::Change(index, value) => match field {
                         Some(RedirectEditActionField::Source) => {
-                            self.restore_screen.redirect_editor.rows[index]
+                            self.other_screen.redirect_editor.rows[index]
                                 .source_text_history
                                 .push(&value);
-                            self.config.restore.redirects[index].source.reset(value);
+                            self.config.redirects[index].source.reset(value);
                         }
                         Some(RedirectEditActionField::Target) => {
-                            self.restore_screen.redirect_editor.rows[index]
+                            self.other_screen.redirect_editor.rows[index]
                                 .target_text_history
                                 .push(&value);
-                            self.config.restore.redirects[index].target.reset(value);
+                            self.config.redirects[index].target.reset(value);
                         }
                         _ => {}
                     },
                     EditAction::Remove(index) => {
-                        self.restore_screen.redirect_editor.rows.remove(index);
-                        self.config.restore.redirects.remove(index);
+                        self.other_screen.redirect_editor.rows.remove(index);
+                        self.config.redirects.remove(index);
                     }
                 }
                 self.config.save();
@@ -1229,11 +1234,11 @@ impl Application for App {
                                         break;
                                     }
                                 }
-                                for (i, redirect) in self.restore_screen.redirect_editor.rows.iter_mut().enumerate() {
+                                for (i, redirect) in self.other_screen.redirect_editor.rows.iter_mut().enumerate() {
                                     if redirect.source_text_state.is_focused() {
                                         apply_shortcut_to_strict_path_field(
                                             &shortcut,
-                                            &mut self.config.restore.redirects[i].source,
+                                            &mut self.config.redirects[i].source,
                                             &mut redirect.source_text_history,
                                         );
                                         matched = true;
@@ -1242,7 +1247,7 @@ impl Application for App {
                                     if redirect.target_text_state.is_focused() {
                                         apply_shortcut_to_strict_path_field(
                                             &shortcut,
-                                            &mut self.config.restore.redirects[i].target,
+                                            &mut self.config.redirects[i].target,
                                             &mut redirect.target_text_history,
                                         );
                                         matched = true;

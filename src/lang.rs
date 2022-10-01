@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use unic_langid::LanguageIdentifier;
 
 use crate::{
-    config::{BackupFormat, SortKey, Theme, ZipCompression},
+    config::{BackupFormat, RedirectKind, SortKey, Theme, ZipCompression},
     manifest::Store,
     prelude::{Error, OperationStatus, OperationStepDecision, StrictPath},
 };
@@ -441,10 +441,6 @@ impl Translator {
         msg
     }
 
-    pub fn add_redirect_button(&self) -> String {
-        translate("button-add-redirect")
-    }
-
     pub fn add_game_button(&self) -> String {
         translate("button-add-game")
     }
@@ -639,6 +635,14 @@ impl Translator {
         })
     }
 
+    pub fn redirect_kind(&self, redirect: &RedirectKind) -> String {
+        match redirect {
+            RedirectKind::Backup => self.backup_button(),
+            RedirectKind::Restore => self.restore_button(),
+            RedirectKind::Bidirectional => translate("redirect-bidirectional"),
+        }
+    }
+
     pub fn redirect_source_placeholder(&self) -> String {
         translate("field-redirect-source.placeholder")
     }
@@ -661,6 +665,10 @@ impl Translator {
 
     pub fn ignored_items_label(&self) -> String {
         translate("field-backup-excluded-items")
+    }
+
+    pub fn redirects_label(&self) -> String {
+        translate("field-redirects")
     }
 
     pub fn full_retention(&self) -> String {

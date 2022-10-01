@@ -2,10 +2,9 @@ use crate::{
     config::Config,
     gui::{
         common::OngoingOperation,
-        common::{make_status_row, BrowseSubject, EditAction, Message, Screen},
+        common::{make_status_row, BrowseSubject, Message, Screen},
         game_list::GameList,
         icon::Icon,
-        redirect_editor::{RedirectEditor, RedirectEditorRow},
         style,
     },
     lang::Translator,
@@ -24,29 +23,19 @@ pub struct RestoreScreenComponent {
     pub log: GameList,
     start_button: button::State,
     preview_button: button::State,
-    add_redirect_button: button::State,
     select_all_button: button::State,
     toggle_search_button: button::State,
     pub restore_source_input: text_input::State,
     pub restore_source_history: TextHistory,
     restore_source_browse_button: button::State,
-    pub redirect_editor: RedirectEditor,
     pub duplicate_detector: DuplicateDetector,
 }
 
 impl RestoreScreenComponent {
     pub fn new(config: &Config) -> Self {
-        let mut redirect_editor = RedirectEditor::default();
-        for redirect in &config.get_redirects() {
-            redirect_editor
-                .rows
-                .push(RedirectEditorRow::new(&redirect.source.raw(), &redirect.target.raw()))
-        }
-
         Self {
             log: GameList::with_recent_games(true, config),
             restore_source_history: TextHistory::new(&config.backup.path.raw(), 100),
-            redirect_editor,
             ..Default::default()
         }
     }
@@ -114,16 +103,6 @@ impl RestoreScreenComponent {
                                 _ => style::Button::Disabled(config.theme),
                             }),
                         )
-                        .push(
-                            Button::new(
-                                &mut self.add_redirect_button,
-                                Text::new(translator.add_redirect_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::EditedRedirect(EditAction::Add, None))
-                            .width(Length::Units(150))
-                            .style(style::Button::Primary(config.theme)),
-                        )
                         .push({
                             let restoring = true;
                             Button::new(
@@ -183,7 +162,6 @@ impl RestoreScreenComponent {
                                 .style(style::Button::Primary(config.theme)),
                         ),
                 )
-                .push(self.redirect_editor.view(config, translator))
                 .push(
                     self.log
                         .view(true, translator, config, manifest, &self.duplicate_detector, operation),

@@ -79,6 +79,7 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Target (new location)
 field-backup-excluded-items = Backup exclusions:
+field-redirects = Redirects:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
 field-retention-full = Full:
@@ -114,6 +115,8 @@ compression-zstd = Zstd
 theme = Theme
 theme-light = Light
 theme-dark = Dark
+
+redirect-bidirectional = Bidirectional
 
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies
