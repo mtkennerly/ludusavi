@@ -1,4 +1,5 @@
 use crate::{
+    cache::Cache,
     config::Config,
     gui::{
         common::OngoingOperation,
@@ -32,9 +33,9 @@ pub struct RestoreScreenComponent {
 }
 
 impl RestoreScreenComponent {
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: &Config, cache: &Cache) -> Self {
         Self {
-            log: GameList::with_recent_games(true, config),
+            log: GameList::with_recent_games(true, config, cache),
             restore_source_history: TextHistory::new(&config.backup.path.raw(), 100),
             ..Default::default()
         }

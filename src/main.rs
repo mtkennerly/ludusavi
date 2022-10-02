@@ -1,5 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
+mod cache;
 mod cli;
 mod config;
 mod gui;
@@ -35,8 +36,6 @@ fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLo
 }
 
 fn main() {
-    prelude::migrate_legacy_config();
-
     let args = cli::parse_cli();
     match args.sub {
         None => {

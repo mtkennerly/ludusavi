@@ -1,4 +1,5 @@
 use crate::{
+    cache::Cache,
     config::{BackupFormat, Config, ZipCompression},
     gui::{
         common::*,
@@ -42,14 +43,14 @@ pub struct BackupScreenComponent {
 }
 
 impl BackupScreenComponent {
-    pub fn new(config: &Config) -> Self {
+    pub fn new(config: &Config, cache: &Cache) -> Self {
         let mut root_editor = RootEditor::default();
         for root in &config.roots {
             root_editor.rows.push(RootEditorRow::new(&root.path.raw()))
         }
 
         Self {
-            log: GameList::with_recent_games(false, config),
+            log: GameList::with_recent_games(false, config, cache),
             root_editor,
             backup_target_history: TextHistory::new(&config.backup.path.raw(), 100),
             ..Default::default()

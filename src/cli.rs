@@ -1,4 +1,5 @@
 use crate::{
+    cache::Cache,
     config::{Config, RedirectConfig, Sort, SortKey},
     lang::Translator,
     layout::BackupLayout,
@@ -600,6 +601,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
     let translator = Translator::default();
     let mut config = Config::load()?;
     translator.set_language(config.language);
+    Cache::load().migrated(&mut config);
     let mut failed = false;
     let mut duplicate_detector = DuplicateDetector::default();
 

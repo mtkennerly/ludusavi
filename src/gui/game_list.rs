@@ -1,6 +1,7 @@
 use std::collections::HashSet;
 
 use crate::{
+    cache::Cache,
     config::{Config, Sort, SortKey, ToggledPaths, ToggledRegistry},
     gui::{
         badge::Badge,
@@ -421,11 +422,11 @@ impl GameList {
         self.expanded_games.clear();
     }
 
-    pub fn with_recent_games(restoring: bool, config: &Config) -> Self {
+    pub fn with_recent_games(restoring: bool, config: &Config, cache: &Cache) -> Self {
         let games = if restoring {
-            &config.restore.recent_games
+            &cache.restore.recent_games
         } else {
-            &config.backup.recent_games
+            &cache.backup.recent_games
         };
         let sort = if restoring {
             &config.restore.sort

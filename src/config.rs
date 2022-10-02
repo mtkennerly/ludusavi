@@ -249,8 +249,9 @@ pub struct BackupConfig {
         serialize_with = "crate::serialization::ordered_set"
     )]
     pub ignored_games: std::collections::HashSet<String>,
-    #[serde(default, rename = "recentGames")]
-    pub recent_games: std::collections::BTreeSet<String>,
+    #[serde(default, rename = "recentGames", skip_serializing)]
+    #[deprecated(note = "use cache")]
+    pub recent_games: Vec<String>,
     #[serde(default = "crate::serialization::default_true")]
     pub merge: bool,
     #[serde(default)]
@@ -276,8 +277,9 @@ pub struct RestoreConfig {
         serialize_with = "crate::serialization::ordered_set"
     )]
     pub ignored_games: std::collections::HashSet<String>,
-    #[serde(default, rename = "recentGames")]
-    pub recent_games: std::collections::BTreeSet<String>,
+    #[serde(default, rename = "recentGames", skip_serializing)]
+    #[deprecated(note = "use cache")]
+    pub recent_games: Vec<String>,
     #[serde(default, skip_serializing)]
     #[deprecated(note = "use global redirect list instead")]
     pub redirects: Vec<RedirectConfig>,
@@ -307,10 +309,11 @@ impl Default for ManifestConfig {
 
 impl Default for BackupConfig {
     fn default() -> Self {
+        #[allow(deprecated)]
         Self {
             path: default_backup_dir(),
             ignored_games: std::collections::HashSet::new(),
-            recent_games: std::collections::BTreeSet::new(),
+            recent_games: vec![],
             merge: true,
             filter: BackupFilter::default(),
             toggled_paths: Default::default(),
@@ -328,7 +331,7 @@ impl Default for RestoreConfig {
         Self {
             path: default_backup_dir(),
             ignored_games: std::collections::HashSet::new(),
-            recent_games: std::collections::BTreeSet::new(),
+            recent_games: vec![],
             redirects: vec![],
             sort: Default::default(),
         }
@@ -360,8 +363,7 @@ impl Config {
     pub fn save(&self) {
         let new_content = serde_yaml::to_string(&self).unwrap();
 
-        if let Ok(old) = Self::load() {
-            let old_content = serde_yaml::to_string(&old).unwrap();
+        if let Ok(old_content) = Self::load_raw() {
             if old_content == new_content {
                 return;
             }
@@ -378,8 +380,12 @@ impl Config {
             starter.add_common_roots();
             return Ok(starter);
         }
-        let content = std::fs::read_to_string(Self::file()).unwrap();
+        let content = Self::load_raw().unwrap();
         Self::load_from_string(&content)
+    }
+
+    fn load_raw() -> Result<String, Box<dyn std::error::Error>> {
+        Ok(std::fs::read_to_string(Self::file())?)
     }
 
     pub fn load_from_string(content: &str) -> Result<Self, Error> {
@@ -1140,7 +1146,6 @@ backup:
     - Backup Game 1
     - Backup Game 2
     - Backup Game 3
-  recentGames: []
   merge: true
   filter:
     excludeStoreScreenshots: true
@@ -1164,7 +1169,6 @@ restore:
     - Restore Game 1
     - Restore Game 2
     - Restore Game 3
-  recentGames: []
   sort:
     key: name
     reversed: false

@@ -3,6 +3,9 @@
 * Added:
   * In addition to restoration redirects, there are now also backup redirects and bidirectional redirects.
     The redirect editor is now on the "other" screen instead of the "restore" screen.
+* Changed:
+  * Ludusavi will no longer migrate pre-v0.10.0 configurations to the current location.
+  * The recent game caching has been moved from `config.yaml` to a new `cache.yaml`.
 * Fixed:
   * CLI mode asked for confirmation when restoring, but backups behaved differently:
 
