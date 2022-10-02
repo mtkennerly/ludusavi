@@ -1,5 +1,8 @@
 ## Unreleased
 
+* Added:
+  * In addition to restoration redirects, there are now also backup redirects and bidirectional redirects.
+    The redirect editor is now on the "other" screen instead of the "restore" screen.
 * Fixed:
   * CLI mode asked for confirmation when restoring, but backups behaved differently:
 

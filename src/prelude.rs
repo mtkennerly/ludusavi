@@ -1,5 +1,5 @@
 use crate::{
-    config::{BackupFilter, BackupFormats, RedirectConfig, RootsConfig, ToggledPaths, ToggledRegistry},
+    config::{BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry},
     layout::{Backup, GameLayout},
     manifest::{Game, Os, Store},
 };
@@ -98,6 +98,13 @@ impl ScannedFile {
     pub fn ignored(mut self) -> Self {
         self.ignored = true;
         self
+    }
+
+    pub fn original_path(&self) -> &StrictPath {
+        match &self.original_path {
+            Some(x) => x,
+            None => &self.path,
+        }
     }
 }
 
@@ -200,6 +207,10 @@ impl ScanInfo {
     pub fn enabled_items(&self) -> usize {
         self.found_files.iter().filter(|x| !x.ignored).count()
             + self.found_registry_keys.iter().filter(|x| !x.ignored).count()
+    }
+
+    pub fn restoring(&self) -> bool {
+        self.backup.is_some()
     }
 }
 
@@ -308,18 +319,72 @@ pub fn migrate_legacy_config() {
     }
 }
 
-/// Returns the effective target and the original target (if different)
-pub fn game_file_restoration_target(
+#[derive(Clone, Debug, Default)]
+pub struct ResolvedRedirect {
+    pub original: StrictPath,
+    pub redirected: Option<StrictPath>,
+    pub restoring: bool,
+}
+
+impl ResolvedRedirect {
+    /// This is stored in the mapping file and used for operations.
+    pub fn effective(&self) -> &StrictPath {
+        self.redirected.as_ref().unwrap_or(&self.original)
+    }
+
+    /// This is the main path to show to the user.
+    pub fn readable(&self) -> String {
+        if self.restoring {
+            self.redirected.as_ref().unwrap_or(&self.original).render()
+        } else {
+            self.original.render()
+        }
+    }
+
+    /// This is shown in the GUI/CLI to annotate the `readable` path.
+    pub fn alt(&self) -> Option<&StrictPath> {
+        if self.restoring {
+            if self.redirected.is_some() {
+                Some(&self.original)
+            } else {
+                None
+            }
+        } else {
+            self.redirected.as_ref()
+        }
+    }
+
+    /// This is shown in the GUI/CLI to annotate the `readable` path.
+    pub fn alt_readable(&self) -> Option<String> {
+        self.alt().map(|x| x.render())
+    }
+}
+
+/// Returns the effective target, if different from the original
+pub fn game_file_target(
     original_target: &StrictPath,
     redirects: &[RedirectConfig],
-) -> (StrictPath, Option<StrictPath>) {
+    restoring: bool,
+) -> ResolvedRedirect {
     let mut redirected_target = original_target.render();
     for redirect in redirects {
         if redirect.source.raw().trim().is_empty() || redirect.target.raw().trim().is_empty() {
             continue;
         }
-        let source = redirect.source.render();
-        let target = redirect.target.render();
+        let (source, target) = if !restoring {
+            match redirect.kind {
+                RedirectKind::Backup | RedirectKind::Bidirectional => {
+                    (redirect.source.render(), redirect.target.render())
+                }
+                RedirectKind::Restore => continue,
+            }
+        } else {
+            match redirect.kind {
+                RedirectKind::Backup => continue,
+                RedirectKind::Restore => (redirect.source.render(), redirect.target.render()),
+                RedirectKind::Bidirectional => (redirect.target.render(), redirect.source.render()),
+            }
+        };
         if !source.is_empty() && !target.is_empty() && redirected_target.starts_with(&source) {
             redirected_target = redirected_target.replacen(&source, &target, 1);
         }
@@ -327,9 +392,17 @@ pub fn game_file_restoration_target(
 
     let redirected_target = StrictPath::new(redirected_target);
     if original_target.render() != redirected_target.render() {
-        (redirected_target, Some(original_target.clone()))
+        ResolvedRedirect {
+            original: original_target.clone(),
+            redirected: Some(redirected_target),
+            restoring,
+        }
     } else {
-        (original_target.clone(), None)
+        ResolvedRedirect {
+            original: original_target.clone(),
+            redirected: None,
+            restoring,
+        }
     }
 }
 
@@ -917,6 +990,7 @@ pub fn back_up_game(
     merge: bool,
     now: &chrono::DateTime<chrono::Utc>,
     format: &BackupFormats,
+    redirects: &[RedirectConfig],
 ) -> BackupInfo {
     log::trace!("[{}] preparing for backup", &info.game_name);
 
@@ -937,7 +1011,7 @@ pub fn back_up_game(
     };
 
     if able_to_prepare {
-        layout.back_up(info, now, format)
+        layout.back_up(info, now, format, redirects)
     } else {
         let mut backup_info = BackupInfo::default();
 

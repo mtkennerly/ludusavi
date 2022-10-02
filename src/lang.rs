@@ -309,6 +309,12 @@ impl Translator {
         translate_args("badge-redirected-from", &args)
     }
 
+    pub fn badge_redirecting_to(&self, path: &StrictPath) -> String {
+        let mut args = FluentArgs::new();
+        args.set(PATH, path.render());
+        translate_args("badge-redirecting-to", &args)
+    }
+
     pub fn cli_game_header(
         &self,
         name: &str,
@@ -351,6 +357,12 @@ impl Translator {
         let mut args = FluentArgs::new();
         args.set(PATH, item);
         format!("    - {}", translate_args("cli-game-line-item-redirected", &args),)
+    }
+
+    pub fn cli_game_line_item_redirecting(&self, item: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(PATH, item);
+        format!("    - {}", translate_args("cli-game-line-item-redirecting", &args),)
     }
 
     pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {

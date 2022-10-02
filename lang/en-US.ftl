@@ -19,10 +19,12 @@ badge-duplicates = DUPLICATES
 badge-duplicated = DUPLICATED
 badge-ignored = IGNORED
 badge-redirected-from = FROM: {$path}
+badge-redirecting-to = TO: {$path}
 
 some-entries-failed = Some entries failed to process; look for {badge-failed} in the output for details. Double check whether you can access those files or whether their paths are very long.
 
 cli-game-line-item-redirected = Redirected from: {$path}
+cli-game-line-item-redirecting = Redirecting to: {$path}
 
 button-backup = Back up
 button-preview = Preview

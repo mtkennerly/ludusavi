@@ -4,7 +4,7 @@ use crate::{
     layout::BackupLayout,
     manifest::{Manifest, SteamMetadata},
     prelude::{
-        app_dir, back_up_game, game_file_restoration_target, prepare_backup_target, scan_game_for_backup,
+        app_dir, back_up_game, game_file_target, prepare_backup_target, scan_game_for_backup,
         scan_game_for_restoration, BackupId, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus,
         OperationStepDecision, ScanInfo, StrictPath,
     },
@@ -266,6 +266,8 @@ struct ApiFile {
     bytes: u64,
     #[serde(rename = "originalPath", skip_serializing_if = "Option::is_none")]
     original_path: Option<String>,
+    #[serde(rename = "redirectedPath", skip_serializing_if = "Option::is_none")]
+    redirected_path: Option<String>,
     #[serde(
         rename = "duplicatedBy",
         serialize_with = "crate::serialization::ordered_set",
@@ -404,28 +406,25 @@ impl Reporter {
                     duplicate_detector.is_game_duplicated(scan_info),
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
-                    let mut redirected_from = None;
-                    let readable = if let Some(original_path) = &entry.original_path {
-                        let (target, original_target) = game_file_restoration_target(original_path, redirects);
-                        redirected_from = original_target;
-                        target
-                    } else {
-                        entry.path.to_owned()
-                    };
+                    let resolved = game_file_target(entry.original_path(), redirects, scan_info.restoring());
 
                     let entry_successful = !backup_info.failed_files.contains(entry);
                     if !entry_successful {
                         successful = false;
                     }
                     parts.push(translator.cli_game_line_item(
-                        &readable.render(),
+                        &resolved.readable(),
                         entry_successful,
                         entry.ignored,
                         duplicate_detector.is_file_duplicated(entry),
                     ));
 
-                    if let Some(redirected_from) = redirected_from {
-                        parts.push(translator.cli_game_line_item_redirected(&redirected_from.render()));
+                    if let Some(alt) = resolved.alt_readable() {
+                        if scan_info.restoring() {
+                            parts.push(translator.cli_game_line_item_redirected(&alt));
+                        } else {
+                            parts.push(translator.cli_game_line_item_redirecting(&alt));
+                        }
                     }
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
@@ -474,18 +473,19 @@ impl Reporter {
                         api_file.duplicated_by = duplicated_by;
                     }
 
-                    let readable = if let Some(original_path) = &entry.original_path {
-                        let (target, original_target) = game_file_restoration_target(original_path, redirects);
-                        api_file.original_path = original_target.map(|x| x.render());
-                        target
-                    } else {
-                        entry.path.to_owned()
-                    };
+                    let resolved = game_file_target(entry.original_path(), redirects, scan_info.restoring());
+                    if let Some(alt) = resolved.alt_readable() {
+                        if scan_info.restoring() {
+                            api_file.original_path = Some(alt);
+                        } else {
+                            api_file.redirected_path = Some(alt);
+                        }
+                    }
                     if api_file.failed {
                         successful = false;
                     }
 
-                    files.insert(readable.render(), api_file);
+                    files.insert(resolved.readable(), api_file);
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
                     let mut api_registry = ApiRegistry {
@@ -765,6 +765,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                             config.backup.merge,
                             &chrono::Utc::now(),
                             &config.backup.format,
+                            &config.redirects,
                         )
                     };
                     log::trace!("step {i} completed");
@@ -792,7 +793,14 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             for (name, scan_info, backup_info, decision) in info {
-                if !reporter.add_game(name, &scan_info, &backup_info, &decision, &[], &duplicate_detector) {
+                if !reporter.add_game(
+                    name,
+                    &scan_info,
+                    &backup_info,
+                    &decision,
+                    &config.redirects,
+                    &duplicate_detector,
+                ) {
                     failed = true;
                 }
             }
@@ -959,7 +967,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     &scan_info,
                     &backup_info,
                     &decision,
-                    &config.get_redirects(),
+                    &config.redirects,
                     &duplicate_detector,
                 ) {
                     failed = true;

@@ -227,6 +227,7 @@ impl App {
                             merge,
                             &chrono::Utc::now(),
                             &config.backup.format,
+                            &config.redirects,
                         ))
                     } else {
                         None
