@@ -4,7 +4,9 @@ use std::{
     time::SystemTime,
 };
 
-use chrono::{Datelike, Timelike};
+use filetime::FileTime;
+
+use chrono::{DateTime, Datelike, Timelike, Local};
 
 use crate::{
     config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
@@ -223,6 +225,7 @@ fn default_backup_list() -> VecDeque<FullBackup> {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(default)] // if mtime is missing in mapping file, use Default
 pub struct IndividualMappingFile {
     pub hash: String,
     pub size: u64,
@@ -234,7 +237,7 @@ impl Default for IndividualMappingFile {
         IndividualMappingFile {
             hash: String::default(),
             size: u64::default(),
-            mtime: SystemTime::UNIX_EPOCH,
+            mtime: SystemTime::now(),
         }
     }
 }
@@ -940,7 +943,7 @@ impl GameLayout {
                 relevant_files.push(target_file);
                 continue;
             }
-            // #132: SLX honor timestamps - once file is written (or collect them and do it once?)
+            // TODO #132: SLX honor timestamps - once file is written (or collect them and do it once?)
             if let Err(e) = target_file.create_parent_dir() {
                 log::error!(
                     "[{}] unable to create parent directories: {} -> {} | {e}",
@@ -951,7 +954,6 @@ impl GameLayout {
                 backup_info.failed_files.insert(file.clone());
                 continue;
             }
-            // #132: SLX honor timestamps - set timestamp of file based on ScanInfo
             if let Err(e) = std::fs::copy(&file.path.interpret(), &target_file.interpret()) {
                 log::error!(
                     "[{}] unable to copy: {} -> {} | {e}",
@@ -961,6 +963,16 @@ impl GameLayout {
                 );
                 backup_info.failed_files.insert(file.clone());
                 continue;
+            }
+            // DONE #132: SLX honor timestamps - set timestamp of file based on ScanInfo
+            if let Err(e) = filetime::set_file_mtime(target_file.interpret(), FileTime::from_system_time(file.mtime)) {
+                log::error!(
+                    "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
+                    self.mapping.name,
+                    file.path.raw(),
+                    target_file.raw(),
+                    file.mtime
+                );
             }
             log::info!(
                 "[{}] backed up: {} -> {}",
@@ -1032,8 +1044,18 @@ impl GameLayout {
             }
 
             let target_file_id = self.mapping.game_file_for_zip(&file.path);
-            // #132: SLX honor timestamps - in options last_modified_time
-            if let Err(e) = zip.start_file(&target_file_id, options) {
+            // DONE #132: SLX honor timestamps - in options last_modified_time
+            // TODO #132: convert SystemTime to DateTime - why are time calculations are ALWAYS problematic in ALL programming languages?
+            let mtime: DateTime<Local> = file.mtime.into();
+            let local_options = options.last_modified_time(zip::DateTime::from_date_and_time(
+                mtime.year() as u16,
+                mtime.month() as u8,
+                mtime.day() as u8,
+                mtime.hour() as u8,
+                mtime.minute() as u8,
+                mtime.second() as u8,
+            ).unwrap());
+            if let Err(e) = zip.start_file(&target_file_id, local_options) {
                 log::error!(
                     "[{}] unable to start zip file record: {} -> {} | {e}",
                     self.mapping.name,
@@ -1283,7 +1305,7 @@ impl GameLayout {
             return Ok(());
         }
 
-        // #132: SLX honor timestamps - stamp parent dir
+        // TODO #132: SLX honor timestamps - once file is written (or collect them and do it once?)
         target.create_parent_dir()?;
         for i in 0..99 {
             if let Err(e) = target.unset_readonly() {
@@ -1299,7 +1321,16 @@ impl GameLayout {
                     file.path.raw(),
                     target.raw()
                 );
-                // #132: SLX honor timestamps - set mtime after copy
+                // DONE #132: SLX honor timestamps - set timestamp of file based on ScanInfo
+                if let Err(e) = filetime::set_file_mtime(target.interpret(), FileTime::from_system_time(file.mtime)) {
+                    log::error!(
+                        "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
+                        self.mapping.name,
+                        file.path.raw(),
+                        target.raw(),
+                        file.mtime
+                    );
+                }
             } else {
                 log::info!(
                     "[{}] restored: {} -> {}",
@@ -1343,7 +1374,7 @@ impl GameLayout {
             return Ok(());
         }
 
-        // #132: SLX honor timestamps - after child file is written
+        // TODO #132: SLX honor timestamps - after child file is written
         target.create_parent_dir()?;
         for i in 0..99 {
             if i > 0 {
@@ -1371,7 +1402,6 @@ impl GameLayout {
                     continue;
                 }
             };
-            // #132: SLX honor timestamps - after copy
             if let Err(e) = std::io::copy(&mut archive.by_name(&file.path.raw())?, &mut target_handle) {
                 log::warn!(
                     "[{}] try {i}, failed to copy to target: {} -> {} | {e}",
@@ -1380,6 +1410,16 @@ impl GameLayout {
                     target.raw()
                 );
             } else {
+                // DONE #132: SLX honor timestamps - set timestamp of file based on ScanInfo
+                if let Err(e) = filetime::set_file_mtime(target.interpret(), FileTime::from_system_time(file.mtime)) {
+                    log::error!(
+                        "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
+                        self.mapping.name,
+                        file.path.raw(),
+                        target.raw(),
+                        file.mtime
+                    );
+                }
                 log::info!(
                     "[{}] restored: {} -> {}",
                     &self.mapping.name,

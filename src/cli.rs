@@ -1,5 +1,3 @@
-use std::time::SystemTime;
-
 use crate::{
     config::{Config, RedirectConfig, Sort, SortKey},
     lang::Translator,
