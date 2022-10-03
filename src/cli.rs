@@ -5,7 +5,7 @@ use crate::{
     layout::BackupLayout,
     manifest::{Manifest, SteamMetadata},
     prelude::{
-        app_dir, back_up_game, game_file_target, prepare_backup_target, scan_game_for_backup,
+        app_dir, back_up_game, game_file_target, normalize_title, prepare_backup_target, scan_game_for_backup,
         scan_game_for_restoration, BackupId, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus,
         OperationStepDecision, ScanInfo, StrictPath,
     },
@@ -150,6 +150,12 @@ pub enum Subcommand {
         #[clap(long, possible_values = CliSort::ALL)]
         sort: Option<CliSort>,
 
+        /// When looking up specific game names, find all likely matches.
+        /// Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols.
+        /// This may find multiple games for a single input.
+        #[clap(long)]
+        fuzzy: bool,
+
         /// Only back up these specific games.
         #[clap()]
         games: Vec<String>,
@@ -190,6 +196,12 @@ pub enum Subcommand {
         #[clap(long)]
         backup: Option<String>,
 
+        /// When looking up specific game names, find all likely matches.
+        /// Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols.
+        /// This may find multiple games for a single input.
+        #[clap(long)]
+        fuzzy: bool,
+
         /// Only restore these specific games.
         #[clap()]
         games: Vec<String>,
@@ -216,6 +228,12 @@ pub enum Subcommand {
         /// This replaces the default, human-readable output.
         #[clap(long)]
         api: bool,
+
+        /// When looking up specific game names, find all likely matches.
+        /// Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols.
+        /// This may find multiple games for a single input.
+        #[clap(long)]
+        fuzzy: bool,
 
         /// Only report these specific games.
         #[clap()]
@@ -604,7 +622,13 @@ struct GameSubjects {
 }
 
 impl GameSubjects {
-    pub fn new(known: Vec<String>, requested: Vec<String>, by_steam_id: bool, manifest: &Manifest) -> Self {
+    pub fn new(
+        known: Vec<String>,
+        requested: Vec<String>,
+        by_steam_id: bool,
+        fuzzy: bool,
+        manifest: &Manifest,
+    ) -> Self {
         let mut subjects = Self::default();
 
         if requested.is_empty() {
@@ -623,6 +647,21 @@ impl GameSubjects {
                     Err(_) => {
                         subjects.invalid.push(game);
                     }
+                }
+            }
+        } else if fuzzy {
+            for game in requested {
+                let game_normalized = normalize_title(&game);
+                let mut found = false;
+                for known in &known {
+                    let known_normalized = normalize_title(known);
+                    if game_normalized == known_normalized {
+                        subjects.valid.push(known.clone());
+                        found = true;
+                    }
+                }
+                if !found {
+                    subjects.invalid.push(game);
                 }
             }
         } else {
@@ -662,6 +701,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             wine_prefix,
             api,
             sort,
+            fuzzy,
             games,
         } => {
             let mut reporter = if api {
@@ -723,7 +763,13 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             let games_specified = !games.is_empty();
-            let subjects = GameSubjects::new(all_games.0.keys().cloned().collect(), games, by_steam_id, &all_games);
+            let subjects = GameSubjects::new(
+                all_games.0.keys().cloned().collect(),
+                games,
+                by_steam_id,
+                fuzzy,
+                &all_games,
+            );
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
@@ -826,6 +872,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             api,
             sort,
             backup,
+            fuzzy,
             games,
         } => {
             let mut reporter = if api {
@@ -862,7 +909,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let backup_id = backup.as_ref().map(|x| BackupId::Named(x.clone()));
 
             let games_specified = !games.is_empty();
-            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, &manifest);
+            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, fuzzy, &manifest);
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
@@ -970,6 +1017,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             path,
             by_steam_id,
             api,
+            fuzzy,
             games,
         } => {
             let mut reporter = if api {
@@ -989,7 +1037,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             let restorable_names = layout.restorable_games();
 
-            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, &manifest);
+            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, fuzzy, &manifest);
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
@@ -1066,6 +1114,7 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
+                        fuzzy: false,
                         games: vec![],
                     }),
                 },
@@ -1090,6 +1139,7 @@ mod tests {
                     "--api",
                     "--sort",
                     "name",
+                    "--fuzzy",
                     "game1",
                     "game2",
                 ],
@@ -1106,6 +1156,7 @@ mod tests {
                         wine_prefix: Some(StrictPath::new(s("tests/wine-prefix"))),
                         api: true,
                         sort: Some(CliSort::Name),
+                        fuzzy: true,
                         games: vec![s("game1"), s("game2")],
                     }),
                 },
@@ -1129,6 +1180,7 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
+                        fuzzy: false,
                         games: vec![],
                     }),
                 },
@@ -1152,6 +1204,7 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
+                        fuzzy: false,
                         games: vec![],
                     }),
                 },
@@ -1175,6 +1228,7 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
+                        fuzzy: false,
                         games: vec![],
                     }),
                 },
@@ -1214,6 +1268,7 @@ mod tests {
                             wine_prefix: None,
                             api: false,
                             sort: Some(sort),
+                            fuzzy: false,
                             games: vec![],
                         }),
                     },
@@ -1234,6 +1289,7 @@ mod tests {
                         api: false,
                         sort: None,
                         backup: None,
+                        fuzzy: false,
                         games: vec![],
                     }),
                 },
@@ -1256,6 +1312,7 @@ mod tests {
                     "name",
                     "--backup",
                     ".",
+                    "--fuzzy",
                     "game1",
                     "game2",
                 ],
@@ -1268,6 +1325,7 @@ mod tests {
                         api: true,
                         sort: Some(CliSort::Name),
                         backup: Some(s(".")),
+                        fuzzy: true,
                         games: vec![s("game1"), s("game2")],
                     }),
                 },
@@ -1303,6 +1361,7 @@ mod tests {
                             api: false,
                             sort: Some(sort),
                             backup: None,
+                            fuzzy: false,
                             games: vec![],
                         }),
                     },
@@ -1365,6 +1424,48 @@ mod tests {
                 Cli {
                     sub: Some(Subcommand::Complete {
                         shell: CompletionShell::Elvish,
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_backups_with_minimal_arguments() {
+            check_args(
+                &["ludusavi", "backups"],
+                Cli {
+                    sub: Some(Subcommand::Backups {
+                        path: None,
+                        by_steam_id: false,
+                        api: false,
+                        fuzzy: false,
+                        games: vec![],
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_backups_with_all_arguments() {
+            check_args(
+                &[
+                    "ludusavi",
+                    "backups",
+                    "--path",
+                    "tests/backup",
+                    "--by-steam-id",
+                    "--api",
+                    "--fuzzy",
+                    "game1",
+                    "game2",
+                ],
+                Cli {
+                    sub: Some(Subcommand::Backups {
+                        path: Some(StrictPath::new(s("tests/backup"))),
+                        by_steam_id: true,
+                        api: true,
+                        fuzzy: true,
+                        games: vec![s("game1"), s("game2")],
                     }),
                 },
             );
