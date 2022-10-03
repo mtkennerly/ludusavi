@@ -77,7 +77,7 @@ pub struct ScannedFile {
     /// and should be used in its raw form.
     pub path: StrictPath,
     pub size: u64,
-    pub mtime: chrono::DateTime<chrono::Local>,
+    pub mtime: chrono::DateTime<chrono::Utc>,
     pub hash: String,
     /// This is the restoration target path, without redirects applied.
     pub original_path: Option<StrictPath>,

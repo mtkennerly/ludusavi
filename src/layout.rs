@@ -1,6 +1,6 @@
 use std::{
     collections::{BTreeMap, HashSet, VecDeque},
-    io::Write, time::SystemTime,
+    io::Write,
 };
 
 use filetime::FileTime;
@@ -228,7 +228,7 @@ fn default_backup_list() -> VecDeque<FullBackup> {
 pub struct IndividualMappingFile {
     pub hash: String,
     pub size: u64,
-    pub mtime: chrono::DateTime<chrono::Local>,
+    pub mtime: chrono::DateTime<chrono::Utc>,
 }
 
 
@@ -1035,8 +1035,7 @@ impl GameLayout {
 
             let target_file_id = self.mapping.game_file_for_zip(&file.path);
             // DONE #132: SLX honor timestamps - in options last_modified_time
-            // TODO #132: convert SystemTime to DateTime - why are time calculations are ALWAYS problematic in ALL programming languages?
-            let mtime: chrono::DateTime<chrono::Local> = file.mtime.into();
+            let mtime: chrono::DateTime<chrono::Utc> = file.mtime.into();
             let local_options = options.last_modified_time(zip::DateTime::from_date_and_time(
                 mtime.year() as u16,
                 mtime.month() as u8,
