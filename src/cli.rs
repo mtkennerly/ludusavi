@@ -12,7 +12,6 @@ use crate::{
 };
 use clap::{CommandFactory, Parser};
 use indicatif::ParallelProgressIterator;
-use itertools::Itertools;
 use rayon::{
     iter::{IntoParallelRefIterator, ParallelIterator},
     prelude::IndexedParallelIterator,
@@ -598,50 +597,47 @@ impl Reporter {
     }
 }
 
-fn get_invalid_games(
-    known: Vec<String>,
-    requested: Vec<String>,
-    by_steam_id: bool,
-    manifest: &Manifest,
-) -> Vec<String> {
-    let steam_ids_to_names = &manifest.map_steam_ids_to_names();
-    requested
-        .iter()
-        .filter_map(|game| {
-            if by_steam_id {
-                match game.parse::<u32>() {
-                    Ok(id) => {
-                        if !steam_ids_to_names.contains_key(&id) || !known.contains(&steam_ids_to_names[&id]) {
-                            Some(game.to_owned())
-                        } else {
-                            None
-                        }
-                    }
-                    Err(_) => Some(game.to_owned()),
-                }
-            } else if !known.contains(game) {
-                Some(game.to_owned())
-            } else {
-                None
-            }
-        })
-        .sorted()
-        .collect()
+#[derive(Clone, Debug, Default)]
+struct GameSubjects {
+    valid: Vec<String>,
+    invalid: Vec<String>,
 }
 
-fn get_subjects(mut known: Vec<String>, requested: Vec<String>, by_steam_id: bool, manifest: &Manifest) -> Vec<String> {
-    if requested.is_empty() {
-        known.sort();
-        known
-    } else if by_steam_id {
-        let steam_ids_to_names = &manifest.map_steam_ids_to_names();
-        requested
-            .iter()
-            .map(|game| &steam_ids_to_names[&game.parse::<u32>().unwrap()])
-            .cloned()
-            .collect()
-    } else {
-        requested
+impl GameSubjects {
+    pub fn new(known: Vec<String>, requested: Vec<String>, by_steam_id: bool, manifest: &Manifest) -> Self {
+        let mut subjects = Self::default();
+
+        if requested.is_empty() {
+            subjects.valid = known;
+        } else if by_steam_id {
+            let steam_ids_to_names = &manifest.map_steam_ids_to_names();
+            for game in requested {
+                match game.parse::<u32>() {
+                    Ok(id) => {
+                        if steam_ids_to_names.contains_key(&id) && known.contains(&steam_ids_to_names[&id]) {
+                            subjects.valid.push(steam_ids_to_names[&id].clone());
+                        } else {
+                            subjects.invalid.push(game);
+                        }
+                    }
+                    Err(_) => {
+                        subjects.invalid.push(game);
+                    }
+                }
+            }
+        } else {
+            for game in requested {
+                if known.contains(&game) {
+                    subjects.valid.push(game);
+                } else {
+                    subjects.invalid.push(game);
+                }
+            }
+        }
+
+        subjects.valid.sort();
+        subjects.invalid.sort();
+        subjects
     }
 }
 
@@ -727,34 +723,30 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             let games_specified = !games.is_empty();
-            let invalid_games = get_invalid_games(
-                all_games.0.keys().cloned().collect(),
-                games.clone(),
-                by_steam_id,
-                &all_games,
-            );
-            if !invalid_games.is_empty() {
-                reporter.trip_unknown_games(invalid_games.clone());
+            let subjects = GameSubjects::new(all_games.0.keys().cloned().collect(), games, by_steam_id, &all_games);
+            if !subjects.invalid.is_empty() {
+                reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
-                return Err(crate::prelude::Error::CliUnrecognizedGames { games: invalid_games });
+                return Err(crate::prelude::Error::CliUnrecognizedGames {
+                    games: subjects.invalid,
+                });
             }
 
-            let subjects = get_subjects(all_games.0.keys().cloned().collect(), games, by_steam_id, &all_games);
-
-            log::info!("beginning backup with {} steps", subjects.len());
+            log::info!("beginning backup with {} steps", subjects.valid.len());
 
             let layout = BackupLayout::new(backup_dir.clone(), config.backup.retention.clone());
             let filter = config.backup.filter.clone();
-            let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects);
+            let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects.valid);
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
 
             let mut info: Vec<_> = subjects
+                .valid
                 .par_iter()
                 .enumerate()
-                .progress_count(subjects.len() as u64)
+                .progress_count(subjects.valid.len() as u64)
                 .map(|(i, name)| {
-                    log::trace!("step {i} / {}: {name}", subjects.len());
+                    log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let game = &all_games.0[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
@@ -870,23 +862,24 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let backup_id = backup.as_ref().map(|x| BackupId::Named(x.clone()));
 
             let games_specified = !games.is_empty();
-            let invalid_games = get_invalid_games(restorable_names.clone(), games.clone(), by_steam_id, &manifest);
-            if !invalid_games.is_empty() {
-                reporter.trip_unknown_games(invalid_games.clone());
+            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, &manifest);
+            if !subjects.invalid.is_empty() {
+                reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
-                return Err(crate::prelude::Error::CliUnrecognizedGames { games: invalid_games });
+                return Err(crate::prelude::Error::CliUnrecognizedGames {
+                    games: subjects.invalid,
+                });
             }
 
-            let subjects = get_subjects(restorable_names, games, by_steam_id, &manifest);
-
-            log::info!("beginning restore with {} steps", subjects.len());
+            log::info!("beginning restore with {} steps", subjects.valid.len());
 
             let mut info: Vec<_> = subjects
+                .valid
                 .par_iter()
                 .enumerate()
-                .progress_count(subjects.len() as u64)
+                .progress_count(subjects.valid.len() as u64)
                 .map(|(i, name)| {
-                    log::trace!("step {i} / {}: {name}", subjects.len());
+                    log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let mut layout = layout.game_layout(name);
                     let scan_info =
                         scan_game_for_restoration(name, backup_id.as_ref().unwrap_or(&BackupId::Latest), &mut layout);
@@ -996,18 +989,19 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             let restorable_names = layout.restorable_games();
 
-            let invalid_games = get_invalid_games(restorable_names.clone(), games.clone(), by_steam_id, &manifest);
-            if !invalid_games.is_empty() {
-                reporter.trip_unknown_games(invalid_games.clone());
+            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, &manifest);
+            if !subjects.invalid.is_empty() {
+                reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
-                return Err(crate::prelude::Error::CliUnrecognizedGames { games: invalid_games });
+                return Err(crate::prelude::Error::CliUnrecognizedGames {
+                    games: subjects.invalid,
+                });
             }
 
-            let subjects = get_subjects(restorable_names, games, by_steam_id, &manifest);
-
             let info: Vec<_> = subjects
+                .valid
                 .par_iter()
-                .progress_count(subjects.len() as u64)
+                .progress_count(subjects.valid.len() as u64)
                 .map(|name| {
                     let mut layout = layout.game_layout(name);
                     let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &mut layout);
