@@ -1,12 +1,11 @@
 use std::{
     collections::{BTreeMap, HashSet, VecDeque},
-    io::Write,
-    time::SystemTime,
+    io::Write, time::SystemTime,
 };
 
 use filetime::FileTime;
 
-use chrono::{DateTime, Datelike, Timelike, Local};
+use chrono::{Datelike, Timelike};
 
 use crate::{
     config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
@@ -224,23 +223,14 @@ fn default_backup_list() -> VecDeque<FullBackup> {
     }])
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
-#[serde(default)] // if mtime is missing in mapping file, use Default
+#[derive(Clone, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(default)] // #132: if mtime is missing in mapping file, use Default
 pub struct IndividualMappingFile {
     pub hash: String,
     pub size: u64,
-    pub mtime: SystemTime,
+    pub mtime: chrono::DateTime<chrono::Local>,
 }
 
-impl Default for IndividualMappingFile {
-    fn default() -> Self {
-        IndividualMappingFile {
-            hash: String::default(),
-            size: u64::default(),
-            mtime: SystemTime::now(),
-        }
-    }
-}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct IndividualMappingRegistry {
@@ -645,7 +635,7 @@ impl GameLayout {
                 let path = StrictPath::new(raw_file);
                 files.insert(ScannedFile {
                     size: path.size(),
-                    mtime: file.metadata().unwrap().modified().unwrap(),
+                    mtime: file.metadata().unwrap().modified().unwrap().into(),
                     hash: path.sha1(),
                     path,
                     original_path,
@@ -965,7 +955,7 @@ impl GameLayout {
                 continue;
             }
             // DONE #132: SLX honor timestamps - set timestamp of file based on ScanInfo
-            if let Err(e) = filetime::set_file_mtime(target_file.interpret(), FileTime::from_system_time(file.mtime)) {
+            if let Err(e) = filetime::set_file_mtime(target_file.interpret(), FileTime::from_system_time(file.mtime.into())) {
                 log::error!(
                     "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
                     self.mapping.name,
@@ -1046,7 +1036,7 @@ impl GameLayout {
             let target_file_id = self.mapping.game_file_for_zip(&file.path);
             // DONE #132: SLX honor timestamps - in options last_modified_time
             // TODO #132: convert SystemTime to DateTime - why are time calculations are ALWAYS problematic in ALL programming languages?
-            let mtime: DateTime<Local> = file.mtime.into();
+            let mtime: chrono::DateTime<chrono::Local> = file.mtime.into();
             let local_options = options.last_modified_time(zip::DateTime::from_date_and_time(
                 mtime.year() as u16,
                 mtime.month() as u8,
@@ -1322,7 +1312,7 @@ impl GameLayout {
                     target.raw()
                 );
                 // DONE #132: SLX honor timestamps - set timestamp of file based on ScanInfo
-                if let Err(e) = filetime::set_file_mtime(target.interpret(), FileTime::from_system_time(file.mtime)) {
+                if let Err(e) = filetime::set_file_mtime(target.interpret(), FileTime::from_system_time(file.mtime.into())) {
                     log::error!(
                         "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
                         self.mapping.name,
@@ -1411,7 +1401,7 @@ impl GameLayout {
                 );
             } else {
                 // DONE #132: SLX honor timestamps - set timestamp of file based on ScanInfo
-                if let Err(e) = filetime::set_file_mtime(target.interpret(), FileTime::from_system_time(file.mtime)) {
+                if let Err(e) = filetime::set_file_mtime(target.interpret(), FileTime::from_system_time(file.mtime.into())) {
                     log::error!(
                         "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
                         self.mapping.name,

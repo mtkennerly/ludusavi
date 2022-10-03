@@ -1,4 +1,3 @@
-use std::time::SystemTime;
 
 use crate::{
     config::{BackupFilter, BackupFormats, RedirectConfig, RootsConfig, ToggledPaths, ToggledRegistry},
@@ -78,7 +77,7 @@ pub struct ScannedFile {
     /// and should be used in its raw form.
     pub path: StrictPath,
     pub size: u64,
-    pub mtime: SystemTime,
+    pub mtime: chrono::DateTime<chrono::Local>,
     pub hash: String,
     /// This is the restoration target path, without redirects applied.
     pub original_path: Option<StrictPath>,
@@ -776,7 +775,7 @@ pub fn scan_game_for_backup(
                 log::debug!("[{name}] found: {}", p.raw());
                 found_files.insert(ScannedFile {
                     size: p.size(),
-                    mtime: p.metadata().unwrap().modified().unwrap(),
+                    mtime: p.metadata().unwrap().modified().unwrap().into(),
                     hash: p.sha1(),
                     path: p,
                     original_path: None,
@@ -801,7 +800,7 @@ pub fn scan_game_for_backup(
                         log::debug!("[{name}] found: {}", child.raw());
                         found_files.insert(ScannedFile {
                             size: child.size(),
-                            mtime: child.metadata().unwrap().modified().unwrap(),
+                            mtime: child.metadata().unwrap().modified().unwrap().into(),
                             hash: child.sha1(),
                             path: child,
                             original_path: None,
