@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use crate::{
     config::{BackupFilter, BackupFormats, RedirectConfig, RootsConfig, ToggledPaths, ToggledRegistry},
     layout::{Backup, GameLayout},
@@ -76,6 +78,7 @@ pub struct ScannedFile {
     /// and should be used in its raw form.
     pub path: StrictPath,
     pub size: u64,
+    pub mtime: SystemTime,
     pub hash: String,
     /// This is the restoration target path, without redirects applied.
     pub original_path: Option<StrictPath>,
@@ -86,10 +89,11 @@ pub struct ScannedFile {
 
 impl ScannedFile {
     #[cfg(test)]
-    pub fn new<T: AsRef<str> + ToString, H: ToString>(path: T, size: u64, hash: H) -> Self {
+    pub fn new<T: AsRef<str> + ToString, H: ToString>(path: T, size: u64, hash: H, mtime: SystemTime) -> Self {
         Self {
             path: StrictPath::new(path.to_string()),
             size,
+            mtime: mtime,
             hash: hash.to_string(),
             original_path: None,
             ignored: false,
@@ -772,6 +776,7 @@ pub fn scan_game_for_backup(
                 log::debug!("[{name}] found: {}", p.raw());
                 found_files.insert(ScannedFile {
                     size: p.size(),
+                    mtime: p.metadata().unwrap().modified().unwrap(),
                     hash: p.sha1(),
                     path: p,
                     original_path: None,
@@ -796,6 +801,7 @@ pub fn scan_game_for_backup(
                         log::debug!("[{name}] found: {}", child.raw());
                         found_files.insert(ScannedFile {
                             size: child.size(),
+                            mtime: child.metadata().unwrap().modified().unwrap(),
                             hash: child.sha1(),
                             path: child,
                             original_path: None,
@@ -1205,9 +1211,7 @@ mod tests {
 
     use super::*;
     use crate::config::{Config, Retention};
-    use crate::layout::{
-        BackupLayout, FullBackup, IndividualMapping, IndividualMappingFile, IndividualMappingRegistry,
-    };
+    use crate::layout::{FullBackup, IndividualMapping, IndividualMappingFile};
     use crate::manifest::Manifest;
     use crate::testing::*;
     use maplit::*;
@@ -1325,8 +1329,8 @@ mod tests {
             ScanInfo {
                 game_name: s("game1"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080"),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080", SystemTime::UNIX_EPOCH),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", SystemTime::UNIX_EPOCH),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1349,7 +1353,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game 2"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", SystemTime::UNIX_EPOCH),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1379,7 +1383,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game5"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", SystemTime::UNIX_EPOCH),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1409,7 +1413,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game 2"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", SystemTime::UNIX_EPOCH),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1474,9 +1478,9 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH),
-                    ScannedFile::new(format!("{}/tests/home/.config/xdgConfig.txt", repo()), 0, EMPTY_HASH),
-                    ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0, EMPTY_HASH),
+                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH, SystemTime::UNIX_EPOCH),
+                    ScannedFile::new(format!("{}/tests/home/.config/xdgConfig.txt", repo()), 0, EMPTY_HASH, SystemTime::UNIX_EPOCH),
+                    ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0, EMPTY_HASH, SystemTime::UNIX_EPOCH),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1502,8 +1506,8 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0, EMPTY_HASH),
-                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0"),
+                    ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0, EMPTY_HASH, SystemTime::UNIX_EPOCH),
+                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0", SystemTime::UNIX_EPOCH),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1533,7 +1537,7 @@ mod tests {
                 },
                 ToggledPaths::default(),
                 hashset! {
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", SystemTime::UNIX_EPOCH),
                 },
             ),
             (
@@ -1544,8 +1548,8 @@ mod tests {
                     }
                 }),
                 hashset! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").ignored(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080", SystemTime::UNIX_EPOCH).ignored(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", SystemTime::UNIX_EPOCH),
                 },
             ),
             (
@@ -1556,8 +1560,8 @@ mod tests {
                     }
                 }),
                 hashset! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").ignored(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080", SystemTime::UNIX_EPOCH).ignored(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", SystemTime::UNIX_EPOCH),
                 },
             ),
         ];
@@ -1734,8 +1738,8 @@ mod tests {
                     name: ".".into(),
                     when: now(),
                     files: btreemap! {
-                        mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
-                        mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1, mtime: SystemTime::UNIX_EPOCH },
+                        mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2, mtime: SystemTime::UNIX_EPOCH },
                     },
                     ..Default::default()
                 }]),
@@ -1752,10 +1756,12 @@ mod tests {
                 mapping_file_key("/file1.txt") => IndividualMappingFile {
                     hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
                     size: 1,
+                    mtime: SystemTime::UNIX_EPOCH,
                 },
                 mapping_file_key("/file2.txt") => IndividualMappingFile {
                     hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
                     size: 2,
+                    mtime: SystemTime::UNIX_EPOCH,
                 },
             },
             ..Default::default()
@@ -1768,6 +1774,7 @@ mod tests {
                     ScannedFile {
                         path: restorable_file_simple(".", "file1.txt"),
                         size: 1,
+                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
                         original_path: Some(make_original_path("/file1.txt")),
                         ignored: false,
@@ -1776,6 +1783,7 @@ mod tests {
                     ScannedFile {
                         path: restorable_file_simple(".", "file2.txt"),
                         size: 2,
+                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
                         original_path: Some(make_original_path("/file2.txt")),
                         ignored: false,
@@ -1858,8 +1866,8 @@ mod tests {
 
             let game1 = s("game1");
             let game2 = s("game2");
-            let file1 = ScannedFile::new("file1.txt", 1, "1");
-            let file2 = ScannedFile::new("file2.txt", 2, "2");
+            let file1 = ScannedFile::new("file1.txt", 1, "1", SystemTime::UNIX_EPOCH);
+            let file2 = ScannedFile::new("file2.txt", 2, "2", SystemTime::UNIX_EPOCH);
             let reg1 = s("reg1");
             let reg2 = s("reg2");
 
@@ -1901,6 +1909,7 @@ mod tests {
             let file1a = ScannedFile {
                 path: StrictPath::new(s("file1a.txt")),
                 size: 1,
+                mtime: SystemTime::UNIX_EPOCH,
                 hash: "1".to_string(),
                 original_path: Some(StrictPath::new(s("file1.txt"))),
                 ignored: false,
@@ -1909,6 +1918,7 @@ mod tests {
             let file1b = ScannedFile {
                 path: StrictPath::new(s("file1b.txt")),
                 size: 1,
+                mtime: SystemTime::UNIX_EPOCH,
                 hash: "1b".to_string(),
                 original_path: Some(StrictPath::new(s("file1.txt"))),
                 ignored: false,
@@ -1931,6 +1941,7 @@ mod tests {
             assert!(!detector.is_file_duplicated(&ScannedFile {
                 path: StrictPath::new(s("file1a.txt")),
                 size: 1,
+                mtime: SystemTime::UNIX_EPOCH,
                 hash: "1a".to_string(),
                 original_path: None,
                 ignored: false,
@@ -1942,6 +1953,7 @@ mod tests {
             assert!(!detector.is_file_duplicated(&ScannedFile {
                 path: StrictPath::new(s("file1b.txt")),
                 size: 1,
+                mtime: SystemTime::UNIX_EPOCH,
                 hash: "1b".to_string(),
                 original_path: None,
                 ignored: false,
