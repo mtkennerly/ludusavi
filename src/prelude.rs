@@ -1,4 +1,3 @@
-
 use crate::{
     config::{BackupFilter, BackupFormats, RedirectConfig, RootsConfig, ToggledPaths, ToggledRegistry},
     layout::{Backup, GameLayout},
