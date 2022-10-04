@@ -285,7 +285,7 @@ impl StrictPath {
                 );
             return Err(e);
         } else {
-                // DONE #132: SLX honor timestamps - set timestamp of file based on file metadata
+                // #132: SL honor timestamps - set timestamp of file based on file metadata
                 let mtime = FileTime::from_system_time(self.metadata().unwrap().modified().unwrap());
                 if let Err(e) = filetime::set_file_mtime(target_file.interpret(), mtime)
                 {

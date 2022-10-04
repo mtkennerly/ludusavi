@@ -76,7 +76,6 @@ pub struct ScannedFile {
     /// and should be used in its raw form.
     pub path: StrictPath,
     pub size: u64,
-    pub mtime: chrono::DateTime<chrono::Utc>,
     pub hash: String,
     /// This is the restoration target path, without redirects applied.
     pub original_path: Option<StrictPath>,
@@ -87,11 +86,10 @@ pub struct ScannedFile {
 
 impl ScannedFile {
     #[cfg(test)]
-    pub fn new<T: AsRef<str> + ToString, H: ToString>(path: T, size: u64, hash: H, mtime: SystemTime) -> Self {
+    pub fn new<T: AsRef<str> + ToString, H: ToString>(path: T, size: u64, hash: H) -> Self {
         Self {
             path: StrictPath::new(path.to_string()),
             size,
-            mtime: mtime,
             hash: hash.to_string(),
             original_path: None,
             ignored: false,
@@ -774,7 +772,6 @@ pub fn scan_game_for_backup(
                 log::debug!("[{name}] found: {}", p.raw());
                 found_files.insert(ScannedFile {
                     size: p.size(),
-                    mtime: p.metadata().unwrap().modified().unwrap().into(),
                     hash: p.sha1(),
                     path: p,
                     original_path: None,
@@ -799,7 +796,6 @@ pub fn scan_game_for_backup(
                         log::debug!("[{name}] found: {}", child.raw());
                         found_files.insert(ScannedFile {
                             size: child.size(),
-                            mtime: child.metadata().unwrap().modified().unwrap().into(),
                             hash: child.sha1(),
                             path: child,
                             original_path: None,
