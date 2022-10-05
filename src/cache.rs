@@ -41,9 +41,10 @@ impl Cache {
     pub fn save(&self) {
         let new_content = serde_yaml::to_string(&self).unwrap();
 
-        let old_content = Self::load_raw().unwrap();
-        if old_content == new_content {
-            return;
+        if let Ok(old_content) = Self::load_raw() {
+            if old_content == new_content {
+                return;
+            }
         }
 
         if std::fs::create_dir_all(app_dir()).is_ok() {

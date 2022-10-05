@@ -320,8 +320,7 @@ impl IndividualMapping {
     pub fn save(&self, file: &StrictPath) {
         let new_content = serde_yaml::to_string(&self).unwrap();
 
-        if let Ok(old) = Self::load(file) {
-            let old_content = serde_yaml::to_string(&old).unwrap();
+        if let Ok(old_content) = Self::load_raw(file) {
             if old_content == new_content {
                 return;
             }
@@ -340,7 +339,7 @@ impl IndividualMapping {
         if !file.is_file() {
             return Err(());
         }
-        let content = std::fs::read_to_string(&file.interpret()).unwrap();
+        let content = Self::load_raw(file).unwrap();
         let mut parsed = Self::load_from_string(&content)?;
 
         // Handle legacy files without backup timestamps.
@@ -355,6 +354,10 @@ impl IndividualMapping {
         }
 
         Ok(parsed)
+    }
+
+    fn load_raw(file: &StrictPath) -> Result<String, Box<dyn std::error::Error>> {
+        Ok(std::fs::read_to_string(file.interpret())?)
     }
 
     pub fn load_from_string(content: &str) -> Result<Self, ()> {
