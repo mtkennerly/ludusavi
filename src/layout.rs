@@ -10,7 +10,7 @@ use chrono::{Datelike, Timelike};
 use crate::{
     config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
     path::StrictPath,
-    prelude::{game_file_restoration_target, BackupId, BackupInfo, ScanInfo, ScannedFile, ScannedRegistry},
+    prelude::{game_file_target, BackupId, BackupInfo, ScanInfo, ScannedFile, ScannedRegistry},
 };
 
 const SAFE: &str = "_";
@@ -793,6 +793,7 @@ impl GameLayout {
         scan: &ScanInfo,
         now: &chrono::DateTime<chrono::Utc>,
         format: &BackupFormats,
+        redirects: &[RedirectConfig],
     ) -> Option<Backup> {
         if !scan.found_anything() {
             return None;
@@ -806,8 +807,10 @@ impl GameLayout {
         };
 
         let backup = match kind {
-            BackupKind::Full => Backup::Full(self.plan_full_backup(scan, now, format)),
-            BackupKind::Differential => Backup::Differential(self.plan_differential_backup(scan, now, format)),
+            BackupKind::Full => Backup::Full(self.plan_full_backup(scan, now, format, redirects)),
+            BackupKind::Differential => {
+                Backup::Differential(self.plan_differential_backup(scan, now, format, redirects))
+            }
         };
 
         self.need_backup(&backup).then_some(backup)
@@ -818,14 +821,16 @@ impl GameLayout {
         scan: &ScanInfo,
         now: &chrono::DateTime<chrono::Utc>,
         format: &BackupFormats,
+        redirects: &[RedirectConfig],
     ) -> FullBackup {
         let mut files = BTreeMap::new();
         #[allow(unused_mut)]
         let mut registry = IndividualMappingRegistry::default();
 
         for file in scan.found_files.iter().filter(|x| !x.ignored) {
+            let resolved = game_file_target(&file.path, redirects, false);
             files.insert(
-                file.path.render(),
+                resolved.effective().render(),
                 IndividualMappingFile {
                     hash: file.hash.clone(),
                     size: file.size,
@@ -856,14 +861,16 @@ impl GameLayout {
         scan: &ScanInfo,
         now: &chrono::DateTime<chrono::Utc>,
         format: &BackupFormats,
+        redirects: &[RedirectConfig],
     ) -> DifferentialBackup {
         let mut files = BTreeMap::new();
         #[allow(unused_mut)]
         let mut registry = Some(IndividualMappingRegistry::default());
 
         for file in scan.found_files.iter().filter(|x| !x.ignored) {
+            let resolved = game_file_target(&file.path, redirects, false);
             files.insert(
-                file.path.render(),
+                resolved.effective().render(),
                 Some(IndividualMappingFile {
                     hash: file.hash.clone(),
                     size: file.size,
@@ -907,19 +914,30 @@ impl GameLayout {
         }
     }
 
-    fn execute_backup_as_simple(&mut self, backup: &Backup, scan: &ScanInfo) -> BackupInfo {
+    fn execute_backup_as_simple(
+        &mut self,
+        backup: &Backup,
+        scan: &ScanInfo,
+        redirects: &[RedirectConfig],
+    ) -> BackupInfo {
         let mut backup_info = BackupInfo::default();
 
         let mut relevant_files = vec![];
         for file in &scan.found_files {
-            if !backup.includes_file(file.path.render()) {
+            let resolved = game_file_target(&file.path, redirects, false);
+            if !backup.includes_file(resolved.effective().render()) {
                 log::debug!("[{}] skipped: {}", self.mapping.name, file.path.raw());
                 continue;
             }
 
-            let target_file = self.mapping.game_file(&self.path, &file.path, backup.name());
+            let target_file = self.mapping.game_file(&self.path, resolved.effective(), backup.name());
             if file.path.same_content(&target_file) {
-                log::info!("[{}] already matches: {}", self.mapping.name, file.path.raw());
+                log::info!(
+                    "[{}] already matches: {} -> {}",
+                    self.mapping.name,
+                    file.path.raw(),
+                    target_file.raw()
+                );
                 relevant_files.push(target_file);
                 continue;
             }
@@ -956,7 +974,13 @@ impl GameLayout {
         backup_info
     }
 
-    fn execute_backup_as_zip(&mut self, backup: &Backup, scan: &ScanInfo, format: &BackupFormats) -> BackupInfo {
+    fn execute_backup_as_zip(
+        &mut self,
+        backup: &Backup,
+        scan: &ScanInfo,
+        format: &BackupFormats,
+        redirects: &[RedirectConfig],
+    ) -> BackupInfo {
         let mut backup_info = BackupInfo::default();
 
         let fail_file =
@@ -996,7 +1020,8 @@ impl GameLayout {
                 continue;
             }
 
-            let target_file_id = self.mapping.game_file_for_zip(&file.path);
+            let resolved = game_file_target(&file.path, redirects, false);
+            let target_file_id = self.mapping.game_file_for_zip(resolved.effective());
             // #132: SL honor timestamps - in options last_modified_time
             let mtime: chrono::DateTime<chrono::Utc> = file.path.metadata().unwrap().modified().unwrap().into();
             log::trace!("execute_backup_as_zip: mtime = {mtime:#?}");
@@ -1108,13 +1133,19 @@ impl GameLayout {
         }
     }
 
-    fn execute_backup(&mut self, backup: &Backup, scan: &ScanInfo, format: &BackupFormats) -> BackupInfo {
+    fn execute_backup(
+        &mut self,
+        backup: &Backup,
+        scan: &ScanInfo,
+        format: &BackupFormats,
+        redirects: &[RedirectConfig],
+    ) -> BackupInfo {
         let backup_info = if backup.only_inherits_and_overrides() {
             BackupInfo::default()
         } else {
             match format.chosen {
-                BackupFormat::Simple => self.execute_backup_as_simple(backup, scan),
-                BackupFormat::Zip => self.execute_backup_as_zip(backup, scan, format),
+                BackupFormat::Simple => self.execute_backup_as_simple(backup, scan, redirects),
+                BackupFormat::Zip => self.execute_backup_as_zip(backup, scan, format, redirects),
             }
         };
 
@@ -1173,9 +1204,10 @@ impl GameLayout {
         scan: &ScanInfo,
         now: &chrono::DateTime<chrono::Utc>,
         format: &BackupFormats,
+        redirects: &[RedirectConfig],
     ) -> BackupInfo {
         self.migrate_legacy_backup();
-        match self.plan_backup(scan, now, format) {
+        match self.plan_backup(scan, now, format, redirects) {
             None => {
                 log::info!("[{}] no need for new backup", &scan.game_name);
                 BackupInfo::default()
@@ -1188,7 +1220,7 @@ impl GameLayout {
                     backup.name()
                 );
                 self.insert_backup(backup.clone());
-                self.execute_backup(&backup, scan, format)
+                self.execute_backup(&backup, scan, format, redirects)
             }
         }
     }
@@ -1201,11 +1233,12 @@ impl GameLayout {
 
         for file in &scan.found_files {
             let original_path = some_or_continue!(&file.original_path);
-            let (target, _) = game_file_restoration_target(original_path, redirects);
+            let resolved = game_file_target(original_path, redirects, true);
+            let target = resolved.effective();
 
             if let Err(e) = match &file.container {
-                None => self.restore_file_from_simple(&target, file),
-                Some(container) => self.restore_file_from_zip(&target, file, container),
+                None => self.restore_file_from_simple(target, file),
+                Some(container) => self.restore_file_from_zip(target, file, container),
             } {
                 log::error!(
                     "[{}] failed to restore: {} -> {} | {e}",
@@ -1706,7 +1739,7 @@ mod tests {
                 mapping: IndividualMapping::new("game1".to_string()),
                 retention: Retention::default(),
             };
-            assert_eq!(None, layout.plan_backup(&scan, &now(), &BackupFormats::default()));
+            assert_eq!(None, layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]));
         }
 
         #[test]
@@ -1733,7 +1766,7 @@ mod tests {
                     },
                     ..Default::default()
                 })),
-                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]),
             );
         }
 
@@ -1766,7 +1799,7 @@ mod tests {
                     differential: 0,
                 },
             };
-            assert_eq!(None, layout.plan_backup(&scan, &now(), &BackupFormats::default()));
+            assert_eq!(None, layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]));
         }
 
         #[test]
@@ -1810,7 +1843,7 @@ mod tests {
                     },
                     ..Default::default()
                 })),
-                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]),
             );
         }
 
@@ -1855,7 +1888,7 @@ mod tests {
                     },
                     ..Default::default()
                 })),
-                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]),
             );
         }
 
@@ -1914,7 +1947,7 @@ mod tests {
                     },
                     ..Default::default()
                 })),
-                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]),
             );
         }
 
@@ -1973,7 +2006,7 @@ mod tests {
                     },
                     ..Default::default()
                 })),
-                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]),
             );
         }
 
@@ -2017,7 +2050,7 @@ mod tests {
                     differential: 1,
                 },
             };
-            assert_eq!(None, layout.plan_backup(&scan, &now(), &BackupFormats::default()));
+            assert_eq!(None, layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]));
         }
 
         #[test]
@@ -2063,7 +2096,7 @@ mod tests {
                     when: now(),
                     ..Default::default()
                 })),
-                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]),
             );
         }
 
@@ -2105,7 +2138,7 @@ mod tests {
                     },
                     ..Default::default()
                 })),
-                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]),
             );
         }
 
@@ -2155,7 +2188,7 @@ mod tests {
                     },
                     ..Default::default()
                 })),
-                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]),
             );
         }
 
@@ -2209,7 +2242,7 @@ mod tests {
                     },
                     ..Default::default()
                 })),
-                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]),
             );
         }
 
@@ -2263,7 +2296,7 @@ mod tests {
                     },
                     ..Default::default()
                 })),
-                layout.plan_backup(&scan, &now(), &BackupFormats::default()),
+                layout.plan_backup(&scan, &now(), &BackupFormats::default(), &[]),
             );
         }
 

@@ -1,10 +1,12 @@
 use crate::{
-    config::{BackupFilter, BackupFormats, RedirectConfig, RootsConfig, ToggledPaths, ToggledRegistry},
+    config::{BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry},
     layout::{Backup, GameLayout},
     manifest::{Game, Os, Store},
 };
 use fuzzy_matcher::FuzzyMatcher;
+use once_cell::sync::Lazy;
 use rayon::prelude::*;
+use regex::Regex;
 
 pub use crate::path::StrictPath;
 pub use crate::registry_compat::RegistryItem;
@@ -16,7 +18,6 @@ pub const CASE_INSENSITIVE_OS: bool = WINDOWS || MAC;
 const SKIP: &str = "<skip>";
 const APP_DIR_NAME: &str = "ludusavi";
 const PORTABLE_FLAG_FILE_NAME: &str = "ludusavi.portable";
-const MIGRATION_FLAG_FILE_NAME: &str = ".flag_migrated_legacy_config";
 
 pub type AnyError = Box<dyn std::error::Error>;
 
@@ -31,10 +32,7 @@ pub enum Error {
     #[error("The config file is invalid: {why:?}")]
     ConfigInvalid { why: String },
 
-    #[error("Target already exists")]
-    CliBackupTargetExists { path: StrictPath },
-
-    #[error("Target already exists")]
+    #[error("Unrecognized games: {games:?}")]
     CliUnrecognizedGames { games: Vec<String> },
 
     #[error("Unable to request confirmation")]
@@ -101,6 +99,13 @@ impl ScannedFile {
     pub fn ignored(mut self) -> Self {
         self.ignored = true;
         self
+    }
+
+    pub fn original_path(&self) -> &StrictPath {
+        match &self.original_path {
+            Some(x) => x,
+            None => &self.path,
+        }
     }
 }
 
@@ -204,6 +209,10 @@ impl ScanInfo {
         self.found_files.iter().filter(|x| !x.ignored).count()
             + self.found_registry_keys.iter().filter(|x| !x.ignored).count()
     }
+
+    pub fn restoring(&self) -> bool {
+        self.backup.is_some()
+    }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -277,52 +286,72 @@ pub fn app_dir() -> std::path::PathBuf {
     path
 }
 
-/// Migrate `~/.config/ludusavi` to the newer OS-dependent location.
-///
-/// We use a flag file to prevent a spurious migration when a Linux user
-/// first launches Ludusavi with XDG_CONFIG_HOME set to default, so the
-/// `standard_app_dir` and `legacy_app_dir` happen to be the same,
-/// then later launches Ludusavi with a custom XDG_CONFIG_HOME, so the
-/// `standard_app_dir` no longer exists, but the `legacy_app_dir` does.
-pub fn migrate_legacy_config() {
-    let standard_app_dir = app_dir();
-    let mut standard_migration_flag_file = standard_app_dir.clone();
-    standard_migration_flag_file.push(MIGRATION_FLAG_FILE_NAME);
-    let mut standard_portable_flag_file = standard_app_dir.clone();
-    standard_portable_flag_file.push(PORTABLE_FLAG_FILE_NAME);
+#[derive(Clone, Debug, Default)]
+pub struct ResolvedRedirect {
+    pub original: StrictPath,
+    pub redirected: Option<StrictPath>,
+    pub restoring: bool,
+}
 
-    let mut legacy_app_dir = dirs::home_dir().unwrap();
-    legacy_app_dir.push(".config");
-    legacy_app_dir.push(APP_DIR_NAME);
-    let mut legacy_migration_flag_file = legacy_app_dir.clone();
-    legacy_migration_flag_file.push(MIGRATION_FLAG_FILE_NAME);
-    let mut legacy_portable_flag_file = legacy_app_dir.clone();
-    legacy_portable_flag_file.push(PORTABLE_FLAG_FILE_NAME);
+impl ResolvedRedirect {
+    /// This is stored in the mapping file and used for operations.
+    pub fn effective(&self) -> &StrictPath {
+        self.redirected.as_ref().unwrap_or(&self.original)
+    }
 
-    if standard_app_dir.exists() && !standard_migration_flag_file.exists() && !standard_portable_flag_file.exists() {
-        let _ = std::fs::File::create(&standard_migration_flag_file);
-    } else if !standard_app_dir.exists()
-        && legacy_app_dir.exists()
-        && !legacy_migration_flag_file.exists()
-        && !legacy_portable_flag_file.exists()
-    {
-        let _ = std::fs::rename(&legacy_app_dir, &standard_app_dir);
-        let _ = std::fs::File::create(&standard_migration_flag_file);
+    /// This is the main path to show to the user.
+    pub fn readable(&self) -> String {
+        if self.restoring {
+            self.redirected.as_ref().unwrap_or(&self.original).render()
+        } else {
+            self.original.render()
+        }
+    }
+
+    /// This is shown in the GUI/CLI to annotate the `readable` path.
+    pub fn alt(&self) -> Option<&StrictPath> {
+        if self.restoring {
+            if self.redirected.is_some() {
+                Some(&self.original)
+            } else {
+                None
+            }
+        } else {
+            self.redirected.as_ref()
+        }
+    }
+
+    /// This is shown in the GUI/CLI to annotate the `readable` path.
+    pub fn alt_readable(&self) -> Option<String> {
+        self.alt().map(|x| x.render())
     }
 }
 
-/// Returns the effective target and the original target (if different)
-pub fn game_file_restoration_target(
+/// Returns the effective target, if different from the original
+pub fn game_file_target(
     original_target: &StrictPath,
     redirects: &[RedirectConfig],
-) -> (StrictPath, Option<StrictPath>) {
+    restoring: bool,
+) -> ResolvedRedirect {
     let mut redirected_target = original_target.render();
     for redirect in redirects {
         if redirect.source.raw().trim().is_empty() || redirect.target.raw().trim().is_empty() {
             continue;
         }
-        let source = redirect.source.render();
-        let target = redirect.target.render();
+        let (source, target) = if !restoring {
+            match redirect.kind {
+                RedirectKind::Backup | RedirectKind::Bidirectional => {
+                    (redirect.source.render(), redirect.target.render())
+                }
+                RedirectKind::Restore => continue,
+            }
+        } else {
+            match redirect.kind {
+                RedirectKind::Backup => continue,
+                RedirectKind::Restore => (redirect.source.render(), redirect.target.render()),
+                RedirectKind::Bidirectional => (redirect.target.render(), redirect.source.render()),
+            }
+        };
         if !source.is_empty() && !target.is_empty() && redirected_target.starts_with(&source) {
             redirected_target = redirected_target.replacen(&source, &target, 1);
         }
@@ -330,9 +359,17 @@ pub fn game_file_restoration_target(
 
     let redirected_target = StrictPath::new(redirected_target);
     if original_target.render() != redirected_target.render() {
-        (redirected_target, Some(original_target.clone()))
+        ResolvedRedirect {
+            original: original_target.clone(),
+            redirected: Some(redirected_target),
+            restoring,
+        }
     } else {
-        (original_target.clone(), None)
+        ResolvedRedirect {
+            original: original_target.clone(),
+            redirected: None,
+            restoring,
+        }
     }
 }
 
@@ -920,6 +957,7 @@ pub fn back_up_game(
     merge: bool,
     now: &chrono::DateTime<chrono::Utc>,
     format: &BackupFormats,
+    redirects: &[RedirectConfig],
 ) -> BackupInfo {
     log::trace!("[{}] preparing for backup", &info.game_name);
 
@@ -940,7 +978,7 @@ pub fn back_up_game(
     };
 
     if able_to_prepare {
-        layout.back_up(info, now, format)
+        layout.back_up(info, now, format, redirects)
     } else {
         let mut backup_info = BackupInfo::default();
 
@@ -1191,6 +1229,28 @@ pub fn fuzzy_match(
     None
 }
 
+/// This covers any edition that is clearly separated by punctuation.
+static RE_EDITION_PUNCTUATED: Lazy<Regex> = Lazy::new(|| Regex::new(r#"[™®©:-] .+ edition$"#).unwrap());
+/// This covers specific, known editions that are not separated by punctuation.
+static RE_EDITION_KNOWN: Lazy<Regex> = Lazy::new(|| Regex::new(r#" (game of the year) edition$"#).unwrap());
+/// This covers any single-word editions that are not separated by punctuation.
+/// We can't assume more than one word because it may be part of the main title.
+static RE_EDITION_SHORT: Lazy<Regex> = Lazy::new(|| Regex::new(r#" [^ ]+ edition$"#).unwrap());
+static RE_YEAR_SUFFIX: Lazy<Regex> = Lazy::new(|| Regex::new(r#" \(\d+\)$"#).unwrap());
+static RE_SYMBOLS: Lazy<Regex> = Lazy::new(|| Regex::new(r#"[™®©:-]"#).unwrap());
+static RE_SPACES: Lazy<Regex> = Lazy::new(|| Regex::new(r#" {2,}"#).unwrap());
+
+pub fn normalize_title(title: &str) -> String {
+    let normalized = title.to_lowercase();
+    let normalized = RE_EDITION_PUNCTUATED.replace_all(&normalized, "");
+    let normalized = RE_EDITION_KNOWN.replace_all(&normalized, "");
+    let normalized = RE_EDITION_SHORT.replace_all(&normalized, "");
+    let normalized = RE_YEAR_SUFFIX.replace_all(&normalized, "");
+    let normalized = RE_SYMBOLS.replace_all(&normalized, " ");
+    let normalized = RE_SPACES.replace_all(&normalized, " ");
+    normalized.trim().to_string()
+}
+
 #[cfg(target_os = "windows")]
 pub fn sha1(content: String) -> String {
     use sha1::Digest;
@@ -1244,6 +1304,35 @@ mod tests {
                 )
             );
         }
+    }
+
+    #[test]
+    fn can_normalize_title() {
+        // capitalization
+        assert_eq!("foo bar", normalize_title("foo bar"));
+        assert_eq!("foo bar", normalize_title("Foo Bar"));
+
+        // punctuated editions
+        assert_eq!("foo bar", normalize_title("Foo Bar: Any Arbitrary Edition"));
+        assert_eq!("foo bar", normalize_title("Foo Bar - Any Arbitrary Edition"));
+        assert_eq!("foo bar", normalize_title("Foo Bar™ Any Arbitrary Edition"));
+        assert_eq!("foo bar", normalize_title("Foo Bar® - Any Arbitrary Edition"));
+
+        // special cased editions
+        assert_eq!("foo bar", normalize_title("Foo Bar Game of the Year Edition"));
+
+        // short editions
+        assert_eq!("foo bar", normalize_title("Foo Bar Special Edition"));
+
+        // year suffixes
+        assert_eq!("foo bar", normalize_title("Foo Bar (2000)"));
+
+        // symbols
+        assert_eq!("foo bar", normalize_title("Foo:Bar"));
+        assert_eq!("foo bar", normalize_title("Foo: Bar"));
+
+        // spaces
+        assert_eq!("foo bar", normalize_title("  Foo  Bar  "));
     }
 
     fn s(text: &str) -> String {

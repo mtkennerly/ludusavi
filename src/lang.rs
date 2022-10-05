@@ -7,7 +7,7 @@ use std::sync::Mutex;
 use unic_langid::LanguageIdentifier;
 
 use crate::{
-    config::{BackupFormat, SortKey, Theme, ZipCompression},
+    config::{BackupFormat, RedirectKind, SortKey, Theme, ZipCompression},
     manifest::Store,
     prelude::{Error, OperationStatus, OperationStepDecision, StrictPath},
 };
@@ -213,7 +213,6 @@ impl Translator {
             Error::ConfigInvalid { why } => self.config_is_invalid(why),
             Error::ManifestInvalid { why } => self.manifest_is_invalid(why),
             Error::ManifestCannotBeUpdated => self.manifest_cannot_be_updated(),
-            Error::CliBackupTargetExists { path } => self.cli_backup_target_exists(path),
             Error::CliUnrecognizedGames { games } => self.cli_unrecognized_games(games),
             Error::CliUnableToRequestConfirmation => self.cli_unable_to_request_confirmation(),
             Error::CliBackupIdWithMultipleGames => self.cli_backup_id_with_multiple_games(),
@@ -228,22 +227,10 @@ impl Translator {
         }
     }
 
-    pub fn cli_backup_target_exists(&self, path: &StrictPath) -> String {
-        let mut args = FluentArgs::new();
-        args.set(PATH, path.render());
-        translate_args("cli-backup-target-already-exists", &args)
-    }
-
     pub fn cli_unrecognized_games(&self, games: &[String]) -> String {
         let prefix = translate("cli-unrecognized-games");
         let lines: Vec<_> = games.iter().map(|x| format!("  - {}", x)).collect();
         format!("{}\n{}", prefix, lines.join("\n"))
-    }
-
-    pub fn cli_confirm_restoration(&self, path: &StrictPath) -> String {
-        let mut args = FluentArgs::new();
-        args.set(PATH, path.render());
-        translate_args("cli-confirm-restoration", &args)
     }
 
     pub fn cli_unable_to_request_confirmation(&self) -> String {
@@ -322,6 +309,12 @@ impl Translator {
         translate_args("badge-redirected-from", &args)
     }
 
+    pub fn badge_redirecting_to(&self, path: &StrictPath) -> String {
+        let mut args = FluentArgs::new();
+        args.set(PATH, path.render());
+        translate_args("badge-redirecting-to", &args)
+    }
+
     pub fn cli_game_header(
         &self,
         name: &str,
@@ -364,6 +357,12 @@ impl Translator {
         let mut args = FluentArgs::new();
         args.set(PATH, item);
         format!("    - {}", translate_args("cli-game-line-item-redirected", &args),)
+    }
+
+    pub fn cli_game_line_item_redirecting(&self, item: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(PATH, item);
+        format!("    - {}", translate_args("cli-game-line-item-redirecting", &args),)
     }
 
     pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {
@@ -452,10 +451,6 @@ impl Translator {
         }
 
         msg
-    }
-
-    pub fn add_redirect_button(&self) -> String {
-        translate("button-add-redirect")
     }
 
     pub fn add_game_button(&self) -> String {
@@ -652,6 +647,14 @@ impl Translator {
         })
     }
 
+    pub fn redirect_kind(&self, redirect: &RedirectKind) -> String {
+        match redirect {
+            RedirectKind::Backup => self.backup_button(),
+            RedirectKind::Restore => self.restore_button(),
+            RedirectKind::Bidirectional => translate("redirect-bidirectional"),
+        }
+    }
+
     pub fn redirect_source_placeholder(&self) -> String {
         translate("field-redirect-source.placeholder")
     }
@@ -676,6 +679,10 @@ impl Translator {
         translate("field-backup-excluded-items")
     }
 
+    pub fn redirects_label(&self) -> String {
+        translate("field-redirects")
+    }
+
     pub fn full_retention(&self) -> String {
         translate("field-retention-full")
     }
@@ -696,7 +703,7 @@ impl Translator {
         translate("consider-doing-a-preview")
     }
 
-    pub fn modal_confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool) -> String {
+    pub fn confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool, suggest: bool) -> String {
         let mut args = FluentArgs::new();
         args.set(
             PATH_ACTION,
@@ -706,20 +713,32 @@ impl Translator {
                 (true, true) => "merge",
             },
         );
-        format!(
-            "{}\n\n{}\n\n{}",
-            translate_args("confirm-backup", &args),
-            target.render(),
-            self.consider_doing_a_preview(),
-        )
+        let primary = translate_args("confirm-backup", &args);
+
+        if suggest {
+            format!(
+                "{}\n\n{}\n\n{}",
+                primary,
+                target.render(),
+                self.consider_doing_a_preview(),
+            )
+        } else {
+            format!("{}\n\n{}", primary, target.render(),)
+        }
     }
 
-    pub fn modal_confirm_restore(&self, source: &StrictPath) -> String {
-        format!(
-            "{}\n\n{}\n\n{}",
-            translate("confirm-restore"),
-            source.render(),
-            self.consider_doing_a_preview(),
-        )
+    pub fn confirm_restore(&self, source: &StrictPath, suggest: bool) -> String {
+        let primary = translate("confirm-restore");
+
+        if suggest {
+            format!(
+                "{}\n\n{}\n\n{}",
+                primary,
+                source.render(),
+                self.consider_doing_a_preview(),
+            )
+        } else {
+            format!("{}\n\n{}", primary, source.render(),)
+        }
     }
 }

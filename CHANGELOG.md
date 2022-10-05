@@ -1,3 +1,22 @@
+## Unreleased
+
+* Added:
+  * In addition to restoration redirects, there are now also backup redirects and bidirectional redirects.
+    The redirect editor is now on the "other" screen instead of the "restore" screen.
+  * CLI: `--fuzzy` option to look up games by an inexact name.
+* Changed:
+  * Ludusavi will no longer migrate pre-v0.10.0 configurations to the current location.
+  * The recent game caching has been moved from `config.yaml` to a new `cache.yaml`.
+* Fixed:
+  * CLI mode asked for confirmation when restoring, but backups behaved differently:
+
+    * If the target folder did not exist, then the backup would happen without confirmation.
+    * If it did exist, then the `--force` or `--merge` option had to be specified,
+      even if you already had merging enabled in your config.
+
+    Now, backups ask for confirmation unless you specify `--force` or `--preview`,
+    and the confirmation phrasing is aligned with GUI mode.
+
 ## v0.13.1 (2022-09-29)
 
 * Fixed:

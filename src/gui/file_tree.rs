@@ -8,7 +8,7 @@ use crate::{
     },
     lang::Translator,
     path::StrictPath,
-    prelude::{game_file_restoration_target, BackupInfo, DuplicateDetector, RegistryItem, ScanInfo},
+    prelude::{game_file_target, BackupInfo, DuplicateDetector, RegistryItem, ResolvedRedirect, ScanInfo},
 };
 use iced::{button, Alignment, Button, Checkbox, Column, Container, Length, Row, Space, Text};
 
@@ -41,7 +41,7 @@ struct FileTreeNode {
     successful: bool,
     ignored: bool,
     duplicated: bool,
-    redirected_from: Option<StrictPath>,
+    redirect: Option<ResolvedRedirect>,
     node_type: FileTreeNodeType,
 }
 
@@ -139,10 +139,15 @@ impl FileTreeNode {
                         },
                     )
                     .push_some(|| {
-                        self.redirected_from.as_ref().map(|r| {
-                            Badge::new(&translator.badge_redirected_from(r))
-                                .left_margin(15)
-                                .view(config.theme)
+                        self.redirect.as_ref().and_then(|redirect| {
+                            redirect.alt().as_ref().map(|alt| {
+                                let msg = if redirect.restoring {
+                                    translator.badge_redirected_from(alt)
+                                } else {
+                                    translator.badge_redirecting_to(alt)
+                                };
+                                Badge::new(&msg).left_margin(15).view(config.theme)
+                            })
                         })
                     }),
             );
@@ -222,7 +227,7 @@ impl FileTreeNode {
         prefix_keys: &[T],
         successful: bool,
         duplicated: bool,
-        redirected_from: Option<StrictPath>,
+        redirect: Option<ResolvedRedirect>,
     ) -> &mut Self {
         let node_type = self.node_type.clone();
         let mut node = self;
@@ -252,7 +257,7 @@ impl FileTreeNode {
 
         node.successful = successful;
         node.duplicated = duplicated;
-        node.redirected_from = redirected_from;
+        node.redirect = redirect;
 
         node
     }
@@ -310,14 +315,7 @@ impl FileTree {
         let mut nodes = std::collections::BTreeMap::<String, FileTreeNode>::new();
 
         for item in scan_info.found_files.iter() {
-            let mut redirected_from = None;
-            let path_to_show = if let Some(original_path) = &item.original_path {
-                let (target, original_target) = game_file_restoration_target(original_path, &config.get_redirects());
-                redirected_from = original_target;
-                target.clone()
-            } else {
-                item.path.clone()
-            };
+            let resolved = game_file_target(item.original_path(), &config.get_redirects(), scan_info.restoring());
 
             let mut successful = true;
             if let Some(backup_info) = &backup_info {
@@ -326,7 +324,7 @@ impl FileTree {
                 }
             }
 
-            let rendered = path_to_show.render();
+            let rendered = resolved.readable();
             let components: Vec<_> = rendered.split('/').collect();
 
             nodes
@@ -337,7 +335,7 @@ impl FileTree {
                     &[components[0]],
                     successful,
                     duplicate_detector.is_file_duplicated(item),
-                    redirected_from,
+                    Some(resolved),
                 );
         }
         for item in scan_info.found_registry_keys.iter() {

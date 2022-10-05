@@ -1,6 +1,11 @@
 use crate::{
     config::{Config, Theme},
-    gui::{common::Message, ignored_items_editor::IgnoredItemsEditor, style},
+    gui::{
+        common::Message,
+        ignored_items_editor::IgnoredItemsEditor,
+        redirect_editor::{RedirectEditor, RedirectEditorRow},
+        style,
+    },
     lang::{Language, Translator},
 };
 
@@ -12,12 +17,21 @@ pub struct OtherScreenComponent {
     pub ignored_items_editor: IgnoredItemsEditor,
     language_selector: pick_list::State<Language>,
     theme_selector: pick_list::State<Theme>,
+    pub redirect_editor: RedirectEditor,
 }
 
 impl OtherScreenComponent {
     pub fn new(config: &Config) -> Self {
+        let mut redirect_editor = RedirectEditor::default();
+        for redirect in &config.get_redirects() {
+            redirect_editor
+                .rows
+                .push(RedirectEditorRow::new(&redirect.source.raw(), &redirect.target.raw()))
+        }
+
         Self {
             ignored_items_editor: IgnoredItemsEditor::new(config),
+            redirect_editor,
             ..Default::default()
         }
     }
@@ -75,6 +89,11 @@ impl OtherScreenComponent {
                                     .view(config, translator)
                                     .padding([10, 0, 0, 0]),
                             ),
+                        )
+                        .push(
+                            Column::new()
+                                .push(Text::new(translator.redirects_label()))
+                                .push(self.redirect_editor.view(config, translator).padding([10, 0, 0, 0])),
                         ),
                 ),
         )

@@ -1,4 +1,5 @@
 use crate::{
+    cache::Cache,
     config::{Config, CustomGame, RootsConfig, Theme},
     gui::{
         backup_screen::BackupScreenComponent,
@@ -70,6 +71,7 @@ struct Progress {
 pub struct App {
     config: Config,
     manifest: Manifest,
+    cache: Cache,
     translator: Translator,
     operation: Option<OngoingOperation>,
     screen: Screen,
@@ -153,8 +155,8 @@ impl App {
                         &duplicates,
                     );
                 }
-                self.config.backup.recent_games.retain(|x| !games.contains(x));
-                self.config.save();
+                self.cache.backup.recent_games.retain(|x| !games.contains(x));
+                self.cache.save();
             }
             return Command::none();
         }
@@ -227,6 +229,7 @@ impl App {
                             merge,
                             &chrono::Utc::now(),
                             &config.backup.format,
+                            &config.redirects,
                         ))
                     } else {
                         None
@@ -288,8 +291,8 @@ impl App {
                         &duplicates,
                     );
                 }
-                self.config.restore.recent_games.retain(|x| !games.contains(x));
-                self.config.save();
+                self.cache.restore.recent_games.retain(|x| !games.contains(x));
+                self.cache.save();
             }
             return Command::none();
         }
@@ -349,14 +352,11 @@ impl App {
         let mut failed = false;
 
         if full {
-            self.config.backup.recent_games.clear();
+            self.cache.backup.recent_games.clear();
         }
 
         for entry in &self.backup_screen.log.entries {
-            self.config
-                .backup
-                .recent_games
-                .insert(entry.scan_info.game_name.clone());
+            self.cache.backup.recent_games.insert(entry.scan_info.game_name.clone());
             if let Some(backup_info) = &entry.backup_info {
                 if !backup_info.successful() {
                     failed = true;
@@ -368,7 +368,7 @@ impl App {
             self.backup_screen.previewed_games.clear();
         }
 
-        self.config.save();
+        self.cache.save();
 
         if failed {
             self.modal_theme = Some(ModalTheme::Error {
@@ -385,11 +385,11 @@ impl App {
         let mut failed = false;
 
         if full {
-            self.config.restore.recent_games.clear();
+            self.cache.restore.recent_games.clear();
         }
 
         for entry in &self.restore_screen.log.entries {
-            self.config
+            self.cache
                 .restore
                 .recent_games
                 .insert(entry.scan_info.game_name.clone());
@@ -400,7 +400,7 @@ impl App {
             }
         }
 
-        self.config.save();
+        self.cache.save();
 
         if failed {
             self.modal_theme = Some(ModalTheme::Error {
@@ -462,7 +462,7 @@ impl Application for App {
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let translator = Translator::default();
         let mut modal_theme: Option<ModalTheme> = None;
-        let config = match Config::load() {
+        let mut config = match Config::load() {
             Ok(x) => x,
             Err(x) => {
                 modal_theme = Some(ModalTheme::Error { variant: x });
@@ -471,6 +471,7 @@ impl Application for App {
             }
         };
         translator.set_language(config.language);
+        let cache = Cache::load().migrated(&mut config);
         let manifest = match Manifest::load_local() {
             Ok(y) => y,
             Err(_) => {
@@ -483,13 +484,14 @@ impl Application for App {
 
         (
             Self {
-                backup_screen: BackupScreenComponent::new(&config),
-                restore_screen: RestoreScreenComponent::new(&config),
+                backup_screen: BackupScreenComponent::new(&config, &cache),
+                restore_screen: RestoreScreenComponent::new(&config, &cache),
                 custom_games_screen: CustomGamesScreenComponent::new(&config),
                 other_screen: OtherScreenComponent::new(&config),
                 translator,
                 config,
                 manifest,
+                cache,
                 modal_theme,
                 ..Self::default()
             },
@@ -601,7 +603,7 @@ impl Application for App {
                             &self.backup_screen.duplicate_detector,
                             &duplicates,
                         );
-                        self.config.backup.recent_games.remove(&scan_info.game_name);
+                        self.cache.backup.recent_games.remove(&scan_info.game_name);
                     }
                 } else {
                     log::trace!(
@@ -656,7 +658,7 @@ impl Application for App {
                             &self.restore_screen.duplicate_detector,
                             &duplicates,
                         );
-                        self.config.restore.recent_games.remove(&scan_info.game_name);
+                        self.cache.restore.recent_games.remove(&scan_info.game_name);
                     }
                 } else {
                     log::trace!(
@@ -762,10 +764,15 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::SelectedRedirectKind(index, kind) => {
+                self.config.redirects[index].kind = kind;
+                self.config.save();
+                Command::none()
+            }
             Message::EditedRedirect(action, field) => {
                 match action {
                     EditAction::Add => {
-                        self.restore_screen
+                        self.other_screen
                             .redirect_editor
                             .rows
                             .push(RedirectEditorRow::default());
@@ -773,22 +780,22 @@ impl Application for App {
                     }
                     EditAction::Change(index, value) => match field {
                         Some(RedirectEditActionField::Source) => {
-                            self.restore_screen.redirect_editor.rows[index]
+                            self.other_screen.redirect_editor.rows[index]
                                 .source_text_history
                                 .push(&value);
-                            self.config.restore.redirects[index].source.reset(value);
+                            self.config.redirects[index].source.reset(value);
                         }
                         Some(RedirectEditActionField::Target) => {
-                            self.restore_screen.redirect_editor.rows[index]
+                            self.other_screen.redirect_editor.rows[index]
                                 .target_text_history
                                 .push(&value);
-                            self.config.restore.redirects[index].target.reset(value);
+                            self.config.redirects[index].target.reset(value);
                         }
                         _ => {}
                     },
                     EditAction::Remove(index) => {
-                        self.restore_screen.redirect_editor.rows.remove(index);
-                        self.config.restore.redirects.remove(index);
+                        self.other_screen.redirect_editor.rows.remove(index);
+                        self.config.redirects.remove(index);
                     }
                 }
                 self.config.save();
@@ -1229,11 +1236,11 @@ impl Application for App {
                                         break;
                                     }
                                 }
-                                for (i, redirect) in self.restore_screen.redirect_editor.rows.iter_mut().enumerate() {
+                                for (i, redirect) in self.other_screen.redirect_editor.rows.iter_mut().enumerate() {
                                     if redirect.source_text_state.is_focused() {
                                         apply_shortcut_to_strict_path_field(
                                             &shortcut,
-                                            &mut self.config.restore.redirects[i].source,
+                                            &mut self.config.redirects[i].source,
                                             &mut redirect.source_text_history,
                                         );
                                         matched = true;
@@ -1242,7 +1249,7 @@ impl Application for App {
                                     if redirect.target_text_state.is_focused() {
                                         apply_shortcut_to_strict_path_field(
                                             &shortcut,
-                                            &mut self.config.restore.redirects[i].target,
+                                            &mut self.config.redirects[i].target,
                                             &mut redirect.target_text_history,
                                         );
                                         matched = true;

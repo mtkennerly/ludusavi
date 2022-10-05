@@ -1,5 +1,5 @@
 use crate::{
-    config::{BackupFormat, ManifestConfig, RootsConfig, SortKey, Theme, ZipCompression},
+    config::{BackupFormat, ManifestConfig, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
     gui::{badge::Badge, icon::Icon},
     lang::{Language, Translator},
     layout::Backup,
@@ -55,6 +55,7 @@ pub enum Message {
     ConfirmAddMissingRoots(Vec<RootsConfig>),
     EditedRoot(EditAction),
     SelectedRootStore(usize, Store),
+    SelectedRedirectKind(usize, RedirectKind),
     EditedRedirect(EditAction, Option<RedirectEditActionField>),
     EditedCustomGame(EditAction),
     EditedCustomGameFile(usize, EditAction),

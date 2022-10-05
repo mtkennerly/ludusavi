@@ -8,9 +8,7 @@ file-size = Size
 file-location = Location
 overall = Overall
 
-cli-backup-target-already-exists = The backup target already exists ( {$path} ). Either choose a different --path or delete it with --force.
 cli-unrecognized-games = No info for these games:
-cli-confirm-restoration = Do you want to restore from {$path}?
 cli-unable-to-request-confirmation = Unable to request confirmation.
     .winpty-workaround = If you are using a Bash emulator (like Git Bash), try running winpty.
 cli-backup-id-with-multiple-games = Cannot specify backup ID when restoring multiple games.
@@ -21,10 +19,12 @@ badge-duplicates = DUPLICATES
 badge-duplicated = DUPLICATED
 badge-ignored = IGNORED
 badge-redirected-from = FROM: {$path}
+badge-redirecting-to = TO: {$path}
 
 some-entries-failed = Some entries failed to process; look for {badge-failed} in the output for details. Double check whether you can access those files or whether their paths are very long.
 
 cli-game-line-item-redirected = Redirected from: {$path}
+cli-game-line-item-redirecting = Redirecting to: {$path}
 
 button-backup = Back up
 button-preview = Preview
@@ -81,6 +81,7 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Target (new location)
 field-backup-excluded-items = Backup exclusions:
+field-redirects = Redirects:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
 field-retention-full = Full:
@@ -116,6 +117,8 @@ compression-zstd = Zstd
 theme = Theme
 theme-light = Light
 theme-dark = Dark
+
+redirect-bidirectional = Bidirectional
 
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies
