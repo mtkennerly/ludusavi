@@ -1265,9 +1265,9 @@ mod tests {
 
     use super::*;
     use crate::config::{Config, Retention};
-    use crate::layout::{
-        BackupLayout, FullBackup, IndividualMapping, IndividualMappingFile, IndividualMappingRegistry,
-    };
+    #[cfg(target_os = "windows")]
+    use crate::layout::{BackupLayout, IndividualMappingRegistry};
+    use crate::layout::{FullBackup, IndividualMapping, IndividualMappingFile};
     use crate::manifest::Manifest;
     use crate::testing::*;
     use maplit::*;

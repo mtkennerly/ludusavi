@@ -44,6 +44,7 @@ unic-langid = "0.9.0"
 walkdir = "2.3.2"
 whoami = "1.2.1"
 zip = "0.6.2"
+filetime = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.10.1"

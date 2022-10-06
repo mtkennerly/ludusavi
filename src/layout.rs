@@ -3,6 +3,8 @@ use std::{
     io::Write,
 };
 
+use filetime::FileTime;
+
 use chrono::{Datelike, Timelike};
 
 use crate::{
@@ -221,7 +223,7 @@ fn default_backup_list() -> VecDeque<FullBackup> {
     }])
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
 pub struct IndividualMappingFile {
     pub hash: String,
     pub size: u64,
@@ -942,23 +944,7 @@ impl GameLayout {
                 relevant_files.push(target_file);
                 continue;
             }
-            if let Err(e) = target_file.create_parent_dir() {
-                log::error!(
-                    "[{}] unable to create parent directories: {} -> {} | {e}",
-                    self.mapping.name,
-                    file.path.raw(),
-                    target_file.raw()
-                );
-                backup_info.failed_files.insert(file.clone());
-                continue;
-            }
-            if let Err(e) = std::fs::copy(&file.path.interpret(), &target_file.interpret()) {
-                log::error!(
-                    "[{}] unable to copy: {} -> {} | {e}",
-                    self.mapping.name,
-                    file.path.raw(),
-                    target_file.raw()
-                );
+            if let Err(_e) = file.path.copy_to_path(&self.mapping.name, 0, &target_file) {
                 backup_info.failed_files.insert(file.clone());
                 continue;
             }
@@ -1039,7 +1025,21 @@ impl GameLayout {
 
             let resolved = game_file_target(&file.path, redirects, false);
             let target_file_id = self.mapping.game_file_for_zip(resolved.effective());
-            if let Err(e) = zip.start_file(&target_file_id, options) {
+            // #132: SL honor timestamps - in options last_modified_time
+            let mtime: chrono::DateTime<chrono::Utc> = file.path.metadata().unwrap().modified().unwrap().into();
+            log::trace!("execute_backup_as_zip: mtime = {mtime:#?}");
+            let local_options = options.last_modified_time(
+                zip::DateTime::from_date_and_time(
+                    mtime.year() as u16,
+                    mtime.month() as u8,
+                    mtime.day() as u8,
+                    mtime.hour() as u8,
+                    mtime.minute() as u8,
+                    mtime.second() as u8,
+                )
+                .unwrap(),
+            );
+            if let Err(e) = zip.start_file(&target_file_id, local_options) {
                 log::error!(
                     "[{}] unable to start zip file record: {} -> {} | {e}",
                     self.mapping.name,
@@ -1296,21 +1296,11 @@ impl GameLayout {
             return Ok(());
         }
 
-        target.create_parent_dir()?;
         for i in 0..99 {
-            if let Err(e) = target.unset_readonly() {
-                log::warn!(
-                    "[{}] try {i}, failed to unset read-only on target: {} | {e}",
-                    self.mapping.name,
-                    target.raw()
-                );
-            } else if let Err(e) = std::fs::copy(&file.path.interpret(), &target.interpret()) {
-                log::warn!(
-                    "[{}] try {i}, failed to copy to target: {} -> {} | {e}",
-                    self.mapping.name,
-                    file.path.raw(),
-                    target.raw()
-                );
+            if let Err(_e) = file.path.copy_to_path(&self.mapping.name, i as u8, target) {
+                // File might be busy, especially if multiple games share a file,
+                // like in a collection, so retry after a delay:
+                std::thread::sleep(std::time::Duration::from_millis(i * self.mapping.name.len() as u64));
             } else {
                 log::info!(
                     "[{}] restored: {} -> {}",
@@ -1320,9 +1310,6 @@ impl GameLayout {
                 );
                 return Ok(());
             }
-            // File might be busy, especially if multiple games share a file,
-            // like in a collection, so retry after a delay:
-            std::thread::sleep(std::time::Duration::from_millis(i * self.mapping.name.len() as u64));
         }
 
         Err("Unable to restore file".into())
@@ -1381,7 +1368,8 @@ impl GameLayout {
                     continue;
                 }
             };
-            if let Err(e) = std::io::copy(&mut archive.by_name(&file.path.raw())?, &mut target_handle) {
+            let mut source_file = archive.by_name(&file.path.raw()).unwrap();
+            if let Err(e) = std::io::copy(&mut source_file, &mut target_handle) {
                 log::warn!(
                     "[{}] try {i}, failed to copy to target: {} -> {} | {e}",
                     self.mapping.name,
@@ -1389,6 +1377,26 @@ impl GameLayout {
                     target.raw()
                 );
             } else {
+                // #132: SL honor timestamps - set timestamp of file based on info in zip
+                let mtime = source_file.last_modified();
+                let naive_mtime = chrono::NaiveDateTime::new(
+                    chrono::NaiveDate::from_ymd(mtime.year() as i32, mtime.month() as u32, mtime.day() as u32),
+                    chrono::NaiveTime::from_hms(mtime.hour() as u32, mtime.minute() as u32, mtime.second() as u32),
+                );
+                if let Err(e) = filetime::set_file_mtime(
+                    target.interpret(),
+                    FileTime::from_system_time(
+                        chrono::DateTime::<chrono::Utc>::from_utc(naive_mtime, chrono::Utc).into(),
+                    ),
+                ) {
+                    log::error!(
+                        "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
+                        self.mapping.name,
+                        file.path.raw(),
+                        target.raw(),
+                        mtime
+                    );
+                }
                 log::info!(
                     "[{}] restored: {} -> {}",
                     &self.mapping.name,

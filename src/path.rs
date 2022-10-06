@@ -1,5 +1,7 @@
 use crate::prelude::AnyError;
 
+use filetime::FileTime;
+
 #[cfg(target_os = "windows")]
 const TYPICAL_SEPARATOR: &str = "\\";
 #[cfg(target_os = "windows")]
@@ -247,6 +249,62 @@ impl StrictPath {
         let mut pb = self.as_std_path_buf();
         pb.pop();
         std::fs::create_dir_all(&pb)?;
+        Ok(())
+    }
+
+    pub fn copy_to_path(&self, name: &String, attempt: u8, target_file: &StrictPath) -> Result<(), std::io::Error> {
+        log::trace!(
+            "[{name}] copy_to_path {} -> {}",
+            self.interpret(),
+            target_file.interpret()
+        );
+
+        if let Err(e) = target_file.create_parent_dir() {
+            log::error!(
+                "[{}] unable to create parent directories: {} -> {} | {e}",
+                name,
+                self.raw(),
+                target_file.raw()
+            );
+            return Err(e);
+        }
+
+        // SL: I wonder which circumstances will have a ro target_file... maybe
+        // a Windows specific issue?
+        //
+        // taken from GameLayout::restore_file_from_simple
+        if let Err(e) = target_file.unset_readonly() {
+            log::warn!(
+                "[{}] try {attempt}, failed to unset read-only on target: {} | {e}",
+                name,
+                target_file.raw()
+            );
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Failed to unset read-only",
+            ));
+        } else if let Err(e) = std::fs::copy(&self.interpret(), &target_file.interpret()) {
+            log::error!(
+                "[{}] unable to copy: {} -> {} | {e}",
+                name,
+                self.raw(),
+                target_file.raw()
+            );
+            return Err(e);
+        } else {
+            // #132: SL honor timestamps - set timestamp of file based on file metadata
+            let mtime = FileTime::from_system_time(self.metadata().unwrap().modified().unwrap());
+            if let Err(e) = filetime::set_file_mtime(target_file.interpret(), mtime) {
+                log::error!(
+                    "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
+                    name,
+                    self.raw(),
+                    target_file.raw(),
+                    mtime
+                );
+                return Err(e);
+            }
+        }
         Ok(())
     }
 
