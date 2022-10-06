@@ -1587,7 +1587,6 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(s("/file1")),
                             size: 1,
-                            mtime: SystemTime::UNIX_EPOCH,
                             hash: "1".to_string(),
                             original_path: None,
                             ignored: false,
@@ -1613,7 +1612,6 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(s("/file2")),
                             size: 3,
-                            mtime: SystemTime::UNIX_EPOCH,
                             hash: "2".to_string(),
                             original_path: None,
                             ignored: false,
@@ -1662,7 +1660,6 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file1", drive())),
                             size: 102_400,
-                            mtime: SystemTime::UNIX_EPOCH,
                             hash: "1".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                             ignored: false,
@@ -1671,7 +1668,6 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
                             size: 51_200,
-                            mtime: SystemTime::UNIX_EPOCH,
                             hash: "2".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                             ignored: false,
@@ -1866,7 +1862,6 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file1", drive())),
                             size: 100,
-                            mtime: SystemTime::UNIX_EPOCH,
                             hash: "1".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                             ignored: false,
@@ -1875,7 +1870,6 @@ Overall:
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
                             size: 50,
-                            mtime: SystemTime::UNIX_EPOCH,
                             hash: "2".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                             ignored: false,

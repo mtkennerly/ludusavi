@@ -1905,7 +1905,6 @@ mod tests {
                     ScannedFile {
                         path: StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())),
                         size: 4,
-                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "old".into(),
                         original_path: None,
                         ignored: true,
@@ -2363,7 +2362,6 @@ mod tests {
                     ScannedFile {
                         path: make_restorable_path("backup-1", "file1.txt"),
                         size: 1,
-                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/file1.txt")),
                         ignored: false,
@@ -2372,7 +2370,6 @@ mod tests {
                     ScannedFile {
                         path: make_restorable_path("backup-1", "file2.txt"),
                         size: 2,
-                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/file2.txt")),
                         ignored: false,
@@ -2410,7 +2407,6 @@ mod tests {
                     ScannedFile {
                         path: make_restorable_path_zip("file1.txt"),
                         size: 1,
-                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/file1.txt")),
                         ignored: false,
@@ -2419,7 +2415,6 @@ mod tests {
                     ScannedFile {
                         path: make_restorable_path_zip("file2.txt"),
                         size: 2,
-                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/file2.txt")),
                         ignored: false,
@@ -2468,7 +2463,6 @@ mod tests {
                     ScannedFile {
                         path: make_restorable_path("backup-1", "unchanged.txt"),
                         size: 1,
-                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/unchanged.txt")),
                         ignored: false,
@@ -2477,7 +2471,6 @@ mod tests {
                     ScannedFile {
                         path: make_restorable_path("backup-2", "changed.txt"),
                         size: 2,
-                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "new".into(),
                         original_path: Some(make_original_path("/changed.txt")),
                         ignored: false,
@@ -2486,7 +2479,6 @@ mod tests {
                     ScannedFile {
                         path: make_restorable_path("backup-2", "added.txt"),
                         size: 5,
-                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "new".into(),
                         original_path: Some(make_original_path("/added.txt")),
                         ignored: false,
@@ -2535,7 +2527,6 @@ mod tests {
                     ScannedFile {
                         path: make_restorable_path_zip("unchanged.txt"),
                         size: 1,
-                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/unchanged.txt")),
                         ignored: false,
@@ -2544,7 +2535,6 @@ mod tests {
                     ScannedFile {
                         path: make_restorable_path_zip("changed.txt"),
                         size: 2,
-                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "new".into(),
                         original_path: Some(make_original_path("/changed.txt")),
                         ignored: false,
@@ -2553,7 +2543,6 @@ mod tests {
                     ScannedFile {
                         path: make_restorable_path_zip("added.txt"),
                         size: 5,
-                        mtime: SystemTime::UNIX_EPOCH,
                         hash: "new".into(),
                         original_path: Some(make_original_path("/added.txt")),
                         ignored: false,
