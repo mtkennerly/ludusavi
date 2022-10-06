@@ -1341,7 +1341,6 @@ impl GameLayout {
             return Ok(());
         }
 
-        // -------------------- SNIP --------------------
         target.create_parent_dir()?;
         for i in 0..99 {
             if i > 0 {
@@ -1407,7 +1406,6 @@ impl GameLayout {
                 return Ok(());
             }
         }
-        // -------------------- SNAP --------------------
 
         Err("Unable to restore file".into())
     }
@@ -1765,7 +1763,7 @@ mod tests {
                     name: ".".to_string(),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1},
+                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
                     },
                     ..Default::default()
                 })),
@@ -1792,7 +1790,7 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1},
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                         },
                         ..Default::default()
                     }]),
@@ -1825,8 +1823,8 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1},
-                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2},
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -1841,8 +1839,8 @@ mod tests {
                     name: ".".to_string(),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1},
-                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2},
+                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
+                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                     },
                     ..Default::default()
                 })),
@@ -1870,8 +1868,8 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1},
-                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2},
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -1886,8 +1884,8 @@ mod tests {
                     name: format!("backup-{}", now_str()),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1},
-                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2},
+                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
+                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                     },
                     ..Default::default()
                 })),
@@ -1924,10 +1922,10 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1},
-                            StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2},
-                            StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 3},
-                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4},
+                            StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 3 },
+                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
                         ..Default::default()
                     }]),
@@ -1942,10 +1940,10 @@ mod tests {
                     name: format!("backup-{}", now_str()),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2}),
+                        StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                         StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => None,
                         StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
-                        StrictPath::new(format!("{}/tests/root/game1/added.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 5}),
+                        StrictPath::new(format!("{}/tests/root/game1/added.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                     },
                     ..Default::default()
                 })),
@@ -1972,19 +1970,19 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1},
-                            StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2},
-                            StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 3},
-                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4},
+                            StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 3 },
+                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", now_str()),
                             when: now(),
                             files: btreemap! {
-                                StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2}),
+                                StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                                 StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => None,
                                 StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
-                                StrictPath::new(format!("{}/tests/root/game1/added.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 5}),
+                                StrictPath::new(format!("{}/tests/root/game1/added.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                             },
                             ..Default::default()
                         }],
@@ -2002,7 +2000,7 @@ mod tests {
                     when: now(),
                     files: btreemap! {
                         StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => None,
-                        StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "newer".into(), size: 2}),
+                        StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "newer".into(), size: 2 }),
                         StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => None,
                         StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
                     },
@@ -2032,15 +2030,15 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1},
-                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2},
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
-                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1}),
-                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2}),
+                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
+                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
                             },
                             ..Default::default()
                         }],
@@ -2074,13 +2072,13 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1},
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
-                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1}),
+                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
                             },
                             ..Default::default()
                         }],
@@ -2121,7 +2119,7 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4},
+                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
                         ..Default::default()
                     }]),
@@ -2163,7 +2161,7 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4},
+                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", now_str()),
@@ -2186,7 +2184,7 @@ mod tests {
                     name: format!("backup-{}", now_str()),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2}),
+                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                     },
                     ..Default::default()
                 })),
@@ -2214,15 +2212,15 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1},
-                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2},
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
-                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1}),
-                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2}),
+                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
+                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
                             },
                             ..Default::default()
                         }],
@@ -2239,8 +2237,8 @@ mod tests {
                     name: format!("backup-{}", now_str()),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "newer".into(), size: 1},
-                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2},
+                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "newer".into(), size: 1 },
+                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                     },
                     ..Default::default()
                 })),
@@ -2268,15 +2266,15 @@ mod tests {
                         name: format!("backup-{}", past_str()),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1},
-                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2},
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
-                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1}),
-                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2}),
+                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
+                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
                             },
                             ..Default::default()
                         }],
@@ -2293,8 +2291,8 @@ mod tests {
                     name: ".".to_string(),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1},
-                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 2},
+                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 2 },
                     },
                     ..Default::default()
                 })),
@@ -2346,8 +2344,8 @@ mod tests {
                         name: "backup-1".into(),
                         when: past(),
                         files: btreemap! {
-                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "old".into(), size: 1},
-                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "old".into(), size: 2},
+                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -2391,8 +2389,8 @@ mod tests {
                         name: "backup-1.zip".into(),
                         when: past(),
                         files: btreemap! {
-                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "old".into(), size: 1},
-                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "old".into(), size: 2},
+                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -2436,17 +2434,17 @@ mod tests {
                         name: "backup-1".into(),
                         when: past(),
                         files: btreemap! {
-                            mapping_file_key("/unchanged.txt") => IndividualMappingFile { hash: "old".into(), size: 1},
-                            mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2},
-                            mapping_file_key("/delete.txt") => IndividualMappingFile { hash: "old".into(), size: 3},
+                            mapping_file_key("/unchanged.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            mapping_file_key("/delete.txt") => IndividualMappingFile { hash: "old".into(), size: 3 },
                         },
                         children: vec![DifferentialBackup {
                             name: "backup-2".into(),
                             when: past2(),
                             files: btreemap! {
-                                mapping_file_key("/changed.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 2}),
+                                mapping_file_key("/changed.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                                 mapping_file_key("/delete.txt") => None,
-                                mapping_file_key("/added.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 5}),
+                                mapping_file_key("/added.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                             },
                             ..Default::default()
                         }],
@@ -2500,17 +2498,17 @@ mod tests {
                         name: "backup-1.zip".into(),
                         when: past(),
                         files: btreemap! {
-                            mapping_file_key("/unchanged.txt") => IndividualMappingFile { hash: "old".into(), size: 1},
-                            mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2},
-                            mapping_file_key("/delete.txt") => IndividualMappingFile { hash: "old".into(), size: 3},
+                            mapping_file_key("/unchanged.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            mapping_file_key("/delete.txt") => IndividualMappingFile { hash: "old".into(), size: 3 },
                         },
                         children: vec![DifferentialBackup {
                             name: "backup-2.zip".into(),
                             when: past2(),
                             files: btreemap! {
-                                mapping_file_key("/changed.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 2}),
+                                mapping_file_key("/changed.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                                 mapping_file_key("/delete.txt") => None,
-                                mapping_file_key("/added.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 5}),
+                                mapping_file_key("/added.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                             },
                             ..Default::default()
                         }],
