@@ -1,5 +1,8 @@
 use crate::{
-    config::{BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry},
+    config::{
+        BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths,
+        ToggledRegistry,
+    },
     layout::{Backup, GameLayout},
     manifest::{Game, Os, Store},
 };
@@ -1265,7 +1268,13 @@ mod tests {
 
     use super::*;
     use crate::config::{Config, Retention};
-    use crate::layout::{FullBackup, IndividualMapping, IndividualMappingFile};
+    use crate::layout::{
+        FullBackup, IndividualMapping, IndividualMappingFile,
+    };
+    #[cfg(target_os = "windows")]
+    use crate::layout::{
+        BackupLayout, IndividualMappingRegistry,
+    };
     use crate::manifest::Manifest;
     use crate::testing::*;
     use maplit::*;
