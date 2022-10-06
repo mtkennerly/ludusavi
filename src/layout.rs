@@ -1383,12 +1383,12 @@ impl GameLayout {
                     chrono::NaiveDate::from_ymd(mtime.year() as i32, mtime.month() as u32, mtime.day() as u32),
                     chrono::NaiveTime::from_hms(mtime.hour() as u32, mtime.minute() as u32, mtime.second() as u32),
                 );
-                if let Err(e) =
-                    filetime::set_file_mtime(
-                        target.interpret(),
-                        FileTime::from_system_time(chrono::DateTime::<chrono::Utc>::from_utc(naive_mtime, chrono::Utc).into()),
-                    )
-                {
+                if let Err(e) = filetime::set_file_mtime(
+                    target.interpret(),
+                    FileTime::from_system_time(
+                        chrono::DateTime::<chrono::Utc>::from_utc(naive_mtime, chrono::Utc).into(),
+                    ),
+                ) {
                     log::error!(
                         "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
                         self.mapping.name,

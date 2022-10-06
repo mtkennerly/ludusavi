@@ -253,7 +253,11 @@ impl StrictPath {
     }
 
     pub fn copy_to_path(&self, name: &String, attempt: u8, target_file: &StrictPath) -> Result<(), std::io::Error> {
-        log::trace!("[{name}] copy_to_path {} -> {}", self.interpret(), target_file.interpret());
+        log::trace!(
+            "[{name}] copy_to_path {} -> {}",
+            self.interpret(),
+            target_file.interpret()
+        );
 
         if let Err(e) = target_file.create_parent_dir() {
             log::error!(
@@ -275,33 +279,34 @@ impl StrictPath {
                 name,
                 target_file.raw()
             );
-            return Err(std::io::Error::new(std::io::ErrorKind::Other, "Failed to unset read-only"));
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Failed to unset read-only",
+            ));
         } else if let Err(e) = std::fs::copy(&self.interpret(), &target_file.interpret()) {
-                log::error!(
-                    "[{}] unable to copy: {} -> {} | {e}",
-                    name,
-                    self.raw(),
-                    target_file.raw()
-                );
+            log::error!(
+                "[{}] unable to copy: {} -> {} | {e}",
+                name,
+                self.raw(),
+                target_file.raw()
+            );
             return Err(e);
         } else {
-                // #132: SL honor timestamps - set timestamp of file based on file metadata
-                let mtime = FileTime::from_system_time(self.metadata().unwrap().modified().unwrap());
-                if let Err(e) = filetime::set_file_mtime(target_file.interpret(), mtime)
-                {
-                    log::error!(
-                        "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
-                        name,
-                        self.raw(),
-                        target_file.raw(),
-                        mtime
-                    );
-                    return Err(e);
-                }
+            // #132: SL honor timestamps - set timestamp of file based on file metadata
+            let mtime = FileTime::from_system_time(self.metadata().unwrap().modified().unwrap());
+            if let Err(e) = filetime::set_file_mtime(target_file.interpret(), mtime) {
+                log::error!(
+                    "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
+                    name,
+                    self.raw(),
+                    target_file.raw(),
+                    mtime
+                );
+                return Err(e);
+            }
         }
         return Ok(());
     }
-
 
     /// This splits a path into a drive (e.g., `C:` or `\\?\D:`) and the remainder.
     /// This is only used during backups to record drives in mapping.yaml, so it
