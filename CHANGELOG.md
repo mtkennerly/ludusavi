@@ -8,6 +8,9 @@
   * Ludusavi will no longer migrate pre-v0.10.0 configurations to the current location.
   * The recent game caching has been moved from `config.yaml` to a new `cache.yaml`.
 * Fixed:
+  * Backup files did not store the correct modification time on Linux and defaulted to the current time.
+    This also affected Windows, but only for zip backups.
+    ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/136))
   * CLI mode asked for confirmation when restoring, but backups behaved differently:
 
     * If the target folder did not exist, then the backup would happen without confirmation.

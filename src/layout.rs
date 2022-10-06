@@ -3,8 +3,6 @@ use std::{
     io::Write,
 };
 
-use filetime::FileTime;
-
 use chrono::{Datelike, Timelike};
 
 use crate::{
@@ -1025,20 +1023,22 @@ impl GameLayout {
 
             let resolved = game_file_target(&file.path, redirects, false);
             let target_file_id = self.mapping.game_file_for_zip(resolved.effective());
-            // #132: SL honor timestamps - in options last_modified_time
-            let mtime: chrono::DateTime<chrono::Utc> = file.path.metadata().unwrap().modified().unwrap().into();
-            log::trace!("execute_backup_as_zip: mtime = {mtime:#?}");
-            let local_options = options.last_modified_time(
-                zip::DateTime::from_date_and_time(
-                    mtime.year() as u16,
-                    mtime.month() as u8,
-                    mtime.day() as u8,
-                    mtime.hour() as u8,
-                    mtime.minute() as u8,
-                    mtime.second() as u8,
-                )
-                .unwrap(),
-            );
+
+            let mtime = match file.path.get_mtime_zip() {
+                Ok(x) => x,
+                Err(e) => {
+                    log::error!(
+                        "[{}] unable to get mtime: {} -> {} | {e}",
+                        self.mapping.name,
+                        file.path.raw(),
+                        &target_file_id
+                    );
+                    fail_file(file, &mut backup_info);
+                    continue;
+                }
+            };
+            let local_options = options.last_modified_time(mtime);
+
             if let Err(e) = zip.start_file(&target_file_id, local_options) {
                 log::error!(
                     "[{}] unable to start zip file record: {} -> {} | {e}",
@@ -1368,7 +1368,7 @@ impl GameLayout {
                     continue;
                 }
             };
-            let mut source_file = archive.by_name(&file.path.raw()).unwrap();
+            let mut source_file = archive.by_name(&file.path.raw())?;
             if let Err(e) = std::io::copy(&mut source_file, &mut target_handle) {
                 log::warn!(
                     "[{}] try {i}, failed to copy to target: {} -> {} | {e}",
@@ -1377,18 +1377,8 @@ impl GameLayout {
                     target.raw()
                 );
             } else {
-                // #132: SL honor timestamps - set timestamp of file based on info in zip
                 let mtime = source_file.last_modified();
-                let naive_mtime = chrono::NaiveDateTime::new(
-                    chrono::NaiveDate::from_ymd(mtime.year() as i32, mtime.month() as u32, mtime.day() as u32),
-                    chrono::NaiveTime::from_hms(mtime.hour() as u32, mtime.minute() as u32, mtime.second() as u32),
-                );
-                if let Err(e) = filetime::set_file_mtime(
-                    target.interpret(),
-                    FileTime::from_system_time(
-                        chrono::DateTime::<chrono::Utc>::from_utc(naive_mtime, chrono::Utc).into(),
-                    ),
-                ) {
+                if let Err(e) = target.set_mtime_zip(mtime) {
                     log::error!(
                         "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
                         self.mapping.name,

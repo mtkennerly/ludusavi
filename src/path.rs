@@ -232,6 +232,46 @@ impl StrictPath {
         self.as_std_path_buf().metadata()
     }
 
+    pub fn get_mtime(&self) -> std::io::Result<std::time::SystemTime> {
+        self.metadata()?.modified()
+    }
+
+    /// Zips don't store time zones, so we normalize to/from UTC.
+    pub fn get_mtime_zip(&self) -> Result<zip::DateTime, AnyError> {
+        use chrono::{Datelike, Timelike};
+
+        let mtime: chrono::DateTime<chrono::Utc> = self.get_mtime()?.into();
+        let converted = zip::DateTime::from_date_and_time(
+            mtime.year() as u16,
+            mtime.month() as u8,
+            mtime.day() as u8,
+            mtime.hour() as u8,
+            mtime.minute() as u8,
+            mtime.second() as u8,
+        );
+
+        match converted {
+            Ok(x) => Ok(x),
+            Err(_) => Err(Box::new(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Failed to get mtime in zip format",
+            ))),
+        }
+    }
+
+    pub fn set_mtime(&self, mtime: std::time::SystemTime) -> Result<(), std::io::Error> {
+        filetime::set_file_mtime(self.interpret(), FileTime::from_system_time(mtime))
+    }
+
+    /// Zips don't store time zones, so we normalize to/from UTC.
+    pub fn set_mtime_zip(&self, mtime: zip::DateTime) -> Result<(), std::io::Error> {
+        let naive_mtime = chrono::NaiveDateTime::new(
+            chrono::NaiveDate::from_ymd(mtime.year() as i32, mtime.month() as u32, mtime.day() as u32),
+            chrono::NaiveTime::from_hms(mtime.hour() as u32, mtime.minute() as u32, mtime.second() as u32),
+        );
+        self.set_mtime(chrono::DateTime::<chrono::Utc>::from_utc(naive_mtime, chrono::Utc).into())
+    }
+
     pub fn remove(&self) -> Result<(), Box<dyn std::error::Error>> {
         if self.is_file() {
             std::fs::remove_file(&self.interpret())?;
@@ -252,31 +292,25 @@ impl StrictPath {
         Ok(())
     }
 
-    pub fn copy_to_path(&self, name: &String, attempt: u8, target_file: &StrictPath) -> Result<(), std::io::Error> {
+    pub fn copy_to_path(&self, context: &str, attempt: u8, target_file: &StrictPath) -> Result<(), std::io::Error> {
         log::trace!(
-            "[{name}] copy_to_path {} -> {}",
+            "[{context}] try {attempt}, copy {} -> {}",
             self.interpret(),
             target_file.interpret()
         );
 
         if let Err(e) = target_file.create_parent_dir() {
             log::error!(
-                "[{}] unable to create parent directories: {} -> {} | {e}",
-                name,
+                "[{context}] try {attempt}, unable to create parent directories: {} -> {} | {e}",
                 self.raw(),
                 target_file.raw()
             );
             return Err(e);
         }
 
-        // SL: I wonder which circumstances will have a ro target_file... maybe
-        // a Windows specific issue?
-        //
-        // taken from GameLayout::restore_file_from_simple
         if let Err(e) = target_file.unset_readonly() {
             log::warn!(
-                "[{}] try {attempt}, failed to unset read-only on target: {} | {e}",
-                name,
+                "[{context}] try {attempt}, failed to unset read-only on target: {} | {e}",
                 target_file.raw()
             );
             return Err(std::io::Error::new(
@@ -285,22 +319,28 @@ impl StrictPath {
             ));
         } else if let Err(e) = std::fs::copy(&self.interpret(), &target_file.interpret()) {
             log::error!(
-                "[{}] unable to copy: {} -> {} | {e}",
-                name,
+                "[{context}] try {attempt}, unable to copy: {} -> {} | {e}",
                 self.raw(),
                 target_file.raw()
             );
             return Err(e);
         } else {
-            // #132: SL honor timestamps - set timestamp of file based on file metadata
-            let mtime = FileTime::from_system_time(self.metadata().unwrap().modified().unwrap());
-            if let Err(e) = filetime::set_file_mtime(target_file.interpret(), mtime) {
+            let mtime = match self.get_mtime() {
+                Ok(x) => x,
+                Err(e) => {
+                    log::error!(
+                        "[{context}] try {attempt}, unable to get modification time: {} -> {} | {e}",
+                        self.raw(),
+                        target_file.raw(),
+                    );
+                    return Err(e);
+                }
+            };
+            if let Err(e) = target_file.set_mtime(mtime) {
                 log::error!(
-                    "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
-                    name,
+                    "[{context}] try {attempt}, unable to set modification time: {} -> {} to {mtime:#?} | {e}",
                     self.raw(),
                     target_file.raw(),
-                    mtime
                 );
                 return Err(e);
             }
