@@ -305,7 +305,7 @@ impl StrictPath {
                 return Err(e);
             }
         }
-        return Ok(());
+        Ok(());
     }
 
     /// This splits a path into a drive (e.g., `C:` or `\\?\D:`) and the remainder.

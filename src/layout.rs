@@ -1297,7 +1297,7 @@ impl GameLayout {
         }
 
         for i in 0..99 {
-            if let Err(_e) = file.path.copy_to_path(&self.mapping.name, i as u8, &target) {
+            if let Err(_e) = file.path.copy_to_path(&self.mapping.name, i as u8, target) {
                 // File might be busy, especially if multiple games share a file,
                 // like in a collection, so retry after a delay:
                 std::thread::sleep(std::time::Duration::from_millis(i * self.mapping.name.len() as u64));
