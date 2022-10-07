@@ -39,19 +39,21 @@ jobs:
           args: --style semver
       - uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-          target: ${{ matrix.rust-target }}
+          toolchain: stable-${{ matrix.rust-target }}
           override: true
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}-${{ matrix.rust-target }}
       - if: ${{ matrix.os == 'ubuntu-18.04' }}
         run: sudo apt-get update && sudo apt-get install -y gcc libxcb-composite0-dev
       - uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --target ${{ matrix.rust-target }}
+          args: --release
       - uses: actions/upload-artifact@v1
         with:
           name: ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}
-          path: target/${{ matrix.rust-target }}/release/${{ matrix.artifact-file }}
+          path: target/release/${{ matrix.artifact-file }}
 
   test:
     strategy:
@@ -68,6 +70,9 @@ jobs:
           profile: minimal
           toolchain: stable
           override: true
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}
       - if: ${{ matrix.os == 'ubuntu-latest' }}
         run: sudo apt-get update && sudo apt-get install -y gcc libxcb-composite0-dev
       - if: ${{ matrix.os == 'windows-latest' }}
@@ -97,6 +102,9 @@ jobs:
           toolchain: stable
           override: true
           components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.os }}
       - uses: actions-rs/cargo@v1
         with:
           command: fmt
