@@ -1038,7 +1038,19 @@ impl GameLayout {
                     continue;
                 }
             };
-            let local_options = options.last_modified_time(mtime);
+
+            #[cfg(target_os = "windows")]
+            let mode: Option<u32> = None;
+            #[cfg(not(target_os = "windows"))]
+            let mode = {
+                use std::os::unix::fs::PermissionsExt;
+                file.path.metadata().map(|metadata| metadata.permissions().mode()).ok()
+            };
+
+            let local_options = match mode {
+                Some(mode) => options.last_modified_time(mtime).unix_permissions(mode),
+                None => options.last_modified_time(mtime),
+            };
 
             if let Err(e) = zip.start_file(&target_file_id, local_options) {
                 log::error!(

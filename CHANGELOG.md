@@ -12,6 +12,7 @@
   * Backup files did not store the correct modification time on Linux and defaulted to the current time.
     This also affected Windows, but only for zip backups.
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/136))
+  * Zipped backup files did not store the correct permissions on Linux/Mac.
   * Proton and Wine files are now searched case-insensitively on Linux.
   * CLI mode asked for confirmation when restoring, but backups behaved differently:
 
