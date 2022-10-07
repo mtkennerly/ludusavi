@@ -430,6 +430,13 @@ impl Config {
             // GOG Galaxy:
             (format!("{}/GOG Galaxy/Games", pf32), Store::GogGalaxy),
             (format!("{}/GOG Galaxy/Games", pf64), Store::GogGalaxy),
+            // GOG Heroic:
+            // TODO.2022-10-07 add windows candidates
+            ("~/.config/heroic".to_string(), Store::HeroicConfig),
+            (
+                "~/.var/app/com.heroicgameslauncher.hgl/config/heroic".to_string(),
+                Store::HeroicConfig,
+            ),
             // Uplay:
             (format!("{}/Ubisoft/Ubisoft Game Launcher", pf32), Store::Uplay),
             (format!("{}/Ubisoft/Ubisoft Game Launcher", pf64), Store::Uplay),
@@ -502,6 +509,7 @@ impl Config {
                 continue;
             }
             if sp.is_dir() {
+                println!("Found root: {sp:?}: {store}");
                 roots.push(RootsConfig {
                     path: sp.rendered(),
                     store,
@@ -584,7 +592,117 @@ impl Config {
     }
 
     pub fn expanded_roots(&self) -> Vec<RootsConfig> {
-        self.roots.iter().flat_map(|x| x.glob()).collect()
+        // TODO.2022-10-07 collect heroic roots to map game -> wine prefix
+
+        // #94: add games installed with heroic roots
+        #[derive(serde::Deserialize)]
+        struct HeroicGame {
+            #[serde(rename = "appName")]
+            app_name: String,
+            platform: String,
+            install_path: String,
+        }
+        #[derive(serde::Deserialize)]
+        struct HeroicInstalled {
+            installed: Vec<HeroicGame>,
+        }
+
+        let mut heroic_roots = self.roots.clone();
+        self.roots.iter().for_each(|root| {
+            if root.store == Store::HeroicConfig {
+                // General approach:
+                //
+                // read CONFIGDIR/gog_store/installed.json
+                // for each game in .installed[]
+                // match platform {
+                //       windows:
+                //         add .install_path as possible install_dir
+                //         appName = .appName
+                //         get wine/proton prefix from CONFIGDIR/GamesConfig/<appName>.json
+                //         add found prefix as possible wine prefix
+                //      linux:
+                //         ignore or add .install_path as possible install_dir
+                //      default:
+                //         log information about unrecognized platform
+                // }
+
+                println!("Expanded roots heroic config: {root:?}");
+                let content = std::fs::read_to_string(format!("{}/gog_store/installed.json", root.path.interpret()));
+                let installed_games = serde_json::from_str::<HeroicInstalled>(&content.unwrap_or_default());
+                installed_games.unwrap().installed.iter().for_each(|game| {
+                    match game.platform.as_str() {
+                        "windows" => {
+                            println!("Found Heroic Windows game number {}, checking...", game.app_name);
+
+                            let v: serde_json::Value = serde_json::from_str(
+                                &std::fs::read_to_string(format!(
+                                    "{}/GamesConfig/{}.json",
+                                    root.path.interpret(),
+                                    game.app_name
+                                ))
+                                .unwrap_or_default(),
+                            )
+                            .unwrap_or_default();
+
+                            println!(
+                                "Found Heroic Windows game number {}, checking... type: {} / {}",
+                                game.app_name,
+                                v[&game.app_name]["wineVersion"]["type"],
+                                v[&game.app_name]["wineVersion"]["type"].as_str().unwrap_or_default()
+                            );
+
+                            match v[&game.app_name]["wineVersion"]["type"].as_str().unwrap_or_default() {
+                                "wine" => {
+                                    println!(
+                                        "Found Heroic Windows game in {}, adding... -> {}",
+                                        game.app_name, v[&game.app_name]["winePrefix"]
+                                    );
+
+                                    heroic_roots.push(RootsConfig {
+                                        path: StrictPath::new(v[&game.app_name]["winePrefix"].to_string()),
+                                        store: Store::OtherWine,
+                                    })
+                                }
+                                "proton" => {
+                                    println!(
+                                        "Found Heroic Proton game in {}, adding... -> {}",
+                                        game.app_name,
+                                        format!("{}/pfx", v[&game.app_name]["winePrefix"].as_str().unwrap_or_default())
+                                    );
+
+                                    heroic_roots.push(RootsConfig {
+                                        path: StrictPath::new(format!(
+                                            "{}/pfx",
+                                            v[&game.app_name]["winePrefix"].as_str().unwrap_or_default()
+                                        )),
+                                        store: Store::OtherWine,
+                                    })
+                                }
+                                _ => {
+                                    // TODO.2022-10-07 handle unknown wine types, lutris?
+                                    println!(
+                                        "Found Heroic Windows game number {}, checking... unknown type: {:#?}",
+                                        game.app_name, v[&game.app_name]["wineVersion"]["type"]
+                                    );
+                                }
+                            };
+                        }
+                        "linux" => {
+                            println!("Found Heroic Linux game in {}, ignoring", game.install_path);
+                        }
+                        // ignore others
+                        _ => {
+                            println!(
+                                "Found Heroic game with unhandled platform {} in {}, ignoring.",
+                                game.platform, game.install_path
+                            );
+                        }
+                    }
+                });
+            }
+        });
+
+        heroic_roots.iter().flat_map(|x| x.glob()).collect()
     }
 }
 

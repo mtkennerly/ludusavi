@@ -785,7 +785,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects.valid);
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
-
+            
             let mut info: Vec<_> = subjects
                 .valid
                 .par_iter()
