@@ -16,10 +16,11 @@ clap = { version = "3.2.12", features = ["derive"] }
 clap_complete = "3.2.3"
 dialoguer = "0.10.1"
 dirs = "4.0.0"
+filetime = "0.2"
 flexi_logger = { version = "0.23.1", features = ["async"] }
 fluent = "0.16.0"
 fuzzy-matcher = "0.3.7"
-glob = "0.3.0"
+globetter = "0.1.1"
 iced = { version = "0.4.2", features = ["glow", "glow_default_system_font"] }
 iced_native = { version = "0.5.1" }
 iced_style = "0.4.0"
@@ -44,7 +45,6 @@ unic-langid = "0.9.0"
 walkdir = "2.3.2"
 whoami = "1.2.1"
 zip = "0.6.2"
-filetime = "0.2"
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.10.1"

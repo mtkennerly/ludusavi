@@ -1248,6 +1248,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b919933a397b79c37e33b77bb2aa3dc8eb6e165ad809e58ff75bc7db2e34574"
 
 [[package]]
+name = "globetter"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1de3b561f26b63d940152189e4e712a7f45b95773a21abd6b3e28eb890a532c"
+
+[[package]]
 name = "glow"
 version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1951,7 +1957,7 @@ dependencies = [
  "flexi_logger",
  "fluent",
  "fuzzy-matcher",
- "glob",
+ "globetter",
  "iced",
  "iced_native",
  "iced_style",

@@ -417,13 +417,14 @@ fn check_nonwindows_path_str(path: &str) -> &str {
     }
 }
 
+/// Returns paths to check and whether they require case-sensitive matching.
 pub fn parse_paths(
     path: &str,
     root: &RootsConfig,
     install_dir: &Option<String>,
     steam_id: &Option<u32>,
     manifest_dir: &StrictPath,
-) -> std::collections::HashSet<StrictPath> {
+) -> std::collections::HashSet<(StrictPath, Option<bool>)> {
     let mut paths = std::collections::HashSet::new();
 
     let install_dir = match install_dir {
@@ -436,7 +437,7 @@ pub fn parse_paths(
     let data_local_dir = check_path(dirs::data_local_dir());
     let config_dir = check_path(dirs::config_dir());
 
-    paths.insert(
+    paths.insert((
         path.replace("<root>", &root_interpreted)
             .replace("<game>", install_dir)
             .replace(
@@ -462,9 +463,10 @@ pub fn parse_paths(
             .replace("<xdgConfig>", check_nonwindows_path_str(&config_dir))
             .replace("<regHkcu>", SKIP)
             .replace("<regHklm>", SKIP),
-    );
+        None,
+    ));
     if get_os() == Os::Windows {
-        let mut virtual_store = paths.iter().next().unwrap().clone();
+        let (mut virtual_store, case_sensitive) = paths.iter().next().unwrap().clone();
         for virtualized in ["Program Files (x86)", "Program Files", "Windows", "ProgramData"] {
             for separator in ['/', '\\'] {
                 virtual_store = virtual_store.replace(
@@ -473,16 +475,17 @@ pub fn parse_paths(
                 );
             }
         }
-        paths.insert(virtual_store);
+        paths.insert((virtual_store, case_sensitive));
     }
     if root.store == Store::Gog && get_os() == Os::Linux {
-        paths.insert(
+        paths.insert((
             path.replace("<game>", &format!("{}/game", install_dir))
                 .replace("<base>", &format!("{}/{}/game", root.path.interpret(), install_dir)),
-        );
+            None,
+        ));
     }
     if root.store == Store::OtherHome {
-        paths.insert(
+        paths.insert((
             path.replace("<root>", &root_interpreted)
                 .replace("<game>", install_dir)
                 .replace("<base>", &format!("{}/{}", &root_interpreted, install_dir))
@@ -499,7 +502,8 @@ pub fn parse_paths(
                 .replace("<regHkcu>", SKIP)
                 .replace("<regHklm>", SKIP)
                 .replace("<home>", &root_interpreted),
-        );
+            None,
+        ));
     }
     if get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some() {
         let prefix = format!(
@@ -524,7 +528,7 @@ pub fn parse_paths(
             .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
             .replace("<regHkcu>", SKIP)
             .replace("<regHklm>", SKIP);
-        paths.insert(
+        paths.insert((
             path2
                 .replace("<winDocuments>", &format!("{}/users/steamuser/Documents", prefix))
                 .replace("<winAppData>", &format!("{}/users/steamuser/AppData/Roaming", prefix))
@@ -532,8 +536,9 @@ pub fn parse_paths(
                     "<winLocalAppData>",
                     &format!("{}/users/steamuser/AppData/Local", prefix),
                 ),
-        );
-        paths.insert(
+            Some(false),
+        ));
+        paths.insert((
             path2
                 .replace("<winDocuments>", &format!("{}/users/steamuser/My Documents", prefix))
                 .replace("<winAppData>", &format!("{}/users/steamuser/Application Data", prefix))
@@ -541,7 +546,8 @@ pub fn parse_paths(
                     "<winLocalAppData>",
                     &format!("{}/users/steamuser/Local Settings/Application Data", prefix),
                 ),
-        );
+            Some(false),
+        ));
     }
     if root.store == Store::OtherWine {
         let prefix = format!("{}/drive_*", &root_interpreted);
@@ -559,13 +565,14 @@ pub fn parse_paths(
             .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
             .replace("<regHkcu>", SKIP)
             .replace("<regHklm>", SKIP);
-        paths.insert(
+        paths.insert((
             path2
                 .replace("<winDocuments>", &format!("{}/users/*/Documents", prefix))
                 .replace("<winAppData>", &format!("{}/users/*/AppData/Roaming", prefix))
                 .replace("<winLocalAppData>", &format!("{}/users/*/AppData/Local", prefix)),
-        );
-        paths.insert(
+            Some(false),
+        ));
+        paths.insert((
             path2
                 .replace("<winDocuments>", &format!("{}/users/*/My Documents", prefix))
                 .replace("<winAppData>", &format!("{}/users/*/Application Data", prefix))
@@ -573,12 +580,13 @@ pub fn parse_paths(
                     "<winLocalAppData>",
                     &format!("{}/users/*/Local Settings/Application Data", prefix),
                 ),
-        );
+            Some(false),
+        ));
     }
 
     paths
         .iter()
-        .map(|x| StrictPath::relative(x.to_string(), Some(manifest_dir.interpret())))
+        .map(|(x, y)| (StrictPath::relative(x.to_string(), Some(manifest_dir.interpret())), *y))
         .collect()
 }
 
@@ -705,7 +713,7 @@ pub fn scan_game_for_backup(
     #[allow(unused_mut)]
     let mut found_registry_keys = std::collections::HashSet::new();
 
-    let mut paths_to_check = std::collections::HashSet::<StrictPath>::new();
+    let mut paths_to_check = std::collections::HashSet::<(StrictPath, Option<bool>)>::new();
 
     // Add a dummy root for checking paths without `<root>`.
     let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig {
@@ -726,9 +734,12 @@ pub fn scan_game_for_backup(
         // We can add this for Wine prefixes from the CLI because they're
         // typically going to be used for only one or a few games at a time.
         // For other Wine roots, it would trigger for every game.
-        paths_to_check.insert(StrictPath::relative(
-            format!("{}/*.reg", wp.interpret()),
-            Some(manifest_dir_interpreted.clone()),
+        paths_to_check.insert((
+            StrictPath::relative(
+                format!("{}/*.reg", wp.interpret()),
+                Some(manifest_dir_interpreted.clone()),
+            ),
+            None,
         ));
     }
 
@@ -752,53 +763,63 @@ pub fn scan_game_for_backup(
                     continue;
                 }
                 let candidates = parse_paths(raw_path, &root, &install_dir, steam_id, manifest_dir);
-                for candidate in candidates {
+                for (candidate, case_sensitive) in candidates {
                     log::trace!("[{name}] parsed candidate: {}", candidate.raw());
                     if candidate.raw().contains('<') {
                         // This covers `SKIP` and any other unmatched placeholders.
                         continue;
                     }
-                    paths_to_check.insert(candidate);
+                    paths_to_check.insert((candidate, case_sensitive));
                 }
             }
         }
         if root.store == Store::Steam && steam_id.is_some() {
             // Cloud saves:
-            paths_to_check.insert(StrictPath::relative(
-                format!("{}/userdata/*/{}/remote/", root_interpreted.clone(), &steam_id.unwrap()),
-                Some(manifest_dir_interpreted.clone()),
+            paths_to_check.insert((
+                StrictPath::relative(
+                    format!("{}/userdata/*/{}/remote/", root_interpreted.clone(), &steam_id.unwrap()),
+                    Some(manifest_dir_interpreted.clone()),
+                ),
+                None,
             ));
 
             // Screenshots:
             if !filter.exclude_store_screenshots {
-                paths_to_check.insert(StrictPath::relative(
-                    format!(
-                        "{}/userdata/*/760/remote/{}/screenshots/*.*",
-                        &root_interpreted,
-                        &steam_id.unwrap()
+                paths_to_check.insert((
+                    StrictPath::relative(
+                        format!(
+                            "{}/userdata/*/760/remote/{}/screenshots/*.*",
+                            &root_interpreted,
+                            &steam_id.unwrap()
+                        ),
+                        Some(manifest_dir_interpreted.clone()),
                     ),
-                    Some(manifest_dir_interpreted.clone()),
+                    None,
                 ));
             }
 
             // Registry:
             if game.registry.is_some() {
                 let prefix = format!("{}/steamapps/compatdata/{}/pfx", &root_interpreted, steam_id.unwrap());
-                paths_to_check.insert(StrictPath::relative(
-                    format!("{}/*.reg", prefix),
-                    Some(manifest_dir_interpreted.clone()),
+                paths_to_check.insert((
+                    StrictPath::relative(format!("{}/*.reg", prefix), Some(manifest_dir_interpreted.clone())),
+                    None,
                 ));
             }
         }
     }
 
-    for path in paths_to_check {
+    for (path, case_sensitive) in paths_to_check {
         log::trace!("[{name}] checking: {}", path.raw());
         if filter.is_path_ignored(&path) {
             log::debug!("[{name}] excluded: {}", path.raw());
             continue;
         }
-        for p in path.glob() {
+        let paths = match case_sensitive {
+            None => path.glob(),
+            Some(cs) => path.glob_case_sensitive(cs),
+        };
+        for p in paths {
             let p = p.rendered();
             if p.is_file() {
                 if filter.is_path_ignored(&p) {

@@ -468,12 +468,16 @@ impl StrictPath {
     }
 
     pub fn glob(&self) -> Vec<StrictPath> {
-        let options = glob::MatchOptions {
-            case_sensitive: crate::prelude::CASE_INSENSITIVE_OS,
+        self.glob_case_sensitive(!crate::prelude::CASE_INSENSITIVE_OS)
+    }
+
+    pub fn glob_case_sensitive(&self, case_sensitive: bool) -> Vec<StrictPath> {
+        let options = globetter::MatchOptions {
+            case_sensitive,
             require_literal_separator: true,
             require_literal_leading_dot: false,
         };
-        match glob::glob_with(&self.render(), options) {
+        match globetter::glob_with(&self.render(), options) {
             Ok(xs) => xs.filter_map(|r| r.ok()).map(StrictPath::from).collect(),
             Err(_) => vec![],
         }

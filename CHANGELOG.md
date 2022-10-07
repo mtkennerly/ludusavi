@@ -11,6 +11,7 @@
   * Backup files did not store the correct modification time on Linux and defaulted to the current time.
     This also affected Windows, but only for zip backups.
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/136))
+  * Proton and Wine files are now searched case-insensitively on Linux.
   * CLI mode asked for confirmation when restoring, but backups behaved differently:
 
     * If the target folder did not exist, then the backup would happen without confirmation.
