@@ -90,6 +90,8 @@ field-retention-full = Full:
 field-retention-differential = Differential:
 field-backup-format = Format:
 field-backup-compression = Compression:
+# The compression level determines how much compresison we perform.
+field-backup-compression-level = Level:
 
 store-epic = Epic
 store-gog = GOG

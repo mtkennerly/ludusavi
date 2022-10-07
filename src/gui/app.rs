@@ -1379,6 +1379,11 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::EditedCompressionLevel(value) => {
+                self.config.backup.format.set_level(value);
+                self.config.save();
+                Command::none()
+            }
             Message::ToggleBackupSettings => {
                 self.backup_screen.show_settings = !self.backup_screen.show_settings;
                 Command::none()

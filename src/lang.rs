@@ -699,6 +699,10 @@ impl Translator {
         translate("field-backup-compression")
     }
 
+    pub fn backup_compression_level_field(&self) -> String {
+        translate("field-backup-compression-level")
+    }
+
     fn consider_doing_a_preview(&self) -> String {
         translate("consider-doing-a-preview")
     }

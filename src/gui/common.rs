@@ -129,6 +129,7 @@ pub enum Message {
     SelectedTheme(Theme),
     SelectedBackupFormat(BackupFormat),
     SelectedBackupCompression(ZipCompression),
+    EditedCompressionLevel(i32),
     ToggleBackupSettings,
     GameAction {
         action: GameAction,

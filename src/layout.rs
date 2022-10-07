@@ -1013,6 +1013,7 @@ impl GameLayout {
                 ZipCompression::Bzip2 => zip::CompressionMethod::Bzip2,
                 ZipCompression::Zstd => zip::CompressionMethod::Zstd,
             })
+            .compression_level(format.level())
             .large_file(true);
 
         'item: for file in &scan.found_files {

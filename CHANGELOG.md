@@ -1,6 +1,7 @@
 ## Unreleased
 
 * Added:
+  * Compression levels can now be customized for zip backups.
   * In addition to restoration redirects, there are now also backup redirects and bidirectional redirects.
     The redirect editor is now on the "other" screen instead of the "restore" screen.
   * CLI: `--fuzzy` option to look up games by an inexact name.
