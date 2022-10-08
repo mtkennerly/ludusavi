@@ -694,7 +694,8 @@ pub fn scan_game_for_backup(
     manifest_dir: &StrictPath,
     steam_id: &Option<u32>,
     filter: &BackupFilter,
-    wine_prefix: &Option<StrictPath>,
+    // TODO.2022-10-08 dereferencing
+    wine_prefix: &Option<&StrictPath>,
     ranking: &InstallDirRanking,
     ignored_paths: &ToggledPaths,
     #[allow(unused_variables)] ignored_registry: &ToggledRegistry,
@@ -716,10 +717,11 @@ pub fn scan_game_for_backup(
 
     let manifest_dir_interpreted = manifest_dir.interpret();
 
-    if let Some(wp) = wine_prefix {
+    if let Some(wp) = &wine_prefix {
         log::trace!("[{name}] adding extra Wine prefix: {}", wp.raw());
         roots_to_check.push(RootsConfig {
-            path: wp.clone(),
+            // TODO.2022-10-08 dereferencing
+            path: StrictPath::from_std_path_buf(&wp.as_std_path_buf()),
             store: Store::OtherWine,
         });
 
@@ -1604,7 +1606,7 @@ mod tests {
                 &StrictPath::new(repo()),
                 &None,
                 &BackupFilter::default(),
-                &Some(StrictPath::new(format!("{}/tests/wine-prefix", repo()))),
+                &Some(&StrictPath::new(format!("{}/tests/wine-prefix", repo()))),
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game4".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),

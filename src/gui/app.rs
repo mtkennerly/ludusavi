@@ -121,7 +121,7 @@ impl App {
 
         let full = games.is_none();
 
-        let backup_path = &self.config.backup.path;
+        let backup_path = self.config.backup.path.clone();
 
         let mut all_games = self.manifest.clone();
         for custom_game in &self.config.custom_games {
@@ -179,9 +179,10 @@ impl App {
 
         log::info!("beginning backup with {} steps", self.progress.max);
 
+        self.config.detect_heroic_gog_roots();
         let config = std::sync::Arc::new(self.config.clone());
         let roots = std::sync::Arc::new(config.expanded_roots());
-        let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone(), config.backup.retention.clone()));
+        let layout = std::sync::Arc::new(BackupLayout::new(backup_path, config.backup.retention.clone()));
         let filter = std::sync::Arc::new(self.config.backup.filter.clone());
         let ranking = std::sync::Arc::new(InstallDirRanking::scan(&roots, &all_games, &subjects));
 
@@ -213,7 +214,7 @@ impl App {
                         &StrictPath::from_std_path_buf(&app_dir()),
                         &steam_id,
                         &filter,
-                        &None,
+                        &config.heroic_gog_roots.get(&key),
                         &ranking,
                         &config.backup.toggled_paths,
                         &config.backup.toggled_registry,
