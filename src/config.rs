@@ -509,7 +509,6 @@ impl Config {
                 continue;
             }
             if sp.is_dir() {
-                println!("Found root: {sp:?}: {store}");
                 roots.push(RootsConfig {
                     path: sp.rendered(),
                     store,
@@ -592,8 +591,6 @@ impl Config {
     }
 
     pub fn expanded_roots(&self) -> Vec<RootsConfig> {
-        // TODO.2022-10-07 collect heroic roots to map game -> wine prefix
-
         // #94: add games installed with heroic roots
         #[derive(serde::Deserialize)]
         struct HeroicGame {
@@ -616,14 +613,13 @@ impl Config {
                 // for each game in .installed[]
                 // match platform {
                 //       windows:
-                //         add .install_path as possible install_dir
                 //         appName = .appName
                 //         get wine/proton prefix from CONFIGDIR/GamesConfig/<appName>.json
-                //         add found prefix as possible wine prefix
+                //         add found prefix as possible wine prefix to roots
                 //      linux:
-                //         ignore or add .install_path as possible install_dir
+                //         log and ignore
                 //      default:
-                //         log information about unrecognized platform
+                //         log information about unrecognized platform and ignore
                 // }
 
                 println!("Expanded roots heroic config: {root:?}");
@@ -690,7 +686,6 @@ impl Config {
                         "linux" => {
                             println!("Found Heroic Linux game in {}, ignoring", game.install_path);
                         }
-                        // ignore others
                         _ => {
                             println!(
                                 "Found Heroic game with unhandled platform {} in {}, ignoring.",
