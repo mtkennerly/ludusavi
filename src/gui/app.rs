@@ -114,10 +114,24 @@ impl App {
         Command::none()
     }
 
+    fn invalidate_path_caches(&self) {
+        for x in &self.config.roots {
+            x.path.invalidate_cache();
+        }
+        for x in &self.config.redirects {
+            x.source.invalidate_cache();
+            x.target.invalidate_cache();
+        }
+        self.config.backup.path.invalidate_cache();
+        self.config.restore.path.invalidate_cache();
+        self.config.backup.toggled_paths.invalidate_path_caches();
+    }
+
     fn start_backup(&mut self, preview: bool, games: Option<Vec<String>>) -> Command<Message> {
         if self.operation.is_some() {
             return Command::none();
         }
+        self.invalidate_path_caches();
 
         let full = games.is_none();
 
@@ -254,6 +268,7 @@ impl App {
         if self.operation.is_some() {
             return Command::none();
         }
+        self.invalidate_path_caches();
 
         let full = games.is_none();
 

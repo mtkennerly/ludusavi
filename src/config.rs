@@ -692,6 +692,14 @@ impl ToggledPaths {
         Self(data)
     }
 
+    pub fn invalidate_path_caches(&self) {
+        for inner in self.0.values() {
+            for key in inner.keys() {
+                key.invalidate_cache();
+            }
+        }
+    }
+
     pub fn is_ignored(&self, game: &str, path: &StrictPath) -> bool {
         let transitive = self.is_enabled_transitively(game, path);
         let specific = self.is_enabled_specifically(game, path);
