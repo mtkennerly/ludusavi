@@ -1,9 +1,9 @@
 use crate::{
-    config::{BackupFormat, ManifestConfig, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
+    config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
     gui::{badge::Badge, icon::Icon},
     lang::{Language, Translator},
     layout::Backup,
-    manifest::Store,
+    manifest::{ManifestUpdate, Store},
     prelude::{BackupInfo, Error, OperationStatus, OperationStepDecision, RegistryItem, ScanInfo, StrictPath},
     shortcuts::{Shortcut, TextHistory},
 };
@@ -15,7 +15,7 @@ pub enum Message {
     Idle,
     Ignore,
     Error(Error),
-    ManifestUpdated(ManifestConfig),
+    ManifestUpdated(ManifestUpdate),
     ConfirmBackupStart {
         games: Option<Vec<String>>,
     },

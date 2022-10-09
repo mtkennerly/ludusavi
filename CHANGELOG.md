@@ -8,7 +8,8 @@
 * Changed:
   * Increased scanning speed by 10% by avoiding some duplicate path lookups.
   * Ludusavi will no longer migrate pre-v0.10.0 configurations to the current location.
-  * The recent game caching has been moved from `config.yaml` to a new `cache.yaml`.
+  * A new `cache.yaml` is now used for some fields from `config.yaml`,
+    specifically the recent game caching and manifest update tracking.
 * Fixed:
   * Backup files did not store the correct modification time on Linux and defaulted to the current time.
     This also affected Windows, but only for zip backups.

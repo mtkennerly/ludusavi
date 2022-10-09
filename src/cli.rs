@@ -684,7 +684,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
     let translator = Translator::default();
     let mut config = Config::load()?;
     translator.set_language(config.language);
-    Cache::load().migrated(&mut config);
+    let mut cache = Cache::load().migrated(&mut config);
     let mut failed = false;
     let mut duplicate_detector = DuplicateDetector::default();
 
@@ -711,18 +711,18 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             };
 
             let manifest = if try_update {
-                match Manifest::load(&mut config, true) {
+                match Manifest::load(&config, &mut cache, true) {
                     Ok(x) => x,
                     Err(e) => {
                         eprintln!("{}", translator.handle_error(&e));
-                        match Manifest::load(&mut config, false) {
+                        match Manifest::load(&config, &mut cache, false) {
                             Ok(y) => y,
                             Err(_) => Manifest::default(),
                         }
                     }
                 }
             } else {
-                Manifest::load(&mut config, update)?
+                Manifest::load(&config, &mut cache, update)?
             };
 
             let backup_dir = match path {
@@ -881,7 +881,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 Reporter::standard(translator)
             };
 
-            let manifest = Manifest::load(&mut config, false)?;
+            let manifest = Manifest::load(&config, &mut cache, false)?;
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),
@@ -1026,7 +1026,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 Reporter::standard(translator)
             };
 
-            let manifest = Manifest::load(&mut config, false)?;
+            let manifest = Manifest::load(&config, &mut cache, false)?;
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),

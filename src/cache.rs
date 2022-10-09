@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     config::Config,
     prelude::{app_dir, StrictPath},
@@ -8,6 +10,8 @@ pub struct Cache {
     #[serde(default)]
     pub migrations: Migrations,
     #[serde(default)]
+    pub manifests: Manifests,
+    #[serde(default)]
     pub backup: Backup,
     #[serde(default)]
     pub restore: Restore,
@@ -17,6 +21,16 @@ pub struct Cache {
 pub struct Migrations {
     #[serde(default)]
     pub adopted_cache: bool,
+}
+
+pub type Manifests = HashMap<String, Manifest>;
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Manifest {
+    #[serde(default)]
+    pub etag: Option<String>,
+    #[serde(default)]
+    pub checked: chrono::DateTime<chrono::Utc>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

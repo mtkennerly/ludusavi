@@ -496,6 +496,7 @@ impl Application for App {
         };
 
         let manifest_config = config.manifest.clone();
+        let manifest_cache = cache.manifests.clone();
 
         (
             Self {
@@ -511,7 +512,7 @@ impl Application for App {
                 ..Self::default()
             },
             Command::perform(
-                async move { Manifest::update(manifest_config) },
+                async move { Manifest::update(manifest_config, manifest_cache) },
                 move |result| match result {
                     Ok(Some(updated)) => Message::ManifestUpdated(updated),
                     Ok(None) => Message::Ignore,
@@ -538,8 +539,12 @@ impl Application for App {
             }
             Message::ManifestUpdated(updated) => {
                 self.modal_theme = None;
-                self.config.manifest.etag = updated.etag;
-                self.config.save();
+
+                let mut cached = self.cache.manifests.entry(updated.url).or_insert_with(Default::default);
+                cached.etag = updated.etag;
+                cached.checked = updated.timestamp;
+                self.cache.save();
+
                 match Manifest::load_local() {
                     Ok(x) => {
                         self.manifest = x;
