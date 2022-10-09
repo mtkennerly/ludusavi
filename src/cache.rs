@@ -85,10 +85,22 @@ impl Cache {
         }
     }
 
+    #[allow(deprecated)]
     pub fn migrated(mut self, config: &mut Config) -> Self {
         let mut updated = false;
 
-        #[allow(deprecated)]
+        if let Some(etag) = config.manifest.etag.take() {
+            let mut manifest = self
+                .manifests
+                .entry(config.manifest.url.clone())
+                .or_insert_with(Default::default);
+            manifest.etag = Some(etag);
+            if let Some(modified) = crate::manifest::Manifest::modified() {
+                manifest.checked = modified;
+            }
+            updated = true;
+        }
+
         if !self.migrations.adopted_cache {
             self.backup.recent_games.extend(config.backup.recent_games.drain(..));
             self.restore.recent_games.extend(config.restore.recent_games.drain(..));

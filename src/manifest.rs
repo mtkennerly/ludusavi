@@ -253,6 +253,12 @@ impl Manifest {
         }
         self.0.insert(name, game);
     }
+
+    pub fn modified() -> Option<chrono::DateTime<chrono::Utc>> {
+        let path = StrictPath::from(Self::file());
+        let modified = path.get_mtime().ok()?;
+        Some(chrono::DateTime::<chrono::Utc>::from(modified))
+    }
 }
 
 #[cfg(test)]

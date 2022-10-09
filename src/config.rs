@@ -31,6 +31,9 @@ pub struct Config {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ManifestConfig {
     pub url: String,
+    #[serde(default)]
+    #[deprecated(note = "use cache")]
+    pub etag: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -397,8 +400,10 @@ pub struct CustomGame {
 
 impl Default for ManifestConfig {
     fn default() -> Self {
+        #[allow(deprecated)]
         Self {
             url: MANIFEST_URL.to_string(),
+            etag: None,
         }
     }
 }
@@ -892,7 +897,10 @@ mod tests {
 
         assert_eq!(
             Config {
-                manifest: ManifestConfig { url: s("example.com") },
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    etag: None,
+                },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![],
@@ -974,7 +982,10 @@ mod tests {
 
         assert_eq!(
             Config {
-                manifest: ManifestConfig { url: s("example.com") },
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    etag: Some(s("foo")),
+                },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![
@@ -1063,7 +1074,10 @@ mod tests {
 
         assert_eq!(
             Config {
-                manifest: ManifestConfig { url: s("example.com") },
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    etag: None,
+                },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![RootsConfig {
@@ -1147,7 +1161,10 @@ mod tests {
 
         assert_eq!(
             Config {
-                manifest: ManifestConfig { url: s("example.com") },
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    etag: Some(s("foo")),
+                },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![
@@ -1220,6 +1237,7 @@ mod tests {
 ---
 manifest:
   url: example.com
+  etag: foo
 language: en-US
 theme: light
 roots:
@@ -1286,7 +1304,10 @@ customGames:
 "#
             .trim(),
             serde_yaml::to_string(&Config {
-                manifest: ManifestConfig { url: s("example.com") },
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    etag: Some(s("foo")),
+                },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![
