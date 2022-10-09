@@ -161,7 +161,7 @@ impl From<CustomGame> for Game {
 pub struct ManifestUpdate {
     pub url: String,
     pub etag: Option<String>,
-    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub checked: chrono::DateTime<chrono::Utc>,
 }
 
 impl Manifest {
@@ -188,7 +188,21 @@ impl Manifest {
         serde_yaml::from_str(content).map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })
     }
 
+    pub fn should_update(config: &ManifestConfig, cache: &cache::Manifests) -> bool {
+        match cache.get(&config.url) {
+            None => true,
+            Some(cached) => {
+                let now = chrono::offset::Utc::now();
+                now.signed_duration_since(cached.checked).num_hours() >= 24
+            }
+        }
+    }
+
     pub fn update(config: ManifestConfig, cache: cache::Manifests) -> Result<Option<ManifestUpdate>, Error> {
+        if !Self::should_update(&config, &cache) {
+            return Ok(None);
+        }
+
         let mut req = reqwest::blocking::Client::new().get(&config.url);
         let old_etag = cache.get(&config.url).and_then(|x| x.etag.clone());
         if let Some(etag) = old_etag.as_ref() {
@@ -211,13 +225,13 @@ impl Manifest {
                 Ok(Some(ManifestUpdate {
                     url: config.url,
                     etag: new_etag,
-                    timestamp: chrono::offset::Utc::now(),
+                    checked: chrono::offset::Utc::now(),
                 }))
             }
             reqwest::StatusCode::NOT_MODIFIED => Ok(Some(ManifestUpdate {
                 url: config.url,
                 etag: old_etag,
-                timestamp: chrono::offset::Utc::now(),
+                checked: chrono::offset::Utc::now(),
             })),
             _ => Err(Error::ManifestCannotBeUpdated),
         }
@@ -228,7 +242,7 @@ impl Manifest {
         if let Some(updated) = updated {
             let mut cached = cache.manifests.entry(updated.url).or_insert_with(Default::default);
             cached.etag = updated.etag;
-            cached.checked = updated.timestamp;
+            cached.checked = updated.checked;
             cache.save();
         }
         Ok(())

@@ -10,6 +10,10 @@
   * Ludusavi will no longer migrate pre-v0.10.0 configurations to the current location.
   * A new `cache.yaml` is now used for some fields from `config.yaml`,
     specifically the recent game caching and manifest update tracking.
+  * On startup, Ludusavi will only check for manifest updates if the last check was 24 hours ago or longer.
+    Previously, it would check automatically on every startup.
+    This was changed to avoid excess network traffic,
+    because the manifest itself will be updated much more frequently.
 * Fixed:
   * Backup files did not store the correct modification time on Linux and defaulted to the current time.
     This also affected Windows, but only for zip backups.

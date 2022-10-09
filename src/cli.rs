@@ -121,11 +121,13 @@ pub enum Subcommand {
 
         /// Check for any manifest updates and download if available.
         /// If the check fails, report an error.
+        /// Does nothing if the most recent check was within the last 24 hours.
         #[clap(long)]
         update: bool,
 
         /// Check for any manifest updates and download if available.
         /// If the check fails, continue anyway.
+        /// Does nothing if the most recent check was within the last 24 hours.
         #[clap(long, conflicts_with("update"))]
         try_update: bool,
 

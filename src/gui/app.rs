@@ -542,7 +542,7 @@ impl Application for App {
 
                 let mut cached = self.cache.manifests.entry(updated.url).or_insert_with(Default::default);
                 cached.etag = updated.etag;
-                cached.checked = updated.timestamp;
+                cached.checked = updated.checked;
                 self.cache.save();
 
                 match Manifest::load_local() {
