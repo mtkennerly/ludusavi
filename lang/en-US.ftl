@@ -93,6 +93,12 @@ field-backup-compression = Compression:
 # The compression level determines how much compresison we perform.
 field-backup-compression-level = Level:
 
+label-manifest = Manifest
+# This shows the time when we checked for an update to the manifest.
+label-checked = Checked
+# This shows the time when we found an update to the manifest.
+label-updated = Updated
+
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy

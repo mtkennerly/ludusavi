@@ -90,6 +90,7 @@ pub struct App {
     operation_steps_active: usize,
     progress: Progress,
     backups_to_restore: std::collections::HashMap<String, BackupId>,
+    updating_manifest: bool,
 }
 
 impl App {
@@ -102,6 +103,10 @@ impl App {
         self.progress.max = 0.0;
         self.operation_should_cancel
             .swap(false, std::sync::atomic::Ordering::Relaxed);
+    }
+
+    fn show_error(&mut self, error: Error) {
+        self.modal_theme = Some(ModalTheme::Error { variant: error });
     }
 
     fn confirm_backup_start(&mut self, games: Option<Vec<String>>) -> Command<Message> {
@@ -509,15 +514,12 @@ impl Application for App {
                 manifest,
                 cache,
                 modal_theme,
+                updating_manifest: true,
                 ..Self::default()
             },
             Command::perform(
-                async move { Manifest::update(manifest_config, manifest_cache) },
-                move |result| match result {
-                    Ok(Some(updated)) => Message::ManifestUpdated(updated),
-                    Ok(None) => Message::Ignore,
-                    Err(e) => Message::Error(e),
-                },
+                async move { Manifest::update(manifest_config, manifest_cache, false) },
+                Message::ManifestUpdated,
             ),
         )
     }
@@ -534,15 +536,35 @@ impl Application for App {
             }
             Message::Ignore => Command::none(),
             Message::Error(error) => {
-                self.modal_theme = Some(ModalTheme::Error { variant: error });
+                self.show_error(error);
                 Command::none()
             }
+            Message::UpdateManifest => {
+                self.updating_manifest = true;
+                let manifest_config = self.config.manifest.clone();
+                let manifest_cache = self.cache.manifests.clone();
+                Command::perform(
+                    async move { Manifest::update(manifest_config, manifest_cache, true) },
+                    Message::ManifestUpdated,
+                )
+            }
             Message::ManifestUpdated(updated) => {
-                self.modal_theme = None;
+                self.updating_manifest = false;
 
-                let mut cached = self.cache.manifests.entry(updated.url).or_insert_with(Default::default);
-                cached.etag = updated.etag;
-                cached.checked = updated.checked;
+                let updated = match updated {
+                    Ok(Some(updated)) => updated,
+                    Ok(None) => return Command::none(),
+                    Err(e) => {
+                        self.show_error(e);
+                        return Command::none();
+                    }
+                };
+
+                if self.modal_theme == Some(ModalTheme::UpdatingManifest) {
+                    self.modal_theme = None;
+                }
+
+                self.cache.update_manifest(updated);
                 self.cache.save();
 
                 match Manifest::load_local() {
@@ -1490,7 +1512,10 @@ impl Application for App {
                             .view(&self.config, &self.manifest, &self.translator, &self.operation)
                     }
                     Screen::CustomGames => self.custom_games_screen.view(&self.config, &self.translator),
-                    Screen::Other => self.other_screen.view(&self.config, &self.translator),
+                    Screen::Other => {
+                        self.other_screen
+                            .view(self.updating_manifest, &self.config, &self.cache, &self.translator)
+                    }
                 }
                 .padding([0, 5, 5, 5])
                 .height(Length::Fill),

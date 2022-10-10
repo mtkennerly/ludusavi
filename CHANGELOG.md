@@ -4,6 +4,8 @@
   * Compression levels can now be customized for zip backups.
   * In addition to restoration redirects, there are now also backup redirects and bidirectional redirects.
     The redirect editor is now on the "other" screen instead of the "restore" screen.
+  * GUI: The "other" screen now shows when the manifest was last checked/updated.
+    There is also a button to refresh on demand.
   * CLI: `--fuzzy` option to look up games by an inexact name.
 * Changed:
   * Increased scanning speed by 10% by avoiding some duplicate path lookups.
@@ -20,6 +22,8 @@
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/136))
   * Zipped backup files did not store the correct permissions on Linux/Mac.
   * Proton and Wine files are now searched case-insensitively on Linux.
+  * GUI: When the manifest finished updating in the background,
+    any currently open modal would be closed.
   * CLI mode asked for confirmation when restoring, but backups behaved differently:
 
     * If the target folder did not exist, then the backup would happen without confirmation.

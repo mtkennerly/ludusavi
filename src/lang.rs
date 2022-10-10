@@ -703,6 +703,18 @@ impl Translator {
         translate("field-backup-compression-level")
     }
 
+    pub fn manifest_label(&self) -> String {
+        self.field(&translate("label-manifest"))
+    }
+
+    pub fn checked_label(&self) -> String {
+        self.field(&translate("label-checked"))
+    }
+
+    pub fn updated_label(&self) -> String {
+        self.field(&translate("label-updated"))
+    }
+
     fn consider_doing_a_preview(&self) -> String {
         translate("consider-doing-a-preview")
     }

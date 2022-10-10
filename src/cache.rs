@@ -30,7 +30,9 @@ pub struct Manifest {
     #[serde(default)]
     pub etag: Option<String>,
     #[serde(default)]
-    pub checked: chrono::DateTime<chrono::Utc>,
+    pub checked: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default)]
+    pub updated: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -96,7 +98,8 @@ impl Cache {
                 .or_insert_with(Default::default);
             manifest.etag = Some(etag);
             if let Some(modified) = crate::manifest::Manifest::modified() {
-                manifest.checked = modified;
+                manifest.checked = Some(modified);
+                manifest.updated = Some(modified);
             }
             updated = true;
         }
@@ -117,5 +120,14 @@ impl Cache {
         }
 
         self
+    }
+
+    pub fn update_manifest(&mut self, update: crate::manifest::ManifestUpdate) {
+        let mut cached = self.manifests.entry(update.url).or_insert_with(Default::default);
+        cached.etag = update.etag;
+        cached.checked = Some(update.timestamp);
+        if update.modified {
+            cached.updated = Some(update.timestamp);
+        }
     }
 }

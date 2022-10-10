@@ -15,7 +15,8 @@ pub enum Message {
     Idle,
     Ignore,
     Error(Error),
-    ManifestUpdated(ManifestUpdate),
+    UpdateManifest,
+    ManifestUpdated(Result<Option<ManifestUpdate>, Error>),
     ConfirmBackupStart {
         games: Option<Vec<String>>,
     },

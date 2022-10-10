@@ -161,7 +161,8 @@ impl From<CustomGame> for Game {
 pub struct ManifestUpdate {
     pub url: String,
     pub etag: Option<String>,
-    pub checked: chrono::DateTime<chrono::Utc>,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub modified: bool,
 }
 
 impl Manifest {
@@ -188,18 +189,27 @@ impl Manifest {
         serde_yaml::from_str(content).map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })
     }
 
-    pub fn should_update(config: &ManifestConfig, cache: &cache::Manifests) -> bool {
+    pub fn should_update(config: &ManifestConfig, cache: &cache::Manifests, force: bool) -> bool {
+        if force {
+            return true;
+        }
         match cache.get(&config.url) {
             None => true,
             Some(cached) => {
                 let now = chrono::offset::Utc::now();
-                now.signed_duration_since(cached.checked).num_hours() >= 24
+                now.signed_duration_since(cached.checked.unwrap_or_default())
+                    .num_hours()
+                    >= 24
             }
         }
     }
 
-    pub fn update(config: ManifestConfig, cache: cache::Manifests) -> Result<Option<ManifestUpdate>, Error> {
-        if !Self::should_update(&config, &cache) {
+    pub fn update(
+        config: ManifestConfig,
+        cache: cache::Manifests,
+        force: bool,
+    ) -> Result<Option<ManifestUpdate>, Error> {
+        if !Self::should_update(&config, &cache, force) {
             return Ok(None);
         }
 
@@ -225,24 +235,24 @@ impl Manifest {
                 Ok(Some(ManifestUpdate {
                     url: config.url,
                     etag: new_etag,
-                    checked: chrono::offset::Utc::now(),
+                    timestamp: chrono::offset::Utc::now(),
+                    modified: true,
                 }))
             }
             reqwest::StatusCode::NOT_MODIFIED => Ok(Some(ManifestUpdate {
                 url: config.url,
                 etag: old_etag,
-                checked: chrono::offset::Utc::now(),
+                timestamp: chrono::offset::Utc::now(),
+                modified: false,
             })),
             _ => Err(Error::ManifestCannotBeUpdated),
         }
     }
 
     pub fn update_mut(config: &Config, cache: &mut Cache) -> Result<(), Error> {
-        let updated = Self::update(config.manifest.clone(), cache.manifests.clone())?;
+        let updated = Self::update(config.manifest.clone(), cache.manifests.clone(), false)?;
         if let Some(updated) = updated {
-            let mut cached = cache.manifests.entry(updated.url).or_insert_with(Default::default);
-            cached.etag = updated.etag;
-            cached.checked = updated.checked;
+            cache.update_manifest(updated);
             cache.save();
         }
         Ok(())
