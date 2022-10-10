@@ -27,7 +27,7 @@ pub struct Config {
     #[serde(default, rename = "customGames")]
     pub custom_games: Vec<CustomGame>,
     #[serde(skip)]
-    pub heroic_gog_roots: std::collections::HashMap<String, StrictPath>,
+    pub heroic_roots: std::collections::HashMap<String, StrictPath>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -340,6 +340,18 @@ impl Default for RestoreConfig {
     }
 }
 
+// TODO.2022-10-08 is there a way to define structs with arrays in a single struct?
+#[derive(serde::Deserialize)]
+struct HeroicGame {
+    #[serde(rename = "appName")]
+    game_id: String,
+    platform: String,
+}
+#[derive(serde::Deserialize)]
+struct HeroicInstalled {
+    installed: Vec<HeroicGame>,
+}
+
 impl Config {
     #[allow(deprecated)]
     pub fn migrated(mut self) -> Self {
@@ -432,7 +444,7 @@ impl Config {
             // GOG Galaxy:
             (format!("{}/GOG Galaxy/Games", pf32), Store::GogGalaxy),
             (format!("{}/GOG Galaxy/Games", pf64), Store::GogGalaxy),
-            // GOG Heroic:
+            // Heroic Config:
             // TODO.2022-10-07 add windows candidates
             ("~/.config/heroic".to_string(), Store::HeroicConfig),
             (
@@ -526,144 +538,176 @@ impl Config {
         self.roots.extend(self.find_missing_roots());
     }
 
-    pub fn detect_heroic_gog_roots(&mut self) {
-        // #94: add games installed with heroic roots
+    pub fn detect_heroic_roots(&mut self) {
+        self.detect_heroic_legendary_roots();
+        self.detect_heroic_gog_roots();
+        println!("config::detect_heroic_roots found: {:#?}", self.heroic_roots);
+    }
 
-        // TODO.2022-10-08 is there a way to define structs with arrays in a single struct?
-        #[derive(serde::Deserialize)]
-        struct HeroicGame {
-            #[serde(rename = "appName")]
-            app_name: String,
-            platform: String,
-            install_path: String,
-        }
-        #[derive(serde::Deserialize)]
-        struct HeroicInstalled {
-            installed: Vec<HeroicGame>,
-        }
-
-        self.roots.iter().for_each(|root| {
+    // #94: add games installed with heroic roots
+    fn detect_heroic_legendary_roots(&mut self) {
+        self.roots.clone().iter().for_each(|root| {
             if root.store == Store::HeroicConfig {
-                // General approach:
-                //
-                // build map app_name -> title from CONFIGDIR/gog_store/library.json
-                // read CONFIGDIR/gog_store/installed.json
-                // for each game in .installed[]
-                // match platform {
-                //       windows:
-                //         appName = .appName
-                //         get wine/proton prefix from CONFIGDIR/GamesConfig/<appName>.json
-                //         add found prefix as possible wine prefix to heroic_roots
-                //      linux:
-                //         log and ignore
-                //      default:
-                //         log information about unrecognized platform and ignore
-                // }
+                println!("config::detect_heroic_legendary_roots found heroic config: {root:?}");
+                println!("config::detect_heroic_legendary_roots searching for legendary config: {root:?}");
 
+                // check for all known legendary configuration folders
+                // TODO.2022-10-10 windows location for legendary
+                for legendary_path_candidate in vec![
+                    "~/.config/legendary".to_string(),
+                    "~/.var/app/com.heroicgameslauncher.hgl/config/legendary".to_string(),
+                ] {
+                    let legendary_path = StrictPath::new(legendary_path_candidate);
+                    if legendary_path.is_dir() {
+                        println!(
+                            "config::detect_heroic_legendary_roots found legendary configuration in {legendary_path:?}"
+                        );
+                        // read list of installed games
+                        let mut pb = legendary_path.as_std_path_buf();
+                        pb.push("installed.json");
+                        let v: serde_json::Value =
+                            serde_json::from_str(&std::fs::read_to_string(pb).unwrap_or_default()).unwrap_or_default();
+
+                        v.as_object().unwrap().iter().for_each(|entry| {
+                            let game_title = String::from(entry.1["title"].as_str().unwrap_or_default());
+                            println!(
+                                "config::detect_heroic_legendary_roots found game {}: {}",
+                                entry.0, game_title
+                            );
+                            // process game from GamesConfig
+                            if let Some(sp) = self.heroic_find_game_root(
+                                root.path.interpret(),
+                                &game_title,
+                                &String::from(entry.1["platform"].as_str().unwrap_or_default().to_lowercase()),
+                                &entry.0,
+                            ) {
+                                self.heroic_roots.insert(game_title, sp);
+                            }
+                        });
+                    }
+                }
+            }
+        });
+    }
+
+    // #94: add games installed with heroic roots
+    fn detect_heroic_gog_roots(&mut self) {
+        self.roots.clone().iter().for_each(|root| {
+            if root.store == Store::HeroicConfig {
                 println!("config::detect_heroic_gog_roots found heroic config: {root:?}");
 
-                // consume CONFIGDIR/gog_store/library.json and build map .app_name -> .title
-                // TODO.2022-10-08 would it be more efficient / standard rust to map &str -> &str instead
+                // use HEROCONFIGDIR/gog_store/library.json to build map .app_name -> .title
                 let mut app_titles = std::collections::HashMap::<String, String>::new();
                 let library_json: serde_json::Value = serde_json::from_str(
                     &std::fs::read_to_string(format!("{}/gog_store/library.json", root.path.interpret()))
                         .unwrap_or_default(),
                 )
                 .unwrap_or_default();
-                library_json["games"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .for_each(|lib| {
-                        app_titles.insert(
-                            String::from(lib["app_name"].as_str().unwrap_or_default()),
-                            String::from(lib["title"].as_str().unwrap_or_default())
-                        );
-                    });
-                println!("config::detect_heroic_gog_roots found {} games in CONFIGDIR/gog_store/library.json", app_titles.len());
-                
-                
-                // iterate over all games found in CONFIGDIR/gog_store/installed.json
+                library_json["games"].as_array().unwrap().iter().for_each(|lib| {
+                    app_titles.insert(
+                        String::from(lib["app_name"].as_str().unwrap_or_default()),
+                        String::from(lib["title"].as_str().unwrap_or_default()),
+                    );
+                });
+                println!(
+                    "config::detect_heroic_gog_roots found {} games in CONFIGDIR/gog_store/library.json",
+                    app_titles.len()
+                );
+
+                // iterate over all games found in HEROCONFIGDIR/gog_store/installed.json and call heroic_find_game_root
                 let content = std::fs::read_to_string(format!("{}/gog_store/installed.json", root.path.interpret()));
                 let installed_games = serde_json::from_str::<HeroicInstalled>(&content.unwrap_or_default());
                 installed_games.unwrap().installed.iter().for_each(|game| {
-                    match game.platform.as_str() {
-                        "windows" => {
-                            println!("config::detect_heroic_gog_roots found Heroic Windows game {} ({}), checking...", app_titles.get(&game.app_name).unwrap(), game.app_name);
-
-                            let v: serde_json::Value = serde_json::from_str(
-                                &std::fs::read_to_string(format!(
-                                    "{}/GamesConfig/{}.json",
-                                    root.path.interpret(),
-                                    game.app_name
-                                ))
-                                .unwrap_or_default(),
-                            )
-                            .unwrap_or_default();
-
-                            println!(
-                                "config::detect_heroic_gog_roots found Heroic Windows game {} ({}), checking... type: {}",
-                                app_titles.get(&game.app_name).unwrap(),
-                                game.app_name,
-                                v[&game.app_name]["wineVersion"]["type"],
-                            );
-
-                            match v[&game.app_name]["wineVersion"]["type"].as_str().unwrap_or_default() {
-                                "wine" => {
-                                    println!(
-                                        "config::detect_heroic_gog_roots found Heroic Windows game {} ({}), adding... -> {}",
-                                        app_titles.get(&game.app_name).unwrap(),
-                                        game.app_name, v[&game.app_name]["winePrefix"]
-                                    );
-
-                                    self.heroic_gog_roots.insert(
-                                        app_titles.get(&game.app_name).unwrap().clone(),
-                                        StrictPath::new(v[&game.app_name]["winePrefix"].to_string()));
-                                }
-                                "proton" => {
-                                    println!(
-                                        "config::detect_heroic_gog_roots found Heroic Proton game {} ({}), adding... -> {}",
-                                        app_titles.get(&game.app_name).unwrap(),
-                                        game.app_name,
-                                        format!("{}/pfx", v[&game.app_name]["winePrefix"].as_str().unwrap_or_default())
-                                    );
-
-                                    self.heroic_gog_roots.insert(
-                                        app_titles.get(&game.app_name).unwrap().clone(),
-                                        StrictPath::new(format!(
-                                            "{}/pfx",
-                                            v[&game.app_name]["winePrefix"].as_str().unwrap_or_default()
-                                        )));
-                                }
-                                _ => {
-                                    // TODO.2022-10-07 handle unknown wine types, lutris?
-                                    println!(
-                                        "config::detect_heroic_gog_roots found Heroic Windows game {} ({}), checking... unknown type: {:#?}",
-                                        app_titles.get(&game.app_name).unwrap(),
-                                        game.app_name, v[&game.app_name]["wineVersion"]["type"]
-                                    );
-                                }
-                            };
-                        }
-                        "linux" => {
-                            println!("config::detect_heroic_gog_roots found Heroic Linux game {} in {}, ignoring",
-                                     app_titles.get(&game.app_name).unwrap(), game.install_path);
-                        }
-                        _ => {
-                            println!(
-                                "config::detect_heroic_gog_roots found Heroic game {} with unhandled platform {} in {}, ignoring.",
-                                app_titles.get(&game.app_name).unwrap(),
-                                game.platform,
-                                game.install_path
-                            );
-                        }
+                    let app_title = app_titles.get(&game.game_id).unwrap();
+                    if let Some(sp) =
+                        self.heroic_find_game_root(root.path.interpret(), &app_title, &game.platform, &game.game_id)
+                    {
+                        println!("config::heroic_gog_roots adding path {sp:?}");
+                        self.heroic_roots.insert(app_title.clone(), sp);
                     }
                 });
             }
         });
     }
 
-    
+    fn heroic_find_game_root(
+        &self,
+        heroic_path: String,
+        game_name: &String,
+        platform: &String,
+        game_id: &String,
+    ) -> Option<StrictPath> {
+        println!("config::heroic_find_game_root: {heroic_path} {game_name} {platform} {game_id}");
+        match platform.as_str() {
+            "windows" => {
+                println!(
+                    "config::heroic_find_game_root found Heroic Windows game {} ({}), checking...",
+                    game_name, game_id
+                );
+
+                let v: serde_json::Value = serde_json::from_str(
+                    &std::fs::read_to_string(format!("{}/GamesConfig/{}.json", heroic_path, game_id))
+                        .unwrap_or_default(),
+                )
+                .unwrap_or_default();
+
+                println!(
+                    "config::heroic_find_game_root found Heroic Windows game {} ({}), checking... type: {}",
+                    game_name, game_id, v[&game_id]["wineVersion"]["type"],
+                );
+
+                match v[&game_id]["wineVersion"]["type"].as_str().unwrap_or_default() {
+                    "wine" => {
+                        println!(
+                            "config::heroic_find_game_root found Heroic Windows prefix for {} ({}), adding... -> {}",
+                            game_name, game_id, v[&game_id]["winePrefix"].as_str().unwrap_or_default().to_string()
+                        );
+
+                        Some(StrictPath::new(
+                            v[&game_id]["winePrefix"].as_str().unwrap_or_default().to_string(),
+                        ))
+                    }
+                    "proton" => {
+                        println!(
+                            "config::heroic_find_game_root found Heroic Proton prefix for {} ({}), adding... -> {}",
+                            game_name,
+                            game_id,
+                            format!("{}/pfx", v[&game_id]["winePrefix"].as_str().unwrap_or_default())
+                        );
+
+                        Some(StrictPath::new(format!(
+                            "{}/pfx",
+                            v[&game_id]["winePrefix"].as_str().unwrap_or_default()
+                        )))
+                    }
+                    _ => {
+                        // TODO.2022-10-07 handle unknown wine types, lutris?
+                        println!(
+                            "config::heroic_find_game_root found Heroic Windows game {} ({}), checking... unknown wine_type: {:#?}",
+                            game_name,
+                            game_id, v[&game_id]["wineVersion"]["type"]
+                        );
+                        None
+                    }
+                }
+            }
+            "linux" => {
+                println!(
+                    "config::heroic_find_game_root found Heroic Linux game {}, ignoring",
+                    game_name
+                );
+                None
+            }
+            _ => {
+                println!(
+                    "config::heroic_find_game_root found Heroic game {} with unhandled platform {}, ignoring.",
+                    game_name, platform,
+                );
+                None
+            }
+        }
+    }
+
     pub fn is_game_enabled_for_backup(&self, name: &str) -> bool {
         !self.backup.ignored_games.contains(name)
     }
@@ -966,7 +1010,7 @@ mod tests {
                     sort: Default::default(),
                 },
                 custom_games: vec![],
-                heroic_gog_roots: std::collections::HashMap::new(),
+                heroic_roots: std::collections::HashMap::new(),
             },
             config,
         );
@@ -1084,7 +1128,7 @@ mod tests {
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
                 ],
-                heroic_gog_roots: std::collections::HashMap::new(),
+                heroic_roots: std::collections::HashMap::new(),
             },
             config,
         );
@@ -1148,7 +1192,7 @@ mod tests {
                     sort: Default::default(),
                 },
                 custom_games: vec![],
-                heroic_gog_roots: std::collections::HashMap::new(),
+                heroic_roots: std::collections::HashMap::new(),
             },
             config,
         );
@@ -1265,7 +1309,7 @@ mod tests {
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
                 ],
-                heroic_gog_roots: std::collections::HashMap::new(),
+                heroic_roots: std::collections::HashMap::new(),
             },
             config,
         );
@@ -1404,7 +1448,7 @@ customGames:
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
                 ],
-                heroic_gog_roots: std::collections::HashMap::new(),
+                heroic_roots: std::collections::HashMap::new(),
             })
             .unwrap()
             .trim(),

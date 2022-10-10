@@ -694,7 +694,6 @@ pub fn scan_game_for_backup(
     manifest_dir: &StrictPath,
     steam_id: &Option<u32>,
     filter: &BackupFilter,
-    // TODO.2022-10-08 dereferencing
     wine_prefix: &Option<&StrictPath>,
     ranking: &InstallDirRanking,
     ignored_paths: &ToggledPaths,
@@ -717,11 +716,10 @@ pub fn scan_game_for_backup(
 
     let manifest_dir_interpreted = manifest_dir.interpret();
 
-    if let Some(wp) = &wine_prefix {
+    if let Some(wp) = wine_prefix {
         log::trace!("[{name}] adding extra Wine prefix: {}", wp.raw());
         roots_to_check.push(RootsConfig {
-            // TODO.2022-10-08 dereferencing
-            path: StrictPath::from_std_path_buf(&wp.as_std_path_buf()),
+            path: wp.clone().into(),
             store: Store::OtherWine,
         });
 

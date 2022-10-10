@@ -596,6 +596,12 @@ impl From<&walkdir::DirEntry> for StrictPath {
     }
 }
 
+impl From<&StrictPath> for StrictPath {
+    fn from(source: &StrictPath) -> Self {
+        StrictPath::relative(source.raw.clone(), source.basis.clone())
+    }
+}
+
 // Based on:
 // https://github.com/serde-rs/serde/issues/751#issuecomment-277580700
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]

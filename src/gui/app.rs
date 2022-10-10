@@ -179,7 +179,7 @@ impl App {
 
         log::info!("beginning backup with {} steps", self.progress.max);
 
-        self.config.detect_heroic_gog_roots();
+        self.config.detect_heroic_roots();
         let config = std::sync::Arc::new(self.config.clone());
         let roots = std::sync::Arc::new(config.expanded_roots());
         let layout = std::sync::Arc::new(BackupLayout::new(backup_path, config.backup.retention.clone()));
@@ -214,7 +214,7 @@ impl App {
                         &StrictPath::from_std_path_buf(&app_dir()),
                         &steam_id,
                         &filter,
-                        &config.heroic_gog_roots.get(&key),
+                        &config.heroic_roots.get(&key),
                         &ranking,
                         &config.backup.toggled_paths,
                         &config.backup.toggled_registry,

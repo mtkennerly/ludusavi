@@ -698,7 +698,6 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             update,
             try_update,
             by_steam_id,
-            // TODO.2022-10-08 SL currently ignored since I do not understand references in rust well atm
             wine_prefix,
             api,
             sort,
@@ -781,7 +780,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             log::info!("beginning backup with {} steps", subjects.valid.len());
 
-            config.detect_heroic_gog_roots();
+            config.detect_heroic_roots();
             let layout = BackupLayout::new(backup_dir.clone(), config.backup.retention.clone());
             let filter = config.backup.filter.clone();
             let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects.valid);
@@ -798,6 +797,12 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let game = &all_games.0[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
+                    let local_wp;
+                    match &wine_prefix {
+                        Some(sp) => local_wp = Some(sp),
+                        None => local_wp = config.heroic_roots.get(name),
+                    };
+
                     let scan_info = scan_game_for_backup(
                         game,
                         name,
@@ -805,8 +810,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         &StrictPath::from_std_path_buf(&app_dir()),
                         steam_id,
                         &filter,
-                        // TODO.2022-10-08 check for wine_prefix and handle dereferencing
-                        &config.heroic_gog_roots.get(name).clone(),
+                        &local_wp,
                         &ranking,
                         &toggled_paths,
                         &toggled_registry,
