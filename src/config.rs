@@ -581,6 +581,8 @@ impl Config {
                                 &String::from(entry.1["platform"].as_str().unwrap_or_default().to_lowercase()),
                                 &entry.0,
                             ) {
+                                // TODO.2022-10-11 check manifest here and try alternative names / spellings if game not found
+                                println!("config::heroic_gog_roots adding path {sp:?} for {}", game_title);
                                 self.heroic_roots.insert(game_title, sp);
                             }
                         });
@@ -597,33 +599,34 @@ impl Config {
                 println!("config::detect_heroic_gog_roots found heroic config: {root:?}");
 
                 // use HEROCONFIGDIR/gog_store/library.json to build map .app_name -> .title
-                let mut app_titles = std::collections::HashMap::<String, String>::new();
+                let mut game_titles = std::collections::HashMap::<String, String>::new();
                 let library_json: serde_json::Value = serde_json::from_str(
                     &std::fs::read_to_string(format!("{}/gog_store/library.json", root.path.interpret()))
                         .unwrap_or_default(),
                 )
                 .unwrap_or_default();
                 library_json["games"].as_array().unwrap().iter().for_each(|lib| {
-                    app_titles.insert(
+                    game_titles.insert(
                         String::from(lib["app_name"].as_str().unwrap_or_default()),
                         String::from(lib["title"].as_str().unwrap_or_default()),
                     );
                 });
                 println!(
                     "config::detect_heroic_gog_roots found {} games in CONFIGDIR/gog_store/library.json",
-                    app_titles.len()
+                    game_titles.len()
                 );
 
                 // iterate over all games found in HEROCONFIGDIR/gog_store/installed.json and call heroic_find_game_root
                 let content = std::fs::read_to_string(format!("{}/gog_store/installed.json", root.path.interpret()));
                 let installed_games = serde_json::from_str::<HeroicInstalled>(&content.unwrap_or_default());
                 installed_games.unwrap().installed.iter().for_each(|game| {
-                    let app_title = app_titles.get(&game.game_id).unwrap();
+                    let game_title = game_titles.get(&game.game_id).unwrap();
                     if let Some(sp) =
-                        self.heroic_find_game_root(root.path.interpret(), &app_title, &game.platform, &game.game_id)
+                        self.heroic_find_game_root(root.path.interpret(), &game_title, &game.platform, &game.game_id)
                     {
-                        println!("config::heroic_gog_roots adding path {sp:?}");
-                        self.heroic_roots.insert(app_title.clone(), sp);
+                        // TODO.2022-10-11 check manifest here and try alternative names / spellings if game not found
+                        println!("config::heroic_gog_roots adding path {sp:?} for {}", game_title);
+                        self.heroic_roots.insert(game_title.clone(), sp);
                     }
                 });
             }
@@ -660,7 +663,9 @@ impl Config {
                     "wine" => {
                         println!(
                             "config::heroic_find_game_root found Heroic Windows prefix for {} ({}), adding... -> {}",
-                            game_name, game_id, v[&game_id]["winePrefix"].as_str().unwrap_or_default().to_string()
+                            game_name,
+                            game_id,
+                            v[&game_id]["winePrefix"].as_str().unwrap_or_default().to_string()
                         );
 
                         Some(StrictPath::new(
