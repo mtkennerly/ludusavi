@@ -1239,7 +1239,11 @@ pub fn fuzzy_match(
     if reference == candidate {
         return Some(i64::MAX);
     }
-    let actual = matcher.fuzzy_match(reference, &candidate.replace('_', " ").replace('-', " "));
+
+    let candidate = candidate.replace('_', " ").replace('-', " ");
+    let candidate = RE_SPACES.replace_all(&candidate, " ");
+
+    let actual = matcher.fuzzy_match(reference, &candidate);
     if let (Some(ideal), Some(actual)) = (ideal, actual) {
         if actual == *ideal {
             return Some(i64::MAX);
@@ -1309,9 +1313,12 @@ mod tests {
             // Long enough:
             ("abcd", "abc", Some(71)),
             ("A Fun Game", "a fun game", Some(i64::MAX)),
+            ("A Fun Game", "a  fun  game", Some(i64::MAX)),
             ("A Fun Game", "AFunGame", Some(171)),
             ("A Fun Game", "A_Fun_Game", Some(i64::MAX)),
+            ("A Fun Game", "A _ Fun _ Game", Some(i64::MAX)),
             ("A Fun Game", "a-fun-game", Some(i64::MAX)),
+            ("A Fun Game", "a - fun - game", Some(i64::MAX)),
             ("A Fun Game", "A FUN GAME", Some(i64::MAX)),
             ("A Fun Game!", "A Fun Game", Some(219)),
             ("A Funner Game", "A Fun Game", Some(209)),
