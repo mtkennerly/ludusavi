@@ -22,6 +22,8 @@
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/136))
   * Zipped backup files did not store the correct permissions on Linux/Mac.
   * Proton and Wine files are now searched case-insensitively on Linux.
+  * When Ludusavi tried to find a rough match for an install folder like "Some Game",
+    it did not recognize that "Some - Game" was close enough.
   * GUI: When the manifest finished updating in the background,
     any currently open modal would be closed.
   * CLI mode asked for confirmation when restoring, but backups behaved differently:
