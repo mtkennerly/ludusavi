@@ -1521,6 +1521,19 @@ impl Application for App {
                 .height(Length::Fill),
             )
             .push_if(
+                || self.updating_manifest,
+                || {
+                    Container::new(
+                        Container::new(Text::new(self.translator.updating_manifest()))
+                            .padding([3, 40])
+                            .align_x(iced::alignment::Horizontal::Center)
+                            .align_y(iced::alignment::Vertical::Center)
+                            .style(style::Container::Notification(self.config.theme)),
+                    )
+                    .padding([0, 0, 5, 0])
+                },
+            )
+            .push_if(
                 || self.progress.max > 1.0,
                 || ProgressBar::new(0.0..=self.progress.max, self.progress.current).height(Length::Units(5)),
             );

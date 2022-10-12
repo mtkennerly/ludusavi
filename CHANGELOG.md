@@ -6,6 +6,7 @@
     The redirect editor is now on the "other" screen instead of the "restore" screen.
   * GUI: The "other" screen now shows when the manifest was last checked/updated.
     There is also a button to refresh on demand.
+    While the manifest is updating, a small notification is displayed at the bottom of the window.
   * CLI: `--fuzzy` option to look up games by an inexact name.
 * Changed:
   * Increased scanning speed by 10% by avoiding some duplicate path lookups.
