@@ -1240,8 +1240,12 @@ pub fn fuzzy_match(
         return Some(i64::MAX);
     }
 
-    let candidate = candidate.replace('_', " ").replace('-', " ");
-    let candidate = RE_SPACES.replace_all(&candidate, " ");
+    // A space-consolidating regex would be better, but is too much of a performance hit.
+    let candidate = candidate
+        .replace(['_', '-'], " ")
+        .replace("    ", " ")
+        .replace("   ", " ")
+        .replace("  ", " ");
 
     let actual = matcher.fuzzy_match(reference, &candidate);
     if let (Some(ideal), Some(actual)) = (ideal, actual) {
