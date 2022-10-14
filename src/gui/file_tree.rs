@@ -8,7 +8,7 @@ use crate::{
     },
     lang::Translator,
     path::StrictPath,
-    prelude::{game_file_target, BackupInfo, DuplicateDetector, RegistryItem, ResolvedRedirect, ScanChange, ScanInfo},
+    prelude::{BackupInfo, DuplicateDetector, RegistryItem, ScanChange, ScanInfo, ScannedFile},
 };
 use iced::{button, Alignment, Button, Checkbox, Column, Container, Length, Row, Space, Text};
 
@@ -42,7 +42,7 @@ struct FileTreeNode {
     ignored: bool,
     duplicated: bool,
     change: Option<ScanChange>,
-    redirect: Option<ResolvedRedirect>,
+    scanned_file: Option<ScannedFile>,
     node_type: FileTreeNodeType,
 }
 
@@ -149,9 +149,10 @@ impl FileTreeNode {
                         },
                     )
                     .push_some(|| {
-                        self.redirect.as_ref().and_then(|redirect| {
-                            redirect.alt().as_ref().map(|alt| {
-                                let msg = if redirect.restoring {
+                        self.scanned_file.as_ref().and_then(|scanned| {
+                            let restoring = scanned.restoring();
+                            scanned.alt(restoring).as_ref().map(|alt| {
+                                let msg = if restoring {
                                     translator.badge_redirected_from(alt)
                                 } else {
                                     translator.badge_redirecting_to(alt)
@@ -238,7 +239,7 @@ impl FileTreeNode {
         successful: bool,
         duplicated: bool,
         change: Option<ScanChange>,
-        redirect: Option<ResolvedRedirect>,
+        scanned_file: Option<ScannedFile>,
     ) -> &mut Self {
         let node_type = self.node_type.clone();
         let mut node = self;
@@ -269,7 +270,7 @@ impl FileTreeNode {
         node.successful = successful;
         node.duplicated = duplicated;
         node.change = change;
-        node.redirect = redirect;
+        node.scanned_file = scanned_file;
 
         node
     }
@@ -327,8 +328,6 @@ impl FileTree {
         let mut nodes = std::collections::BTreeMap::<String, FileTreeNode>::new();
 
         for item in scan_info.found_files.iter() {
-            let resolved = game_file_target(item.original_path(), &config.get_redirects(), scan_info.restoring());
-
             let mut successful = true;
             if let Some(backup_info) = &backup_info {
                 if backup_info.failed_files.contains(item) {
@@ -336,7 +335,7 @@ impl FileTree {
                 }
             }
 
-            let rendered = resolved.readable();
+            let rendered = item.readable(scan_info.restoring());
             let components: Vec<_> = rendered.split('/').collect();
 
             nodes
@@ -348,7 +347,7 @@ impl FileTree {
                     successful,
                     duplicate_detector.is_file_duplicated(item),
                     Some(item.change),
-                    Some(resolved),
+                    Some(item.clone()),
                 );
         }
         for item in scan_info.found_registry_keys.iter() {

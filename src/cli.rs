@@ -1,13 +1,13 @@
 use crate::{
     cache::Cache,
-    config::{Config, RedirectConfig, Sort, SortKey},
+    config::{Config, Sort, SortKey},
     lang::Translator,
     layout::BackupLayout,
     manifest::{Manifest, SteamMetadata},
     prelude::{
-        app_dir, back_up_game, game_file_target, normalize_title, prepare_backup_target, scan_game_for_backup,
-        scan_game_for_restoration, BackupId, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus,
-        OperationStepDecision, ScanChange, ScanInfo, StrictPath,
+        app_dir, back_up_game, normalize_title, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration,
+        BackupId, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus, OperationStepDecision,
+        ScanChange, ScanInfo, StrictPath,
     },
 };
 use clap::{CommandFactory, Parser};
@@ -406,10 +406,10 @@ impl Reporter {
         scan_info: &ScanInfo,
         backup_info: &BackupInfo,
         decision: &OperationStepDecision,
-        redirects: &[RedirectConfig],
         duplicate_detector: &DuplicateDetector,
     ) -> bool {
         let mut successful = true;
+        let restoring = scan_info.restoring();
 
         match self {
             Self::Standard {
@@ -429,22 +429,20 @@ impl Reporter {
                     &scan_info.count_changes(),
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
-                    let resolved = game_file_target(entry.original_path(), redirects, scan_info.restoring());
-
                     let entry_successful = !backup_info.failed_files.contains(entry);
                     if !entry_successful {
                         successful = false;
                     }
                     parts.push(translator.cli_game_line_item(
-                        &resolved.readable(),
+                        &entry.readable(restoring),
                         entry_successful,
                         entry.ignored,
                         duplicate_detector.is_file_duplicated(entry),
                         Some(entry.change),
                     ));
 
-                    if let Some(alt) = resolved.alt_readable() {
-                        if scan_info.restoring() {
+                    if let Some(alt) = entry.alt_readable(restoring) {
+                        if restoring {
                             parts.push(translator.cli_game_line_item_redirected(&alt));
                         } else {
                             parts.push(translator.cli_game_line_item_redirecting(&alt));
@@ -499,9 +497,8 @@ impl Reporter {
                         api_file.duplicated_by = duplicated_by;
                     }
 
-                    let resolved = game_file_target(entry.original_path(), redirects, scan_info.restoring());
-                    if let Some(alt) = resolved.alt_readable() {
-                        if scan_info.restoring() {
+                    if let Some(alt) = entry.alt_readable(restoring) {
+                        if restoring {
                             api_file.original_path = Some(alt);
                         } else {
                             api_file.redirected_path = Some(alt);
@@ -511,7 +508,7 @@ impl Reporter {
                         successful = false;
                     }
 
-                    files.insert(resolved.readable(), api_file);
+                    files.insert(entry.readable(restoring), api_file);
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
                     let mut api_registry = ApiRegistry {
@@ -803,7 +800,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let game = &all_games.0[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
-                    let previous = layout.latest_backup(name, false);
+                    let previous = layout.latest_backup(name, false, &config.redirects);
 
                     let scan_info = scan_game_for_backup(
                         game,
@@ -817,6 +814,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         &toggled_paths,
                         &toggled_registry,
                         previous,
+                        &config.redirects,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified;
                     let decision = if ignored {
@@ -833,7 +831,6 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                             config.backup.merge,
                             &chrono::Utc::now(),
                             &config.backup.format,
-                            &config.redirects,
                         )
                     };
                     log::trace!("step {i} completed");
@@ -861,14 +858,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             for (name, scan_info, backup_info, decision) in info {
-                if !reporter.add_game(
-                    name,
-                    &scan_info,
-                    &backup_info,
-                    &decision,
-                    &config.redirects,
-                    &duplicate_detector,
-                ) {
+                if !reporter.add_game(name, &scan_info, &backup_info, &decision, &duplicate_detector) {
                     failed = true;
                 }
             }
@@ -938,8 +928,12 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let mut layout = layout.game_layout(name);
-                    let scan_info =
-                        scan_game_for_restoration(name, backup_id.as_ref().unwrap_or(&BackupId::Latest), &mut layout);
+                    let scan_info = scan_game_for_restoration(
+                        name,
+                        backup_id.as_ref().unwrap_or(&BackupId::Latest),
+                        &mut layout,
+                        &config.redirects,
+                    );
                     let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
@@ -965,7 +959,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let restore_info = if scan_info.backup.is_none() || preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
-                        layout.restore(&scan_info, &config.get_redirects())
+                        layout.restore(&scan_info)
                     };
                     log::trace!("step {i} completed");
                     (name, scan_info, restore_info, decision, None)
@@ -995,14 +989,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             for (name, scan_info, backup_info, decision, _) in info {
-                if !reporter.add_game(
-                    name,
-                    &scan_info,
-                    &backup_info,
-                    &decision,
-                    &config.redirects,
-                    &duplicate_detector,
-                ) {
+                if !reporter.add_game(name, &scan_info, &backup_info, &decision, &duplicate_detector) {
                     failed = true;
                 }
             }
@@ -1062,7 +1049,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .progress_count(subjects.valid.len() as u64)
                 .map(|name| {
                     let mut layout = layout.game_layout(name);
-                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &mut layout);
+                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &mut layout, &config.redirects);
                     (name, scan_info)
                 })
                 .collect();
@@ -1504,7 +1491,6 @@ mod tests {
                 &ScanInfo::default(),
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1539,6 +1525,7 @@ Overall:
                             ignored: false,
                             change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                         ScannedFile {
                             path: StrictPath::new(s("/file2")),
@@ -1548,6 +1535,7 @@ Overall:
                             ignored: false,
                             change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                     },
                     found_registry_keys: hashset! {
@@ -1565,7 +1553,6 @@ Overall:
                     },
                 },
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1604,6 +1591,7 @@ Overall:
                             ignored: false,
                             change: ScanChange::Same,
                             container: None,
+                            redirected: None,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1614,7 +1602,6 @@ Overall:
                     failed_registry: hashset! {},
                 },
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             reporter.add_game(
@@ -1630,6 +1617,7 @@ Overall:
                             ignored: false,
                             change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1640,7 +1628,6 @@ Overall:
                     failed_registry: hashset! {},
                 },
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1679,6 +1666,7 @@ Overall:
                             ignored: false,
                             change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
@@ -1688,6 +1676,7 @@ Overall:
                             ignored: false,
                             change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1695,7 +1684,6 @@ Overall:
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1747,7 +1735,6 @@ Overall:
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &duplicate_detector,
             );
             assert_eq!(
@@ -1789,7 +1776,6 @@ Overall:
                     failed_registry: hashset! {},
                 },
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             reporter.add_game(
@@ -1807,7 +1793,6 @@ Overall:
                     failed_registry: hashset! {},
                 },
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1841,7 +1826,6 @@ Overall:
                 &ScanInfo::default(),
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1888,7 +1872,6 @@ Overall:
                     },
                 },
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1950,6 +1933,7 @@ Overall:
                             ignored: false,
                             change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
@@ -1959,6 +1943,7 @@ Overall:
                             ignored: false,
                             change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1966,7 +1951,6 @@ Overall:
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -2034,7 +2018,6 @@ Overall:
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &duplicate_detector,
             );
             assert_eq!(
@@ -2097,7 +2080,6 @@ Overall:
                     failed_registry: hashset! {},
                 },
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(

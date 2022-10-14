@@ -144,6 +144,7 @@ pub struct ScannedFile {
     pub change: ScanChange,
     /// An enclosing archive file, if any, depending on the `BackupFormat`.
     pub container: Option<StrictPath>,
+    pub redirected: Option<StrictPath>,
 }
 
 impl ScannedFile {
@@ -157,6 +158,7 @@ impl ScannedFile {
             ignored: false,
             change: Default::default(),
             container: None,
+            redirected: None,
         }
     }
 
@@ -183,6 +185,45 @@ impl ScannedFile {
             Some(x) => x,
             None => &self.path,
         }
+    }
+
+    pub fn restoring(&self) -> bool {
+        self.original_path.is_some()
+    }
+
+    /// This is stored in the mapping file and used for operations.
+    pub fn effective(&self) -> &StrictPath {
+        self.redirected.as_ref().unwrap_or_else(|| self.original_path())
+    }
+
+    /// This is the main path to show to the user.
+    pub fn readable(&self, restoring: bool) -> String {
+        if restoring {
+            self.redirected
+                .as_ref()
+                .unwrap_or_else(|| self.original_path())
+                .render()
+        } else {
+            self.original_path().render()
+        }
+    }
+
+    /// This is shown in the GUI/CLI to annotate the `readable` path.
+    pub fn alt(&self, restoring: bool) -> Option<&StrictPath> {
+        if restoring {
+            if self.redirected.is_some() {
+                Some(self.original_path())
+            } else {
+                None
+            }
+        } else {
+            self.redirected.as_ref()
+        }
+    }
+
+    /// This is shown in the GUI/CLI to annotate the `readable` path.
+    pub fn alt_readable(&self, restoring: bool) -> Option<String> {
+        self.alt(restoring).map(|x| x.render())
     }
 }
 
@@ -381,53 +422,16 @@ pub fn app_dir() -> std::path::PathBuf {
     path
 }
 
-#[derive(Clone, Debug, Default)]
-pub struct ResolvedRedirect {
-    pub original: StrictPath,
-    pub redirected: Option<StrictPath>,
-    pub restoring: bool,
-}
-
-impl ResolvedRedirect {
-    /// This is stored in the mapping file and used for operations.
-    pub fn effective(&self) -> &StrictPath {
-        self.redirected.as_ref().unwrap_or(&self.original)
-    }
-
-    /// This is the main path to show to the user.
-    pub fn readable(&self) -> String {
-        if self.restoring {
-            self.redirected.as_ref().unwrap_or(&self.original).render()
-        } else {
-            self.original.render()
-        }
-    }
-
-    /// This is shown in the GUI/CLI to annotate the `readable` path.
-    pub fn alt(&self) -> Option<&StrictPath> {
-        if self.restoring {
-            if self.redirected.is_some() {
-                Some(&self.original)
-            } else {
-                None
-            }
-        } else {
-            self.redirected.as_ref()
-        }
-    }
-
-    /// This is shown in the GUI/CLI to annotate the `readable` path.
-    pub fn alt_readable(&self) -> Option<String> {
-        self.alt().map(|x| x.render())
-    }
-}
-
 /// Returns the effective target, if different from the original
 pub fn game_file_target(
     original_target: &StrictPath,
     redirects: &[RedirectConfig],
     restoring: bool,
-) -> ResolvedRedirect {
+) -> Option<StrictPath> {
+    if redirects.is_empty() {
+        return None;
+    }
+
     let mut redirected_target = original_target.render();
     for redirect in redirects {
         if redirect.source.raw().trim().is_empty() || redirect.target.raw().trim().is_empty() {
@@ -454,17 +458,9 @@ pub fn game_file_target(
 
     let redirected_target = StrictPath::new(redirected_target);
     if original_target.render() != redirected_target.render() {
-        ResolvedRedirect {
-            original: original_target.clone(),
-            redirected: Some(redirected_target),
-            restoring,
-        }
+        Some(redirected_target)
     } else {
-        ResolvedRedirect {
-            original: original_target.clone(),
-            redirected: None,
-            restoring,
-        }
+        None
     }
 }
 
@@ -802,6 +798,7 @@ pub fn scan_game_for_backup(
     ignored_paths: &ToggledPaths,
     #[allow(unused_variables)] ignored_registry: &ToggledRegistry,
     previous: Option<ScanInfo>,
+    redirects: &[RedirectConfig],
 ) -> ScanInfo {
     log::trace!("[{name}] beginning scan for backup");
 
@@ -940,6 +937,7 @@ pub fn scan_game_for_backup(
                     change: ScanChange::evaluate(&hash, previous_files.get(&p)),
                     size: p.size(),
                     hash,
+                    redirected: game_file_target(&p, redirects, false),
                     path: p,
                     original_path: None,
                     ignored,
@@ -966,6 +964,7 @@ pub fn scan_game_for_backup(
                             change: ScanChange::evaluate(&hash, previous_files.get(&child)),
                             size: child.size(),
                             hash,
+                            redirected: game_file_target(&child, redirects, false),
                             path: child,
                             original_path: None,
                             ignored,
@@ -1010,7 +1009,12 @@ pub enum BackupId {
     Named(String),
 }
 
-pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &mut GameLayout) -> ScanInfo {
+pub fn scan_game_for_restoration(
+    name: &str,
+    id: &BackupId,
+    layout: &mut GameLayout,
+    redirects: &[RedirectConfig],
+) -> ScanInfo {
     log::trace!("[{name}] beginning scan for restore");
 
     let mut found_files = std::collections::HashSet::new();
@@ -1024,7 +1028,7 @@ pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &mut GameLay
 
     if layout.path.is_dir() {
         layout.migrate_legacy_backup();
-        found_files = layout.restorable_files(&id, true);
+        found_files = layout.restorable_files(&id, true, redirects);
         available_backups = layout.restorable_backups_flattened();
         backup = layout.find_by_id_flattened(&id);
     }
@@ -1089,7 +1093,6 @@ pub fn back_up_game(
     merge: bool,
     now: &chrono::DateTime<chrono::Utc>,
     format: &BackupFormats,
-    redirects: &[RedirectConfig],
 ) -> BackupInfo {
     log::trace!("[{}] preparing for backup", &info.game_name);
 
@@ -1110,7 +1113,7 @@ pub fn back_up_game(
     };
 
     if able_to_prepare {
-        layout.back_up(info, now, format, redirects)
+        layout.back_up(info, now, format)
     } else {
         let mut backup_info = BackupInfo::default();
 
@@ -1575,6 +1578,7 @@ mod tests {
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
+                &[],
             ),
         );
 
@@ -1599,6 +1603,7 @@ mod tests {
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
+                &[],
             ),
         );
     }
@@ -1630,6 +1635,7 @@ mod tests {
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
+                &[],
             ),
         );
     }
@@ -1661,6 +1667,7 @@ mod tests {
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
+                &[],
             ),
         );
     }
@@ -1696,6 +1703,7 @@ mod tests {
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
+                &[],
             ),
         );
     }
@@ -1730,6 +1738,7 @@ mod tests {
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
+                &[],
             ),
         );
     }
@@ -1758,6 +1767,7 @@ mod tests {
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
+                &[],
             ),
         );
     }
@@ -1821,6 +1831,7 @@ mod tests {
                     &ignored,
                     &ToggledRegistry::default(),
                     None,
+                    &[],
                 ),
             );
         }
@@ -1850,6 +1861,7 @@ mod tests {
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
+                &[],
             ),
         );
     }
@@ -1880,6 +1892,7 @@ mod tests {
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
+                &[],
             ),
         );
     }
@@ -1947,6 +1960,7 @@ mod tests {
                     &ToggledPaths::default(),
                     &ignored,
                     None,
+                    &[],
                 ),
             );
         }
@@ -2016,6 +2030,7 @@ mod tests {
                         ignored: false,
                         change: ScanChange::New,
                         container: None,
+                        redirected: None,
                     },
                     ScannedFile {
                         path: restorable_file_simple(".", "file2.txt"),
@@ -2025,13 +2040,14 @@ mod tests {
                         ignored: false,
                         change: ScanChange::New,
                         container: None,
+                        redirected: None,
                     },
                 },
                 available_backups: backups.clone(),
                 backup: Some(backups[0].clone()),
                 ..Default::default()
             },
-            scan_game_for_restoration("game1", &BackupId::Latest, &mut layout),
+            scan_game_for_restoration("game1", &BackupId::Latest, &mut layout, &[]),
         );
     }
 
@@ -2067,7 +2083,7 @@ mod tests {
                     })),
                     ..Default::default()
                 },
-                scan_game_for_restoration("game3", &BackupId::Latest, &mut layout.game_layout("game3")),
+                scan_game_for_restoration("game3", &BackupId::Latest, &mut layout.game_layout("game3"), &[]),
             );
         } else {
             assert_eq!(
@@ -2088,7 +2104,7 @@ mod tests {
                     })),
                     ..Default::default()
                 },
-                scan_game_for_restoration("game3", &BackupId::Latest, &mut layout.game_layout("game3")),
+                scan_game_for_restoration("game3", &BackupId::Latest, &mut layout.game_layout("game3"), &[]),
             );
         }
     }
@@ -2151,6 +2167,7 @@ mod tests {
                 ignored: false,
                 change: Default::default(),
                 container: None,
+                redirected: None,
             };
             let file1b = ScannedFile {
                 path: StrictPath::new(s("file1b.txt")),
@@ -2160,6 +2177,7 @@ mod tests {
                 ignored: false,
                 change: Default::default(),
                 container: None,
+                redirected: None,
             };
 
             detector.add_game(&ScanInfo {
@@ -2183,6 +2201,7 @@ mod tests {
                 ignored: false,
                 change: Default::default(),
                 container: None,
+                redirected: None,
             }));
 
             assert!(detector.is_file_duplicated(&file1b));
@@ -2195,6 +2214,7 @@ mod tests {
                 ignored: false,
                 change: Default::default(),
                 container: None,
+                redirected: None,
             }));
         }
     }

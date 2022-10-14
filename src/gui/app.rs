@@ -225,7 +225,7 @@ impl App {
                         return (None, None, OperationStepDecision::Cancelled);
                     }
 
-                    let previous = layout.latest_backup(&key, false);
+                    let previous = layout.latest_backup(&key, false, &config.redirects);
 
                     let scan_info = scan_game_for_backup(
                         &game,
@@ -239,6 +239,7 @@ impl App {
                         &config.backup.toggled_paths,
                         &config.backup.toggled_registry,
                         previous,
+                        &config.redirects,
                     );
                     if !config.is_game_enabled_for_backup(&key) {
                         return (Some(scan_info), None, OperationStepDecision::Ignored);
@@ -251,7 +252,6 @@ impl App {
                             merge,
                             &chrono::Utc::now(),
                             &config.backup.format,
-                            &config.redirects,
                         ))
                     } else {
                         None
@@ -345,13 +345,13 @@ impl App {
                         return (None, None, OperationStepDecision::Cancelled);
                     }
 
-                    let scan_info = scan_game_for_restoration(&name, &backup_id, &mut layout);
+                    let scan_info = scan_game_for_restoration(&name, &backup_id, &mut layout, &config.redirects);
                     if !config.is_game_enabled_for_restore(&name) {
                         return (Some(scan_info), None, OperationStepDecision::Ignored);
                     }
 
                     let backup_info = if scan_info.backup.is_some() && !preview {
-                        Some(layout.restore(&scan_info, &config.get_redirects()))
+                        Some(layout.restore(&scan_info))
                     } else {
                         None
                     };
