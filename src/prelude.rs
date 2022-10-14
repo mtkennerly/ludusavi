@@ -67,6 +67,69 @@ pub enum Error {
     UnableToOpenUrl(String),
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize)]
+pub enum ScanChange {
+    New,
+    Different,
+    Same,
+    #[default]
+    Unknown,
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct ScanChangeCount {
+    pub new: usize,
+    pub different: usize,
+    pub same: usize,
+}
+
+impl ScanChangeCount {
+    pub fn new() -> Self {
+        Self {
+            new: 0,
+            different: 0,
+            same: 0,
+        }
+    }
+
+    pub fn brand_new(&self) -> bool {
+        self.new > 0 && self.different == 0 && self.same == 0
+    }
+
+    pub fn updated(&self) -> bool {
+        !self.brand_new() && (self.new > 0 || self.different > 0)
+    }
+}
+
+// TODO: Decide how to handle redirects. For now, they are ignored.
+impl ScanChange {
+    pub fn evaluate(current_hash: &str, previous_hash: Option<&&String>) -> Self {
+        match previous_hash {
+            None => Self::New,
+            Some(&previous) => {
+                if current_hash == previous {
+                    Self::Same
+                } else {
+                    Self::Different
+                }
+            }
+        }
+    }
+
+    pub fn evaluate_restore(original_path: &StrictPath, previous_hash: &str) -> Self {
+        match original_path.try_sha1() {
+            Err(_) => ScanChange::New,
+            Ok(current_hash) => {
+                if current_hash == previous_hash {
+                    Self::Same
+                } else {
+                    Self::Different
+                }
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ScannedFile {
     /// The actual location on disk.
@@ -78,6 +141,7 @@ pub struct ScannedFile {
     /// This is the restoration target path, without redirects applied.
     pub original_path: Option<StrictPath>,
     pub ignored: bool,
+    pub change: ScanChange,
     /// An enclosing archive file, if any, depending on the `BackupFormat`.
     pub container: Option<StrictPath>,
 }
@@ -91,6 +155,7 @@ impl ScannedFile {
             hash: hash.to_string(),
             original_path: None,
             ignored: false,
+            change: Default::default(),
             container: None,
         }
     }
@@ -98,6 +163,18 @@ impl ScannedFile {
     #[cfg(test)]
     pub fn ignored(mut self) -> Self {
         self.ignored = true;
+        self
+    }
+
+    #[cfg(test)]
+    pub fn change(mut self, change: ScanChange) -> Self {
+        self.change = change;
+        self
+    }
+
+    #[cfg(test)]
+    pub fn change_new(mut self) -> Self {
+        self.change = ScanChange::New;
         self
     }
 
@@ -212,6 +289,24 @@ impl ScanInfo {
 
     pub fn restoring(&self) -> bool {
         self.backup.is_some()
+    }
+
+    pub fn count_changes(&self) -> ScanChangeCount {
+        let mut count = ScanChangeCount::new();
+
+        for entry in &self.found_files {
+            if entry.ignored {
+                continue;
+            }
+            match entry.change {
+                ScanChange::New => count.new += 1,
+                ScanChange::Different => count.different += 1,
+                ScanChange::Same => count.same += 1,
+                ScanChange::Unknown => (),
+            }
+        }
+
+        count
     }
 }
 
@@ -706,6 +801,7 @@ pub fn scan_game_for_backup(
     ranking: &InstallDirRanking,
     ignored_paths: &ToggledPaths,
     #[allow(unused_variables)] ignored_registry: &ToggledRegistry,
+    previous: Option<ScanInfo>,
 ) -> ScanInfo {
     log::trace!("[{name}] beginning scan for backup");
 
@@ -809,6 +905,17 @@ pub fn scan_game_for_backup(
         }
     }
 
+    let previous_files: std::collections::HashMap<&StrictPath, &String> = previous
+        .as_ref()
+        .map(|previous| {
+            previous
+                .found_files
+                .iter()
+                .map(|x| (x.original_path(), &x.hash))
+                .collect()
+        })
+        .unwrap_or_default();
+
     for (path, case_sensitive) in paths_to_check {
         log::trace!("[{name}] checking: {}", path.raw());
         if filter.is_path_ignored(&path) {
@@ -828,9 +935,11 @@ pub fn scan_game_for_backup(
                 }
                 let ignored = ignored_paths.is_ignored(name, &p);
                 log::debug!("[{name}] found: {}", p.raw());
+                let hash = p.sha1();
                 found_files.insert(ScannedFile {
+                    change: ScanChange::evaluate(&hash, previous_files.get(&p)),
                     size: p.size(),
-                    hash: p.sha1(),
+                    hash,
                     path: p,
                     original_path: None,
                     ignored,
@@ -852,9 +961,11 @@ pub fn scan_game_for_backup(
                         }
                         let ignored = ignored_paths.is_ignored(name, &child);
                         log::debug!("[{name}] found: {}", child.raw());
+                        let hash = child.sha1();
                         found_files.insert(ScannedFile {
+                            change: ScanChange::evaluate(&hash, previous_files.get(&child)),
                             size: child.size(),
-                            hash: child.sha1(),
+                            hash,
                             path: child,
                             original_path: None,
                             ignored,
@@ -913,7 +1024,7 @@ pub fn scan_game_for_restoration(name: &str, id: &BackupId, layout: &mut GameLay
 
     if layout.path.is_dir() {
         layout.migrate_legacy_backup();
-        found_files = layout.restorable_files(&id);
+        found_files = layout.restorable_files(&id, true);
         available_backups = layout.restorable_backups_flattened();
         backup = layout.find_by_id_flattened(&id);
     }
@@ -1446,8 +1557,8 @@ mod tests {
             ScanInfo {
                 game_name: s("game1"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080"),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1463,6 +1574,7 @@ mod tests {
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game1".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
+                None,
             ),
         );
 
@@ -1470,7 +1582,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game 2"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1486,6 +1598,7 @@ mod tests {
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game 2".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
+                None,
             ),
         );
     }
@@ -1500,7 +1613,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game5"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1516,6 +1629,7 @@ mod tests {
                 &InstallDirRanking::scan(roots, &manifest(), &["game5".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
+                None,
             ),
         );
     }
@@ -1530,7 +1644,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game 2"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1546,6 +1660,7 @@ mod tests {
                 &InstallDirRanking::scan(roots, &manifest(), &["game 2".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
+                None,
             ),
         );
     }
@@ -1561,10 +1676,10 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH),
-                    ScannedFile::new(format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo()), 0, EMPTY_HASH),
-                    ScannedFile::new(format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo()), 0, EMPTY_HASH),
-                    ScannedFile::new(format!("{}/tests/home/Documents/winDocuments.txt", repo()), 0, EMPTY_HASH),
+                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo()), 0, EMPTY_HASH).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo()), 0, EMPTY_HASH).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/Documents/winDocuments.txt", repo()), 0, EMPTY_HASH).change_new(),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1580,6 +1695,7 @@ mod tests {
                 &InstallDirRanking::scan(roots, &manifest(), &["game4".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
+                None,
             ),
         );
     }
@@ -1595,9 +1711,9 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH),
-                    ScannedFile::new(format!("{}/tests/home/.config/xdgConfig.txt", repo()), 0, EMPTY_HASH),
-                    ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0, EMPTY_HASH),
+                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/.config/xdgConfig.txt", repo()), 0, EMPTY_HASH).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0, EMPTY_HASH).change_new(),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1613,6 +1729,7 @@ mod tests {
                 &InstallDirRanking::scan(roots, &manifest(), &["game4".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
+                None,
             ),
         );
     }
@@ -1623,8 +1740,8 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0, EMPTY_HASH),
-                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0"),
+                    ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0, EMPTY_HASH).change_new(),
+                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0",).change_new(),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1640,6 +1757,7 @@ mod tests {
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game4".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
+                None,
             ),
         );
     }
@@ -1654,7 +1772,7 @@ mod tests {
                 },
                 ToggledPaths::default(),
                 hashset! {
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
             ),
             (
@@ -1665,8 +1783,8 @@ mod tests {
                     }
                 }),
                 hashset! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").ignored(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
             ),
             (
@@ -1677,8 +1795,8 @@ mod tests {
                     }
                 }),
                 hashset! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").ignored(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727"),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
             ),
         ];
@@ -1702,6 +1820,7 @@ mod tests {
                     &InstallDirRanking::scan(&config().roots, &manifest(), &["game1".to_string()]),
                     &ignored,
                     &ToggledRegistry::default(),
+                    None,
                 ),
             );
         }
@@ -1730,6 +1849,7 @@ mod tests {
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game3".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
+                None,
             ),
         );
     }
@@ -1759,6 +1879,7 @@ mod tests {
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game3-outer".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
+                None,
             ),
         );
     }
@@ -1825,6 +1946,7 @@ mod tests {
                     &InstallDirRanking::scan(&config().roots, &manifest(), &["game1".to_string()]),
                     &ToggledPaths::default(),
                     &ignored,
+                    None,
                 ),
             );
         }
@@ -1892,6 +2014,7 @@ mod tests {
                         hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
                         original_path: Some(make_original_path("/file1.txt")),
                         ignored: false,
+                        change: ScanChange::New,
                         container: None,
                     },
                     ScannedFile {
@@ -1900,6 +2023,7 @@ mod tests {
                         hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
                         original_path: Some(make_original_path("/file2.txt")),
                         ignored: false,
+                        change: ScanChange::New,
                         container: None,
                     },
                 },
@@ -2025,6 +2149,7 @@ mod tests {
                 hash: "1".to_string(),
                 original_path: Some(StrictPath::new(s("file1.txt"))),
                 ignored: false,
+                change: Default::default(),
                 container: None,
             };
             let file1b = ScannedFile {
@@ -2033,6 +2158,7 @@ mod tests {
                 hash: "1b".to_string(),
                 original_path: Some(StrictPath::new(s("file1.txt"))),
                 ignored: false,
+                change: Default::default(),
                 container: None,
             };
 
@@ -2055,6 +2181,7 @@ mod tests {
                 hash: "1a".to_string(),
                 original_path: None,
                 ignored: false,
+                change: Default::default(),
                 container: None,
             }));
 
@@ -2066,6 +2193,7 @@ mod tests {
                 hash: "1b".to_string(),
                 original_path: None,
                 ignored: false,
+                change: Default::default(),
                 container: None,
             }));
         }

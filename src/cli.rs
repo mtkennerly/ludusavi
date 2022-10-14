@@ -7,7 +7,7 @@ use crate::{
     prelude::{
         app_dir, back_up_game, game_file_target, normalize_title, prepare_backup_target, scan_game_for_backup,
         scan_game_for_restoration, BackupId, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus,
-        OperationStepDecision, ScanInfo, StrictPath,
+        OperationStepDecision, ScanChange, ScanInfo, StrictPath,
     },
 };
 use clap::{CommandFactory, Parser};
@@ -284,6 +284,7 @@ struct ApiFile {
     failed: bool,
     #[serde(skip_serializing_if = "crate::serialization::is_false")]
     ignored: bool,
+    change: ScanChange,
     bytes: u64,
     #[serde(rename = "originalPath", skip_serializing_if = "Option::is_none")]
     original_path: Option<String>,
@@ -425,6 +426,7 @@ impl Reporter {
                     scan_info.sum_bytes(&Some(backup_info.to_owned())),
                     decision,
                     duplicate_detector.is_game_duplicated(scan_info),
+                    &scan_info.count_changes(),
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
                     let resolved = game_file_target(entry.original_path(), redirects, scan_info.restoring());
@@ -438,6 +440,7 @@ impl Reporter {
                         entry_successful,
                         entry.ignored,
                         duplicate_detector.is_file_duplicated(entry),
+                        Some(entry.change),
                     ));
 
                     if let Some(alt) = resolved.alt_readable() {
@@ -458,6 +461,7 @@ impl Reporter {
                         entry_successful,
                         entry.ignored,
                         duplicate_detector.is_registry_duplicated(&entry.path),
+                        None,
                     ));
                 }
 
@@ -486,6 +490,7 @@ impl Reporter {
                         bytes: entry.size,
                         failed: backup_info.failed_files.contains(entry),
                         ignored: entry.ignored,
+                        change: entry.change,
                         ..Default::default()
                     };
                     if duplicate_detector.is_file_duplicated(entry) {
@@ -798,6 +803,8 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let game = &all_games.0[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
+                    let previous = layout.latest_backup(name, false);
+
                     let scan_info = scan_game_for_backup(
                         game,
                         name,
@@ -809,6 +816,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         &ranking,
                         &toggled_paths,
                         &toggled_registry,
+                        previous,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified;
                     let decision = if ignored {
@@ -1529,6 +1537,7 @@ Overall:
                             hash: "1".to_string(),
                             original_path: None,
                             ignored: false,
+                            change: Default::default(),
                             container: None,
                         },
                         ScannedFile {
@@ -1537,6 +1546,7 @@ Overall:
                             hash: "2".to_string(),
                             original_path: None,
                             ignored: false,
+                            change: Default::default(),
                             container: None,
                         },
                     },
@@ -1592,6 +1602,7 @@ Overall:
                             hash: "1".to_string(),
                             original_path: None,
                             ignored: false,
+                            change: ScanChange::Same,
                             container: None,
                         },
                     },
@@ -1617,6 +1628,7 @@ Overall:
                             hash: "2".to_string(),
                             original_path: None,
                             ignored: false,
+                            change: Default::default(),
                             container: None,
                         },
                     },
@@ -1665,6 +1677,7 @@ Overall:
                             hash: "1".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                             ignored: false,
+                            change: Default::default(),
                             container: None,
                         },
                         ScannedFile {
@@ -1673,6 +1686,7 @@ Overall:
                             hash: "2".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                             ignored: false,
+                            change: Default::default(),
                             container: None,
                         },
                     },
@@ -1745,6 +1759,71 @@ foo [100.00 KiB] [DUPLICATES]:
 Overall:
   Games: 1
   Size: 100.00 KiB
+  Location: <drive>/dev/null
+                "#
+                .trim()
+                .replace("<drive>", &drive()),
+                reporter.render(&StrictPath::new(s("/dev/null")))
+            );
+        }
+
+        #[test]
+        fn can_render_in_standard_mode_with_different_file_changes() {
+            let mut reporter = Reporter::standard(Translator::default());
+
+            reporter.add_game(
+                "foo",
+                &ScanInfo {
+                    game_name: s("foo"),
+                    found_files: hashset! {
+                        ScannedFile::new(s("/new"), 1, "1".to_string()).change(ScanChange::New),
+                        ScannedFile::new(s("/different"), 1, "1".to_string()).change(ScanChange::Different),
+                        ScannedFile::new(s("/same"), 1, "1".to_string()).change(ScanChange::Same),
+                        ScannedFile::new(s("/unknown"), 1, "1".to_string()).change(ScanChange::Unknown),
+                    },
+                    found_registry_keys: hashset! {},
+                    ..Default::default()
+                },
+                &BackupInfo {
+                    failed_files: hashset! {},
+                    failed_registry: hashset! {},
+                },
+                &OperationStepDecision::Processed,
+                &[],
+                &DuplicateDetector::default(),
+            );
+            reporter.add_game(
+                "bar",
+                &ScanInfo {
+                    game_name: s("bar"),
+                    found_files: hashset! {
+                        ScannedFile::new(s("/brand-new"), 1, "1".to_string()).change(ScanChange::New),
+                    },
+                    found_registry_keys: hashset! {},
+                    ..Default::default()
+                },
+                &BackupInfo {
+                    failed_files: hashset! {},
+                    failed_registry: hashset! {},
+                },
+                &OperationStepDecision::Processed,
+                &[],
+                &DuplicateDetector::default(),
+            );
+            assert_eq!(
+                r#"
+foo [4 B] [Δ]:
+  - [Δ] <drive>/different
+  - [+] <drive>/new
+  - <drive>/same
+  - <drive>/unknown
+
+bar [1 B] [+]:
+  - [+] <drive>/brand-new
+
+Overall:
+  Games: 2
+  Size: 5 B
   Location: <drive>/dev/null
                 "#
                 .trim()
@@ -1829,10 +1908,12 @@ Overall:
       "decision": "Processed",
       "files": {
         "<drive>/file1": {
+          "change": "Unknown",
           "bytes": 100
         },
         "<drive>/file2": {
           "failed": true,
+          "change": "Unknown",
           "bytes": 50
         }
       },
@@ -1867,6 +1948,7 @@ Overall:
                             hash: "1".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                             ignored: false,
+                            change: Default::default(),
                             container: None,
                         },
                         ScannedFile {
@@ -1875,6 +1957,7 @@ Overall:
                             hash: "2".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                             ignored: false,
+                            change: Default::default(),
                             container: None,
                         },
                     },
@@ -1900,9 +1983,11 @@ Overall:
       "decision": "Processed",
       "files": {
         "<drive>/original/file1": {
+          "change": "Unknown",
           "bytes": 100
         },
         "<drive>/original/file2": {
+          "change": "Unknown",
           "bytes": 50
         }
       },
@@ -1966,6 +2051,7 @@ Overall:
       "decision": "Processed",
       "files": {
         "<drive>/file1": {
+          "change": "Unknown",
           "bytes": 100,
           "duplicatedBy": [
             "bar"
@@ -1979,6 +2065,72 @@ Overall:
           ]
         }
       }
+    }
+  }
+}
+                "#
+                .trim()
+                .replace("<drive>", &drive()),
+                reporter.render(&StrictPath::new(s("/dev/null")))
+            );
+        }
+
+        #[test]
+        fn can_render_in_json_mode_with_different_file_changes() {
+            let mut reporter = Reporter::json();
+
+            reporter.add_game(
+                "foo",
+                &ScanInfo {
+                    game_name: s("foo"),
+                    found_files: hashset! {
+                        ScannedFile::new("/new", 1, "1").change(ScanChange::New),
+                        ScannedFile::new("/different", 1, "2").change(ScanChange::Different),
+                        ScannedFile::new("/same", 1, "2").change(ScanChange::Same),
+                        ScannedFile::new("/unknown", 1, "2").change(ScanChange::Unknown),
+                    },
+                    found_registry_keys: hashset! {},
+                    ..Default::default()
+                },
+                &BackupInfo {
+                    failed_files: hashset! {},
+                    failed_registry: hashset! {},
+                },
+                &OperationStepDecision::Processed,
+                &[],
+                &DuplicateDetector::default(),
+            );
+            assert_eq!(
+                r#"
+{
+  "overall": {
+    "totalGames": 1,
+    "totalBytes": 4,
+    "processedGames": 1,
+    "processedBytes": 4
+  },
+  "games": {
+    "foo": {
+      "decision": "Processed",
+      "files": {
+        "<drive>/different": {
+          "change": "Different",
+          "bytes": 1
+        },
+        "<drive>/new": {
+          "change": "New",
+          "bytes": 1
+        },
+        "<drive>/same": {
+          "change": "Same",
+          "bytes": 1
+        },
+        "<drive>/unknown": {
+          "change": "Unknown",
+          "bytes": 1
+        }
+      },
+      "registry": {}
     }
   }
 }

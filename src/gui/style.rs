@@ -1,4 +1,4 @@
-use crate::config::Theme;
+use crate::{config::Theme, prelude::ScanChange};
 use iced::{button, checkbox, container, pick_list, scrollable, text_input, Background, Color, Vector};
 use iced_style::menu;
 
@@ -35,6 +35,7 @@ mod light {
     pub const SUCCESS: Color = rgb8!(77, 127, 201);
     pub const FAILURE: Color = rgb8!(201, 77, 77);
     pub const SKIPPED: Color = rgb8!(230, 230, 230);
+    pub const ADDED: Color = rgb8!(28, 223, 86);
 }
 
 mod dark {
@@ -142,6 +143,13 @@ impl Theme {
         match self {
             Self::Light => light::SKIPPED,
             Self::Dark => dark::SKIPPED,
+        }
+    }
+
+    pub fn added(&self) -> Color {
+        match self {
+            Self::Light => light::ADDED,
+            Self::Dark => dark::ADDED,
         }
     }
 }
@@ -266,6 +274,7 @@ pub enum Container {
     ModalBackground(Theme),
     GameListEntry(Theme),
     Badge(Theme),
+    ChangeBadge(Theme, ScanChange),
     DisabledBackup(Theme),
     Notification(Theme),
 }
@@ -276,6 +285,7 @@ impl Container {
             Self::ModalBackground(theme) => theme,
             Self::GameListEntry(theme) => theme,
             Self::Badge(theme) => theme,
+            Self::ChangeBadge(theme, _) => theme,
             Self::DisabledBackup(theme) => theme,
             Self::Notification(theme) => theme,
         }
@@ -292,19 +302,29 @@ impl container::StyleSheet for Container {
             },
             border_color: match self {
                 Self::GameListEntry(_) | Self::Notification(_) => t.field(),
+                Self::ChangeBadge(_, change) => match change {
+                    ScanChange::New => t.added(),
+                    ScanChange::Different => t.positive(),
+                    ScanChange::Same | ScanChange::Unknown => t.disabled(),
+                },
                 _ => t.text(),
             },
             border_width: match self {
-                Self::GameListEntry(_) | Self::Badge(_) | Self::Notification(_) => 1.0,
+                Self::GameListEntry(_) | Self::Badge(..) | Self::ChangeBadge(..) | Self::Notification(_) => 1.0,
                 _ => 0.0,
             },
             border_radius: match self {
-                Self::GameListEntry(_) | Self::Badge(_) | Self::DisabledBackup(_) => 10.0,
+                Self::GameListEntry(_) | Self::Badge(..) | Self::ChangeBadge(..) | Self::DisabledBackup(_) => 10.0,
                 Self::Notification(_) => 20.0,
                 _ => 0.0,
             },
             text_color: match self {
                 Self::DisabledBackup(_) => Some(t.text_inverted()),
+                Self::ChangeBadge(_, change) => match change {
+                    ScanChange::New => Some(t.added()),
+                    ScanChange::Different => Some(t.positive()),
+                    ScanChange::Same | ScanChange::Unknown => Some(t.disabled()),
+                },
                 _ => Some(t.text()),
             },
         }

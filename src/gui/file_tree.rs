@@ -8,7 +8,7 @@ use crate::{
     },
     lang::Translator,
     path::StrictPath,
-    prelude::{game_file_target, BackupInfo, DuplicateDetector, RegistryItem, ResolvedRedirect, ScanInfo},
+    prelude::{game_file_target, BackupInfo, DuplicateDetector, RegistryItem, ResolvedRedirect, ScanChange, ScanInfo},
 };
 use iced::{button, Alignment, Button, Checkbox, Column, Container, Length, Row, Space, Text};
 
@@ -41,6 +41,7 @@ struct FileTreeNode {
     successful: bool,
     ignored: bool,
     duplicated: bool,
+    change: Option<ScanChange>,
     redirect: Option<ResolvedRedirect>,
     node_type: FileTreeNodeType,
 }
@@ -122,6 +123,15 @@ impl FileTreeNode {
                     .push(Space::new(Length::Units(10), Length::Shrink))
                     .push_some(make_enabler)
                     .push(Text::new(label))
+                    .push_some(|| {
+                        let symbol = match self.change {
+                            None | Some(ScanChange::Same | ScanChange::Unknown) => return None,
+                            Some(ScanChange::New) => crate::lang::ADD_SYMBOL,
+                            Some(ScanChange::Different) => crate::lang::CHANGE_SYMBOL,
+                        };
+                        self.change
+                            .map(|change| Badge::new(symbol).left_margin(15).change(change).view(config.theme))
+                    })
                     .push_if(
                         || self.duplicated,
                         || {
@@ -227,6 +237,7 @@ impl FileTreeNode {
         prefix_keys: &[T],
         successful: bool,
         duplicated: bool,
+        change: Option<ScanChange>,
         redirect: Option<ResolvedRedirect>,
     ) -> &mut Self {
         let node_type = self.node_type.clone();
@@ -257,6 +268,7 @@ impl FileTreeNode {
 
         node.successful = successful;
         node.duplicated = duplicated;
+        node.change = change;
         node.redirect = redirect;
 
         node
@@ -335,6 +347,7 @@ impl FileTree {
                     &[components[0]],
                     successful,
                     duplicate_detector.is_file_duplicated(item),
+                    Some(item.change),
                     Some(resolved),
                 );
         }
@@ -356,6 +369,7 @@ impl FileTree {
                     &components[0..1],
                     successful,
                     duplicate_detector.is_registry_duplicated(&item.path),
+                    None,
                     None,
                 );
         }

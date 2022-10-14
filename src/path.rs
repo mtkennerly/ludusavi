@@ -614,7 +614,7 @@ impl StrictPath {
         self.try_sha1().unwrap_or_default()
     }
 
-    fn try_sha1(&self) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn try_sha1(&self) -> Result<String, Box<dyn std::error::Error>> {
         use sha1::Digest;
         use std::io::Read;
 

@@ -225,6 +225,8 @@ impl App {
                         return (None, None, OperationStepDecision::Cancelled);
                     }
 
+                    let previous = layout.latest_backup(&key, false);
+
                     let scan_info = scan_game_for_backup(
                         &game,
                         &key,
@@ -236,6 +238,7 @@ impl App {
                         &ranking,
                         &config.backup.toggled_paths,
                         &config.backup.toggled_registry,
+                        previous,
                     );
                     if !config.is_game_enabled_for_backup(&key) {
                         return (Some(scan_info), None, OperationStepDecision::Ignored);
