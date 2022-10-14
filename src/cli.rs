@@ -1,6 +1,7 @@
 use crate::{
     cache::Cache,
     config::{Config, RedirectConfig, Sort, SortKey},
+    heroic::HeroicGames,
     lang::Translator,
     layout::BackupLayout,
     manifest::{Manifest, SteamMetadata},
@@ -780,7 +781,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             log::info!("beginning backup with {} steps", subjects.valid.len());
 
-            config.detect_heroic_roots();
+            let heroic_games = HeroicGames::scan(&config.roots, &all_games);
             let layout = BackupLayout::new(backup_dir.clone(), config.backup.retention.clone());
             let filter = config.backup.filter.clone();
             let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects.valid);
@@ -800,7 +801,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let local_wp;
                     match &wine_prefix {
                         Some(sp) => local_wp = Some(sp),
-                        None => local_wp = config.heroic_roots.get(name),
+                        None => local_wp = heroic_games.get(name),
                     };
 
                     let scan_info = scan_game_for_backup(

@@ -14,6 +14,7 @@ use crate::{
         root_editor::RootEditorRow,
         style,
     },
+    heroic::HeroicGames,
     lang::Translator,
     layout::BackupLayout,
     manifest::{Manifest, Store},
@@ -179,7 +180,7 @@ impl App {
 
         log::info!("beginning backup with {} steps", self.progress.max);
 
-        self.config.detect_heroic_roots();
+        let heroic_games = std::sync::Arc::new(HeroicGames::scan(&self.config.roots, &all_games));
         let config = std::sync::Arc::new(self.config.clone());
         let roots = std::sync::Arc::new(config.expanded_roots());
         let layout = std::sync::Arc::new(BackupLayout::new(backup_path, config.backup.retention.clone()));
@@ -190,6 +191,7 @@ impl App {
             let game = all_games.0[&key].clone();
             let config = config.clone();
             let roots = roots.clone();
+            let heroic_games = heroic_games.clone();
             let layout = layout.clone();
             let filter = filter.clone();
             let ranking = ranking.clone();
@@ -214,7 +216,7 @@ impl App {
                         &StrictPath::from_std_path_buf(&app_dir()),
                         &steam_id,
                         &filter,
-                        &config.heroic_roots.get(&key),
+                        &heroic_games.get(&key),
                         &ranking,
                         &config.backup.toggled_paths,
                         &config.backup.toggled_registry,
