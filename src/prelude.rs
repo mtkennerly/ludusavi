@@ -933,11 +933,12 @@ pub fn scan_game_for_backup(
                 let ignored = ignored_paths.is_ignored(name, &p);
                 log::debug!("[{name}] found: {}", p.raw());
                 let hash = p.sha1();
+                let redirected = game_file_target(&p, redirects, false);
                 found_files.insert(ScannedFile {
-                    change: ScanChange::evaluate(&hash, previous_files.get(&p)),
+                    change: ScanChange::evaluate(&hash, previous_files.get(redirected.as_ref().unwrap_or(&p))),
                     size: p.size(),
                     hash,
-                    redirected: game_file_target(&p, redirects, false),
+                    redirected,
                     path: p,
                     original_path: None,
                     ignored,
@@ -960,11 +961,15 @@ pub fn scan_game_for_backup(
                         let ignored = ignored_paths.is_ignored(name, &child);
                         log::debug!("[{name}] found: {}", child.raw());
                         let hash = child.sha1();
+                        let redirected = game_file_target(&child, redirects, false);
                         found_files.insert(ScannedFile {
-                            change: ScanChange::evaluate(&hash, previous_files.get(&child)),
+                            change: ScanChange::evaluate(
+                                &hash,
+                                previous_files.get(redirected.as_ref().unwrap_or(&child)),
+                            ),
                             size: child.size(),
                             hash,
-                            redirected: game_file_target(&child, redirects, false),
+                            redirected,
                             path: child,
                             original_path: None,
                             ignored,

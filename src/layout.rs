@@ -568,11 +568,12 @@ impl GameLayout {
 
         for (k, v) in &backup.files {
             let original_path = StrictPath::new(k.to_string());
+            let redirected = game_file_target(&original_path, redirects, true);
             match backup.format() {
                 BackupFormat::Simple => {
                     restorables.insert(ScannedFile {
                         change: if restoring {
-                            ScanChange::evaluate_restore(&original_path, &v.hash)
+                            ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
                         } else {
                             ScanChange::Unknown
                         },
@@ -581,7 +582,7 @@ impl GameLayout {
                             .game_file_immutable(&self.path, &original_path, &backup.name),
                         size: v.size,
                         hash: v.hash.clone(),
-                        redirected: game_file_target(&original_path, redirects, true),
+                        redirected,
                         original_path: Some(original_path),
                         ignored: false,
                         container: None,
@@ -590,14 +591,14 @@ impl GameLayout {
                 BackupFormat::Zip => {
                     restorables.insert(ScannedFile {
                         change: if restoring {
-                            ScanChange::evaluate_restore(&original_path, &v.hash)
+                            ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
                         } else {
                             ScanChange::Unknown
                         },
                         path: StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path)),
                         size: v.size,
                         hash: v.hash.clone(),
-                        redirected: game_file_target(&original_path, redirects, true),
+                        redirected,
                         original_path: Some(original_path),
                         ignored: false,
                         container: Some(self.path.joined(&backup.name)),
@@ -620,11 +621,12 @@ impl GameLayout {
         for (k, v) in &backup.files {
             let v = some_or_continue!(v);
             let original_path = StrictPath::new(k.to_string());
+            let redirected = game_file_target(&original_path, redirects, true);
             match backup.format() {
                 BackupFormat::Simple => {
                     restorables.insert(ScannedFile {
                         change: if restoring {
-                            ScanChange::evaluate_restore(&original_path, &v.hash)
+                            ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
                         } else {
                             ScanChange::Unknown
                         },
@@ -633,7 +635,7 @@ impl GameLayout {
                             .game_file_immutable(&self.path, &original_path, &backup.name),
                         size: v.size,
                         hash: v.hash.clone(),
-                        redirected: game_file_target(&original_path, redirects, true),
+                        redirected,
                         original_path: Some(original_path),
                         ignored: false,
                         container: None,
@@ -642,14 +644,14 @@ impl GameLayout {
                 BackupFormat::Zip => {
                     restorables.insert(ScannedFile {
                         change: if restoring {
-                            ScanChange::evaluate_restore(&original_path, &v.hash)
+                            ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
                         } else {
                             ScanChange::Unknown
                         },
                         path: StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path)),
                         size: v.size,
                         hash: v.hash.clone(),
-                        redirected: game_file_target(&original_path, redirects, true),
+                        redirected,
                         original_path: Some(original_path),
                         ignored: false,
                         container: Some(self.path.joined(&backup.name)),
