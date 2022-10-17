@@ -60,25 +60,31 @@ impl HeroicGames {
                     // read list of installed games
                     let mut pb = legendary_path.as_std_path_buf();
                     pb.push("installed.json");
-                    let v: serde_json::Value =
-                        serde_json::from_str(&std::fs::read_to_string(pb).unwrap_or_default()).unwrap_or_default();
+                    if pb.is_file() {
+                        let v: serde_json::Value =
+                            serde_json::from_str(&std::fs::read_to_string(pb).unwrap_or_default()).unwrap_or_default();
 
-                    v.as_object().unwrap().iter().for_each(|entry| {
-                        let game_title = String::from(entry.1["title"].as_str().unwrap_or_default());
+                        v.as_object().unwrap().iter().for_each(|entry| {
+                            let game_title = String::from(entry.1["title"].as_str().unwrap_or_default());
+                            println!(
+                                "config::detect_heroic_legendary_roots found game {}: {}",
+                                entry.0, game_title
+                            );
+                            // process game from GamesConfig
+                            if let Some(sp) = self.heroic_find_game_root(
+                                root.path.interpret(),
+                                &game_title,
+                                &String::from(entry.1["platform"].as_str().unwrap_or_default().to_lowercase()),
+                                &entry.0,
+                            ) {
+                                self.heroic_memorize_game_root(&game_title, &sp);
+                            }
+                        });
+                    } else {
                         println!(
-                            "config::detect_heroic_legendary_roots found game {}: {}",
-                            entry.0, game_title
+                            "config::detect_heroic_legendary_roots no file '{pb:?}', legendary probably not used yet... skipping"
                         );
-                        // process game from GamesConfig
-                        if let Some(sp) = self.heroic_find_game_root(
-                            root.path.interpret(),
-                            &game_title,
-                            &String::from(entry.1["platform"].as_str().unwrap_or_default().to_lowercase()),
-                            &entry.0,
-                        ) {
-                            self.heroic_memorize_game_root(&game_title, &sp);
-                        }
-                    });
+                    }
                 }
             }
         }
