@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     config::RootsConfig,
     manifest::{Manifest, Store},
-    prelude::StrictPath,
+    prelude::{normalize_title, StrictPath},
 };
 
 // Deserialization of Heroic gog_store/installed.json
@@ -48,22 +48,30 @@ const LEGENDARY_PATHS: &[&str] = &[
 ];
 
 #[derive(Clone, Default, Debug)]
-pub struct HeroicGames(HashMap<String, StrictPath>);
+pub struct HeroicGames {
+    games: HashMap<String, StrictPath>,
+    normalized_to_official: HashMap<String, String>,
+}
 
 impl HeroicGames {
     pub fn get(&self, game: &String) -> Option<&StrictPath> {
-        self.0.get(game)
+        self.games.get(game)
     }
 
-    pub fn scan(roots: &[RootsConfig], _manifest: &Manifest) -> Self {
+    pub fn scan(roots: &[RootsConfig], manifest: &Manifest) -> Self {
         let mut instance = HeroicGames::default();
+        instance.normalized_to_official = manifest
+            .0
+            .keys()
+            .map(|title| (normalize_title(title), title.clone()))
+            .collect();
 
         roots.iter().for_each(|root: &RootsConfig| {
             if root.store == Store::HeroicConfig {
                 instance.detect_normal_roots(root);
                 instance.detect_legendary_roots(root);
                 instance.detect_gog_roots(root);
-                println!("heroic::detect_heroic_roots found: {:#?}", instance);
+                println!("heroic::detect_heroic_roots found: {:#?}", instance.games);
             }
         });
 
@@ -82,7 +90,10 @@ impl HeroicGames {
         for &legendary_path_candidate in LEGENDARY_PATHS {
             let legendary_path = StrictPath::new(legendary_path_candidate.to_string());
             if legendary_path.is_dir() {
-                println!("heroic::detect_legendary_roots found legendary configuration in {}", legendary_path.interpret());
+                println!(
+                    "heroic::detect_legendary_roots found legendary configuration in {}",
+                    legendary_path.interpret()
+                );
 
                 let mut legendary_installed = legendary_path.as_std_path_buf();
                 legendary_installed.push("installed.json");
@@ -118,7 +129,10 @@ impl HeroicGames {
     }
 
     fn detect_gog_roots(&mut self, root: &RootsConfig) {
-        println!("heroic::detect_gog_roots searching for GOG information in {}", root.path.interpret());
+        println!(
+            "heroic::detect_gog_roots searching for GOG information in {}",
+            root.path.interpret()
+        );
 
         // use HEROCONFIGDIR/gog_store/library.json to build map .app_name -> .title
         let mut game_titles = std::collections::HashMap::<String, String>::new();
@@ -147,18 +161,27 @@ impl HeroicGames {
     }
 
     fn memorize_game_root(&mut self, title: &String, path: &StrictPath) {
-        // TODO.2022-10-11 check against manifest, try name normalization like this:
-        //
-        // let normalized_to_official: HashMap<_> = manifest.keys().map(|title| (normalize_title(title), title)).collect();
-        //
-        // for candidate in heroic_games {
-        //     let normalized = normalize_title(candidate.title);
-        //     if let Some(official) = normalized_to_official.get(normalized) {
-        //         // we found a match
-        //     }
-        // }
-        println!("heroic::memorize_game_root memorizing path {} for {}", path.interpret(), title);
-        self.0.insert(title.clone(), path.clone());
+        let normalized = normalize_title(title);
+        if let Some(official) = self.normalized_to_official.get(&normalized) {
+            println!(
+                "heroic::memorize_game_root memorizing path {} for {}",
+                path.interpret(),
+                official
+            );
+            self.games.insert(official.clone(), path.clone());
+        } else {
+            // TODO.2022-10-18 throw an error or something
+            println!(
+                "heroic::memorize_game_root did not find {} in manifest, no backup/restore will be done!",
+                title
+            );
+            println!(
+                "heroic::memorize_game_root memorizing path {} for {}",
+                path.interpret(),
+                title
+            );
+            self.games.insert(title.clone(), path.clone());
+        }
     }
 
     fn find_game_root(
