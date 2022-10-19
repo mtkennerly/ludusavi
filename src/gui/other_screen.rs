@@ -2,7 +2,7 @@ use crate::{
     cache::Cache,
     config::{Config, Theme},
     gui::{
-        common::{IcedExtension, Message},
+        common::{IcedButtonExt, IcedExtension, Message},
         icon::Icon,
         ignored_items_editor::IgnoredItemsEditor,
         redirect_editor::{RedirectEditor, RedirectEditorRow},
@@ -14,8 +14,6 @@ use crate::{
 use iced::{
     button, pick_list, scrollable, Button, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Text,
 };
-
-use super::common::IcedButtonExt;
 
 #[derive(Default)]
 pub struct OtherScreenComponent {

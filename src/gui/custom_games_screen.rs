@@ -40,7 +40,7 @@ impl CustomGamesScreenComponent {
         }
     }
 
-    pub fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+    pub fn view(&mut self, config: &Config, translator: &Translator, operating: bool) -> Container<Message> {
         Container::new(
             Column::new()
                 .spacing(20)
@@ -79,7 +79,7 @@ impl CustomGamesScreenComponent {
                             .style(style::Button::Primary(config.theme))
                         }),
                 )
-                .push(self.games_editor.view(config, translator)),
+                .push(self.games_editor.view(config, translator, operating)),
         )
         .height(Length::Fill)
         .width(Length::Fill)

@@ -153,3 +153,6 @@ confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 preparing-backup-target = Preparing backup directory...
 updating-manifest = Updating manifest...
+
+saves-found = Save data found.
+no-saves-found = No save data found.

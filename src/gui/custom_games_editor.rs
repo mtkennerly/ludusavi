@@ -1,8 +1,7 @@
 use crate::{
     config::Config,
     gui::{
-        common::Message,
-        common::{BrowseSubject, EditAction},
+        common::{BrowseSubject, EditAction, IcedButtonExt, Message},
         icon::Icon,
         style,
     },
@@ -35,6 +34,7 @@ impl CustomGamesEditorEntryRow {
 #[derive(Default)]
 pub struct CustomGamesEditorEntry {
     remove_button_state: button::State,
+    preview_button_state: button::State,
     add_file_button_state: button::State,
     add_registry_button_state: button::State,
     pub text_state: text_input::State,
@@ -59,7 +59,7 @@ pub struct CustomGamesEditor {
 }
 
 impl CustomGamesEditor {
-    pub fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+    pub fn view(&mut self, config: &Config, translator: &Translator, operating: bool) -> Container<Message> {
         if config.custom_games.is_empty() {
             return Container::new(Space::new(Length::Shrink, Length::Shrink));
         }
@@ -99,6 +99,17 @@ impl CustomGamesEditor {
                                             .style(style::TextInput(config.theme))
                                             .width(Length::Fill)
                                             .padding(5),
+                                        )
+                                        .push(
+                                            Button::new(&mut x.preview_button_state, Icon::Refresh.as_text())
+                                                .on_press_if(
+                                                    || !operating,
+                                                    || Message::BackupStart {
+                                                        games: Some(vec![config.custom_games[i].name.clone()]),
+                                                        preview: true,
+                                                    },
+                                                )
+                                                .style(style::Button::Primary(config.theme)),
                                         )
                                         .push(
                                             Button::new(&mut x.remove_button_state, Icon::Delete.as_text())

@@ -778,4 +778,12 @@ impl Translator {
             format!("{}\n\n{}", primary, source.render(),)
         }
     }
+
+    pub fn notify_single_game_status(&self, found: bool) -> String {
+        if found {
+            translate("saves-found")
+        } else {
+            translate("no-saves-found")
+        }
+    }
 }

@@ -8,6 +8,7 @@ use crate::{
         custom_games_screen::CustomGamesScreenComponent,
         modal::ModalComponent,
         modal::ModalTheme,
+        notification::Notification,
         other_screen::OtherScreenComponent,
         redirect_editor::RedirectEditorRow,
         restore_screen::RestoreScreenComponent,
@@ -91,6 +92,8 @@ pub struct App {
     progress: Progress,
     backups_to_restore: std::collections::HashMap<String, BackupId>,
     updating_manifest: bool,
+    notify_on_single_game_scanned: Option<(String, Screen)>,
+    timed_notification: Option<Notification>,
 }
 
 impl App {
@@ -103,6 +106,7 @@ impl App {
         self.progress.max = 0.0;
         self.operation_should_cancel
             .swap(false, std::sync::atomic::Ordering::Relaxed);
+        self.notify_on_single_game_scanned = None;
     }
 
     fn show_error(&mut self, error: Error) {
@@ -132,15 +136,58 @@ impl App {
         self.config.backup.toggled_paths.invalidate_path_caches();
     }
 
+    fn restoring(&self) -> bool {
+        match self.operation {
+            Some(
+                OngoingOperation::Restore
+                | OngoingOperation::CancelRestore
+                | OngoingOperation::PreviewRestore
+                | OngoingOperation::CancelPreviewRestore,
+            ) => true,
+            None
+            | Some(
+                OngoingOperation::Backup
+                | OngoingOperation::CancelBackup
+                | OngoingOperation::PreviewBackup
+                | OngoingOperation::CancelPreviewBackup,
+            ) => false,
+        }
+    }
+
+    fn register_notify_on_single_game_scanned(&mut self, games: &Option<Vec<String>>) {
+        if let Some(games) = &games {
+            if games.len() == 1 {
+                self.notify_on_single_game_scanned = Some((games[0].clone(), self.screen));
+            }
+        }
+    }
+
+    fn handle_notify_on_single_game_scanned(&mut self) {
+        if let Some((name, screen)) = self.notify_on_single_game_scanned.as_ref() {
+            let log = if self.restoring() {
+                &self.restore_screen.log
+            } else {
+                &self.backup_screen.log
+            };
+            let found = log.entries.iter().any(|x| &x.scan_info.game_name == name);
+
+            if *screen != Screen::CustomGames && found {
+                return;
+            }
+
+            let msg = self.translator.notify_single_game_status(found);
+            self.timed_notification = Some(Notification::new(msg).expires(3));
+        }
+    }
+
     fn start_backup(&mut self, preview: bool, games: Option<Vec<String>>) -> Command<Message> {
         if self.operation.is_some() {
             return Command::none();
         }
         self.invalidate_path_caches();
+        self.timed_notification = None;
 
         let full = games.is_none();
-
-        let backup_path = &self.config.backup.path;
 
         let mut all_games = self.manifest.clone();
         for custom_game in &self.config.custom_games {
@@ -198,9 +245,14 @@ impl App {
 
         log::info!("beginning backup with {} steps", self.progress.max);
 
+        self.register_notify_on_single_game_scanned(&games);
+
         let config = std::sync::Arc::new(self.config.clone());
         let roots = std::sync::Arc::new(config.expanded_roots());
-        let layout = std::sync::Arc::new(BackupLayout::new(backup_path.clone(), config.backup.retention.clone()));
+        let layout = std::sync::Arc::new(BackupLayout::new(
+            self.config.backup.path.clone(),
+            config.backup.retention.clone(),
+        ));
         let filter = std::sync::Arc::new(self.config.backup.filter.clone());
         let ranking = std::sync::Arc::new(InstallDirRanking::scan(&roots, &all_games, &subjects));
 
@@ -277,6 +329,7 @@ impl App {
             return Command::none();
         }
         self.invalidate_path_caches();
+        self.timed_notification = None;
 
         let full = games.is_none();
 
@@ -330,6 +383,8 @@ impl App {
 
         log::info!("beginning restore with {} steps", self.progress.max);
 
+        self.register_notify_on_single_game_scanned(&games);
+
         for name in restorables {
             let config = config.clone();
             let layout = layout.clone();
@@ -374,6 +429,8 @@ impl App {
         log::info!("completed backup");
         let mut failed = false;
 
+        self.handle_notify_on_single_game_scanned();
+
         if full {
             self.cache.backup.recent_games.clear();
         }
@@ -406,6 +463,8 @@ impl App {
     fn complete_restore(&mut self, full: bool) {
         log::info!("completed restore");
         let mut failed = false;
+
+        self.handle_notify_on_single_game_scanned();
 
         if full {
             self.cache.restore.recent_games.clear();
@@ -1221,6 +1280,15 @@ impl Application for App {
                 Command::none()
             }
             Message::SubscribedEvent(event) => {
+                // TODO: Use `iced::time::every` instead? Got an error when updating manifest on demand:
+                // thread 'tokio-runtime-worker' panicked at 'Cannot drop a runtime in a context where blocking is not allowed.
+                // This happens when a runtime is dropped from within an asynchronous context.'
+                if let Some(notification) = &self.timed_notification {
+                    if notification.expired() {
+                        self.timed_notification = None;
+                    }
+                }
+
                 if let iced_native::Event::Keyboard(key) = event {
                     if let iced::keyboard::Event::ModifiersChanged(modifiers) = key {
                         self.backup_screen.log.modifiers = modifiers;
@@ -1514,7 +1582,10 @@ impl Application for App {
                         self.restore_screen
                             .view(&self.config, &self.manifest, &self.translator, &self.operation)
                     }
-                    Screen::CustomGames => self.custom_games_screen.view(&self.config, &self.translator),
+                    Screen::CustomGames => {
+                        self.custom_games_screen
+                            .view(&self.config, &self.translator, self.operation.is_some())
+                    }
                     Screen::Other => {
                         self.other_screen
                             .view(self.updating_manifest, &self.config, &self.cache, &self.translator)
@@ -1523,18 +1594,10 @@ impl Application for App {
                 .padding([0, 5, 5, 5])
                 .height(Length::Fill),
             )
+            .push_some(|| self.timed_notification.as_ref().map(|x| x.view(self.config.theme)))
             .push_if(
                 || self.updating_manifest,
-                || {
-                    Container::new(
-                        Container::new(Text::new(self.translator.updating_manifest()))
-                            .padding([3, 40])
-                            .align_x(iced::alignment::Horizontal::Center)
-                            .align_y(iced::alignment::Vertical::Center)
-                            .style(style::Container::Notification(self.config.theme)),
-                    )
-                    .padding([0, 0, 5, 0])
-                },
+                || Notification::new(self.translator.updating_manifest()).view(self.config.theme),
             )
             .push_if(
                 || self.progress.max > 1.0,
