@@ -40,11 +40,12 @@ struct LegendaryInstalledGame {
 #[derive(serde::Deserialize)]
 struct LegendaryInstalled(HashMap<String, LegendaryInstalledGame>);
 
-// TODO.2022-10-10 windows location for legendary
-// TODO.2022-10-15 make relative to heroic root in question!
+// TODO.2022-10-10 heroic: windows location for legendary
+// TODO.2022-10-15 heroic: make relative to heroic root in question!
 const LEGENDARY_PATHS: &[&str] = &[
     "~/.config/legendary",
-    "~/.var/app/com.heroicgameslauncher.hgl/config/legendary",
+    // TODO.2022-10-20 heroic: flatpak install is not supported yet
+    // "~/.var/app/com.heroicgameslauncher.hgl/config/legendary",
 ];
 
 #[derive(Clone, Default, Debug)]
@@ -68,30 +69,29 @@ impl HeroicGames {
 
         roots.iter().for_each(|root: &RootsConfig| {
             if root.store == Store::HeroicConfig {
-                instance.detect_normal_roots(root);
+                instance.detect_flatpak_roots(root);
                 instance.detect_legendary_roots(root);
                 instance.detect_gog_roots(root);
-                println!("heroic::detect_heroic_roots found: {:#?}", instance.games);
+                log::trace!("detect_heroic_roots found: {:#?}", instance.games);
             }
         });
 
         instance
     }
 
-    fn detect_normal_roots(&mut self, _root: &RootsConfig) {
-        // TODO.2022-10-15 handle games storing stuff in ~/.var/app/com.heroicgameslauncher.hglw
-        // TODO.2022-10-15 for some games, .var/app/com.heroicgameslauncher.hglw is a root just like $HOME
+    fn detect_flatpak_roots(&mut self, _root: &RootsConfig) {
+        // TODO.2022-10-15 heroic: handle games storing stuff in ~/.var/app/com.heroicgameslauncher.hglw
+        // TODO.2022-10-15 heroic: for some games, .var/app/com.heroicgameslauncher.hglw is a root just like $HOME
     }
 
-    /// Look for EPIC games installed with legendary
     fn detect_legendary_roots(&mut self, root: &RootsConfig) {
-        println!("heroic::detect_legendary_roots searching for legendary config...");
+        log::trace!("detect_legendary_roots searching for legendary config...");
 
         for &legendary_path_candidate in LEGENDARY_PATHS {
             let legendary_path = StrictPath::new(legendary_path_candidate.to_string());
             if legendary_path.is_dir() {
-                println!(
-                    "heroic::detect_legendary_roots found legendary configuration in {}",
+                log::trace!(
+                    "detect_legendary_roots found legendary configuration in {}",
                     legendary_path.interpret()
                 );
 
@@ -103,8 +103,8 @@ impl HeroicGames {
                         &std::fs::read_to_string(legendary_installed).unwrap_or_default(),
                     ) {
                         ins.0.values().for_each(|game| {
-                            println!(
-                                "heroic::detect_legendary_roots found game {} ({})",
+                            log::trace!(
+                                "detect_legendary_roots found game {} ({})",
                                 game.title, game.game_id
                             );
                             // process game from GamesConfig
@@ -119,8 +119,8 @@ impl HeroicGames {
                         });
                     }
                 } else {
-                    println!(
-                            "heroic::detect_legendary_roots no such file '{:?}', legendary probably not used yet... skipping",
+                    log::trace!(
+                            "detect_legendary_roots no such file '{:?}', legendary probably not used yet... skipping",
                             legendary_installed
                         );
                 }
@@ -129,12 +129,12 @@ impl HeroicGames {
     }
 
     fn detect_gog_roots(&mut self, root: &RootsConfig) {
-        println!(
-            "heroic::detect_gog_roots searching for GOG information in {}",
+        log::trace!(
+            "detect_gog_roots searching for GOG information in {}",
             root.path.interpret()
         );
 
-        // use HEROCONFIGDIR/gog_store/library.json to build map .app_name -> .title
+        // use gog_store/library.json to build map .app_name -> .title
         let mut game_titles = std::collections::HashMap::<String, String>::new();
         let gog_library = serde_json::from_str::<GogLibrary>(
             &std::fs::read_to_string(format!("{}/gog_store/library.json", root.path.interpret())).unwrap_or_default(),
@@ -142,12 +142,13 @@ impl HeroicGames {
         gog_library.unwrap().games.iter().for_each(|game| {
             game_titles.insert(game.app_name.clone(), game.title.clone());
         });
-        println!(
-            "heroic::detect_gog_roots found {} games in CONFIGDIR/gog_store/library.json",
-            game_titles.len()
+        log::trace!(
+            "detect_gog_roots found {} games in {}", 
+            game_titles.len(),
+            format!("{}/gog_store/library.json", root.path.interpret())
         );
 
-        // iterate over all games found in HEROCONFIGDIR/gog_store/installed.json and call heroic_find_game_root
+        // iterate over all games found in HEROCONFIGDIR/gog_store/installed.json and call find_game_root
         let content = std::fs::read_to_string(format!("{}/gog_store/installed.json", root.path.interpret()));
         if let Ok(installed_games) = serde_json::from_str::<HeroicInstalled>(&content.unwrap_or_default()) {
             installed_games.installed.iter().for_each(|game| {
@@ -163,20 +164,19 @@ impl HeroicGames {
     fn memorize_game_root(&mut self, title: &String, path: &StrictPath) {
         let normalized = normalize_title(title);
         if let Some(official) = self.normalized_to_official.get(&normalized) {
-            println!(
-                "heroic::memorize_game_root memorizing path {} for {}",
+            log::trace!(
+                "memorize_game_root memorizing path {} for {}",
                 path.interpret(),
                 official
             );
             self.games.insert(official.clone(), path.clone());
         } else {
-            // TODO.2022-10-18 throw an error or something
-            println!(
-                "heroic::memorize_game_root did not find {} in manifest, no backup/restore will be done!",
+            log::warn!(
+                "memorize_game_root did not find {} in manifest, no backup/restore will be done!",
                 title
             );
-            println!(
-                "heroic::memorize_game_root memorizing path {} for {}",
+            log::trace!(
+                "memorize_game_root memorizing path {} for {}",
                 path.interpret(),
                 title
             );
@@ -202,8 +202,8 @@ impl HeroicGames {
 
                 match v[&game_id]["wineVersion"]["type"].as_str().unwrap_or_default() {
                     "wine" => {
-                        println!(
-                            "heroic::find_game_root found Heroic Wine prefix for {} ({}) -> adding {}",
+                        log::trace!(
+                            "find_game_root found Heroic Wine prefix for {} ({}) -> adding {}",
                             game_name,
                             game_id,
                             v[&game_id]["winePrefix"].as_str().unwrap_or_default().to_string()
@@ -214,8 +214,8 @@ impl HeroicGames {
                     }
 
                     "proton" => {
-                        println!(
-                            "heroic::find_game_root found Heroic Proton prefix for {} ({}), adding... -> {}",
+                        log::trace!(
+                            "find_game_root found Heroic Proton prefix for {} ({}), adding... -> {}",
                             game_name,
                             game_id,
                             format!("{}/pfx", v[&game_id]["winePrefix"].as_str().unwrap_or_default())
@@ -228,8 +228,8 @@ impl HeroicGames {
 
                     _ => {
                         // TODO.2022-10-07 handle unknown wine types, lutris?
-                        println!(
-                            "heroic::find_game_root found Heroic Windows game {} ({}), checking... unknown wine_type: {:#?}",
+                        log::warn!(
+                            "find_game_root found Heroic Windows game {} ({}), checking... unknown wine_type: {:#?}",
                             game_name,
                             game_id, v[&game_id]["wineVersion"]["type"]
                         );
@@ -239,13 +239,13 @@ impl HeroicGames {
             }
 
             "linux" => {
-                println!("heroic::find_game_root found Heroic Linux game {}, ignoring", game_name);
+                log::trace!("find_game_root found Heroic Linux game {}, ignoring", game_name);
                 None
             }
 
             _ => {
-                println!(
-                    "heroic::find_game_root found Heroic game {} with unhandled platform {}, ignoring.",
+                log::trace!(
+                    "find_game_root found Heroic game {} with unhandled platform {}, ignoring.",
                     game_name, platform,
                 );
                 None

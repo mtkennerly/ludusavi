@@ -433,12 +433,13 @@ impl Config {
             (format!("{}/GOG Galaxy/Games", pf32), Store::GogGalaxy),
             (format!("{}/GOG Galaxy/Games", pf64), Store::GogGalaxy),
             // Heroic Config:
-            // TODO.2022-10-07 add windows candidates
+            // TODO.2022-10-07 heroic: add default windows locations for heroic, probably similar to GOG Galaxy
             ("~/.config/heroic".to_string(), Store::HeroicConfig),
-            (
-                "~/.var/app/com.heroicgameslauncher.hgl/config/heroic".to_string(),
-                Store::HeroicConfig,
-            ),
+            // TODO.2022-10-20 heroic: flatpak install is not supported yet
+            // (
+            //     "~/.var/app/com.heroicgameslauncher.hgl/config/heroic".to_string(),
+            //     Store::HeroicConfig,
+            // ),
             // Uplay:
             (format!("{}/Ubisoft/Ubisoft Game Launcher", pf32), Store::Uplay),
             (format!("{}/Ubisoft/Ubisoft Game Launcher", pf64), Store::Uplay),
