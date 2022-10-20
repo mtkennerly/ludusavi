@@ -9,7 +9,7 @@ use unic_langid::LanguageIdentifier;
 use crate::{
     config::{BackupFormat, RedirectKind, SortKey, Theme, ZipCompression},
     manifest::Store,
-    prelude::{Error, OperationStatus, OperationStepDecision, StrictPath},
+    prelude::{Error, OperationStatus, OperationStepDecision, ScanChange, ScanChangeCount, StrictPath},
 };
 
 const PATH: &str = "path";
@@ -18,6 +18,9 @@ const PROCESSED_GAMES: &str = "processed-games";
 const PROCESSED_SIZE: &str = "processed-size";
 const TOTAL_GAMES: &str = "total-games";
 const TOTAL_SIZE: &str = "total-size";
+
+pub const ADD_SYMBOL: &str = "+";
+pub const CHANGE_SYMBOL: &str = "Δ";
 
 // TODO: Some are blocked by https://github.com/mtkennerly/ludusavi/issues/9.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -321,8 +324,14 @@ impl Translator {
         bytes: u64,
         decision: &OperationStepDecision,
         duplicated: bool,
+        changes: &ScanChangeCount,
     ) -> String {
         let mut labels = vec![];
+        if changes.brand_new() {
+            labels.push(format!("[{}]", crate::lang::ADD_SYMBOL));
+        } else if changes.updated() {
+            labels.push(format!("[{}]", crate::lang::CHANGE_SYMBOL));
+        }
         if *decision == OperationStepDecision::Ignored {
             labels.push(self.label_ignored());
         }
@@ -337,8 +346,20 @@ impl Translator {
         }
     }
 
-    pub fn cli_game_line_item(&self, item: &str, successful: bool, ignored: bool, duplicated: bool) -> String {
+    pub fn cli_game_line_item(
+        &self,
+        item: &str,
+        successful: bool,
+        ignored: bool,
+        duplicated: bool,
+        change: Option<ScanChange>,
+    ) -> String {
         let mut parts = vec![];
+        match change {
+            None | Some(ScanChange::Same | ScanChange::Unknown) => (),
+            Some(ScanChange::New) => parts.push(format!("[{}]", ADD_SYMBOL)),
+            Some(ScanChange::Different) => parts.push(format!("[{}]", CHANGE_SYMBOL)),
+        }
         if !successful {
             parts.push(self.label_failed());
         }
@@ -700,6 +721,22 @@ impl Translator {
         translate("field-backup-compression")
     }
 
+    pub fn backup_compression_level_field(&self) -> String {
+        translate("field-backup-compression-level")
+    }
+
+    pub fn manifest_label(&self) -> String {
+        self.field(&translate("label-manifest"))
+    }
+
+    pub fn checked_label(&self) -> String {
+        self.field(&translate("label-checked"))
+    }
+
+    pub fn updated_label(&self) -> String {
+        self.field(&translate("label-updated"))
+    }
+
     fn consider_doing_a_preview(&self) -> String {
         translate("consider-doing-a-preview")
     }
@@ -740,6 +777,14 @@ impl Translator {
             )
         } else {
             format!("{}\n\n{}", primary, source.render(),)
+        }
+    }
+
+    pub fn notify_single_game_status(&self, found: bool) -> String {
+        if found {
+            translate("saves-found")
+        } else {
+            translate("no-saves-found")
         }
     }
 }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use crate::{
     config::Config,
     prelude::{app_dir, StrictPath},
@@ -8,6 +10,8 @@ pub struct Cache {
     #[serde(default)]
     pub migrations: Migrations,
     #[serde(default)]
+    pub manifests: Manifests,
+    #[serde(default)]
     pub backup: Backup,
     #[serde(default)]
     pub restore: Restore,
@@ -17,6 +21,18 @@ pub struct Cache {
 pub struct Migrations {
     #[serde(default)]
     pub adopted_cache: bool,
+}
+
+pub type Manifests = HashMap<String, Manifest>;
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Manifest {
+    #[serde(default)]
+    pub etag: Option<String>,
+    #[serde(default)]
+    pub checked: Option<chrono::DateTime<chrono::Utc>>,
+    #[serde(default)]
+    pub updated: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -71,10 +87,23 @@ impl Cache {
         }
     }
 
+    #[allow(deprecated)]
     pub fn migrated(mut self, config: &mut Config) -> Self {
         let mut updated = false;
 
-        #[allow(deprecated)]
+        if let Some(etag) = config.manifest.etag.take() {
+            let mut manifest = self
+                .manifests
+                .entry(config.manifest.url.clone())
+                .or_insert_with(Default::default);
+            manifest.etag = Some(etag);
+            if let Some(modified) = crate::manifest::Manifest::modified() {
+                manifest.checked = Some(modified);
+                manifest.updated = Some(modified);
+            }
+            updated = true;
+        }
+
         if !self.migrations.adopted_cache {
             self.backup.recent_games.extend(config.backup.recent_games.drain(..));
             self.restore.recent_games.extend(config.restore.recent_games.drain(..));
@@ -91,5 +120,14 @@ impl Cache {
         }
 
         self
+    }
+
+    pub fn update_manifest(&mut self, update: crate::manifest::ManifestUpdate) {
+        let mut cached = self.manifests.entry(update.url).or_insert_with(Default::default);
+        cached.etag = update.etag;
+        cached.checked = Some(update.timestamp);
+        if update.modified {
+            cached.updated = Some(update.timestamp);
+        }
     }
 }

@@ -1,16 +1,40 @@
 ## Unreleased
 
 * Added:
+  * Ludusavi now shows which games and files are new/changed compared to the last backup or restore.
+    This is indicated by a `+` or `Δ` badge next to applicable games and files.
+    This is not yet supported for registry entries, but that is planned for the future.
+  * Compression levels can now be customized for zip backups.
   * In addition to restoration redirects, there are now also backup redirects and bidirectional redirects.
     The redirect editor is now on the "other" screen instead of the "restore" screen.
+  * GUI: The custom games screen now has a button to preview a specific game on demand.
+    This lets you preview a custom game even if it's not yet in the backup screen's main list.
+  * GUI: When previewing a specific game on demand,
+    if it disappears from the list because save data can no longer be found for it,
+    then a notification is shown to explain what happened.
+  * GUI: The "other" screen now shows when the manifest was last checked/updated.
+    There is also a button to refresh on demand.
+    While the manifest is updating, a small notification is displayed at the bottom of the window.
   * CLI: `--fuzzy` option to look up games by an inexact name.
 * Changed:
+  * Increased scanning speed by 10% by avoiding some duplicate path lookups.
   * Ludusavi will no longer migrate pre-v0.10.0 configurations to the current location.
-  * The recent game caching has been moved from `config.yaml` to a new `cache.yaml`.
+  * A new `cache.yaml` is now used for some fields from `config.yaml`,
+    specifically the recent game caching and manifest update tracking.
+  * On startup, Ludusavi will only check for manifest updates if the last check was 24 hours ago or longer.
+    Previously, it would check automatically on every startup.
+    This was changed to avoid excess network traffic,
+    because the manifest itself will be updated much more frequently.
 * Fixed:
   * Backup files did not store the correct modification time on Linux and defaulted to the current time.
     This also affected Windows, but only for zip backups.
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/136))
+  * Zipped backup files did not store the correct permissions on Linux/Mac.
+  * Proton and Wine files are now searched case-insensitively on Linux.
+  * When Ludusavi tried to find a rough match for an install folder like "Some Game",
+    it did not recognize that "Some - Game" was close enough.
+  * GUI: When the manifest finished updating in the background,
+    any currently open modal would be closed.
   * CLI mode asked for confirmation when restoring, but backups behaved differently:
 
     * If the target folder did not exist, then the backup would happen without confirmation.

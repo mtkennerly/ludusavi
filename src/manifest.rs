@@ -1,4 +1,5 @@
 use crate::{
+    cache::{self, Cache},
     config::{Config, CustomGame, ManifestConfig},
     prelude::{app_dir, Error, StrictPath},
 };
@@ -159,6 +160,14 @@ impl From<CustomGame> for Game {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct ManifestUpdate {
+    pub url: String,
+    pub etag: Option<String>,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub modified: bool,
+}
+
 impl Manifest {
     fn file() -> std::path::PathBuf {
         let mut path = app_dir();
@@ -166,9 +175,9 @@ impl Manifest {
         path
     }
 
-    pub fn load(config: &mut Config, update: bool) -> Result<Self, Error> {
+    pub fn load(config: &Config, cache: &mut Cache, update: bool) -> Result<Self, Error> {
         if update || !StrictPath::from_std_path_buf(&Self::file()).exists() {
-            Self::update_mut(config)?;
+            Self::update_mut(config, cache)?;
         }
         Self::load_local()
     }
@@ -183,9 +192,33 @@ impl Manifest {
         serde_yaml::from_str(content).map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })
     }
 
-    pub fn update(mut config: ManifestConfig) -> Result<Option<ManifestConfig>, Error> {
+    pub fn should_update(config: &ManifestConfig, cache: &cache::Manifests, force: bool) -> bool {
+        if force {
+            return true;
+        }
+        match cache.get(&config.url) {
+            None => true,
+            Some(cached) => {
+                let now = chrono::offset::Utc::now();
+                now.signed_duration_since(cached.checked.unwrap_or_default())
+                    .num_hours()
+                    >= 24
+            }
+        }
+    }
+
+    pub fn update(
+        config: ManifestConfig,
+        cache: cache::Manifests,
+        force: bool,
+    ) -> Result<Option<ManifestUpdate>, Error> {
+        if !Self::should_update(&config, &cache, force) {
+            return Ok(None);
+        }
+
         let mut req = reqwest::blocking::Client::new().get(&config.url);
-        if let Some(etag) = &config.etag {
+        let old_etag = cache.get(&config.url).and_then(|x| x.etag.clone());
+        if let Some(etag) = old_etag.as_ref() {
             if StrictPath::from_std_path_buf(&Self::file()).exists() {
                 req = req.header(reqwest::header::IF_NONE_MATCH, etag);
             }
@@ -197,27 +230,33 @@ impl Manifest {
                 let mut file = std::fs::File::create(Self::file()).map_err(|_| Error::ManifestCannotBeUpdated)?;
                 res.copy_to(&mut file).map_err(|_| Error::ManifestCannotBeUpdated)?;
 
-                if let Some(etag) = res.headers().get(reqwest::header::ETAG) {
-                    match &config.etag {
-                        Some(old_etag) if etag == old_etag => (),
-                        _ => {
-                            config.etag = Some(String::from_utf8_lossy(etag.as_bytes()).to_string());
-                        }
-                    }
-                }
+                let new_etag = res
+                    .headers()
+                    .get(reqwest::header::ETAG)
+                    .map(|etag| String::from_utf8_lossy(etag.as_bytes()).to_string());
 
-                Ok(Some(config))
+                Ok(Some(ManifestUpdate {
+                    url: config.url,
+                    etag: new_etag,
+                    timestamp: chrono::offset::Utc::now(),
+                    modified: true,
+                }))
             }
-            reqwest::StatusCode::NOT_MODIFIED => Ok(None),
+            reqwest::StatusCode::NOT_MODIFIED => Ok(Some(ManifestUpdate {
+                url: config.url,
+                etag: old_etag,
+                timestamp: chrono::offset::Utc::now(),
+                modified: false,
+            })),
             _ => Err(Error::ManifestCannotBeUpdated),
         }
     }
 
-    pub fn update_mut(config: &mut Config) -> Result<(), Error> {
-        let updated = Self::update(config.manifest.clone())?;
+    pub fn update_mut(config: &Config, cache: &mut Cache) -> Result<(), Error> {
+        let updated = Self::update(config.manifest.clone(), cache.manifests.clone(), false)?;
         if let Some(updated) = updated {
-            config.manifest.etag = updated.etag;
-            config.save();
+            cache.update_manifest(updated);
+            cache.save();
         }
         Ok(())
     }
@@ -240,6 +279,12 @@ impl Manifest {
             game.install_dir = existing.install_dir.clone();
         }
         self.0.insert(name, game);
+    }
+
+    pub fn modified() -> Option<chrono::DateTime<chrono::Utc>> {
+        let path = StrictPath::from(Self::file());
+        let modified = path.get_mtime().ok()?;
+        Some(chrono::DateTime::<chrono::Utc>::from(modified))
     }
 }
 

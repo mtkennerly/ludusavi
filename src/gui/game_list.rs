@@ -13,7 +13,7 @@ use crate::{
     lang::Translator,
     layout::Backup,
     manifest::Manifest,
-    prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
+    prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo},
 };
 
 use fuzzy_matcher::FuzzyMatcher;
@@ -68,6 +68,7 @@ impl GameListEntry {
         let customized_pure = customized && !manifest.0.contains_key(&self.scan_info.game_name);
         let name_for_checkbox = self.scan_info.game_name.clone();
         let operating = operation.is_some();
+        let changes = self.scan_info.count_changes();
 
         Container::new(
             Column::new()
@@ -121,6 +122,25 @@ impl GameListEntry {
                             .width(Length::Fill)
                             .padding(2),
                         )
+                        .push_some(|| {
+                            if changes.brand_new() {
+                                Some(
+                                    Badge::new(crate::lang::ADD_SYMBOL)
+                                        .left_margin(15)
+                                        .change(ScanChange::New)
+                                        .view(config.theme),
+                                )
+                            } else if changes.updated() {
+                                Some(
+                                    Badge::new(crate::lang::CHANGE_SYMBOL)
+                                        .left_margin(15)
+                                        .change(ScanChange::Different)
+                                        .view(config.theme),
+                                )
+                            } else {
+                                None
+                            }
+                        })
                         .push_if(
                             || self.scan_info.any_ignored(),
                             || {

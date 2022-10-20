@@ -1,6 +1,7 @@
 use crate::prelude::AnyError;
 
 use filetime::FileTime;
+use std::sync::{Arc, Mutex};
 
 #[cfg(target_os = "windows")]
 const TYPICAL_SEPARATOR: &str = "\\";
@@ -163,23 +164,71 @@ fn splittable(path: &StrictPath) -> String {
 /// This is a wrapper around paths to make it more obvious when we're
 /// converting between different representations. This also handles
 /// things like `~`.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug, Default)]
 pub struct StrictPath {
     raw: String,
     basis: Option<String>,
+    interpreted: Arc<Mutex<Option<String>>>,
+}
+
+impl Eq for StrictPath {}
+
+impl PartialEq for StrictPath {
+    fn eq(&self, other: &Self) -> bool {
+        self.raw == other.raw && self.basis == other.basis
+    }
+}
+
+impl Ord for StrictPath {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        let raw = self.raw.cmp(&other.raw);
+        if raw != std::cmp::Ordering::Equal {
+            raw
+        } else {
+            self.basis.cmp(&other.basis)
+        }
+    }
+}
+
+impl PartialOrd for StrictPath {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        let raw = self.raw.partial_cmp(&other.raw);
+        if raw != Some(std::cmp::Ordering::Equal) {
+            raw
+        } else {
+            self.basis.partial_cmp(&other.basis)
+        }
+    }
+}
+
+impl std::hash::Hash for StrictPath {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.raw.hash(state);
+        self.basis.hash(state);
+    }
 }
 
 impl StrictPath {
     pub fn new(raw: String) -> Self {
-        Self { raw, basis: None }
+        Self {
+            raw,
+            basis: None,
+            interpreted: Arc::new(Mutex::new(None)),
+        }
     }
 
     pub fn relative(raw: String, basis: Option<String>) -> Self {
-        Self { raw, basis }
+        Self {
+            raw,
+            basis,
+            interpreted: Arc::new(Mutex::new(None)),
+        }
     }
 
     pub fn reset(&mut self, raw: String) {
         self.raw = raw;
+        let mut interpreted = self.interpreted.lock().unwrap();
+        *interpreted = None;
     }
 
     pub fn from_std_path_buf(path_buf: &std::path::Path) -> Self {
@@ -194,14 +243,30 @@ impl StrictPath {
         self.raw.to_string()
     }
 
+    /// For any paths that we store the entire time the GUI is running, like in the config,
+    /// we sometimes want to refresh in case we have stale data.
+    pub fn invalidate_cache(&self) {
+        let mut cached = self.interpreted.lock().unwrap();
+        *cached = None;
+    }
+
     pub fn interpret(&self) -> String {
-        interpret(&self.raw, &self.basis)
+        let mut cached = self.interpreted.lock().unwrap();
+        match &*cached {
+            None => {
+                let computed = interpret(&self.raw, &self.basis);
+                *cached = Some(computed.clone());
+                computed
+            }
+            Some(cached) => cached.clone(),
+        }
     }
 
     pub fn interpreted(&self) -> Self {
         Self {
             raw: self.interpret(),
             basis: self.basis.clone(),
+            interpreted: Arc::new(Mutex::new(Some(self.interpret()))),
         }
     }
 
@@ -213,6 +278,7 @@ impl StrictPath {
         Self {
             raw: self.render(),
             basis: self.basis.clone(),
+            interpreted: Arc::new(Mutex::new(Some(self.interpret()))),
         }
     }
 
@@ -468,12 +534,16 @@ impl StrictPath {
     }
 
     pub fn glob(&self) -> Vec<StrictPath> {
-        let options = glob::MatchOptions {
-            case_sensitive: crate::prelude::CASE_INSENSITIVE_OS,
+        self.glob_case_sensitive(!crate::prelude::CASE_INSENSITIVE_OS)
+    }
+
+    pub fn glob_case_sensitive(&self, case_sensitive: bool) -> Vec<StrictPath> {
+        let options = globetter::MatchOptions {
+            case_sensitive,
             require_literal_separator: true,
             require_literal_leading_dot: false,
         };
-        match glob::glob_with(&self.render(), options) {
+        match globetter::glob_with(&self.render(), options) {
             Ok(xs) => xs.filter_map(|r| r.ok()).map(StrictPath::from).collect(),
             Err(_) => vec![],
         }
@@ -544,7 +614,7 @@ impl StrictPath {
         self.try_sha1().unwrap_or_default()
     }
 
-    fn try_sha1(&self) -> Result<String, Box<dyn std::error::Error>> {
+    pub fn try_sha1(&self) -> Result<String, Box<dyn std::error::Error>> {
         use sha1::Digest;
         use std::io::Read;
 
@@ -882,10 +952,10 @@ mod tests {
             // https://github.com/mtkennerly/ludusavi/issues/36
             // Test for: <winDocuments>/<home>
 
-            let sp = StrictPath {
-                raw: "C:\\Users\\Foo\\Documents/C:\\Users\\Bar".to_string(),
-                basis: Some("\\\\?\\C:\\Users\\Foo\\.config\\ludusavi".to_string()),
-            };
+            let sp = StrictPath::relative(
+                "C:\\Users\\Foo\\Documents/C:\\Users\\Bar".to_string(),
+                Some("\\\\?\\C:\\Users\\Foo\\.config\\ludusavi".to_string()),
+            );
             assert_eq!(r#"\\?\C:\Users\Foo\Documents\C_\Users\Bar"#, sp.interpret());
             assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", sp.render());
         }
@@ -896,10 +966,10 @@ mod tests {
             // https://github.com/mtkennerly/ludusavi/issues/36
             // Test for: <winDocuments>/<home>
 
-            let sp = StrictPath {
-                raw: "\\\\?\\C:\\Users\\Foo\\Documents\\C:\\Users\\Bar".to_string(),
-                basis: Some("\\\\?\\C:\\Users\\Foo\\.config\\ludusavi".to_string()),
-            };
+            let sp = StrictPath::relative(
+                "\\\\?\\C:\\Users\\Foo\\Documents\\C:\\Users\\Bar".to_string(),
+                Some("\\\\?\\C:\\Users\\Foo\\.config\\ludusavi".to_string()),
+            );
             assert_eq!(r#"\\?\C:\Users\Foo\Documents\C_\Users\Bar"#, sp.interpret());
             assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", sp.render());
         }

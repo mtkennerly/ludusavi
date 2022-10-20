@@ -33,6 +33,8 @@ pub struct Config {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ManifestConfig {
     pub url: String,
+    #[serde(default)]
+    #[deprecated(note = "use cache")]
     pub etag: Option<String>,
 }
 
@@ -212,6 +214,52 @@ impl ToString for BackupFormat {
 pub struct BackupFormats {
     pub chosen: BackupFormat,
     pub zip: ZipConfig,
+    #[serde(default)]
+    pub compression: Compression,
+}
+
+impl BackupFormats {
+    pub fn level(&self) -> Option<i32> {
+        match self.chosen {
+            BackupFormat::Simple => None,
+            BackupFormat::Zip => match self.zip.compression {
+                ZipCompression::None => None,
+                ZipCompression::Deflate => Some(self.compression.deflate.level),
+                ZipCompression::Bzip2 => Some(self.compression.bzip2.level),
+                ZipCompression::Zstd => Some(self.compression.zstd.level),
+            },
+        }
+    }
+
+    pub fn set_level(&mut self, value: i32) {
+        match self.chosen {
+            BackupFormat::Simple => {}
+            BackupFormat::Zip => match self.zip.compression {
+                ZipCompression::None => {}
+                ZipCompression::Deflate => {
+                    self.compression.deflate.level = value;
+                }
+                ZipCompression::Bzip2 => {
+                    self.compression.bzip2.level = value;
+                }
+                ZipCompression::Zstd => {
+                    self.compression.zstd.level = value;
+                }
+            },
+        }
+    }
+
+    pub fn range(&self) -> Option<std::ops::RangeInclusive<i32>> {
+        match self.chosen {
+            BackupFormat::Simple => None,
+            BackupFormat::Zip => match self.zip.compression {
+                ZipCompression::None => None,
+                ZipCompression::Deflate => Some(DeflateCompression::RANGE),
+                ZipCompression::Bzip2 => Some(Bzip2Compression::RANGE),
+                ZipCompression::Zstd => Some(ZstdCompression::RANGE),
+            },
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -240,6 +288,58 @@ impl ToString for ZipCompression {
     fn to_string(&self) -> String {
         crate::lang::Translator::default().backup_compression(self)
     }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Compression {
+    deflate: DeflateCompression,
+    bzip2: Bzip2Compression,
+    zstd: ZstdCompression,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct DeflateCompression {
+    level: i32,
+}
+
+impl Default for DeflateCompression {
+    fn default() -> Self {
+        Self { level: 6 }
+    }
+}
+
+impl DeflateCompression {
+    pub const RANGE: std::ops::RangeInclusive<i32> = 1..=9;
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct Bzip2Compression {
+    level: i32,
+}
+
+impl Default for Bzip2Compression {
+    fn default() -> Self {
+        Self { level: 6 }
+    }
+}
+
+impl Bzip2Compression {
+    pub const RANGE: std::ops::RangeInclusive<i32> = 1..=9;
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+pub struct ZstdCompression {
+    level: i32,
+}
+
+impl Default for ZstdCompression {
+    fn default() -> Self {
+        Self { level: 10 }
+    }
+}
+
+impl ZstdCompression {
+    pub const RANGE: std::ops::RangeInclusive<i32> = -7..=22;
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -302,6 +402,7 @@ pub struct CustomGame {
 
 impl Default for ManifestConfig {
     fn default() -> Self {
+        #[allow(deprecated)]
         Self {
             url: MANIFEST_URL.to_string(),
             etag: None,
@@ -602,6 +703,14 @@ impl ToggledPaths {
     #[cfg(test)]
     pub fn new(data: std::collections::BTreeMap<String, std::collections::BTreeMap<StrictPath, bool>>) -> Self {
         Self(data)
+    }
+
+    pub fn invalidate_path_caches(&self) {
+        for inner in self.0.values() {
+            for key in inner.keys() {
+                key.invalidate_cache();
+            }
+        }
     }
 
     pub fn is_ignored(&self, game: &str, path: &StrictPath) -> bool {
@@ -1177,6 +1286,13 @@ backup:
     chosen: simple
     zip:
       compression: deflate
+    compression:
+      deflate:
+        level: 6
+      bzip2:
+        level: 6
+      zstd:
+        level: 10
 restore:
   path: ~/restore
   ignoredGames:

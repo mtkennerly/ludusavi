@@ -1,7 +1,9 @@
 use crate::{
+    cache::Cache,
     config::{Config, Theme},
     gui::{
-        common::Message,
+        common::{IcedButtonExt, IcedExtension, Message},
+        icon::Icon,
         ignored_items_editor::IgnoredItemsEditor,
         redirect_editor::{RedirectEditor, RedirectEditorRow},
         style,
@@ -9,7 +11,9 @@ use crate::{
     lang::{Language, Translator},
 };
 
-use iced::{pick_list, scrollable, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Text};
+use iced::{
+    button, pick_list, scrollable, Button, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Text,
+};
 
 #[derive(Default)]
 pub struct OtherScreenComponent {
@@ -18,6 +22,7 @@ pub struct OtherScreenComponent {
     language_selector: pick_list::State<Language>,
     theme_selector: pick_list::State<Theme>,
     pub redirect_editor: RedirectEditor,
+    refresh_manifest_button: button::State,
 }
 
 impl OtherScreenComponent {
@@ -36,7 +41,13 @@ impl OtherScreenComponent {
         }
     }
 
-    pub fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+    pub fn view(
+        &mut self,
+        updating_manifest: bool,
+        config: &Config,
+        cache: &Cache,
+        translator: &Translator,
+    ) -> Container<Message> {
         Container::new(
             Scrollable::new(&mut self.scroll)
                 .width(Length::Fill)
@@ -82,6 +93,61 @@ impl OtherScreenComponent {
                                 Message::EditedExcludeStoreScreenshots,
                             )
                             .style(style::Checkbox(config.theme)),
+                        )
+                        .push(
+                            Column::new()
+                                .spacing(5)
+                                .push(
+                                    Row::new()
+                                        .align_items(iced::Alignment::Center)
+                                        .push(Text::new(translator.manifest_label()).width(Length::Units(100)))
+                                        .push(
+                                            Button::new(&mut self.refresh_manifest_button, Icon::Refresh.as_text())
+                                                .on_press_if(|| !updating_manifest, || Message::UpdateManifest)
+                                                .style(style::Button::Primary(config.theme)),
+                                        ),
+                                )
+                                .push_some(|| {
+                                    let cached = cache.manifests.get(&config.manifest.url)?;
+                                    let checked = match cached.checked {
+                                        Some(x) => chrono::DateTime::<chrono::Local>::from(x)
+                                            .format("%Y-%m-%dT%H:%M:%S")
+                                            .to_string(),
+                                        None => "?".to_string(),
+                                    };
+                                    let updated = match cached.updated {
+                                        Some(x) => chrono::DateTime::<chrono::Local>::from(x)
+                                            .format("%Y-%m-%dT%H:%M:%S")
+                                            .to_string(),
+                                        None => "?".to_string(),
+                                    };
+                                    Some(
+                                        Container::new(
+                                            Column::new()
+                                                .padding(5)
+                                                .spacing(4)
+                                                .push(
+                                                    Row::new()
+                                                        .align_items(iced::Alignment::Center)
+                                                        .push(
+                                                            Container::new(Text::new(translator.checked_label()))
+                                                                .width(Length::Units(100)),
+                                                        )
+                                                        .push(Container::new(Text::new(checked))),
+                                                )
+                                                .push(
+                                                    Row::new()
+                                                        .align_items(iced::Alignment::Center)
+                                                        .push(
+                                                            Container::new(Text::new(translator.updated_label()))
+                                                                .width(Length::Units(100)),
+                                                        )
+                                                        .push(Container::new(Text::new(updated))),
+                                                ),
+                                        )
+                                        .style(style::Container::GameListEntry(config.theme)),
+                                    )
+                                }),
                         )
                         .push(
                             Column::new().push(Text::new(translator.ignored_items_label())).push(

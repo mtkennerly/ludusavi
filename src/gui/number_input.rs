@@ -17,10 +17,10 @@ pub struct NumberInput {
 impl NumberInput {
     pub fn view(
         &mut self,
-        value: u8,
+        value: i32,
         label: &str,
-        range: RangeInclusive<u8>,
-        change: fn(u8) -> Message,
+        range: RangeInclusive<i32>,
+        change: fn(i32) -> Message,
         theme: Theme,
     ) -> Container<Message> {
         Container::new(

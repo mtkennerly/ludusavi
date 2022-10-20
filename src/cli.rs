@@ -1,14 +1,14 @@
 use crate::{
     cache::Cache,
-    config::{Config, RedirectConfig, Sort, SortKey},
+    config::{Config, Sort, SortKey},
     heroic::HeroicGames,
     lang::Translator,
     layout::BackupLayout,
     manifest::{Manifest, SteamMetadata},
     prelude::{
-        app_dir, back_up_game, game_file_target, normalize_title, prepare_backup_target, scan_game_for_backup,
-        scan_game_for_restoration, BackupId, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus,
-        OperationStepDecision, ScanInfo, StrictPath,
+        app_dir, back_up_game, normalize_title, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration,
+        BackupId, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus, OperationStepDecision,
+        ScanChange, ScanInfo, StrictPath,
     },
 };
 use clap::{CommandFactory, Parser};
@@ -122,11 +122,13 @@ pub enum Subcommand {
 
         /// Check for any manifest updates and download if available.
         /// If the check fails, report an error.
+        /// Does nothing if the most recent check was within the last 24 hours.
         #[clap(long)]
         update: bool,
 
         /// Check for any manifest updates and download if available.
         /// If the check fails, continue anyway.
+        /// Does nothing if the most recent check was within the last 24 hours.
         #[clap(long, conflicts_with("update"))]
         try_update: bool,
 
@@ -283,6 +285,7 @@ struct ApiFile {
     failed: bool,
     #[serde(skip_serializing_if = "crate::serialization::is_false")]
     ignored: bool,
+    change: ScanChange,
     bytes: u64,
     #[serde(rename = "originalPath", skip_serializing_if = "Option::is_none")]
     original_path: Option<String>,
@@ -404,10 +407,10 @@ impl Reporter {
         scan_info: &ScanInfo,
         backup_info: &BackupInfo,
         decision: &OperationStepDecision,
-        redirects: &[RedirectConfig],
         duplicate_detector: &DuplicateDetector,
     ) -> bool {
         let mut successful = true;
+        let restoring = scan_info.restoring();
 
         match self {
             Self::Standard {
@@ -424,23 +427,23 @@ impl Reporter {
                     scan_info.sum_bytes(&Some(backup_info.to_owned())),
                     decision,
                     duplicate_detector.is_game_duplicated(scan_info),
+                    &scan_info.count_changes(),
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
-                    let resolved = game_file_target(entry.original_path(), redirects, scan_info.restoring());
-
                     let entry_successful = !backup_info.failed_files.contains(entry);
                     if !entry_successful {
                         successful = false;
                     }
                     parts.push(translator.cli_game_line_item(
-                        &resolved.readable(),
+                        &entry.readable(restoring),
                         entry_successful,
                         entry.ignored,
                         duplicate_detector.is_file_duplicated(entry),
+                        Some(entry.change),
                     ));
 
-                    if let Some(alt) = resolved.alt_readable() {
-                        if scan_info.restoring() {
+                    if let Some(alt) = entry.alt_readable(restoring) {
+                        if restoring {
                             parts.push(translator.cli_game_line_item_redirected(&alt));
                         } else {
                             parts.push(translator.cli_game_line_item_redirecting(&alt));
@@ -457,6 +460,7 @@ impl Reporter {
                         entry_successful,
                         entry.ignored,
                         duplicate_detector.is_registry_duplicated(&entry.path),
+                        None,
                     ));
                 }
 
@@ -485,6 +489,7 @@ impl Reporter {
                         bytes: entry.size,
                         failed: backup_info.failed_files.contains(entry),
                         ignored: entry.ignored,
+                        change: entry.change,
                         ..Default::default()
                     };
                     if duplicate_detector.is_file_duplicated(entry) {
@@ -493,9 +498,8 @@ impl Reporter {
                         api_file.duplicated_by = duplicated_by;
                     }
 
-                    let resolved = game_file_target(entry.original_path(), redirects, scan_info.restoring());
-                    if let Some(alt) = resolved.alt_readable() {
-                        if scan_info.restoring() {
+                    if let Some(alt) = entry.alt_readable(restoring) {
+                        if restoring {
                             api_file.original_path = Some(alt);
                         } else {
                             api_file.redirected_path = Some(alt);
@@ -505,7 +509,7 @@ impl Reporter {
                         successful = false;
                     }
 
-                    files.insert(resolved.readable(), api_file);
+                    files.insert(entry.readable(restoring), api_file);
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
                     let mut api_registry = ApiRegistry {
@@ -685,7 +689,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
     let translator = Translator::default();
     let mut config = Config::load()?;
     translator.set_language(config.language);
-    Cache::load().migrated(&mut config);
+    let mut cache = Cache::load().migrated(&mut config);
     let mut failed = false;
     let mut duplicate_detector = DuplicateDetector::default();
 
@@ -712,18 +716,18 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             };
 
             let manifest = if try_update {
-                match Manifest::load(&mut config, true) {
+                match Manifest::load(&config, &mut cache, true) {
                     Ok(x) => x,
                     Err(e) => {
                         eprintln!("{}", translator.handle_error(&e));
-                        match Manifest::load(&mut config, false) {
+                        match Manifest::load(&config, &mut cache, false) {
                             Ok(y) => y,
                             Err(_) => Manifest::default(),
                         }
                     }
                 }
             } else {
-                Manifest::load(&mut config, update)?
+                Manifest::load(&config, &mut cache, update)?
             };
 
             let backup_dir = match path {
@@ -797,11 +801,12 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let game = &all_games.0[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
-
                     let local_wp = match &wine_prefix {
                         Some(sp) => Some(sp),
                         None => heroic_games.get(name),
                     };
+
+                    let previous = layout.latest_backup(name, false, &config.redirects);
 
                     let scan_info = scan_game_for_backup(
                         game,
@@ -814,6 +819,8 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         &ranking,
                         &toggled_paths,
                         &toggled_registry,
+                        previous,
+                        &config.redirects,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified;
                     let decision = if ignored {
@@ -830,7 +837,6 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                             config.backup.merge,
                             &chrono::Utc::now(),
                             &config.backup.format,
-                            &config.redirects,
                         )
                     };
                     log::trace!("step {i} completed");
@@ -858,14 +864,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             for (name, scan_info, backup_info, decision) in info {
-                if !reporter.add_game(
-                    name,
-                    &scan_info,
-                    &backup_info,
-                    &decision,
-                    &config.redirects,
-                    &duplicate_detector,
-                ) {
+                if !reporter.add_game(name, &scan_info, &backup_info, &decision, &duplicate_detector) {
                     failed = true;
                 }
             }
@@ -888,7 +887,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 Reporter::standard(translator)
             };
 
-            let manifest = Manifest::load(&mut config, false)?;
+            let manifest = Manifest::load(&config, &mut cache, false)?;
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),
@@ -935,8 +934,12 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let mut layout = layout.game_layout(name);
-                    let scan_info =
-                        scan_game_for_restoration(name, backup_id.as_ref().unwrap_or(&BackupId::Latest), &mut layout);
+                    let scan_info = scan_game_for_restoration(
+                        name,
+                        backup_id.as_ref().unwrap_or(&BackupId::Latest),
+                        &mut layout,
+                        &config.redirects,
+                    );
                     let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
@@ -962,7 +965,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let restore_info = if scan_info.backup.is_none() || preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
-                        layout.restore(&scan_info, &config.get_redirects())
+                        layout.restore(&scan_info)
                     };
                     log::trace!("step {i} completed");
                     (name, scan_info, restore_info, decision, None)
@@ -992,14 +995,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             for (name, scan_info, backup_info, decision, _) in info {
-                if !reporter.add_game(
-                    name,
-                    &scan_info,
-                    &backup_info,
-                    &decision,
-                    &config.redirects,
-                    &duplicate_detector,
-                ) {
+                if !reporter.add_game(name, &scan_info, &backup_info, &decision, &duplicate_detector) {
                     failed = true;
                 }
             }
@@ -1033,7 +1029,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 Reporter::standard(translator)
             };
 
-            let manifest = Manifest::load(&mut config, false)?;
+            let manifest = Manifest::load(&config, &mut cache, false)?;
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),
@@ -1059,7 +1055,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .progress_count(subjects.valid.len() as u64)
                 .map(|name| {
                     let mut layout = layout.game_layout(name);
-                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &mut layout);
+                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &mut layout, &config.redirects);
                     (name, scan_info)
                 })
                 .collect();
@@ -1501,7 +1497,6 @@ mod tests {
                 &ScanInfo::default(),
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1534,7 +1529,9 @@ Overall:
                             hash: "1".to_string(),
                             original_path: None,
                             ignored: false,
+                            change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                         ScannedFile {
                             path: StrictPath::new(s("/file2")),
@@ -1542,7 +1539,9 @@ Overall:
                             hash: "2".to_string(),
                             original_path: None,
                             ignored: false,
+                            change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                     },
                     found_registry_keys: hashset! {
@@ -1560,7 +1559,6 @@ Overall:
                     },
                 },
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1597,7 +1595,9 @@ Overall:
                             hash: "1".to_string(),
                             original_path: None,
                             ignored: false,
+                            change: ScanChange::Same,
                             container: None,
+                            redirected: None,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1608,7 +1608,6 @@ Overall:
                     failed_registry: hashset! {},
                 },
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             reporter.add_game(
@@ -1622,7 +1621,9 @@ Overall:
                             hash: "2".to_string(),
                             original_path: None,
                             ignored: false,
+                            change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1633,7 +1634,6 @@ Overall:
                     failed_registry: hashset! {},
                 },
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1670,7 +1670,9 @@ Overall:
                             hash: "1".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                             ignored: false,
+                            change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
@@ -1678,7 +1680,9 @@ Overall:
                             hash: "2".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                             ignored: false,
+                            change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1686,7 +1690,6 @@ Overall:
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1738,7 +1741,6 @@ Overall:
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &duplicate_detector,
             );
             assert_eq!(
@@ -1759,6 +1761,69 @@ Overall:
         }
 
         #[test]
+        fn can_render_in_standard_mode_with_different_file_changes() {
+            let mut reporter = Reporter::standard(Translator::default());
+
+            reporter.add_game(
+                "foo",
+                &ScanInfo {
+                    game_name: s("foo"),
+                    found_files: hashset! {
+                        ScannedFile::new(s("/new"), 1, "1".to_string()).change(ScanChange::New),
+                        ScannedFile::new(s("/different"), 1, "1".to_string()).change(ScanChange::Different),
+                        ScannedFile::new(s("/same"), 1, "1".to_string()).change(ScanChange::Same),
+                        ScannedFile::new(s("/unknown"), 1, "1".to_string()).change(ScanChange::Unknown),
+                    },
+                    found_registry_keys: hashset! {},
+                    ..Default::default()
+                },
+                &BackupInfo {
+                    failed_files: hashset! {},
+                    failed_registry: hashset! {},
+                },
+                &OperationStepDecision::Processed,
+                &DuplicateDetector::default(),
+            );
+            reporter.add_game(
+                "bar",
+                &ScanInfo {
+                    game_name: s("bar"),
+                    found_files: hashset! {
+                        ScannedFile::new(s("/brand-new"), 1, "1".to_string()).change(ScanChange::New),
+                    },
+                    found_registry_keys: hashset! {},
+                    ..Default::default()
+                },
+                &BackupInfo {
+                    failed_files: hashset! {},
+                    failed_registry: hashset! {},
+                },
+                &OperationStepDecision::Processed,
+                &DuplicateDetector::default(),
+            );
+            assert_eq!(
+                r#"
+foo [4 B] [Δ]:
+  - [Δ] <drive>/different
+  - [+] <drive>/new
+  - <drive>/same
+  - <drive>/unknown
+
+bar [1 B] [+]:
+  - [+] <drive>/brand-new
+
+Overall:
+  Games: 2
+  Size: 5 B
+  Location: <drive>/dev/null
+                "#
+                .trim()
+                .replace("<drive>", &drive()),
+                reporter.render(&StrictPath::new(s("/dev/null")))
+            );
+        }
+
+        #[test]
         fn can_render_in_json_mode_with_minimal_input() {
             let mut reporter = Reporter::json();
 
@@ -1767,7 +1832,6 @@ Overall:
                 &ScanInfo::default(),
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1814,7 +1878,6 @@ Overall:
                     },
                 },
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1834,10 +1897,12 @@ Overall:
       "decision": "Processed",
       "files": {
         "<drive>/file1": {
+          "change": "Unknown",
           "bytes": 100
         },
         "<drive>/file2": {
           "failed": true,
+          "change": "Unknown",
           "bytes": 50
         }
       },
@@ -1872,7 +1937,9 @@ Overall:
                             hash: "1".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
                             ignored: false,
+                            change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                         ScannedFile {
                             path: StrictPath::new(format!("{}/backup/file2", drive())),
@@ -1880,7 +1947,9 @@ Overall:
                             hash: "2".to_string(),
                             original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
                             ignored: false,
+                            change: Default::default(),
                             container: None,
+                            redirected: None,
                         },
                     },
                     found_registry_keys: hashset! {},
@@ -1888,7 +1957,6 @@ Overall:
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &DuplicateDetector::default(),
             );
             assert_eq!(
@@ -1905,9 +1973,11 @@ Overall:
       "decision": "Processed",
       "files": {
         "<drive>/original/file1": {
+          "change": "Unknown",
           "bytes": 100
         },
         "<drive>/original/file2": {
+          "change": "Unknown",
           "bytes": 50
         }
       },
@@ -1954,7 +2024,6 @@ Overall:
                 },
                 &BackupInfo::default(),
                 &OperationStepDecision::Processed,
-                &[],
                 &duplicate_detector,
             );
             assert_eq!(
@@ -1971,6 +2040,7 @@ Overall:
       "decision": "Processed",
       "files": {
         "<drive>/file1": {
+          "change": "Unknown",
           "bytes": 100,
           "duplicatedBy": [
             "bar"
@@ -1984,6 +2054,71 @@ Overall:
           ]
         }
       }
+    }
+  }
+}
+                "#
+                .trim()
+                .replace("<drive>", &drive()),
+                reporter.render(&StrictPath::new(s("/dev/null")))
+            );
+        }
+
+        #[test]
+        fn can_render_in_json_mode_with_different_file_changes() {
+            let mut reporter = Reporter::json();
+
+            reporter.add_game(
+                "foo",
+                &ScanInfo {
+                    game_name: s("foo"),
+                    found_files: hashset! {
+                        ScannedFile::new("/new", 1, "1").change(ScanChange::New),
+                        ScannedFile::new("/different", 1, "2").change(ScanChange::Different),
+                        ScannedFile::new("/same", 1, "2").change(ScanChange::Same),
+                        ScannedFile::new("/unknown", 1, "2").change(ScanChange::Unknown),
+                    },
+                    found_registry_keys: hashset! {},
+                    ..Default::default()
+                },
+                &BackupInfo {
+                    failed_files: hashset! {},
+                    failed_registry: hashset! {},
+                },
+                &OperationStepDecision::Processed,
+                &DuplicateDetector::default(),
+            );
+            assert_eq!(
+                r#"
+{
+  "overall": {
+    "totalGames": 1,
+    "totalBytes": 4,
+    "processedGames": 1,
+    "processedBytes": 4
+  },
+  "games": {
+    "foo": {
+      "decision": "Processed",
+      "files": {
+        "<drive>/different": {
+          "change": "Different",
+          "bytes": 1
+        },
+        "<drive>/new": {
+          "change": "New",
+          "bytes": 1
+        },
+        "<drive>/same": {
+          "change": "Same",
+          "bytes": 1
+        },
+        "<drive>/unknown": {
+          "change": "Unknown",
+          "bytes": 1
+        }
+      },
+      "registry": {}
     }
   }
 }

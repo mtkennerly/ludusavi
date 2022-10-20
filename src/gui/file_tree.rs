@@ -8,7 +8,7 @@ use crate::{
     },
     lang::Translator,
     path::StrictPath,
-    prelude::{game_file_target, BackupInfo, DuplicateDetector, RegistryItem, ResolvedRedirect, ScanInfo},
+    prelude::{BackupInfo, DuplicateDetector, RegistryItem, ScanChange, ScanInfo, ScannedFile},
 };
 use iced::{button, Alignment, Button, Checkbox, Column, Container, Length, Row, Space, Text};
 
@@ -41,7 +41,8 @@ struct FileTreeNode {
     successful: bool,
     ignored: bool,
     duplicated: bool,
-    redirect: Option<ResolvedRedirect>,
+    change: Option<ScanChange>,
+    scanned_file: Option<ScannedFile>,
     node_type: FileTreeNodeType,
 }
 
@@ -122,6 +123,15 @@ impl FileTreeNode {
                     .push(Space::new(Length::Units(10), Length::Shrink))
                     .push_some(make_enabler)
                     .push(Text::new(label))
+                    .push_some(|| {
+                        let symbol = match self.change {
+                            None | Some(ScanChange::Same | ScanChange::Unknown) => return None,
+                            Some(ScanChange::New) => crate::lang::ADD_SYMBOL,
+                            Some(ScanChange::Different) => crate::lang::CHANGE_SYMBOL,
+                        };
+                        self.change
+                            .map(|change| Badge::new(symbol).left_margin(15).change(change).view(config.theme))
+                    })
                     .push_if(
                         || self.duplicated,
                         || {
@@ -139,9 +149,10 @@ impl FileTreeNode {
                         },
                     )
                     .push_some(|| {
-                        self.redirect.as_ref().and_then(|redirect| {
-                            redirect.alt().as_ref().map(|alt| {
-                                let msg = if redirect.restoring {
+                        self.scanned_file.as_ref().and_then(|scanned| {
+                            let restoring = scanned.restoring();
+                            scanned.alt(restoring).as_ref().map(|alt| {
+                                let msg = if restoring {
                                     translator.badge_redirected_from(alt)
                                 } else {
                                     translator.badge_redirecting_to(alt)
@@ -227,7 +238,8 @@ impl FileTreeNode {
         prefix_keys: &[T],
         successful: bool,
         duplicated: bool,
-        redirect: Option<ResolvedRedirect>,
+        change: Option<ScanChange>,
+        scanned_file: Option<ScannedFile>,
     ) -> &mut Self {
         let node_type = self.node_type.clone();
         let mut node = self;
@@ -257,7 +269,8 @@ impl FileTreeNode {
 
         node.successful = successful;
         node.duplicated = duplicated;
-        node.redirect = redirect;
+        node.change = change;
+        node.scanned_file = scanned_file;
 
         node
     }
@@ -315,8 +328,6 @@ impl FileTree {
         let mut nodes = std::collections::BTreeMap::<String, FileTreeNode>::new();
 
         for item in scan_info.found_files.iter() {
-            let resolved = game_file_target(item.original_path(), &config.get_redirects(), scan_info.restoring());
-
             let mut successful = true;
             if let Some(backup_info) = &backup_info {
                 if backup_info.failed_files.contains(item) {
@@ -324,7 +335,7 @@ impl FileTree {
                 }
             }
 
-            let rendered = resolved.readable();
+            let rendered = item.readable(scan_info.restoring());
             let components: Vec<_> = rendered.split('/').collect();
 
             nodes
@@ -335,7 +346,8 @@ impl FileTree {
                     &[components[0]],
                     successful,
                     duplicate_detector.is_file_duplicated(item),
-                    Some(resolved),
+                    Some(item.change),
+                    Some(item.clone()),
                 );
         }
         for item in scan_info.found_registry_keys.iter() {
@@ -356,6 +368,7 @@ impl FileTree {
                     &components[0..1],
                     successful,
                     duplicate_detector.is_registry_duplicated(&item.path),
+                    None,
                     None,
                 );
         }

@@ -38,6 +38,7 @@ pub struct BackupScreenComponent {
     diff_retention_input: crate::gui::number_input::NumberInput,
     format_selector: pick_list::State<BackupFormat>,
     compression_selector: pick_list::State<ZipCompression>,
+    compression_level_input: crate::gui::number_input::NumberInput,
     settings_button: button::State,
     pub show_settings: bool,
 }
@@ -226,10 +227,10 @@ impl BackupScreenComponent {
                                 || config.backup.merge,
                                 || {
                                     self.full_retention_input.view(
-                                        config.backup.retention.full,
+                                        config.backup.retention.full as i32,
                                         &translator.full_retention(),
-                                        1..=u8::MAX,
-                                        Message::EditedFullRetention,
+                                        1..=255,
+                                        |x| Message::EditedFullRetention(x as u8),
                                         config.theme,
                                     )
                                 },
@@ -238,10 +239,10 @@ impl BackupScreenComponent {
                                 || config.backup.merge,
                                 || {
                                     self.diff_retention_input.view(
-                                        config.backup.retention.differential,
+                                        config.backup.retention.differential as i32,
                                         &translator.differential_retention(),
-                                        0..=u8::MAX,
-                                        Message::EditedDiffRetention,
+                                        0..=255,
+                                        |x| Message::EditedDiffRetention(x as u8),
                                         config.theme,
                                     )
                                 },
@@ -288,6 +289,16 @@ impl BackupScreenComponent {
                                         )
                                 },
                             )
+                            .push_some(|| match (config.backup.format.level(), config.backup.format.range()) {
+                                (Some(level), Some(range)) => Some(self.compression_level_input.view(
+                                    level,
+                                    &translator.backup_compression_level_field(),
+                                    range,
+                                    Message::EditedCompressionLevel,
+                                    config.theme,
+                                )),
+                                _ => None,
+                            })
                     },
                 )
                 .push(self.root_editor.view(config, translator))
