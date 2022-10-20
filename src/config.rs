@@ -1,6 +1,6 @@
 use crate::{
     lang::Language,
-    manifest::{Store},
+    manifest::Store,
     prelude::{app_dir, Error, RegistryItem, StrictPath},
 };
 

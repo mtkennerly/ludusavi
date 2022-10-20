@@ -798,10 +798,9 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let game = &all_games.0[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
 
-                    let local_wp;
-                    match &wine_prefix {
-                        Some(sp) => local_wp = Some(sp),
-                        None => local_wp = heroic_games.get(name),
+                    let local_wp = match &wine_prefix {
+                        Some(sp) => Some(sp),
+                        None => heroic_games.get(name),
                     };
 
                     let scan_info = scan_game_for_backup(

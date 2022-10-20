@@ -716,10 +716,10 @@ pub fn scan_game_for_backup(
 
     let manifest_dir_interpreted = manifest_dir.interpret();
 
-    if let Some(wp) = wine_prefix {
+    if let Some(wp) = *wine_prefix {
         log::trace!("[{name}] adding extra Wine prefix: {}", wp.raw());
         roots_to_check.push(RootsConfig {
-            path: wp.clone().into(),
+            path: wp.clone(),
             store: Store::OtherWine,
         });
 

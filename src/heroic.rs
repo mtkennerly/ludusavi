@@ -60,12 +60,14 @@ impl HeroicGames {
     }
 
     pub fn scan(roots: &[RootsConfig], manifest: &Manifest) -> Self {
-        let mut instance = HeroicGames::default();
-        instance.normalized_to_official = manifest
-            .0
-            .keys()
-            .map(|title| (normalize_title(title), title.clone()))
-            .collect();
+        let mut instance = HeroicGames {
+            normalized_to_official: manifest
+                .0
+                .keys()
+                .map(|title| (normalize_title(title), title.clone()))
+                .collect(),
+            ..Default::default()
+        };
 
         roots.iter().for_each(|root: &RootsConfig| {
             if root.store == Store::HeroicConfig {
@@ -103,10 +105,7 @@ impl HeroicGames {
                         &std::fs::read_to_string(legendary_installed).unwrap_or_default(),
                     ) {
                         ins.0.values().for_each(|game| {
-                            log::trace!(
-                                "detect_legendary_roots found game {} ({})",
-                                game.title, game.game_id
-                            );
+                            log::trace!("detect_legendary_roots found game {} ({})", game.title, game.game_id);
                             // process game from GamesConfig
                             if let Some(sp) = self.find_game_root(
                                 root.path.interpret(),
@@ -120,9 +119,9 @@ impl HeroicGames {
                     }
                 } else {
                     log::trace!(
-                            "detect_legendary_roots no such file '{:?}', legendary probably not used yet... skipping",
-                            legendary_installed
-                        );
+                        "detect_legendary_roots no such file '{:?}', legendary probably not used yet... skipping",
+                        legendary_installed
+                    );
                 }
             }
         }
@@ -143,7 +142,7 @@ impl HeroicGames {
             game_titles.insert(game.app_name.clone(), game.title.clone());
         });
         log::trace!(
-            "detect_gog_roots found {} games in {}", 
+            "detect_gog_roots found {} games in {}",
             game_titles.len(),
             format!("{}/gog_store/library.json", root.path.interpret())
         );
@@ -153,9 +152,9 @@ impl HeroicGames {
         if let Ok(installed_games) = serde_json::from_str::<HeroicInstalled>(&content.unwrap_or_default()) {
             installed_games.installed.iter().for_each(|game| {
                 let game_title = game_titles.get(&game.game_id).unwrap();
-                if let Some(sp) = self.find_game_root(root.path.interpret(), &game_title, &game.platform, &game.game_id)
+                if let Some(sp) = self.find_game_root(root.path.interpret(), game_title, &game.platform, &game.game_id)
                 {
-                    self.memorize_game_root(&game_title, &sp);
+                    self.memorize_game_root(game_title, &sp);
                 }
             })
         }
@@ -175,11 +174,7 @@ impl HeroicGames {
                 "memorize_game_root did not find {} in manifest, no backup/restore will be done!",
                 title
             );
-            log::trace!(
-                "memorize_game_root memorizing path {} for {}",
-                path.interpret(),
-                title
-            );
+            log::trace!("memorize_game_root memorizing path {} for {}", path.interpret(), title);
             self.games.insert(title.clone(), path.clone());
         }
     }
@@ -231,7 +226,8 @@ impl HeroicGames {
                         log::warn!(
                             "find_game_root found Heroic Windows game {} ({}), checking... unknown wine_type: {:#?}",
                             game_name,
-                            game_id, v[&game_id]["wineVersion"]["type"]
+                            game_id,
+                            v[&game_id]["wineVersion"]["type"]
                         );
                         None
                     }
@@ -246,7 +242,8 @@ impl HeroicGames {
             _ => {
                 log::trace!(
                     "find_game_root found Heroic game {} with unhandled platform {}, ignoring.",
-                    game_name, platform,
+                    game_name,
+                    platform,
                 );
                 None
             }
