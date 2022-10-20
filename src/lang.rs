@@ -736,6 +736,14 @@ impl Translator {
         self.field(&translate("label-updated"))
     }
 
+    pub fn new_tooltip(&self) -> String {
+        translate("label-new")
+    }
+
+    pub fn updated_tooltip(&self) -> String {
+        translate("label-updated")
+    }
+
     fn consider_doing_a_preview(&self) -> String {
         translate("consider-doing-a-preview")
     }

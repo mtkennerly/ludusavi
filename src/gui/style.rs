@@ -277,6 +277,7 @@ pub enum Container {
     ChangeBadge(Theme, ScanChange),
     DisabledBackup(Theme),
     Notification(Theme),
+    Tooltip(Theme),
 }
 impl Container {
     fn theme(&self) -> &Theme {
@@ -288,6 +289,7 @@ impl Container {
             Self::ChangeBadge(theme, _) => theme,
             Self::DisabledBackup(theme) => theme,
             Self::Notification(theme) => theme,
+            Self::Tooltip(theme) => theme,
         }
     }
 }
@@ -296,7 +298,7 @@ impl container::StyleSheet for Container {
         let t = self.theme();
         container::Style {
             background: match self {
-                Self::ModalBackground(_) | Self::Notification(_) => Some(t.field().into()),
+                Self::ModalBackground(_) | Self::Notification(_) | Self::Tooltip(_) => Some(t.field().into()),
                 Self::DisabledBackup(_) => Some(t.disabled().into()),
                 _ => Some(t.background().into()),
             },
@@ -315,7 +317,7 @@ impl container::StyleSheet for Container {
             },
             border_radius: match self {
                 Self::GameListEntry(_) | Self::Badge(..) | Self::ChangeBadge(..) | Self::DisabledBackup(_) => 10.0,
-                Self::Notification(_) => 20.0,
+                Self::Notification(_) | Self::Tooltip(_) => 20.0,
                 _ => 0.0,
             },
             text_color: match self {

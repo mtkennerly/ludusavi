@@ -13,7 +13,7 @@ use crate::{
     lang::Translator,
     layout::Backup,
     manifest::Manifest,
-    prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo},
+    prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
 };
 
 use fuzzy_matcher::FuzzyMatcher;
@@ -124,19 +124,9 @@ impl GameListEntry {
                         )
                         .push_some(|| {
                             if changes.brand_new() {
-                                Some(
-                                    Badge::new(crate::lang::ADD_SYMBOL)
-                                        .left_margin(15)
-                                        .change(ScanChange::New)
-                                        .view(config.theme),
-                                )
+                                Some(Badge::new_entry(translator).left_margin(15).view(config.theme))
                             } else if changes.updated() {
-                                Some(
-                                    Badge::new(crate::lang::CHANGE_SYMBOL)
-                                        .left_margin(15)
-                                        .change(ScanChange::Different)
-                                        .view(config.theme),
-                                )
+                                Some(Badge::changed_entry(translator).left_margin(15).view(config.theme))
                             } else {
                                 None
                             }
