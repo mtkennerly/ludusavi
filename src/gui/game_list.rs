@@ -235,11 +235,7 @@ impl GameListEntry {
                                         game: self.scan_info.game_name.clone(),
                                     },
                                 )
-                                .style(if operating {
-                                    style::Button::GameActionDisabled(config.theme)
-                                } else {
-                                    style::Button::GameActionPrimary(config.theme)
-                                })
+                                .style(style::Button::GameActionPrimary(config.theme))
                                 .padding(2);
                                 Container::new(
                                     Tooltip::new(button, action.to_string(), tooltip::Position::Top)

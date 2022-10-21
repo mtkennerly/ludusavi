@@ -26,6 +26,7 @@
     Previously, it would check automatically on every startup.
     This was changed to avoid excess network traffic,
     because the manifest itself will be updated much more frequently.
+  * GUI: Styling is now more consistent for disabled buttons.
 * Fixed:
   * Backup files did not store the correct modification time on Linux and defaulted to the current time.
     This also affected Windows, but only for zip backups.

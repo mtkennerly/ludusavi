@@ -156,10 +156,8 @@ impl Theme {
 
 pub enum Button {
     Primary(Theme),
-    Disabled(Theme),
     Negative(Theme),
     GameActionPrimary(Theme),
-    GameActionDisabled(Theme),
     GameListEntryTitle(Theme),
     GameListEntryTitleFailed(Theme),
     GameListEntryTitleDisabled(Theme),
@@ -169,10 +167,8 @@ impl Button {
     fn theme(&self) -> &Theme {
         match self {
             Self::Primary(theme) => theme,
-            Self::Disabled(theme) => theme,
             Self::Negative(theme) => theme,
             Self::GameActionPrimary(theme) => theme,
-            Self::GameActionDisabled(theme) => theme,
             Self::GameListEntryTitle(theme) => theme,
             Self::GameListEntryTitleFailed(theme) => theme,
             Self::GameListEntryTitleDisabled(theme) => theme,
@@ -190,12 +186,10 @@ impl button::StyleSheet for Button {
                 Self::GameListEntryTitleFailed(_) => Some(t.failure().into()),
                 Self::GameListEntryTitleDisabled(_) => Some(t.skipped().into()),
                 Self::GameListEntryTitleUnscanned(_) => None,
-                Self::Disabled(_) | Self::GameActionDisabled(_) => Some(t.disabled().into()),
                 Self::Negative(_) => Some(t.negative().into()),
             },
             border_radius: match self {
                 Self::GameActionPrimary(_)
-                | Self::GameActionDisabled(_)
                 | Self::GameListEntryTitle(_)
                 | Self::GameListEntryTitleFailed(_)
                 | Self::GameListEntryTitleDisabled(_)

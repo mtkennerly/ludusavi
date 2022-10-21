@@ -8,6 +8,8 @@ use iced::{
 };
 use std::ops::RangeInclusive;
 
+use super::common::IcedButtonExt;
+
 #[derive(Clone, Debug, Default)]
 pub struct NumberInput {
     up_state: button::State,
@@ -30,24 +32,14 @@ impl NumberInput {
                 .push(Text::new(label))
                 .push(Text::new(value.to_string()))
                 .push({
-                    let button = Button::new(&mut self.down_state, Icon::Remove.as_text().width(Length::Shrink));
-                    if &value > range.start() {
-                        button
-                            .on_press((change)(value - 1))
-                            .style(style::Button::Negative(theme))
-                    } else {
-                        button.style(style::Button::Disabled(theme))
-                    }
+                    Button::new(&mut self.down_state, Icon::Remove.as_text().width(Length::Shrink))
+                        .on_press_if(|| &value > range.start(), || (change)(value - 1))
+                        .style(style::Button::Negative(theme))
                 })
                 .push({
-                    let button = Button::new(&mut self.up_state, Icon::Add.as_text().width(Length::Shrink));
-                    if &value < range.end() {
-                        button
-                            .on_press((change)(value + 1))
-                            .style(style::Button::Primary(theme))
-                    } else {
-                        button.style(style::Button::Disabled(theme))
-                    }
+                    Button::new(&mut self.up_state, Icon::Add.as_text().width(Length::Shrink))
+                        .on_press_if(|| &value < range.end(), || (change)(value + 1))
+                        .style(style::Button::Primary(theme))
                 }),
         )
     }

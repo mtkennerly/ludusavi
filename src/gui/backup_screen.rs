@@ -2,7 +2,9 @@ use crate::{
     cache::Cache,
     config::{BackupFormat, Config, ZipCompression},
     gui::{
-        common::*,
+        common::{
+            make_status_row, BrowseSubject, EditAction, IcedButtonExt, IcedExtension, Message, OngoingOperation, Screen,
+        },
         game_list::GameList,
         icon::Icon,
         root_editor::{RootEditor, RootEditorRow},
@@ -84,19 +86,20 @@ impl BackupScreenComponent {
                                 })
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(match operation {
-                                None => Message::BackupPrep {
+                            .on_press_some(match operation {
+                                None => Some(Message::BackupPrep {
                                     preview: true,
                                     games: None,
-                                },
-                                Some(OngoingOperation::PreviewBackup) => Message::CancelOperation,
-                                _ => Message::Ignore,
+                                }),
+                                Some(OngoingOperation::PreviewBackup) => Some(Message::CancelOperation),
+                                _ => None,
                             })
                             .width(Length::Units(125))
                             .style(match operation {
-                                None => style::Button::Primary(config.theme),
-                                Some(OngoingOperation::PreviewBackup) => style::Button::Negative(config.theme),
-                                _ => style::Button::Disabled(config.theme),
+                                Some(OngoingOperation::PreviewBackup | OngoingOperation::CancelPreviewBackup) => {
+                                    style::Button::Negative(config.theme)
+                                }
+                                _ => style::Button::Primary(config.theme),
                             }),
                         )
                         .push(
@@ -109,16 +112,17 @@ impl BackupScreenComponent {
                                 })
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(match operation {
-                                None => Message::ConfirmBackupStart { games: None },
-                                Some(OngoingOperation::Backup) => Message::CancelOperation,
-                                _ => Message::Ignore,
+                            .on_press_some(match operation {
+                                None => Some(Message::ConfirmBackupStart { games: None }),
+                                Some(OngoingOperation::Backup) => Some(Message::CancelOperation),
+                                _ => None,
                             })
                             .width(Length::Units(125))
                             .style(match operation {
-                                None => style::Button::Primary(config.theme),
-                                Some(OngoingOperation::Backup) => style::Button::Negative(config.theme),
-                                _ => style::Button::Disabled(config.theme),
+                                Some(OngoingOperation::Backup | OngoingOperation::CancelBackup) => {
+                                    style::Button::Negative(config.theme)
+                                }
+                                _ => style::Button::Primary(config.theme),
                             }),
                         )
                         .push(
