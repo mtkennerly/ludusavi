@@ -69,14 +69,14 @@ impl HeroicGames {
             ..Default::default()
         };
 
-        roots.iter().for_each(|root: &RootsConfig| {
+        for root in roots {
             if root.store == Store::Heroic {
                 instance.detect_flatpak_roots(root);
                 instance.detect_legendary_roots(root);
                 instance.detect_gog_roots(root);
                 log::trace!("detect_heroic_roots found: {:#?}", instance.games);
             }
-        });
+        }
 
         instance
     }
