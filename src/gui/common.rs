@@ -216,9 +216,7 @@ impl GameAction {
 
         options
     }
-}
 
-impl GameAction {
     pub fn icon(&self) -> Icon {
         match self {
             GameAction::Backup { confirm } | GameAction::Restore { confirm } => {
@@ -240,8 +238,20 @@ impl ToString for GameAction {
         let translator = Translator::default();
         match self {
             Self::PreviewBackup | Self::PreviewRestore => translator.preview_button(),
-            Self::Backup { .. } => translator.backup_button(),
-            Self::Restore { .. } => translator.restore_button(),
+            Self::Backup { confirm } => {
+                if *confirm {
+                    translator.backup_button()
+                } else {
+                    translator.backup_button_no_confirmation()
+                }
+            }
+            Self::Restore { confirm } => {
+                if *confirm {
+                    translator.restore_button()
+                } else {
+                    translator.restore_button_no_confirmation()
+                }
+            }
             Self::Customize => translator.customize_button(),
             Self::Wiki => translator.pcgamingwiki(),
         }

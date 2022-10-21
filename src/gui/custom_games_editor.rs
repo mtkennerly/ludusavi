@@ -10,8 +10,8 @@ use crate::{
 };
 
 use iced::{
-    button, scrollable, text_input, Button, Checkbox, Column, Container, Length, Row, Scrollable, Space, Text,
-    TextInput,
+    button, scrollable, text_input, tooltip, Button, Checkbox, Column, Container, Length, Row, Scrollable, Space, Text,
+    TextInput, Tooltip,
 };
 
 #[derive(Default)]
@@ -101,15 +101,22 @@ impl CustomGamesEditor {
                                             .padding(5),
                                         )
                                         .push(
-                                            Button::new(&mut x.preview_button_state, Icon::Refresh.as_text())
-                                                .on_press_if(
-                                                    || !operating,
-                                                    || Message::BackupStart {
-                                                        games: Some(vec![config.custom_games[i].name.clone()]),
-                                                        preview: true,
-                                                    },
-                                                )
-                                                .style(style::Button::Primary(config.theme)),
+                                            Tooltip::new(
+                                                Button::new(&mut x.preview_button_state, Icon::Refresh.as_text())
+                                                    .on_press_if(
+                                                        || !operating,
+                                                        || Message::BackupStart {
+                                                            games: Some(vec![config.custom_games[i].name.clone()]),
+                                                            preview: true,
+                                                        },
+                                                    )
+                                                    .style(style::Button::Primary(config.theme)),
+                                                translator.preview_button_in_custom_mode(),
+                                                tooltip::Position::Top,
+                                            )
+                                            .size(16)
+                                            .gap(5)
+                                            .style(style::Container::Tooltip(config.theme)),
                                         )
                                         .push(
                                             Button::new(&mut x.remove_button_state, Icon::Delete.as_text())

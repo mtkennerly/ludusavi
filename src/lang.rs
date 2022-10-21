@@ -415,12 +415,24 @@ impl Translator {
         translate("button-backup")
     }
 
+    pub fn backup_button_no_confirmation(&self) -> String {
+        format!("{} ({})", self.backup_button(), self.suffix_no_confirmation())
+    }
+
     pub fn preview_button(&self) -> String {
         translate("button-preview")
     }
 
+    pub fn preview_button_in_custom_mode(&self) -> String {
+        format!("{} ({})", self.preview_button(), self.backup_button().to_lowercase())
+    }
+
     pub fn restore_button(&self) -> String {
         translate("button-restore")
+    }
+
+    pub fn restore_button_no_confirmation(&self) -> String {
+        format!("{} ({})", self.restore_button(), self.suffix_no_confirmation())
     }
 
     pub fn nav_backup_button(&self) -> String {
@@ -793,5 +805,9 @@ impl Translator {
         } else {
             translate("no-saves-found")
         }
+    }
+
+    pub fn suffix_no_confirmation(&self) -> String {
+        translate("suffix-no-confirmation")
     }
 }

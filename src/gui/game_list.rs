@@ -18,8 +18,8 @@ use crate::{
 
 use fuzzy_matcher::FuzzyMatcher;
 use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, keyboard::Modifiers, pick_list, scrollable, Alignment,
-    Button, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Space, Text,
+    alignment::Horizontal as HorizontalAlignment, button, keyboard::Modifiers, pick_list, scrollable, tooltip,
+    Alignment, Button, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Space, Text, Tooltip,
 };
 
 use super::common::OngoingOperation;
@@ -241,7 +241,12 @@ impl GameListEntry {
                                     style::Button::GameActionPrimary(config.theme)
                                 })
                                 .padding(2);
-                                Container::new(button)
+                                Container::new(
+                                    Tooltip::new(button, action.to_string(), tooltip::Position::Top)
+                                        .size(16)
+                                        .gap(5)
+                                        .style(style::Container::Tooltip(config.theme)),
+                                )
                             } else {
                                 let options = GameAction::options(restoring, operating, customized, customized_pure);
                                 let game_name = self.scan_info.game_name.clone();

@@ -157,3 +157,7 @@ updating-manifest = Updating manifest...
 
 saves-found = Save data found.
 no-saves-found = No save data found.
+
+# This is tacked on to form something like "Back up (no confirmation)",
+# meaning we would perform an action without asking the user if they're sure.
+suffix-no-confirmation = no confirmation
