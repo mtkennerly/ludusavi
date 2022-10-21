@@ -387,8 +387,19 @@ impl Translator {
     }
 
     pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {
+        let new_games = if status.changed_games.new > 0 {
+            format!(" [{}{}]", crate::lang::ADD_SYMBOL, status.changed_games.new)
+        } else {
+            "".to_string()
+        };
+        let changed_games = if status.changed_games.different > 0 {
+            format!(" [{}{}]", crate::lang::CHANGE_SYMBOL, status.changed_games.different)
+        } else {
+            "".to_string()
+        };
+
         format!(
-            "{}:\n  {}: {}\n  {}: {}\n  {}: {}",
+            "{}:\n  {}: {}{}{}\n  {}: {}\n  {}: {}",
             translate("overall"),
             translate("total-games"),
             if status.processed_all_games() {
@@ -396,6 +407,8 @@ impl Translator {
             } else {
                 format!("{} / {}", status.processed_games, status.total_games)
             },
+            new_games,
+            changed_games,
             translate("file-size"),
             if status.processed_all_bytes() {
                 self.adjusted_size(status.processed_bytes)

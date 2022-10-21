@@ -33,9 +33,27 @@ impl Badge {
         }
     }
 
+    pub fn new_entry_with_count(translator: &Translator, count: usize) -> Self {
+        Self {
+            text: format!("{}{}", crate::lang::ADD_SYMBOL, count),
+            change: Some(ScanChange::New),
+            tooltip: Some(translator.new_tooltip()),
+            ..Default::default()
+        }
+    }
+
     pub fn changed_entry(translator: &Translator) -> Self {
         Self {
             text: crate::lang::CHANGE_SYMBOL.to_string(),
+            change: Some(ScanChange::Different),
+            tooltip: Some(translator.updated_tooltip()),
+            ..Default::default()
+        }
+    }
+
+    pub fn changed_entry_with_count(translator: &Translator, count: usize) -> Self {
+        Self {
+            text: format!("{}{}", crate::lang::CHANGE_SYMBOL, count),
             change: Some(ScanChange::Different),
             tooltip: Some(translator.updated_tooltip()),
             ..Default::default()

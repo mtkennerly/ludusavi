@@ -1807,7 +1807,7 @@ bar [1 B] [+]:
   - [+] <drive>/brand-new
 
 Overall:
-  Games: 2
+  Games: 2 [+1] [Δ1]
   Size: 5 B
   Location: <drive>/dev/null
                 "#
@@ -1835,7 +1835,12 @@ Overall:
     "totalGames": 0,
     "totalBytes": 0,
     "processedGames": 0,
-    "processedBytes": 0
+    "processedBytes": 0,
+    "changedGames": {
+      "new": 0,
+      "different": 0,
+      "same": 0
+    }
   },
   "games": {}
 }
@@ -1884,7 +1889,12 @@ Overall:
     "totalGames": 1,
     "totalBytes": 150,
     "processedGames": 1,
-    "processedBytes": 100
+    "processedBytes": 100,
+    "changedGames": {
+      "new": 0,
+      "different": 0,
+      "same": 1
+    }
   },
   "games": {
     "foo": {
@@ -1960,7 +1970,12 @@ Overall:
     "totalGames": 1,
     "totalBytes": 150,
     "processedGames": 1,
-    "processedBytes": 150
+    "processedBytes": 150,
+    "changedGames": {
+      "new": 0,
+      "different": 0,
+      "same": 1
+    }
   },
   "games": {
     "foo": {
@@ -2027,7 +2042,12 @@ Overall:
     "totalGames": 1,
     "totalBytes": 100,
     "processedGames": 1,
-    "processedBytes": 100
+    "processedBytes": 100,
+    "changedGames": {
+      "new": 0,
+      "different": 0,
+      "same": 1
+    }
   },
   "games": {
     "foo": {
@@ -2089,7 +2109,12 @@ Overall:
     "totalGames": 1,
     "totalBytes": 4,
     "processedGames": 1,
-    "processedBytes": 4
+    "processedBytes": 4,
+    "changedGames": {
+      "new": 0,
+      "different": 1,
+      "same": 0
+    }
   },
   "games": {
     "foo": {

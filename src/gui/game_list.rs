@@ -387,6 +387,15 @@ impl GameList {
                 status.processed_games += 1;
                 status.processed_bytes += entry.scan_info.sum_bytes(&None);
             }
+
+            let changes = entry.scan_info.count_changes();
+            if changes.brand_new() {
+                status.changed_games.new += 1;
+            } else if changes.updated() {
+                status.changed_games.different += 1;
+            } else {
+                status.changed_games.same += 1;
+            }
         }
         status
     }

@@ -311,6 +311,22 @@ pub fn make_status_row<'a>(
         .padding([0, 20, 0, 20])
         .align_items(Alignment::Center)
         .push(Text::new(translator.processed_games(status)).size(35))
+        .push_if(
+            || status.changed_games.new > 0,
+            || {
+                Badge::new_entry_with_count(translator, status.changed_games.new)
+                    .left_margin(15)
+                    .view(theme)
+            },
+        )
+        .push_if(
+            || status.changed_games.different > 0,
+            || {
+                Badge::changed_entry_with_count(translator, status.changed_games.different)
+                    .left_margin(15)
+                    .view(theme)
+            },
+        )
         .push(Text::new("  |  ").size(35))
         .push(Text::new(translator.processed_bytes(status)).size(35))
         .push_if(
