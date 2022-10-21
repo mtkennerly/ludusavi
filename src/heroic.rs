@@ -55,7 +55,7 @@ pub struct HeroicGames {
 }
 
 impl HeroicGames {
-    pub fn get(&self, game: &String) -> Option<&StrictPath> {
+    pub fn get(&self, game: &str) -> Option<&StrictPath> {
         self.games.get(game)
     }
 
@@ -106,7 +106,7 @@ impl HeroicGames {
                         log::trace!("detect_legendary_games found game {} ({})", game.title, game.game_id);
                         // process game from GamesConfig
                         if let Some(sp) = self.find_prefix(
-                            root.path.interpret(),
+                            &root.path.interpret(),
                             &game.title,
                             &game.platform.to_lowercase(),
                             &game.game_id,
@@ -158,7 +158,7 @@ impl HeroicGames {
             for game in installed_games.installed {
                 if let Some(game_title) = game_titles.get(&game.game_id) {
                     if let Some(sp) =
-                        self.find_prefix(root.path.interpret(), game_title, &game.platform, &game.game_id)
+                        self.find_prefix(&root.path.interpret(), game_title, &game.platform, &game.game_id)
                     {
                         self.memorize_prefix(game_title, &sp);
                     }
@@ -167,7 +167,7 @@ impl HeroicGames {
         }
     }
 
-    fn memorize_prefix(&mut self, title: &String, path: &StrictPath) {
+    fn memorize_prefix(&mut self, title: &str, path: &StrictPath) {
         let normalized = normalize_title(title);
         if let Some(official) = self.normalized_to_official.get(&normalized) {
             log::trace!(
@@ -182,18 +182,18 @@ impl HeroicGames {
                 title
             );
             log::trace!("memorize_prefix memorizing path {} for {}", path.interpret(), title);
-            self.games.insert(title.clone(), path.clone());
+            self.games.insert(title.to_string(), path.clone());
         }
     }
 
     fn find_prefix(
         &self,
-        heroic_path: String,
-        game_name: &String,
-        platform: &String,
-        game_id: &String,
+        heroic_path: &str,
+        game_name: &str,
+        platform: &str,
+        game_id: &str,
     ) -> Option<StrictPath> {
-        match platform.as_str() {
+        match platform {
             "windows" => {
                 // no struct for type safety used here since GamesConfig use the game id as a key name
                 let v: serde_json::Value = serde_json::from_str(
