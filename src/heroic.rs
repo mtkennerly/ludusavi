@@ -91,38 +91,40 @@ impl HeroicGames {
 
         for &legendary_path_candidate in LEGENDARY_PATHS {
             let legendary_path = StrictPath::new(legendary_path_candidate.to_string());
-            if legendary_path.is_dir() {
-                log::trace!(
-                    "detect_legendary_roots found legendary configuration in {}",
-                    legendary_path.interpret()
-                );
+            if !legendary_path.is_dir() {
+                continue;
+            }
 
-                let mut legendary_installed = legendary_path.as_std_path_buf();
-                legendary_installed.push("installed.json");
-                if legendary_installed.is_file() {
-                    // read list of installed games and call find_game_root for result
-                    if let Ok(ins) = serde_json::from_str::<LegendaryInstalled>(
-                        &std::fs::read_to_string(legendary_installed).unwrap_or_default(),
-                    ) {
-                        ins.0.values().for_each(|game| {
-                            log::trace!("detect_legendary_roots found game {} ({})", game.title, game.game_id);
-                            // process game from GamesConfig
-                            if let Some(sp) = self.find_game_root(
-                                root.path.interpret(),
-                                &game.title,
-                                &game.platform.to_lowercase(),
-                                &game.game_id,
-                            ) {
-                                self.memorize_game_root(&game.title, &sp);
-                            }
-                        });
+            log::trace!(
+                "detect_legendary_roots found legendary configuration in {}",
+                legendary_path.interpret()
+            );
+
+            let mut legendary_installed = legendary_path.as_std_path_buf();
+            legendary_installed.push("installed.json");
+            if legendary_installed.is_file() {
+                // read list of installed games and call find_game_root for result
+                if let Ok(installed_games) = serde_json::from_str::<LegendaryInstalled>(
+                    &std::fs::read_to_string(legendary_installed).unwrap_or_default(),
+                ) {
+                    for game in installed_games.0.values() {
+                        log::trace!("detect_legendary_roots found game {} ({})", game.title, game.game_id);
+                        // process game from GamesConfig
+                        if let Some(sp) = self.find_game_root(
+                            root.path.interpret(),
+                            &game.title,
+                            &game.platform.to_lowercase(),
+                            &game.game_id,
+                        ) {
+                            self.memorize_game_root(&game.title, &sp);
+                        }
                     }
-                } else {
-                    log::trace!(
-                        "detect_legendary_roots no such file '{:?}', legendary probably not used yet... skipping",
-                        legendary_installed
-                    );
                 }
+            } else {
+                log::trace!(
+                    "detect_legendary_roots no such file '{:?}', legendary probably not used yet... skipping",
+                    legendary_installed
+                );
             }
         }
     }
@@ -134,29 +136,39 @@ impl HeroicGames {
         );
 
         // use gog_store/library.json to build map .app_name -> .title
-        let mut game_titles = std::collections::HashMap::<String, String>::new();
-        let gog_library = serde_json::from_str::<GogLibrary>(
-            &std::fs::read_to_string(format!("{}/gog_store/library.json", root.path.interpret())).unwrap_or_default(),
-        );
-        gog_library.unwrap().games.iter().for_each(|game| {
-            game_titles.insert(game.app_name.clone(), game.title.clone());
-        });
-        log::trace!(
-            "detect_gog_roots found {} games in {}",
-            game_titles.len(),
-            format!("{}/gog_store/library.json", root.path.interpret())
-        );
+        let game_titles: std::collections::HashMap<String, String>;
+        let library_path = format!("{}/gog_store/library.json", root.path.interpret());
+        match serde_json::from_str::<GogLibrary>(&std::fs::read_to_string(&library_path).unwrap_or_default()) {
+            Ok(gog_library) => {
+                game_titles = gog_library
+                    .games
+                    .iter()
+                    .map(|game| (game.app_name.clone(), game.title.clone()))
+                    .collect();
+            }
+            Err(e) => {
+                log::warn!(
+                    "detect_gog_roots aborting since it could not read {}: {}",
+                    library_path,
+                    e
+                );
+                return;
+            }
+        }
+        log::trace!("detect_gog_roots found {} games in {}", game_titles.len(), library_path);
 
         // iterate over all games found in HEROCONFIGDIR/gog_store/installed.json and call find_game_root
         let content = std::fs::read_to_string(format!("{}/gog_store/installed.json", root.path.interpret()));
         if let Ok(installed_games) = serde_json::from_str::<HeroicInstalled>(&content.unwrap_or_default()) {
-            installed_games.installed.iter().for_each(|game| {
-                let game_title = game_titles.get(&game.game_id).unwrap();
-                if let Some(sp) = self.find_game_root(root.path.interpret(), game_title, &game.platform, &game.game_id)
-                {
-                    self.memorize_game_root(game_title, &sp);
+            for game in installed_games.installed {
+                if let Some(game_title) = game_titles.get(&game.game_id) {
+                    if let Some(sp) =
+                        self.find_game_root(root.path.interpret(), game_title, &game.platform, &game.game_id)
+                    {
+                        self.memorize_game_root(game_title, &sp);
+                    }
                 }
-            })
+            }
         }
     }
 
