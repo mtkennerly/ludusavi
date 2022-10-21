@@ -80,7 +80,6 @@ impl HeroicGames {
         instance
     }
 
-
     fn detect_legendary_games(&mut self, root: &RootsConfig) {
         log::trace!("detect_legendary_games searching for legendary config...");
 
@@ -130,25 +129,23 @@ impl HeroicGames {
         );
 
         // use gog_store/library.json to build map .app_name -> .title
-        let game_titles: std::collections::HashMap<String, String>;
         let library_path = format!("{}/gog_store/library.json", root.path.interpret());
-        match serde_json::from_str::<GogLibrary>(&std::fs::read_to_string(&library_path).unwrap_or_default()) {
-            Ok(gog_library) => {
-                game_titles = gog_library
+        let game_titles: std::collections::HashMap<String, String> =
+            match serde_json::from_str::<GogLibrary>(&std::fs::read_to_string(&library_path).unwrap_or_default()) {
+                Ok(gog_library) => gog_library
                     .games
                     .iter()
                     .map(|game| (game.app_name.clone(), game.title.clone()))
-                    .collect();
-            }
-            Err(e) => {
-                log::warn!(
-                    "detect_gog_games aborting since it could not read {}: {}",
-                    library_path,
-                    e
-                );
-                return;
-            }
-        }
+                    .collect(),
+                Err(e) => {
+                    log::warn!(
+                        "detect_gog_games aborting since it could not read {}: {}",
+                        library_path,
+                        e
+                    );
+                    return;
+                }
+            };
         log::trace!("detect_gog_games found {} games in {}", game_titles.len(), library_path);
 
         // iterate over all games found in HEROCONFIGDIR/gog_store/installed.json and call find_prefix
@@ -169,11 +166,7 @@ impl HeroicGames {
     fn memorize_prefix(&mut self, title: &str, path: &StrictPath) {
         let normalized = normalize_title(title);
         if let Some(official) = self.normalized_to_official.get(&normalized) {
-            log::trace!(
-                "memorize_prefix memorizing path {} for {}",
-                path.interpret(),
-                official
-            );
+            log::trace!("memorize_prefix memorizing path {} for {}", path.interpret(), official);
             self.games.insert(official.clone(), path.clone());
         } else {
             log::info!(
@@ -185,13 +178,7 @@ impl HeroicGames {
         }
     }
 
-    fn find_prefix(
-        &self,
-        heroic_path: &str,
-        game_name: &str,
-        platform: &str,
-        game_id: &str,
-    ) -> Option<StrictPath> {
+    fn find_prefix(&self, heroic_path: &str, game_name: &str, platform: &str, game_id: &str) -> Option<StrictPath> {
         match platform {
             "windows" => {
                 // no struct for type safety used here since GamesConfig use the game id as a key name
