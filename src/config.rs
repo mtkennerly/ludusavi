@@ -535,7 +535,7 @@ impl Config {
             (format!("{}/GOG Galaxy/Games", pf64), Store::GogGalaxy),
             // Heroic:
             // TODO.2022-10-07 heroic: add default windows locations for heroic, probably similar to GOG Galaxy
-            ("~/.config/heroic".to_string(), Store::HeroicConfig),
+            ("~/.config/heroic".to_string(), Store::Heroic),
             // TODO.2022-10-20 heroic: flatpak install is not supported yet
             // (
             //     "~/.var/app/com.heroicgameslauncher.hgl/config/heroic".to_string(),

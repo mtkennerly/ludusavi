@@ -70,7 +70,7 @@ impl HeroicGames {
         };
 
         roots.iter().for_each(|root: &RootsConfig| {
-            if root.store == Store::HeroicConfig {
+            if root.store == Store::Heroic {
                 instance.detect_flatpak_roots(root);
                 instance.detect_legendary_roots(root);
                 instance.detect_gog_roots(root);
