@@ -95,12 +95,11 @@ impl HeroicGames {
                 legendary_path.interpret()
             );
 
-            let mut legendary_installed = legendary_path.as_std_path_buf();
-            legendary_installed.push("installed.json");
+            let legendary_installed = legendary_path.joined("installed.json");
             if legendary_installed.is_file() {
                 // read list of installed games and call find_prefix for result
                 if let Ok(installed_games) = serde_json::from_str::<LegendaryInstalled>(
-                    &std::fs::read_to_string(legendary_installed).unwrap_or_default(),
+                    &std::fs::read_to_string(legendary_installed.interpret()).unwrap_or_default(),
                 ) {
                     for game in installed_games.0.values() {
                         log::trace!("detect_legendary_games found game {} ({})", game.title, game.game_id);
