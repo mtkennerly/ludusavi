@@ -26,8 +26,6 @@ pub struct Config {
     pub restore: RestoreConfig,
     #[serde(default, rename = "customGames")]
     pub custom_games: Vec<CustomGame>,
-    #[serde(skip)]
-    pub heroic_roots: std::collections::HashMap<String, StrictPath>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -938,7 +936,6 @@ mod tests {
                     sort: Default::default(),
                 },
                 custom_games: vec![],
-                heroic_roots: std::collections::HashMap::new(),
             },
             config,
         );
@@ -1056,7 +1053,6 @@ mod tests {
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
                 ],
-                heroic_roots: std::collections::HashMap::new(),
             },
             config,
         );
@@ -1120,7 +1116,6 @@ mod tests {
                     sort: Default::default(),
                 },
                 custom_games: vec![],
-                heroic_roots: std::collections::HashMap::new(),
             },
             config,
         );
@@ -1237,7 +1232,6 @@ mod tests {
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
                 ],
-                heroic_roots: std::collections::HashMap::new(),
             },
             config,
         );
@@ -1383,7 +1377,6 @@ customGames:
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
                 ],
-                heroic_roots: std::collections::HashMap::new(),
             })
             .unwrap()
             .trim(),
