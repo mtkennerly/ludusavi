@@ -592,13 +592,13 @@ impl Application for App {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::Idle => {
-                self.go_idle();
-                Command::none()
-            }
             Message::Ignore => Command::none(),
             Message::Error(error) => {
                 self.show_error(error);
+                Command::none()
+            }
+            Message::CloseModal => {
+                self.modal_theme = None;
                 Command::none()
             }
             Message::UpdateManifest => {

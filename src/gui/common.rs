@@ -12,9 +12,9 @@ use iced::{Alignment, Row, Text};
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    Idle,
     Ignore,
     Error(Error),
+    CloseModal,
     UpdateManifest,
     ManifestUpdated(Result<Option<ManifestUpdate>, Error>),
     ConfirmBackupStart {

@@ -57,7 +57,7 @@ impl ModalTheme {
 
     pub fn message(&self) -> Option<Message> {
         match self {
-            Self::Error { .. } | Self::NoMissingRoots => Some(Message::Idle),
+            Self::Error { .. } | Self::NoMissingRoots => Some(Message::CloseModal),
             Self::ConfirmBackup { games } => Some(Message::BackupPrep {
                 preview: false,
                 games: games.clone(),
@@ -101,7 +101,7 @@ impl ModalComponent {
             &mut self.negative_button,
             Text::new(translator.cancel_button()).horizontal_alignment(HorizontalAlignment::Center),
         )
-        .on_press(Message::Idle)
+        .on_press(Message::CloseModal)
         .width(Length::Units(125))
         .style(style::Button::Negative(config.theme));
 

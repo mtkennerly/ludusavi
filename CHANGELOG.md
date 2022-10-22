@@ -35,6 +35,8 @@
   * Proton and Wine files are now searched case-insensitively on Linux.
   * When Ludusavi tried to find a rough match for an install folder like "Some Game",
     it did not recognize that "Some - Game" was close enough.
+  * GUI: Crash if you started a scan, clicked "find roots", and then clicked "cancel"
+    while the scan was still ongoing.
   * GUI: When the manifest finished updating in the background,
     any currently open modal would be closed.
   * CLI mode asked for confirmation when restoring, but backups behaved differently:
