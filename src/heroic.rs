@@ -11,8 +11,9 @@ use crate::{
 //
 #[derive(serde::Deserialize)]
 struct HeroicInstalledGame {
+    /// This is an opaque ID, not the human-readable title.
     #[serde(rename = "appName")]
-    game_id: String,
+    app_name: String,
     platform: String,
 }
 #[derive(serde::Deserialize)]
@@ -25,6 +26,7 @@ struct HeroicInstalled {
 //
 #[derive(serde::Deserialize)]
 struct GogLibraryGame {
+    /// This is an opaque ID, not the human-readable title.
     app_name: String,
     title: String,
 }
@@ -38,8 +40,9 @@ struct GogLibrary {
 //
 #[derive(serde::Deserialize)]
 struct LegendaryInstalledGame {
+    /// This is an opaque ID, not the human-readable title.
     #[serde(rename = "app_name")]
-    game_id: String,
+    app_name: String,
     title: String,
     platform: String,
 }
@@ -134,13 +137,13 @@ impl HeroicGames {
                     &std::fs::read_to_string(legendary_installed.interpret()).unwrap_or_default(),
                 ) {
                     for game in installed_games.0.values() {
-                        log::trace!("detect_legendary_games found game {} ({})", game.title, game.game_id);
+                        log::trace!("detect_legendary_games found game {} ({})", game.title, game.app_name);
                         // process game from GamesConfig
                         if let Some(sp) = self.find_prefix(
                             &root.path.interpret(),
                             &game.title,
                             &game.platform.to_lowercase(),
-                            &game.game_id,
+                            &game.app_name,
                         ) {
                             self.memorize_prefix(&game.title, &sp);
                         }
@@ -185,9 +188,9 @@ impl HeroicGames {
         let content = std::fs::read_to_string(format!("{}/gog_store/installed.json", root.path.interpret()));
         if let Ok(installed_games) = serde_json::from_str::<HeroicInstalled>(&content.unwrap_or_default()) {
             for game in installed_games.installed {
-                if let Some(game_title) = game_titles.get(&game.game_id) {
+                if let Some(game_title) = game_titles.get(&game.app_name) {
                     if let Some(sp) =
-                        self.find_prefix(&root.path.interpret(), game_title, &game.platform, &game.game_id)
+                        self.find_prefix(&root.path.interpret(), game_title, &game.platform, &game.app_name)
                     {
                         self.memorize_prefix(game_title, &sp);
                     }
@@ -211,7 +214,7 @@ impl HeroicGames {
         }
     }
 
-    fn find_prefix(&self, heroic_path: &str, game_name: &str, platform: &str, game_id: &str) -> Option<StrictPath> {
+    fn find_prefix(&self, heroic_path: &str, game_name: &str, platform: &str, app_name: &str) -> Option<StrictPath> {
         match platform {
             "windows" => {
                 println!(
@@ -220,13 +223,13 @@ impl HeroicGames {
                 );
 
                 match serde_json::from_str::<GamesConfigWrapper>(
-                    &std::fs::read_to_string(format!("{}/GamesConfig/{}.json", heroic_path, game_id))
+                    &std::fs::read_to_string(format!("{}/GamesConfig/{}.json", heroic_path, app_name))
                         .unwrap_or_default(),
                 ) {
                     Ok(games_config_wrapper) => {
                         println!("games_config_wrapper is {:#?}", games_config_wrapper);
 
-                        if let Some(game_config) = games_config_wrapper.0.get(game_id) {
+                        if let Some(game_config) = games_config_wrapper.0.get(app_name) {
                             match game_config {
                                 GamesConfig::Config {
                                     wine_version,
@@ -237,7 +240,7 @@ impl HeroicGames {
                                         "wine" => {
                                             println!(
                                                 "find_prefix found Heroic Wine prefix for {} ({}) -> adding {}",
-                                                game_name, game_id, wine_prefix
+                                                game_name, app_name, wine_prefix
                                             );
                                             Some(StrictPath::new(wine_prefix.clone()))
                                         }
@@ -246,7 +249,7 @@ impl HeroicGames {
                                             println!(
                                                 "find_prefix found Heroic Proton prefix for {} ({}), adding... -> {}",
                                                 game_name,
-                                                game_id,
+                                                app_name,
                                                 format!("{}/pfx", wine_prefix)
                                             );
                                             Some(StrictPath::new(format!("{}/pfx", wine_prefix)))
@@ -257,7 +260,7 @@ impl HeroicGames {
                                             log::warn!(
                                                 "find_prefix found Heroic Windows game {} ({}), checking... unknown wine_type: {:#?}",
                                                 game_name,
-                                                game_id,
+                                                app_name,
                                                 wine_version.wine_type
                                             );
                                             None
