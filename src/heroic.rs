@@ -6,7 +6,9 @@ use crate::{
     prelude::{normalize_title, StrictPath},
 };
 
+//
 // Deserialization of Heroic gog_store/installed.json
+//
 #[derive(serde::Deserialize)]
 struct HeroicInstalledGame {
     #[serde(rename = "appName")]
@@ -18,7 +20,9 @@ struct HeroicInstalled {
     installed: Vec<HeroicInstalledGame>,
 }
 
+//
 // Deserialization of Heroic gog_store/library.json
+//
 #[derive(serde::Deserialize)]
 struct GogLibraryGame {
     app_name: String,
@@ -29,7 +33,9 @@ struct GogLibrary {
     games: Vec<GogLibraryGame>,
 }
 
+//
 // Deserialization of Legendary legendary/installed.json
+//
 #[derive(serde::Deserialize)]
 struct LegendaryInstalledGame {
     #[serde(rename = "app_name")]
@@ -39,6 +45,33 @@ struct LegendaryInstalledGame {
 }
 #[derive(serde::Deserialize)]
 struct LegendaryInstalled(HashMap<String, LegendaryInstalledGame>);
+
+//
+// Deserialization of Heroic GamesConfig/*.json
+//
+#[derive(serde::Deserialize, Debug)]
+struct GamesConfigWrapper(HashMap<String, GamesConfig>);
+
+#[derive(serde::Deserialize, Debug)]
+#[serde(untagged)]
+enum GamesConfig {
+    Config {
+        #[serde(rename = "winePrefix")]
+        wine_prefix: String,
+        #[serde(rename = "wineVersion")]
+        wine_version: GamesConfigWine,
+    },
+    IgnoreOther(serde::de::IgnoredAny),
+}
+
+//
+// Main structure
+//
+#[derive(serde::Deserialize, Debug)]
+struct GamesConfigWine {
+    #[serde(rename = "type")]
+    wine_type: String,
+}
 
 // TODO.2022-10-10 heroic: windows location for legendary
 // TODO.2022-10-15 heroic: make relative to heroic root in question!
@@ -181,62 +214,78 @@ impl HeroicGames {
     fn find_prefix(&self, heroic_path: &str, game_name: &str, platform: &str, game_id: &str) -> Option<StrictPath> {
         match platform {
             "windows" => {
-                // no struct for type safety used here since GamesConfig use the game id as a key name
-                let v: serde_json::Value = serde_json::from_str(
+                println!(
+                    "find_prefix found Heroic Windows game {}, looking closer ...",
+                    game_name
+                );
+
+                match serde_json::from_str::<GamesConfigWrapper>(
                     &std::fs::read_to_string(format!("{}/GamesConfig/{}.json", heroic_path, game_id))
                         .unwrap_or_default(),
-                )
-                .unwrap_or_default();
+                ) {
+                    Ok(games_config_wrapper) => {
+                        println!("games_config_wrapper is {:#?}", games_config_wrapper);
 
-                match v[&game_id]["wineVersion"]["type"].as_str().unwrap_or_default() {
-                    "wine" => {
-                        log::trace!(
-                            "find_prefix found Heroic Wine prefix for {} ({}) -> adding {}",
-                            game_name,
-                            game_id,
-                            v[&game_id]["winePrefix"].as_str().unwrap_or_default().to_string()
-                        );
-                        Some(StrictPath::new(
-                            v[&game_id]["winePrefix"].as_str().unwrap_or_default().to_string(),
-                        ))
+                        if let Some(game_config) = games_config_wrapper.0.get(game_id) {
+                            match game_config {
+                                GamesConfig::Config {
+                                    wine_version,
+                                    wine_prefix,
+                                } => {
+                                    println!("game_config is {:#?}", game_config);
+                                    match wine_version.wine_type.as_str() {
+                                        "wine" => {
+                                            println!(
+                                                "find_prefix found Heroic Wine prefix for {} ({}) -> adding {}",
+                                                game_name, game_id, wine_prefix
+                                            );
+                                            Some(StrictPath::new(wine_prefix.clone()))
+                                        }
+
+                                        "proton" => {
+                                            println!(
+                                                "find_prefix found Heroic Proton prefix for {} ({}), adding... -> {}",
+                                                game_name,
+                                                game_id,
+                                                format!("{}/pfx", wine_prefix)
+                                            );
+                                            Some(StrictPath::new(format!("{}/pfx", wine_prefix)))
+                                        }
+
+                                        _ => {
+                                            // TODO.2022-10-07 handle unknown wine types, lutris?
+                                            log::warn!(
+                                                "find_prefix found Heroic Windows game {} ({}), checking... unknown wine_type: {:#?}",
+                                                game_name,
+                                                game_id,
+                                                wine_version.wine_type
+                                            );
+                                            None
+                                        }
+                                    }
+                                }
+                                GamesConfig::IgnoreOther(_) => None,
+                            }
+                        } else {
+                            None
+                        }
                     }
-
-                    "proton" => {
-                        log::trace!(
-                            "find_prefix found Heroic Proton prefix for {} ({}), adding... -> {}",
-                            game_name,
-                            game_id,
-                            format!("{}/pfx", v[&game_id]["winePrefix"].as_str().unwrap_or_default())
-                        );
-                        Some(StrictPath::new(format!(
-                            "{}/pfx",
-                            v[&game_id]["winePrefix"].as_str().unwrap_or_default()
-                        )))
-                    }
-
-                    _ => {
-                        // TODO.2022-10-07 handle unknown wine types, lutris?
-                        log::warn!(
-                            "find_prefix found Heroic Windows game {} ({}), checking... unknown wine_type: {:#?}",
-                            game_name,
-                            game_id,
-                            v[&game_id]["wineVersion"]["type"]
-                        );
+                    Err(e) => {
+                        println!("find_prefix error: '{}', ignoring", e);
                         None
                     }
                 }
             }
 
             "linux" => {
-                log::trace!("find_prefix found Heroic Linux game {}, ignoring", game_name);
+                println!("find_prefix found Heroic Linux game {}, ignoring", game_name);
                 None
             }
 
             _ => {
-                log::trace!(
+                println!(
                     "find_prefix found Heroic game {} with unhandled platform {}, ignoring.",
-                    game_name,
-                    platform,
+                    game_name, platform,
                 );
                 None
             }
