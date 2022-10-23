@@ -1,5 +1,6 @@
 use crate::{
     config::{BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry},
+    heroic::HeroicGames,
     layout::{Backup, GameLayout},
     manifest::{Game, Os, Store},
 };
@@ -791,9 +792,10 @@ pub fn scan_game_for_backup(
     name: &str,
     roots: &[RootsConfig],
     manifest_dir: &StrictPath,
+    heroic_games: &HeroicGames,
     steam_id: &Option<u32>,
     filter: &BackupFilter,
-    wine_prefix: &Option<&StrictPath>,
+    wine_prefix: &Option<StrictPath>,
     ranking: &InstallDirRanking,
     ignored_paths: &ToggledPaths,
     #[allow(unused_variables)] ignored_registry: &ToggledRegistry,
@@ -817,7 +819,7 @@ pub fn scan_game_for_backup(
 
     let manifest_dir_interpreted = manifest_dir.interpret();
 
-    if let Some(wp) = *wine_prefix {
+    if let Some(wp) = wine_prefix {
         log::trace!("[{name}] adding extra Wine prefix: {}", wp.raw());
         roots_to_check.push(RootsConfig {
             path: wp.clone(),
@@ -834,6 +836,24 @@ pub fn scan_game_for_backup(
             ),
             None,
         ));
+    }
+
+    // TODO.2022-10-23 refactor body of if to function, use it in statement above, too
+    // handle what was found for heroic
+    for root in roots {
+        if let Some(wp) = heroic_games.get(root, name) {
+            roots_to_check.push(RootsConfig {
+                path: wp.clone(),
+                store: Store::OtherWine,
+            });
+            paths_to_check.insert((
+                StrictPath::relative(
+                    format!("{}/*.reg", wp.interpret()),
+                    Some(manifest_dir_interpreted.clone()),
+                ),
+                None,
+            ));
+        }
     }
 
     for root in roots_to_check {

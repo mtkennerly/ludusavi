@@ -801,10 +801,6 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let game = &all_games.0[name];
                     let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
-                    let local_wp = match &wine_prefix {
-                        Some(sp) => Some(sp),
-                        None => heroic_games.get(name),
-                    };
 
                     let previous = layout.latest_backup(name, false, &config.redirects);
 
@@ -813,9 +809,10 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         name,
                         &roots,
                         &StrictPath::from_std_path_buf(&app_dir()),
+                        &heroic_games,
                         steam_id,
                         &filter,
-                        &local_wp,
+                        &wine_prefix,
                         &ranking,
                         &toggled_paths,
                         &toggled_registry,

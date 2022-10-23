@@ -86,13 +86,15 @@ const LEGENDARY_PATHS: &[&str] = &[
 
 #[derive(Clone, Default, Debug)]
 pub struct HeroicGames {
-    games: HashMap<String, StrictPath>,
+    games: HashMap<(RootsConfig, String), StrictPath>,
     normalized_to_official: HashMap<String, String>,
 }
 
 impl HeroicGames {
-    pub fn get(&self, game: &str) -> Option<&StrictPath> {
-        self.games.get(game)
+    pub fn get(&self, root: &RootsConfig, game: &str) -> Option<&StrictPath> {
+        // NOTE.2022-10-23 unusual to clone keys just for lookup, references
+        // should be good enough
+        self.games.get(&(root.clone(), game.to_string()))
     }
 
     pub fn scan(roots: &[RootsConfig], manifest: &Manifest) -> Self {
@@ -145,7 +147,7 @@ impl HeroicGames {
                             &game.platform.to_lowercase(),
                             &game.app_name,
                         ) {
-                            self.memorize_prefix(&game.title, &sp);
+                            self.memorize_prefix(root, &game.title, &sp);
                         }
                     }
                 }
@@ -192,32 +194,32 @@ impl HeroicGames {
                     if let Some(sp) =
                         self.find_prefix(&root.path.interpret(), game_title, &game.platform, &game.app_name)
                     {
-                        self.memorize_prefix(game_title, &sp);
+                        self.memorize_prefix(root, game_title, &sp);
                     }
                 }
             }
         }
     }
 
-    fn memorize_prefix(&mut self, title: &str, path: &StrictPath) {
+    fn memorize_prefix(&mut self, root: &RootsConfig, title: &str, path: &StrictPath) {
         let normalized = normalize_title(title);
         if let Some(official) = self.normalized_to_official.get(&normalized) {
             log::trace!("memorize_prefix memorizing path {} for {}", path.interpret(), official);
-            self.games.insert(official.clone(), path.clone());
+            self.games.insert((root.clone(), official.clone()), path.clone());
         } else {
             log::info!(
                 "memorize_prefix did not find {} in manifest, no backup/restore will be done!",
                 title
             );
             log::trace!("memorize_prefix memorizing path {} for {}", path.interpret(), title);
-            self.games.insert(title.to_string(), path.clone());
+            self.games.insert((root.clone(), title.to_string()), path.clone());
         }
     }
 
     fn find_prefix(&self, heroic_path: &str, game_name: &str, platform: &str, app_name: &str) -> Option<StrictPath> {
         match platform {
             "windows" => {
-                println!(
+                log::trace!(
                     "find_prefix found Heroic Windows game {}, looking closer ...",
                     game_name
                 );
@@ -227,46 +229,42 @@ impl HeroicGames {
                         .unwrap_or_default(),
                 ) {
                     Ok(games_config_wrapper) => {
-                        println!("games_config_wrapper is {:#?}", games_config_wrapper);
-
                         if let Some(game_config) = games_config_wrapper.0.get(app_name) {
                             match game_config {
                                 GamesConfig::Config {
                                     wine_version,
                                     wine_prefix,
-                                } => {
-                                    println!("game_config is {:#?}", game_config);
-                                    match wine_version.wine_type.as_str() {
-                                        "wine" => {
-                                            println!(
-                                                "find_prefix found Heroic Wine prefix for {} ({}) -> adding {}",
-                                                game_name, app_name, wine_prefix
-                                            );
-                                            Some(StrictPath::new(wine_prefix.clone()))
-                                        }
+                                } => match wine_version.wine_type.as_str() {
+                                    "wine" => {
+                                        log::trace!(
+                                            "find_prefix found Heroic Wine prefix for {} ({}) -> adding {}",
+                                            game_name,
+                                            app_name,
+                                            wine_prefix
+                                        );
+                                        Some(StrictPath::new(wine_prefix.clone()))
+                                    }
 
-                                        "proton" => {
-                                            println!(
-                                                "find_prefix found Heroic Proton prefix for {} ({}), adding... -> {}",
-                                                game_name,
-                                                app_name,
-                                                format!("{}/pfx", wine_prefix)
-                                            );
-                                            Some(StrictPath::new(format!("{}/pfx", wine_prefix)))
-                                        }
+                                    "proton" => {
+                                        log::trace!(
+                                            "find_prefix found Heroic Proton prefix for {} ({}), adding... -> {}",
+                                            game_name,
+                                            app_name,
+                                            format!("{}/pfx", wine_prefix)
+                                        );
+                                        Some(StrictPath::new(format!("{}/pfx", wine_prefix)))
+                                    }
 
-                                        _ => {
-                                            // TODO.2022-10-07 handle unknown wine types, lutris?
-                                            log::warn!(
+                                    _ => {
+                                        log::warn!(
                                                 "find_prefix found Heroic Windows game {} ({}), checking... unknown wine_type: {:#?}",
                                                 game_name,
                                                 app_name,
                                                 wine_version.wine_type
                                             );
-                                            None
-                                        }
+                                        None
                                     }
-                                }
+                                },
                                 GamesConfig::IgnoreOther(_) => None,
                             }
                         } else {
@@ -274,21 +272,22 @@ impl HeroicGames {
                         }
                     }
                     Err(e) => {
-                        println!("find_prefix error: '{}', ignoring", e);
+                        log::trace!("find_prefix error: '{}', ignoring", e);
                         None
                     }
                 }
             }
 
             "linux" => {
-                println!("find_prefix found Heroic Linux game {}, ignoring", game_name);
+                log::trace!("find_prefix found Heroic Linux game {}, ignoring", game_name);
                 None
             }
 
             _ => {
-                println!(
+                log::trace!(
                     "find_prefix found Heroic game {} with unhandled platform {}, ignoring.",
-                    game_name, platform,
+                    game_name,
+                    platform,
                 );
                 None
             }
