@@ -54,6 +54,7 @@ struct LegendaryInstalled(HashMap<String, LegendaryInstalledGame>);
 //
 #[derive(serde::Deserialize, Debug)]
 struct GamesConfigWrapper(HashMap<String, GamesConfig>);
+
 #[derive(serde::Deserialize, Debug)]
 #[serde(untagged)]
 enum GamesConfig {
@@ -71,14 +72,6 @@ struct GamesConfigWine {
     wine_type: String,
 }
 
-// TODO.2022-10-10 heroic: windows location for legendary
-// TODO.2022-10-15 heroic: make relative to heroic root in question!
-const LEGENDARY_PATHS: &[&str] = &[
-    "~/.config/legendary",
-    // TODO.2022-10-20 heroic: flatpak install is not supported yet
-    // "~/.var/app/com.heroicgameslauncher.hgl/config/legendary",
-];
-
 //
 /// Main structure where games installed with heroic are collected
 //
@@ -95,7 +88,7 @@ impl HeroicGames {
         self.games.get(&(root.clone(), game.to_string()))
     }
 
-    pub fn scan(roots: &[RootsConfig], manifest: &Manifest) -> Self {
+    pub fn scan(roots: &[RootsConfig], manifest: &Manifest, legendary: Option<StrictPath>) -> Self {
         let mut instance = HeroicGames {
             normalized_to_official: manifest
                 .0
@@ -107,7 +100,7 @@ impl HeroicGames {
 
         for root in roots {
             if root.store == Store::Heroic {
-                instance.detect_legendary_games(root);
+                instance.detect_legendary_games(root, &legendary);
                 instance.detect_gog_games(root);
                 log::trace!("scan found: {:#?}", instance.games);
             }
@@ -116,11 +109,21 @@ impl HeroicGames {
         instance
     }
 
-    fn detect_legendary_games(&mut self, root: &RootsConfig) {
+    fn detect_legendary_games(&mut self, root: &RootsConfig, legendary: &Option<StrictPath>) {
         log::trace!("detect_legendary_games searching for legendary config...");
 
-        for &legendary_path_candidate in LEGENDARY_PATHS {
-            let legendary_path = StrictPath::new(legendary_path_candidate.to_string());
+        // TODO.2022-10-10 heroic: windows location for legendary
+        // TODO.2022-10-15 heroic: make relative to heroic root in question!
+        let legendary_paths = match legendary {
+            None => vec![
+                StrictPath::new("~/.config/legendary".to_string()),
+                // TODO.2022-10-20 heroic: flatpak install is not supported yet
+                // "~/.var/app/com.heroicgameslauncher.hgl/config/legendary",
+            ],
+            Some(x) => vec![x.clone()],
+        };
+
+        for legendary_path in &legendary_paths {
             if !legendary_path.is_dir() {
                 continue;
             }
@@ -133,18 +136,15 @@ impl HeroicGames {
             let legendary_installed = legendary_path.joined("installed.json");
             if legendary_installed.is_file() {
                 // read list of installed games and call find_prefix for result
-                if let Ok(installed_games) = serde_json::from_str::<LegendaryInstalled>(
-                    &std::fs::read_to_string(legendary_installed.interpret()).unwrap_or_default(),
-                ) {
+                if let Ok(installed_games) =
+                    serde_json::from_str::<LegendaryInstalled>(&legendary_installed.read().unwrap_or_default())
+                {
                     for game in installed_games.0.values() {
                         log::trace!("detect_legendary_games found game {} ({})", game.title, game.app_name);
                         // process game from GamesConfig
-                        if let Some(sp) = self.find_prefix(
-                            &root.path.interpret(),
-                            &game.title,
-                            &game.platform.to_lowercase(),
-                            &game.app_name,
-                        ) {
+                        if let Some(sp) =
+                            self.find_prefix(&root.path, &game.title, &game.platform.to_lowercase(), &game.app_name)
+                        {
                             self.memorize_prefix(root, &game.title, &sp);
                         }
                     }
@@ -165,9 +165,9 @@ impl HeroicGames {
         );
 
         // use gog_store/library.json to build map .app_name -> .title
-        let library_path = format!("{}/gog_store/library.json", root.path.interpret());
+        let library_path = root.path.joined("gog_store").joined("library.json");
         let game_titles: std::collections::HashMap<String, String> =
-            match serde_json::from_str::<GogLibrary>(&std::fs::read_to_string(&library_path).unwrap_or_default()) {
+            match serde_json::from_str::<GogLibrary>(&library_path.read().unwrap_or_default()) {
                 Ok(gog_library) => gog_library
                     .games
                     .iter()
@@ -176,22 +176,25 @@ impl HeroicGames {
                 Err(e) => {
                     log::warn!(
                         "detect_gog_games aborting since it could not read {}: {}",
-                        library_path,
+                        library_path.interpret(),
                         e
                     );
                     return;
                 }
             };
-        log::trace!("detect_gog_games found {} games in {}", game_titles.len(), library_path);
+        log::trace!(
+            "detect_gog_games found {} games in {}",
+            game_titles.len(),
+            library_path.interpret()
+        );
 
         // iterate over all games found in HEROCONFIGDIR/gog_store/installed.json and call find_prefix
-        let content = std::fs::read_to_string(format!("{}/gog_store/installed.json", root.path.interpret()));
+        let installed_path = root.path.joined("gog_store").joined("installed.json");
+        let content = installed_path.read();
         if let Ok(installed_games) = serde_json::from_str::<HeroicInstalled>(&content.unwrap_or_default()) {
             for game in installed_games.installed {
                 if let Some(game_title) = game_titles.get(&game.app_name) {
-                    if let Some(sp) =
-                        self.find_prefix(&root.path.interpret(), game_title, &game.platform, &game.app_name)
-                    {
+                    if let Some(sp) = self.find_prefix(&root.path, game_title, &game.platform, &game.app_name) {
                         self.memorize_prefix(root, game_title, &sp);
                     }
                 }
@@ -214,7 +217,13 @@ impl HeroicGames {
         }
     }
 
-    fn find_prefix(&self, heroic_path: &str, game_name: &str, platform: &str, app_name: &str) -> Option<StrictPath> {
+    fn find_prefix(
+        &self,
+        heroic_path: &StrictPath,
+        game_name: &str,
+        platform: &str,
+        app_name: &str,
+    ) -> Option<StrictPath> {
         match platform {
             "windows" => {
                 log::trace!(
@@ -222,10 +231,8 @@ impl HeroicGames {
                     game_name
                 );
 
-                match serde_json::from_str::<GamesConfigWrapper>(
-                    &std::fs::read_to_string(format!("{}/GamesConfig/{}.json", heroic_path, app_name))
-                        .unwrap_or_default(),
-                ) {
+                let games_config_path = heroic_path.joined("GamesConfig").joined(&format!("{app_name}.json"));
+                match serde_json::from_str::<GamesConfigWrapper>(&games_config_path.read().unwrap_or_default()) {
                     Ok(games_config_wrapper) => {
                         if let Some(game_config) = games_config_wrapper.0.get(app_name) {
                             match game_config {
@@ -290,5 +297,49 @@ impl HeroicGames {
                 None
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::testing::repo;
+    use maplit::hashmap;
+
+    fn manifest() -> Manifest {
+        Manifest::load_from_string(
+            r#"
+            windows-game:
+              files:
+                <base>/file1.txt: {}
+            "#,
+        )
+        .unwrap()
+    }
+
+    #[test]
+    fn scan_finds_nothing_when_folder_does_not_exist() {
+        let roots = vec![RootsConfig {
+            path: StrictPath::new(format!("{}/tests/nonexistent", repo())),
+            store: Store::Heroic,
+        }];
+        let prefixes = HeroicGames::scan(&roots, &manifest(), None);
+        assert_eq!(HashMap::new(), prefixes.games);
+    }
+
+    #[test]
+    fn scan_finds_all_games() {
+        let roots = vec![RootsConfig {
+            path: StrictPath::new(format!("{}/tests/launchers/heroic", repo())),
+            store: Store::Heroic,
+        }];
+        let legendary = Some(StrictPath::new(format!("{}/tests/launchers/legendary", repo())));
+        let prefixes = HeroicGames::scan(&roots, &manifest(), legendary);
+        assert_eq!(
+            hashmap! {
+                (roots[0].clone(), "windows-game".to_string()) => StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string()),
+            },
+            prefixes.games,
+        );
     }
 }
