@@ -256,8 +256,8 @@ impl HeroicGames {
                                     }
 
                                     _ => {
-                                        log::warn!(
-                                                "find_prefix found Heroic Windows game {} ({}), checking... unknown wine_type: {:#?}",
+                                        log::info!(
+                                                "find_prefix found Heroic Windows game {} ({}), checking... unknown wine_type: {:#?} -> ignored",
                                                 game_name,
                                                 app_name,
                                                 wine_version.wine_type
