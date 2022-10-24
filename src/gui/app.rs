@@ -15,6 +15,7 @@ use crate::{
         root_editor::RootEditorRow,
         style,
     },
+    heroic::HeroicGames,
     lang::Translator,
     layout::BackupLayout,
     manifest::{Manifest, Store},
@@ -247,6 +248,7 @@ impl App {
 
         self.register_notify_on_single_game_scanned(&games);
 
+        let heroic_games = std::sync::Arc::new(HeroicGames::scan(&self.config.roots, &all_games));
         let config = std::sync::Arc::new(self.config.clone());
         let roots = std::sync::Arc::new(config.expanded_roots());
         let layout = std::sync::Arc::new(BackupLayout::new(
@@ -260,6 +262,7 @@ impl App {
             let game = all_games.0[&key].clone();
             let config = config.clone();
             let roots = roots.clone();
+            let heroic_games = heroic_games.clone();
             let layout = layout.clone();
             let filter = filter.clone();
             let ranking = ranking.clone();
@@ -284,6 +287,7 @@ impl App {
                         &key,
                         &roots,
                         &StrictPath::from_std_path_buf(&app_dir()),
+                        &heroic_games,
                         &steam_id,
                         &filter,
                         &None,

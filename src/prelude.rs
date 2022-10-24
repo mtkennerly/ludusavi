@@ -1,5 +1,6 @@
 use crate::{
     config::{BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry},
+    heroic::HeroicGames,
     layout::{Backup, GameLayout},
     manifest::{Game, Os, Store},
 };
@@ -802,6 +803,7 @@ pub fn scan_game_for_backup(
     name: &str,
     roots: &[RootsConfig],
     manifest_dir: &StrictPath,
+    heroic_games: &HeroicGames,
     steam_id: &Option<u32>,
     filter: &BackupFilter,
     wine_prefix: &Option<StrictPath>,
@@ -828,23 +830,19 @@ pub fn scan_game_for_backup(
 
     let manifest_dir_interpreted = manifest_dir.interpret();
 
+    // We can add this for Wine prefixes from the CLI because they're
+    // typically going to be used for only one or a few games at a time.
+    // For other Wine roots, it would trigger for every game.
     if let Some(wp) = wine_prefix {
         log::trace!("[{name}] adding extra Wine prefix: {}", wp.raw());
-        roots_to_check.push(RootsConfig {
-            path: wp.clone(),
-            store: Store::OtherWine,
-        });
+        scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, &manifest_dir_interpreted);
+    }
 
-        // We can add this for Wine prefixes from the CLI because they're
-        // typically going to be used for only one or a few games at a time.
-        // For other Wine roots, it would trigger for every game.
-        paths_to_check.insert((
-            StrictPath::relative(
-                format!("{}/*.reg", wp.interpret()),
-                Some(manifest_dir_interpreted.clone()),
-            ),
-            None,
-        ));
+    // handle what was found for heroic
+    for root in roots {
+        if let Some(wp) = heroic_games.get(root, name) {
+            scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, &manifest_dir_interpreted);
+        }
     }
 
     for root in roots_to_check {
@@ -1016,6 +1014,25 @@ pub fn scan_game_for_backup(
         found_registry_keys,
         ..Default::default()
     }
+}
+
+fn scan_game_for_backup_add_prefix(
+    roots_to_check: &mut Vec<RootsConfig>,
+    paths_to_check: &mut std::collections::HashSet<(StrictPath, Option<bool>)>,
+    wp: &StrictPath,
+    manifest_dir_interpreted: &str,
+) {
+    roots_to_check.push(RootsConfig {
+        path: wp.clone(),
+        store: Store::OtherWine,
+    });
+    paths_to_check.insert((
+        StrictPath::relative(
+            format!("{}/*.reg", wp.interpret()),
+            Some(manifest_dir_interpreted.to_owned()),
+        ),
+        None,
+    ));
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -1587,6 +1604,7 @@ mod tests {
                 "game1",
                 &config().roots,
                 &StrictPath::new(repo()),
+                &HeroicGames::default(),
                 &None,
                 &BackupFilter::default(),
                 &None,
@@ -1612,6 +1630,7 @@ mod tests {
                 "game 2",
                 &config().roots,
                 &StrictPath::new(repo()),
+                &HeroicGames::default(),
                 &None,
                 &BackupFilter::default(),
                 &None,
@@ -1644,6 +1663,7 @@ mod tests {
                 "game5",
                 roots,
                 &StrictPath::new(repo()),
+                &HeroicGames::default(),
                 &None,
                 &BackupFilter::default(),
                 &None,
@@ -1676,6 +1696,7 @@ mod tests {
                 "game 2",
                 roots,
                 &StrictPath::new(repo()),
+                &HeroicGames::default(),
                 &None,
                 &BackupFilter::default(),
                 &None,
@@ -1712,6 +1733,7 @@ mod tests {
                 "game4",
                 roots,
                 &StrictPath::new(repo()),
+                &HeroicGames::default(),
                 &None,
                 &BackupFilter::default(),
                 &None,
@@ -1747,6 +1769,7 @@ mod tests {
                 "game4",
                 roots,
                 &StrictPath::new(repo()),
+                &HeroicGames::default(),
                 &None,
                 &BackupFilter::default(),
                 &None,
@@ -1776,6 +1799,7 @@ mod tests {
                 "game4",
                 &config().roots,
                 &StrictPath::new(repo()),
+                &HeroicGames::default(),
                 &None,
                 &BackupFilter::default(),
                 &Some(StrictPath::new(format!("{}/tests/wine-prefix", repo()))),
@@ -1840,6 +1864,7 @@ mod tests {
                     "game1",
                     &config().roots,
                     &StrictPath::new(repo()),
+                    &HeroicGames::default(),
                     &None,
                     &filter,
                     &None,
@@ -1870,6 +1895,7 @@ mod tests {
                 "game3",
                 &config().roots,
                 &StrictPath::new(repo()),
+                &HeroicGames::default(),
                 &None,
                 &BackupFilter::default(),
                 &None,
@@ -1901,6 +1927,7 @@ mod tests {
                 "game3-outer",
                 &config().roots,
                 &StrictPath::new(repo()),
+                &HeroicGames::default(),
                 &None,
                 &BackupFilter::default(),
                 &None,
@@ -1969,6 +1996,7 @@ mod tests {
                     "game3-outer",
                     &config().roots,
                     &StrictPath::new(repo()),
+                    &HeroicGames::default(),
                     &None,
                     &filter,
                     &None,

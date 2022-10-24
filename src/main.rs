@@ -4,6 +4,7 @@ mod cache;
 mod cli;
 mod config;
 mod gui;
+mod heroic;
 mod lang;
 mod layout;
 mod manifest;

@@ -30,6 +30,8 @@ pub enum Store {
     Gog,
     #[serde(rename = "gogGalaxy")]
     GogGalaxy,
+    #[serde(rename = "heroic")]
+    Heroic,
     #[serde(rename = "microsoft")]
     Microsoft,
     #[serde(rename = "origin")]
@@ -53,6 +55,7 @@ impl Store {
         Store::Epic,
         Store::Gog,
         Store::GogGalaxy,
+        Store::Heroic,
         Store::Microsoft,
         Store::Origin,
         Store::Prime,
