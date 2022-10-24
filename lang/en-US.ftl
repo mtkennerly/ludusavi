@@ -98,6 +98,7 @@ label-manifest = Manifest
 label-checked = Checked
 # This shows the time when we found an update to the manifest.
 label-updated = Updated
+label-new = New
 
 store-epic = Epic
 store-gog = GOG
@@ -157,3 +158,7 @@ updating-manifest = Updating manifest...
 
 saves-found = Save data found.
 no-saves-found = No save data found.
+
+# This is tacked on to form something like "Back up (no confirmation)",
+# meaning we would perform an action without asking the user if they're sure.
+suffix-no-confirmation = no confirmation

@@ -2,8 +2,7 @@ use crate::{
     cache::Cache,
     config::Config,
     gui::{
-        common::OngoingOperation,
-        common::{make_status_row, BrowseSubject, Message, Screen},
+        common::{make_status_row, BrowseSubject, IcedButtonExt, Message, OngoingOperation, Screen},
         game_list::GameList,
         icon::Icon,
         style,
@@ -67,19 +66,20 @@ impl RestoreScreenComponent {
                                 })
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(match operation {
-                                None => Message::RestoreStart {
+                            .on_press_some(match operation {
+                                None => Some(Message::RestoreStart {
                                     preview: true,
                                     games: None,
-                                },
-                                Some(OngoingOperation::PreviewRestore) => Message::CancelOperation,
-                                _ => Message::Ignore,
+                                }),
+                                Some(OngoingOperation::PreviewRestore) => Some(Message::CancelOperation),
+                                _ => None,
                             })
                             .width(Length::Units(125))
                             .style(match operation {
-                                None => style::Button::Primary(config.theme),
-                                Some(OngoingOperation::PreviewRestore) => style::Button::Negative(config.theme),
-                                _ => style::Button::Disabled(config.theme),
+                                Some(OngoingOperation::PreviewRestore | OngoingOperation::CancelPreviewRestore) => {
+                                    style::Button::Negative(config.theme)
+                                }
+                                _ => style::Button::Primary(config.theme),
                             }),
                         )
                         .push(
@@ -92,16 +92,17 @@ impl RestoreScreenComponent {
                                 })
                                 .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press(match operation {
-                                None => Message::ConfirmRestoreStart { games: None },
-                                Some(OngoingOperation::Restore) => Message::CancelOperation,
-                                _ => Message::Ignore,
+                            .on_press_some(match operation {
+                                None => Some(Message::ConfirmRestoreStart { games: None }),
+                                Some(OngoingOperation::Restore) => Some(Message::CancelOperation),
+                                _ => None,
                             })
                             .width(Length::Units(125))
                             .style(match operation {
-                                None => style::Button::Primary(config.theme),
-                                Some(OngoingOperation::Restore) => style::Button::Negative(config.theme),
-                                _ => style::Button::Disabled(config.theme),
+                                Some(OngoingOperation::Restore | OngoingOperation::CancelRestore) => {
+                                    style::Button::Negative(config.theme)
+                                }
+                                _ => style::Button::Primary(config.theme),
                             }),
                         )
                         .push({

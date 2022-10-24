@@ -387,8 +387,19 @@ impl Translator {
     }
 
     pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {
+        let new_games = if status.changed_games.new > 0 {
+            format!(" [{}{}]", crate::lang::ADD_SYMBOL, status.changed_games.new)
+        } else {
+            "".to_string()
+        };
+        let changed_games = if status.changed_games.different > 0 {
+            format!(" [{}{}]", crate::lang::CHANGE_SYMBOL, status.changed_games.different)
+        } else {
+            "".to_string()
+        };
+
         format!(
-            "{}:\n  {}: {}\n  {}: {}\n  {}: {}",
+            "{}:\n  {}: {}{}{}\n  {}: {}\n  {}: {}",
             translate("overall"),
             translate("total-games"),
             if status.processed_all_games() {
@@ -396,6 +407,8 @@ impl Translator {
             } else {
                 format!("{} / {}", status.processed_games, status.total_games)
             },
+            new_games,
+            changed_games,
             translate("file-size"),
             if status.processed_all_bytes() {
                 self.adjusted_size(status.processed_bytes)
@@ -415,12 +428,24 @@ impl Translator {
         translate("button-backup")
     }
 
+    pub fn backup_button_no_confirmation(&self) -> String {
+        format!("{} ({})", self.backup_button(), self.suffix_no_confirmation())
+    }
+
     pub fn preview_button(&self) -> String {
         translate("button-preview")
     }
 
+    pub fn preview_button_in_custom_mode(&self) -> String {
+        format!("{} ({})", self.preview_button(), self.backup_button().to_lowercase())
+    }
+
     pub fn restore_button(&self) -> String {
         translate("button-restore")
+    }
+
+    pub fn restore_button_no_confirmation(&self) -> String {
+        format!("{} ({})", self.restore_button(), self.suffix_no_confirmation())
     }
 
     pub fn nav_backup_button(&self) -> String {
@@ -737,6 +762,14 @@ impl Translator {
         self.field(&translate("label-updated"))
     }
 
+    pub fn new_tooltip(&self) -> String {
+        translate("label-new")
+    }
+
+    pub fn updated_tooltip(&self) -> String {
+        translate("label-updated")
+    }
+
     fn consider_doing_a_preview(&self) -> String {
         translate("consider-doing-a-preview")
     }
@@ -786,5 +819,9 @@ impl Translator {
         } else {
             translate("no-saves-found")
         }
+    }
+
+    pub fn suffix_no_confirmation(&self) -> String {
+        translate("suffix-no-confirmation")
     }
 }

@@ -156,10 +156,8 @@ impl Theme {
 
 pub enum Button {
     Primary(Theme),
-    Disabled(Theme),
     Negative(Theme),
     GameActionPrimary(Theme),
-    GameActionDisabled(Theme),
     GameListEntryTitle(Theme),
     GameListEntryTitleFailed(Theme),
     GameListEntryTitleDisabled(Theme),
@@ -169,10 +167,8 @@ impl Button {
     fn theme(&self) -> &Theme {
         match self {
             Self::Primary(theme) => theme,
-            Self::Disabled(theme) => theme,
             Self::Negative(theme) => theme,
             Self::GameActionPrimary(theme) => theme,
-            Self::GameActionDisabled(theme) => theme,
             Self::GameListEntryTitle(theme) => theme,
             Self::GameListEntryTitleFailed(theme) => theme,
             Self::GameListEntryTitleDisabled(theme) => theme,
@@ -190,12 +186,10 @@ impl button::StyleSheet for Button {
                 Self::GameListEntryTitleFailed(_) => Some(t.failure().into()),
                 Self::GameListEntryTitleDisabled(_) => Some(t.skipped().into()),
                 Self::GameListEntryTitleUnscanned(_) => None,
-                Self::Disabled(_) | Self::GameActionDisabled(_) => Some(t.disabled().into()),
                 Self::Negative(_) => Some(t.negative().into()),
             },
             border_radius: match self {
                 Self::GameActionPrimary(_)
-                | Self::GameActionDisabled(_)
                 | Self::GameListEntryTitle(_)
                 | Self::GameListEntryTitleFailed(_)
                 | Self::GameListEntryTitleDisabled(_)
@@ -277,6 +271,7 @@ pub enum Container {
     ChangeBadge(Theme, ScanChange),
     DisabledBackup(Theme),
     Notification(Theme),
+    Tooltip(Theme),
 }
 impl Container {
     fn theme(&self) -> &Theme {
@@ -288,6 +283,7 @@ impl Container {
             Self::ChangeBadge(theme, _) => theme,
             Self::DisabledBackup(theme) => theme,
             Self::Notification(theme) => theme,
+            Self::Tooltip(theme) => theme,
         }
     }
 }
@@ -296,7 +292,7 @@ impl container::StyleSheet for Container {
         let t = self.theme();
         container::Style {
             background: match self {
-                Self::ModalBackground(_) | Self::Notification(_) => Some(t.field().into()),
+                Self::ModalBackground(_) | Self::Notification(_) | Self::Tooltip(_) => Some(t.field().into()),
                 Self::DisabledBackup(_) => Some(t.disabled().into()),
                 _ => Some(t.background().into()),
             },
@@ -315,7 +311,7 @@ impl container::StyleSheet for Container {
             },
             border_radius: match self {
                 Self::GameListEntry(_) | Self::Badge(..) | Self::ChangeBadge(..) | Self::DisabledBackup(_) => 10.0,
-                Self::Notification(_) => 20.0,
+                Self::Notification(_) | Self::Tooltip(_) => 20.0,
                 _ => 0.0,
             },
             text_color: match self {

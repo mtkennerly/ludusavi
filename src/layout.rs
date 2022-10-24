@@ -1509,13 +1509,20 @@ pub enum BackupKind {
 pub struct BackupLayout {
     pub base: StrictPath,
     games: std::collections::HashMap<String, StrictPath>,
+    games_lowercase: std::collections::HashMap<String, StrictPath>,
     retention: Retention,
 }
 
 impl BackupLayout {
     pub fn new(base: StrictPath, retention: Retention) -> Self {
         let games = Self::load(&base);
-        Self { base, games, retention }
+        let games_lowercase = games.iter().map(|(k, v)| (k.to_lowercase(), v.clone())).collect();
+        Self {
+            base,
+            games,
+            games_lowercase,
+            retention,
+        }
     }
 
     pub fn load(base: &StrictPath) -> std::collections::HashMap<String, StrictPath> {
@@ -1545,7 +1552,16 @@ impl BackupLayout {
         let path = self.game_folder(name);
 
         match GameLayout::load(path.clone(), self.retention.clone()) {
-            Ok(x) => x,
+            Ok(mut x) => {
+                if x.mapping.name != name {
+                    // This can happen if the game name changed in the manifest,
+                    // but differs only by capitalization when we're on a case-insensitive OS.
+                    // If we don't adjust it, it'll always show up as a new game.
+                    log::info!("Updating renamed game: {} -> {}", &x.mapping.name, name);
+                    x.mapping.name = name.to_string();
+                }
+                x
+            }
             Err(_) => GameLayout {
                 path,
                 mapping: IndividualMapping::new(name.to_string()),
@@ -1554,8 +1570,13 @@ impl BackupLayout {
         }
     }
 
+    fn contains_game(&self, name: &str) -> bool {
+        self.games.contains_key(name)
+            || (crate::prelude::CASE_INSENSITIVE_OS && self.games_lowercase.contains_key(&name.to_lowercase()))
+    }
+
     pub fn latest_backup(&self, name: &str, restoring: bool, redirects: &[RedirectConfig]) -> Option<ScanInfo> {
-        if self.games.contains_key(name) {
+        if self.contains_game(name) {
             let game_layout = self.game_layout(name);
             game_layout.latest_backup(restoring, redirects)
         } else {

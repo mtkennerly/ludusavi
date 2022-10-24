@@ -77,7 +77,7 @@ pub enum ScanChange {
     Unknown,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize)]
 pub struct ScanChangeCount {
     pub new: usize,
     pub different: usize,
@@ -374,6 +374,8 @@ pub struct OperationStatus {
     pub processed_games: usize,
     #[serde(rename = "processedBytes")]
     pub processed_bytes: u64,
+    #[serde(rename = "changedGames")]
+    pub changed_games: ScanChangeCount,
 }
 
 impl OperationStatus {
@@ -383,6 +385,15 @@ impl OperationStatus {
         if processed {
             self.processed_games += 1;
             self.processed_bytes += scan_info.sum_bytes(backup_info);
+        }
+
+        let changes = scan_info.count_changes();
+        if changes.brand_new() {
+            self.changed_games.new += 1;
+        } else if changes.updated() {
+            self.changed_games.different += 1;
+        } else {
+            self.changed_games.same += 1;
         }
     }
 

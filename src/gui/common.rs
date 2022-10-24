@@ -12,9 +12,9 @@ use iced::{Alignment, Row, Text};
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    Idle,
     Ignore,
     Error(Error),
+    CloseModal,
     UpdateManifest,
     ManifestUpdated(Result<Option<ManifestUpdate>, Error>),
     ConfirmBackupStart {
@@ -216,9 +216,7 @@ impl GameAction {
 
         options
     }
-}
 
-impl GameAction {
     pub fn icon(&self) -> Icon {
         match self {
             GameAction::Backup { confirm } | GameAction::Restore { confirm } => {
@@ -240,8 +238,20 @@ impl ToString for GameAction {
         let translator = Translator::default();
         match self {
             Self::PreviewBackup | Self::PreviewRestore => translator.preview_button(),
-            Self::Backup { .. } => translator.backup_button(),
-            Self::Restore { .. } => translator.restore_button(),
+            Self::Backup { confirm } => {
+                if *confirm {
+                    translator.backup_button()
+                } else {
+                    translator.backup_button_no_confirmation()
+                }
+            }
+            Self::Restore { confirm } => {
+                if *confirm {
+                    translator.restore_button()
+                } else {
+                    translator.restore_button_no_confirmation()
+                }
+            }
             Self::Customize => translator.customize_button(),
             Self::Wiki => translator.pcgamingwiki(),
         }
@@ -301,6 +311,22 @@ pub fn make_status_row<'a>(
         .padding([0, 20, 0, 20])
         .align_items(Alignment::Center)
         .push(Text::new(translator.processed_games(status)).size(35))
+        .push_if(
+            || status.changed_games.new > 0,
+            || {
+                Badge::new_entry_with_count(translator, status.changed_games.new)
+                    .left_margin(15)
+                    .view(theme)
+            },
+        )
+        .push_if(
+            || status.changed_games.different > 0,
+            || {
+                Badge::changed_entry_with_count(translator, status.changed_games.different)
+                    .left_margin(15)
+                    .view(theme)
+            },
+        )
         .push(Text::new("  |  ").size(35))
         .push(Text::new(translator.processed_bytes(status)).size(35))
         .push_if(

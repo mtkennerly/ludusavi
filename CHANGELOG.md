@@ -15,6 +15,7 @@
   * GUI: The "other" screen now shows when the manifest was last checked/updated.
     There is also a button to refresh on demand.
     While the manifest is updating, a small notification is displayed at the bottom of the window.
+  * GUI: Tooltips for some icons that may not be self-explanatory.
   * CLI: `--fuzzy` option to look up games by an inexact name.
 * Changed:
   * Increased scanning speed by 10% by avoiding some duplicate path lookups.
@@ -25,6 +26,7 @@
     Previously, it would check automatically on every startup.
     This was changed to avoid excess network traffic,
     because the manifest itself will be updated much more frequently.
+  * GUI: Styling is now more consistent for disabled buttons.
 * Fixed:
   * Backup files did not store the correct modification time on Linux and defaulted to the current time.
     This also affected Windows, but only for zip backups.
@@ -33,6 +35,8 @@
   * Proton and Wine files are now searched case-insensitively on Linux.
   * When Ludusavi tried to find a rough match for an install folder like "Some Game",
     it did not recognize that "Some - Game" was close enough.
+  * GUI: Crash if you started a scan, clicked "find roots", and then clicked "cancel"
+    while the scan was still ongoing.
   * GUI: When the manifest finished updating in the background,
     any currently open modal would be closed.
   * CLI mode asked for confirmation when restoring, but backups behaved differently:

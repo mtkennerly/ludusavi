@@ -58,4 +58,7 @@ maplit = "1.0.2"
 pretty_assertions = "1.2.1"
 
 [profile.dev]
+opt-level = 1
+
+[profile.dev.package."*"]
 opt-level = 3

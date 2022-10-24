@@ -124,13 +124,12 @@ impl FileTreeNode {
                     .push_some(make_enabler)
                     .push(Text::new(label))
                     .push_some(|| {
-                        let symbol = match self.change {
+                        let badge = match self.change {
                             None | Some(ScanChange::Same | ScanChange::Unknown) => return None,
-                            Some(ScanChange::New) => crate::lang::ADD_SYMBOL,
-                            Some(ScanChange::Different) => crate::lang::CHANGE_SYMBOL,
+                            Some(ScanChange::New) => Badge::new_entry(translator),
+                            Some(ScanChange::Different) => Badge::changed_entry(translator),
                         };
-                        self.change
-                            .map(|change| Badge::new(symbol).left_margin(15).change(change).view(config.theme))
+                        Some(badge.left_margin(15).view(config.theme))
                     })
                     .push_if(
                         || self.duplicated,

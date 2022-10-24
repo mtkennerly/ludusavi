@@ -13,13 +13,13 @@ use crate::{
     lang::Translator,
     layout::Backup,
     manifest::Manifest,
-    prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo},
+    prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
 };
 
 use fuzzy_matcher::FuzzyMatcher;
 use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, keyboard::Modifiers, pick_list, scrollable, Alignment,
-    Button, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Space, Text,
+    alignment::Horizontal as HorizontalAlignment, button, keyboard::Modifiers, pick_list, scrollable, tooltip,
+    Alignment, Button, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Space, Text, Tooltip,
 };
 
 use super::common::OngoingOperation;
@@ -124,19 +124,9 @@ impl GameListEntry {
                         )
                         .push_some(|| {
                             if changes.brand_new() {
-                                Some(
-                                    Badge::new(crate::lang::ADD_SYMBOL)
-                                        .left_margin(15)
-                                        .change(ScanChange::New)
-                                        .view(config.theme),
-                                )
+                                Some(Badge::new_entry(translator).left_margin(15).view(config.theme))
                             } else if changes.updated() {
-                                Some(
-                                    Badge::new(crate::lang::CHANGE_SYMBOL)
-                                        .left_margin(15)
-                                        .change(ScanChange::Different)
-                                        .view(config.theme),
-                                )
+                                Some(Badge::changed_entry(translator).left_margin(15).view(config.theme))
                             } else {
                                 None
                             }
@@ -245,13 +235,14 @@ impl GameListEntry {
                                         game: self.scan_info.game_name.clone(),
                                     },
                                 )
-                                .style(if operating {
-                                    style::Button::GameActionDisabled(config.theme)
-                                } else {
-                                    style::Button::GameActionPrimary(config.theme)
-                                })
+                                .style(style::Button::GameActionPrimary(config.theme))
                                 .padding(2);
-                                Container::new(button)
+                                Container::new(
+                                    Tooltip::new(button, action.to_string(), tooltip::Position::Top)
+                                        .size(16)
+                                        .gap(5)
+                                        .style(style::Container::Tooltip(config.theme)),
+                                )
                             } else {
                                 let options = GameAction::options(restoring, operating, customized, customized_pure);
                                 let game_name = self.scan_info.game_name.clone();
@@ -391,6 +382,15 @@ impl GameList {
             {
                 status.processed_games += 1;
                 status.processed_bytes += entry.scan_info.sum_bytes(&None);
+            }
+
+            let changes = entry.scan_info.count_changes();
+            if changes.brand_new() {
+                status.changed_games.new += 1;
+            } else if changes.updated() {
+                status.changed_games.different += 1;
+            } else {
+                status.changed_games.same += 1;
             }
         }
         status
