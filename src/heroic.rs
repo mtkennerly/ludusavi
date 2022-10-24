@@ -15,6 +15,7 @@ struct HeroicInstalledGame {
     #[serde(rename = "appName")]
     app_name: String,
     platform: String,
+    install_path: String,
 }
 #[derive(serde::Deserialize)]
 struct HeroicInstalled {
@@ -45,6 +46,7 @@ struct LegendaryInstalledGame {
     app_name: String,
     title: String,
     platform: String,
+    install_path: String,
 }
 #[derive(serde::Deserialize)]
 struct LegendaryInstalled(HashMap<String, LegendaryInstalledGame>);
@@ -72,20 +74,34 @@ struct GamesConfigWine {
     wine_type: String,
 }
 
+#[derive(Debug, Clone, Eq, PartialEq)]
+struct MemorizedGame {
+    install_dir: StrictPath,
+    prefix: Option<StrictPath>,
+}
+
 //
 /// Main structure where games installed with heroic are collected
 //
 #[derive(Clone, Default, Debug)]
 pub struct HeroicGames {
-    games: HashMap<(RootsConfig, String), StrictPath>,
+    games: HashMap<(RootsConfig, String), MemorizedGame>,
     normalized_to_official: HashMap<String, String>,
 }
 
 impl HeroicGames {
-    pub fn get(&self, root: &RootsConfig, game: &str) -> Option<&StrictPath> {
+    pub fn get_prefix(&self, root: &RootsConfig, game: &str) -> Option<&StrictPath> {
         // NOTE.2022-10-23 unusual to clone keys just for lookup, references
         // should be good enough
-        self.games.get(&(root.clone(), game.to_string()))
+        self.games
+            .get(&(root.clone(), game.to_string()))
+            .and_then(|x| x.prefix.as_ref())
+    }
+
+    pub fn get_install_dir(&self, root: &RootsConfig, game: &str) -> Option<&StrictPath> {
+        self.games
+            .get(&(root.clone(), game.to_string()))
+            .map(|x| &x.install_dir)
     }
 
     pub fn scan(roots: &[RootsConfig], manifest: &Manifest, legendary: Option<StrictPath>) -> Self {
@@ -142,11 +158,9 @@ impl HeroicGames {
                     for game in installed_games.0.values() {
                         log::trace!("detect_legendary_games found game {} ({})", game.title, game.app_name);
                         // process game from GamesConfig
-                        if let Some(sp) =
-                            self.find_prefix(&root.path, &game.title, &game.platform.to_lowercase(), &game.app_name)
-                        {
-                            self.memorize_prefix(root, &game.title, &sp);
-                        }
+                        let prefix =
+                            self.find_prefix(&root.path, &game.title, &game.platform.to_lowercase(), &game.app_name);
+                        self.memorize_game(root, &game.title, StrictPath::new(game.install_path.clone()), prefix);
                     }
                 }
             } else {
@@ -194,26 +208,37 @@ impl HeroicGames {
         if let Ok(installed_games) = serde_json::from_str::<HeroicInstalled>(&content.unwrap_or_default()) {
             for game in installed_games.installed {
                 if let Some(game_title) = game_titles.get(&game.app_name) {
-                    if let Some(sp) = self.find_prefix(&root.path, game_title, &game.platform, &game.app_name) {
-                        self.memorize_prefix(root, game_title, &sp);
-                    }
+                    let prefix = self.find_prefix(&root.path, game_title, &game.platform, &game.app_name);
+                    self.memorize_game(root, game_title, StrictPath::new(game.install_path), prefix);
                 }
             }
         }
     }
 
-    fn memorize_prefix(&mut self, root: &RootsConfig, title: &str, path: &StrictPath) {
+    fn memorize_game(&mut self, root: &RootsConfig, title: &str, install_dir: StrictPath, prefix: Option<StrictPath>) {
         let normalized = normalize_title(title);
         if let Some(official) = self.normalized_to_official.get(&normalized) {
-            log::trace!("memorize_prefix memorizing path {} for {}", path.interpret(), official);
-            self.games.insert((root.clone(), official.clone()), path.clone());
+            log::trace!(
+                "memorize_prefix memorizing info for {}: install_dir={:?}, prefix={:?}",
+                official,
+                &install_dir,
+                &prefix
+            );
+            self.games
+                .insert((root.clone(), official.clone()), MemorizedGame { install_dir, prefix });
         } else {
             log::info!(
                 "memorize_prefix did not find {} in manifest, no backup/restore will be done!",
                 title
             );
-            log::trace!("memorize_prefix memorizing path {} for {}", path.interpret(), title);
-            self.games.insert((root.clone(), title.to_string()), path.clone());
+            log::trace!(
+                "memorize_prefix memorizing info for {}: install_dir={:?}, prefix={:?}",
+                title,
+                &install_dir,
+                &prefix
+            );
+            self.games
+                .insert((root.clone(), title.to_string()), MemorizedGame { install_dir, prefix });
         }
     }
 
@@ -305,6 +330,7 @@ mod tests {
     use super::*;
     use crate::testing::repo;
     use maplit::hashmap;
+    use pretty_assertions::assert_eq;
 
     fn manifest() -> Manifest {
         Manifest::load_from_string(
@@ -323,7 +349,8 @@ mod tests {
             path: StrictPath::new(format!("{}/tests/nonexistent", repo())),
             store: Store::Heroic,
         }];
-        let prefixes = HeroicGames::scan(&roots, &manifest(), None);
+        let legendary = Some(StrictPath::new(format!("{}/tests/nonexistent", repo())));
+        let prefixes = HeroicGames::scan(&roots, &manifest(), legendary);
         assert_eq!(HashMap::new(), prefixes.games);
     }
 
@@ -337,7 +364,10 @@ mod tests {
         let prefixes = HeroicGames::scan(&roots, &manifest(), legendary);
         assert_eq!(
             hashmap! {
-                (roots[0].clone(), "windows-game".to_string()) => StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string()),
+                (roots[0].clone(), "windows-game".to_string()) => MemorizedGame {
+                    install_dir: StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string()),
+                    prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string())),
+                },
             },
             prefixes.games,
         );

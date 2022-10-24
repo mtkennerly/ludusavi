@@ -525,6 +525,7 @@ pub fn parse_paths(
     path: &str,
     root: &RootsConfig,
     install_dir: &Option<String>,
+    full_install_dir: &Option<&StrictPath>,
     steam_id: &Option<u32>,
     manifest_dir: &StrictPath,
 ) -> std::collections::HashSet<(StrictPath, Option<bool>)> {
@@ -547,6 +548,9 @@ pub fn parse_paths(
                 "<base>",
                 &match root.store {
                     Store::Steam => format!("{}/steamapps/common/{}", &root_interpreted, install_dir),
+                    Store::Heroic => full_install_dir
+                        .map(|x| x.interpret())
+                        .unwrap_or_else(|| SKIP.to_string()),
                     _ => format!("{}/{}", &root_interpreted, install_dir),
                 },
             )
@@ -716,6 +720,10 @@ impl InstallDirRanking {
     pub fn scan(roots: &[RootsConfig], manifest: &crate::manifest::Manifest, subjects: &[String]) -> Self {
         let mut ranking = Self::default();
         for root in roots {
+            if root.store == Store::Heroic {
+                // We handle this separately in the Heroic scan.
+                continue;
+            }
             ranking.scan_root(root, manifest, subjects);
         }
         ranking
@@ -840,7 +848,7 @@ pub fn scan_game_for_backup(
 
     // handle what was found for heroic
     for root in roots {
-        if let Some(wp) = heroic_games.get(root, name) {
+        if let Some(wp) = heroic_games.get_prefix(root, name) {
             scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, &manifest_dir_interpreted);
         }
     }
@@ -858,13 +866,14 @@ pub fn scan_game_for_backup(
 
         if let Some(files) = &game.files {
             let install_dir = ranking.get(&root, name);
+            let full_install_dir = heroic_games.get_install_dir(&root, name);
 
             for raw_path in files.keys() {
                 log::trace!("[{name}] parsing candidates from: {}", raw_path);
                 if raw_path.trim().is_empty() {
                     continue;
                 }
-                let candidates = parse_paths(raw_path, &root, &install_dir, steam_id, manifest_dir);
+                let candidates = parse_paths(raw_path, &root, &install_dir, &full_install_dir, steam_id, manifest_dir);
                 for (candidate, case_sensitive) in candidates {
                     log::trace!("[{name}] parsed candidate: {}", candidate.raw());
                     if candidate.raw().contains('<') {
