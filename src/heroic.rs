@@ -219,7 +219,7 @@ impl HeroicGames {
         let normalized = normalize_title(title);
         if let Some(official) = self.normalized_to_official.get(&normalized) {
             log::trace!(
-                "memorize_prefix memorizing info for {}: install_dir={:?}, prefix={:?}",
+                "memorize_game memorizing info for {}: install_dir={:?}, prefix={:?}",
                 official,
                 &install_dir,
                 &prefix
@@ -228,11 +228,11 @@ impl HeroicGames {
                 .insert((root.clone(), official.clone()), MemorizedGame { install_dir, prefix });
         } else {
             log::info!(
-                "memorize_prefix did not find {} in manifest, no backup/restore will be done!",
+                "memorize_game did not find {} in manifest, no backup/restore will be done!",
                 title
             );
             log::trace!(
-                "memorize_prefix memorizing info for {}: install_dir={:?}, prefix={:?}",
+                "memorize_game memorizing info for {}: install_dir={:?}, prefix={:?}",
                 title,
                 &install_dir,
                 &prefix
