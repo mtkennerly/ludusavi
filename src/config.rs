@@ -512,7 +512,7 @@ impl Config {
             pf64 = x.trim_end_matches("[\\/]").to_string();
         }
 
-        let candidates = vec![
+        let mut candidates = vec![
             // Steam:
             (format!("{}/Steam", pf32), Store::Steam),
             (format!("{}/Steam", pf64), Store::Steam),
@@ -532,7 +532,6 @@ impl Config {
             (format!("{}/GOG Galaxy/Games", pf32), Store::GogGalaxy),
             (format!("{}/GOG Galaxy/Games", pf64), Store::GogGalaxy),
             // Heroic:
-            // TODO.2022-10-07 heroic: add default windows locations for heroic, probably similar to GOG Galaxy
             ("~/.config/heroic".to_string(), Store::Heroic),
             // TODO.2022-10-20 heroic: flatpak install is not supported yet
             // (
@@ -551,6 +550,13 @@ impl Config {
             // Prime Gaming:
             ("C:/Amazon Games/Library".to_string(), Store::Prime),
         ];
+
+        if let Some(data_dir) = dirs::data_dir() {
+            candidates.push((
+                format!("{}/heroic", crate::path::render_pathbuf(&data_dir)),
+                Store::Heroic,
+            ));
+        }
 
         let detected_steam = match steamlocate::SteamDir::locate() {
             Some(mut steam_dir) => steam_dir

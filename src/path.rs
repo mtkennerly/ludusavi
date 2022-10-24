@@ -164,7 +164,7 @@ fn splittable(path: &StrictPath) -> String {
 /// This is a wrapper around paths to make it more obvious when we're
 /// converting between different representations. This also handles
 /// things like `~`.
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct StrictPath {
     raw: String,
     basis: Option<String>,
@@ -205,6 +205,12 @@ impl std::hash::Hash for StrictPath {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         self.raw.hash(state);
         self.basis.hash(state);
+    }
+}
+
+impl std::fmt::Debug for StrictPath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "StrictPath {{ raw: {:?}, basis: {:?} }}", &self.raw, &self.basis)
     }
 }
 
