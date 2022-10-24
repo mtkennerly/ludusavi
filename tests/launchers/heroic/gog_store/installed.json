@@ -1,0 +1,17 @@
+{
+  "installed": [
+    {
+      "platform": "windows",
+      "executable": "",
+      "install_path": "C:\\Users\\me\\Games\\Heroic\\windows-game",
+      "install_size": "22.74 MiB",
+      "is_dlc": false,
+      "version": "3.0",
+      "appName": "100",
+      "installedWithDLCs": false,
+      "language": "en-US",
+      "versionEtag": "\"3640869511\"",
+      "buildId": "52095636268561745"
+    }
+  ]
+}

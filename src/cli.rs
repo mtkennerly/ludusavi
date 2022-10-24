@@ -785,7 +785,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             log::info!("beginning backup with {} steps", subjects.valid.len());
 
-            let heroic_games = HeroicGames::scan(&config.roots, &all_games);
+            let heroic_games = HeroicGames::scan(&config.roots, &all_games, None);
             let layout = BackupLayout::new(backup_dir.clone(), config.backup.retention.clone());
             let filter = config.backup.filter.clone();
             let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects.valid);

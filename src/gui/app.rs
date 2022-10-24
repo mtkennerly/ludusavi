@@ -248,7 +248,7 @@ impl App {
 
         self.register_notify_on_single_game_scanned(&games);
 
-        let heroic_games = std::sync::Arc::new(HeroicGames::scan(&self.config.roots, &all_games));
+        let heroic_games = std::sync::Arc::new(HeroicGames::scan(&self.config.roots, &all_games, None));
         let config = std::sync::Arc::new(self.config.clone());
         let roots = std::sync::Arc::new(config.expanded_roots());
         let layout = std::sync::Arc::new(BackupLayout::new(
