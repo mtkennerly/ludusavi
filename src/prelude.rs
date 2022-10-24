@@ -819,40 +819,18 @@ pub fn scan_game_for_backup(
 
     let manifest_dir_interpreted = manifest_dir.interpret();
 
+    // We can add this for Wine prefixes from the CLI because they're
+    // typically going to be used for only one or a few games at a time.
+    // For other Wine roots, it would trigger for every game.
     if let Some(wp) = wine_prefix {
         log::trace!("[{name}] adding extra Wine prefix: {}", wp.raw());
-        roots_to_check.push(RootsConfig {
-            path: wp.clone(),
-            store: Store::OtherWine,
-        });
-
-        // We can add this for Wine prefixes from the CLI because they're
-        // typically going to be used for only one or a few games at a time.
-        // For other Wine roots, it would trigger for every game.
-        paths_to_check.insert((
-            StrictPath::relative(
-                format!("{}/*.reg", wp.interpret()),
-                Some(manifest_dir_interpreted.clone()),
-            ),
-            None,
-        ));
+        scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, &manifest_dir_interpreted);
     }
 
-    // TODO.2022-10-23 refactor body of if to function, use it in statement above, too
     // handle what was found for heroic
     for root in roots {
         if let Some(wp) = heroic_games.get(root, name) {
-            roots_to_check.push(RootsConfig {
-                path: wp.clone(),
-                store: Store::OtherWine,
-            });
-            paths_to_check.insert((
-                StrictPath::relative(
-                    format!("{}/*.reg", wp.interpret()),
-                    Some(manifest_dir_interpreted.clone()),
-                ),
-                None,
-            ));
+            scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, &manifest_dir_interpreted);
         }
     }
 
@@ -1025,6 +1003,25 @@ pub fn scan_game_for_backup(
         found_registry_keys,
         ..Default::default()
     }
+}
+
+fn scan_game_for_backup_add_prefix(
+    roots_to_check: &mut Vec<RootsConfig>,
+    paths_to_check: &mut std::collections::HashSet<(StrictPath, Option<bool>)>,
+    wp: &StrictPath,
+    manifest_dir_interpreted: &str,
+) {
+    roots_to_check.push(RootsConfig {
+        path: wp.clone(),
+        store: Store::OtherWine,
+    });
+    paths_to_check.insert((
+        StrictPath::relative(
+            format!("{}/*.reg", wp.interpret()),
+            Some(manifest_dir_interpreted.to_owned()),
+        ),
+        None,
+    ));
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]

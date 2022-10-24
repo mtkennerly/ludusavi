@@ -7,7 +7,7 @@ use crate::{
 };
 
 //
-// Deserialization of Heroic gog_store/installed.json
+/// Deserialization of Heroic gog_store/installed.json
 //
 #[derive(serde::Deserialize)]
 struct HeroicInstalledGame {
@@ -22,7 +22,7 @@ struct HeroicInstalled {
 }
 
 //
-// Deserialization of Heroic gog_store/library.json
+/// Deserialization of Heroic gog_store/library.json
 //
 #[derive(serde::Deserialize)]
 struct GogLibraryGame {
@@ -36,7 +36,7 @@ struct GogLibrary {
 }
 
 //
-// Deserialization of Legendary legendary/installed.json
+/// Deserialization of Legendary legendary/installed.json
 //
 #[derive(serde::Deserialize)]
 struct LegendaryInstalledGame {
@@ -50,11 +50,10 @@ struct LegendaryInstalledGame {
 struct LegendaryInstalled(HashMap<String, LegendaryInstalledGame>);
 
 //
-// Deserialization of Heroic GamesConfig/*.json
+/// Deserialization of Heroic GamesConfig/*.json
 //
 #[derive(serde::Deserialize, Debug)]
 struct GamesConfigWrapper(HashMap<String, GamesConfig>);
-
 #[derive(serde::Deserialize, Debug)]
 #[serde(untagged)]
 enum GamesConfig {
@@ -66,10 +65,6 @@ enum GamesConfig {
     },
     IgnoreOther(serde::de::IgnoredAny),
 }
-
-//
-// Main structure
-//
 #[derive(serde::Deserialize, Debug)]
 struct GamesConfigWine {
     #[serde(rename = "type")]
@@ -84,6 +79,9 @@ const LEGENDARY_PATHS: &[&str] = &[
     // "~/.var/app/com.heroicgameslauncher.hgl/config/legendary",
 ];
 
+//
+/// Main structure where games installed with heroic are collected
+//
 #[derive(Clone, Default, Debug)]
 pub struct HeroicGames {
     games: HashMap<(RootsConfig, String), StrictPath>,
