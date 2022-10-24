@@ -4,6 +4,8 @@
   * Ludusavi now shows which games and files are new/changed compared to the last backup or restore.
     This is indicated by a `+` or `Δ` badge next to applicable games and files.
     This is not yet supported for registry entries, but that is planned for the future.
+  * The Heroic launcher is now supported as a root type.
+    ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/141))
   * Compression levels can now be customized for zip backups.
   * In addition to restoration redirects, there are now also backup redirects and bidirectional redirects.
     The redirect editor is now on the "other" screen instead of the "restore" screen.
