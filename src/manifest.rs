@@ -196,6 +196,9 @@ impl Manifest {
         if force {
             return true;
         }
+        if !Self::file().exists() {
+            return true;
+        }
         match cache.get(&config.url) {
             None => true,
             Some(cached) => {
