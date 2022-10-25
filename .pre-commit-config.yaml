@@ -10,7 +10,7 @@ repos:
     hooks:
       - id: forbid-tabs
   - repo: https://github.com/mtkennerly/pre-commit-hooks
-    rev: v0.1.1
+    rev: v0.2.0
     hooks:
       - id: cargo-fmt
       - id: cargo-clippy

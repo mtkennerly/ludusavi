@@ -9,8 +9,7 @@ use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use regex::Regex;
 
-pub use crate::path::StrictPath;
-pub use crate::registry_compat::RegistryItem;
+pub use crate::{path::StrictPath, registry_compat::RegistryItem};
 
 const WINDOWS: bool = cfg!(target_os = "windows");
 const MAC: bool = cfg!(target_os = "macos");
@@ -1449,12 +1448,14 @@ mod tests {
     use std::collections::VecDeque;
 
     use super::*;
-    use crate::config::{Config, Retention};
     #[cfg(target_os = "windows")]
     use crate::layout::{BackupLayout, IndividualMappingRegistry};
-    use crate::layout::{FullBackup, IndividualMapping, IndividualMappingFile};
-    use crate::manifest::Manifest;
-    use crate::testing::*;
+    use crate::{
+        config::{Config, Retention},
+        layout::{FullBackup, IndividualMapping, IndividualMappingFile},
+        manifest::Manifest,
+        testing::*,
+    };
     use maplit::*;
     use pretty_assertions::assert_eq;
 
