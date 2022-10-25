@@ -55,7 +55,7 @@ impl ToString for Theme {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
 pub struct RootsConfig {
     pub path: StrictPath,
     pub store: Store,

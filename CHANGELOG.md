@@ -9,6 +9,8 @@
   * Compression levels can now be customized for zip backups.
   * In addition to restoration redirects, there are now also backup redirects and bidirectional redirects.
     The redirect editor is now on the "other" screen instead of the "restore" screen.
+  * GUI: On startup, Ludusavi will ask if you'd like to add any missing roots.
+    It will remember your choice and won't ask twice for the same root.
   * GUI: The custom games screen now has a button to preview a specific game on demand.
     This lets you preview a custom game even if it's not yet in the backup screen's main list.
   * GUI: When previewing a specific game on demand,

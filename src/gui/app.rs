@@ -557,7 +557,7 @@ impl Application for App {
             }
         };
         translator.set_language(config.language);
-        let cache = Cache::load().migrated(&mut config);
+        let mut cache = Cache::load().migrated(&mut config);
         let manifest = match Manifest::load_local() {
             Ok(y) => y,
             Err(_) => {
@@ -565,6 +565,18 @@ impl Application for App {
                 Manifest::default()
             }
         };
+
+        let missing: Vec<_> = config
+            .find_missing_roots()
+            .iter()
+            .filter(|x| !cache.has_root(x))
+            .cloned()
+            .collect();
+        if !missing.is_empty() {
+            cache.add_roots(&missing);
+            cache.save();
+            modal_theme = Some(ModalTheme::ConfirmAddMissingRoots(missing));
+        }
 
         let manifest_config = config.manifest.clone();
         let manifest_cache = cache.manifests.clone();
@@ -831,6 +843,8 @@ impl Application for App {
                 if missing.is_empty() {
                     self.modal_theme = Some(ModalTheme::NoMissingRoots);
                 } else {
+                    self.cache.add_roots(&missing);
+                    self.cache.save();
                     self.modal_theme = Some(ModalTheme::ConfirmAddMissingRoots(missing));
                 }
                 Command::none()
