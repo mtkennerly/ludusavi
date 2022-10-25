@@ -22,10 +22,7 @@ for the list.
       ln -s data data-symlink
       ```
   * `cargo test`
-* Linting:
-  * `cargo fmt`
-  * `cargo clippy --tests -- -D warnings`
-* Activate pre-commit hooks (requires Python):
+* Activate pre-commit hooks (requires Python) to handle formatting/linting:
   ```
   pip install --user pre-commit
   pre-commit install
