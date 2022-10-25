@@ -338,6 +338,9 @@ mod tests {
             windows-game:
               files:
                 <base>/file1.txt: {}
+            proton-game:
+              files:
+                <base>/file1.txt: {}
             "#,
         )
         .unwrap()
@@ -367,6 +370,10 @@ mod tests {
                 (roots[0].clone(), "windows-game".to_string()) => MemorizedGame {
                     install_dir: StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string()),
                     prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string())),
+                },
+                (roots[0].clone(), "proton-game".to_string()) => MemorizedGame {
+                    install_dir: StrictPath::new("/home/root/Games/proton-game".to_string()),
+                    prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/proton-game/pfx".to_string())),
                 },
             },
             prefixes.games,
