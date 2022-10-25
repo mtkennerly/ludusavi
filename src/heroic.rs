@@ -133,8 +133,7 @@ impl HeroicGames {
         let legendary_paths = match legendary {
             None => vec![
                 StrictPath::new("~/.config/legendary".to_string()),
-                // TODO.2022-10-20 heroic: flatpak install is not supported yet
-                // "~/.var/app/com.heroicgameslauncher.hgl/config/legendary",
+                StrictPath::new("~/.var/app/com.heroicgameslauncher.hgl/config/legendary".to_string()),
             ],
             Some(x) => vec![x.clone()],
         };

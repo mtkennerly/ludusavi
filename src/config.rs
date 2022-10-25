@@ -533,11 +533,10 @@ impl Config {
             (format!("{}/GOG Galaxy/Games", pf64), Store::GogGalaxy),
             // Heroic:
             ("~/.config/heroic".to_string(), Store::Heroic),
-            // TODO.2022-10-20 heroic: flatpak install is not supported yet
-            // (
-            //     "~/.var/app/com.heroicgameslauncher.hgl/config/heroic".to_string(),
-            //     Store::HeroicConfig,
-            // ),
+            (
+                "~/.var/app/com.heroicgameslauncher.hgl/config/heroic".to_string(),
+                Store::Heroic,
+            ),
             // Uplay:
             (format!("{}/Ubisoft/Ubisoft Game Launcher", pf32), Store::Uplay),
             (format!("{}/Ubisoft/Ubisoft Game Launcher", pf64), Store::Uplay),

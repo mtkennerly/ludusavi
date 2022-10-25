@@ -591,6 +591,21 @@ pub fn parse_paths(
             None,
         ));
     }
+    if root.store == Store::Heroic && get_os() == Os::Linux {
+        println!("parse_paths for a heroic store");
+        // TODO.2022-10-25 check if this heroic is a flatpak
+        // paths.insert((
+        //     path.replace(
+        //         "<xdgData>",
+        //         check_nonwindows_path_str(&format!("{}/data", &root_interpreted)),
+        //     )
+        //     .replace(
+        //         "<xdgConfig>",
+        //         check_nonwindows_path_str(&format!("{}/config", &root_interpreted)),
+        //     ),
+        //     None,
+        // ));
+    }
     if root.store == Store::OtherHome {
         paths.insert((
             path.replace("<root>", &root_interpreted)
