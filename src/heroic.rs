@@ -129,22 +129,14 @@ impl HeroicGames {
         log::trace!("detect_legendary_games searching for legendary config...");
 
         // TODO.2022-10-10 heroic: windows location for legendary
-        // TODO.2022-10-15 heroic: make relative to heroic root in question!
-        let legendary_paths = match legendary {
-            None => vec![
-                StrictPath::new("~/.config/legendary".to_string()),
-                StrictPath::new("~/.var/app/com.heroicgameslauncher.hgl/config/legendary".to_string()),
-            ],
-            Some(x) => vec![x.clone()],
+        let legendary_path = match legendary {
+            Some(x) => x.to_owned(),
+            None => StrictPath::relative("../legendary".to_string(), Some(root.path.interpret())),
         };
 
-        for legendary_path in &legendary_paths {
-            if !legendary_path.is_dir() {
-                continue;
-            }
-
+        if legendary_path.is_dir() {
             log::trace!(
-                "detect_legendary_games found legendary configuration in {}",
+                "detect_legendary_games checking for legendary configuration in {}",
                 legendary_path.interpret()
             );
 
@@ -155,7 +147,11 @@ impl HeroicGames {
                     serde_json::from_str::<LegendaryInstalled>(&legendary_installed.read().unwrap_or_default())
                 {
                     for game in installed_games.0.values() {
-                        log::trace!("detect_legendary_games found game {} ({})", game.title, game.app_name);
+                        log::trace!(
+                            "detect_legendary_games found legendary game {} ({})",
+                            game.title,
+                            game.app_name
+                        );
                         // process game from GamesConfig
                         let prefix =
                             self.find_prefix(&root.path, &game.title, &game.platform.to_lowercase(), &game.app_name);
@@ -226,9 +222,12 @@ impl HeroicGames {
             self.games
                 .insert((root.clone(), official.clone()), MemorizedGame { install_dir, prefix });
         } else {
-            log::info!(
-                "memorize_game did not find {} in manifest, no backup/restore will be done!",
-                title
+            // NOTE.2022-10-25 promoted to console error since this is something
+            // which needs user attention (e.g. GRIP vs. GRIP: Combat Racing).
+            // GUI might want to show a message / popup for this.
+            eprintln!(
+                "heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can done!",
+                title, normalized
             );
             log::trace!(
                 "memorize_game memorizing info for {}: install_dir={:?}, prefix={:?}",
