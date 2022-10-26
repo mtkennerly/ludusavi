@@ -99,6 +99,16 @@ impl ScanChangeCount {
     pub fn updated(&self) -> bool {
         !self.brand_new() && (self.new > 0 || self.different > 0)
     }
+
+    pub fn overall(&self) -> ScanChange {
+        if self.brand_new() {
+            ScanChange::New
+        } else if self.updated() {
+            ScanChange::Different
+        } else {
+            ScanChange::Same
+        }
+    }
 }
 
 impl ScanChange {

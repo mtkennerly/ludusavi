@@ -319,6 +319,7 @@ struct ApiRegistry {
 enum ApiGame {
     Operative {
         decision: OperationStepDecision,
+        change: ScanChange,
         #[serde(serialize_with = "crate::serialization::ordered_map")]
         files: std::collections::HashMap<String, ApiFile>,
         #[serde(serialize_with = "crate::serialization::ordered_map")]
@@ -543,6 +544,7 @@ impl Reporter {
                     name.to_string(),
                     ApiGame::Operative {
                         decision,
+                        change: scan_info.count_changes().overall(),
                         files,
                         registry,
                     },
@@ -1904,6 +1906,7 @@ Overall:
   "games": {
     "foo": {
       "decision": "Processed",
+      "change": "Same",
       "files": {
         "<drive>/file1": {
           "change": "Unknown",
@@ -1988,6 +1991,7 @@ Overall:
   "games": {
     "foo": {
       "decision": "Processed",
+      "change": "Same",
       "files": {
         "<drive>/original/file1": {
           "change": "Unknown",
@@ -2060,6 +2064,7 @@ Overall:
   "games": {
     "foo": {
       "decision": "Processed",
+      "change": "Same",
       "files": {
         "<drive>/file1": {
           "change": "Unknown",
@@ -2128,6 +2133,7 @@ Overall:
   "games": {
     "foo": {
       "decision": "Processed",
+      "change": "Different",
       "files": {
         "<drive>/different": {
           "change": "Different",
