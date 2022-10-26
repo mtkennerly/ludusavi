@@ -226,7 +226,7 @@ impl HeroicGames {
             // which needs user attention (e.g. GRIP vs. GRIP: Combat Racing).
             // GUI might want to show a message / popup for this.
             eprintln!(
-                "heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can done!",
+                "heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!",
                 title, normalized
             );
             log::trace!(

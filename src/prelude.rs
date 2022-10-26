@@ -597,21 +597,22 @@ pub fn parse_paths(
     // flatpak wiki on filesystems
     // (https://github.com/flatpak/flatpak/wiki/Filesystem) as well as
     // https://docs.flatpak.org do not seem to mention an option to relocate
-    // per-app data directories.  Those default to $HOME/.var/app/$FLATPAK_ID,
-    // so we cat detect a flatpak installed heroic by looking at the
-    // root_interpreted and check for ".var/app/com.heroicgameslauncher.hgl"
+    // per-app data directories.  These are by default located in
+    // $HOME/.var/app/$FLATPAK_ID, so we cat detect a flatpak installed heroic
+    // by looking at the `root_interpreted` and check for
+    // ".var/app/com.heroicgameslauncher.hgl/config/heroic"
     if root.store == Store::Heroic
         && get_os() == Os::Linux
-        && root_interpreted.contains(".var/app/com.heroicgameslauncher.hgl")
+        && root_interpreted.ends_with(".var/app/com.heroicgameslauncher.hgl/config/heroic")
     {
         paths.insert((
             path.replace(
                 "<xdgData>",
-                check_nonwindows_path_str(&format!("{}/data", &root_interpreted)),
+                check_nonwindows_path_str(&format!("{}/../../data", &root_interpreted)),
             )
             .replace(
                 "<xdgConfig>",
-                check_nonwindows_path_str(&format!("{}/config", &root_interpreted)),
+                check_nonwindows_path_str(&format!("{}/../../config", &root_interpreted)),
             ),
             None,
         ));
