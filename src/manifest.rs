@@ -22,7 +22,7 @@ impl Default for Os {
     }
 }
 
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Store {
     #[serde(rename = "epic")]
     Epic,
@@ -194,6 +194,9 @@ impl Manifest {
 
     pub fn should_update(config: &ManifestConfig, cache: &cache::Manifests, force: bool) -> bool {
         if force {
+            return true;
+        }
+        if !Self::file().exists() {
             return true;
         }
         match cache.get(&config.url) {

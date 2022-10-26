@@ -41,7 +41,7 @@ struct FileTreeNode {
     successful: bool,
     ignored: bool,
     duplicated: bool,
-    change: Option<ScanChange>,
+    change: ScanChange,
     scanned_file: Option<ScannedFile>,
     node_type: FileTreeNodeType,
 }
@@ -125,9 +125,9 @@ impl FileTreeNode {
                     .push(Text::new(label))
                     .push_some(|| {
                         let badge = match self.change {
-                            None | Some(ScanChange::Same | ScanChange::Unknown) => return None,
-                            Some(ScanChange::New) => Badge::new_entry(translator),
-                            Some(ScanChange::Different) => Badge::changed_entry(translator),
+                            ScanChange::Same | ScanChange::Unknown => return None,
+                            ScanChange::New => Badge::new_entry(translator),
+                            ScanChange::Different => Badge::changed_entry(translator),
                         };
                         Some(badge.left_margin(15).view(config.theme))
                     })
@@ -237,7 +237,7 @@ impl FileTreeNode {
         prefix_keys: &[T],
         successful: bool,
         duplicated: bool,
-        change: Option<ScanChange>,
+        change: ScanChange,
         scanned_file: Option<ScannedFile>,
     ) -> &mut Self {
         let node_type = self.node_type.clone();
@@ -345,7 +345,7 @@ impl FileTree {
                     &[components[0]],
                     successful,
                     duplicate_detector.is_file_duplicated(item),
-                    Some(item.change),
+                    item.change,
                     Some(item.clone()),
                 );
         }
@@ -367,7 +367,7 @@ impl FileTree {
                     &components[0..1],
                     successful,
                     duplicate_detector.is_registry_duplicated(&item.path),
-                    None,
+                    item.change,
                     None,
                 );
         }

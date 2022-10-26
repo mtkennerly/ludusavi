@@ -2,8 +2,7 @@ use crate::{
     config::Config,
     gui::{
         common::{EditAction, Message},
-        custom_games_editor::CustomGamesEditor,
-        custom_games_editor::{CustomGamesEditorEntry, CustomGamesEditorEntryRow},
+        custom_games_editor::{CustomGamesEditor, CustomGamesEditorEntry, CustomGamesEditorEntryRow},
         style,
     },
     lang::Translator,

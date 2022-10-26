@@ -1,5 +1,5 @@
 {
-  "100": {
+  "200": {
     "autoInstallDxvk": false,
     "autoInstallVkd3d": false,
     "preferSystemLibs": false,
@@ -10,13 +10,11 @@
     "useGameMode": false,
     "language": "",
     "wineVersion": {
-      "bin": "/usr/bin/wine",
-      "name": "Wine Default - wine-ge-7.0 (Staging)",
-      "type": "wine",
-      "wineserver": "/usr/bin/wineserver",
-      "wineboot": "/usr/bin/wineboot"
+      "bin": "/usr/share/steam/compatibilitytools.d/proton-ge-custom/proton",
+      "name": "Proton - proton-ge-custom",
+      "type": "proton"
     },
-    "winePrefix": "/home/root/Games/Heroic/Prefixes/windows-game"
+    "winePrefix": "/home/root/Games/Heroic/Prefixes/proton-game"
   },
   "version": "v0",
   "explicit": true

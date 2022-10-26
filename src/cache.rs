@@ -1,7 +1,7 @@
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 use crate::{
-    config::Config,
+    config::{Config, RootsConfig},
     prelude::{app_dir, StrictPath},
 };
 
@@ -11,6 +11,8 @@ pub struct Cache {
     pub migrations: Migrations,
     #[serde(default)]
     pub manifests: Manifests,
+    #[serde(default)]
+    pub roots: BTreeSet<RootsConfig>,
     #[serde(default)]
     pub backup: Backup,
     #[serde(default)]
@@ -114,6 +116,11 @@ impl Cache {
             updated = true;
         }
 
+        if self.roots.is_empty() && !config.roots.is_empty() {
+            self.add_roots(&config.roots);
+            updated = true;
+        }
+
         if updated {
             self.save();
             config.save();
@@ -129,5 +136,22 @@ impl Cache {
         if update.modified {
             cached.updated = Some(update.timestamp);
         }
+    }
+
+    pub fn add_roots(&mut self, roots: &Vec<RootsConfig>) {
+        for root in roots {
+            if !self.has_root(root) {
+                self.roots.insert(RootsConfig {
+                    path: root.path.interpreted(),
+                    store: root.store,
+                });
+            }
+        }
+    }
+
+    pub fn has_root(&self, root: &RootsConfig) -> bool {
+        self.roots
+            .iter()
+            .any(|x| x.path.interpret() == root.path.interpret() && x.store == root.store)
     }
 }

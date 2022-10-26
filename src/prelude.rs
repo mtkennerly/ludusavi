@@ -1,7 +1,7 @@
 use crate::{
     config::{BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry},
     heroic::HeroicGames,
-    layout::{Backup, GameLayout},
+    layout::{Backup, GameLayout, LatestBackup},
     manifest::{Game, Os, Store},
 };
 use fuzzy_matcher::FuzzyMatcher;
@@ -9,8 +9,7 @@ use once_cell::sync::Lazy;
 use rayon::prelude::*;
 use regex::Regex;
 
-pub use crate::path::StrictPath;
-pub use crate::registry_compat::RegistryItem;
+pub use crate::{path::StrictPath, registry_compat::RegistryItem};
 
 const WINDOWS: bool = cfg!(target_os = "windows");
 const MAC: bool = cfg!(target_os = "macos");
@@ -102,7 +101,6 @@ impl ScanChangeCount {
     }
 }
 
-// TODO: Decide how to handle redirects. For now, they are ignored.
 impl ScanChange {
     pub fn evaluate(current_hash: &str, previous_hash: Option<&&String>) -> Self {
         match previous_hash {
@@ -232,6 +230,7 @@ impl ScannedFile {
 pub struct ScannedRegistry {
     pub path: RegistryItem,
     pub ignored: bool,
+    pub change: ScanChange,
 }
 
 #[cfg(test)]
@@ -240,11 +239,17 @@ impl ScannedRegistry {
         Self {
             path: RegistryItem::new(path.to_string()),
             ignored: false,
+            change: ScanChange::Unknown,
         }
     }
 
     pub fn ignored(mut self) -> Self {
         self.ignored = true;
+        self
+    }
+
+    pub fn change(mut self, change: ScanChange) -> Self {
+        self.change = change;
         self
     }
 }
@@ -337,6 +342,17 @@ impl ScanInfo {
         let mut count = ScanChangeCount::new();
 
         for entry in &self.found_files {
+            if entry.ignored {
+                continue;
+            }
+            match entry.change {
+                ScanChange::New => count.new += 1,
+                ScanChange::Different => count.different += 1,
+                ScanChange::Same => count.same += 1,
+                ScanChange::Unknown => (),
+            }
+        }
+        for entry in &self.found_registry_keys {
             if entry.ignored {
                 continue;
             }
@@ -844,7 +860,7 @@ pub fn scan_game_for_backup(
     ranking: &InstallDirRanking,
     ignored_paths: &ToggledPaths,
     #[allow(unused_variables)] ignored_registry: &ToggledRegistry,
-    previous: Option<ScanInfo>,
+    previous: Option<LatestBackup>,
     redirects: &[RedirectConfig],
 ) -> ScanInfo {
     log::trace!("[{name}] beginning scan for backup");
@@ -950,6 +966,7 @@ pub fn scan_game_for_backup(
         .as_ref()
         .map(|previous| {
             previous
+                .scan
                 .found_files
                 .iter()
                 .map(|x| (x.original_path(), &x.hash))
@@ -1028,12 +1045,19 @@ pub fn scan_game_for_backup(
     #[cfg(target_os = "windows")]
     {
         if let Some(registry) = &game.registry {
+            let previous_registry = match previous.map(|x| x.registry_content) {
+                Some(Some(content)) => crate::registry::Hives::deserialize(&content),
+                _ => None,
+            };
+
             for key in registry.keys() {
                 if key.trim().is_empty() {
                     continue;
                 }
                 log::trace!("[{name}] checking registry: {key}");
-                for scanned in crate::registry::scan_registry(name, key, filter, ignored_registry).unwrap_or_default() {
+                for scanned in crate::registry::scan_registry(name, key, filter, ignored_registry, &previous_registry)
+                    .unwrap_or_default()
+                {
                     log::debug!("[{name}] found registry: {}", scanned.path.raw());
                     found_registry_keys.insert(scanned);
                 }
@@ -1106,10 +1130,20 @@ pub fn scan_game_for_restoration(
         if let Some(registry_content) = layout.registry_content(&id) {
             if let Some(hives) = crate::registry::Hives::deserialize(&registry_content) {
                 for (hive_name, keys) in hives.0.iter() {
-                    for (key_name, _) in keys.0.iter() {
+                    for (key_name, entries) in keys.0.iter() {
                         found_registry_keys.insert(ScannedRegistry {
                             path: RegistryItem::new(format!("{}/{}", hive_name, key_name).replace('\\', "/")),
                             ignored: false,
+                            change: match crate::registry::try_read_registry_key(hive_name, key_name) {
+                                None => ScanChange::New,
+                                Some(current) => {
+                                    if entries == &current {
+                                        ScanChange::Same
+                                    } else {
+                                        ScanChange::Different
+                                    }
+                                }
+                            },
                         });
                     }
                 }
@@ -1475,12 +1509,14 @@ mod tests {
     use std::collections::VecDeque;
 
     use super::*;
-    use crate::config::{Config, Retention};
     #[cfg(target_os = "windows")]
     use crate::layout::{BackupLayout, IndividualMappingRegistry};
-    use crate::layout::{FullBackup, IndividualMapping, IndividualMappingFile};
-    use crate::manifest::Manifest;
-    use crate::testing::*;
+    use crate::{
+        config::{Config, Retention},
+        layout::{FullBackup, IndividualMapping, IndividualMappingFile},
+        manifest::Manifest,
+        testing::*,
+    };
     use maplit::*;
     use pretty_assertions::assert_eq;
 
@@ -1921,7 +1957,7 @@ mod tests {
                 game_name: s("game3"),
                 found_files: hashset! {},
                 found_registry_keys: hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3")
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New)
                 },
                 ..Default::default()
             },
@@ -1951,9 +1987,9 @@ mod tests {
                 game_name: s("game3-outer"),
                 found_files: hashset! {},
                 found_registry_keys: hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other"),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change(ScanChange::New),
                 },
                 ..Default::default()
             },
@@ -1986,8 +2022,8 @@ mod tests {
                 },
                 ToggledRegistry::default(),
                 hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3"),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New),
                 },
             ),
             (
@@ -1998,9 +2034,9 @@ mod tests {
                     }
                 }),
                 hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").ignored(),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").ignored(),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored(),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").ignored().change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").ignored().change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change(ScanChange::New),
                 },
             ),
             (
@@ -2011,9 +2047,9 @@ mod tests {
                     }
                 }),
                 hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored(),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change(ScanChange::New),
                 },
             ),
         ];
@@ -2142,7 +2178,7 @@ mod tests {
                 ScanInfo {
                     game_name: s("game3"),
                     found_registry_keys: hashset! {
-                        ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3")
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::Same)
                     },
                     available_backups: vec![Backup::Full(FullBackup {
                         name: ".".to_string(),

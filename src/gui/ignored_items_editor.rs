@@ -1,8 +1,7 @@
 use crate::{
     config::Config,
     gui::{
-        common::Message,
-        common::{BrowseSubject, EditAction},
+        common::{BrowseSubject, EditAction, Message},
         icon::Icon,
         style,
     },
