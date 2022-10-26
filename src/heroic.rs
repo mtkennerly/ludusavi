@@ -224,11 +224,19 @@ impl HeroicGames {
         } else {
             // NOTE.2022-10-25 promoted to console error since this is something
             // which needs user attention (e.g. GRIP vs. GRIP: Combat Racing).
-            // GUI might want to show a message / popup for this.
-            eprintln!(
-                "heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!",
-                title, normalized
-            );
+            if self.normalized_to_official.len() == 1 {
+                // user clicked on a game in the UI which call us with this single game
+                log::info!(
+                        "heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!  But the UI might be looking for a different game anyways.",
+                        title, normalized
+                    );
+            } else {
+                eprintln!(
+                        "heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!",
+                        title, normalized
+                    );
+            }
+
             log::trace!(
                 "memorize_game memorizing info for {}: install_dir={:?}, prefix={:?}",
                 title,
