@@ -305,6 +305,7 @@ struct ApiRegistry {
     failed: bool,
     #[serde(skip_serializing_if = "crate::serialization::is_false")]
     ignored: bool,
+    change: ScanChange,
     #[serde(
         rename = "duplicatedBy",
         serialize_with = "crate::serialization::ordered_set",
@@ -439,7 +440,7 @@ impl Reporter {
                         entry_successful,
                         entry.ignored,
                         duplicate_detector.is_file_duplicated(entry),
-                        Some(entry.change),
+                        entry.change,
                     ));
 
                     if let Some(alt) = entry.alt_readable(restoring) {
@@ -460,7 +461,7 @@ impl Reporter {
                         entry_successful,
                         entry.ignored,
                         duplicate_detector.is_registry_duplicated(&entry.path),
-                        None,
+                        entry.change,
                     ));
                 }
 
@@ -515,6 +516,7 @@ impl Reporter {
                     let mut api_registry = ApiRegistry {
                         failed: backup_info.failed_registry.contains(&entry.path),
                         ignored: entry.ignored,
+                        change: entry.change,
                         ..Default::default()
                     };
                     if duplicate_detector.is_registry_duplicated(&entry.path) {
@@ -1915,9 +1917,12 @@ Overall:
       },
       "registry": {
         "HKEY_CURRENT_USER/Key1": {
-          "failed": true
+          "failed": true,
+          "change": "Unknown"
         },
-        "HKEY_CURRENT_USER/Key2": {}
+        "HKEY_CURRENT_USER/Key2": {
+          "change": "Unknown"
+        }
       }
     }
   }
@@ -2066,6 +2071,7 @@ Overall:
       },
       "registry": {
         "HKEY_CURRENT_USER/Key1": {
+          "change": "Unknown",
           "duplicatedBy": [
             "bar"
           ]

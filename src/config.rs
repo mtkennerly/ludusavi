@@ -163,7 +163,6 @@ impl SortKey {
 impl std::fmt::Display for SortKey {
     // This is needed for Iced's PickList.
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        // TODO: Use display adapter wrapper struct to respect the active language.
         writeln!(f, "{}", crate::lang::Translator::default().sort_key(self))
     }
 }

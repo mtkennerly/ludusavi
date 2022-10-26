@@ -57,6 +57,11 @@ fn escape_folder_name(name: &str) -> String {
         .replace('\0', SAFE)
 }
 
+pub struct LatestBackup {
+    pub scan: ScanInfo,
+    pub registry_content: Option<String>,
+}
+
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum Backup {
     Full(FullBackup),
@@ -500,7 +505,6 @@ impl GameLayout {
         }
     }
 
-    // TODO: handle registry
     /// When `restoring` is false, we don't check for entries' ScanChange,
     /// because the backup scan will do that separately.
     pub fn latest_backup(&self, restoring: bool, redirects: &[RedirectConfig]) -> Option<ScanInfo> {
@@ -510,6 +514,7 @@ impl GameLayout {
             Some(ScanInfo {
                 game_name: self.mapping.name.clone(),
                 found_files: self.restorable_files(&BackupId::Latest, restoring, redirects),
+                // Registry is handled separately.
                 found_registry_keys: Default::default(),
                 available_backups: vec![],
                 backup: None,
@@ -1575,10 +1580,18 @@ impl BackupLayout {
             || (crate::prelude::CASE_INSENSITIVE_OS && self.games_lowercase.contains_key(&name.to_lowercase()))
     }
 
-    pub fn latest_backup(&self, name: &str, restoring: bool, redirects: &[RedirectConfig]) -> Option<ScanInfo> {
+    pub fn latest_backup(&self, name: &str, restoring: bool, redirects: &[RedirectConfig]) -> Option<LatestBackup> {
         if self.contains_game(name) {
             let game_layout = self.game_layout(name);
-            game_layout.latest_backup(restoring, redirects)
+            let scan = game_layout.latest_backup(restoring, redirects);
+            scan.map(|scan| LatestBackup {
+                scan,
+                registry_content: if cfg!(target_os = "windows") {
+                    game_layout.registry_content(&BackupId::Latest)
+                } else {
+                    None
+                },
+            })
         } else {
             None
         }

@@ -352,13 +352,13 @@ impl Translator {
         successful: bool,
         ignored: bool,
         duplicated: bool,
-        change: Option<ScanChange>,
+        change: ScanChange,
     ) -> String {
         let mut parts = vec![];
         match change {
-            None | Some(ScanChange::Same | ScanChange::Unknown) => (),
-            Some(ScanChange::New) => parts.push(format!("[{}]", ADD_SYMBOL)),
-            Some(ScanChange::Different) => parts.push(format!("[{}]", CHANGE_SYMBOL)),
+            ScanChange::Same | ScanChange::Unknown => (),
+            ScanChange::New => parts.push(format!("[{}]", ADD_SYMBOL)),
+            ScanChange::Different => parts.push(format!("[{}]", CHANGE_SYMBOL)),
         }
         if !successful {
             parts.push(self.label_failed());

@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::{
     config::{BackupFilter, ToggledRegistry},
-    prelude::{Error, RegistryItem, ScanInfo, ScannedRegistry, StrictPath},
+    prelude::{Error, RegistryItem, ScanChange, ScanInfo, ScannedRegistry, StrictPath},
 };
 use winreg::types::{FromRegValue, ToRegValue};
 
@@ -40,13 +40,14 @@ pub fn scan_registry(
     path: &str,
     filter: &BackupFilter,
     toggled: &ToggledRegistry,
+    previous: &Option<Hives>,
 ) -> Result<Vec<ScannedRegistry>, Error> {
     let path = RegistryItem::new(path.to_string());
 
     let (hive_name, key) = path.split_hive().ok_or(Error::RegistryIssue)?;
     let hive = get_hkey_from_name(&hive_name).ok_or(Error::RegistryIssue)?;
 
-    scan_registry_key(game, hive, &hive_name, &key, filter, toggled)
+    scan_registry_key(game, hive, &hive_name, &key, filter, toggled, previous)
 }
 
 fn scan_registry_key(
@@ -56,6 +57,7 @@ fn scan_registry_key(
     key: &str,
     filter: &BackupFilter,
     toggled: &ToggledRegistry,
+    previous: &Option<Hives>,
 ) -> Result<Vec<ScannedRegistry>, Error> {
     let mut found = vec![];
     let path = RegistryItem::new(format!("{}\\{}", hive_name, key));
@@ -68,17 +70,55 @@ fn scan_registry_key(
         found.push(ScannedRegistry {
             path: path.rendered(),
             ignored: toggled.is_ignored(game, &path),
+            change: match previous {
+                None => ScanChange::New,
+                Some(previous) => match previous.get(hive_name, key) {
+                    None => ScanChange::New,
+                    Some(entries) => {
+                        if entries == &read_registry_key(&subkey) {
+                            ScanChange::Same
+                        } else {
+                            ScanChange::Different
+                        }
+                    }
+                },
+            },
         });
 
         for name in subkey.enum_keys().filter_map(|x| x.ok()) {
             found.extend(
-                scan_registry_key(game, hive, hive_name, &format!("{}\\{}", key, name), filter, toggled)
-                    .unwrap_or_default(),
+                scan_registry_key(
+                    game,
+                    hive,
+                    hive_name,
+                    &format!("{}\\{}", key, name),
+                    filter,
+                    toggled,
+                    previous,
+                )
+                .unwrap_or_default(),
             );
         }
     }
 
     Ok(found)
+}
+
+pub fn try_read_registry_key(hive_name: &str, key: &str) -> Option<Entries> {
+    let hive = get_hkey_from_name(hive_name)?;
+    let opened_key = winreg::RegKey::predef(hive).open_subkey(key).ok()?;
+    Some(read_registry_key(&opened_key))
+}
+
+fn read_registry_key(key: &winreg::RegKey) -> Entries {
+    let mut entries = Entries::default();
+    for (name, value) in key.enum_values().filter_map(|x| x.ok()) {
+        let entry = Entry::from(value);
+        if entry.is_set() {
+            entries.0.insert(name, entry);
+        }
+    }
+    entries
 }
 
 impl Hives {
@@ -218,6 +258,10 @@ impl Hives {
 
     pub fn is_empty(&self) -> bool {
         self.0.is_empty()
+    }
+
+    pub fn get(&self, hive: &str, key: &str) -> Option<&Entries> {
+        self.0.get(hive)?.0.get(key)
     }
 }
 

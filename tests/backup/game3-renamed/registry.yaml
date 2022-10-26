@@ -4,9 +4,9 @@ HKEY_CURRENT_USER:
     qword:
       qword: 2
     expandSz:
-      sz: baz
+      expandSz: baz
     multiSz:
-      sz: bar
+      multiSz: bar
     dword:
       dword: 1
     sz:
