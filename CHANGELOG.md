@@ -19,9 +19,13 @@
     There is also a button to refresh on demand.
     While the manifest is updating, a small notification is displayed at the bottom of the window.
   * GUI: Tooltips for some icons that may not be self-explanatory.
-  * CLI: `--fuzzy` option to look up games by an inexact name.
+  * CLI: `find` command to look up game titles from the manifest.
+    This incorporates the `--by-steam-id` option from the `backup`/etc commands
+    and adds some new ones, like `--fuzzy` to look up games by an inexact name.
 * Changed:
   * Increased scanning speed by 10% by avoiding some duplicate path lookups.
+  * CLI: Deprecated `--by-steam-id` in the `backup`/`backups`/`restore` commands,
+    in favor of the new `find` command.
   * Ludusavi will no longer migrate pre-v0.10.0 configurations to the current location.
   * A new `cache.yaml` is now used for some fields from `config.yaml`,
     specifically the recent game caching and manifest update tracking.

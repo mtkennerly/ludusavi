@@ -6,9 +6,9 @@ use crate::{
     layout::BackupLayout,
     manifest::{Manifest, SteamMetadata},
     prelude::{
-        app_dir, back_up_game, normalize_title, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration,
-        BackupId, BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus, OperationStepDecision,
-        ScanChange, ScanInfo, StrictPath,
+        app_dir, back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId,
+        BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus, OperationStepDecision, ScanChange,
+        ScanInfo, StrictPath, TitleFinder,
     },
 };
 use clap::{CommandFactory, Parser};
@@ -94,7 +94,7 @@ impl From<CliSort> for Sort {
 
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
 pub enum Subcommand {
-    #[clap(about = "Back up data")]
+    /// Back up data
     Backup {
         /// List out what would be included, but don't actually perform the operation.
         #[clap(long)]
@@ -132,6 +132,9 @@ pub enum Subcommand {
         #[clap(long, conflicts_with("update"))]
         try_update: bool,
 
+        /// DEPRECATED: Use the `find` command instead.
+        /// This option will be removed in a future version.
+        ///
         /// When naming specific games to process, this means that you'll
         /// provide the Steam IDs instead of the manifest names, and Ludusavi will
         /// look up those IDs in the manifest to find the corresponding names.
@@ -153,17 +156,11 @@ pub enum Subcommand {
         #[clap(long, possible_values = CliSort::ALL)]
         sort: Option<CliSort>,
 
-        /// When looking up specific game names, find all likely matches.
-        /// Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols.
-        /// This may find multiple games for a single input.
-        #[clap(long)]
-        fuzzy: bool,
-
         /// Only back up these specific games.
         #[clap()]
         games: Vec<String>,
     },
-    #[clap(about = "Restore data")]
+    /// Restore data
     Restore {
         /// List out what would be included, but don't actually perform the operation.
         #[clap(long)]
@@ -178,6 +175,9 @@ pub enum Subcommand {
         #[clap(long)]
         force: bool,
 
+        /// DEPRECATED: Use the `find` command instead.
+        /// This option will be removed in a future version.
+        ///
         /// When naming specific games to process, this means that you'll
         /// provide the Steam IDs instead of the manifest names, and Ludusavi will
         /// look up those IDs in the manifest to find the corresponding names.
@@ -199,28 +199,25 @@ pub enum Subcommand {
         #[clap(long)]
         backup: Option<String>,
 
-        /// When looking up specific game names, find all likely matches.
-        /// Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols.
-        /// This may find multiple games for a single input.
-        #[clap(long)]
-        fuzzy: bool,
-
         /// Only restore these specific games.
         #[clap()]
         games: Vec<String>,
     },
-    #[clap(about = "Generate shell completion scripts")]
+    /// Generate shell completion scripts
     Complete {
         #[clap(subcommand)]
         shell: CompletionShell,
     },
-    #[clap(about = "Show backups")]
+    /// Show backups
     Backups {
         /// Directory in which to find backups.
         /// When unset, this defaults to the restore path from the config file.
         #[clap(long, parse(from_str = parse_strict_path))]
         path: Option<StrictPath>,
 
+        /// DEPRECATED: Use the `find` command instead.
+        /// This option will be removed in a future version.
+        ///
         /// When naming specific games to process, this means that you'll
         /// provide the Steam IDs instead of the manifest names, and Ludusavi will
         /// look up those IDs in the manifest to find the corresponding names.
@@ -232,15 +229,51 @@ pub enum Subcommand {
         #[clap(long)]
         api: bool,
 
-        /// When looking up specific game names, find all likely matches.
+        /// Only report these specific games.
+        #[clap()]
+        games: Vec<String>,
+    },
+    /// Find game titles
+    ///
+    /// Precedence: Steam ID -> exact names -> fuzzy names.
+    /// Once a match is found for one of these options,
+    /// Ludusavi will stop looking and return those matches.
+    ///
+    /// If there are no matches, Ludusavi will exit with an error.
+    /// Depending on the options chosen, there may be multiple matches, but the default is a single match.
+    Find {
+        /// Print information to stdout in machine-readable JSON.
+        /// This replaces the default, human-readable output.
+        #[clap(long)]
+        api: bool,
+
+        /// Directory in which to find backups.
+        /// When unset, this defaults to the restore path from the config file.
+        #[clap(long, parse(from_str = parse_strict_path))]
+        path: Option<StrictPath>,
+
+        /// Ensure the game is recognized in a backup context.
+        #[clap(long)]
+        backup: bool,
+
+        /// Ensure the game is recognized in a restore context.
+        #[clap(long)]
+        restore: bool,
+
+        /// Look up game by a Steam ID.
+        #[clap(long)]
+        steam_id: Option<u32>,
+
+        /// Look up game by an approximation of the title.
         /// Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols.
         /// This may find multiple games for a single input.
         #[clap(long)]
         fuzzy: bool,
 
-        /// Only report these specific games.
+        /// Look up game by an exact title.
+        /// With multiple values, they will be checked in the order given.
         #[clap()]
-        games: Vec<String>,
+        names: Vec<String>,
     },
 }
 
@@ -250,7 +283,8 @@ impl Subcommand {
             Self::Backup { api, .. } => *api,
             Self::Restore { api, .. } => *api,
             Self::Backups { api, .. } => *api,
-            _ => false,
+            Self::Find { api, .. } => *api,
+            Self::Complete { .. } => false,
         }
     }
 }
@@ -328,6 +362,7 @@ enum ApiGame {
     Stored {
         backups: Vec<ApiBackup>,
     },
+    Found {},
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -399,6 +434,17 @@ impl Reporter {
                     unknown_games: Some(games),
                     ..Default::default()
                 });
+            }
+        }
+    }
+
+    fn suppress_overall(&mut self) {
+        match self {
+            Self::Standard { status, .. } => {
+                *status = None;
+            }
+            Self::Json { output, .. } => {
+                output.overall = None;
             }
         }
     }
@@ -560,8 +606,7 @@ impl Reporter {
 
     fn add_backup(&mut self, name: &str, scan_info: &ScanInfo) {
         match self {
-            Self::Standard { parts, status, .. } => {
-                *status = None;
+            Self::Standard { parts, .. } => {
                 if scan_info.available_backups.is_empty() {
                     return;
                 }
@@ -579,7 +624,6 @@ impl Reporter {
                 parts.push("".to_string());
             }
             Self::Json { output } => {
-                output.overall = None;
                 if scan_info.available_backups.is_empty() {
                     return;
                 }
@@ -593,6 +637,21 @@ impl Reporter {
                 }
 
                 output.games.insert(name.to_string(), ApiGame::Stored { backups });
+            }
+        }
+    }
+
+    fn add_found_titles(&mut self, names: &std::collections::HashSet<String>) {
+        match self {
+            Self::Standard { parts, .. } => {
+                for name in names {
+                    parts.push(name.to_owned());
+                }
+            }
+            Self::Json { output } => {
+                for name in names {
+                    output.games.insert(name.to_owned(), ApiGame::Found {});
+                }
             }
         }
     }
@@ -631,13 +690,7 @@ struct GameSubjects {
 }
 
 impl GameSubjects {
-    pub fn new(
-        known: Vec<String>,
-        requested: Vec<String>,
-        by_steam_id: bool,
-        fuzzy: bool,
-        manifest: &Manifest,
-    ) -> Self {
+    pub fn new(known: Vec<String>, requested: Vec<String>, by_steam_id: bool, manifest: &Manifest) -> Self {
         let mut subjects = Self::default();
 
         if requested.is_empty() {
@@ -658,21 +711,6 @@ impl GameSubjects {
                     }
                 }
             }
-        } else if fuzzy {
-            for game in requested {
-                let game_normalized = normalize_title(&game);
-                let mut found = false;
-                for known in &known {
-                    let known_normalized = normalize_title(known);
-                    if game_normalized == known_normalized {
-                        subjects.valid.push(known.clone());
-                        found = true;
-                    }
-                }
-                if !found {
-                    subjects.invalid.push(game);
-                }
-            }
         } else {
             for game in requested {
                 if known.contains(&game) {
@@ -686,6 +724,12 @@ impl GameSubjects {
         subjects.valid.sort();
         subjects.invalid.sort();
         subjects
+    }
+}
+
+fn warn_deprecations(by_steam_id: bool) {
+    if by_steam_id {
+        eprintln!("WARNING: `--by-steam-id` is deprecated. Use the `find` command instead.");
     }
 }
 
@@ -710,9 +754,10 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             wine_prefix,
             api,
             sort,
-            fuzzy,
             games,
         } => {
+            warn_deprecations(by_steam_id);
+
             let mut reporter = if api {
                 Reporter::json()
             } else {
@@ -772,13 +817,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             }
 
             let games_specified = !games.is_empty();
-            let subjects = GameSubjects::new(
-                all_games.0.keys().cloned().collect(),
-                games,
-                by_steam_id,
-                fuzzy,
-                &all_games,
-            );
+            let subjects = GameSubjects::new(all_games.0.keys().cloned().collect(), games, by_steam_id, &all_games);
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
@@ -879,9 +918,10 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             api,
             sort,
             backup,
-            fuzzy,
             games,
         } => {
+            warn_deprecations(by_steam_id);
+
             let mut reporter = if api {
                 Reporter::json()
             } else {
@@ -916,7 +956,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let backup_id = backup.as_ref().map(|x| BackupId::Named(x.clone()));
 
             let games_specified = !games.is_empty();
-            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, fuzzy, &manifest);
+            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, &manifest);
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
@@ -1021,14 +1061,16 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             path,
             by_steam_id,
             api,
-            fuzzy,
             games,
         } => {
+            warn_deprecations(by_steam_id);
+
             let mut reporter = if api {
                 Reporter::json()
             } else {
                 Reporter::standard(translator)
             };
+            reporter.suppress_overall();
 
             let manifest = Manifest::load(&config, &mut cache, false)?;
 
@@ -1041,7 +1083,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             let restorable_names = layout.restorable_games();
 
-            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, fuzzy, &manifest);
+            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, &manifest);
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
@@ -1064,6 +1106,61 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             for (name, scan_info) in info {
                 reporter.add_backup(name, &scan_info);
             }
+            reporter.print(&restore_dir);
+        }
+        Subcommand::Find {
+            api,
+            path,
+            backup,
+            restore,
+            steam_id,
+            fuzzy,
+            names,
+        } => {
+            let mut reporter = if api {
+                Reporter::json()
+            } else {
+                Reporter::standard(translator)
+            };
+            reporter.suppress_overall();
+
+            let mut manifest = match Manifest::load(&config, &mut cache, true) {
+                Ok(x) => x,
+                Err(e) => {
+                    eprintln!("{}", translator.handle_error(&e));
+                    match Manifest::load(&config, &mut cache, false) {
+                        Ok(y) => y,
+                        Err(_) => Manifest::default(),
+                    }
+                }
+            };
+            for custom_game in &config.custom_games {
+                if custom_game.ignore {
+                    continue;
+                }
+                manifest.add_custom_game(custom_game.clone());
+            }
+
+            let restore_dir = match path {
+                None => config.restore.path.clone(),
+                Some(p) => p,
+            };
+            let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
+
+            let title_finder = TitleFinder::new(&manifest, &layout);
+            let found = title_finder.find(&names, &steam_id, fuzzy, backup, restore);
+            reporter.add_found_titles(&found);
+
+            if found.is_empty() {
+                let mut invalid = names;
+                if let Some(steam_id) = steam_id {
+                    invalid.push(steam_id.to_string());
+                }
+                reporter.trip_unknown_games(invalid.clone());
+                reporter.print_failure();
+                return Err(crate::prelude::Error::CliUnrecognizedGames { games: invalid });
+            }
+
             reporter.print(&restore_dir);
         }
     }
@@ -1118,7 +1215,6 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
-                        fuzzy: false,
                         games: vec![],
                     }),
                 },
@@ -1143,7 +1239,6 @@ mod tests {
                     "--api",
                     "--sort",
                     "name",
-                    "--fuzzy",
                     "game1",
                     "game2",
                 ],
@@ -1160,7 +1255,6 @@ mod tests {
                         wine_prefix: Some(StrictPath::new(s("tests/wine-prefix"))),
                         api: true,
                         sort: Some(CliSort::Name),
-                        fuzzy: true,
                         games: vec![s("game1"), s("game2")],
                     }),
                 },
@@ -1184,7 +1278,6 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
-                        fuzzy: false,
                         games: vec![],
                     }),
                 },
@@ -1208,7 +1301,6 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
-                        fuzzy: false,
                         games: vec![],
                     }),
                 },
@@ -1232,7 +1324,6 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
-                        fuzzy: false,
                         games: vec![],
                     }),
                 },
@@ -1272,7 +1363,6 @@ mod tests {
                             wine_prefix: None,
                             api: false,
                             sort: Some(sort),
-                            fuzzy: false,
                             games: vec![],
                         }),
                     },
@@ -1293,7 +1383,6 @@ mod tests {
                         api: false,
                         sort: None,
                         backup: None,
-                        fuzzy: false,
                         games: vec![],
                     }),
                 },
@@ -1316,7 +1405,6 @@ mod tests {
                     "name",
                     "--backup",
                     ".",
-                    "--fuzzy",
                     "game1",
                     "game2",
                 ],
@@ -1329,7 +1417,6 @@ mod tests {
                         api: true,
                         sort: Some(CliSort::Name),
                         backup: Some(s(".")),
-                        fuzzy: true,
                         games: vec![s("game1"), s("game2")],
                     }),
                 },
@@ -1365,7 +1452,6 @@ mod tests {
                             api: false,
                             sort: Some(sort),
                             backup: None,
-                            fuzzy: false,
                             games: vec![],
                         }),
                     },
@@ -1442,7 +1528,6 @@ mod tests {
                         path: None,
                         by_steam_id: false,
                         api: false,
-                        fuzzy: false,
                         games: vec![],
                     }),
                 },
@@ -1459,7 +1544,6 @@ mod tests {
                     "tests/backup",
                     "--by-steam-id",
                     "--api",
-                    "--fuzzy",
                     "game1",
                     "game2",
                 ],
@@ -1468,8 +1552,56 @@ mod tests {
                         path: Some(StrictPath::new(s("tests/backup"))),
                         by_steam_id: true,
                         api: true,
-                        fuzzy: true,
                         games: vec![s("game1"), s("game2")],
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_find_with_minimal_arguments() {
+            check_args(
+                &["ludusavi", "find"],
+                Cli {
+                    sub: Some(Subcommand::Find {
+                        api: false,
+                        path: None,
+                        backup: false,
+                        restore: false,
+                        steam_id: None,
+                        fuzzy: false,
+                        names: vec![],
+                    }),
+                },
+            );
+        }
+
+        #[test]
+        fn accepts_cli_find_with_all_arguments() {
+            check_args(
+                &[
+                    "ludusavi",
+                    "find",
+                    "--api",
+                    "--path",
+                    "tests/backup",
+                    "--backup",
+                    "--restore",
+                    "--steam-id",
+                    "123",
+                    "--fuzzy",
+                    "game1",
+                    "game2",
+                ],
+                Cli {
+                    sub: Some(Subcommand::Find {
+                        api: true,
+                        path: Some(StrictPath::new(s("tests/backup"))),
+                        backup: true,
+                        restore: true,
+                        steam_id: Some(123),
+                        fuzzy: true,
+                        names: vec![s("game1"), s("game2")],
                     }),
                 },
             );
