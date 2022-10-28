@@ -128,41 +128,49 @@ impl HeroicGames {
     fn detect_legendary_games(&mut self, root: &RootsConfig, legendary: &Option<StrictPath>) {
         log::trace!("detect_legendary_games searching for legendary config...");
 
-        // TODO.2022-10-10 heroic: windows location for legendary
-        let legendary_path = match legendary {
-            Some(x) => x.to_owned(),
-            None => StrictPath::relative("../legendary".to_string(), Some(root.path.interpret())),
+        let legendary_paths = match legendary {
+            None => vec![
+                StrictPath::relative("../legendary".to_string(), Some(root.path.interpret())),
+                StrictPath::new("~/.config/legendary".to_string()),
+            ],
+            Some(x) => vec![x.clone()],
         };
 
-        if legendary_path.is_dir() {
-            log::trace!(
-                "detect_legendary_games checking for legendary configuration in {}",
-                legendary_path.interpret()
-            );
-
-            let legendary_installed = legendary_path.joined("installed.json");
-            if legendary_installed.is_file() {
-                // read list of installed games and call find_prefix for result
-                if let Ok(installed_games) =
-                    serde_json::from_str::<LegendaryInstalled>(&legendary_installed.read().unwrap_or_default())
-                {
-                    for game in installed_games.0.values() {
-                        log::trace!(
-                            "detect_legendary_games found legendary game {} ({})",
-                            game.title,
-                            game.app_name
-                        );
-                        // process game from GamesConfig
-                        let prefix =
-                            self.find_prefix(&root.path, &game.title, &game.platform.to_lowercase(), &game.app_name);
-                        self.memorize_game(root, &game.title, StrictPath::new(game.install_path.clone()), prefix);
-                    }
-                }
-            } else {
+        for legendary_path in legendary_paths {
+            if legendary_path.is_dir() {
                 log::trace!(
-                    "detect_legendary_games no such file '{:?}', legendary probably not used yet... skipping",
-                    legendary_installed
+                    "detect_legendary_games checking for legendary configuration in {}",
+                    legendary_path.interpret()
                 );
+
+                let legendary_installed = legendary_path.joined("installed.json");
+                if legendary_installed.is_file() {
+                    // read list of installed games and call find_prefix for result
+                    if let Ok(installed_games) =
+                        serde_json::from_str::<LegendaryInstalled>(&legendary_installed.read().unwrap_or_default())
+                    {
+                        for game in installed_games.0.values() {
+                            log::trace!(
+                                "detect_legendary_games found legendary game {} ({})",
+                                game.title,
+                                game.app_name
+                            );
+                            // process game from GamesConfig
+                            let prefix = self.find_prefix(
+                                &root.path,
+                                &game.title,
+                                &game.platform.to_lowercase(),
+                                &game.app_name,
+                            );
+                            self.memorize_game(root, &game.title, StrictPath::new(game.install_path.clone()), prefix);
+                        }
+                    }
+                } else {
+                    log::trace!(
+                        "detect_legendary_games no such file '{:?}', legendary probably not used yet... skipping",
+                        legendary_installed
+                    );
+                }
             }
         }
     }
@@ -222,19 +230,21 @@ impl HeroicGames {
             self.games
                 .insert((root.clone(), official.clone()), MemorizedGame { install_dir, prefix });
         } else {
-            // NOTE.2022-10-25 promoted to console error since this is something
-            // which needs user attention (e.g. GRIP vs. GRIP: Combat Racing).
+            // Handling game name mismatches, e.g. GRIP vs. GRIP: Combat Racing
             if self.normalized_to_official.len() == 1 {
                 // user clicked on a game in the UI which call us with this single game
-                log::info!(
-                        "heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!  But the UI might be looking for a different game anyways.",
+                log::trace!(
+                        "heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!  User probably selected a single, different game for backup/restore.",
                         title, normalized
                     );
-            } else {
+            } else if std::env::var("LUDUSAVI_DEBUG").is_ok() {
                 eprintln!(
-                        "heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!",
-                        title, normalized
-                    );
+                    "Ignoring unrecognized Heroic game: '{}' (normalized: '{}')",
+                    title, normalized
+                );
+            } else {
+                log::info!("heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!",
+                        title, normalized);
             }
 
             log::trace!(
