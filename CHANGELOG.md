@@ -34,6 +34,7 @@
     This was changed to avoid excess network traffic,
     because the manifest itself will be updated much more frequently.
   * GUI: Styling is now more consistent for disabled buttons.
+  * GUI: When adding a new root or custom game, the list automatically scrolls to the end.
 * Fixed:
   * Backup files did not store the correct modification time on Linux and defaulted to the current time.
     This also affected Windows, but only for zip backups.

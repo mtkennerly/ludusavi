@@ -34,7 +34,7 @@ impl RootEditorRow {
 
 #[derive(Default)]
 pub struct RootEditor {
-    scroll: scrollable::State,
+    pub scroll: scrollable::State,
     pub rows: Vec<RootEditorRow>,
 }
 

@@ -54,7 +54,7 @@ impl CustomGamesEditorEntry {
 
 #[derive(Default)]
 pub struct CustomGamesEditor {
-    scroll: scrollable::State,
+    pub scroll: scrollable::State,
     pub entries: Vec<CustomGamesEditorEntry>,
 }
 
