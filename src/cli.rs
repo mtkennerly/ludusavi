@@ -235,9 +235,9 @@ pub enum Subcommand {
     },
     /// Find game titles
     ///
-    /// Precedence: Steam ID -> exact names -> fuzzy names.
+    /// Precedence: Steam ID -> exact names -> normalized names.
     /// Once a match is found for one of these options,
-    /// Ludusavi will stop looking and return those matches.
+    /// Ludusavi will stop looking and return that match.
     ///
     /// If there are no matches, Ludusavi will exit with an error.
     /// Depending on the options chosen, there may be multiple matches, but the default is a single match.
@@ -268,7 +268,7 @@ pub enum Subcommand {
         /// Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols.
         /// This may find multiple games for a single input.
         #[clap(long)]
-        fuzzy: bool,
+        normalized: bool,
 
         /// Look up game by an exact title.
         /// With multiple values, they will be checked in the order given.
@@ -1114,7 +1114,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             backup,
             restore,
             steam_id,
-            fuzzy,
+            normalized,
             names,
         } => {
             let mut reporter = if api {
@@ -1148,7 +1148,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
 
             let title_finder = TitleFinder::new(&manifest, &layout);
-            let found = title_finder.find(&names, &steam_id, fuzzy, backup, restore);
+            let found = title_finder.find(&names, &steam_id, normalized, backup, restore);
             reporter.add_found_titles(&found);
 
             if found.is_empty() {
@@ -1569,7 +1569,7 @@ mod tests {
                         backup: false,
                         restore: false,
                         steam_id: None,
-                        fuzzy: false,
+                        normalized: false,
                         names: vec![],
                     }),
                 },
@@ -1589,7 +1589,7 @@ mod tests {
                     "--restore",
                     "--steam-id",
                     "123",
-                    "--fuzzy",
+                    "--normalized",
                     "game1",
                     "game2",
                 ],
@@ -1600,7 +1600,7 @@ mod tests {
                         backup: true,
                         restore: true,
                         steam_id: Some(123),
-                        fuzzy: true,
+                        normalized: true,
                         names: vec![s("game1"), s("game2")],
                     }),
                 },

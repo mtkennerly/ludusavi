@@ -1535,7 +1535,7 @@ impl TitleFinder {
         &self,
         names: &[String],
         steam_id: &Option<u32>,
-        fuzzy: bool,
+        normalized: bool,
         backup: bool,
         restore: bool,
     ) -> std::collections::HashSet<String> {
@@ -1557,7 +1557,7 @@ impl TitleFinder {
             }
         }
 
-        if fuzzy {
+        if normalized {
             for name in names {
                 if let Some(found) = self.normalized.get(&normalize_title(name)) {
                     if self.eligible(found, backup, restore) {
