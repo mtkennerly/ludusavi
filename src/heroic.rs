@@ -242,10 +242,9 @@ impl HeroicGames {
                     "Ignoring unrecognized Heroic game: '{}' (normalized: '{}')",
                     title, normalized
                 );
-            } else {
-                log::info!("heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!",
-                        title, normalized);
             }
+            log::info!("heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!",
+                        title, normalized);
 
             log::trace!(
                 "memorize_game memorizing info for {}: install_dir={:?}, prefix={:?}",
