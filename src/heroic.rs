@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::{
     config::RootsConfig,
-    manifest::{Manifest, Store},
-    prelude::{normalize_title, StrictPath},
+    manifest::Store,
+    prelude::{StrictPath, TitleFinder},
 };
 
 //
@@ -86,7 +86,6 @@ struct MemorizedGame {
 #[derive(Clone, Default, Debug)]
 pub struct HeroicGames {
     games: HashMap<(RootsConfig, String), MemorizedGame>,
-    normalized_to_official: HashMap<String, String>,
 }
 
 impl HeroicGames {
@@ -104,20 +103,13 @@ impl HeroicGames {
             .map(|x| &x.install_dir)
     }
 
-    pub fn scan(roots: &[RootsConfig], manifest: &Manifest, legendary: Option<StrictPath>) -> Self {
-        let mut instance = HeroicGames {
-            normalized_to_official: manifest
-                .0
-                .keys()
-                .map(|title| (normalize_title(title), title.clone()))
-                .collect(),
-            ..Default::default()
-        };
+    pub fn scan(roots: &[RootsConfig], title_finder: &TitleFinder, legendary: Option<StrictPath>) -> Self {
+        let mut instance = HeroicGames::default();
 
         for root in roots {
             if root.store == Store::Heroic {
-                instance.detect_legendary_games(root, &legendary);
-                instance.detect_gog_games(root);
+                instance.detect_legendary_games(root, title_finder, &legendary);
+                instance.detect_gog_games(root, title_finder);
                 log::trace!("scan found: {:#?}", instance.games);
             }
         }
@@ -125,7 +117,12 @@ impl HeroicGames {
         instance
     }
 
-    fn detect_legendary_games(&mut self, root: &RootsConfig, legendary: &Option<StrictPath>) {
+    fn detect_legendary_games(
+        &mut self,
+        root: &RootsConfig,
+        title_finder: &TitleFinder,
+        legendary: &Option<StrictPath>,
+    ) {
         log::trace!("detect_legendary_games searching for legendary config...");
 
         let legendary_paths = match legendary {
@@ -162,7 +159,13 @@ impl HeroicGames {
                                 &game.platform.to_lowercase(),
                                 &game.app_name,
                             );
-                            self.memorize_game(root, &game.title, StrictPath::new(game.install_path.clone()), prefix);
+                            self.memorize_game(
+                                root,
+                                title_finder,
+                                &game.title,
+                                StrictPath::new(game.install_path.clone()),
+                                prefix,
+                            );
                         }
                     }
                 } else {
@@ -175,7 +178,7 @@ impl HeroicGames {
         }
     }
 
-    fn detect_gog_games(&mut self, root: &RootsConfig) {
+    fn detect_gog_games(&mut self, root: &RootsConfig, title_finder: &TitleFinder) {
         log::trace!(
             "detect_gog_games searching for GOG information in {}",
             root.path.interpret()
@@ -212,42 +215,46 @@ impl HeroicGames {
             for game in installed_games.installed {
                 if let Some(game_title) = game_titles.get(&game.app_name) {
                     let prefix = self.find_prefix(&root.path, game_title, &game.platform, &game.app_name);
-                    self.memorize_game(root, game_title, StrictPath::new(game.install_path), prefix);
+                    self.memorize_game(
+                        root,
+                        title_finder,
+                        game_title,
+                        StrictPath::new(game.install_path),
+                        prefix,
+                    );
                 }
             }
         }
     }
 
-    fn memorize_game(&mut self, root: &RootsConfig, title: &str, install_dir: StrictPath, prefix: Option<StrictPath>) {
-        let normalized = normalize_title(title);
-        if let Some(official) = self.normalized_to_official.get(&normalized) {
+    fn memorize_game(
+        &mut self,
+        root: &RootsConfig,
+        title_finder: &TitleFinder,
+        title: &str,
+        install_dir: StrictPath,
+        prefix: Option<StrictPath>,
+    ) {
+        if let Some(official) = title_finder.find_one(&[title.to_owned()], &None, true, true, false) {
             log::trace!(
-                "memorize_game memorizing info for {}: install_dir={:?}, prefix={:?}",
+                "memorize_game memorizing info for '{}' (from: '{}'): install_dir={:?}, prefix={:?}",
                 official,
+                title,
                 &install_dir,
                 &prefix
             );
             self.games
-                .insert((root.clone(), official.clone()), MemorizedGame { install_dir, prefix });
+                .insert((root.clone(), official), MemorizedGame { install_dir, prefix });
         } else {
             // Handling game name mismatches, e.g. GRIP vs. GRIP: Combat Racing
-            if self.normalized_to_official.len() == 1 {
-                // user clicked on a game in the UI which call us with this single game
-                log::trace!(
-                        "heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!  User probably selected a single, different game for backup/restore.",
-                        title, normalized
-                    );
-            } else if std::env::var("LUDUSAVI_DEBUG").is_ok() {
-                eprintln!(
-                    "Ignoring unrecognized Heroic game: '{}' (normalized: '{}')",
-                    title, normalized
-                );
+            let log_message = format!("Ignoring unrecognized Heroic game: '{}'", title);
+            if std::env::var("LUDUSAVI_DEBUG").is_ok() {
+                eprintln!("{}", &log_message);
             }
-            log::info!("heroic::memorize_game did not find neither '{}' nor '{}' in ludusavi manifest, no backup/restore can be done!",
-                        title, normalized);
+            log::info!("{}", &log_message);
 
             log::trace!(
-                "memorize_game memorizing info for {}: install_dir={:?}, prefix={:?}",
+                "memorize_game memorizing info for '{}': install_dir={:?}, prefix={:?}",
                 title,
                 &install_dir,
                 &prefix
@@ -343,7 +350,7 @@ impl HeroicGames {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::repo;
+    use crate::{manifest::Manifest, testing::repo};
     use maplit::hashmap;
     use pretty_assertions::assert_eq;
 
@@ -361,6 +368,10 @@ mod tests {
         .unwrap()
     }
 
+    fn title_finder() -> TitleFinder {
+        TitleFinder::new(&manifest(), &Default::default())
+    }
+
     #[test]
     fn scan_finds_nothing_when_folder_does_not_exist() {
         let roots = vec![RootsConfig {
@@ -368,7 +379,7 @@ mod tests {
             store: Store::Heroic,
         }];
         let legendary = Some(StrictPath::new(format!("{}/tests/nonexistent", repo())));
-        let prefixes = HeroicGames::scan(&roots, &manifest(), legendary);
+        let prefixes = HeroicGames::scan(&roots, &title_finder(), legendary);
         assert_eq!(HashMap::new(), prefixes.games);
     }
 
@@ -379,7 +390,7 @@ mod tests {
             store: Store::Heroic,
         }];
         let legendary = Some(StrictPath::new(format!("{}/tests/launchers/legendary", repo())));
-        let prefixes = HeroicGames::scan(&roots, &manifest(), legendary);
+        let prefixes = HeroicGames::scan(&roots, &title_finder(), legendary);
         assert_eq!(
             hashmap! {
                 (roots[0].clone(), "windows-game".to_string()) => MemorizedGame {

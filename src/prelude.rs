@@ -1557,6 +1557,18 @@ impl TitleFinder {
         }
     }
 
+    pub fn find_one(
+        &self,
+        names: &[String],
+        steam_id: &Option<u32>,
+        normalized: bool,
+        backup: bool,
+        restore: bool,
+    ) -> Option<String> {
+        let found = self.find(names, steam_id, normalized, backup, restore);
+        found.iter().next().map(|x| x.to_owned())
+    }
+
     pub fn find(
         &self,
         names: &[String],
@@ -1564,8 +1576,8 @@ impl TitleFinder {
         normalized: bool,
         backup: bool,
         restore: bool,
-    ) -> std::collections::HashSet<String> {
-        let mut output = std::collections::HashSet::new();
+    ) -> std::collections::BTreeSet<String> {
+        let mut output = std::collections::BTreeSet::new();
 
         if let Some(steam_id) = steam_id {
             if let Some(found) = self.steam_ids.get(steam_id) {

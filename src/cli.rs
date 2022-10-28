@@ -641,7 +641,7 @@ impl Reporter {
         }
     }
 
-    fn add_found_titles(&mut self, names: &std::collections::HashSet<String>) {
+    fn add_found_titles(&mut self, names: &std::collections::BTreeSet<String>) {
         match self {
             Self::Standard { parts, .. } => {
                 for name in names {
@@ -828,8 +828,9 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             log::info!("beginning backup with {} steps", subjects.valid.len());
 
-            let heroic_games = HeroicGames::scan(&roots, &all_games, None);
             let layout = BackupLayout::new(backup_dir.clone(), config.backup.retention.clone());
+            let title_finder = TitleFinder::new(&all_games, &layout);
+            let heroic_games = HeroicGames::scan(&roots, &title_finder, None);
             let filter = config.backup.filter.clone();
             let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects.valid);
             let toggled_paths = config.backup.toggled_paths.clone();

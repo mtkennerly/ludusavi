@@ -20,7 +20,7 @@ use crate::{
     manifest::{Manifest, Store},
     prelude::{
         app_dir, back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId, Error,
-        InstallDirRanking, OperationStepDecision, StrictPath,
+        InstallDirRanking, OperationStepDecision, StrictPath, TitleFinder,
     },
     registry_compat::RegistryItem,
     shortcuts::Shortcut,
@@ -201,6 +201,12 @@ impl App {
             self.backup_screen.previewed_games.clear();
         }
 
+        let layout = std::sync::Arc::new(BackupLayout::new(
+            self.config.backup.path.clone(),
+            self.config.backup.retention.clone(),
+        ));
+        let title_finder = TitleFinder::new(&all_games, &layout);
+
         if let Some(games) = &games {
             all_games.0.retain(|k, _| games.contains(k));
         } else if !self.backup_screen.previewed_games.is_empty() && !self.backup_screen.log.contains_unscanned_games() {
@@ -249,11 +255,7 @@ impl App {
 
         let config = std::sync::Arc::new(self.config.clone());
         let roots = std::sync::Arc::new(config.expanded_roots());
-        let heroic_games = std::sync::Arc::new(HeroicGames::scan(&roots, &all_games, None));
-        let layout = std::sync::Arc::new(BackupLayout::new(
-            self.config.backup.path.clone(),
-            config.backup.retention.clone(),
-        ));
+        let heroic_games = std::sync::Arc::new(HeroicGames::scan(&roots, &title_finder, None));
         let filter = std::sync::Arc::new(self.config.backup.filter.clone());
         let ranking = std::sync::Arc::new(InstallDirRanking::scan(&roots, &all_games, &subjects));
 
