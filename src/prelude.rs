@@ -617,6 +617,32 @@ pub fn parse_paths(
             None,
         ));
     }
+
+    // NOTE.2022-10-26 - Heroic flatpak installation detection
+    //
+    // flatpak wiki on filesystems
+    // (https://github.com/flatpak/flatpak/wiki/Filesystem) as well as
+    // https://docs.flatpak.org do not seem to mention an option to relocate
+    // per-app data directories.  These are by default located in
+    // $HOME/.var/app/$FLATPAK_ID, so we cat detect a flatpak installed heroic
+    // by looking at the `root_interpreted` and check for
+    // ".var/app/com.heroicgameslauncher.hgl/config/heroic"
+    if root.store == Store::Heroic
+        && get_os() == Os::Linux
+        && root_interpreted.ends_with(".var/app/com.heroicgameslauncher.hgl/config/heroic")
+    {
+        paths.insert((
+            path.replace(
+                "<xdgData>",
+                check_nonwindows_path_str(&format!("{}/../../data", &root_interpreted)),
+            )
+            .replace(
+                "<xdgConfig>",
+                check_nonwindows_path_str(&format!("{}/../../config", &root_interpreted)),
+            ),
+            None,
+        ));
+    }
     if root.store == Store::OtherHome {
         paths.insert((
             path.replace("<root>", &root_interpreted)

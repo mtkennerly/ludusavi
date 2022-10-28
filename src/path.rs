@@ -763,6 +763,7 @@ mod tests {
                 assert_eq!("/".to_string(), interpret("/", &None));
                 assert_eq!("/foo".to_string(), interpret("/foo", &None));
                 assert_eq!("/foo/bar".to_string(), interpret("/foo/bar", &None));
+                assert_eq!("/foo/bar".to_string(), interpret("/foo/bar/", &None));
             }
         }
 
