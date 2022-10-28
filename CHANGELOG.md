@@ -22,6 +22,8 @@
   * CLI: `find` command to look up game titles from the manifest.
     This incorporates the `--by-steam-id` option from the `backup`/etc commands
     and adds some new ones, like `--fuzzy` to look up games by an inexact name.
+  * On startup, Ludusavi will prune any useless blank configurations
+    (e.g., roots with a blank path).
 * Changed:
   * Increased scanning speed by 10% by avoiding some duplicate path lookups.
   * CLI: Deprecated `--by-steam-id` in the `backup`/`backups`/`restore` commands,
