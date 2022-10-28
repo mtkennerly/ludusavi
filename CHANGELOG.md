@@ -4,6 +4,7 @@
   * Ludusavi now shows which games and files are new/changed compared to the last backup or restore.
     This is indicated by a `+` or `Δ` badge next to applicable games and files.
   * The Heroic launcher is now supported as a root type.
+    Both GOG and Epic games are detected, as well as any Wine prefixes (on Linux).
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/141))
   * Compression levels can now be customized for zip backups.
   * In addition to restoration redirects, there are now also backup redirects and bidirectional redirects.
@@ -19,9 +20,15 @@
     There is also a button to refresh on demand.
     While the manifest is updating, a small notification is displayed at the bottom of the window.
   * GUI: Tooltips for some icons that may not be self-explanatory.
-  * CLI: `--fuzzy` option to look up games by an inexact name.
+  * CLI: `find` command to look up game titles from the manifest.
+    This incorporates the `--by-steam-id` option from the `backup`/etc commands
+    and adds some new ones, like `--normalized` to look up games by an inexact name.
+  * On startup, Ludusavi will prune any useless blank configurations
+    (e.g., roots with a blank path).
 * Changed:
   * Increased scanning speed by 10% by avoiding some duplicate path lookups.
+  * CLI: Deprecated `--by-steam-id` in the `backup`/`backups`/`restore` commands,
+    in favor of the new `find` command.
   * Ludusavi will no longer migrate pre-v0.10.0 configurations to the current location.
   * A new `cache.yaml` is now used for some fields from `config.yaml`,
     specifically the recent game caching and manifest update tracking.
@@ -30,6 +37,7 @@
     This was changed to avoid excess network traffic,
     because the manifest itself will be updated much more frequently.
   * GUI: Styling is now more consistent for disabled buttons.
+  * GUI: When adding a new root or custom game, the list automatically scrolls to the end.
 * Fixed:
   * Backup files did not store the correct modification time on Linux and defaulted to the current time.
     This also affected Windows, but only for zip backups.

@@ -867,6 +867,7 @@ impl Application for App {
                             path: StrictPath::default(),
                             store: Store::Other,
                         });
+                        self.backup_screen.root_editor.scroll.snap_to(1.0);
                     }
                     EditAction::Change(index, value) => {
                         self.backup_screen.root_editor.rows[index].text_history.push(&value);
@@ -930,6 +931,7 @@ impl Application for App {
                             .entries
                             .push(CustomGamesEditorEntry::default());
                         self.config.add_custom_game();
+                        self.custom_games_screen.games_editor.scroll.snap_to(1.0);
                     }
                     EditAction::Change(index, value) => {
                         self.custom_games_screen.games_editor.entries[index]

@@ -445,6 +445,22 @@ impl Config {
             self.redirects = self.restore.redirects.clone();
             self.restore.redirects.clear();
         }
+
+        self.roots.retain(|x| !x.path.raw().trim().is_empty());
+        self.redirects
+            .retain(|x| !x.source.raw().trim().is_empty() && !x.target.raw().trim().is_empty());
+        self.backup.filter.ignored_paths.retain(|x| !x.raw().trim().is_empty());
+        self.backup
+            .filter
+            .ignored_registry
+            .retain(|x| !x.raw().trim().is_empty());
+        for item in &mut self.custom_games {
+            item.files.retain(|x| !x.trim().is_empty());
+            item.registry.retain(|x| !x.trim().is_empty());
+        }
+        self.custom_games
+            .retain(|x| !x.name.trim().is_empty() || !x.files.is_empty() || !x.registry.is_empty());
+
         self
     }
 

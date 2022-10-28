@@ -1,8 +1,8 @@
 use crate::{
     config::{BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry},
     heroic::HeroicGames,
-    layout::{Backup, GameLayout, LatestBackup},
-    manifest::{Game, Os, Store},
+    layout::{Backup, BackupLayout, GameLayout, LatestBackup},
+    manifest::{Game, Manifest, Os, Store},
 };
 use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
@@ -98,6 +98,16 @@ impl ScanChangeCount {
 
     pub fn updated(&self) -> bool {
         !self.brand_new() && (self.new > 0 || self.different > 0)
+    }
+
+    pub fn overall(&self) -> ScanChange {
+        if self.brand_new() {
+            ScanChange::New
+        } else if self.updated() {
+            ScanChange::Different
+        } else {
+            ScanChange::Same
+        }
     }
 }
 
@@ -1487,10 +1497,10 @@ static RE_SPACES: Lazy<Regex> = Lazy::new(|| Regex::new(r#" {2,}"#).unwrap());
 
 pub fn normalize_title(title: &str) -> String {
     let normalized = title.to_lowercase();
+    let normalized = RE_YEAR_SUFFIX.replace_all(&normalized, "");
     let normalized = RE_EDITION_PUNCTUATED.replace_all(&normalized, "");
     let normalized = RE_EDITION_KNOWN.replace_all(&normalized, "");
     let normalized = RE_EDITION_SHORT.replace_all(&normalized, "");
-    let normalized = RE_YEAR_SUFFIX.replace_all(&normalized, "");
     let normalized = RE_SYMBOLS.replace_all(&normalized, " ");
     let normalized = RE_SPACES.replace_all(&normalized, " ");
     normalized.trim().to_string()
@@ -1502,6 +1512,90 @@ pub fn sha1(content: String) -> String {
     let mut hasher = sha1::Sha1::new();
     hasher.update(content);
     format!("{:x}", hasher.finalize())
+}
+
+pub struct TitleFinder {
+    all_games: std::collections::HashSet<String>,
+    can_backup: std::collections::HashSet<String>,
+    can_restore: std::collections::HashSet<String>,
+    steam_ids: std::collections::HashMap<u32, String>,
+    normalized: std::collections::HashMap<String, String>,
+}
+
+impl TitleFinder {
+    pub fn new(manifest: &Manifest, layout: &BackupLayout) -> Self {
+        let can_backup: std::collections::HashSet<_> = manifest.0.keys().cloned().collect();
+        let can_restore: std::collections::HashSet<_> = layout.restorable_games().into_iter().collect();
+        let all_games: std::collections::HashSet<_> = can_backup.union(&can_restore).cloned().collect();
+        let steam_ids = manifest.map_steam_ids_to_names();
+        let normalized: std::collections::HashMap<_, _> = all_games
+            .iter()
+            .map(|title| (normalize_title(title), title.to_owned()))
+            .collect();
+
+        Self {
+            all_games,
+            can_backup,
+            can_restore,
+            steam_ids,
+            normalized,
+        }
+    }
+
+    fn eligible(&self, game: &str, backup: bool, restore: bool) -> bool {
+        let can_backup = self.can_backup.contains(game);
+        let can_restore = self.can_restore.contains(game);
+
+        if backup && restore {
+            can_backup && can_restore
+        } else if backup {
+            can_backup
+        } else if restore {
+            can_restore
+        } else {
+            true
+        }
+    }
+
+    pub fn find(
+        &self,
+        names: &[String],
+        steam_id: &Option<u32>,
+        normalized: bool,
+        backup: bool,
+        restore: bool,
+    ) -> std::collections::HashSet<String> {
+        let mut output = std::collections::HashSet::new();
+
+        if let Some(steam_id) = steam_id {
+            if let Some(found) = self.steam_ids.get(steam_id) {
+                if self.eligible(found, backup, restore) {
+                    output.insert(found.to_owned());
+                    return output;
+                }
+            }
+        }
+
+        for name in names {
+            if self.all_games.contains(name) && self.eligible(name, backup, restore) {
+                output.insert(name.to_owned());
+                return output;
+            }
+        }
+
+        if normalized {
+            for name in names {
+                if let Some(found) = self.normalized.get(&normalize_title(name)) {
+                    if self.eligible(found, backup, restore) {
+                        output.insert((*found).to_owned());
+                        return output;
+                    }
+                }
+            }
+        }
+
+        output
+    }
 }
 
 #[cfg(test)]
