@@ -199,6 +199,19 @@ pub enum BackupFormat {
 
 impl BackupFormat {
     pub const ALL: &'static [Self] = &[Self::Simple, Self::Zip];
+    pub const ALL_NAMES: &'static [&'static str] = &["simple", "zip"];
+}
+
+impl std::str::FromStr for BackupFormat {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "simple" => Ok(Self::Simple),
+            "zip" => Ok(Self::Zip),
+            _ => Err(format!("invalid backup format: {}", s)),
+        }
+    }
 }
 
 impl ToString for BackupFormat {
@@ -279,6 +292,21 @@ pub enum ZipCompression {
 
 impl ZipCompression {
     pub const ALL: &'static [Self] = &[Self::None, Self::Deflate, Self::Bzip2, Self::Zstd];
+    pub const ALL_NAMES: &'static [&'static str] = &["none", "deflate", "bzip2", "zstd"];
+}
+
+impl std::str::FromStr for ZipCompression {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "none" => Ok(Self::None),
+            "deflate" => Ok(Self::Deflate),
+            "bzip2" => Ok(Self::Bzip2),
+            "zstd" => Ok(Self::Zstd),
+            _ => Err(format!("invalid compression method: {}", s)),
+        }
+    }
 }
 
 impl ToString for ZipCompression {

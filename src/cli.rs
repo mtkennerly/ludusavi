@@ -1,6 +1,6 @@
 use crate::{
     cache::Cache,
-    config::{Config, Sort, SortKey},
+    config::{BackupFormat, Config, Sort, SortKey, ZipCompression},
     heroic::HeroicGames,
     lang::Translator,
     layout::BackupLayout,
@@ -155,6 +155,28 @@ pub enum Subcommand {
         /// When not specified, this defers to the config file.
         #[clap(long, possible_values = CliSort::ALL)]
         sort: Option<CliSort>,
+
+        /// Format in which to store new backups.
+        /// When not specified, this defers to the config file.
+        #[clap(long, possible_values = BackupFormat::ALL_NAMES)]
+        format: Option<BackupFormat>,
+
+        /// Compression method to use for new zip backups.
+        /// When not specified, this defers to the config file.
+        #[clap(long, possible_values = ZipCompression::ALL_NAMES)]
+        compression: Option<ZipCompression>,
+
+        /// Maximum number of full backups to retain per game.
+        /// Must be between 1 and 255 (inclusive).
+        /// When not specified, this defers to the config file.
+        #[clap(long)]
+        full_limit: Option<u8>,
+
+        /// Maximum number of differential backups to retain per full backup.
+        /// Must be between 0 and 255 (inclusive).
+        /// When not specified, this defers to the config file.
+        #[clap(long)]
+        differential_limit: Option<u8>,
 
         /// Only back up these specific games.
         #[clap()]
@@ -754,6 +776,10 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             wine_prefix,
             api,
             sort,
+            format,
+            compression,
+            full_limit,
+            differential_limit,
             games,
         } => {
             warn_deprecations(by_steam_id);
@@ -828,7 +854,15 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
 
             log::info!("beginning backup with {} steps", subjects.valid.len());
 
-            let layout = BackupLayout::new(backup_dir.clone(), config.backup.retention.clone());
+            let mut retention = config.backup.retention.clone();
+            if let Some(full_limit) = full_limit {
+                retention.full = full_limit;
+            }
+            if let Some(differential_limit) = differential_limit {
+                retention.differential = differential_limit;
+            }
+
+            let layout = BackupLayout::new(backup_dir.clone(), retention);
             let title_finder = TitleFinder::new(&all_games, &layout);
             let heroic_games = HeroicGames::scan(&roots, &title_finder, None);
             let filter = config.backup.filter.clone();
@@ -872,12 +906,20 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                     let backup_info = if preview || ignored {
                         crate::prelude::BackupInfo::default()
                     } else {
+                        let mut backup_format = config.backup.format.clone();
+                        if let Some(format) = format {
+                            backup_format.chosen = format;
+                        }
+                        if let Some(compression) = compression {
+                            backup_format.zip.compression = compression;
+                        }
+
                         back_up_game(
                             &scan_info,
                             layout.game_layout(name),
                             config.backup.merge,
                             &chrono::Utc::now(),
-                            &config.backup.format,
+                            &backup_format,
                         )
                     };
                     log::trace!("step {i} completed");
@@ -1216,6 +1258,10 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
+                        format: None,
+                        compression: None,
+                        full_limit: None,
+                        differential_limit: None,
                         games: vec![],
                     }),
                 },
@@ -1240,6 +1286,14 @@ mod tests {
                     "--api",
                     "--sort",
                     "name",
+                    "--format",
+                    "zip",
+                    "--compression",
+                    "bzip2",
+                    "--full-limit",
+                    "1",
+                    "--differential-limit",
+                    "2",
                     "game1",
                     "game2",
                 ],
@@ -1256,6 +1310,10 @@ mod tests {
                         wine_prefix: Some(StrictPath::new(s("tests/wine-prefix"))),
                         api: true,
                         sort: Some(CliSort::Name),
+                        format: Some(BackupFormat::Zip),
+                        compression: Some(ZipCompression::Bzip2),
+                        full_limit: Some(1),
+                        differential_limit: Some(2),
                         games: vec![s("game1"), s("game2")],
                     }),
                 },
@@ -1279,6 +1337,10 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
+                        format: None,
+                        compression: None,
+                        full_limit: None,
+                        differential_limit: None,
                         games: vec![],
                     }),
                 },
@@ -1302,6 +1364,10 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
+                        format: None,
+                        compression: None,
+                        full_limit: None,
+                        differential_limit: None,
                         games: vec![],
                     }),
                 },
@@ -1325,6 +1391,10 @@ mod tests {
                         wine_prefix: None,
                         api: false,
                         sort: None,
+                        format: None,
+                        compression: None,
+                        full_limit: None,
+                        differential_limit: None,
                         games: vec![],
                     }),
                 },
@@ -1364,6 +1434,10 @@ mod tests {
                             wine_prefix: None,
                             api: false,
                             sort: Some(sort),
+                            format: None,
+                            compression: None,
+                            full_limit: None,
+                            differential_limit: None,
                             games: vec![],
                         }),
                     },
