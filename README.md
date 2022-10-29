@@ -90,6 +90,11 @@ as many as you need, along with the root's type:
   `userdata` subdirectories. Here are some common/standard locations:
   * Windows: `C:/Program Files (x86)/Steam`
   * Linux: `~/.steam/steam`
+* For a Heroic root, this should be the folder containing the `gog_store`
+  and `GamesConfig` subdirectories.
+
+  Ludusavi can find GOG/Epic saves in Heroic's game install folders.
+  On Linux, Ludusavi can also find saves in Heroic's Wine, Proton, and Lutris prefixes.
 * For the "other" root type and the remaining store-specific roots,
   this should be a folder whose direct children are individual games.
   For example, in the Epic Games store, this would be what you choose as the
@@ -170,14 +175,14 @@ the same files were also backed up for another game. That could be intentional
 also be a sign of an issue in the manifest data. You can expand the game's
 file list to see which exact entries are duplicated.
 
-### Restoration redirect
-You can use redirects to restore to a different location than the original file.
+### Redirects
+You can use redirects to back up or restore to a different location than the original file.
 Click `add redirect` on the restore screen, and then enter both the old and new location.
 For example, if you backed up some saves from `C:/Games`, but then you moved it to `D:/Games`,
-then you would put `C:/Games` as the source and `D:/Games` as the target.
+then you could create a restore redirect with `C:/Games` as the source and `D:/Games` as the target.
 
 Tip: As you're editing your redirects, try running a preview and expanding some
-games' file lists. This will show you in real time what effect your redirects
+games' file lists. This will show you what effect your redirects
 will have when you perform the restore for real.
 
 ### Custom games
@@ -250,6 +255,7 @@ For the `backup`/`restore` commands:
     This excludes ignored, failed, and cancelled games.
   * `processedBytes` (number): How many bytes were processed.
     This excludes ignored, failed, and cancelled games.
+  * `changedGames` (object): Total count of `new`, `same`, and `different` games.
 * `games` (map):
   * Each key is the name of a game, and the value is a map with these fields:
     * `decision` (string): How Ludusavi decided to handle this game.
@@ -258,9 +264,17 @@ For the `backup`/`restore` commands:
       * `Processed`
       * `Ignored`
       * `Cancelled`
+    * `change` (string): How this game compares to its previous backup (if doing a new backup)
+      or how its previous backup compares to the current system state (if doing a restore).
+
+      Possible values:
+      * `New`
+      * `Same`
+      * `Different`
     * `files` (map):
       * Each key is a file path, and each value is a map with these fields:
         * `failed` (optional, boolean): Whether this entry failed to process.
+        * `change` (string): Same as game-level field, but for a specific backup item.
         * `ignored` (optional, boolean): Whether this entry was ignored.
         * `bytes` (number): Size of the file.
         * `originalPath` (optional, string): If the file was restored to a
@@ -270,12 +284,14 @@ For the `backup`/`restore` commands:
     * `registry` (map):
       * Each key is a registry path, and each value is a map with these fields:
         * `failed` (optional, boolean): Whether this entry failed to process.
+        * `change` (string): Same as game-level field, but for a specific backup item.
         * `ignored` (optional, boolean): Whether this entry was ignored.
         * `duplicatedBy` (optional, array of strings): Any other games that
           also have the same registry path.
 
 The `backups` command is similar, but without `overall`, and with each game containing
-`{"backups": [ {"name": <string>, "when": <string>} ]}`
+`{"backups": [ {"name": <string>, "when": <string>} ]}`.
+The `find` command also does not have `overall`, and each game object is empty.
 
 Note that, in some error conditions, there may not be any JSON output,
 so you should check if stdout was blank before trying to parse it.
@@ -332,8 +348,7 @@ Here are the available settings in `config.yaml` (all are required unless otherw
 
 * `manifest` (map):
   * `url` (string): Where to download the primary manifest.
-  * `etag` (string or null): An identifier for the current version of the manifest.
-    This is generated automatically when the manifest is updated.
+  * `etag` (string or null): This field is deprecated and has been superseded by cache.yaml.
 * `language` (string, optional): Display language. Valid options:
   `en-US` (English, default), `fil-PH` (Filipino), `de-DE` (German), `it-IT` (Italian), `pt-BR` (Brazilian Portuguese), `pl-PL` (Polish), `es-ES` (Spanish).
 
@@ -345,8 +360,18 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   * Each entry in the list should be a map with these fields:
     * `path` (string): Where the root is located on your system.
     * `store` (string): Game store associated with the root. Valid options:
-      `epic`, `gog`, `gogGalaxy`, `microsoft`, `origin`, `prime`,
+      `epic`, `gog`, `gogGalaxy`, `heroic`, `microsoft`, `origin`, `prime`,
       `steam`, `uplay`, `otherHome`, `otherWine`, `other`
+* `redirects` (optional, list):
+  * Each entry in the list should be a map with these fields:
+    * `kind` (string): When and how to apply the redirect.
+
+      Possible values:
+      * `backup`
+      * `restore`
+      * `bidirectional`
+    * `source` (string): The original location when the backup was performed.
+    * `target` (string): The new location.
 * `backup` (map):
   * `path` (string): Full path to a directory in which to save backups.
     This can be overridden in the CLI with `--path`.
@@ -374,15 +399,19 @@ Here are the available settings in `config.yaml` (all are required unless otherw
     * `chosen` (string): One of `simple`, `zip`.
     * `zip` (map): Settings for the zip format.
       * `compression` (string): One of `none`, `deflate`, `bzip2`, `zstd`.
+    * `compression` (map): Settings for specific compression methods.
+      In compression levels, higher numbers are slower, but save more space.
+      * `deflate` (object):
+        * `level` (integer): 1 to 9.
+      * `bzip2` (object):
+        * `level` (integer): 1 to 9.
+      * `zstd` (object):
+        * `level` (integer): -7 to 22.
 * `restore` (map):
   * `path` (string): Full path to a directory from which to restore data.
     This can be overridden in the CLI with `--path`.
   * `ignoredGames` (optional, list of strings): Names of games to skip when restoring.
     This can be overridden in the CLI by passing a list of games.
-  * `redirects` (optional, list):
-    * Each entry in the list should be a map with these fields:
-      * `source` (string): The original location when the backup was performed.
-      * `target` (string): The new location.
   * `sort` (map):
     * `key` (string): One of `name`, `size`.
     * `reversed` (boolean): If true, sort reverse alphabetical or from the largest size.
@@ -398,7 +427,6 @@ Example:
 ```yaml
 manifest:
   url: "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"
-  etag: null
 roots:
   - path: "D:/Steam"
     store: steam

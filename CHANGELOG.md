@@ -1,4 +1,4 @@
-## Unreleased
+## v0.14.0 (2022-10-29)
 
 * Added:
   * Ludusavi now shows which games and files are new/changed compared to the last backup or restore.
@@ -38,7 +38,7 @@
   * On startup, Ludusavi will only check for manifest updates if the last check was 24 hours ago or longer.
     Previously, it would check automatically on every startup.
     This was changed to avoid excess network traffic,
-    because the manifest itself will be updated much more frequently.
+    because the manifest itself will be updated more frequently.
   * GUI: Styling is now more consistent for disabled buttons.
   * GUI: When adding a new root or custom game, the list automatically scrolls to the end.
 * Fixed:

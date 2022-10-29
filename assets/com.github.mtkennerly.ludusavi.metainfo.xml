@@ -23,13 +23,14 @@
     </description>
     <screenshots>
         <screenshot type="default">
-            <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.13.1/docs/sample-gui-linux.png</image>
+            <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.14.0/docs/sample-gui-linux.png</image>
             <caption>Graphical user interface</caption>
         </screenshot>
     </screenshots>
     <content_rating type="oars-1.1" />
     <launchable type="desktop-id">com.github.mtkennerly.ludusavi.desktop</launchable>
     <releases>
+        <release version="0.14.0" date="2022-10-29"/>
         <release version="0.13.1" date="2022-09-29"/>
         <release version="0.13.0" date="2022-09-28"/>
         <release version="0.12.1" date="2022-08-31"/>
