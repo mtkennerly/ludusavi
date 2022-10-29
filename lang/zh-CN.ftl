@@ -6,9 +6,7 @@ total-games = 游戏
 file-size = 大小
 file-location = 位置
 overall = 总体
-cli-backup-target-already-exists = 备份目标已存在于 ( { $path } )。要么选择一个不同的 --path 参数，要么使用 --force 参数删除它。
 cli-unrecognized-games = 没有这些游戏的信息：
-cli-confirm-restoration = 您想从 { $path } 恢复吗？
 cli-unable-to-request-confirmation = 无法请求确认。
     .winpty-workaround = 若您正在使用 Bash 模拟器（例如 Git Bash），请尝试运行 winpty。
 cli-backup-id-with-multiple-games = Cannot specify backup ID when restoring multiple games.
@@ -18,8 +16,10 @@ badge-duplicates = 复制为副本
 badge-duplicated = 已复制为副本
 badge-ignored = 已忽略
 badge-redirected-from = 来自：{ $path }
+badge-redirecting-to = TO: { $path }
 some-entries-failed = 有些条目无法处理；详情请参阅输出中的 { badge-failed }。请仔细检查您是否可以访问这些文件，或者它们的路径是否太长。
 cli-game-line-item-redirected = 重定向自：{ $path }
+cli-game-line-item-redirecting = Redirecting to: { $path }
 button-backup = 备份
 button-preview = 预览
 button-restore = 恢复
@@ -65,6 +65,7 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = 目标 (新位置)
 field-backup-excluded-items = 备份排除：
+field-redirects = Redirects:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
 field-retention-full = 完整备份
@@ -73,6 +74,14 @@ field-retention-full = 完整备份
 field-retention-differential = 差异备份
 field-backup-format = 格式：
 field-backup-compression = 压缩：
+# The compression level determines how much compresison we perform.
+field-backup-compression-level = Level:
+label-manifest = Manifest
+# This shows the time when we checked for an update to the manifest.
+label-checked = Checked
+# This shows the time when we found an update to the manifest.
+label-updated = Updated
+label-new = New
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -96,6 +105,7 @@ compression-zstd = Zstd
 theme = 主题
 theme-light = 亮
 theme-dark = 暗
+redirect-bidirectional = Bidirectional
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies
     to { store-steam } screenshots that you've taken. If a game has its own built-in
@@ -115,3 +125,8 @@ confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 preparing-backup-target = Preparing backup directory...
 updating-manifest = Updating manifest...
+saves-found = Save data found.
+no-saves-found = No save data found.
+# This is tacked on to form something like "Back up (no confirmation)",
+# meaning we would perform an action without asking the user if they're sure.
+suffix-no-confirmation = no confirmation

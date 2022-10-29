@@ -6,9 +6,7 @@ total-games = 게임
 file-size = 크기
 file-location = 위치
 overall = 전체
-cli-backup-target-already-exists = 백업 대상이 이미 존재합니다 ( { $path } ). --path로 다른 위치를 지정하거나 --force로 강제로 삭제하세요.
 cli-unrecognized-games = 다음 게임에 대한 정보가 없습니다:
-cli-confirm-restoration = { $path } 에서 복원을 시작할까요?
 cli-unable-to-request-confirmation = 확인을 요청할 수 없습니다.
     .winpty-workaround = Git Bash와 같은 Bash 에뮬레이터를 사용 중이라면, winpty를 사용해보세요.
 cli-backup-id-with-multiple-games = Cannot specify backup ID when restoring multiple games.
@@ -18,8 +16,10 @@ badge-duplicates = 중복됨
 badge-duplicated = 복사됨
 badge-ignored = 무시됨
 badge-redirected-from = 출처: { $path }
+badge-redirecting-to = TO: { $path }
 some-entries-failed = 일부 항목을 처리하지 못했습니다. { badge-failed } 를 참조하세요. 해당 파일에 접근할 수 있는지, 파일의 경로가 너무 길지 않은지 확인하세요.
 cli-game-line-item-redirected = 다음에서 리다이렉트되었습니다: { $path }
+cli-game-line-item-redirecting = Redirecting to: { $path }
 button-backup = 백업
 button-preview = 미리보기
 button-restore = 복원
@@ -73,6 +73,7 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Target (new location)
 field-backup-excluded-items = Backup exclusions:
+field-redirects = Redirects:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
 field-retention-full = Full:
@@ -81,6 +82,14 @@ field-retention-full = Full:
 field-retention-differential = Differential:
 field-backup-format = Format:
 field-backup-compression = Compression:
+# The compression level determines how much compresison we perform.
+field-backup-compression-level = Level:
+label-manifest = Manifest
+# This shows the time when we checked for an update to the manifest.
+label-checked = Checked
+# This shows the time when we found an update to the manifest.
+label-updated = Updated
+label-new = New
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -104,6 +113,7 @@ compression-zstd = Zstd
 theme = Theme
 theme-light = Light
 theme-dark = Dark
+redirect-bidirectional = Bidirectional
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies
     to { store-steam } screenshots that you've taken. If a game has its own built-in
@@ -125,3 +135,8 @@ confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 preparing-backup-target = Preparing backup directory...
 updating-manifest = Updating manifest...
+saves-found = Save data found.
+no-saves-found = No save data found.
+# This is tacked on to form something like "Back up (no confirmation)",
+# meaning we would perform an action without asking the user if they're sure.
+suffix-no-confirmation = no confirmation

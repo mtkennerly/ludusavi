@@ -26,6 +26,8 @@
   * CLI: Backup options: `--format`, `--compression`, `--full-limit`, `--differential-limit`.
   * On startup, Ludusavi will prune any useless blank configurations
     (e.g., roots with a blank path).
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Changed:
   * Increased scanning speed by 10% by avoiding some duplicate path lookups.
   * CLI: Deprecated `--by-steam-id` in the `backup`/`backups`/`restore` commands,

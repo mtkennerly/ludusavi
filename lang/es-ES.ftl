@@ -6,9 +6,7 @@ total-games = Juegos
 file-size = Tamaño
 file-location = Ubicación
 overall = Global
-cli-backup-target-already-exists = El objetivo de la copia de seguridad ya existe ( { $path } ). Elija un --path diferente o borre con --force.
 cli-unrecognized-games = No hay información para estos juegos:
-cli-confirm-restoration = ¿Quieres restaurar desde { $path }?
 cli-unable-to-request-confirmation = No se pudo solicitar confirmación.
     .winpty-workaround = Si estás usando un emulador de Bash (como Git Bash), intenta ejecutar winpty.
 cli-backup-id-with-multiple-games = Cannot specify backup ID when restoring multiple games.
@@ -18,8 +16,10 @@ badge-duplicates = DUPLICADOS
 badge-duplicated = DUPLICADO
 badge-ignored = IGNORADO
 badge-redirected-from = DESDE: { $path }
+badge-redirecting-to = TO: { $path }
 some-entries-failed = Algunas entradas no se han podido procesar; busca { badge-failed } en la salida para ver los detalles. Comprueba si puedes acceder a esos archivos o si sus rutas son muy largas.
 cli-game-line-item-redirected = Redirigido de: { $path }
+cli-game-line-item-redirecting = Redirecting to: { $path }
 button-backup = Respaldar
 button-preview = Previsualizar
 button-restore = Restaurar
@@ -73,6 +73,7 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Destino (nueva ubicación)
 field-backup-excluded-items = Backup exclusions:
+field-redirects = Redirects:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
 field-retention-full = Full:
@@ -81,6 +82,14 @@ field-retention-full = Full:
 field-retention-differential = Differential:
 field-backup-format = Format:
 field-backup-compression = Compression:
+# The compression level determines how much compresison we perform.
+field-backup-compression-level = Level:
+label-manifest = Manifest
+# This shows the time when we checked for an update to the manifest.
+label-checked = Checked
+# This shows the time when we found an update to the manifest.
+label-updated = Updated
+label-new = New
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -104,6 +113,7 @@ compression-zstd = Zstd
 theme = Theme
 theme-light = Light
 theme-dark = Dark
+redirect-bidirectional = Bidirectional
 explanation-for-exclude-store-screenshots =
     En las copias de seguridad, excluye las capturas de pantalla específicas de la tienda. En este momento, esto sólo se aplica a las capturas de pantalla { store-steam } que has tomado. Si un juego tiene su propia funcionalidad de funcionalidad de capturas de pantalla, este ajuste no afectará a si esas
     capturas de pantalla son respaldadas.
@@ -123,3 +133,8 @@ confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 preparing-backup-target = Preparing backup directory...
 updating-manifest = Updating manifest...
+saves-found = Save data found.
+no-saves-found = No save data found.
+# This is tacked on to form something like "Back up (no confirmation)",
+# meaning we would perform an action without asking the user if they're sure.
+suffix-no-confirmation = no confirmation
