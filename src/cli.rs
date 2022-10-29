@@ -116,6 +116,7 @@ pub enum Subcommand {
         merge: bool,
 
         /// Don't merge; delete and recreate the target directory.
+        /// This will delete any existing backups and preempt multi-backup retention.
         /// When not specified, this defers to the config file.
         #[clap(long, conflicts_with("merge"))]
         no_merge: bool,
@@ -917,7 +918,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         back_up_game(
                             &scan_info,
                             layout.game_layout(name),
-                            config.backup.merge,
+                            merge,
                             &chrono::Utc::now(),
                             &backup_format,
                         )

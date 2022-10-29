@@ -51,6 +51,11 @@
     while the scan was still ongoing.
   * GUI: When the manifest finished updating in the background,
     any currently open modal would be closed.
+  * CLI: If you had the merge option disabled and passed `--merge` to override and enable it,
+    it would be respected for the main `--path` folder, but not for game subfolders.
+    When Ludusavi detected that a specific game needed a new backup,
+    that game's subfolder would be cleared out first.
+    If you had the merge option enabled by default, then this did not affect you.
   * CLI mode asked for confirmation when restoring, but backups behaved differently:
 
     * If the target folder did not exist, then the backup would happen without confirmation.
