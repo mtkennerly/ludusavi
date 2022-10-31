@@ -839,6 +839,7 @@ impl ToggledPaths {
 }
 
 impl ToggledRegistry {
+    #[allow(dead_code)]
     #[cfg(test)]
     pub fn new(data: std::collections::BTreeMap<String, std::collections::BTreeMap<RegistryItem, bool>>) -> Self {
         Self(data)

@@ -253,11 +253,13 @@ impl ScannedRegistry {
         }
     }
 
+    #[allow(dead_code)]
     pub fn ignored(mut self) -> Self {
         self.ignored = true;
         self
     }
 
+    #[allow(dead_code)]
     pub fn change(mut self, change: ScanChange) -> Self {
         self.change = change;
         self
