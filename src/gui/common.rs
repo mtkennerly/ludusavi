@@ -15,6 +15,7 @@ pub enum Message {
     Ignore,
     Error(Error),
     CloseModal,
+    PruneNotifications,
     UpdateManifest,
     ManifestUpdated(Result<Option<ManifestUpdate>, Error>),
     ConfirmBackupStart {
@@ -119,7 +120,7 @@ pub enum Message {
     OpenUrlFailure {
         url: String,
     },
-    SubscribedEvent(iced_native::Event),
+    KeyboardEvent(iced_native::keyboard::Event),
     EditedFullRetention(u8),
     EditedDiffRetention(u8),
     SelectedBackupToRestore {

@@ -1,3 +1,8 @@
+## Unreleased
+
+* Fixed:
+  * GUI: Notifications did not disappear when the window was inactive.
+
 ## v0.14.0 (2022-10-29)
 
 * Added:
