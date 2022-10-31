@@ -27,29 +27,25 @@ jobs:
             artifact-file: ludusavi
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: '3.7'
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           fetch-depth: 0
       - uses: mtkennerly/dunamai-action@v1
         with:
           env-var: LUDUSAVI_VERSION
           args: --style semver
-      - uses: actions-rs/toolchain@v1
+      - uses: dtolnay/rust-toolchain@master
         with:
           toolchain: stable-${{ matrix.rust-target }}
-          override: true
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.os }}-${{ matrix.rust-target }}
       - if: ${{ matrix.os == 'ubuntu-18.04' }}
         run: sudo apt-get update && sudo apt-get install -y gcc libxcb-composite0-dev
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release
+      - run: cargo build --release
       - uses: actions/upload-artifact@v1
         with:
           name: ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}
@@ -64,12 +60,8 @@ jobs:
           - macos-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: stable
-          override: true
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.os }}
@@ -83,9 +75,7 @@ jobs:
       - if: ${{ matrix.os != 'windows-latest' }}
         run: |
           cd tests/root3/game5 && ln -s data data-symlink
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
+      - run: cargo test
 
   lint:
     strategy:
@@ -95,21 +85,12 @@ jobs:
           - ubuntu-latest
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          profile: minimal
-          toolchain: stable
-          override: true
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.os }}
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: -- -D warnings
+      - run: cargo fmt --all -- --check
+      - run: cargo clippy --workspace -- --deny warnings
