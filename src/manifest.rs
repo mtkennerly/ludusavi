@@ -106,7 +106,8 @@ pub struct Game {
     #[serde(rename = "installDir")]
     pub install_dir: Option<std::collections::HashMap<String, GameInstallDirEntry>>,
     pub registry: Option<std::collections::HashMap<String, GameRegistryEntry>>,
-    pub steam: Option<SteamMetadata>,
+    pub steam: Option<StoreMetadata>,
+    pub gog: Option<StoreMetadata>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -136,7 +137,7 @@ pub struct GameRegistryConstraint {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct SteamMetadata {
+pub struct StoreMetadata {
     pub id: Option<u32>,
 }
 
@@ -156,6 +157,7 @@ impl From<CustomGame> for Game {
             install_dir: None,
             registry: Some(registry),
             steam: None,
+            gog: None,
         }
     }
 }
@@ -274,6 +276,16 @@ impl Manifest {
             .collect()
     }
 
+    pub fn map_gog_ids_to_names(&self) -> std::collections::HashMap<u32, String> {
+        self.0
+            .iter()
+            .filter_map(|(k, v)| match &v.gog {
+                None => None,
+                Some(gog) => gog.id.map(|id| (id, k.to_owned())),
+            })
+            .collect()
+    }
+
     pub fn add_custom_game(&mut self, custom: CustomGame) {
         let name = custom.name.clone();
         let mut game: Game = custom.into();
@@ -316,6 +328,7 @@ mod tests {
                 install_dir: None,
                 registry: None,
                 steam: None,
+                gog: None,
             },
             manifest.0["game"],
         );
@@ -342,7 +355,9 @@ mod tests {
                   tags:
                     - config
               steam:
-                id: 123
+                id: 101
+              gog:
+                id: 102
             "#,
         )
         .unwrap();
@@ -373,7 +388,8 @@ mod tests {
                         tags: Some(vec![Tag::Config])
                     },
                 }),
-                steam: Some(SteamMetadata { id: Some(123) }),
+                steam: Some(StoreMetadata { id: Some(101) }),
+                gog: Some(StoreMetadata { id: Some(102) }),
             },
             manifest.0["game"],
         );
@@ -545,6 +561,19 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(&SteamMetadata { id: None }, manifest.0["game"].steam.as_ref().unwrap());
+        assert_eq!(&StoreMetadata { id: None }, manifest.0["game"].steam.as_ref().unwrap());
+    }
+
+    #[test]
+    fn can_parse_game_with_minimal_gog() {
+        let manifest = Manifest::load_from_string(
+            r#"
+            game:
+              gog: {}
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(&StoreMetadata { id: None }, manifest.0["game"].gog.as_ref().unwrap());
     }
 }
