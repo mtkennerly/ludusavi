@@ -1,5 +1,7 @@
 ## Unreleased
 
+* Changed:
+  * Manifest updates now use gzip compression, cutting the download size to about 10% (e.g., 11.4 MiB -> 1.5 MiB).
 * Fixed:
   * GUI: Notifications did not disappear when the window was inactive.
 
