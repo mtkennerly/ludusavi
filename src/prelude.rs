@@ -886,6 +886,12 @@ impl SteamShortcuts {
         };
 
         for shortcut in steam.shortcuts() {
+            log::trace!(
+                "Found Steam shortcut: name={}, id={}, start_dir={}",
+                &shortcut.app_name,
+                shortcut.appid,
+                &shortcut.start_dir
+            );
             let start_dir = std::path::Path::new(shortcut.start_dir.trim_start_matches('"').trim_end_matches('"'));
             instance.0.insert(
                 shortcut.app_name.clone(),
