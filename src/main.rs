@@ -38,6 +38,11 @@ fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLo
 
 fn main() {
     let args = cli::parse_cli();
+    if let Some(config_dir) = args.config_dir.as_deref() {
+        println!("Config dir: {}", config_dir.display());
+    } else {
+        println!("Config EMPTY");
+    }
     match args.sub {
         None => {
             #[cfg(target_os = "windows")]

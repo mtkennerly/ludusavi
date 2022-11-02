@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use crate::{
     cache::Cache,
     config::{BackupFormat, Config, Sort, SortKey, ZipCompression},
@@ -320,6 +322,10 @@ impl Subcommand {
     set_term_width = 79
 )]
 pub struct Cli {
+    /// Use configuration found in DIRECTORY
+    #[clap(short, long, value_name = "DIRECTORY")]
+    pub config_dir: Option<PathBuf>,
+
     #[clap(subcommand)]
     pub sub: Option<Subcommand>,
 }
