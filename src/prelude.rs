@@ -556,6 +556,7 @@ pub fn parse_paths(
     full_install_dir: &Option<&StrictPath>,
     steam_id: &Option<u32>,
     manifest_dir: &StrictPath,
+    steam_shortcut: Option<&SteamShortcut>,
 ) -> std::collections::HashSet<(StrictPath, Option<bool>)> {
     let mut paths = std::collections::HashSet::new();
 
@@ -666,49 +667,62 @@ pub fn parse_paths(
             None,
         ));
     }
-    if get_os() == Os::Linux && root.store == Store::Steam && steam_id.is_some() {
-        let prefix = format!(
-            "{}/steamapps/compatdata/{}/pfx/drive_c",
-            &root_interpreted,
-            steam_id.unwrap()
-        );
-        let path2 = path
-            .replace("<root>", &root_interpreted)
-            .replace("<game>", install_dir)
-            .replace(
-                "<base>",
-                &format!("{}/steamapps/common/{}", &root_interpreted, install_dir),
-            )
-            .replace("<home>", &format!("{}/users/steamuser", prefix))
-            .replace("<storeUserId>", "*")
-            .replace("<osUserName>", "steamuser")
-            .replace("<winPublic>", &format!("{}/users/Public", prefix))
-            .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
-            .replace("<winDir>", &format!("{}/windows", prefix))
-            .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
-            .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
-            .replace("<regHkcu>", SKIP)
-            .replace("<regHklm>", SKIP);
-        paths.insert((
-            path2
-                .replace("<winDocuments>", &format!("{}/users/steamuser/Documents", prefix))
-                .replace("<winAppData>", &format!("{}/users/steamuser/AppData/Roaming", prefix))
+    if root.store == Store::Steam {
+        if let Some(steam_shortcut) = steam_shortcut {
+            if let Some(start_dir) = &steam_shortcut.start_dir {
+                paths.insert((path.replace("<base>", &start_dir.interpret()), None));
+            }
+        }
+    }
+    if root.store == Store::Steam && get_os() == Os::Linux {
+        let mut ids = vec![];
+        if let Some(steam_id) = steam_id {
+            ids.push(*steam_id);
+        }
+        if let Some(steam_shortcut) = steam_shortcut {
+            ids.push(steam_shortcut.id);
+        }
+
+        for id in ids {
+            let prefix = format!("{}/steamapps/compatdata/{}/pfx/drive_c", &root_interpreted, id);
+            let path2 = path
+                .replace("<root>", &root_interpreted)
+                .replace("<game>", install_dir)
                 .replace(
-                    "<winLocalAppData>",
-                    &format!("{}/users/steamuser/AppData/Local", prefix),
-                ),
-            Some(false),
-        ));
-        paths.insert((
-            path2
-                .replace("<winDocuments>", &format!("{}/users/steamuser/My Documents", prefix))
-                .replace("<winAppData>", &format!("{}/users/steamuser/Application Data", prefix))
-                .replace(
-                    "<winLocalAppData>",
-                    &format!("{}/users/steamuser/Local Settings/Application Data", prefix),
-                ),
-            Some(false),
-        ));
+                    "<base>",
+                    &format!("{}/steamapps/common/{}", &root_interpreted, install_dir),
+                )
+                .replace("<home>", &format!("{}/users/steamuser", prefix))
+                .replace("<storeUserId>", "*")
+                .replace("<osUserName>", "steamuser")
+                .replace("<winPublic>", &format!("{}/users/Public", prefix))
+                .replace("<winProgramData>", &format!("{}/ProgramData", prefix))
+                .replace("<winDir>", &format!("{}/windows", prefix))
+                .replace("<xdgData>", &check_nonwindows_path(dirs::data_dir()))
+                .replace("<xdgConfig>", &check_nonwindows_path(dirs::config_dir()))
+                .replace("<regHkcu>", SKIP)
+                .replace("<regHklm>", SKIP);
+            paths.insert((
+                path2
+                    .replace("<winDocuments>", &format!("{}/users/steamuser/Documents", prefix))
+                    .replace("<winAppData>", &format!("{}/users/steamuser/AppData/Roaming", prefix))
+                    .replace(
+                        "<winLocalAppData>",
+                        &format!("{}/users/steamuser/AppData/Local", prefix),
+                    ),
+                Some(false),
+            ));
+            paths.insert((
+                path2
+                    .replace("<winDocuments>", &format!("{}/users/steamuser/My Documents", prefix))
+                    .replace("<winAppData>", &format!("{}/users/steamuser/Application Data", prefix))
+                    .replace(
+                        "<winLocalAppData>",
+                        &format!("{}/users/steamuser/Local Settings/Application Data", prefix),
+                    ),
+                Some(false),
+            ));
+        }
     }
     if root.store == Store::OtherWine {
         let prefix = format!("{}/drive_*", &root_interpreted);
@@ -853,6 +867,47 @@ impl InstallDirRanking {
     }
 }
 
+#[derive(Clone, Default)]
+pub struct SteamShortcuts(std::collections::HashMap<String, SteamShortcut>);
+
+#[derive(Clone, Default)]
+pub struct SteamShortcut {
+    id: u32,
+    start_dir: Option<StrictPath>,
+}
+
+impl SteamShortcuts {
+    pub fn scan() -> Self {
+        let mut instance = Self::default();
+
+        let mut steam = match steamlocate::SteamDir::locate() {
+            Some(x) => x,
+            None => return instance,
+        };
+
+        for shortcut in steam.shortcuts() {
+            let start_dir = std::path::Path::new(shortcut.start_dir.trim_start_matches('"').trim_end_matches('"'));
+            instance.0.insert(
+                shortcut.app_name.clone(),
+                SteamShortcut {
+                    id: shortcut.appid,
+                    start_dir: if start_dir.is_absolute() {
+                        Some(StrictPath::from(start_dir))
+                    } else {
+                        None
+                    },
+                },
+            );
+        }
+
+        instance
+    }
+
+    pub fn get(&self, name: &str) -> Option<&SteamShortcut> {
+        self.0.get(name)
+    }
+}
+
 pub fn filter_map_walkdir(e: Result<walkdir::DirEntry, walkdir::Error>) -> Option<walkdir::DirEntry> {
     if let Err(e) = &e {
         log::warn!("failed to walk: {:?} | {e:?}", e.path());
@@ -874,6 +929,7 @@ pub fn scan_game_for_backup(
     #[allow(unused_variables)] ignored_registry: &ToggledRegistry,
     previous: Option<LatestBackup>,
     redirects: &[RedirectConfig],
+    steam_shortcuts: &SteamShortcuts,
 ) -> ScanInfo {
     log::trace!("[{name}] beginning scan for backup");
 
@@ -927,7 +983,15 @@ pub fn scan_game_for_backup(
                 if raw_path.trim().is_empty() {
                     continue;
                 }
-                let candidates = parse_paths(raw_path, &root, &install_dir, &full_install_dir, steam_id, manifest_dir);
+                let candidates = parse_paths(
+                    raw_path,
+                    &root,
+                    &install_dir,
+                    &full_install_dir,
+                    steam_id,
+                    manifest_dir,
+                    steam_shortcuts.get(name),
+                );
                 for (candidate, case_sensitive) in candidates {
                     log::trace!("[{name}] parsed candidate: {}", candidate.raw());
                     if candidate.raw().contains('<') {
@@ -1792,6 +1856,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                &Default::default(),
             ),
         );
 
@@ -1818,6 +1883,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                &Default::default(),
             ),
         );
     }
@@ -1851,6 +1917,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                &Default::default(),
             ),
         );
     }
@@ -1884,6 +1951,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                &Default::default(),
             ),
         );
     }
@@ -1921,6 +1989,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                &Default::default(),
             ),
         );
     }
@@ -1957,6 +2026,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                &Default::default(),
             ),
         );
     }
@@ -1987,6 +2057,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                &Default::default(),
             ),
         );
     }
@@ -2052,6 +2123,7 @@ mod tests {
                     &ToggledRegistry::default(),
                     None,
                     &[],
+                    &Default::default(),
                 ),
             );
         }
@@ -2083,6 +2155,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                &Default::default(),
             ),
         );
     }
@@ -2115,6 +2188,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                &Default::default(),
             ),
         );
     }
@@ -2184,6 +2258,7 @@ mod tests {
                     &ignored,
                     None,
                     &[],
+                    &Default::default(),
                 ),
             );
         }

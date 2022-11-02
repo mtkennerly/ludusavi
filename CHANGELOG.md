@@ -1,5 +1,9 @@
 ## Unreleased
 
+* Added:
+  * Steam shortcuts for non-Steam games are now detected.
+    On all platforms, the shortcut's "start in" folder is used as the `<base>` path.
+    On Linux, the shortcut's app ID is used to check `steamapps/compatdata` for Proton saves.
 * Changed:
   * Manifest updates now use gzip compression, cutting the download size to about 10% (e.g., 11.4 MiB -> 1.5 MiB).
 * Fixed:

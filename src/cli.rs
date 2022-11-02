@@ -8,7 +8,7 @@ use crate::{
     prelude::{
         app_dir, back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId,
         BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus, OperationStepDecision, ScanChange,
-        ScanInfo, StrictPath, TitleFinder,
+        ScanInfo, SteamShortcuts, StrictPath, TitleFinder,
     },
 };
 use clap::{CommandFactory, Parser};
@@ -870,6 +870,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects.valid);
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
+            let steam_shortcuts = SteamShortcuts::scan();
 
             let mut info: Vec<_> = subjects
                 .valid
@@ -897,6 +898,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         &toggled_registry,
                         previous,
                         &config.redirects,
+                        &steam_shortcuts,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified;
                     let decision = if ignored {

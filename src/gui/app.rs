@@ -20,7 +20,7 @@ use crate::{
     manifest::{Manifest, Store},
     prelude::{
         app_dir, back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId, Error,
-        InstallDirRanking, OperationStepDecision, StrictPath, TitleFinder,
+        InstallDirRanking, OperationStepDecision, SteamShortcuts, StrictPath, TitleFinder,
     },
     registry_compat::RegistryItem,
     shortcuts::Shortcut,
@@ -258,6 +258,7 @@ impl App {
         let heroic_games = std::sync::Arc::new(HeroicGames::scan(&roots, &title_finder, None));
         let filter = std::sync::Arc::new(self.config.backup.filter.clone());
         let ranking = std::sync::Arc::new(InstallDirRanking::scan(&roots, &all_games, &subjects));
+        let steam_shortcuts = std::sync::Arc::new(SteamShortcuts::scan());
 
         for key in subjects {
             let game = all_games.0[&key].clone();
@@ -267,6 +268,7 @@ impl App {
             let layout = layout.clone();
             let filter = filter.clone();
             let ranking = ranking.clone();
+            let steam_shortcuts = steam_shortcuts.clone();
             let steam_id = game.steam.as_ref().and_then(|x| x.id);
             let cancel_flag = self.operation_should_cancel.clone();
             let merge = self.config.backup.merge;
@@ -297,6 +299,7 @@ impl App {
                         &config.backup.toggled_registry,
                         previous,
                         &config.redirects,
+                        &steam_shortcuts,
                     );
                     if !config.is_game_enabled_for_backup(&key) {
                         return (Some(scan_info), None, OperationStepDecision::Ignored);
