@@ -6,11 +6,11 @@ use crate::{
     heroic::HeroicGames,
     lang::Translator,
     layout::BackupLayout,
-    manifest::{Manifest, SteamMetadata},
+    manifest::Manifest,
     prelude::{
         app_dir, back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId,
         BackupInfo, DuplicateDetector, Error, InstallDirRanking, OperationStatus, OperationStepDecision, ScanChange,
-        ScanInfo, StrictPath, TitleFinder,
+        ScanInfo, SteamShortcuts, StrictPath, TitleFinder,
     },
 };
 use clap::{CommandFactory, Parser};
@@ -288,6 +288,10 @@ pub enum Subcommand {
         /// Look up game by a Steam ID.
         #[clap(long)]
         steam_id: Option<u32>,
+
+        /// Look up game by a GOG ID.
+        #[clap(long)]
+        gog_id: Option<u64>,
 
         /// Look up game by an approximation of the title.
         /// Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols.
@@ -876,6 +880,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects.valid);
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
+            let steam_shortcuts = SteamShortcuts::scan();
 
             let mut info: Vec<_> = subjects
                 .valid
@@ -885,7 +890,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 .map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let game = &all_games.0[name];
-                    let steam_id = &game.steam.clone().unwrap_or(SteamMetadata { id: None }).id;
+                    let steam_id = game.steam.as_ref().and_then(|x| x.id);
 
                     let previous = layout.latest_backup(name, false, &config.redirects);
 
@@ -895,7 +900,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         &roots,
                         &StrictPath::from_std_path_buf(&app_dir()),
                         &heroic_games,
-                        steam_id,
+                        &steam_id,
                         &filter,
                         &wine_prefix,
                         &ranking,
@@ -903,6 +908,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                         &toggled_registry,
                         previous,
                         &config.redirects,
+                        &steam_shortcuts,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified;
                     let decision = if ignored {
@@ -1164,6 +1170,7 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             backup,
             restore,
             steam_id,
+            gog_id,
             normalized,
             names,
         } => {
@@ -1198,13 +1205,16 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
             let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
 
             let title_finder = TitleFinder::new(&manifest, &layout);
-            let found = title_finder.find(&names, &steam_id, normalized, backup, restore);
+            let found = title_finder.find(&names, &steam_id, &gog_id, normalized, backup, restore);
             reporter.add_found_titles(&found);
 
             if found.is_empty() {
                 let mut invalid = names;
                 if let Some(steam_id) = steam_id {
                     invalid.push(steam_id.to_string());
+                }
+                if let Some(gog_id) = gog_id {
+                    invalid.push(gog_id.to_string());
                 }
                 reporter.trip_unknown_games(invalid.clone());
                 reporter.print_failure();
@@ -1651,6 +1661,7 @@ mod tests {
                         backup: false,
                         restore: false,
                         steam_id: None,
+                        gog_id: None,
                         normalized: false,
                         names: vec![],
                     }),
@@ -1670,7 +1681,9 @@ mod tests {
                     "--backup",
                     "--restore",
                     "--steam-id",
-                    "123",
+                    "101",
+                    "--gog-id",
+                    "102",
                     "--normalized",
                     "game1",
                     "game2",
@@ -1681,7 +1694,8 @@ mod tests {
                         path: Some(StrictPath::new(s("tests/backup"))),
                         backup: true,
                         restore: true,
-                        steam_id: Some(123),
+                        steam_id: Some(101),
+                        gog_id: Some(102),
                         normalized: true,
                         names: vec![s("game1"), s("game2")],
                     }),

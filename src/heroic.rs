@@ -152,6 +152,8 @@ impl HeroicGames {
                                 game.title,
                                 game.app_name
                             );
+                            let official_title =
+                                title_finder.find_one(&[game.title.to_owned()], &None, &None, true, true, false);
                             // process game from GamesConfig
                             let prefix = self.find_prefix(
                                 &root.path,
@@ -161,8 +163,8 @@ impl HeroicGames {
                             );
                             self.memorize_game(
                                 root,
-                                title_finder,
                                 &game.title,
+                                official_title,
                                 StrictPath::new(game.install_path.clone()),
                                 prefix,
                             );
@@ -214,11 +216,14 @@ impl HeroicGames {
         if let Ok(installed_games) = serde_json::from_str::<HeroicInstalled>(&content.unwrap_or_default()) {
             for game in installed_games.installed {
                 if let Some(game_title) = game_titles.get(&game.app_name) {
+                    let gog_id: Option<u64> = game.app_name.parse().ok();
+                    let official_title =
+                        title_finder.find_one(&[game_title.to_owned()], &None, &gog_id, true, true, false);
                     let prefix = self.find_prefix(&root.path, game_title, &game.platform, &game.app_name);
                     self.memorize_game(
                         root,
-                        title_finder,
                         game_title,
+                        official_title,
                         StrictPath::new(game.install_path),
                         prefix,
                     );
@@ -230,16 +235,16 @@ impl HeroicGames {
     fn memorize_game(
         &mut self,
         root: &RootsConfig,
-        title_finder: &TitleFinder,
-        title: &str,
+        heroic_title: &str,
+        official_title: Option<String>,
         install_dir: StrictPath,
         prefix: Option<StrictPath>,
     ) {
-        if let Some(official) = title_finder.find_one(&[title.to_owned()], &None, true, true, false) {
+        if let Some(official) = official_title {
             log::trace!(
                 "memorize_game memorizing info for '{}' (from: '{}'): install_dir={:?}, prefix={:?}",
                 official,
-                title,
+                heroic_title,
                 &install_dir,
                 &prefix
             );
@@ -247,7 +252,7 @@ impl HeroicGames {
                 .insert((root.clone(), official), MemorizedGame { install_dir, prefix });
         } else {
             // Handling game name mismatches, e.g. GRIP vs. GRIP: Combat Racing
-            let log_message = format!("Ignoring unrecognized Heroic game: '{}'", title);
+            let log_message = format!("Ignoring unrecognized Heroic game: '{}'", heroic_title);
             if std::env::var("LUDUSAVI_DEBUG").is_ok() {
                 eprintln!("{}", &log_message);
             }
@@ -255,12 +260,14 @@ impl HeroicGames {
 
             log::trace!(
                 "memorize_game memorizing info for '{}': install_dir={:?}, prefix={:?}",
-                title,
+                heroic_title,
                 &install_dir,
                 &prefix
             );
-            self.games
-                .insert((root.clone(), title.to_string()), MemorizedGame { install_dir, prefix });
+            self.games.insert(
+                (root.clone(), heroic_title.to_string()),
+                MemorizedGame { install_dir, prefix },
+            );
         }
     }
 

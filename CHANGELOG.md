@@ -1,6 +1,19 @@
 ## Unreleased
 
 * Added:
+  * Steam shortcuts for non-Steam games are now detected.
+    On all platforms, the shortcut's "start in" folder is used as the `<base>` path.
+    On Linux, the shortcut's app ID is used to check `steamapps/compatdata` for Proton saves.
+  * In Heroic roots, Ludusavi can now recognize games by their GOG ID.
+    The CLI `find` command now also has a `--gog-id` option.
+* Changed:
+  * Manifest updates now use gzip compression, cutting the download size to about 10% (e.g., 11.4 MiB -> 1.5 MiB).
+* Fixed:
+  * GUI: Notifications did not disappear when the window was inactive.
+
+## v0.14.0 (2022-10-29)
+
+* Added:
   * Ludusavi now shows which games and files are new/changed compared to the last backup or restore.
     This is indicated by a `+` or `Δ` badge next to applicable games and files.
   * The Heroic launcher is now supported as a root type.
@@ -26,6 +39,8 @@
   * CLI: Backup options: `--format`, `--compression`, `--full-limit`, `--differential-limit`.
   * On startup, Ludusavi will prune any useless blank configurations
     (e.g., roots with a blank path).
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Changed:
   * Increased scanning speed by 10% by avoiding some duplicate path lookups.
   * CLI: Deprecated `--by-steam-id` in the `backup`/`backups`/`restore` commands,
@@ -36,7 +51,7 @@
   * On startup, Ludusavi will only check for manifest updates if the last check was 24 hours ago or longer.
     Previously, it would check automatically on every startup.
     This was changed to avoid excess network traffic,
-    because the manifest itself will be updated much more frequently.
+    because the manifest itself will be updated more frequently.
   * GUI: Styling is now more consistent for disabled buttons.
   * GUI: When adding a new root or custom game, the list automatically scrolls to the end.
 * Fixed:

@@ -20,7 +20,7 @@ use crate::{
     manifest::{Manifest, Store},
     prelude::{
         app_dir, back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId, Error,
-        InstallDirRanking, OperationStepDecision, StrictPath, TitleFinder,
+        InstallDirRanking, OperationStepDecision, SteamShortcuts, StrictPath, TitleFinder,
     },
     registry_compat::RegistryItem,
     shortcuts::Shortcut,
@@ -258,6 +258,7 @@ impl App {
         let heroic_games = std::sync::Arc::new(HeroicGames::scan(&roots, &title_finder, None));
         let filter = std::sync::Arc::new(self.config.backup.filter.clone());
         let ranking = std::sync::Arc::new(InstallDirRanking::scan(&roots, &all_games, &subjects));
+        let steam_shortcuts = std::sync::Arc::new(SteamShortcuts::scan());
 
         for key in subjects {
             let game = all_games.0[&key].clone();
@@ -267,6 +268,7 @@ impl App {
             let layout = layout.clone();
             let filter = filter.clone();
             let ranking = ranking.clone();
+            let steam_shortcuts = steam_shortcuts.clone();
             let steam_id = game.steam.as_ref().and_then(|x| x.id);
             let cancel_flag = self.operation_should_cancel.clone();
             let merge = self.config.backup.merge;
@@ -297,6 +299,7 @@ impl App {
                         &config.backup.toggled_registry,
                         previous,
                         &config.redirects,
+                        &steam_shortcuts,
                     );
                     if !config.is_game_enabled_for_backup(&key) {
                         return (Some(scan_info), None, OperationStepDecision::Ignored);
@@ -597,8 +600,13 @@ impl Application for App {
                 ..Self::default()
             },
             Command::perform(
-                async move { Manifest::update(manifest_config, manifest_cache, false) },
-                Message::ManifestUpdated,
+                async move {
+                    tokio::task::spawn_blocking(move || Manifest::update(manifest_config, manifest_cache, false)).await
+                },
+                |join| match join {
+                    Ok(x) => Message::ManifestUpdated(x),
+                    Err(_) => Message::Ignore,
+                },
             ),
         )
     }
@@ -618,13 +626,27 @@ impl Application for App {
                 self.modal_theme = None;
                 Command::none()
             }
+            Message::PruneNotifications => {
+                if let Some(notification) = &self.timed_notification {
+                    if notification.expired() {
+                        self.timed_notification = None;
+                    }
+                }
+                Command::none()
+            }
             Message::UpdateManifest => {
                 self.updating_manifest = true;
                 let manifest_config = self.config.manifest.clone();
                 let manifest_cache = self.cache.manifests.clone();
                 Command::perform(
-                    async move { Manifest::update(manifest_config, manifest_cache, true) },
-                    Message::ManifestUpdated,
+                    async move {
+                        tokio::task::spawn_blocking(move || Manifest::update(manifest_config, manifest_cache, true))
+                            .await
+                    },
+                    |join| match join {
+                        Ok(x) => Message::ManifestUpdated(x),
+                        Err(_) => Message::Ignore,
+                    },
                 )
             }
             Message::ManifestUpdated(updated) => {
@@ -1300,182 +1322,171 @@ impl Application for App {
                 });
                 Command::none()
             }
-            Message::SubscribedEvent(event) => {
-                // TODO: Use `iced::time::every` instead? Got an error when updating manifest on demand:
-                // thread 'tokio-runtime-worker' panicked at 'Cannot drop a runtime in a context where blocking is not allowed.
-                // This happens when a runtime is dropped from within an asynchronous context.'
-                if let Some(notification) = &self.timed_notification {
-                    if notification.expired() {
-                        self.timed_notification = None;
-                    }
+            Message::KeyboardEvent(event) => {
+                if let iced::keyboard::Event::ModifiersChanged(modifiers) = event {
+                    self.backup_screen.log.modifiers = modifiers;
+                    self.restore_screen.log.modifiers = modifiers;
                 }
+                if let Some((key_code, modifiers)) = get_key_pressed(event) {
+                    let activated = if cfg!(target_os = "mac") {
+                        modifiers.logo() || modifiers.control()
+                    } else {
+                        modifiers.control()
+                    };
+                    let shortcut = match (key_code, activated, modifiers.shift()) {
+                        (KeyCode::Z, true, false) => Some(Shortcut::Undo),
+                        (KeyCode::Y, true, false) | (KeyCode::Z, true, true) => Some(Shortcut::Redo),
+                        _ => None,
+                    };
 
-                if let iced_native::Event::Keyboard(key) = event {
-                    if let iced::keyboard::Event::ModifiersChanged(modifiers) = key {
-                        self.backup_screen.log.modifiers = modifiers;
-                        self.restore_screen.log.modifiers = modifiers;
-                    }
-                    if let Some((key_code, modifiers)) = get_key_pressed(key) {
-                        let activated = if cfg!(target_os = "mac") {
-                            modifiers.logo() || modifiers.control()
+                    if let Some(shortcut) = shortcut {
+                        let mut matched = false;
+
+                        if self.backup_screen.backup_target_input.is_focused() {
+                            apply_shortcut_to_strict_path_field(
+                                &shortcut,
+                                &mut self.config.backup.path,
+                                &mut self.backup_screen.backup_target_history,
+                            );
+                            matched = true;
+                        } else if self.restore_screen.restore_source_input.is_focused() {
+                            apply_shortcut_to_strict_path_field(
+                                &shortcut,
+                                &mut self.config.restore.path,
+                                &mut self.restore_screen.restore_source_history,
+                            );
+                            matched = true;
+                        } else if self.backup_screen.log.search.game_name_input.is_focused() {
+                            apply_shortcut_to_string_field(
+                                &shortcut,
+                                &mut self.backup_screen.log.search.game_name,
+                                &mut self.backup_screen.log.search.game_name_history,
+                            );
+                            matched = true;
+                        } else if self.restore_screen.log.search.game_name_input.is_focused() {
+                            apply_shortcut_to_string_field(
+                                &shortcut,
+                                &mut self.restore_screen.log.search.game_name,
+                                &mut self.restore_screen.log.search.game_name_history,
+                            );
+                            matched = true;
                         } else {
-                            modifiers.control()
-                        };
-                        let shortcut = match (key_code, activated, modifiers.shift()) {
-                            (KeyCode::Z, true, false) => Some(Shortcut::Undo),
-                            (KeyCode::Y, true, false) | (KeyCode::Z, true, true) => Some(Shortcut::Redo),
-                            _ => None,
-                        };
-
-                        if let Some(shortcut) = shortcut {
-                            let mut matched = false;
-
-                            if self.backup_screen.backup_target_input.is_focused() {
-                                apply_shortcut_to_strict_path_field(
-                                    &shortcut,
-                                    &mut self.config.backup.path,
-                                    &mut self.backup_screen.backup_target_history,
-                                );
-                                matched = true;
-                            } else if self.restore_screen.restore_source_input.is_focused() {
-                                apply_shortcut_to_strict_path_field(
-                                    &shortcut,
-                                    &mut self.config.restore.path,
-                                    &mut self.restore_screen.restore_source_history,
-                                );
-                                matched = true;
-                            } else if self.backup_screen.log.search.game_name_input.is_focused() {
-                                apply_shortcut_to_string_field(
-                                    &shortcut,
-                                    &mut self.backup_screen.log.search.game_name,
-                                    &mut self.backup_screen.log.search.game_name_history,
-                                );
-                                matched = true;
-                            } else if self.restore_screen.log.search.game_name_input.is_focused() {
-                                apply_shortcut_to_string_field(
-                                    &shortcut,
-                                    &mut self.restore_screen.log.search.game_name,
-                                    &mut self.restore_screen.log.search.game_name_history,
-                                );
-                                matched = true;
-                            } else {
-                                for (i, root) in self.backup_screen.root_editor.rows.iter_mut().enumerate() {
-                                    if root.text_state.is_focused() {
-                                        apply_shortcut_to_strict_path_field(
-                                            &shortcut,
-                                            &mut self.config.roots[i].path,
-                                            &mut root.text_history,
-                                        );
-                                        matched = true;
-                                        break;
-                                    }
+                            for (i, root) in self.backup_screen.root_editor.rows.iter_mut().enumerate() {
+                                if root.text_state.is_focused() {
+                                    apply_shortcut_to_strict_path_field(
+                                        &shortcut,
+                                        &mut self.config.roots[i].path,
+                                        &mut root.text_history,
+                                    );
+                                    matched = true;
+                                    break;
                                 }
-                                for (i, redirect) in self.other_screen.redirect_editor.rows.iter_mut().enumerate() {
-                                    if redirect.source_text_state.is_focused() {
-                                        apply_shortcut_to_strict_path_field(
-                                            &shortcut,
-                                            &mut self.config.redirects[i].source,
-                                            &mut redirect.source_text_history,
-                                        );
-                                        matched = true;
-                                        break;
-                                    }
-                                    if redirect.target_text_state.is_focused() {
-                                        apply_shortcut_to_strict_path_field(
-                                            &shortcut,
-                                            &mut self.config.redirects[i].target,
-                                            &mut redirect.target_text_history,
-                                        );
-                                        matched = true;
-                                        break;
-                                    }
+                            }
+                            for (i, redirect) in self.other_screen.redirect_editor.rows.iter_mut().enumerate() {
+                                if redirect.source_text_state.is_focused() {
+                                    apply_shortcut_to_strict_path_field(
+                                        &shortcut,
+                                        &mut self.config.redirects[i].source,
+                                        &mut redirect.source_text_history,
+                                    );
+                                    matched = true;
+                                    break;
                                 }
-                                for (i, game) in self.custom_games_screen.games_editor.entries.iter_mut().enumerate() {
-                                    if matched {
-                                        break;
-                                    }
-                                    if game.text_state.is_focused() {
+                                if redirect.target_text_state.is_focused() {
+                                    apply_shortcut_to_strict_path_field(
+                                        &shortcut,
+                                        &mut self.config.redirects[i].target,
+                                        &mut redirect.target_text_history,
+                                    );
+                                    matched = true;
+                                    break;
+                                }
+                            }
+                            for (i, game) in self.custom_games_screen.games_editor.entries.iter_mut().enumerate() {
+                                if matched {
+                                    break;
+                                }
+                                if game.text_state.is_focused() {
+                                    apply_shortcut_to_string_field(
+                                        &shortcut,
+                                        &mut self.config.custom_games[i].name,
+                                        &mut game.text_history,
+                                    );
+                                    matched = true;
+                                    break;
+                                }
+                                for (j, file_row) in game.files.iter_mut().enumerate() {
+                                    if file_row.text_state.is_focused() {
                                         apply_shortcut_to_string_field(
                                             &shortcut,
-                                            &mut self.config.custom_games[i].name,
-                                            &mut game.text_history,
-                                        );
-                                        matched = true;
-                                        break;
-                                    }
-                                    for (j, file_row) in game.files.iter_mut().enumerate() {
-                                        if file_row.text_state.is_focused() {
-                                            apply_shortcut_to_string_field(
-                                                &shortcut,
-                                                &mut self.config.custom_games[i].files[j],
-                                                &mut file_row.text_history,
-                                            );
-                                            matched = true;
-                                            break;
-                                        }
-                                    }
-                                    for (j, registry_row) in game.registry.iter_mut().enumerate() {
-                                        if registry_row.text_state.is_focused() {
-                                            apply_shortcut_to_string_field(
-                                                &shortcut,
-                                                &mut self.config.custom_games[i].registry[j],
-                                                &mut registry_row.text_history,
-                                            );
-                                            matched = true;
-                                            break;
-                                        }
-                                    }
-                                }
-                                for (i, row) in self
-                                    .other_screen
-                                    .ignored_items_editor
-                                    .entry
-                                    .files
-                                    .iter_mut()
-                                    .enumerate()
-                                {
-                                    if matched {
-                                        break;
-                                    }
-                                    if row.text_state.is_focused() {
-                                        apply_shortcut_to_strict_path_field(
-                                            &shortcut,
-                                            &mut self.config.backup.filter.ignored_paths[i],
-                                            &mut row.text_history,
+                                            &mut self.config.custom_games[i].files[j],
+                                            &mut file_row.text_history,
                                         );
                                         matched = true;
                                         break;
                                     }
                                 }
-                                for (i, row) in self
-                                    .other_screen
-                                    .ignored_items_editor
-                                    .entry
-                                    .registry
-                                    .iter_mut()
-                                    .enumerate()
-                                {
-                                    if matched {
-                                        break;
-                                    }
-                                    if row.text_state.is_focused() {
-                                        apply_shortcut_to_registry_path_field(
+                                for (j, registry_row) in game.registry.iter_mut().enumerate() {
+                                    if registry_row.text_state.is_focused() {
+                                        apply_shortcut_to_string_field(
                                             &shortcut,
-                                            &mut self.config.backup.filter.ignored_registry[i],
-                                            &mut row.text_history,
+                                            &mut self.config.custom_games[i].registry[j],
+                                            &mut registry_row.text_history,
                                         );
                                         matched = true;
                                         break;
                                     }
                                 }
                             }
-
-                            if matched {
-                                self.config.save();
+                            for (i, row) in self
+                                .other_screen
+                                .ignored_items_editor
+                                .entry
+                                .files
+                                .iter_mut()
+                                .enumerate()
+                            {
+                                if matched {
+                                    break;
+                                }
+                                if row.text_state.is_focused() {
+                                    apply_shortcut_to_strict_path_field(
+                                        &shortcut,
+                                        &mut self.config.backup.filter.ignored_paths[i],
+                                        &mut row.text_history,
+                                    );
+                                    matched = true;
+                                    break;
+                                }
+                            }
+                            for (i, row) in self
+                                .other_screen
+                                .ignored_items_editor
+                                .entry
+                                .registry
+                                .iter_mut()
+                                .enumerate()
+                            {
+                                if matched {
+                                    break;
+                                }
+                                if row.text_state.is_focused() {
+                                    apply_shortcut_to_registry_path_field(
+                                        &shortcut,
+                                        &mut self.config.backup.filter.ignored_registry[i],
+                                        &mut row.text_history,
+                                    );
+                                    matched = true;
+                                    break;
+                                }
                             }
                         }
+
+                        if matched {
+                            self.config.save();
+                        }
                     }
-                };
+                }
                 Command::none()
             }
             Message::EditedFullRetention(value) => {
@@ -1546,7 +1557,19 @@ impl Application for App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        iced_native::subscription::events_with(|event, _| Some(event)).map(Message::SubscribedEvent)
+        iced_native::subscription::Subscription::batch(vec![
+            iced_native::subscription::events_with(|event, _| match event {
+                iced_native::Event::Keyboard(event) => Some(event),
+                _ => None,
+            })
+            .map(Message::KeyboardEvent),
+            match self.timed_notification {
+                Some(_) => {
+                    iced::time::every(std::time::Duration::from_millis(250)).map(|_| Message::PruneNotifications)
+                }
+                None => iced_native::subscription::Subscription::none(),
+            },
+        ])
     }
 
     fn view(&mut self) -> Element<Message> {
