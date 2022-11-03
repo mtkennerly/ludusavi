@@ -106,8 +106,8 @@ pub struct Game {
     #[serde(rename = "installDir")]
     pub install_dir: Option<std::collections::HashMap<String, GameInstallDirEntry>>,
     pub registry: Option<std::collections::HashMap<String, GameRegistryEntry>>,
-    pub steam: Option<StoreMetadata>,
-    pub gog: Option<StoreMetadata>,
+    pub steam: Option<SteamMetadata>,
+    pub gog: Option<GogMetadata>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -137,8 +137,13 @@ pub struct GameRegistryConstraint {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct StoreMetadata {
+pub struct SteamMetadata {
     pub id: Option<u32>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct GogMetadata {
+    pub id: Option<u64>,
 }
 
 impl From<CustomGame> for Game {
@@ -276,7 +281,7 @@ impl Manifest {
             .collect()
     }
 
-    pub fn map_gog_ids_to_names(&self) -> std::collections::HashMap<u32, String> {
+    pub fn map_gog_ids_to_names(&self) -> std::collections::HashMap<u64, String> {
         self.0
             .iter()
             .filter_map(|(k, v)| match &v.gog {
@@ -388,8 +393,8 @@ mod tests {
                         tags: Some(vec![Tag::Config])
                     },
                 }),
-                steam: Some(StoreMetadata { id: Some(101) }),
-                gog: Some(StoreMetadata { id: Some(102) }),
+                steam: Some(SteamMetadata { id: Some(101) }),
+                gog: Some(GogMetadata { id: Some(102) }),
             },
             manifest.0["game"],
         );
@@ -561,7 +566,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(&StoreMetadata { id: None }, manifest.0["game"].steam.as_ref().unwrap());
+        assert_eq!(&SteamMetadata { id: None }, manifest.0["game"].steam.as_ref().unwrap());
     }
 
     #[test]
@@ -574,6 +579,6 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(&StoreMetadata { id: None }, manifest.0["game"].gog.as_ref().unwrap());
+        assert_eq!(&GogMetadata { id: None }, manifest.0["game"].gog.as_ref().unwrap());
     }
 }

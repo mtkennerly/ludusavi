@@ -1591,7 +1591,7 @@ pub struct TitleFinder {
     can_backup: std::collections::HashSet<String>,
     can_restore: std::collections::HashSet<String>,
     steam_ids: std::collections::HashMap<u32, String>,
-    gog_ids: std::collections::HashMap<u32, String>,
+    gog_ids: std::collections::HashMap<u64, String>,
     normalized: std::collections::HashMap<String, String>,
 }
 
@@ -1636,7 +1636,7 @@ impl TitleFinder {
         &self,
         names: &[String],
         steam_id: &Option<u32>,
-        gog_id: &Option<u32>,
+        gog_id: &Option<u64>,
         normalized: bool,
         backup: bool,
         restore: bool,
@@ -1649,7 +1649,7 @@ impl TitleFinder {
         &self,
         names: &[String],
         steam_id: &Option<u32>,
-        gog_id: &Option<u32>,
+        gog_id: &Option<u64>,
         normalized: bool,
         backup: bool,
         restore: bool,

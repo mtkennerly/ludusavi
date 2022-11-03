@@ -289,7 +289,7 @@ pub enum Subcommand {
 
         /// Look up game by a GOG ID.
         #[clap(long)]
-        gog_id: Option<u32>,
+        gog_id: Option<u64>,
 
         /// Look up game by an approximation of the title.
         /// Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols.

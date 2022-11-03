@@ -216,7 +216,7 @@ impl HeroicGames {
         if let Ok(installed_games) = serde_json::from_str::<HeroicInstalled>(&content.unwrap_or_default()) {
             for game in installed_games.installed {
                 if let Some(game_title) = game_titles.get(&game.app_name) {
-                    let gog_id: Option<u32> = game.app_name.parse().ok();
+                    let gog_id: Option<u64> = game.app_name.parse().ok();
                     let official_title =
                         title_finder.find_one(&[game_title.to_owned()], &None, &gog_id, true, true, false);
                     let prefix = self.find_prefix(&root.path, game_title, &game.platform, &game.app_name);
