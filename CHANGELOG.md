@@ -4,6 +4,8 @@
   * Steam shortcuts for non-Steam games are now detected.
     On all platforms, the shortcut's "start in" folder is used as the `<base>` path.
     On Linux, the shortcut's app ID is used to check `steamapps/compatdata` for Proton saves.
+  * In Heroic roots, Ludusavi can now recognize games by their GOG ID.
+    The CLI `find` command now also has a `--gog-id` option.
 * Changed:
   * Manifest updates now use gzip compression, cutting the download size to about 10% (e.g., 11.4 MiB -> 1.5 MiB).
 * Fixed:

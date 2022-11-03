@@ -1591,6 +1591,7 @@ pub struct TitleFinder {
     can_backup: std::collections::HashSet<String>,
     can_restore: std::collections::HashSet<String>,
     steam_ids: std::collections::HashMap<u32, String>,
+    gog_ids: std::collections::HashMap<u64, String>,
     normalized: std::collections::HashMap<String, String>,
 }
 
@@ -1600,6 +1601,7 @@ impl TitleFinder {
         let can_restore: std::collections::HashSet<_> = layout.restorable_games().into_iter().collect();
         let all_games: std::collections::HashSet<_> = can_backup.union(&can_restore).cloned().collect();
         let steam_ids = manifest.map_steam_ids_to_names();
+        let gog_ids = manifest.map_gog_ids_to_names();
         let normalized: std::collections::HashMap<_, _> = all_games
             .iter()
             .map(|title| (normalize_title(title), title.to_owned()))
@@ -1610,6 +1612,7 @@ impl TitleFinder {
             can_backup,
             can_restore,
             steam_ids,
+            gog_ids,
             normalized,
         }
     }
@@ -1633,11 +1636,12 @@ impl TitleFinder {
         &self,
         names: &[String],
         steam_id: &Option<u32>,
+        gog_id: &Option<u64>,
         normalized: bool,
         backup: bool,
         restore: bool,
     ) -> Option<String> {
-        let found = self.find(names, steam_id, normalized, backup, restore);
+        let found = self.find(names, steam_id, gog_id, normalized, backup, restore);
         found.iter().next().map(|x| x.to_owned())
     }
 
@@ -1645,6 +1649,7 @@ impl TitleFinder {
         &self,
         names: &[String],
         steam_id: &Option<u32>,
+        gog_id: &Option<u64>,
         normalized: bool,
         backup: bool,
         restore: bool,
@@ -1653,6 +1658,15 @@ impl TitleFinder {
 
         if let Some(steam_id) = steam_id {
             if let Some(found) = self.steam_ids.get(steam_id) {
+                if self.eligible(found, backup, restore) {
+                    output.insert(found.to_owned());
+                    return output;
+                }
+            }
+        }
+
+        if let Some(gog_id) = gog_id {
+            if let Some(found) = self.gog_ids.get(gog_id) {
                 if self.eligible(found, backup, restore) {
                     output.insert(found.to_owned());
                     return output;
