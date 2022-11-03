@@ -1207,6 +1207,9 @@ pub fn run_cli(sub: Subcommand) -> Result<(), Error> {
                 if let Some(steam_id) = steam_id {
                     invalid.push(steam_id.to_string());
                 }
+                if let Some(gog_id) = gog_id {
+                    invalid.push(gog_id.to_string());
+                }
                 reporter.trip_unknown_games(invalid.clone());
                 reporter.print_failure();
                 return Err(crate::prelude::Error::CliUnrecognizedGames { games: invalid });
