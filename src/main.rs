@@ -1,5 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
+use crate::prelude::CONFIG_DIR;
+
 mod cache;
 mod cli;
 mod config;
@@ -40,6 +42,7 @@ fn main() {
     let args = cli::parse_cli();
     if let Some(config_dir) = args.config_dir.as_deref() {
         println!("Config dir: {}", config_dir.display());
+        *CONFIG_DIR.lock().unwrap() = Some(config_dir.to_path_buf());
     } else {
         println!("Config EMPTY");
     }

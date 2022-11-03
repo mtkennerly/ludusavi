@@ -1,3 +1,5 @@
+use std::{path::PathBuf, sync::Mutex};
+
 use crate::{
     config::{BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry},
     heroic::HeroicGames,
@@ -447,6 +449,9 @@ impl Default for OperationStepDecision {
     }
 }
 
+// NOTE.2022-11-04 not very pretty singleton like global variable
+pub static CONFIG_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
+
 pub fn app_dir() -> std::path::PathBuf {
     if let Ok(mut flag) = std::env::current_exe() {
         flag.pop();
@@ -456,10 +461,14 @@ pub fn app_dir() -> std::path::PathBuf {
             return flag;
         }
     }
-
-    let mut path = dirs::config_dir().unwrap();
-    path.push(APP_DIR_NAME);
-    path
+    let config_dir_option = CONFIG_DIR.lock().unwrap();
+    if let Some(dir) = config_dir_option.clone() {
+        dir
+    } else {
+        let mut path = dirs::config_dir().unwrap();
+        path.push(APP_DIR_NAME);
+        path
+    }
 }
 
 /// Returns the effective target, if different from the original
