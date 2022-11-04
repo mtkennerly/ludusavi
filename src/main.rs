@@ -1,5 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
+use crate::prelude::CONFIG_DIR;
+
 mod cache;
 mod cli;
 mod config;
@@ -38,6 +40,9 @@ fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLo
 
 fn main() {
     let args = cli::parse_cli();
+    if let Some(config_dir) = args.config.as_deref() {
+        *CONFIG_DIR.lock().unwrap() = Some(config_dir.to_path_buf());
+    }
     match args.sub {
         None => {
             #[cfg(target_os = "windows")]
