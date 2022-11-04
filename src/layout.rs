@@ -23,7 +23,7 @@ macro_rules! some_or_continue {
 }
 
 fn encode_base64_for_folder(name: &str) -> String {
-    base64::encode(&name).replace('/', SAFE)
+    base64::encode(name).replace('/', SAFE)
 }
 
 fn escape_folder_name(name: &str) -> String {
@@ -44,17 +44,7 @@ fn escape_folder_name(name: &str) -> String {
         escaped.replace_range(escaped.len() - 1.., SAFE);
     }
 
-    escaped
-        .replace('\\', SAFE)
-        .replace('/', SAFE)
-        .replace(':', SAFE)
-        .replace('*', SAFE)
-        .replace('?', SAFE)
-        .replace('"', SAFE)
-        .replace('<', SAFE)
-        .replace('>', SAFE)
-        .replace('|', SAFE)
-        .replace('\0', SAFE)
+    escaped.replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|', '\0'], SAFE)
 }
 
 pub struct LatestBackup {
