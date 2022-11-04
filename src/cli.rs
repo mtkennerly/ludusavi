@@ -327,8 +327,8 @@ impl Subcommand {
 )]
 pub struct Cli {
     /// Use configuration found in DIRECTORY
-    #[clap(short, long, value_name = "DIRECTORY")]
-    pub config_dir: Option<PathBuf>,
+    #[clap(long, value_name = "DIRECTORY")]
+    pub config: Option<PathBuf>,
 
     #[clap(subcommand)]
     pub sub: Option<Subcommand>,
@@ -1255,7 +1255,13 @@ mod tests {
 
         #[test]
         fn accepts_cli_without_arguments() {
-            check_args(&["ludusavi"], Cli { sub: None });
+            check_args(
+                &["ludusavi"],
+                Cli {
+                    config: None,
+                    sub: None,
+                },
+            );
         }
 
         #[test]
@@ -1263,6 +1269,7 @@ mod tests {
             check_args(
                 &["ludusavi", "backup"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Backup {
                         preview: false,
                         path: None,
@@ -1315,6 +1322,7 @@ mod tests {
                     "game2",
                 ],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Backup {
                         preview: true,
                         path: Some(StrictPath::new(s("tests/backup"))),
@@ -1342,6 +1350,7 @@ mod tests {
             check_args(
                 &["ludusavi", "backup", "--path", "tests/fake"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Backup {
                         preview: false,
                         path: Some(StrictPath::new(s("tests/fake"))),
@@ -1369,6 +1378,7 @@ mod tests {
             check_args(
                 &["ludusavi", "backup", "--no-merge"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Backup {
                         preview: false,
                         path: None,
@@ -1396,6 +1406,7 @@ mod tests {
             check_args(
                 &["ludusavi", "backup", "--try-update"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Backup {
                         preview: false,
                         path: None,
@@ -1439,6 +1450,7 @@ mod tests {
                 check_args(
                     &["ludusavi", "backup", "--sort", value],
                     Cli {
+                        config: None,
                         sub: Some(Subcommand::Backup {
                             preview: false,
                             path: None,
@@ -1467,6 +1479,7 @@ mod tests {
             check_args(
                 &["ludusavi", "restore"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Restore {
                         preview: false,
                         path: None,
@@ -1501,6 +1514,7 @@ mod tests {
                     "game2",
                 ],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Restore {
                         preview: true,
                         path: Some(StrictPath::new(s("tests/backup"))),
@@ -1536,6 +1550,7 @@ mod tests {
                 check_args(
                     &["ludusavi", "restore", "--sort", value],
                     Cli {
+                        config: None,
                         sub: Some(Subcommand::Restore {
                             preview: false,
                             path: None,
@@ -1556,6 +1571,7 @@ mod tests {
             check_args(
                 &["ludusavi", "complete", "bash"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Complete {
                         shell: CompletionShell::Bash,
                     }),
@@ -1568,6 +1584,7 @@ mod tests {
             check_args(
                 &["ludusavi", "complete", "fish"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Complete {
                         shell: CompletionShell::Fish,
                     }),
@@ -1580,6 +1597,7 @@ mod tests {
             check_args(
                 &["ludusavi", "complete", "zsh"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Complete {
                         shell: CompletionShell::Zsh,
                     }),
@@ -1592,6 +1610,7 @@ mod tests {
             check_args(
                 &["ludusavi", "complete", "powershell"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Complete {
                         shell: CompletionShell::PowerShell,
                     }),
@@ -1604,6 +1623,7 @@ mod tests {
             check_args(
                 &["ludusavi", "complete", "elvish"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Complete {
                         shell: CompletionShell::Elvish,
                     }),
@@ -1616,6 +1636,7 @@ mod tests {
             check_args(
                 &["ludusavi", "backups"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Backups {
                         path: None,
                         by_steam_id: false,
@@ -1640,6 +1661,7 @@ mod tests {
                     "game2",
                 ],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Backups {
                         path: Some(StrictPath::new(s("tests/backup"))),
                         by_steam_id: true,
@@ -1655,6 +1677,7 @@ mod tests {
             check_args(
                 &["ludusavi", "find"],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Find {
                         api: false,
                         path: None,
@@ -1689,6 +1712,7 @@ mod tests {
                     "game2",
                 ],
                 Cli {
+                    config: None,
                     sub: Some(Subcommand::Find {
                         api: true,
                         path: Some(StrictPath::new(s("tests/backup"))),

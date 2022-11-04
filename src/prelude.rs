@@ -453,6 +453,10 @@ impl Default for OperationStepDecision {
 pub static CONFIG_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
 
 pub fn app_dir() -> std::path::PathBuf {
+    if let Some(dir) = CONFIG_DIR.lock().unwrap().as_ref() {
+        return dir.clone();
+    }
+
     if let Ok(mut flag) = std::env::current_exe() {
         flag.pop();
         flag.push(PORTABLE_FLAG_FILE_NAME);
@@ -461,14 +465,10 @@ pub fn app_dir() -> std::path::PathBuf {
             return flag;
         }
     }
-    let config_dir_option = CONFIG_DIR.lock().unwrap();
-    if let Some(dir) = config_dir_option.clone() {
-        dir
-    } else {
-        let mut path = dirs::config_dir().unwrap();
-        path.push(APP_DIR_NAME);
-        path
-    }
+
+    let mut path = dirs::config_dir().unwrap();
+    path.push(APP_DIR_NAME);
+    path
 }
 
 /// Returns the effective target, if different from the original
