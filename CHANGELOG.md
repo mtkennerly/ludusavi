@@ -6,6 +6,8 @@
     On Linux, the shortcut's app ID is used to check `steamapps/compatdata` for Proton saves.
   * In Heroic roots, Ludusavi can now recognize games by their GOG ID.
     The CLI `find` command now also has a `--gog-id` option.
+  * CLI: `--config` option to set a custom config directory.
+    ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/153))
 * Changed:
   * Manifest updates now use gzip compression, cutting the download size to about 10% (e.g., 11.4 MiB -> 1.5 MiB).
 * Fixed:
