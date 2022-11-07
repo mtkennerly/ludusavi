@@ -535,6 +535,10 @@ impl Translator {
         translate("button-disable-all")
     }
 
+    pub fn exit_button(&self) -> String {
+        translate("button-exit")
+    }
+
     pub fn no_roots_are_configured(&self) -> String {
         translate("no-roots-are-configured")
     }

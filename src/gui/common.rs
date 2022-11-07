@@ -14,6 +14,7 @@ use iced::{Alignment, Row, Text};
 pub enum Message {
     Ignore,
     Error(Error),
+    Exit,
     CloseModal,
     PruneNotifications,
     UpdateManifest,

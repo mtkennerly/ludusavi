@@ -46,6 +46,7 @@ button-deselect-all = Deselect all
 button-enable-all = Enable all
 button-disable-all = Disable all
 button-customize = Customize
+button-exit = Exit
 
 no-roots-are-configured = Add some roots to back up even more data.
 

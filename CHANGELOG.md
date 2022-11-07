@@ -6,6 +6,9 @@
     On Linux, the shortcut's app ID is used to check `steamapps/compatdata` for Proton saves.
   * In Heroic roots, Ludusavi can now recognize games by their GOG ID.
     The CLI `find` command now also has a `--gog-id` option.
+  * GUI: On the Steam Deck, an "exit" button has been added to the other screen,
+    to make it easier to exit the program while using game mode.
+    Ludusavi checks if `/home/deck` exists in order to determine whether it is running on the Steam Deck.
   * CLI: `--config` option to set a custom config directory.
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/153))
 * Changed:

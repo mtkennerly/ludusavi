@@ -626,6 +626,7 @@ impl Application for App {
                 self.modal_theme = None;
                 Command::none()
             }
+            Message::Exit => std::process::exit(0),
             Message::PruneNotifications => {
                 if let Some(notification) = &self.timed_notification {
                     if notification.expired() {

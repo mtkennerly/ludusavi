@@ -21,6 +21,8 @@ const SKIP: &str = "<skip>";
 const APP_DIR_NAME: &str = "ludusavi";
 const PORTABLE_FLAG_FILE_NAME: &str = "ludusavi.portable";
 
+pub static STEAM_DECK: Lazy<bool> = Lazy::new(|| LINUX && StrictPath::new("/home/deck".to_string()).exists());
+
 pub type AnyError = Box<dyn std::error::Error>;
 
 #[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
