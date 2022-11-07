@@ -90,6 +90,11 @@ as many as you need, along with the root's type:
   `userdata` subdirectories. Here are some common/standard locations:
   * Windows: `C:/Program Files (x86)/Steam`
   * Linux: `~/.steam/steam`
+
+  On Linux, if you've used Steam's "add a non-Steam game" feature,
+  then Ludusavi will also back up any Proton save data for those games.
+  This requires the shortcut name in Steam to match the title by which Ludusavi knows the game
+  (i.e., the title of its PCGamingWiki article).
 * For a Heroic root, this should be the folder containing the `gog_store`
   and `GamesConfig` subdirectories.
 
