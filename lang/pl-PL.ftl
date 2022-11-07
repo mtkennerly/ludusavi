@@ -40,6 +40,7 @@ button-deselect-all = Odznacz wszystkie
 button-enable-all = Włącz wszystkie
 button-disable-all = Wyłącz wszystkie
 button-customize = Customize
+button-exit = Exit
 no-roots-are-configured = Dodaj kilka katalogów głównych, aby utworzyć kopię większej ilości danych.
 config-is-invalid = Błąd: Plik konfiguracji jest nieprawidłowy.
 manifest-is-invalid = Błąd: Plik manifest jest nieprawidłowy.

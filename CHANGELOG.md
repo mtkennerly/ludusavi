@@ -1,16 +1,19 @@
-## Unreleased
+## v0.15.0 (2022-11-07)
 
 * Added:
   * Steam shortcuts for non-Steam games are now detected.
     On all platforms, the shortcut's "start in" folder is used as the `<base>` path.
     On Linux, the shortcut's app ID is used to check `steamapps/compatdata` for Proton saves.
   * In Heroic roots, Ludusavi can now recognize games by their GOG ID.
+    This helps resolve cases where Heroic and Ludusavi use different titles for the same game.
     The CLI `find` command now also has a `--gog-id` option.
   * GUI: On the Steam Deck, an "exit" button has been added to the other screen,
     to make it easier to exit the program while using game mode.
     Ludusavi checks if `/home/deck` exists in order to determine whether it is running on the Steam Deck.
   * CLI: `--config` option to set a custom config directory.
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/153))
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Changed:
   * Manifest updates now use gzip compression, cutting the download size to about 10% (e.g., 11.4 MiB -> 1.5 MiB).
 * Fixed:

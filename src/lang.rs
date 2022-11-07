@@ -92,10 +92,10 @@ impl ToString for Language {
             Self::Esperanto => "Esperanto (20%)",
             Self::Filipino => "Filipino (57%)",
             Self::German => "Deutsch (94%)",
-            Self::Italian => "Italiano (100%)",
+            Self::Italian => "Italiano (99%)",
             Self::Korean => "한국어 (47%)",
             Self::Polish => "Polski (94%)",
-            Self::PortugueseBrazilian => "Português brasileiro (94%)",
+            Self::PortugueseBrazilian => "Português brasileiro (99%)",
             Self::Spanish => "Español (84%)",
         }
         .to_string()

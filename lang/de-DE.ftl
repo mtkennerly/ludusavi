@@ -40,6 +40,7 @@ button-deselect-all = Alle abwählen
 button-enable-all = Alle aktivieren
 button-disable-all = Alle deaktivieren
 button-customize = Anpassen
+button-exit = Exit
 no-roots-are-configured = Fügen Sie einige Wurzeln hinzu, um noch mehr Daten zu sichern.
 config-is-invalid = Fehler: Die Konfigurationsdatei ist ungültig.
 manifest-is-invalid = Fehler: Die Manifest-Datei ist ungültig.

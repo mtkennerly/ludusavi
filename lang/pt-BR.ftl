@@ -16,10 +16,10 @@ badge-duplicates = DUPLICADOS
 badge-duplicated = DUPLICADO
 badge-ignored = IGNORADO
 badge-redirected-from = DE: { $path }
-badge-redirecting-to = TO: { $path }
+badge-redirecting-to = PARA: { $path }
 some-entries-failed = Algumas entradas não conseguiram processar; procure por { badge-failed } na saída para mais detalhes. Verifique se você pode acessar esses arquivos ou se os caminhos deles são muito longos.
 cli-game-line-item-redirected = Redirecionado de: { $path }
-cli-game-line-item-redirecting = Redirecting to: { $path }
+cli-game-line-item-redirecting = Redirecionando para: { $path }
 button-backup = Fazer backup
 button-preview = Visualizar
 button-restore = Restaurar
@@ -40,6 +40,7 @@ button-deselect-all = Desmarcar tudo
 button-enable-all = Ativar tudo
 button-disable-all = Desativar tudo
 button-customize = Personalizar
+button-exit = Exit
 no-roots-are-configured = Adicione algumas raízes para armazenar ainda mais dados.
 config-is-invalid = Erro: O arquivo de configuração é inválido.
 manifest-is-invalid = Erro: O arquivo de manifesto é inválido.
@@ -73,7 +74,7 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Alvo (novo local)
 field-backup-excluded-items = Exclusões do backup:
-field-redirects = Redirects:
+field-redirects = Redirecionar:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
 field-retention-full = Todos:
@@ -83,13 +84,13 @@ field-retention-differential = Diferencial:
 field-backup-format = Formato:
 field-backup-compression = Compressão:
 # The compression level determines how much compresison we perform.
-field-backup-compression-level = Level:
-label-manifest = Manifest
+field-backup-compression-level = Nível:
+label-manifest = Manifesto
 # This shows the time when we checked for an update to the manifest.
-label-checked = Checked
+label-checked = Verificado
 # This shows the time when we found an update to the manifest.
-label-updated = Updated
-label-new = New
+label-updated = Atualizado
+label-new = Novo
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -113,7 +114,7 @@ compression-zstd = Zstd
 theme = Tema
 theme-light = Claro
 theme-dark = Escuro
-redirect-bidirectional = Bidirectional
+redirect-bidirectional = Bidirecional
 explanation-for-exclude-store-screenshots =
     Nos backups, exclui capturas de tela específicas de armazenamento. No momento, isso só se aplica
     às capturas de tela de { store-steam } que você tirou. Se um jogo tem sua própria função de captura de tela
@@ -135,8 +136,8 @@ confirm-add-missing-roots = Adicionar estas origens?
 no-missing-roots = Nenhuma origem adicional encontrada.
 preparing-backup-target = Preparando o diretório de backup...
 updating-manifest = Atualizando manifesto...
-saves-found = Save data found.
-no-saves-found = No save data found.
+saves-found = Dados salvos encontrados.
+no-saves-found = Não foram encontrados dados salvos.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
-suffix-no-confirmation = no confirmation
+suffix-no-confirmation = sem confirmação

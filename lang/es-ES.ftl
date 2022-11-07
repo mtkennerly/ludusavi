@@ -40,6 +40,7 @@ button-deselect-all = Deseleccionar todos
 button-enable-all = Habilitar todos
 button-disable-all = Deshabilitar todos
 button-customize = Customize
+button-exit = Exit
 no-roots-are-configured = Añade algunas raíces para respaldar aún más datos.
 config-is-invalid = Error: El archivo de configuración no es válido.
 manifest-is-invalid = Error: El archivo de manifiesto no es válido.

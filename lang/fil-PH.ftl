@@ -40,6 +40,7 @@ button-deselect-all = Alisin ang lahat
 button-enable-all = Enable ang lahat
 button-disable-all = Disable ang lahat
 button-customize = Customize
+button-exit = Exit
 no-roots-are-configured = Paki-lagay mga roots upang mag-back up ng higit pang data.
 config-is-invalid = Error: Invalid ang config file.
 manifest-is-invalid = Error: Invalid ang manifest file.

@@ -57,18 +57,12 @@ pip install aiohttp toml
 
 Also install the Crowdin CLI manually.
 
-#### Automated
-Run:
-
-```bash
-invoke prerelease
-```
-
-#### Manual
+#### Process
 * Update version in CHANGELOG.md
 * Update version in Cargo.toml
 * Update version in assets/com.github.mtkennerly.ludusavi.metainfo.xml
   including the `releases` section and the screenshot URL.
+* Run `invoke prerelease`
 * Update the translation percentages in src/lang.rs
 * Run `cargo build` to update the version in Cargo.lock
 * Add the new version to `.github/ISSUE_TEMPLATE/*.yaml`.

@@ -40,6 +40,7 @@ button-deselect-all = 모두 선택 해제
 button-enable-all = 모두 활성화
 button-disable-all = 모두 비활성화
 button-customize = Customize
+button-exit = Exit
 no-roots-are-configured = 최상위 디렉토리를 추가해서 더 많은 데이터를 백업하세요.
 config-is-invalid = 오류: 설정 파일이 올바르지 않습니다.
 manifest-is-invalid = 오류: 매니페스트 파일이 올바르지 않습니다.

@@ -40,6 +40,7 @@ button-deselect-all = إلغاء تحديد الكل
 button-enable-all = تفعيل الكل
 button-disable-all = تعطيل الكل
 button-customize = Customize
+button-exit = Exit
 no-roots-are-configured = إضافة بعض الجذور لنسخ المزيد من البيانات احتياطياً.
 config-is-invalid = خطأ: ملف التكوين غير صالح.
 manifest-is-invalid = خطأ: ملف البيان غير صالح.

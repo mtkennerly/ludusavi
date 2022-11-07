@@ -40,6 +40,7 @@ button-deselect-all = 全不选
 button-enable-all = 全部启用
 button-disable-all = 全部禁用
 button-customize = Customize
+button-exit = Exit
 no-roots-are-configured = 添加一些根，以备份甚至更多的数据。
 config-is-invalid = 错误：配置文件无效。
 manifest-is-invalid = 错误：manifest 文件无效。
