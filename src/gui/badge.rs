@@ -1,10 +1,12 @@
 use crate::{
-    config::Theme,
-    gui::{common::Message, style},
+    gui::{
+        style,
+        widget::{Container, Text, Tooltip},
+    },
     lang::Translator,
     prelude::ScanChange,
 };
-use iced::{tooltip, Container, Text, Tooltip};
+use iced::widget::tooltip;
 
 #[derive(Default)]
 pub struct Badge {
@@ -65,13 +67,13 @@ impl Badge {
         self
     }
 
-    pub fn view(self, theme: Theme) -> Container<'static, Message> {
+    pub fn view(self) -> Container<'static> {
         Container::new({
             let content = Container::new(Text::new(self.text).size(14))
                 .padding([2, 12, 2, 12])
                 .style(match self.change {
-                    None => style::Container::Badge(theme),
-                    Some(change) => style::Container::ChangeBadge(theme, change),
+                    None => style::Container::Badge,
+                    Some(change) => style::Container::ChangeBadge(change),
                 });
 
             match self.tooltip {
@@ -80,7 +82,7 @@ impl Badge {
                     Tooltip::new(content, tooltip, tooltip::Position::Top)
                         .size(16)
                         .gap(5)
-                        .style(style::Container::Tooltip(theme)),
+                        .style(style::Container::Tooltip),
                 ),
             }
         })

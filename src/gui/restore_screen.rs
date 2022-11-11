@@ -2,7 +2,7 @@ use crate::{
     cache::Cache,
     config::Config,
     gui::{
-        common::{make_status_row, BrowseSubject, IcedButtonExt, Message, OngoingOperation, Screen},
+        common::{make_status_row, BrowseSubject, IcedButtonExt, Message, OngoingOperation, Screen, UndoSubject},
         game_list::GameList,
         icon::Icon,
         style,
@@ -13,21 +13,13 @@ use crate::{
     shortcuts::TextHistory,
 };
 
-use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, text_input, Alignment, Button, Column, Container, Length,
-    Row, Text, TextInput,
-};
+use crate::gui::widget::{Button, Column, Container, Row, Text, TextInput, Undoable};
+use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
 
 #[derive(Default)]
 pub struct RestoreScreenComponent {
     pub log: GameList,
-    start_button: button::State,
-    preview_button: button::State,
-    select_all_button: button::State,
-    toggle_search_button: button::State,
-    pub restore_source_input: text_input::State,
     pub restore_source_history: TextHistory,
-    restore_source_browse_button: button::State,
     pub duplicate_detector: DuplicateDetector,
 }
 
@@ -41,12 +33,12 @@ impl RestoreScreenComponent {
     }
 
     pub fn view(
-        &mut self,
+        &self,
         config: &Config,
         manifest: &Manifest,
         translator: &Translator,
         operation: &Option<OngoingOperation>,
-    ) -> Container<Message> {
+    ) -> Container {
         Container::new(
             Column::new()
                 .align_items(Alignment::Center)
@@ -58,7 +50,6 @@ impl RestoreScreenComponent {
                         .align_items(Alignment::Center)
                         .push(
                             Button::new(
-                                &mut self.preview_button,
                                 Text::new(match operation {
                                     Some(OngoingOperation::PreviewRestore) => translator.cancel_button(),
                                     Some(OngoingOperation::CancelPreviewRestore) => translator.cancelling_button(),
@@ -77,14 +68,13 @@ impl RestoreScreenComponent {
                             .width(Length::Units(125))
                             .style(match operation {
                                 Some(OngoingOperation::PreviewRestore | OngoingOperation::CancelPreviewRestore) => {
-                                    style::Button::Negative(config.theme)
+                                    style::Button::Negative
                                 }
-                                _ => style::Button::Primary(config.theme),
+                                _ => style::Button::Primary,
                             }),
                         )
                         .push(
                             Button::new(
-                                &mut self.start_button,
                                 Text::new(match operation {
                                     Some(OngoingOperation::Restore) => translator.cancel_button(),
                                     Some(OngoingOperation::CancelRestore) => translator.cancelling_button(),
@@ -100,15 +90,14 @@ impl RestoreScreenComponent {
                             .width(Length::Units(125))
                             .style(match operation {
                                 Some(OngoingOperation::Restore | OngoingOperation::CancelRestore) => {
-                                    style::Button::Negative(config.theme)
+                                    style::Button::Negative
                                 }
-                                _ => style::Button::Primary(config.theme),
+                                _ => style::Button::Primary,
                             }),
                         )
                         .push({
                             let restoring = true;
                             Button::new(
-                                &mut self.select_all_button,
                                 Text::new(if self.log.all_entries_selected(config, restoring) {
                                     translator.deselect_all_button()
                                 } else {
@@ -122,17 +111,17 @@ impl RestoreScreenComponent {
                                 Message::SelectAllGames
                             })
                             .width(Length::Units(125))
-                            .style(style::Button::Primary(config.theme))
+                            .style(style::Button::Primary)
                         })
                         .push(
-                            Button::new(&mut self.toggle_search_button, Icon::Search.as_text())
+                            Button::new(Icon::Search.as_text())
                                 .on_press(Message::ToggleSearch {
                                     screen: Screen::Restore,
                                 })
                                 .style(if self.log.search.show {
-                                    style::Button::Negative(config.theme)
+                                    style::Button::Negative
                                 } else {
-                                    style::Button::Primary(config.theme)
+                                    style::Button::Primary
                                 }),
                         ),
                 )
@@ -140,7 +129,6 @@ impl RestoreScreenComponent {
                     translator,
                     &self.log.compute_operation_status(config, true),
                     self.duplicate_detector.any_duplicates(),
-                    config.theme,
                 ))
                 .push(
                     Row::new()
@@ -148,20 +136,16 @@ impl RestoreScreenComponent {
                         .spacing(20)
                         .align_items(Alignment::Center)
                         .push(Text::new(translator.restore_source_label()))
+                        .push(Undoable::new(
+                            TextInput::new("", &config.restore.path.raw(), Message::EditedRestoreSource)
+                                .style(style::TextInput)
+                                .padding(5),
+                            move |action| Message::UndoRedo(action, UndoSubject::RestoreSource),
+                        ))
                         .push(
-                            TextInput::new(
-                                &mut self.restore_source_input,
-                                "",
-                                &config.restore.path.raw(),
-                                Message::EditedRestoreSource,
-                            )
-                            .style(style::TextInput(config.theme))
-                            .padding(5),
-                        )
-                        .push(
-                            Button::new(&mut self.restore_source_browse_button, Icon::FolderOpen.as_text())
+                            Button::new(Icon::FolderOpen.as_text())
                                 .on_press(Message::BrowseDir(BrowseSubject::RestoreSource))
-                                .style(style::Button::Primary(config.theme)),
+                                .style(style::Button::Primary),
                         ),
                 )
                 .push(

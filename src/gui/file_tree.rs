@@ -5,12 +5,13 @@ use crate::{
         common::{IcedExtension, Message},
         icon::Icon,
         style,
+        widget::{Button, Checkbox, Column, Container, Row, Space, Text},
     },
     lang::Translator,
     path::StrictPath,
     prelude::{BackupInfo, DuplicateDetector, RegistryItem, ScanChange, ScanInfo, ScannedFile},
 };
-use iced::{button, Alignment, Button, Checkbox, Column, Container, Length, Row, Space, Text};
+use iced::{Alignment, Length};
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum FileTreeNodeType {
@@ -33,9 +34,7 @@ enum FileTreeNodePath {
 #[derive(Clone, Debug, Default)]
 struct FileTreeNode {
     keys: Vec<String>,
-    expand_button: button::State,
     expanded: bool,
-    open_button: button::State,
     path: Option<FileTreeNodePath>,
     nodes: std::collections::BTreeMap<String, FileTreeNode>,
     successful: bool,
@@ -69,14 +68,14 @@ impl FileTreeNode {
     }
 
     pub fn view(
-        &mut self,
+        &self,
         level: u16,
-        label: &str,
+        label: String,
         translator: &Translator,
         game_name: &str,
-        config: &Config,
+        _config: &Config,
         restoring: bool,
-    ) -> Container<Message> {
+    ) -> Container {
         let expanded = self.expanded;
 
         let make_enabler = || {
@@ -100,7 +99,7 @@ impl FileTreeNode {
                                 enabled,
                             },
                         })
-                        .style(style::Checkbox(config.theme)),
+                        .style(style::Checkbox),
                     )
                     .align_x(iced::alignment::Horizontal::Center)
                     .align_y(iced::alignment::Vertical::Center),
@@ -129,23 +128,15 @@ impl FileTreeNode {
                             ScanChange::New => Badge::new_entry(translator),
                             ScanChange::Different => Badge::changed_entry(translator),
                         };
-                        Some(badge.left_margin(15).view(config.theme))
+                        Some(badge.left_margin(15).view())
                     })
                     .push_if(
                         || self.duplicated,
-                        || {
-                            Badge::new(&translator.badge_duplicated())
-                                .left_margin(15)
-                                .view(config.theme)
-                        },
+                        || Badge::new(&translator.badge_duplicated()).left_margin(15).view(),
                     )
                     .push_if(
                         || !self.successful,
-                        || {
-                            Badge::new(&translator.badge_failed())
-                                .left_margin(15)
-                                .view(config.theme)
-                        },
+                        || Badge::new(&translator.badge_failed()).left_margin(15).view(),
                     )
                     .push_some(|| {
                         self.scanned_file.as_ref().and_then(|scanned| {
@@ -156,7 +147,7 @@ impl FileTreeNode {
                                 } else {
                                     translator.badge_redirecting_to(alt)
                                 };
-                                Badge::new(&msg).left_margin(15).view(config.theme)
+                                Badge::new(&msg).left_margin(15).view()
                             })
                         })
                     }),
@@ -165,32 +156,31 @@ impl FileTreeNode {
             let keys: Vec<_> = self.nodes.keys().cloned().collect();
             let key = &keys[0];
             if !self.nodes.get::<str>(key).unwrap().nodes.is_empty() {
-                return Container::new(self.nodes.get_mut::<str>(key).unwrap().view(
+                return Container::new(self.nodes.get::<str>(key).unwrap().view(
                     level,
-                    &format!("{}/{}", label, key),
+                    format!("{}/{}", label, key),
                     translator,
                     game_name,
-                    config,
+                    _config,
                     restoring,
                 ));
             }
         }
 
         Container::new(
-            self.nodes.iter_mut().filter(|(_, v)| v.anything_showable()).fold(
+            self.nodes.iter().filter(|(_, v)| v.anything_showable()).fold(
                 Column::new().push(
                     Row::new()
                         .align_items(Alignment::Center)
                         .padding([0, 10, 0, 35 * level])
                         .push(
                             Button::new(
-                                &mut self.expand_button,
                                 (if expanded {
                                     Icon::KeyboardArrowDown
                                 } else {
                                     Icon::KeyboardArrowRight
                                 })
-                                .as_text()
+                                .into_text()
                                 .width(Length::Units(15))
                                 .size(15),
                             )
@@ -198,7 +188,7 @@ impl FileTreeNode {
                                 name: game_name.to_string(),
                                 keys: self.keys.clone(),
                             })
-                            .style(style::Button::Primary(config.theme))
+                            .style(style::Button::Primary)
                             .height(Length::Units(25))
                             .width(Length::Units(25)),
                         )
@@ -209,13 +199,10 @@ impl FileTreeNode {
                         .push_some(|| {
                             if let Some(FileTreeNodePath::File(path)) = &self.path {
                                 return Some(
-                                    Button::new(
-                                        &mut self.open_button,
-                                        Icon::OpenInNew.as_text().width(Length::Shrink).size(15),
-                                    )
-                                    .on_press(Message::OpenDir { path: path.clone() })
-                                    .style(style::Button::Primary(config.theme))
-                                    .height(Length::Units(25)),
+                                    Button::new(Icon::OpenInNew.as_text().width(Length::Shrink).size(15))
+                                        .on_press(Message::OpenDir { path: path.clone() })
+                                        .style(style::Button::Primary)
+                                        .height(Length::Units(25)),
                                 );
                             }
                             None
@@ -224,7 +211,7 @@ impl FileTreeNode {
                 |parent, (k, v)| {
                     parent.push_if(
                         || expanded,
-                        || v.view(level + 1, k, translator, game_name, config, restoring),
+                        || v.view(level + 1, k.to_owned(), translator, game_name, _config, restoring),
                     )
                 },
             ),
@@ -384,19 +371,13 @@ impl FileTree {
         Self { nodes }
     }
 
-    pub fn view(
-        &mut self,
-        translator: &Translator,
-        game_name: &str,
-        config: &Config,
-        restoring: bool,
-    ) -> Container<Message> {
+    pub fn view(&self, translator: &Translator, game_name: &str, config: &Config, restoring: bool) -> Container {
         Container::new(
             self.nodes
-                .iter_mut()
+                .iter()
                 .filter(|(_, v)| v.anything_showable())
                 .fold(Column::new().spacing(4), |parent, (k, v)| {
-                    parent.push(v.view(0, k, translator, game_name, config, restoring))
+                    parent.push(v.view(0, k.to_owned(), translator, game_name, config, restoring))
                 }),
         )
     }

@@ -1,6 +1,6 @@
 use crate::{
     cache::Cache,
-    config::{Config, CustomGame, RootsConfig, Theme},
+    config::{Config, CustomGame, RootsConfig},
     gui::{
         backup_screen::BackupScreenComponent,
         common::*,
@@ -26,29 +26,13 @@ use crate::{
     shortcuts::Shortcut,
 };
 
+use crate::gui::widget::{Button, Column, Container, Element, ProgressBar, Row, Text};
 use iced::{
-    alignment::Horizontal as HorizontalAlignment,
-    button, executor,
-    keyboard::{KeyCode, Modifiers},
-    Alignment, Application, Button, Column, Command, Container, Element, Length, ProgressBar, Row, Subscription, Text,
+    alignment::Horizontal as HorizontalAlignment, executor, Alignment, Application, Command, Length, Subscription,
 };
 
-pub fn get_key_pressed(event: iced::keyboard::Event) -> Option<(KeyCode, Modifiers)> {
-    match event {
-        iced::keyboard::Event::KeyPressed { key_code, modifiers } => Some((key_code, modifiers)),
-        _ => None,
-    }
-}
-
-fn make_nav_button(
-    state: &mut button::State,
-    text: String,
-    screen: Screen,
-    current_screen: Screen,
-    theme: Theme,
-) -> Button<Message> {
+fn make_nav_button<'a>(text: String, screen: Screen, current_screen: Screen) -> Button<'a> {
     Button::new(
-        state,
         Text::new(text)
             .size(16)
             .horizontal_alignment(HorizontalAlignment::Center),
@@ -56,9 +40,9 @@ fn make_nav_button(
     .on_press(Message::SwitchScreen(screen))
     .padding([5, 20, 5, 20])
     .style(if current_screen == screen {
-        style::NavButton::Active(theme)
+        style::Button::NavButtonActive
     } else {
-        style::NavButton::Inactive(theme)
+        style::Button::NavButtonInactive
     })
 }
 
@@ -78,10 +62,6 @@ pub struct App {
     screen: Screen,
     modal_theme: Option<ModalTheme>,
     modal: ModalComponent,
-    nav_to_backup_button: button::State,
-    nav_to_restore_button: button::State,
-    nav_to_custom_games_button: button::State,
-    nav_to_other_button: button::State,
     backup_screen: BackupScreenComponent,
     restore_screen: RestoreScreenComponent,
     custom_games_screen: CustomGamesScreenComponent,
@@ -539,7 +519,7 @@ impl App {
         let url2 = url.clone();
         Command::perform(async { opener::open(url) }, move |res| match res {
             Ok(_) => Message::Ignore,
-            Err(_) => Message::OpenUrlFailure { url: url2.clone() },
+            Err(_) => Message::OpenUrlFailure { url: url2 },
         })
     }
 }
@@ -548,6 +528,7 @@ impl Application for App {
     type Executor = executor::Default;
     type Message = Message;
     type Flags = ();
+    type Theme = crate::gui::style::Theme;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let translator = Translator::default();
@@ -613,6 +594,10 @@ impl Application for App {
 
     fn title(&self) -> String {
         self.translator.window_title()
+    }
+
+    fn theme(&self) -> Self::Theme {
+        crate::gui::style::Theme::from(self.config.theme)
     }
 
     fn update(&mut self, message: Message) -> Command<Message> {
@@ -702,10 +687,7 @@ impl Application for App {
                 Command::perform(
                     async move { prepare_backup_target(&backup_path, merge) },
                     move |result| match result {
-                        Ok(_) => Message::BackupStart {
-                            preview,
-                            games: games.clone(),
-                        },
+                        Ok(_) => Message::BackupStart { preview, games },
                         Err(e) => Message::Error(e),
                     },
                 )
@@ -885,6 +867,7 @@ impl Application for App {
                 Command::none()
             }
             Message::EditedRoot(action) => {
+                let mut snap = false;
                 match action {
                     EditAction::Add => {
                         self.backup_screen.root_editor.rows.push(RootEditorRow::default());
@@ -892,7 +875,7 @@ impl Application for App {
                             path: StrictPath::default(),
                             store: Store::Other,
                         });
-                        self.backup_screen.root_editor.scroll.snap_to(1.0);
+                        snap = true;
                     }
                     EditAction::Change(index, value) => {
                         self.backup_screen.root_editor.rows[index].text_history.push(&value);
@@ -904,7 +887,11 @@ impl Application for App {
                     }
                 }
                 self.config.save();
-                Command::none()
+                if snap {
+                    iced::widget::scrollable::snap_to(crate::gui::widget::id::roots(), 1.0)
+                } else {
+                    Command::none()
+                }
             }
             Message::SelectedRootStore(index, store) => {
                 self.config.roots[index].store = store;
@@ -949,6 +936,7 @@ impl Application for App {
                 Command::none()
             }
             Message::EditedCustomGame(action) => {
+                let mut snap = false;
                 match action {
                     EditAction::Add => {
                         self.custom_games_screen
@@ -956,7 +944,7 @@ impl Application for App {
                             .entries
                             .push(CustomGamesEditorEntry::default());
                         self.config.add_custom_game();
-                        self.custom_games_screen.games_editor.scroll.snap_to(1.0);
+                        snap = true;
                     }
                     EditAction::Change(index, value) => {
                         self.custom_games_screen.games_editor.entries[index]
@@ -970,7 +958,11 @@ impl Application for App {
                     }
                 }
                 self.config.save();
-                Command::none()
+                if snap {
+                    iced::widget::scrollable::snap_to(crate::gui::widget::id::custom_games(), 1.0)
+                } else {
+                    Command::none()
+                }
             }
             Message::EditedCustomGameFile(game_index, action) => {
                 match action {
@@ -1308,7 +1300,7 @@ impl Application for App {
                 let path2 = path.clone();
                 Command::perform(async move { opener::open(path.interpret()) }, move |res| match res {
                     Ok(_) => Message::Ignore,
-                    Err(_) => Message::OpenDirFailure { path: path2.clone() },
+                    Err(_) => Message::OpenDirFailure { path: path2 },
                 })
             }
             Message::OpenDirFailure { path } => {
@@ -1328,166 +1320,73 @@ impl Application for App {
                     self.backup_screen.log.modifiers = modifiers;
                     self.restore_screen.log.modifiers = modifiers;
                 }
-                if let Some((key_code, modifiers)) = get_key_pressed(event) {
-                    let activated = if cfg!(target_os = "mac") {
-                        modifiers.logo() || modifiers.control()
-                    } else {
-                        modifiers.control()
-                    };
-                    let shortcut = match (key_code, activated, modifiers.shift()) {
-                        (KeyCode::Z, true, false) => Some(Shortcut::Undo),
-                        (KeyCode::Y, true, false) | (KeyCode::Z, true, true) => Some(Shortcut::Redo),
-                        _ => None,
-                    };
-
-                    if let Some(shortcut) = shortcut {
-                        let mut matched = false;
-
-                        if self.backup_screen.backup_target_input.is_focused() {
-                            apply_shortcut_to_strict_path_field(
-                                &shortcut,
-                                &mut self.config.backup.path,
-                                &mut self.backup_screen.backup_target_history,
-                            );
-                            matched = true;
-                        } else if self.restore_screen.restore_source_input.is_focused() {
-                            apply_shortcut_to_strict_path_field(
-                                &shortcut,
-                                &mut self.config.restore.path,
-                                &mut self.restore_screen.restore_source_history,
-                            );
-                            matched = true;
-                        } else if self.backup_screen.log.search.game_name_input.is_focused() {
-                            apply_shortcut_to_string_field(
-                                &shortcut,
-                                &mut self.backup_screen.log.search.game_name,
-                                &mut self.backup_screen.log.search.game_name_history,
-                            );
-                            matched = true;
-                        } else if self.restore_screen.log.search.game_name_input.is_focused() {
-                            apply_shortcut_to_string_field(
-                                &shortcut,
-                                &mut self.restore_screen.log.search.game_name,
-                                &mut self.restore_screen.log.search.game_name_history,
-                            );
-                            matched = true;
-                        } else {
-                            for (i, root) in self.backup_screen.root_editor.rows.iter_mut().enumerate() {
-                                if root.text_state.is_focused() {
-                                    apply_shortcut_to_strict_path_field(
-                                        &shortcut,
-                                        &mut self.config.roots[i].path,
-                                        &mut root.text_history,
-                                    );
-                                    matched = true;
-                                    break;
-                                }
-                            }
-                            for (i, redirect) in self.other_screen.redirect_editor.rows.iter_mut().enumerate() {
-                                if redirect.source_text_state.is_focused() {
-                                    apply_shortcut_to_strict_path_field(
-                                        &shortcut,
-                                        &mut self.config.redirects[i].source,
-                                        &mut redirect.source_text_history,
-                                    );
-                                    matched = true;
-                                    break;
-                                }
-                                if redirect.target_text_state.is_focused() {
-                                    apply_shortcut_to_strict_path_field(
-                                        &shortcut,
-                                        &mut self.config.redirects[i].target,
-                                        &mut redirect.target_text_history,
-                                    );
-                                    matched = true;
-                                    break;
-                                }
-                            }
-                            for (i, game) in self.custom_games_screen.games_editor.entries.iter_mut().enumerate() {
-                                if matched {
-                                    break;
-                                }
-                                if game.text_state.is_focused() {
-                                    apply_shortcut_to_string_field(
-                                        &shortcut,
-                                        &mut self.config.custom_games[i].name,
-                                        &mut game.text_history,
-                                    );
-                                    matched = true;
-                                    break;
-                                }
-                                for (j, file_row) in game.files.iter_mut().enumerate() {
-                                    if file_row.text_state.is_focused() {
-                                        apply_shortcut_to_string_field(
-                                            &shortcut,
-                                            &mut self.config.custom_games[i].files[j],
-                                            &mut file_row.text_history,
-                                        );
-                                        matched = true;
-                                        break;
-                                    }
-                                }
-                                for (j, registry_row) in game.registry.iter_mut().enumerate() {
-                                    if registry_row.text_state.is_focused() {
-                                        apply_shortcut_to_string_field(
-                                            &shortcut,
-                                            &mut self.config.custom_games[i].registry[j],
-                                            &mut registry_row.text_history,
-                                        );
-                                        matched = true;
-                                        break;
-                                    }
-                                }
-                            }
-                            for (i, row) in self
-                                .other_screen
-                                .ignored_items_editor
-                                .entry
-                                .files
-                                .iter_mut()
-                                .enumerate()
-                            {
-                                if matched {
-                                    break;
-                                }
-                                if row.text_state.is_focused() {
-                                    apply_shortcut_to_strict_path_field(
-                                        &shortcut,
-                                        &mut self.config.backup.filter.ignored_paths[i],
-                                        &mut row.text_history,
-                                    );
-                                    matched = true;
-                                    break;
-                                }
-                            }
-                            for (i, row) in self
-                                .other_screen
-                                .ignored_items_editor
-                                .entry
-                                .registry
-                                .iter_mut()
-                                .enumerate()
-                            {
-                                if matched {
-                                    break;
-                                }
-                                if row.text_state.is_focused() {
-                                    apply_shortcut_to_registry_path_field(
-                                        &shortcut,
-                                        &mut self.config.backup.filter.ignored_registry[i],
-                                        &mut row.text_history,
-                                    );
-                                    matched = true;
-                                    break;
-                                }
-                            }
-                        }
-
-                        if matched {
-                            self.config.save();
-                        }
-                    }
+                Command::none()
+            }
+            Message::UndoRedo(action, subject) => {
+                let shortcut = Shortcut::from(action);
+                match subject {
+                    UndoSubject::BackupTarget => apply_shortcut_to_strict_path_field(
+                        &shortcut,
+                        &mut self.config.backup.path,
+                        &mut self.backup_screen.backup_target_history,
+                    ),
+                    UndoSubject::RestoreSource => apply_shortcut_to_strict_path_field(
+                        &shortcut,
+                        &mut self.config.restore.path,
+                        &mut self.restore_screen.restore_source_history,
+                    ),
+                    UndoSubject::BackupSearchGameName => apply_shortcut_to_string_field(
+                        &shortcut,
+                        &mut self.backup_screen.log.search.game_name,
+                        &mut self.backup_screen.log.search.game_name_history,
+                    ),
+                    UndoSubject::RestoreSearchGameName => apply_shortcut_to_string_field(
+                        &shortcut,
+                        &mut self.restore_screen.log.search.game_name,
+                        &mut self.restore_screen.log.search.game_name_history,
+                    ),
+                    UndoSubject::Root(i) => apply_shortcut_to_strict_path_field(
+                        &shortcut,
+                        &mut self.config.roots[i].path,
+                        &mut self.backup_screen.root_editor.rows[i].text_history,
+                    ),
+                    UndoSubject::RedirectSource(i) => apply_shortcut_to_strict_path_field(
+                        &shortcut,
+                        &mut self.config.redirects[i].source,
+                        &mut self.other_screen.redirect_editor.rows[i].source_text_history,
+                    ),
+                    UndoSubject::RedirectTarget(i) => apply_shortcut_to_strict_path_field(
+                        &shortcut,
+                        &mut self.config.redirects[i].target,
+                        &mut self.other_screen.redirect_editor.rows[i].target_text_history,
+                    ),
+                    UndoSubject::CustomGameName(i) => apply_shortcut_to_string_field(
+                        &shortcut,
+                        &mut self.config.custom_games[i].name,
+                        &mut self.custom_games_screen.games_editor.entries[i].text_history,
+                    ),
+                    UndoSubject::CustomGameFile(i, j) => apply_shortcut_to_string_field(
+                        &shortcut,
+                        &mut self.config.custom_games[i].files[j],
+                        &mut self.custom_games_screen.games_editor.entries[i].files[j].text_history,
+                    ),
+                    UndoSubject::CustomGameRegistry(i, j) => apply_shortcut_to_string_field(
+                        &shortcut,
+                        &mut self.config.custom_games[i].registry[j],
+                        &mut self.custom_games_screen.games_editor.entries[i].registry[j].text_history,
+                    ),
+                    UndoSubject::BackupFilterIgnoredPath(i) => apply_shortcut_to_strict_path_field(
+                        &shortcut,
+                        &mut self.config.backup.filter.ignored_paths[i],
+                        &mut self.other_screen.ignored_items_editor.entry.files[i].text_history,
+                    ),
+                    UndoSubject::BackupFilterIgnoredRegistry(i) => apply_shortcut_to_registry_path_field(
+                        &shortcut,
+                        &mut self.config.backup.filter.ignored_registry[i],
+                        &mut self.other_screen.ignored_items_editor.entry.registry[i].text_history,
+                    ),
                 }
+                self.config.save();
                 Command::none()
             }
             Message::EditedFullRetention(value) => {
@@ -1573,12 +1472,12 @@ impl Application for App {
         ])
     }
 
-    fn view(&mut self) -> Element<Message> {
+    fn view(&self) -> Element {
         if let Some(m) = &self.modal_theme {
             return self
                 .modal
                 .view(m, &self.config, &self.translator)
-                .style(style::Container::Primary(self.config.theme))
+                .style(style::Container::Primary)
                 .into();
         }
 
@@ -1589,32 +1488,24 @@ impl Application for App {
                     .padding([2, 20, 25, 20])
                     .spacing(20)
                     .push(make_nav_button(
-                        &mut self.nav_to_backup_button,
                         self.translator.nav_backup_button(),
                         Screen::Backup,
                         self.screen,
-                        self.config.theme,
                     ))
                     .push(make_nav_button(
-                        &mut self.nav_to_restore_button,
                         self.translator.nav_restore_button(),
                         Screen::Restore,
                         self.screen,
-                        self.config.theme,
                     ))
                     .push(make_nav_button(
-                        &mut self.nav_to_custom_games_button,
                         self.translator.nav_custom_games_button(),
                         Screen::CustomGames,
                         self.screen,
-                        self.config.theme,
                     ))
                     .push(make_nav_button(
-                        &mut self.nav_to_other_button,
                         self.translator.nav_other_button(),
                         Screen::Other,
                         self.screen,
-                        self.config.theme,
                     )),
             )
             .push(
@@ -1639,18 +1530,16 @@ impl Application for App {
                 .padding([0, 5, 5, 5])
                 .height(Length::Fill),
             )
-            .push_some(|| self.timed_notification.as_ref().map(|x| x.view(self.config.theme)))
+            .push_some(|| self.timed_notification.as_ref().map(|x| x.view()))
             .push_if(
                 || self.updating_manifest,
-                || Notification::new(self.translator.updating_manifest()).view(self.config.theme),
+                || Notification::new(self.translator.updating_manifest()).view(),
             )
             .push_if(
                 || self.progress.max > 1.0,
                 || ProgressBar::new(0.0..=self.progress.max, self.progress.current).height(Length::Units(5)),
             );
 
-        Container::new(content)
-            .style(style::Container::Primary(self.config.theme))
-            .into()
+        Container::new(content).style(style::Container::Primary).into()
     }
 }

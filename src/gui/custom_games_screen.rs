@@ -8,14 +8,11 @@ use crate::{
     lang::Translator,
 };
 
-use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, Alignment, Button, Column, Container, Length, Row, Text,
-};
+use crate::gui::widget::{Button, Column, Container, Row, Text};
+use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
 
 #[derive(Default)]
 pub struct CustomGamesScreenComponent {
-    add_game_button: button::State,
-    select_all_button: button::State,
     pub games_editor: CustomGamesEditor,
 }
 
@@ -33,13 +30,10 @@ impl CustomGamesScreenComponent {
             games_editor.entries.push(row);
         }
 
-        Self {
-            games_editor,
-            ..Default::default()
-        }
+        Self { games_editor }
     }
 
-    pub fn view(&mut self, config: &Config, translator: &Translator, operating: bool) -> Container<Message> {
+    pub fn view(&self, config: &Config, translator: &Translator, operating: bool) -> Container {
         Container::new(
             Column::new()
                 .spacing(20)
@@ -51,17 +45,15 @@ impl CustomGamesScreenComponent {
                         .align_items(Alignment::Center)
                         .push(
                             Button::new(
-                                &mut self.add_game_button,
                                 Text::new(translator.add_game_button())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(Message::EditedCustomGame(EditAction::Add))
                             .width(Length::Units(125))
-                            .style(style::Button::Primary(config.theme)),
+                            .style(style::Button::Primary),
                         )
                         .push({
                             Button::new(
-                                &mut self.select_all_button,
                                 Text::new(if config.are_all_custom_games_enabled() {
                                     translator.disable_all_button()
                                 } else {
@@ -75,7 +67,7 @@ impl CustomGamesScreenComponent {
                                 Message::SelectAllGames
                             })
                             .width(Length::Units(125))
-                            .style(style::Button::Primary(config.theme))
+                            .style(style::Button::Primary)
                         }),
                 )
                 .push(self.games_editor.view(config, translator, operating)),

@@ -1,4 +1,5 @@
-use iced::{alignment::Horizontal as HorizontalAlignment, Font, Length, Text};
+use crate::gui::widget::Text;
+use iced::{alignment::Horizontal as HorizontalAlignment, Font, Length};
 
 pub const ICONS: Font = Font::External {
     name: "Material Icons",
@@ -51,7 +52,14 @@ impl Icon {
     }
 
     pub fn as_text(&self) -> Text {
-        Text::new(&self.as_char().to_string())
+        Text::new(self.as_char().to_string())
+            .font(ICONS)
+            .width(Length::Units(60))
+            .horizontal_alignment(HorizontalAlignment::Center)
+    }
+
+    pub fn into_text(self) -> Text<'static> {
+        Text::new(self.as_char().to_string())
             .font(ICONS)
             .width(Length::Units(60))
             .horizontal_alignment(HorizontalAlignment::Center)

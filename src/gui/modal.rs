@@ -5,10 +5,8 @@ use crate::{
     prelude::Error,
 };
 
-use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, scrollable, Alignment, Button, Column, Container, Length,
-    Row, Scrollable, Space, Text,
-};
+use crate::gui::widget::{Button, Column, Container, Row, Scrollable, Space, Text};
+use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
 
 pub enum ModalVariant {
     Loading,
@@ -73,16 +71,11 @@ impl ModalTheme {
 }
 
 #[derive(Default)]
-pub struct ModalComponent {
-    positive_button: button::State,
-    negative_button: button::State,
-    scroll: scrollable::State,
-}
+pub struct ModalComponent {}
 
 impl ModalComponent {
-    pub fn view(&mut self, theme: &ModalTheme, config: &Config, translator: &Translator) -> Container<Message> {
+    pub fn view(&self, theme: &ModalTheme, config: &Config, translator: &Translator) -> Container {
         let mut positive_button = Button::new(
-            &mut self.positive_button,
             Text::new(match theme.variant() {
                 ModalVariant::Loading => translator.okay_button(), // dummy
                 ModalVariant::Info => translator.okay_button(),
@@ -91,19 +84,17 @@ impl ModalComponent {
             .horizontal_alignment(HorizontalAlignment::Center),
         )
         .width(Length::Units(125))
-        .style(style::Button::Primary(config.theme));
+        .style(style::Button::Primary);
 
         if let Some(message) = theme.message() {
             positive_button = positive_button.on_press(message);
         }
 
-        let negative_button = Button::new(
-            &mut self.negative_button,
-            Text::new(translator.cancel_button()).horizontal_alignment(HorizontalAlignment::Center),
-        )
-        .on_press(Message::CloseModal)
-        .width(Length::Units(125))
-        .style(style::Button::Negative(config.theme));
+        let negative_button =
+            Button::new(Text::new(translator.cancel_button()).horizontal_alignment(HorizontalAlignment::Center))
+                .on_press(Message::CloseModal)
+                .width(Length::Units(125))
+                .style(style::Button::Negative);
 
         Container::new(
             Column::new()
@@ -113,7 +104,7 @@ impl ModalComponent {
                     Container::new(Space::new(Length::Shrink, Length::Shrink))
                         .width(Length::Fill)
                         .height(Length::FillPortion(1))
-                        .style(style::Container::ModalBackground(config.theme)),
+                        .style(style::Container::ModalBackground),
                 )
                 .push(
                     Column::new()
@@ -124,12 +115,14 @@ impl ModalComponent {
                                 .padding([40, 40, 0, 40])
                                 .align_items(Alignment::Center)
                                 .push(
-                                    Scrollable::new(&mut self.scroll)
-                                        .width(Length::Fill)
-                                        .height(Length::Fill)
-                                        .style(style::Scrollable(config.theme))
-                                        .push(Text::new(theme.text(config, translator)))
-                                        .align_items(Alignment::Center),
+                                    Scrollable::new(
+                                        Column::new()
+                                            .width(Length::Fill)
+                                            .align_items(Alignment::Center)
+                                            .push(Text::new(theme.text(config, translator))),
+                                    )
+                                    .height(Length::Fill)
+                                    .style(style::Scrollable),
                                 )
                                 .height(Length::Fill),
                         )
@@ -149,7 +142,7 @@ impl ModalComponent {
                     Container::new(Space::new(Length::Shrink, Length::Shrink))
                         .width(Length::Fill)
                         .height(Length::FillPortion(1))
-                        .style(style::Container::ModalBackground(config.theme)),
+                        .style(style::Container::ModalBackground),
                 ),
         )
         .height(Length::Fill)

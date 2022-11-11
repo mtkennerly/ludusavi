@@ -18,6 +18,8 @@ pub mod restore_screen;
 pub mod root_editor;
 pub mod search;
 pub mod style;
+pub mod undoable;
+pub mod widget;
 
 use iced::Application;
 

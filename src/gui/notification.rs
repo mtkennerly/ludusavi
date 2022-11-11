@@ -1,8 +1,8 @@
-use crate::{
-    config::Theme,
-    gui::{common::Message, style},
+use crate::gui::{
+    style,
+    widget::{Container, Text},
 };
-use iced::{alignment, Container, Text};
+use iced::alignment;
 use std::time::Instant;
 
 pub struct Notification {
@@ -32,13 +32,13 @@ impl Notification {
         }
     }
 
-    pub fn view(&self, theme: Theme) -> Container<'static, Message> {
+    pub fn view(&self) -> Container<'static> {
         Container::new(
             Container::new(Text::new(self.text.clone()))
                 .padding([3, 40])
                 .align_x(alignment::Horizontal::Center)
                 .align_y(alignment::Vertical::Center)
-                .style(style::Container::Notification(theme)),
+                .style(style::Container::Notification),
         )
         .padding([0, 0, 5, 0])
     }

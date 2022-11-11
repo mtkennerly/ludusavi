@@ -8,7 +8,8 @@ use crate::{
     shortcuts::{Shortcut, TextHistory},
 };
 
-use iced::{Alignment, Row, Text};
+use crate::gui::widget::{Button, Column, Element, Row, Text};
+use iced::Alignment;
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -138,6 +139,7 @@ pub enum Message {
         action: GameAction,
         game: String,
     },
+    UndoRedo(crate::gui::undoable::Action, UndoSubject),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -182,6 +184,22 @@ pub enum BrowseSubject {
     RedirectTarget(usize),
     CustomGameFile(usize, usize),
     BackupFilterIgnoredPath(usize),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum UndoSubject {
+    BackupTarget,
+    RestoreSource,
+    BackupSearchGameName,
+    RestoreSearchGameName,
+    Root(usize),
+    RedirectSource(usize),
+    RedirectTarget(usize),
+    CustomGameName(usize),
+    CustomGameFile(usize, usize),
+    CustomGameRegistry(usize, usize),
+    BackupFilterIgnoredPath(usize),
+    BackupFilterIgnoredRegistry(usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -303,12 +321,7 @@ pub fn apply_shortcut_to_string_field(shortcut: &Shortcut, config: &mut String, 
     }
 }
 
-pub fn make_status_row<'a>(
-    translator: &Translator,
-    status: &OperationStatus,
-    found_any_duplicates: bool,
-    theme: Theme,
-) -> Row<'a, Message> {
+pub fn make_status_row<'a>(translator: &Translator, status: &OperationStatus, found_any_duplicates: bool) -> Row<'a> {
     Row::new()
         .padding([0, 20, 0, 20])
         .align_items(Alignment::Center)
@@ -318,7 +331,7 @@ pub fn make_status_row<'a>(
             || {
                 Badge::new_entry_with_count(translator, status.changed_games.new)
                     .left_margin(15)
-                    .view(theme)
+                    .view()
             },
         )
         .push_if(
@@ -326,31 +339,31 @@ pub fn make_status_row<'a>(
             || {
                 Badge::changed_entry_with_count(translator, status.changed_games.different)
                     .left_margin(15)
-                    .view(theme)
+                    .view()
             },
         )
         .push(Text::new("  |  ").size(35))
         .push(Text::new(translator.processed_bytes(status)).size(35))
         .push_if(
             || found_any_duplicates,
-            || Badge::new(&translator.badge_duplicates()).left_margin(15).view(theme),
+            || Badge::new(&translator.badge_duplicates()).left_margin(15).view(),
         )
 }
 
 pub trait IcedExtension<'a> {
     fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
     where
-        E: Into<iced::Element<'a, Message>>;
+        E: Into<Element<'a>>;
 
     fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
     where
-        E: Into<iced::Element<'a, Message>>;
+        E: Into<Element<'a>>;
 }
 
-impl<'a> IcedExtension<'a> for iced::Column<'a, Message> {
+impl<'a> IcedExtension<'a> for Column<'a> {
     fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
     where
-        E: Into<iced::Element<'a, Message>>,
+        E: Into<Element<'a>>,
     {
         if condition() {
             self.push(element().into())
@@ -361,7 +374,7 @@ impl<'a> IcedExtension<'a> for iced::Column<'a, Message> {
 
     fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
     where
-        E: Into<iced::Element<'a, Message>>,
+        E: Into<Element<'a>>,
     {
         if let Some(element) = element() {
             self.push(element.into())
@@ -371,10 +384,10 @@ impl<'a> IcedExtension<'a> for iced::Column<'a, Message> {
     }
 }
 
-impl<'a> IcedExtension<'a> for iced::Row<'a, Message> {
+impl<'a> IcedExtension<'a> for Row<'a> {
     fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
     where
-        E: Into<iced::Element<'a, Message>>,
+        E: Into<Element<'a>>,
     {
         if condition() {
             self.push(element().into())
@@ -385,7 +398,7 @@ impl<'a> IcedExtension<'a> for iced::Row<'a, Message> {
 
     fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
     where
-        E: Into<iced::Element<'a, Message>>,
+        E: Into<Element<'a>>,
     {
         if let Some(element) = element() {
             self.push(element.into())
@@ -400,7 +413,7 @@ pub trait IcedButtonExt<'a> {
     fn on_press_some(self, msg: Option<Message>) -> Self;
 }
 
-impl<'a> IcedButtonExt<'a> for iced::Button<'a, Message> {
+impl<'a> IcedButtonExt<'a> for Button<'a> {
     fn on_press_if(self, condition: impl FnOnce() -> bool, msg: impl FnOnce() -> Message) -> Self {
         if condition() {
             self.on_press(msg())

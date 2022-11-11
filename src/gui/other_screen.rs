@@ -11,19 +11,13 @@ use crate::{
     lang::{Language, Translator},
 };
 
-use iced::{
-    button, pick_list, scrollable, Button, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Text,
-};
+use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Scrollable, Text};
+use iced::Length;
 
 #[derive(Default)]
 pub struct OtherScreenComponent {
-    scroll: scrollable::State,
     pub ignored_items_editor: IgnoredItemsEditor,
-    language_selector: pick_list::State<Language>,
-    theme_selector: pick_list::State<Theme>,
     pub redirect_editor: RedirectEditor,
-    refresh_manifest_button: button::State,
-    exit_button: button::State,
 }
 
 impl OtherScreenComponent {
@@ -38,20 +32,14 @@ impl OtherScreenComponent {
         Self {
             ignored_items_editor: IgnoredItemsEditor::new(config),
             redirect_editor,
-            ..Default::default()
         }
     }
 
-    pub fn view(
-        &mut self,
-        updating_manifest: bool,
-        config: &Config,
-        cache: &Cache,
-        translator: &Translator,
-    ) -> Container<Message> {
+    pub fn view(&self, updating_manifest: bool, config: &Config, cache: &Cache, translator: &Translator) -> Container {
         Container::new(
             Column::new()
                 .spacing(20)
+                .padding([0, 15, 5, 15])
                 .align_items(iced::Alignment::Center)
                 .push_if(
                     || *crate::prelude::STEAM_DECK,
@@ -62,138 +50,116 @@ impl OtherScreenComponent {
                             .align_items(iced::Alignment::Center)
                             .push(
                                 Button::new(
-                                    &mut self.exit_button,
                                     Text::new(translator.exit_button())
                                         .horizontal_alignment(iced::alignment::Horizontal::Center),
                                 )
                                 .on_press(Message::Exit)
                                 .width(Length::Units(125))
-                                .style(style::Button::Negative(config.theme)),
+                                .style(style::Button::Negative),
                             )
                     },
                 )
-                .push(
-                    Scrollable::new(&mut self.scroll)
+                .push({
+                    let content = Column::new()
+                        .spacing(20)
                         .width(Length::Fill)
-                        .style(style::Scrollable(config.theme))
-                        .padding([0, 15, 5, 15])
+                        .push(
+                            Row::new()
+                                .align_items(iced::Alignment::Center)
+                                .spacing(20)
+                                .push(Text::new(translator.field_language()))
+                                .push(
+                                    PickList::new(Language::ALL, Some(config.language), Message::SelectedLanguage)
+                                        .style(style::PickList::Primary),
+                                ),
+                        )
+                        .push(
+                            Row::new()
+                                .align_items(iced::Alignment::Center)
+                                .spacing(20)
+                                .push(Text::new(translator.field_theme()))
+                                .push(
+                                    PickList::new(Theme::ALL, Some(config.theme), Message::SelectedTheme)
+                                        .style(style::PickList::Primary),
+                                ),
+                        )
+                        .push(
+                            Checkbox::new(
+                                config.backup.filter.exclude_store_screenshots,
+                                translator.explanation_for_exclude_store_screenshots(),
+                                Message::EditedExcludeStoreScreenshots,
+                            )
+                            .style(style::Checkbox),
+                        )
                         .push(
                             Column::new()
-                                .spacing(20)
+                                .spacing(5)
                                 .push(
                                     Row::new()
                                         .align_items(iced::Alignment::Center)
-                                        .spacing(20)
-                                        .push(Text::new(translator.field_language()))
+                                        .push(Text::new(translator.manifest_label()).width(Length::Units(100)))
                                         .push(
-                                            PickList::new(
-                                                &mut self.language_selector,
-                                                Language::ALL,
-                                                Some(config.language),
-                                                Message::SelectedLanguage,
-                                            )
-                                            .style(style::PickList::Primary(config.theme)),
+                                            Button::new(Icon::Refresh.as_text())
+                                                .on_press_if(|| !updating_manifest, || Message::UpdateManifest)
+                                                .style(style::Button::Primary),
                                         ),
                                 )
-                                .push(
-                                    Row::new()
-                                        .align_items(iced::Alignment::Center)
-                                        .spacing(20)
-                                        .push(Text::new(translator.field_theme()))
-                                        .push(
-                                            PickList::new(
-                                                &mut self.theme_selector,
-                                                Theme::ALL,
-                                                Some(config.theme),
-                                                Message::SelectedTheme,
-                                            )
-                                            .style(style::PickList::Primary(config.theme)),
-                                        ),
-                                )
-                                .push(
-                                    Checkbox::new(
-                                        config.backup.filter.exclude_store_screenshots,
-                                        translator.explanation_for_exclude_store_screenshots(),
-                                        Message::EditedExcludeStoreScreenshots,
-                                    )
-                                    .style(style::Checkbox(config.theme)),
-                                )
-                                .push(
-                                    Column::new()
-                                        .spacing(5)
-                                        .push(
-                                            Row::new()
-                                                .align_items(iced::Alignment::Center)
-                                                .push(Text::new(translator.manifest_label()).width(Length::Units(100)))
+                                .push_some(|| {
+                                    let cached = cache.manifests.get(&config.manifest.url)?;
+                                    let checked = match cached.checked {
+                                        Some(x) => chrono::DateTime::<chrono::Local>::from(x)
+                                            .format("%Y-%m-%dT%H:%M:%S")
+                                            .to_string(),
+                                        None => "?".to_string(),
+                                    };
+                                    let updated = match cached.updated {
+                                        Some(x) => chrono::DateTime::<chrono::Local>::from(x)
+                                            .format("%Y-%m-%dT%H:%M:%S")
+                                            .to_string(),
+                                        None => "?".to_string(),
+                                    };
+                                    Some(
+                                        Container::new(
+                                            Column::new()
+                                                .padding(5)
+                                                .spacing(4)
                                                 .push(
-                                                    Button::new(
-                                                        &mut self.refresh_manifest_button,
-                                                        Icon::Refresh.as_text(),
-                                                    )
-                                                    .on_press_if(|| !updating_manifest, || Message::UpdateManifest)
-                                                    .style(style::Button::Primary(config.theme)),
+                                                    Row::new()
+                                                        .align_items(iced::Alignment::Center)
+                                                        .push(
+                                                            Container::new(Text::new(translator.checked_label()))
+                                                                .width(Length::Units(100)),
+                                                        )
+                                                        .push(Container::new(Text::new(checked))),
+                                                )
+                                                .push(
+                                                    Row::new()
+                                                        .align_items(iced::Alignment::Center)
+                                                        .push(
+                                                            Container::new(Text::new(translator.updated_label()))
+                                                                .width(Length::Units(100)),
+                                                        )
+                                                        .push(Container::new(Text::new(updated))),
                                                 ),
                                         )
-                                        .push_some(|| {
-                                            let cached = cache.manifests.get(&config.manifest.url)?;
-                                            let checked = match cached.checked {
-                                                Some(x) => chrono::DateTime::<chrono::Local>::from(x)
-                                                    .format("%Y-%m-%dT%H:%M:%S")
-                                                    .to_string(),
-                                                None => "?".to_string(),
-                                            };
-                                            let updated = match cached.updated {
-                                                Some(x) => chrono::DateTime::<chrono::Local>::from(x)
-                                                    .format("%Y-%m-%dT%H:%M:%S")
-                                                    .to_string(),
-                                                None => "?".to_string(),
-                                            };
-                                            Some(
-                                                Container::new(
-                                                    Column::new()
-                                                        .padding(5)
-                                                        .spacing(4)
-                                                        .push(
-                                                            Row::new()
-                                                                .align_items(iced::Alignment::Center)
-                                                                .push(
-                                                                    Container::new(Text::new(
-                                                                        translator.checked_label(),
-                                                                    ))
-                                                                    .width(Length::Units(100)),
-                                                                )
-                                                                .push(Container::new(Text::new(checked))),
-                                                        )
-                                                        .push(
-                                                            Row::new()
-                                                                .align_items(iced::Alignment::Center)
-                                                                .push(
-                                                                    Container::new(Text::new(
-                                                                        translator.updated_label(),
-                                                                    ))
-                                                                    .width(Length::Units(100)),
-                                                                )
-                                                                .push(Container::new(Text::new(updated))),
-                                                        ),
-                                                )
-                                                .style(style::Container::GameListEntry(config.theme)),
-                                            )
-                                        }),
-                                )
-                                .push(
-                                    Column::new().push(Text::new(translator.ignored_items_label())).push(
-                                        self.ignored_items_editor
-                                            .view(config, translator)
-                                            .padding([10, 0, 0, 0]),
-                                    ),
-                                )
-                                .push(
-                                    Column::new()
-                                        .push(Text::new(translator.redirects_label()))
-                                        .push(self.redirect_editor.view(config, translator).padding([10, 0, 0, 0])),
-                                ),
-                        ),
-                ),
+                                        .style(style::Container::GameListEntry),
+                                    )
+                                }),
+                        )
+                        .push(
+                            Column::new().push(Text::new(translator.ignored_items_label())).push(
+                                self.ignored_items_editor
+                                    .view(config, translator)
+                                    .padding([10, 0, 0, 0]),
+                            ),
+                        )
+                        .push(
+                            Column::new()
+                                .push(Text::new(translator.redirects_label()))
+                                .push(self.redirect_editor.view(config, translator).padding([10, 0, 0, 0])),
+                        );
+                    Scrollable::new(content).style(style::Scrollable)
+                }),
         )
         .height(Length::Fill)
         .width(Length::Fill)

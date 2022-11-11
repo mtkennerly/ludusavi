@@ -6,6 +6,15 @@ pub enum Shortcut {
     Redo,
 }
 
+impl From<crate::gui::undoable::Action> for Shortcut {
+    fn from(source: crate::gui::undoable::Action) -> Self {
+        match source {
+            crate::gui::undoable::Action::Undo => Self::Undo,
+            crate::gui::undoable::Action::Redo => Self::Redo,
+        }
+    }
+}
+
 pub struct TextHistory {
     history: std::collections::VecDeque<String>,
     limit: usize,

@@ -1,7 +1,7 @@
 use crate::{
     config::Config,
     gui::{
-        common::{BrowseSubject, EditAction, Message},
+        common::{BrowseSubject, EditAction, Message, UndoSubject},
         icon::Icon,
         style,
     },
@@ -9,30 +9,24 @@ use crate::{
     shortcuts::TextHistory,
 };
 
-use iced::{button, text_input, Button, Column, Container, Length, Row, Text, TextInput};
+use crate::gui::widget::{Button, Column, Container, Row, Text, TextInput, Undoable};
+use iced::Length;
 
 #[derive(Default)]
 pub struct IgnoredItemsEditorEntryRow {
-    button_state: button::State,
-    pub text_state: text_input::State,
     pub text_history: TextHistory,
-    browse_button_state: button::State,
 }
 
 impl IgnoredItemsEditorEntryRow {
     pub fn new(initial_text: &str) -> Self {
         Self {
             text_history: TextHistory::new(initial_text, 100),
-            ..Default::default()
         }
     }
 }
 
 #[derive(Default)]
 pub struct IgnoredItemsEditorEntry {
-    add_file_button_state: button::State,
-    add_registry_button_state: button::State,
-    pub text_state: text_input::State,
     pub text_history: TextHistory,
     pub files: Vec<IgnoredItemsEditorEntryRow>,
     pub registry: Vec<IgnoredItemsEditorEntryRow>,
@@ -65,7 +59,7 @@ impl IgnoredItemsEditor {
         editor
     }
 
-    pub fn view(&mut self, config: &Config, translator: &Translator) -> Container<Message> {
+    pub fn view(&self, config: &Config, translator: &Translator) -> Container {
         Container::new({
             Column::new().width(Length::Fill).height(Length::Fill).spacing(10).push(
                 Container::new(
@@ -82,15 +76,14 @@ impl IgnoredItemsEditor {
                                 .push(
                                     self.entry
                                         .files
-                                        .iter_mut()
+                                        .iter()
                                         .enumerate()
-                                        .fold(Column::new().spacing(4), |column, (ii, xx)| {
+                                        .fold(Column::new().spacing(4), |column, (ii, _)| {
                                             column.push(
                                                 Row::new()
                                                     .spacing(20)
-                                                    .push(
+                                                    .push(Undoable::new(
                                                         TextInput::new(
-                                                            &mut xx.text_state,
                                                             "",
                                                             &config.backup.filter.ignored_paths[ii].raw(),
                                                             move |v| {
@@ -99,35 +92,35 @@ impl IgnoredItemsEditor {
                                                                 )
                                                             },
                                                         )
-                                                        .style(style::TextInput(config.theme))
+                                                        .style(style::TextInput)
                                                         .padding(5),
+                                                        move |action| {
+                                                            Message::UndoRedo(
+                                                                action,
+                                                                UndoSubject::BackupFilterIgnoredPath(ii),
+                                                            )
+                                                        },
+                                                    ))
+                                                    .push(
+                                                        Button::new(Icon::FolderOpen.as_text())
+                                                            .on_press(Message::BrowseDir(
+                                                                BrowseSubject::BackupFilterIgnoredPath(ii),
+                                                            ))
+                                                            .style(style::Button::Primary),
                                                     )
                                                     .push(
-                                                        Button::new(
-                                                            &mut xx.browse_button_state,
-                                                            Icon::FolderOpen.as_text(),
-                                                        )
-                                                        .on_press(Message::BrowseDir(
-                                                            BrowseSubject::BackupFilterIgnoredPath(ii),
-                                                        ))
-                                                        .style(style::Button::Primary(config.theme)),
-                                                    )
-                                                    .push(
-                                                        Button::new(&mut xx.button_state, Icon::RemoveCircle.as_text())
+                                                        Button::new(Icon::RemoveCircle.as_text())
                                                             .on_press(Message::EditedBackupFilterIgnoredPath(
                                                                 EditAction::Remove(ii),
                                                             ))
-                                                            .style(style::Button::Negative(config.theme)),
+                                                            .style(style::Button::Negative),
                                                     ),
                                             )
                                         })
                                         .push(
-                                            Button::new(
-                                                &mut self.entry.add_file_button_state,
-                                                Icon::AddCircle.as_text(),
-                                            )
-                                            .on_press(Message::EditedBackupFilterIgnoredPath(EditAction::Add))
-                                            .style(style::Button::Primary(config.theme)),
+                                            Button::new(Icon::AddCircle.as_text())
+                                                .on_press(Message::EditedBackupFilterIgnoredPath(EditAction::Add))
+                                                .style(style::Button::Primary),
                                         ),
                                 ),
                         )
@@ -141,15 +134,14 @@ impl IgnoredItemsEditor {
                                 .push(
                                     self.entry
                                         .registry
-                                        .iter_mut()
+                                        .iter()
                                         .enumerate()
-                                        .fold(Column::new().spacing(4), |column, (ii, xx)| {
+                                        .fold(Column::new().spacing(4), |column, (ii, _)| {
                                             column.push(
                                                 Row::new()
                                                     .spacing(20)
-                                                    .push(
+                                                    .push(Undoable::new(
                                                         TextInput::new(
-                                                            &mut xx.text_state,
                                                             "",
                                                             &config.backup.filter.ignored_registry[ii].raw(),
                                                             move |v| {
@@ -158,30 +150,33 @@ impl IgnoredItemsEditor {
                                                                 )
                                                             },
                                                         )
-                                                        .style(style::TextInput(config.theme))
+                                                        .style(style::TextInput)
                                                         .padding(5),
-                                                    )
+                                                        move |action| {
+                                                            Message::UndoRedo(
+                                                                action,
+                                                                UndoSubject::BackupFilterIgnoredRegistry(ii),
+                                                            )
+                                                        },
+                                                    ))
                                                     .push(
-                                                        Button::new(&mut xx.button_state, Icon::RemoveCircle.as_text())
+                                                        Button::new(Icon::RemoveCircle.as_text())
                                                             .on_press(Message::EditedBackupFilterIgnoredRegistry(
                                                                 EditAction::Remove(ii),
                                                             ))
-                                                            .style(style::Button::Negative(config.theme)),
+                                                            .style(style::Button::Negative),
                                                     ),
                                             )
                                         })
                                         .push(
-                                            Button::new(
-                                                &mut self.entry.add_registry_button_state,
-                                                Icon::AddCircle.as_text(),
-                                            )
-                                            .on_press(Message::EditedBackupFilterIgnoredRegistry(EditAction::Add))
-                                            .style(style::Button::Primary(config.theme)),
+                                            Button::new(Icon::AddCircle.as_text())
+                                                .on_press(Message::EditedBackupFilterIgnoredRegistry(EditAction::Add))
+                                                .style(style::Button::Primary),
                                         ),
                                 ),
                         ),
                 )
-                .style(style::Container::GameListEntry(config.theme)),
+                .style(style::Container::GameListEntry),
             )
         })
     }

@@ -11,16 +11,13 @@ use crate::{
         style,
     },
     lang::Translator,
-    layout::Backup,
     manifest::Manifest,
     prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
 };
 
+use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Scrollable, Space, Text, Tooltip};
 use fuzzy_matcher::FuzzyMatcher;
-use iced::{
-    alignment::Horizontal as HorizontalAlignment, button, keyboard::Modifiers, pick_list, scrollable, tooltip,
-    Alignment, Button, Checkbox, Column, Container, Length, PickList, Row, Scrollable, Space, Text, Tooltip,
-};
+use iced::{alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, widget::tooltip, Alignment, Length};
 
 use super::common::OngoingOperation;
 
@@ -28,21 +25,15 @@ use super::common::OngoingOperation;
 pub struct GameListEntry {
     pub scan_info: ScanInfo,
     pub backup_info: Option<BackupInfo>,
-    pub expand_button: button::State,
     pub selected_backup: Option<String>,
-    pub backup_selector: pick_list::State<Backup>,
-    pub wiki_button: button::State,
-    pub customize_button: button::State,
-    pub operate_button: button::State,
     pub tree: FileTree,
     pub duplicates: usize,
     pub popup_menu: crate::gui::popup_menu::State<GameAction>,
-    pub quick_action: button::State,
 }
 
 impl GameListEntry {
     fn view(
-        &mut self,
+        &self,
         restoring: bool,
         translator: &Translator,
         config: &Config,
@@ -51,7 +42,7 @@ impl GameListEntry {
         operation: &Option<OngoingOperation>,
         expanded: bool,
         modifiers: &Modifiers,
-    ) -> Container<Message> {
+    ) -> Container {
         let successful = match &self.backup_info {
             Some(x) => x.successful(),
             _ => true,
@@ -83,11 +74,10 @@ impl GameListEntry {
                                 enabled,
                                 restoring,
                             })
-                            .style(style::Checkbox(config.theme)),
+                            .style(style::Checkbox),
                         )
                         .push(
                             Button::new(
-                                &mut self.expand_button,
                                 Text::new(self.scan_info.game_name.clone())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
@@ -111,22 +101,22 @@ impl GameListEntry {
                                 None
                             })
                             .style(if !scanned {
-                                style::Button::GameListEntryTitleUnscanned(config.theme)
+                                style::Button::GameListEntryTitleUnscanned
                             } else if !enabled || all_items_ignored {
-                                style::Button::GameListEntryTitleDisabled(config.theme)
+                                style::Button::GameListEntryTitleDisabled
                             } else if successful {
-                                style::Button::GameListEntryTitle(config.theme)
+                                style::Button::GameListEntryTitle
                             } else {
-                                style::Button::GameListEntryTitleFailed(config.theme)
+                                style::Button::GameListEntryTitleFailed
                             })
                             .width(Length::Fill)
                             .padding(2),
                         )
                         .push_some(|| {
                             if changes.brand_new() {
-                                Some(Badge::new_entry(translator).left_margin(15).view(config.theme))
+                                Some(Badge::new_entry(translator).left_margin(15).view())
                             } else if changes.updated() {
-                                Some(Badge::changed_entry(translator).left_margin(15).view(config.theme))
+                                Some(Badge::changed_entry(translator).left_margin(15).view())
                             } else {
                                 None
                             }
@@ -139,24 +129,16 @@ impl GameListEntry {
                                         .processed_subset(self.scan_info.total_items(), self.scan_info.enabled_items()),
                                 )
                                 .left_margin(15)
-                                .view(config.theme)
+                                .view()
                             },
                         )
                         .push_if(
                             || duplicate_detector.is_game_duplicated(&self.scan_info),
-                            || {
-                                Badge::new(&translator.badge_duplicates())
-                                    .left_margin(15)
-                                    .view(config.theme)
-                            },
+                            || Badge::new(&translator.badge_duplicates()).left_margin(15).view(),
                         )
                         .push_if(
                             || !successful,
-                            || {
-                                Badge::new(&translator.badge_failed())
-                                    .left_margin(15)
-                                    .view(config.theme)
-                            },
+                            || Badge::new(&translator.badge_failed()).left_margin(15).view(),
                         )
                         .push(Space::new(
                             Length::Units(if restoring { 0 } else { 15 }),
@@ -178,7 +160,7 @@ impl GameListEntry {
                                                 .padding(2)
                                                 .width(Length::Units(160))
                                                 .align_x(HorizontalAlignment::Center)
-                                                .style(style::Container::DisabledBackup(config.theme)),
+                                                .style(style::Container::DisabledBackup),
                                         )
                                         .padding([2, 0, 0, 15])
                                     });
@@ -187,7 +169,6 @@ impl GameListEntry {
                                 let game = self.scan_info.game_name.clone();
                                 let content = Container::new(
                                     PickList::new(
-                                        &mut self.backup_selector,
                                         &self.scan_info.available_backups,
                                         self.scan_info.backup.as_ref().cloned(),
                                         move |backup| Message::SelectedBackupToRestore {
@@ -196,7 +177,7 @@ impl GameListEntry {
                                         },
                                     )
                                     .text_size(15)
-                                    .style(style::PickList::Backup(config.theme)),
+                                    .style(style::PickList::Backup),
                                 )
                                 .width(Length::Units(185))
                                 .padding([0, 0, 0, 15])
@@ -224,38 +205,33 @@ impl GameListEntry {
                                 None
                             };
                             if let Some(action) = action {
-                                let button = Button::new(
-                                    &mut self.quick_action,
-                                    action.icon().as_text().width(Length::Units(45)),
-                                )
-                                .on_press_if(
-                                    || !operating,
-                                    || Message::GameAction {
-                                        action,
-                                        game: self.scan_info.game_name.clone(),
-                                    },
-                                )
-                                .style(style::Button::GameActionPrimary(config.theme))
-                                .padding(2);
+                                let button = Button::new(action.icon().into_text().width(Length::Units(45)))
+                                    .on_press_if(
+                                        || !operating,
+                                        || Message::GameAction {
+                                            action,
+                                            game: self.scan_info.game_name.clone(),
+                                        },
+                                    )
+                                    .style(style::Button::GameActionPrimary)
+                                    .padding(2);
                                 Container::new(
                                     Tooltip::new(button, action.to_string(), tooltip::Position::Top)
                                         .size(16)
                                         .gap(5)
-                                        .style(style::Container::Tooltip(config.theme)),
+                                        .style(style::Container::Tooltip),
                                 )
                             } else {
                                 let options = GameAction::options(restoring, operating, customized, customized_pure);
                                 let game_name = self.scan_info.game_name.clone();
 
-                                let menu = crate::gui::popup_menu::PopupMenu::new(
-                                    &mut self.popup_menu,
-                                    options,
-                                    move |action| Message::GameAction {
+                                let menu = crate::gui::popup_menu::PopupMenu::new(options, move |action| {
+                                    Message::GameAction {
                                         action,
                                         game: game_name.clone(),
-                                    },
-                                )
-                                .style(style::PickList::Popup(config.theme));
+                                    }
+                                })
+                                .style(style::PickList::Popup);
                                 Container::new(menu)
                             }
                         })
@@ -281,7 +257,7 @@ impl GameListEntry {
                     },
                 ),
         )
-        .style(style::Container::GameListEntry(config.theme))
+        .style(style::Container::GameListEntry)
     }
 
     pub fn populate_tree(&mut self, config: &Config, duplicate_detector: &DuplicateDetector) {
@@ -296,7 +272,6 @@ impl GameListEntry {
 #[derive(Default)]
 pub struct GameList {
     pub entries: Vec<GameListEntry>,
-    scroll: scrollable::State,
     pub search: SearchComponent,
     expanded_games: HashSet<String>,
     pub modifiers: Modifiers,
@@ -304,14 +279,14 @@ pub struct GameList {
 
 impl GameList {
     pub fn view(
-        &mut self,
+        &self,
         restoring: bool,
         translator: &Translator,
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
         operation: &Option<OngoingOperation>,
-    ) -> Container<Message> {
+    ) -> Container {
         let use_search = self.search.show;
         let search_game_name = self.search.game_name.clone();
 
@@ -326,17 +301,12 @@ impl GameList {
                         } else {
                             &config.backup.sort
                         },
-                        config.theme,
                     )
                 })
                 .push({
-                    self.entries.iter_mut().enumerate().fold(
-                        Scrollable::new(&mut self.scroll)
-                            .width(Length::Fill)
-                            .padding([0, 15, 5, 15])
-                            .spacing(10)
-                            .style(style::Scrollable(config.theme)),
-                        |parent: Scrollable<'_, Message>, (_i, x)| {
+                    let content = self.entries.iter().fold(
+                        Column::new().width(Length::Fill).padding([0, 15, 5, 15]).spacing(10),
+                        |parent, x| {
                             if !use_search
                                 || fuzzy_matcher::skim::SkimMatcherV2::default()
                                     .fuzzy_match(&x.scan_info.game_name, &search_game_name)
@@ -356,7 +326,8 @@ impl GameList {
                                 parent
                             }
                         },
-                    )
+                    );
+                    Scrollable::new(content).style(style::Scrollable)
                 }),
         )
     }
