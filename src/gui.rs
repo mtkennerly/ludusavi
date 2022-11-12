@@ -43,7 +43,7 @@ pub fn set_app_min_size<T>(settings: &mut iced::Settings<T>) {
     settings.window.min_size = Some((800, 600));
 }
 
-pub fn run_gui() {
+pub fn run() {
     let mut settings = iced::Settings::default();
     set_app_icon(&mut settings);
     set_app_min_size(&mut settings);

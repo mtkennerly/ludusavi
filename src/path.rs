@@ -710,14 +710,7 @@ pub fn is_raw_path_relative(path: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    fn s(text: &str) -> String {
-        text.to_string()
-    }
-
-    fn repo() -> String {
-        env!("CARGO_MANIFEST_DIR").to_owned()
-    }
+    use crate::testing::{repo, repo_raw, s};
 
     fn username() -> String {
         whoami::username()
@@ -799,7 +792,7 @@ mod tests {
         fn expands_relative_paths_from_working_dir_by_default() {
             let sp = StrictPath::new("README.md".to_owned());
             if cfg!(target_os = "windows") {
-                assert_eq!(format!("\\\\?\\{}\\README.md", repo()), sp.interpret());
+                assert_eq!(format!("\\\\?\\{}\\README.md", repo_raw()), sp.interpret());
             } else {
                 assert_eq!(format!("{}/README.md", repo()), sp.interpret());
             }
@@ -819,7 +812,7 @@ mod tests {
         #[test]
         fn converts_single_dot_at_start_of_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace('\\', "/"),
+                format!("{}/README.md", repo()),
                 StrictPath::new("./README.md".to_owned()).render(),
             );
         }
@@ -827,7 +820,7 @@ mod tests {
         #[test]
         fn converts_single_dots_at_start_of_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace('\\', "/"),
+                format!("{}/README.md", repo()),
                 StrictPath::new("./././README.md".to_owned()).render(),
             );
         }
@@ -835,7 +828,7 @@ mod tests {
         #[test]
         fn converts_single_dot_at_start_of_fake_path() {
             assert_eq!(
-                format!("{}/fake/README.md", repo()).replace('\\', "/"),
+                format!("{}/fake/README.md", repo()),
                 StrictPath::relative("./README.md".to_owned(), Some(format!("{}/fake", repo()))).render(),
             );
         }
@@ -843,7 +836,7 @@ mod tests {
         #[test]
         fn converts_single_dot_within_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace('\\', "/"),
+                format!("{}/README.md", repo()),
                 StrictPath::new(format!("{}/./README.md", repo())).render(),
             );
         }
@@ -851,7 +844,7 @@ mod tests {
         #[test]
         fn converts_single_dots_within_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace('\\', "/"),
+                format!("{}/README.md", repo()),
                 StrictPath::new(format!("{}/./././README.md", repo())).render(),
             );
         }
@@ -859,7 +852,7 @@ mod tests {
         #[test]
         fn converts_single_dot_within_fake_path() {
             assert_eq!(
-                format!("{}/fake/README.md", repo()).replace('\\', "/"),
+                format!("{}/fake/README.md", repo()),
                 StrictPath::new(format!("{}/fake/./README.md", repo())).render(),
             );
         }
@@ -867,7 +860,7 @@ mod tests {
         #[test]
         fn converts_double_dots_at_start_of_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace('\\', "/"),
+                format!("{}/README.md", repo()),
                 StrictPath::relative("../README.md".to_owned(), Some(format!("{}/src", repo()))).render(),
             );
         }
@@ -875,7 +868,7 @@ mod tests {
         #[test]
         fn converts_double_dots_at_start_of_fake_path() {
             assert_eq!(
-                format!("{}/fake.md", repo()).replace('\\', "/"),
+                format!("{}/fake.md", repo()),
                 StrictPath::relative("../fake.md".to_owned(), Some(format!("{}/fake", repo()))).render(),
             );
         }
@@ -883,7 +876,7 @@ mod tests {
         #[test]
         fn converts_double_dots_within_real_path() {
             assert_eq!(
-                format!("{}/README.md", repo()).replace('\\', "/"),
+                format!("{}/README.md", repo()),
                 StrictPath::new(format!("{}/src/../README.md", repo())).render(),
             );
         }
@@ -891,7 +884,7 @@ mod tests {
         #[test]
         fn converts_double_dots_within_fake_path() {
             assert_eq!(
-                format!("{}/fake.md", repo()).replace('\\', "/"),
+                format!("{}/fake.md", repo()),
                 StrictPath::new(format!("{}/fake/../fake.md", repo())).render(),
             );
         }
@@ -947,7 +940,7 @@ mod tests {
         fn does_not_convert_tilde_before_a_nonslash_character() {
             let sp = StrictPath::new("~a".to_owned());
             if cfg!(target_os = "windows") {
-                assert_eq!(format!("\\\\?\\{}\\~a", repo()), sp.interpret());
+                assert_eq!(format!("\\\\?\\{}\\~a", repo_raw()), sp.interpret());
             } else {
                 assert_eq!(format!("{}/~a", repo()), sp.interpret());
             }

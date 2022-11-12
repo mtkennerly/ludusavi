@@ -39,7 +39,7 @@ fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLo
 }
 
 fn main() {
-    let args = cli::parse_cli();
+    let args = cli::parse();
     if let Some(config_dir) = args.config.as_deref() {
         *CONFIG_DIR.lock().unwrap() = Some(config_dir.to_path_buf());
     }
@@ -65,14 +65,14 @@ fn main() {
             #[allow(unused)]
             let logger = prepare_logging();
 
-            gui::run_gui();
+            gui::run();
         }
         Some(sub) => {
             #[allow(unused)]
             let logger = prepare_logging();
 
             let api = sub.api();
-            if let Err(e) = cli::run_cli(sub) {
+            if let Err(e) = cli::run(sub) {
                 let translator = crate::lang::Translator::default();
                 if !api {
                     eprintln!("{}", translator.handle_error(&e));

@@ -352,12 +352,9 @@ fn get_hkey_from_name(name: &str) -> Option<winreg::HKEY> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::s;
     use maplit::hashmap;
     use pretty_assertions::assert_eq;
-
-    fn s(text: &str) -> String {
-        text.to_string()
-    }
 
     #[test]
     fn can_store_key_from_full_path_of_leaf_key_with_values() {

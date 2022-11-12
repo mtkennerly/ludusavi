@@ -154,8 +154,9 @@ pub enum OngoingOperation {
     CancelPreviewRestore,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
+    #[default]
     Backup,
     Restore,
     CustomGames,
@@ -275,12 +276,6 @@ impl ToString for GameAction {
             Self::Customize => translator.customize_button(),
             Self::Wiki => translator.pcgamingwiki(),
         }
-    }
-}
-
-impl Default for Screen {
-    fn default() -> Self {
-        Self::Backup
     }
 }
 

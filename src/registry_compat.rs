@@ -112,11 +112,8 @@ impl<'de> serde::Deserialize<'de> for RegistryItem {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::s;
     use pretty_assertions::assert_eq;
-
-    fn s(text: &str) -> String {
-        text.to_string()
-    }
 
     #[test]
     fn is_prefix_of() {

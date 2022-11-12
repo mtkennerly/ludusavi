@@ -1615,12 +1615,8 @@ impl BackupLayout {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::*;
+    use crate::testing::{repo_raw, *};
     use maplit::*;
-
-    fn repo() -> String {
-        env!("CARGO_MANIFEST_DIR").to_string()
-    }
 
     mod individual_mapping {
         use super::*;
@@ -1645,7 +1641,7 @@ mod tests {
 
         fn layout() -> BackupLayout {
             BackupLayout::new(
-                StrictPath::new(format!("{}/tests/backup", repo())),
+                StrictPath::new(format!("{}/tests/backup", repo_raw())),
                 Retention::default(),
             )
         }
@@ -1662,9 +1658,9 @@ mod tests {
         fn can_find_existing_game_folder_with_matching_name() {
             assert_eq!(
                 StrictPath::new(if cfg!(target_os = "windows") {
-                    format!("\\\\?\\{}\\tests\\backup\\game1", repo())
+                    format!("\\\\?\\{}\\tests\\backup\\game1", repo_raw())
                 } else {
-                    format!("{}/tests/backup/game1", repo())
+                    format!("{}/tests/backup/game1", repo_raw())
                 }),
                 layout().game_folder("game1")
             );
@@ -1674,9 +1670,9 @@ mod tests {
         fn can_find_existing_game_folder_with_rename() {
             assert_eq!(
                 StrictPath::new(if cfg!(target_os = "windows") {
-                    format!("\\\\?\\{}\\tests\\backup\\game3-renamed", repo())
+                    format!("\\\\?\\{}\\tests\\backup\\game3-renamed", repo_raw())
                 } else {
-                    format!("{}/tests/backup/game3-renamed", repo())
+                    format!("{}/tests/backup/game3-renamed", repo_raw())
                 }),
                 layout().game_folder("game3")
             );
@@ -1686,9 +1682,9 @@ mod tests {
         fn can_determine_game_folder_that_does_not_exist_without_rename() {
             assert_eq!(
                 if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\nonexistent", repo()))
+                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\nonexistent", repo_raw()))
                 } else {
-                    StrictPath::new(format!("{}/tests/backup/nonexistent", repo()))
+                    StrictPath::new(format!("{}/tests/backup/nonexistent", repo_raw()))
                 },
                 layout().game_folder("nonexistent")
             );
@@ -1698,9 +1694,9 @@ mod tests {
         fn can_determine_game_folder_that_does_not_exist_with_partial_rename() {
             assert_eq!(
                 if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\foo_bar", repo()))
+                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\foo_bar", repo_raw()))
                 } else {
-                    StrictPath::new(format!("{}/tests/backup/foo_bar", repo()))
+                    StrictPath::new(format!("{}/tests/backup/foo_bar", repo_raw()))
                 },
                 layout().game_folder("foo:bar")
             );
@@ -1710,9 +1706,9 @@ mod tests {
         fn can_determine_game_folder_that_does_not_exist_with_total_rename() {
             assert_eq!(
                 if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\ludusavi-renamed-Kioq", repo()))
+                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\ludusavi-renamed-Kioq", repo_raw()))
                 } else {
-                    StrictPath::new(format!("{}/tests/backup/ludusavi-renamed-Kioq", repo()))
+                    StrictPath::new(format!("{}/tests/backup/ludusavi-renamed-Kioq", repo_raw()))
                 },
                 layout().game_folder("***")
             );
@@ -1722,9 +1718,9 @@ mod tests {
         fn can_determine_game_folder_by_escaping_dots_at_start_and_end() {
             assert_eq!(
                 if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\_._", repo()))
+                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\_._", repo_raw()))
                 } else {
-                    StrictPath::new(format!("{}/tests/backup/_._", repo()))
+                    StrictPath::new(format!("{}/tests/backup/_._", repo_raw()))
                 },
                 layout().game_folder("...")
             );
@@ -1734,25 +1730,28 @@ mod tests {
         fn can_find_irrelevant_backup_files() {
             assert_eq!(
                 vec![if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\game1\\drive-X\\file2.txt", repo()))
+                    StrictPath::new(format!(
+                        "\\\\?\\{}\\tests\\backup\\game1\\drive-X\\file2.txt",
+                        repo_raw()
+                    ))
                 } else {
-                    StrictPath::new(format!("{}/tests/backup/game1/drive-X/file2.txt", repo()))
+                    StrictPath::new(format!("{}/tests/backup/game1/drive-X/file2.txt", repo_raw()))
                 }],
-                game_layout("game1", &format!("{}/tests/backup/game1", repo())).find_irrelevant_backup_files(
+                game_layout("game1", &format!("{}/tests/backup/game1", repo_raw())).find_irrelevant_backup_files(
                     ".",
                     &[StrictPath::new(format!(
                         "{}/tests/backup/game1/drive-X/file1.txt",
-                        repo()
+                        repo_raw()
                     ))]
                 )
             );
             assert_eq!(
                 Vec::<StrictPath>::new(),
-                game_layout("game1", &format!("{}/tests/backup/game1", repo())).find_irrelevant_backup_files(
+                game_layout("game1", &format!("{}/tests/backup/game1", repo_raw())).find_irrelevant_backup_files(
                     ".",
                     &[
-                        StrictPath::new(format!("{}/tests/backup/game1/drive-X/file1.txt", repo())),
-                        StrictPath::new(format!("{}/tests/backup/game1/drive-X/file2.txt", repo())),
+                        StrictPath::new(format!("{}/tests/backup/game1/drive-X/file1.txt", repo_raw())),
+                        StrictPath::new(format!("{}/tests/backup/game1/drive-X/file2.txt", repo_raw())),
                     ]
                 )
             );
@@ -1806,7 +1805,7 @@ mod tests {
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping::new("game1".to_string()),
                 retention: Retention::default(),
             };
@@ -1818,13 +1817,13 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo()), 1, "new"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo_raw()), 1, "new"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping::new("game1".to_string()),
                 retention: Retention::default(),
             };
@@ -1833,7 +1832,7 @@ mod tests {
                     name: ".".to_string(),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
+                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
                     },
                     ..Default::default()
                 })),
@@ -1846,13 +1845,13 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo()), 1, "old"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo_raw()), 1, "old"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives(),
@@ -1860,7 +1859,7 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                         },
                         ..Default::default()
                     }]),
@@ -1878,14 +1877,14 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo()), 1, "new"),
-                    ScannedFile::new(format!("{}/tests/root/game1/file2.txt", repo()), 2, "old"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo_raw()), 1, "new"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file2.txt", repo_raw()), 2, "old"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives(),
@@ -1893,8 +1892,8 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -1909,8 +1908,8 @@ mod tests {
                     name: ".".to_string(),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
-                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
+                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                     },
                     ..Default::default()
                 })),
@@ -1923,14 +1922,14 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo()), 1, "new"),
-                    ScannedFile::new(format!("{}/tests/root/game1/file2.txt", repo()), 2, "old"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo_raw()), 1, "new"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file2.txt", repo_raw()), 2, "old"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives(),
@@ -1938,8 +1937,8 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -1954,8 +1953,8 @@ mod tests {
                     name: format!("backup-{}", now_str()),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
-                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "new".into(), size: 1 },
+                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                     },
                     ..Default::default()
                 })),
@@ -1968,10 +1967,10 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/unchanged.txt", repo()), 1, "old"),
-                    ScannedFile::new(format!("{}/tests/root/game1/changed.txt", repo()), 2, "new"),
+                    ScannedFile::new(format!("{}/tests/root/game1/unchanged.txt", repo_raw()), 1, "old"),
+                    ScannedFile::new(format!("{}/tests/root/game1/changed.txt", repo_raw()), 2, "new"),
                     ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())),
+                        path: StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())),
                         size: 4,
                         hash: "old".into(),
                         original_path: None,
@@ -1980,13 +1979,13 @@ mod tests {
                         container: None,
                         redirected: None,
                     },
-                    ScannedFile::new(format!("{}/tests/root/game1/added.txt", repo()), 5, "new"),
+                    ScannedFile::new(format!("{}/tests/root/game1/added.txt", repo_raw()), 5, "new"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives(),
@@ -1994,10 +1993,10 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
-                            StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 3 },
-                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
+                            StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 3 },
+                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
                         ..Default::default()
                     }]),
@@ -2012,10 +2011,10 @@ mod tests {
                     name: format!("backup-{}", now_str()),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
-                        StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => None,
-                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
-                        StrictPath::new(format!("{}/tests/root/game1/added.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
+                        StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                        StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo_raw())).render() => None,
+                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => None,
+                        StrictPath::new(format!("{}/tests/root/game1/added.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                     },
                     ..Default::default()
                 })),
@@ -2028,13 +2027,13 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/changed.txt", repo()), 2, "newer"),
+                    ScannedFile::new(format!("{}/tests/root/game1/changed.txt", repo_raw()), 2, "newer"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives(),
@@ -2042,19 +2041,19 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
-                            StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 3 },
-                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
+                            StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 3 },
+                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", now_str()),
                             when: now(),
                             files: btreemap! {
-                                StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
-                                StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => None,
-                                StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
-                                StrictPath::new(format!("{}/tests/root/game1/added.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
+                                StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                                StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo_raw())).render() => None,
+                                StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => None,
+                                StrictPath::new(format!("{}/tests/root/game1/added.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                             },
                             ..Default::default()
                         }],
@@ -2071,10 +2070,10 @@ mod tests {
                     name: format!("backup-{}", now_str()),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo())).render() => None,
-                        StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo())).render() => Some(IndividualMappingFile { hash: "newer".into(), size: 2 }),
-                        StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo())).render() => None,
-                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
+                        StrictPath::new(format!("{}/tests/root/game1/unchanged.txt", repo_raw())).render() => None,
+                        StrictPath::new(format!("{}/tests/root/game1/changed.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "newer".into(), size: 2 }),
+                        StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo_raw())).render() => None,
+                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => None,
                     },
                     ..Default::default()
                 })),
@@ -2087,14 +2086,14 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo()), 1, "new"),
-                    ScannedFile::new(format!("{}/tests/root/game1/file2.txt", repo()), 2, "old"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo_raw()), 1, "new"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file2.txt", repo_raw()), 2, "old"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives(),
@@ -2102,15 +2101,15 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
-                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
-                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
+                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
+                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
                             },
                             ..Default::default()
                         }],
@@ -2130,13 +2129,13 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo()), 1, "old"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo_raw()), 1, "old"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives(),
@@ -2144,13 +2143,13 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
-                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
+                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
                             },
                             ..Default::default()
                         }],
@@ -2177,13 +2176,13 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/ignore.txt", repo()), 2, "new").ignored(),
+                    ScannedFile::new(format!("{}/tests/root/game1/ignore.txt", repo_raw()), 2, "new").ignored(),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives(),
@@ -2191,7 +2190,7 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
+                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
                         ..Default::default()
                     }]),
@@ -2206,7 +2205,7 @@ mod tests {
                     name: format!("backup-{}", now_str()),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
+                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => None,
                     },
                     ..Default::default()
                 })),
@@ -2219,13 +2218,13 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/ignore.txt", repo()), 2, "new"),
+                    ScannedFile::new(format!("{}/tests/root/game1/ignore.txt", repo_raw()), 2, "new"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives(),
@@ -2233,13 +2232,13 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
+                            StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", now_str()),
                             when: now(),
                             files: btreemap! {
-                                StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => None,
+                                StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => None,
                             },
                             ..Default::default()
                         }],
@@ -2256,7 +2255,7 @@ mod tests {
                     name: format!("backup-{}", now_str()),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                        StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                     },
                     ..Default::default()
                 })),
@@ -2269,14 +2268,14 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo()), 1, "newer"),
-                    ScannedFile::new(format!("{}/tests/root/game1/file2.txt", repo()), 2, "old"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo_raw()), 1, "newer"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file2.txt", repo_raw()), 2, "old"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives(),
@@ -2284,15 +2283,15 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
-                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
-                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
+                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
+                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
                             },
                             ..Default::default()
                         }],
@@ -2309,8 +2308,8 @@ mod tests {
                     name: format!("backup-{}", now_str()),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "newer".into(), size: 1 },
-                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "newer".into(), size: 1 },
+                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                     },
                     ..Default::default()
                 })),
@@ -2323,14 +2322,14 @@ mod tests {
             let scan = ScanInfo {
                 game_name: "game1".to_string(),
                 found_files: hashset! {
-                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo()), 1, "old"),
-                    ScannedFile::new(format!("{}/tests/root/game1/file2.txt", repo()), 2, "new"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file1.txt", repo_raw()), 1, "old"),
+                    ScannedFile::new(format!("{}/tests/root/game1/file2.txt", repo_raw()), 2, "new"),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
             };
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives(),
@@ -2338,15 +2337,15 @@ mod tests {
                         name: format!("backup-{}", past_str()),
                         when: past(),
                         files: btreemap! {
-                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
+                            StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                            StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         children: vec![DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
-                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
-                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
+                                StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
+                                StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
                             },
                             ..Default::default()
                         }],
@@ -2363,8 +2362,8 @@ mod tests {
                     name: ".".to_string(),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo())).render() => IndividualMappingFile { hash: "new".into(), size: 2 },
+                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
+                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "new".into(), size: 2 },
                     },
                     ..Default::default()
                 })),
@@ -2376,11 +2375,11 @@ mod tests {
             StrictPath::new(if cfg!(target_os = "windows") {
                 format!(
                     "\\\\?\\{}\\tests\\backup\\game1\\{}",
-                    repo().replace('/', "\\"),
+                    repo_raw().replace('/', "\\"),
                     file.replace('/', "\\")
                 )
             } else {
-                format!("{}/tests/backup/game1/{}", repo(), file)
+                format!("{}/tests/backup/game1/{}", repo_raw(), file)
             })
         }
 
@@ -2391,9 +2390,9 @@ mod tests {
                     if cfg!(target_os = "windows") { "X" } else { "0" }
                 ),
                 Some(if cfg!(target_os = "windows") {
-                    format!("\\\\?\\{}\\tests\\backup\\game1", repo().replace('/', "\\"))
+                    format!("\\\\?\\{}\\tests\\backup\\game1", repo_raw().replace('/', "\\"))
                 } else {
-                    format!("{}/tests/backup/game1", repo())
+                    format!("{}/tests/backup/game1", repo_raw())
                 }),
             )
         }
@@ -2408,7 +2407,7 @@ mod tests {
         #[test]
         fn can_report_restorable_files_for_full_backup_in_simple_format() {
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives_x(),
@@ -2457,7 +2456,7 @@ mod tests {
         #[test]
         fn can_report_restorable_files_for_full_backup_in_zip_format() {
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives_x(),
@@ -2506,7 +2505,7 @@ mod tests {
         #[test]
         fn can_report_restorable_files_for_differential_backup_in_simple_format() {
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives_x(),
@@ -2576,7 +2575,7 @@ mod tests {
         #[test]
         fn can_report_restorable_files_for_differential_backup_in_zip_format() {
             let layout = GameLayout {
-                path: StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
                 mapping: IndividualMapping {
                     name: "game1".to_string(),
                     drives: drives_x(),

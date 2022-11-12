@@ -4,7 +4,7 @@ use crate::{
     prelude::{app_dir, Error, StrictPath},
 };
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Os {
     #[serde(rename = "windows")]
     Windows,
@@ -12,17 +12,12 @@ pub enum Os {
     Linux,
     #[serde(rename = "mac")]
     Mac,
+    #[default]
     #[serde(other)]
     Other,
 }
 
-impl Default for Os {
-    fn default() -> Self {
-        Self::Other
-    }
-}
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Store {
     #[serde(rename = "epic")]
     Epic,
@@ -46,6 +41,7 @@ pub enum Store {
     OtherHome,
     #[serde(rename = "otherWine")]
     OtherWine,
+    #[default]
     #[serde(other, rename = "other")]
     Other,
 }
@@ -67,32 +63,21 @@ impl Store {
     ];
 }
 
-impl Default for Store {
-    fn default() -> Self {
-        Self::Other
-    }
-}
-
 impl ToString for Store {
     fn to_string(&self) -> String {
         crate::lang::Translator::default().store(self)
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Tag {
     #[serde(rename = "save")]
     Save,
     #[serde(rename = "config")]
     Config,
+    #[default]
     #[serde(other)]
     Other,
-}
-
-impl Default for Tag {
-    fn default() -> Self {
-        Self::Other
-    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -309,12 +294,9 @@ impl Manifest {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::s;
     use maplit::hashmap;
     use pretty_assertions::assert_eq;
-
-    fn s(text: &str) -> String {
-        text.to_string()
-    }
 
     #[test]
     fn can_parse_game_with_no_fields() {

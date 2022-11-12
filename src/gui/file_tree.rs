@@ -13,16 +13,11 @@ use crate::{
 };
 use iced::{Alignment, Length};
 
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
 enum FileTreeNodeType {
+    #[default]
     File,
     Registry,
-}
-
-impl Default for FileTreeNodeType {
-    fn default() -> Self {
-        Self::File
-    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]

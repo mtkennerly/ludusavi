@@ -927,12 +927,9 @@ impl ToggledRegistry {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::testing::s;
     use maplit::hashset;
     use pretty_assertions::assert_eq;
-
-    fn s(text: &str) -> String {
-        text.to_string()
-    }
 
     #[test]
     #[allow(deprecated)]
@@ -1433,12 +1430,9 @@ customGames:
 
     mod ignored_paths {
         use super::*;
+        use crate::testing::repo;
         use maplit::*;
         use pretty_assertions::assert_eq;
-
-        fn repo() -> String {
-            env!("CARGO_MANIFEST_DIR").to_string()
-        }
 
         fn repo_path(path: &str) -> String {
             format!("{}/{}", repo(), path)

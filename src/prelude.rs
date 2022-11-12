@@ -421,17 +421,12 @@ impl OperationStatus {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize)]
 pub enum OperationStepDecision {
+    #[default]
     Processed,
     Cancelled,
     Ignored,
-}
-
-impl Default for OperationStepDecision {
-    fn default() -> Self {
-        Self::Processed
-    }
 }
 
 // NOTE.2022-11-04 not very pretty singleton like global variable
@@ -1692,6 +1687,7 @@ impl TitleFinder {
 
 #[cfg(test)]
 mod tests {
+    use crate::testing::{repo, s};
     use std::collections::VecDeque;
 
     use super::*;
@@ -1771,14 +1767,6 @@ mod tests {
 
         // spaces
         assert_eq!("foo bar", normalize_title("  Foo  Bar  "));
-    }
-
-    fn s(text: &str) -> String {
-        text.to_string()
-    }
-
-    fn repo() -> String {
-        env!("CARGO_MANIFEST_DIR").replace('\\', "/")
     }
 
     fn now() -> chrono::DateTime<chrono::Utc> {

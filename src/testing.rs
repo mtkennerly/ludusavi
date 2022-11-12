@@ -7,7 +7,11 @@ use crate::path::StrictPath;
 pub const EMPTY_HASH: &str = "da39a3ee5e6b4b0d3255bfef95601890afd80709";
 
 pub fn repo() -> String {
-    env!("CARGO_MANIFEST_DIR").replace('\\', "/")
+    repo_raw().replace('\\', "/")
+}
+
+pub fn repo_raw() -> String {
+    env!("CARGO_MANIFEST_DIR").to_string()
 }
 
 pub fn mapping_file_key(file: &str) -> String {
@@ -28,4 +32,8 @@ pub fn drives_x() -> HashMap<String, String> {
 
 pub fn make_original_path(file: &str) -> StrictPath {
     StrictPath::new(format!("{}{file}", if cfg!(target_os = "windows") { "X:" } else { "" }))
+}
+
+pub fn s(text: &str) -> String {
+    text.to_string()
 }
