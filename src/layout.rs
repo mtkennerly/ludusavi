@@ -128,9 +128,9 @@ impl Backup {
     }
 }
 
-impl std::fmt::Display for Backup {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{}", self.label())
+impl ToString for Backup {
+    fn to_string(&self) -> String {
+        self.label()
     }
 }
 

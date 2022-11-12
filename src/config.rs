@@ -160,10 +160,9 @@ impl SortKey {
     pub const ALL: &'static [Self] = &[Self::Name, Self::Size];
 }
 
-impl std::fmt::Display for SortKey {
-    // This is needed for Iced's PickList.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        writeln!(f, "{}", crate::lang::Translator::default().sort_key(self))
+impl ToString for SortKey {
+    fn to_string(&self) -> String {
+        crate::lang::Translator::default().sort_key(self)
     }
 }
 

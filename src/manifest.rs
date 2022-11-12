@@ -73,11 +73,9 @@ impl Default for Store {
     }
 }
 
-impl std::fmt::Display for Store {
-    // This is needed for Iced's PickList.
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> Result<(), std::fmt::Error> {
-        // TODO: Use display adapter wrapper struct to respect the active language.
-        writeln!(f, "{}", crate::lang::Translator::default().store(self))
+impl ToString for Store {
+    fn to_string(&self) -> String {
+        crate::lang::Translator::default().store(self)
     }
 }
 
