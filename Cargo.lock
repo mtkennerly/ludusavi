@@ -2042,7 +2042,6 @@ dependencies = [
  "serde_yaml",
  "sha1",
  "steamlocate",
- "thiserror",
  "tokio",
  "unic-langid",
  "walkdir",

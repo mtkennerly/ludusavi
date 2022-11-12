@@ -25,49 +25,32 @@ pub static STEAM_DECK: Lazy<bool> = Lazy::new(|| LINUX && StrictPath::new("/home
 
 pub type AnyError = Box<dyn std::error::Error>;
 
-#[derive(Clone, Debug, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
-    #[error("The manifest file is invalid: {why:?}")]
-    ManifestInvalid { why: String },
-
-    #[error("Unable to download an update to the manifest file")]
+    ManifestInvalid {
+        why: String,
+    },
     ManifestCannotBeUpdated,
-
-    #[error("The config file is invalid: {why:?}")]
-    ConfigInvalid { why: String },
-
-    #[error("Unrecognized games: {games:?}")]
-    CliUnrecognizedGames { games: Vec<String> },
-
-    #[error("Unable to request confirmation")]
+    ConfigInvalid {
+        why: String,
+    },
+    CliUnrecognizedGames {
+        games: Vec<String>,
+    },
     CliUnableToRequestConfirmation,
-
-    #[error("Cannot specify backup ID when restoring multiple games")]
     CliBackupIdWithMultipleGames,
-
-    #[error("Invalid backup ID")]
     CliInvalidBackupId,
-
-    #[error("Some entries failed")]
     SomeEntriesFailed,
-
-    #[error("Cannot prepare the backup target")]
-    CannotPrepareBackupTarget { path: StrictPath },
-
-    #[error("Cannot prepare the backup target")]
-    RestorationSourceInvalid { path: StrictPath },
-
+    CannotPrepareBackupTarget {
+        path: StrictPath,
+    },
+    RestorationSourceInvalid {
+        path: StrictPath,
+    },
     #[allow(dead_code)]
-    #[error("Error while working with the registry")]
     RegistryIssue,
-
-    #[error("Unable to browse file system")]
     UnableToBrowseFileSystem,
-
-    #[error("Unable to open directory")]
     UnableToOpenDir(StrictPath),
-
-    #[error("Unable to open URL")]
     UnableToOpenUrl(String),
 }
 
