@@ -1845,6 +1845,9 @@ mod tests {
             game5:
               files:
                 <base>: {}
+            fake-registry:
+              registry:
+                HKEY_CURRENT_USER/Software/Ludusavi/fake: {}
             "#,
         )
         .unwrap()
@@ -2058,7 +2061,6 @@ mod tests {
                 game_name: s("game4"),
                 found_files: hashset! {
                     ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0, EMPTY_HASH).change_new(),
-                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0",).change_new(),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -2073,6 +2075,36 @@ mod tests {
                 &BackupFilter::default(),
                 &Some(StrictPath::new(format!("{}/tests/wine-prefix", repo()))),
                 &InstallDirRanking::scan(&config().roots, &manifest(), &["game4".to_string()]),
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
+                None,
+                &[],
+                &Default::default(),
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_registry_files_in_wine_prefix() {
+        assert_eq!(
+            ScanInfo {
+                game_name: s("fake-registry"),
+                found_files: hashset! {
+                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0",).change_new(),
+                },
+                found_registry_keys: hashset! {},
+                ..Default::default()
+            },
+            scan_game_for_backup(
+                &manifest().0["fake-registry"],
+                "fake-registry",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &HeroicGames::default(),
+                &None,
+                &BackupFilter::default(),
+                &Some(StrictPath::new(format!("{}/tests/wine-prefix", repo()))),
+                &InstallDirRanking::scan(&config().roots, &manifest(), &["fake-registry".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
