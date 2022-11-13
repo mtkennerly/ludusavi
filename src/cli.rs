@@ -15,6 +15,7 @@ use crate::{
         app_dir, back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId,
         DuplicateDetector, Error, InstallDirRanking, OperationStepDecision, SteamShortcuts, StrictPath, TitleFinder,
     },
+    serialization::ResourceFile,
 };
 use clap::CommandFactory;
 use indicatif::ParallelProgressIterator;
@@ -82,7 +83,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
     let translator = Translator::default();
     let mut config = Config::load()?;
     translator.set_language(config.language);
-    let mut cache = Cache::load().migrated(&mut config);
+    let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
     let mut failed = false;
     let mut duplicate_detector = DuplicateDetector::default();
 
@@ -114,18 +115,13 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             };
 
             let manifest = if try_update {
-                match Manifest::load(&config, &mut cache, true) {
-                    Ok(x) => x,
-                    Err(e) => {
-                        eprintln!("{}", translator.handle_error(&e));
-                        match Manifest::load(&config, &mut cache, false) {
-                            Ok(y) => y,
-                            Err(_) => Manifest::default(),
-                        }
-                    }
+                if let Err(e) = Manifest::update_mut(&config, &mut cache, true) {
+                    eprintln!("{}", translator.handle_error(&e));
                 }
+                Manifest::load().unwrap_or_default()
             } else {
-                Manifest::load(&config, &mut cache, update)?
+                Manifest::update_mut(&config, &mut cache, update)?;
+                Manifest::load()?
             };
 
             let backup_dir = match path {
@@ -296,7 +292,10 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 Reporter::standard(translator)
             };
 
-            let manifest = Manifest::load(&config, &mut cache, false)?;
+            if !Manifest::path().exists() {
+                Manifest::update_mut(&config, &mut cache, true)?;
+            }
+            let manifest = Manifest::load()?;
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),
@@ -440,7 +439,10 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             };
             reporter.suppress_overall();
 
-            let manifest = Manifest::load(&config, &mut cache, false)?;
+            if !Manifest::path().exists() {
+                Manifest::update_mut(&config, &mut cache, true)?;
+            }
+            let manifest = Manifest::load()?;
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),
@@ -493,16 +495,11 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             };
             reporter.suppress_overall();
 
-            let mut manifest = match Manifest::load(&config, &mut cache, true) {
-                Ok(x) => x,
-                Err(e) => {
-                    eprintln!("{}", translator.handle_error(&e));
-                    match Manifest::load(&config, &mut cache, false) {
-                        Ok(y) => y,
-                        Err(_) => Manifest::default(),
-                    }
-                }
-            };
+            if let Err(e) = Manifest::update_mut(&config, &mut cache, false) {
+                eprintln!("{}", translator.handle_error(&e));
+            }
+            let mut manifest = Manifest::load().unwrap_or_default();
+
             for custom_game in &config.custom_games {
                 if custom_game.ignore {
                     continue;

@@ -3,6 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 use crate::{
     config::{Config, RootsConfig},
     prelude::{app_dir, StrictPath},
+    serialization::{ResourceFile, SaveableResourceFile},
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -49,48 +50,15 @@ pub struct Restore {
     pub recent_games: std::collections::BTreeSet<String>,
 }
 
+impl ResourceFile for Cache {
+    const FILE_NAME: &'static str = "cache.yaml";
+}
+
+impl SaveableResourceFile for Cache {}
+
 impl Cache {
-    fn file() -> std::path::PathBuf {
-        let mut path = app_dir();
-        path.push("cache.yaml");
-        path
-    }
-
-    pub fn save(&self) {
-        let new_content = serde_yaml::to_string(&self).unwrap();
-
-        if let Ok(old_content) = Self::load_raw() {
-            if old_content == new_content {
-                return;
-            }
-        }
-
-        if std::fs::create_dir_all(app_dir()).is_ok() {
-            std::fs::write(Self::file(), new_content.as_bytes()).unwrap();
-        }
-    }
-
-    pub fn load() -> Self {
-        if !std::path::Path::new(&Self::file()).exists() {
-            return Self::default();
-        }
-        let content = Self::load_raw().unwrap();
-        Self::load_from_string(&content)
-    }
-
-    fn load_raw() -> Result<String, Box<dyn std::error::Error>> {
-        Ok(std::fs::read_to_string(Self::file())?)
-    }
-
-    pub fn load_from_string(content: &str) -> Self {
-        match serde_yaml::from_str(content) {
-            Ok(x) => x,
-            Err(_) => Self::default(),
-        }
-    }
-
     #[allow(deprecated)]
-    pub fn migrated(mut self, config: &mut Config) -> Self {
+    pub fn migrate_config(mut self, config: &mut Config) -> Self {
         let mut updated = false;
 
         if let Some(etag) = config.manifest.etag.take() {

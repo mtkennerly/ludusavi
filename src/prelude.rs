@@ -1702,7 +1702,10 @@ impl TitleFinder {
 
 #[cfg(test)]
 mod tests {
-    use crate::testing::{repo, s};
+    use crate::{
+        serialization::ResourceFile,
+        testing::{repo, s},
+    };
     use std::collections::VecDeque;
 
     use super::*;

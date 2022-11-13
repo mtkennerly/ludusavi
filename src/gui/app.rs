@@ -23,6 +23,7 @@ use crate::{
         InstallDirRanking, OperationStepDecision, SteamShortcuts, StrictPath, TitleFinder,
     },
     registry_compat::RegistryItem,
+    serialization::{ResourceFile, SaveableResourceFile},
     shortcuts::Shortcut,
 };
 
@@ -542,8 +543,8 @@ impl Application for App {
             }
         };
         translator.set_language(config.language);
-        let mut cache = Cache::load().migrated(&mut config);
-        let manifest = match Manifest::load_local() {
+        let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
+        let manifest = match Manifest::load() {
             Ok(y) => y,
             Err(_) => {
                 modal_theme = Some(ModalTheme::UpdatingManifest);
@@ -654,7 +655,7 @@ impl Application for App {
                 self.cache.update_manifest(updated);
                 self.cache.save();
 
-                match Manifest::load_local() {
+                match Manifest::load() {
                     Ok(x) => {
                         self.manifest = x;
                     }

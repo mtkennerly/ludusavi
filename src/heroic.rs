@@ -357,7 +357,7 @@ impl HeroicGames {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{manifest::Manifest, testing::repo};
+    use crate::{manifest::Manifest, serialization::ResourceFile, testing::repo};
     use maplit::hashmap;
     use pretty_assertions::assert_eq;
 

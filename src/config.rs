@@ -2,6 +2,7 @@ use crate::{
     lang::Language,
     manifest::Store,
     prelude::{app_dir, Error, RegistryItem, StrictPath},
+    serialization::{ResourceFile, SaveableResourceFile},
 };
 
 const MANIFEST_URL: &str = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
@@ -465,9 +466,16 @@ impl Default for RestoreConfig {
     }
 }
 
-impl Config {
+impl ResourceFile for Config {
+    const FILE_NAME: &'static str = "config.yaml";
+
+    fn initialize(mut self) -> Self {
+        self.add_common_roots();
+        self
+    }
+
     #[allow(deprecated)]
-    pub fn migrated(mut self) -> Self {
+    fn migrate(mut self) -> Self {
         if self.redirects.is_empty() && !self.restore.redirects.is_empty() {
             self.redirects = self.restore.redirects.clone();
             self.restore.redirects.clear();
@@ -490,55 +498,23 @@ impl Config {
 
         self
     }
+}
 
-    fn file() -> std::path::PathBuf {
-        let mut path = app_dir();
-        path.push("config.yaml");
-        path
-    }
+impl SaveableResourceFile for Config {}
 
+impl Config {
     fn file_archived_invalid() -> std::path::PathBuf {
         let mut path = app_dir();
         path.push("config.invalid.yaml");
         path
     }
 
-    pub fn save(&self) {
-        let new_content = serde_yaml::to_string(&self).unwrap();
-
-        if let Ok(old_content) = Self::load_raw() {
-            if old_content == new_content {
-                return;
-            }
-        }
-
-        if std::fs::create_dir_all(app_dir()).is_ok() {
-            std::fs::write(Self::file(), new_content.as_bytes()).unwrap();
-        }
-    }
-
     pub fn load() -> Result<Self, Error> {
-        if !std::path::Path::new(&Self::file()).exists() {
-            let mut starter = Self::default();
-            starter.add_common_roots();
-            return Ok(starter);
-        }
-        let content = Self::load_raw().unwrap();
-        Self::load_from_string(&content)
-    }
-
-    fn load_raw() -> Result<String, Box<dyn std::error::Error>> {
-        Ok(std::fs::read_to_string(Self::file())?)
-    }
-
-    pub fn load_from_string(content: &str) -> Result<Self, Error> {
-        serde_yaml::from_str(content)
-            .map(Self::migrated)
-            .map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
+        ResourceFile::load().map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
     }
 
     pub fn archive_invalid() -> Result<(), Box<dyn std::error::Error>> {
-        std::fs::rename(&Self::file(), &Self::file_archived_invalid())?;
+        std::fs::rename(&Self::path(), &Self::file_archived_invalid())?;
         Ok(())
     }
 
