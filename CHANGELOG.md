@@ -1,3 +1,10 @@
+## Unreleased
+
+* Fixed:
+  * For Wine prefixes from Heroic and Wine prefixes passed by CLI,
+    the prefix's `*.reg` files were backed up even if the game in question
+    was not known to have registry-based saves.
+
 ## v0.15.0 (2022-11-07)
 
 * Added:

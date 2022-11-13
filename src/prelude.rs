@@ -948,13 +948,25 @@ pub fn scan_game_for_backup(
     // For other Wine roots, it would trigger for every game.
     if let Some(wp) = wine_prefix {
         log::trace!("[{name}] adding extra Wine prefix: {}", wp.raw());
-        scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, &manifest_dir_interpreted);
+        scan_game_for_backup_add_prefix(
+            &mut roots_to_check,
+            &mut paths_to_check,
+            wp,
+            &manifest_dir_interpreted,
+            game.registry.is_some(),
+        );
     }
 
     // handle what was found for heroic
     for root in roots {
         if let Some(wp) = heroic_games.get_prefix(root, name) {
-            scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, &manifest_dir_interpreted);
+            scan_game_for_backup_add_prefix(
+                &mut roots_to_check,
+                &mut paths_to_check,
+                wp,
+                &manifest_dir_interpreted,
+                game.registry.is_some(),
+            );
         }
     }
 
@@ -1151,18 +1163,21 @@ fn scan_game_for_backup_add_prefix(
     paths_to_check: &mut std::collections::HashSet<(StrictPath, Option<bool>)>,
     wp: &StrictPath,
     manifest_dir_interpreted: &str,
+    has_registry: bool,
 ) {
     roots_to_check.push(RootsConfig {
         path: wp.clone(),
         store: Store::OtherWine,
     });
-    paths_to_check.insert((
-        StrictPath::relative(
-            format!("{}/*.reg", wp.interpret()),
-            Some(manifest_dir_interpreted.to_owned()),
-        ),
-        None,
-    ));
+    if has_registry {
+        paths_to_check.insert((
+            StrictPath::relative(
+                format!("{}/*.reg", wp.interpret()),
+                Some(manifest_dir_interpreted.to_owned()),
+            ),
+            None,
+        ));
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]

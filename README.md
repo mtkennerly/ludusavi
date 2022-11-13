@@ -91,6 +91,9 @@ as many as you need, along with the root's type:
   * Windows: `C:/Program Files (x86)/Steam`
   * Linux: `~/.steam/steam`
 
+  On Linux, for games that use Proton, Ludusavi will back up the `*.reg` files
+  if the game is known to have registry-based saves.
+
   On Linux, if you've used Steam's "add a non-Steam game" feature,
   then Ludusavi will also back up any Proton save data for those games.
   This requires the shortcut name in Steam to match the title by which Ludusavi knows the game
@@ -100,6 +103,9 @@ as many as you need, along with the root's type:
 
   Ludusavi can find GOG/Epic saves in Heroic's game install folders.
   On Linux, Ludusavi can also find saves in Heroic's Wine, Proton, and Lutris prefixes.
+
+  When using Wine prefixes with Heroic, Ludusavi will back up the `*.reg` files
+  if the game is known to have registry-based saves.
 * For the "other" root type and the remaining store-specific roots,
   this should be a folder whose direct children are individual games.
   For example, in the Epic Games store, this would be what you choose as the
