@@ -453,24 +453,29 @@ restore:
 There are other excellent backup tools available, but not a singular
 cross-platform and cross-store solution:
 
-* [GameSave Manager](https://www.gamesave-manager.com) (as of v3.1.471.0):
+* [GameSave Manager](https://www.gamesave-manager.com) (as of v3.1.512.0):
   * Only supports Windows.
+  * Much slower than Ludusavi. On the same hardware and with default settings,
+    an initial scan of the whole system takes 2 minutes in GSM versus 10 seconds in Ludusavi.
+    Performing a backup immediately after that scan takes 4 minutes 16 seconds in GSM versus 4.5 seconds in Ludusavi.
+    In this test, GSM found 257 games with 2.84 GB, and Ludusavi found 297 games with 2.95 GiB.
   * Closed source, so the community cannot contribute improvements.
-  * Interface can be slow or unresponsive; e.g., when (de)selecting all checkboxes,
-    it takes half a second per checkbox for them all to toggle.
-  * No command line interface.
+  * Interface can be slow or unresponsive.
+    For example, when clicking "select all / de-select all", each checkbox has to individually toggle itself.
+    With 257 games, this means you end up having to wait around 42 seconds.
+  * Minimal command line interface.
   * Can create symlinks for games and game data (not currently supported by Ludusavi).
-* [Gaming Backup Multitool for Linux](https://supremesonicbrazil.gitlab.io/gbml-web) (as of v1.4.0.0):
-  * Only supports Linux and Steam.
-  * Database is not actively updated (as of 2020-06-20, the last update was 2018-06-05).
-  * No command line interface.
 * [Game Backup Monitor](https://mikemaximus.github.io/gbm-web) (as of v1.2.2):
   * Does not support Mac.
-  * Database only covers 479 games (as of 2020-09-30), although it can also import
+  * Database only covers 577 games (as of 2022-11-16), although it can also import
     the Ludusavi manifest starting in 1.3.1.
   * No command line interface.
   * Can automatically back up saves for a game after you play it
     (Ludusavi can only do that in conjunction with a launcher like Playnite).
+* [Gaming Backup Multitool for Linux](https://supremesonicbrazil.gitlab.io/gbml-web) (as of v1.4.0.0):
+  * Only supports Linux and Steam.
+  * Database is not actively updated (as of 2022-11-16, the last update was 2018-06-05).
+  * No command line interface.
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
