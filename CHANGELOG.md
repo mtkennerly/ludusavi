@@ -1,6 +1,10 @@
 ## Unreleased
 
 * Fixed:
+  * The placeholder `<winProgramData>` was incorrectly interpreted as
+    `C:/Windows/ProgramData` when it should have been `C:/ProgramData`.
+    This affected the lookup of the normal location on Windows,
+    but it did not affect Wine/Proton or VirtualStore paths.
   * For Wine prefixes from Heroic and Wine prefixes passed by CLI,
     the prefix's `*.reg` files were backed up even if the game in question
     was not known to have registry-based saves.
