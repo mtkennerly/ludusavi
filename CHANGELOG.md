@@ -1,4 +1,4 @@
-## Unreleased
+## v0.15.1 (2022-11-25)
 
 * Fixed:
   * The placeholder `<winProgramData>` was incorrectly interpreted as
@@ -8,6 +8,9 @@
   * For Wine prefixes from Heroic and Wine prefixes passed by CLI,
     the prefix's `*.reg` files were backed up even if the game in question
     was not known to have registry-based saves.
+* Changed:
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
 ## v0.15.0 (2022-11-07)
 

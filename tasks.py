@@ -52,10 +52,15 @@ def lang(ctx, jar="/opt/crowdin-cli/crowdin-cli.jar"):
 
 
 @task
-def prerelease(ctx):
+def clean(ctx):
     if DIST.exists():
         shutil.rmtree(DIST, ignore_errors=True)
     DIST.mkdir()
+
+
+@task
+def prerelease(ctx):
+    clean(ctx)
     legal(ctx)
     flatpak(ctx)
     lang(ctx)
