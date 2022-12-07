@@ -1,3 +1,8 @@
+## Unreleased
+
+* Fixed:
+  * When switching between dropdowns, they would briefly flicker with incorrect content.
+
 ## v0.15.1 (2022-11-25)
 
 * Fixed:

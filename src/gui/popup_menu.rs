@@ -204,7 +204,7 @@ where
     }
 
     fn overlay<'b>(
-        &'b self,
+        &'b mut self,
         tree: &'b mut Tree,
         layout: Layout<'_>,
         _renderer: &Renderer,
@@ -463,7 +463,7 @@ pub fn draw<Renderer>(
                 bounds,
                 border_color: style.border_color,
                 border_width: style.border_width,
-                border_radius: style.border_radius,
+                border_radius: renderer::BorderRadius::from(style.border_radius),
             },
             style.background,
         );
