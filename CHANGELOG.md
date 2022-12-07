@@ -2,6 +2,7 @@
 
 * Fixed:
   * When switching between dropdowns, they would briefly flicker with incorrect content.
+  * Game titles starting with a lowercase letter were listed after all titles starting with an uppercase letter.
 
 ## v0.15.1 (2022-11-25)
 

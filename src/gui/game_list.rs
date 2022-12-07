@@ -378,10 +378,12 @@ impl GameList {
 
     pub fn sort(&mut self, sort: &Sort) {
         match sort.key {
-            SortKey::Name => self.entries.sort_by_key(|x| x.scan_info.game_name.clone()),
-            SortKey::Size => self
+            SortKey::Name => self
                 .entries
-                .sort_by_key(|x| (x.scan_info.sum_bytes(&x.backup_info), x.scan_info.game_name.clone())),
+                .sort_by(|x, y| crate::prelude::compare_games_by_name(&x.scan_info.game_name, &y.scan_info.game_name)),
+            SortKey::Size => self.entries.sort_by(|x, y| {
+                crate::prelude::compare_games_by_size(&x.scan_info, &x.backup_info, &y.scan_info, &y.backup_info)
+            }),
         }
         if sort.reversed {
             self.entries.reverse();

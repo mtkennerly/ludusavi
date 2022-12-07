@@ -1700,6 +1700,28 @@ impl TitleFinder {
     }
 }
 
+pub fn compare_games_by_name(name1: &str, name2: &str) -> std::cmp::Ordering {
+    name1.to_lowercase().cmp(&name2.to_lowercase()).then(name1.cmp(name2))
+}
+
+pub fn compare_games_by_size(
+    scan_info1: &ScanInfo,
+    backup_info1: &Option<BackupInfo>,
+    scan_info2: &ScanInfo,
+    backup_info2: &Option<BackupInfo>,
+) -> std::cmp::Ordering {
+    scan_info1
+        .sum_bytes(backup_info1)
+        .cmp(&scan_info2.sum_bytes(backup_info2))
+        .then_with(|| {
+            scan_info1
+                .game_name
+                .to_lowercase()
+                .cmp(&scan_info2.game_name.to_lowercase())
+        })
+        .then(scan_info1.game_name.cmp(&scan_info2.game_name))
+}
+
 #[cfg(test)]
 mod tests {
     use crate::{

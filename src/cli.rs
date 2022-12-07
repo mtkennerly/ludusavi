@@ -258,10 +258,19 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
 
             let sort = sort.map(From::from).unwrap_or_else(|| config.backup.sort.clone());
             match sort.key {
-                SortKey::Name => info.sort_by_key(|(name, _, _, _)| name.to_string()),
-                SortKey::Size => info.sort_by_key(|(name, scan_info, backup_info, _)| {
-                    (scan_info.sum_bytes(&Some(backup_info.clone())), name.to_string())
-                }),
+                SortKey::Name => {
+                    info.sort_by(|(name1, ..), (name2, ..)| crate::prelude::compare_games_by_name(name1, name2))
+                }
+                SortKey::Size => {
+                    info.sort_by(|(_, scan_info1, backup_info1, ..), (_, scan_info2, backup_info2, ..)| {
+                        crate::prelude::compare_games_by_size(
+                            scan_info1,
+                            &Some(backup_info1.clone()),
+                            scan_info2,
+                            &Some(backup_info2.clone()),
+                        )
+                    })
+                }
             }
             if sort.reversed {
                 info.reverse();
@@ -393,10 +402,19 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
 
             let sort = sort.map(From::from).unwrap_or_else(|| config.restore.sort.clone());
             match sort.key {
-                SortKey::Name => info.sort_by_key(|(name, _, _, _, _)| name.to_string()),
-                SortKey::Size => info.sort_by_key(|(name, scan_info, backup_info, _, _)| {
-                    (scan_info.sum_bytes(&Some(backup_info.clone())), name.to_string())
-                }),
+                SortKey::Name => {
+                    info.sort_by(|(name1, ..), (name2, ..)| crate::prelude::compare_games_by_name(name1, name2))
+                }
+                SortKey::Size => {
+                    info.sort_by(|(_, scan_info1, backup_info1, ..), (_, scan_info2, backup_info2, ..)| {
+                        crate::prelude::compare_games_by_size(
+                            scan_info1,
+                            &Some(backup_info1.clone()),
+                            scan_info2,
+                            &Some(backup_info2.clone()),
+                        )
+                    })
+                }
             }
             if sort.reversed {
                 info.reverse();
