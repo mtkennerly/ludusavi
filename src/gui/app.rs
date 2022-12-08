@@ -1225,9 +1225,10 @@ impl Application for App {
                         BrowseSubject::RestoreSource => {
                             Message::EditedRestoreSource(crate::path::render_pathbuf(&path))
                         }
-                        BrowseSubject::Root(i) => {
-                            Message::EditedRoot(EditAction::Change(i, crate::path::render_pathbuf(&path)))
-                        }
+                        BrowseSubject::Root(i) => Message::EditedRoot(EditAction::Change(
+                            i,
+                            globetter::Pattern::escape(&crate::path::render_pathbuf(&path)),
+                        )),
                         BrowseSubject::RedirectSource(i) => Message::EditedRedirect(
                             EditAction::Change(i, crate::path::render_pathbuf(&path)),
                             Some(RedirectEditActionField::Source),
@@ -1236,9 +1237,10 @@ impl Application for App {
                             EditAction::Change(i, crate::path::render_pathbuf(&path)),
                             Some(RedirectEditActionField::Target),
                         ),
-                        BrowseSubject::CustomGameFile(i, j) => {
-                            Message::EditedCustomGameFile(i, EditAction::Change(j, crate::path::render_pathbuf(&path)))
-                        }
+                        BrowseSubject::CustomGameFile(i, j) => Message::EditedCustomGameFile(
+                            i,
+                            EditAction::Change(j, globetter::Pattern::escape(&crate::path::render_pathbuf(&path))),
+                        ),
                         BrowseSubject::BackupFilterIgnoredPath(i) => Message::EditedBackupFilterIgnoredPath(
                             EditAction::Change(i, crate::path::render_pathbuf(&path)),
                         ),

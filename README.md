@@ -119,7 +119,9 @@ as many as you need, along with the root's type:
   Currently, Ludusavi does not back up registry-based saves from the prefix,
   but will back up any file-based saves.
 
-You may use globs in root paths to identify multiple roots at once.
+You may use [globs] in root paths to identify multiple roots at once.
+If you have a folder name that contains a special glob character,
+you can escape it by wrapping it in brackets (e.g., `[` becomes `[[]`).
 
 ### Backup retention
 You can configure how many backups to keep by pressing the gear icon on the backup screen.
@@ -203,10 +205,12 @@ If the game name exactly matches a known game, then your custom entry will overr
 For file paths, you can click the browse button to quickly select a folder.
 The path can be a file too, but the browse button only lets you choose
 folders at this time. You can just type in the file name afterwards.
-You can also use [globs](https://en.wikipedia.org/wiki/Glob_(programming))
+You can also use [globs]
 (e.g., `C:/example/*.txt` selects all TXT files in that folder)
 and the placeholders defined in the
 [Ludusavi Manifest format](https://github.com/mtkennerly/ludusavi-manifest).
+If you have a folder name that contains a special glob character,
+you can escape it by wrapping it in brackets (e.g., `[` becomes `[[]`).
 
 ### Backup exclusions
 Backup exclusions let you set paths and registry keys to completely ignore
@@ -479,3 +483,5 @@ cross-platform and cross-store solution:
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+[globs]: https://en.wikipedia.org/wiki/Glob_(programming)
