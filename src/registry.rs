@@ -124,7 +124,7 @@ fn read_registry_key(key: &winreg::RegKey) -> Entries {
 impl Hives {
     pub fn load(file: &StrictPath) -> Option<Self> {
         if file.is_file() {
-            let content = std::fs::read_to_string(&file.interpret()).ok()?;
+            let content = std::fs::read_to_string(file.interpret()).ok()?;
             Self::deserialize(&content)
         } else {
             None

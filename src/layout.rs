@@ -719,7 +719,7 @@ impl GameLayout {
         match format {
             BackupFormat::Simple => self.path.joined(backup).joined("registry.yaml").read(),
             BackupFormat::Zip => {
-                let handle = std::fs::File::open(&self.path.joined(backup).interpret()).ok()?;
+                let handle = std::fs::File::open(self.path.joined(backup).interpret()).ok()?;
                 let mut archive = zip::ZipArchive::new(handle).ok()?;
                 let mut file = archive.by_name("registry.yaml").ok()?;
 
@@ -1371,7 +1371,7 @@ impl GameLayout {
             target.raw()
         );
 
-        let handle = std::fs::File::open(&container.interpret())?;
+        let handle = std::fs::File::open(container.interpret())?;
         let mut archive = zip::ZipArchive::new(handle)?;
 
         if target.exists() && target.try_same_content_as_zip(&mut archive.by_name(&file.path.raw())?)? {
@@ -1399,7 +1399,7 @@ impl GameLayout {
                 );
                 continue;
             }
-            let mut target_handle = match std::fs::File::create(&target.interpret()) {
+            let mut target_handle = match std::fs::File::create(target.interpret()) {
                 Ok(x) => x,
                 Err(e) => {
                     log::warn!(

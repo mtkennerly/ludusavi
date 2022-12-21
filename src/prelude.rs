@@ -1258,7 +1258,7 @@ pub fn prepare_backup_target(target: &StrictPath, merge: bool) -> Result<(), Err
     }
 
     let p = target.as_std_path_buf();
-    std::fs::create_dir_all(&p).map_err(|_| Error::CannotPrepareBackupTarget { path: target.clone() })?;
+    std::fs::create_dir_all(p).map_err(|_| Error::CannotPrepareBackupTarget { path: target.clone() })?;
 
     Ok(())
 }

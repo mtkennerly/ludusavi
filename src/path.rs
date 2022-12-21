@@ -346,9 +346,9 @@ impl StrictPath {
 
     pub fn remove(&self) -> Result<(), Box<dyn std::error::Error>> {
         if self.is_file() {
-            std::fs::remove_file(&self.interpret())?;
+            std::fs::remove_file(self.interpret())?;
         } else if self.is_dir() {
-            std::fs::remove_dir_all(&self.interpret())?;
+            std::fs::remove_dir_all(self.interpret())?;
         }
         Ok(())
     }
@@ -389,7 +389,7 @@ impl StrictPath {
                 std::io::ErrorKind::Other,
                 "Failed to unset read-only",
             ));
-        } else if let Err(e) = std::fs::copy(&self.interpret(), &target_file.interpret()) {
+        } else if let Err(e) = std::fs::copy(self.interpret(), target_file.interpret()) {
             log::error!(
                 "[{context}] try {attempt}, unable to copy: {} -> {} | {e}",
                 self.raw(),

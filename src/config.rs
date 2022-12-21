@@ -514,7 +514,7 @@ impl Config {
     }
 
     pub fn archive_invalid() -> Result<(), Box<dyn std::error::Error>> {
-        std::fs::rename(&Self::path(), &Self::file_archived_invalid())?;
+        std::fs::rename(Self::path(), Self::file_archived_invalid())?;
         Ok(())
     }
 
@@ -603,7 +603,7 @@ impl Config {
 
                 let mut install_dirs = vec![];
                 let manifest_dir = subkey.get_value::<String, &str>("ModSdkMetadataDir")?;
-                for entry in std::fs::read_dir(&manifest_dir)?.flatten() {
+                for entry in std::fs::read_dir(manifest_dir)?.flatten() {
                     if !entry.file_type()?.is_file() {
                         continue;
                     }
