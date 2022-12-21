@@ -1,4 +1,4 @@
-## Unreleased
+## v0.15.2 (2022-12-22)
 
 * Fixed:
   * Native registry saves on Windows were not restored.
