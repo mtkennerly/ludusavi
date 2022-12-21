@@ -894,7 +894,7 @@ impl GameLayout {
         #[cfg(target_os = "windows")]
         {
             use crate::registry::Hives;
-            let hives = Hives::from(&scan.found_registry_keys);
+            let hives = Hives::incorporated(&scan.found_registry_keys);
             if !hives.is_empty() {
                 registry.hash = Some(crate::prelude::sha1(hives.serialize()));
             }
@@ -932,7 +932,7 @@ impl GameLayout {
         #[cfg(target_os = "windows")]
         {
             use crate::registry::Hives;
-            let hives = Hives::from(&scan.found_registry_keys);
+            let hives = Hives::incorporated(&scan.found_registry_keys);
             if !hives.is_empty() {
                 registry = Some(IndividualMappingRegistry {
                     hash: Some(crate::prelude::sha1(hives.serialize())),
@@ -1005,7 +1005,7 @@ impl GameLayout {
             let target_registry_file = self.registry_file_in(backup.name());
 
             if backup.includes_registry() {
-                let hives = Hives::from(&scan.found_registry_keys);
+                let hives = Hives::incorporated(&scan.found_registry_keys);
                 hives.save(&target_registry_file);
             } else {
                 let _ = target_registry_file.remove();
@@ -1156,7 +1156,7 @@ impl GameLayout {
             use crate::registry::Hives;
 
             if backup.includes_registry() {
-                let hives = Hives::from(&scan.found_registry_keys);
+                let hives = Hives::incorporated(&scan.found_registry_keys);
                 if zip.start_file("registry.yaml", options).is_ok() {
                     let _ = zip.write_all(hives.serialize().as_bytes());
                 }
@@ -1299,12 +1299,13 @@ impl GameLayout {
         {
             use crate::registry::Hives;
 
-            let mut hives = Hives::default();
-            let (found, _) = hives.incorporate(&scan.found_registry_keys);
-
-            if found {
-                // TODO: Track failed keys.
-                let _ = hives.restore();
+            if let Some(backup) = scan.backup.as_ref() {
+                if let Some(registry_content) = self.registry_content(&backup.id()) {
+                    if let Some(hives) = Hives::deserialize(&registry_content) {
+                        // TODO: Track failed keys.
+                        let _ = hives.restore();
+                    }
+                }
             }
         }
 

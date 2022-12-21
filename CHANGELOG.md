@@ -1,6 +1,7 @@
 ## Unreleased
 
 * Fixed:
+  * Native registry saves on Windows were not restored.
   * When switching between dropdowns, they would briefly flicker with incorrect content.
   * Game titles starting with a lowercase letter were listed after all titles starting with an uppercase letter.
   * When using the folder picker for roots and custom game files, glob special characters were not escaped.

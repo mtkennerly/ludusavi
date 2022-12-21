@@ -2,7 +2,7 @@ use std::collections::HashSet;
 
 use crate::{
     config::{BackupFilter, ToggledRegistry},
-    prelude::{Error, RegistryItem, ScanChange, ScanInfo, ScannedRegistry, StrictPath},
+    prelude::{Error, RegistryItem, ScanChange, ScannedRegistry, StrictPath},
 };
 use winreg::types::{FromRegValue, ToRegValue};
 
@@ -154,6 +154,9 @@ impl Hives {
         serde_yaml::from_str(content).ok()
     }
 
+    /// This only incorporates the keys, not the values.
+    /// It can be used during backup since we know the keys exist, so we can look up the values when needed.
+    /// It should not be used during restore since the keys may not exist.
     pub fn incorporate(&mut self, scan: &HashSet<ScannedRegistry>) -> (bool, HashSet<RegistryItem>) {
         let mut failed = HashSet::new();
         let mut found = false;
@@ -174,6 +177,12 @@ impl Hives {
         }
 
         (found, failed)
+    }
+
+    pub fn incorporated(scan: &HashSet<ScannedRegistry>) -> Self {
+        let mut hives = Hives::default();
+        hives.incorporate(scan);
+        hives
     }
 
     pub fn store_key_from_full_path(&mut self, path: &str) -> Result<(), Error> {
@@ -262,22 +271,6 @@ impl Hives {
 
     pub fn get(&self, hive: &str, key: &str) -> Option<&Entries> {
         self.0.get(hive)?.0.get(key)
-    }
-}
-
-impl From<&HashSet<ScannedRegistry>> for Hives {
-    fn from(source: &HashSet<ScannedRegistry>) -> Self {
-        let mut hives = Self::default();
-        hives.incorporate(source);
-        hives
-    }
-}
-
-impl From<&ScanInfo> for Hives {
-    fn from(scan: &ScanInfo) -> Self {
-        let mut hives = Self::default();
-        hives.incorporate(&scan.found_registry_keys);
-        hives
     }
 }
 
