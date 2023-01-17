@@ -332,7 +332,7 @@ impl pick_list::StyleSheet for Theme {
             text_color: self.text,
             placeholder_color: iced::Color::BLACK,
             border_width: 1.0,
-            handle_color: Color::WHITE,
+            handle_color: self.text,
         }
     }
 
