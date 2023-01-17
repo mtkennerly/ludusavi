@@ -20,6 +20,7 @@ pub const CASE_INSENSITIVE_OS: bool = WINDOWS || MAC;
 const SKIP: &str = "<skip>";
 const APP_DIR_NAME: &str = "ludusavi";
 const PORTABLE_FLAG_FILE_NAME: &str = "ludusavi.portable";
+pub const INVALID_FILE_CHARS: &[char] = &['\\', '/', ':', '*', '?', '"', '<', '>', '|', '\0'];
 
 pub static STEAM_DECK: Lazy<bool> = Lazy::new(|| LINUX && StrictPath::new("/home/deck".to_string()).exists());
 
@@ -1543,8 +1544,10 @@ pub fn fuzzy_match(
     }
 
     // A space-consolidating regex would be better, but is too much of a performance hit.
+    // Also, this is used for files/folders, so we can always ignore illegal characters.
     let candidate = candidate
         .replace(['_', '-'], " ")
+        .replace(INVALID_FILE_CHARS, " ")
         .replace("    ", " ")
         .replace("   ", " ")
         .replace("  ", " ");

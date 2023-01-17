@@ -44,7 +44,7 @@ fn escape_folder_name(name: &str) -> String {
         escaped.replace_range(escaped.len() - 1.., SAFE);
     }
 
-    escaped.replace(['\\', '/', ':', '*', '?', '"', '<', '>', '|', '\0'], SAFE)
+    escaped.replace(crate::prelude::INVALID_FILE_CHARS, SAFE)
 }
 
 pub struct LatestBackup {

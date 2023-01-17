@@ -1,3 +1,11 @@
+## Unreleased
+
+* Fixed:
+  * Along with any explicit `installDir` entries in the manifest,
+    Ludusavi tries to find each game's install directory based on that game's title.
+    However, if that title was not valid as a folder name, then Ludusavi would never find it.
+    Now, Ludusavi will ignore characters like `:` and `?` that cannot appear in folder names.
+
 ## v0.15.2 (2022-12-22)
 
 * Fixed:
