@@ -469,12 +469,13 @@ pub fn draw<Renderer>(
         );
     }
 
+    let icon_size = 0.5;
     renderer.fill_text(Text {
         // content: &Renderer::ARROW_DOWN_ICON.to_string(),
         content: &crate::gui::icon::Icon::MoreVert.as_char().to_string(),
         // font: Renderer::ICON_FONT,
         font: crate::gui::icon::ICONS,
-        size: bounds.height * style.icon_size * 1.5,
+        size: bounds.height * icon_size * 1.5,
         bounds: Rectangle {
             // x: bounds.x + bounds.width - f32::from(padding.horizontal()),
             x: bounds.center_x(),

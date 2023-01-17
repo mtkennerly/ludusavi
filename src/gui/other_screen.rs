@@ -85,8 +85,8 @@ impl OtherScreenComponent {
                         )
                         .push(
                             Checkbox::new(
-                                config.backup.filter.exclude_store_screenshots,
                                 translator.explanation_for_exclude_store_screenshots(),
+                                config.backup.filter.exclude_store_screenshots,
                                 Message::EditedExcludeStoreScreenshots,
                             )
                             .style(style::Checkbox),

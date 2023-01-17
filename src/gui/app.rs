@@ -889,7 +889,10 @@ impl Application for App {
                 }
                 self.config.save();
                 if snap {
-                    iced::widget::scrollable::snap_to(crate::gui::widget::id::roots(), 1.0)
+                    iced::widget::scrollable::snap_to(
+                        crate::gui::widget::id::roots(),
+                        iced::widget::scrollable::RelativeOffset::END,
+                    )
                 } else {
                     Command::none()
                 }
@@ -960,7 +963,10 @@ impl Application for App {
                 }
                 self.config.save();
                 if snap {
-                    iced::widget::scrollable::snap_to(crate::gui::widget::id::custom_games(), 1.0)
+                    iced::widget::scrollable::snap_to(
+                        crate::gui::widget::id::custom_games(),
+                        iced::widget::scrollable::RelativeOffset::END,
+                    )
                 } else {
                     Command::none()
                 }

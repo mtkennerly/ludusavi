@@ -64,10 +64,16 @@ where
         self.content.as_widget().layout(renderer, limits)
     }
 
-    fn operate(&self, tree: &mut Tree, layout: Layout<'_>, operation: &mut dyn Operation<Message>) {
+    fn operate(
+        &self,
+        tree: &mut Tree,
+        layout: Layout<'_>,
+        renderer: &Renderer,
+        operation: &mut dyn Operation<Message>,
+    ) {
         self.content
             .as_widget()
-            .operate(&mut tree.children[0], layout, operation)
+            .operate(&mut tree.children[0], layout, renderer, operation)
     }
 
     fn on_event(

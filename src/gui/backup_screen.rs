@@ -199,8 +199,8 @@ impl BackupScreenComponent {
                             .align_items(Alignment::Center)
                             .push(
                                 Checkbox::new(
-                                    config.backup.merge,
                                     translator.backup_merge_label(),
+                                    config.backup.merge,
                                     Message::EditedBackupMerge,
                                 )
                                 .style(style::Checkbox),

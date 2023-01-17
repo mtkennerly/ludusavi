@@ -67,7 +67,7 @@ impl CustomGamesEditor {
                                     .spacing(20)
                                     .push(
                                         Column::new().width(Length::Units(80)).push(
-                                            Checkbox::new(config.is_custom_game_enabled(i), "", move |enabled| {
+                                            Checkbox::new("", config.is_custom_game_enabled(i), move |enabled| {
                                                 Message::ToggleCustomGameEnabled { index: i, enabled }
                                             })
                                             .style(style::Checkbox),

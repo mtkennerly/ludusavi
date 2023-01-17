@@ -82,7 +82,7 @@ impl FileTreeNode {
                 let path = path.clone();
                 return Some(
                     Container::new(
-                        Checkbox::new(!self.ignored, "", move |enabled| match &path {
+                        Checkbox::new("", !self.ignored, move |enabled| match &path {
                             FileTreeNodePath::File(path) => Message::ToggleSpecificBackupPathIgnored {
                                 name: game_name.clone(),
                                 path: path.clone(),

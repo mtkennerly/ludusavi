@@ -56,7 +56,7 @@ impl SearchComponent {
                     .style(style::PickList::Primary),
                 )
                 .push(
-                    Checkbox::new(sort.reversed, translator.sort_reversed(), move |value| {
+                    Checkbox::new(translator.sort_reversed(), sort.reversed, move |value| {
                         Message::EditedSortReversed { screen, value }
                     })
                     .style(style::Checkbox),

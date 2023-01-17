@@ -69,7 +69,7 @@ impl GameListEntry {
                 .push(
                     Row::new()
                         .push(
-                            Checkbox::new(enabled, "", move |enabled| Message::ToggleGameListEntryEnabled {
+                            Checkbox::new("", enabled, move |enabled| Message::ToggleGameListEntryEnabled {
                                 name: name_for_checkbox.clone(),
                                 enabled,
                                 restoring,
