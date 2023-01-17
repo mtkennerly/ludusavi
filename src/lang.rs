@@ -31,6 +31,8 @@ pub enum Language {
     #[allow(dead_code)]
     #[serde(rename = "zh-Hans")]
     ChineseSimplified,
+    #[serde(rename = "nl-NL")]
+    Dutch,
     #[default]
     #[serde(rename = "en-US")]
     English,
@@ -38,6 +40,8 @@ pub enum Language {
     Esperanto,
     #[serde(rename = "fil-PH")]
     Filipino,
+    #[serde(rename = "fr-FR")]
+    French,
     #[serde(rename = "de-DE")]
     German,
     #[serde(rename = "it-IT")]
@@ -58,9 +62,11 @@ impl Language {
         Self::German,
         Self::English,
         Self::Esperanto,
+        Self::French,
         Self::Spanish,
         Self::Filipino,
         Self::Italian,
+        Self::Dutch,
         Self::Polish,
         Self::PortugueseBrazilian,
     ];
@@ -69,9 +75,11 @@ impl Language {
         let id = match self {
             Self::Arabic => "ar-SA",
             Self::ChineseSimplified => "zh-Hans",
+            Self::Dutch => "nl-NL",
             Self::English => "en-US",
             Self::Esperanto => "eo",
             Self::Filipino => "fil-PH",
+            Self::French => "fr-FR",
             Self::German => "de-DE",
             Self::Italian => "it-IT",
             Self::Korean => "ko-KR",
@@ -86,11 +94,13 @@ impl Language {
 impl ToString for Language {
     fn to_string(&self) -> String {
         match self {
-            Self::Arabic => "العربية (42%)",
+            Self::Arabic => "العربية (97%)",
             Self::ChineseSimplified => "中文（简体） (61%)",
+            Self::Dutch => "Nederlands (35%)",
             Self::English => "English",
             Self::Esperanto => "Esperanto (20%)",
             Self::Filipino => "Filipino (57%)",
+            Self::French => "Français (6%)",
             Self::German => "Deutsch (94%)",
             Self::Italian => "Italiano (100%)",
             Self::Korean => "한국어 (47%)",
@@ -125,9 +135,11 @@ fn set_language(language: Language) {
     let ftl = match language {
         Language::Arabic => include_str!("../lang/ar-SA.ftl"),
         Language::ChineseSimplified => include_str!("../lang/zh-CN.ftl"),
+        Language::Dutch => include_str!("../lang/nl-NL.ftl"),
         Language::English => include_str!("../lang/en-US.ftl"),
         Language::Esperanto => include_str!("../lang/eo-UY.ftl"),
         Language::Filipino => include_str!("../lang/fil-PH.ftl"),
+        Language::French => include_str!("../lang/fr-FR.ftl"),
         Language::German => include_str!("../lang/de-DE.ftl"),
         Language::Italian => include_str!("../lang/it-IT.ftl"),
         Language::Korean => include_str!("../lang/ko-KR.ftl"),
