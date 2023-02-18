@@ -8,6 +8,9 @@
     Ludusavi tries to find each game's install directory based on that game's title.
     However, if that title was not valid as a folder name, then Ludusavi would never find it.
     Now, Ludusavi will ignore characters like `:` and `?` that cannot appear in folder names.
+  * For native Linux games installed with the Heroic launcher,
+    the `<storeUserId>` path placeholder is now handled in order to detect more saves.
+    ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/issues/177))
 * Changed:
   * GUI: Updated to Iced 0.7.0, which comes with some improvements:
     * Text fields now have a blinking cursor.

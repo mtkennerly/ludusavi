@@ -632,7 +632,8 @@ pub fn parse_paths(
             .replace(
                 "<xdgConfig>",
                 check_nonwindows_path_str(&format!("{}/../../config", &root_interpreted)),
-            ),
+            )
+            .replace("<storeUserId>", "*"),
             None,
         ));
     }
