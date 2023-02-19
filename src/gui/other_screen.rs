@@ -54,7 +54,7 @@ impl OtherScreenComponent {
                                         .horizontal_alignment(iced::alignment::Horizontal::Center),
                                 )
                                 .on_press(Message::Exit)
-                                .width(Length::Units(125))
+                                .width(125)
                                 .style(style::Button::Negative),
                             )
                     },
@@ -97,7 +97,7 @@ impl OtherScreenComponent {
                                 .push(
                                     Row::new()
                                         .align_items(iced::Alignment::Center)
-                                        .push(Text::new(translator.manifest_label()).width(Length::Units(100)))
+                                        .push(Text::new(translator.manifest_label()).width(100))
                                         .push(
                                             Button::new(Icon::Refresh.as_text())
                                                 .on_press_if(|| !updating_manifest, || Message::UpdateManifest)
@@ -128,7 +128,7 @@ impl OtherScreenComponent {
                                                         .align_items(iced::Alignment::Center)
                                                         .push(
                                                             Container::new(Text::new(translator.checked_label()))
-                                                                .width(Length::Units(100)),
+                                                                .width(100),
                                                         )
                                                         .push(Container::new(Text::new(checked))),
                                                 )
@@ -137,7 +137,7 @@ impl OtherScreenComponent {
                                                         .align_items(iced::Alignment::Center)
                                                         .push(
                                                             Container::new(Text::new(translator.updated_label()))
-                                                                .width(Length::Units(100)),
+                                                                .width(100),
                                                         )
                                                         .push(Container::new(Text::new(updated))),
                                                 ),

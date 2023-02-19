@@ -70,7 +70,7 @@ impl IgnoredItemsEditor {
                             Row::new()
                                 .push(
                                     Column::new()
-                                        .width(Length::Units(100))
+                                        .width(100)
                                         .push(Text::new(translator.custom_files_label())),
                                 )
                                 .push(
@@ -128,7 +128,7 @@ impl IgnoredItemsEditor {
                             Row::new()
                                 .push(
                                     Column::new()
-                                        .width(Length::Units(100))
+                                        .width(100)
                                         .push(Text::new(translator.custom_registry_label())),
                                 )
                                 .push(

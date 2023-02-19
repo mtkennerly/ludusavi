@@ -34,7 +34,7 @@ where
     // selected: Option<T>,
     width: Length,
     padding: Padding,
-    text_size: Option<u16>,
+    text_size: Option<f32>,
     font: Renderer::Font,
     style: <Renderer::Theme as StyleSheet>::Style,
 }
@@ -48,7 +48,7 @@ where
     <Renderer::Theme as menu::StyleSheet>::Style: From<<Renderer::Theme as StyleSheet>::Style>,
 {
     /// The default padding of a [`PopupMenu`].
-    pub const DEFAULT_PADDING: Padding = Padding::new(5);
+    pub const DEFAULT_PADDING: Padding = Padding::new(5.0);
 
     /// Creates a new [`PopupMenu`] with the given list of options, the current
     /// selected value, and the message to produce when an option is selected.
@@ -273,7 +273,7 @@ pub fn layout<Renderer>(
     limits: &layout::Limits,
     width: Length,
     padding: Padding,
-    text_size: Option<u16>,
+    text_size: Option<f32>,
     font: &Renderer::Font,
     // placeholder: Option<&str>,
     // options: &[T],
@@ -302,10 +302,7 @@ where
     };
 
     let size = {
-        let intrinsic = Size::new(
-            max_width as f32 + f32::from(text_size) + f32::from(padding.left),
-            f32::from(text_size),
-        );
+        let intrinsic = Size::new(max_width as f32 + text_size + padding.left, text_size);
 
         limits.resolve(intrinsic).pad(padding)
     };
@@ -392,7 +389,7 @@ pub fn overlay<'a, T, Message, Renderer>(
     layout: Layout<'_>,
     state: &'a mut State<T>,
     padding: Padding,
-    text_size: Option<u16>,
+    text_size: Option<f32>,
     font: Renderer::Font,
     options: &'a [T],
     style: <Renderer::Theme as StyleSheet>::Style,
@@ -413,7 +410,7 @@ where
             &mut state.hovered_option,
             &mut state.last_selection,
         )
-        .width(150)
+        .width(150.0)
         // .width(bounds.width.round() as u16)
         .padding(padding)
         .font(font)
@@ -437,7 +434,7 @@ pub fn draw<Renderer>(
     layout: Layout<'_>,
     cursor_position: Point,
     // padding: Padding,
-    // text_size: Option<u16>,
+    // text_size: Option<f32>,
     // font: &Renderer::Font,
     // placeholder: Option<&str>,
     // selected: Option<&T>,

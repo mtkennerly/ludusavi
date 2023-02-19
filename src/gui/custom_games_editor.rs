@@ -66,7 +66,7 @@ impl CustomGamesEditor {
                                 Row::new()
                                     .spacing(20)
                                     .push(
-                                        Column::new().width(Length::Units(80)).push(
+                                        Column::new().width(80).push(
                                             Checkbox::new("", config.is_custom_game_enabled(i), move |enabled| {
                                                 Message::ToggleCustomGameEnabled { index: i, enabled }
                                             })
@@ -112,7 +112,7 @@ impl CustomGamesEditor {
                                 Row::new()
                                     .push(
                                         Column::new()
-                                            .width(Length::Units(100))
+                                            .width(100)
                                             .push(Text::new(translator.custom_files_label())),
                                     )
                                     .push(
@@ -171,7 +171,7 @@ impl CustomGamesEditor {
                                 Row::new()
                                     .push(
                                         Column::new()
-                                            .width(Length::Units(100))
+                                            .width(100)
                                             .push(Text::new(translator.custom_registry_label())),
                                     )
                                     .push(

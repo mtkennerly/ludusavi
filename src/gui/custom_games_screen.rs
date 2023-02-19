@@ -49,7 +49,7 @@ impl CustomGamesScreenComponent {
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(Message::EditedCustomGame(EditAction::Add))
-                            .width(Length::Units(125))
+                            .width(125)
                             .style(style::Button::Primary),
                         )
                         .push({
@@ -66,7 +66,7 @@ impl CustomGamesScreenComponent {
                             } else {
                                 Message::SelectAllGames
                             })
-                            .width(Length::Units(125))
+                            .width(125)
                             .style(style::Button::Primary)
                         }),
                 )

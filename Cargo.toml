@@ -21,9 +21,9 @@ flexi_logger = { version = "0.23.1", features = ["async"] }
 fluent = "0.16.0"
 fuzzy-matcher = "0.3.7"
 globetter = "0.1.1"
-iced = { version = "0.7.0", features = ["default_system_font", "glow", "tokio"] }
-iced_native = { version = "0.8.0" }
-iced_style = "0.6.0"
+iced = { version = "0.8.0", features = ["default_system_font", "glow", "tokio"] }
+iced_native = { version = "0.9.1" }
+iced_style = "0.7.0"
 image = { version = "0.24.2", features = ["ico"], default-features = false }
 indicatif = { version = "0.16.2", features = ["rayon"] }
 intl-memoizer = "0.5.1"

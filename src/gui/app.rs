@@ -1546,7 +1546,7 @@ impl Application for App {
             )
             .push_if(
                 || self.progress.max > 1.0,
-                || ProgressBar::new(0.0..=self.progress.max, self.progress.current).height(Length::Units(5)),
+                || ProgressBar::new(0.0..=self.progress.max, self.progress.current).height(5),
             );
 
         Container::new(content).style(style::Container::Primary).into()

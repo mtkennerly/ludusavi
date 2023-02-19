@@ -65,7 +65,7 @@ impl RestoreScreenComponent {
                                 Some(OngoingOperation::PreviewRestore) => Some(Message::CancelOperation),
                                 _ => None,
                             })
-                            .width(Length::Units(125))
+                            .width(125)
                             .style(match operation {
                                 Some(OngoingOperation::PreviewRestore | OngoingOperation::CancelPreviewRestore) => {
                                     style::Button::Negative
@@ -87,7 +87,7 @@ impl RestoreScreenComponent {
                                 Some(OngoingOperation::Restore) => Some(Message::CancelOperation),
                                 _ => None,
                             })
-                            .width(Length::Units(125))
+                            .width(125)
                             .style(match operation {
                                 Some(OngoingOperation::Restore | OngoingOperation::CancelRestore) => {
                                     style::Button::Negative
@@ -110,7 +110,7 @@ impl RestoreScreenComponent {
                             } else {
                                 Message::SelectAllGames
                             })
-                            .width(Length::Units(125))
+                            .width(125)
                             .style(style::Button::Primary)
                         })
                         .push(

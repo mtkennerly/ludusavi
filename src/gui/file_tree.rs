@@ -107,14 +107,8 @@ impl FileTreeNode {
             return Container::new(
                 Row::new()
                     .padding([0, 0, 0, 35 * level])
-                    .push(
-                        Icon::SubdirectoryArrowRight
-                            .as_text()
-                            .height(Length::Units(25))
-                            .width(Length::Units(25))
-                            .size(25),
-                    )
-                    .push(Space::new(Length::Units(10), Length::Shrink))
+                    .push(Icon::SubdirectoryArrowRight.as_text().height(25).width(25).size(25))
+                    .push(Space::new(10, Length::Shrink))
                     .push_some(make_enabler)
                     .push(Text::new(label))
                     .push_some(|| {
@@ -176,7 +170,7 @@ impl FileTreeNode {
                                     Icon::KeyboardArrowRight
                                 })
                                 .into_text()
-                                .width(Length::Units(15))
+                                .width(15)
                                 .size(15),
                             )
                             .on_press(Message::ToggleGameListEntryTreeExpanded {
@@ -184,20 +178,20 @@ impl FileTreeNode {
                                 keys: self.keys.clone(),
                             })
                             .style(style::Button::Primary)
-                            .height(Length::Units(25))
-                            .width(Length::Units(25)),
+                            .height(25)
+                            .width(25),
                         )
-                        .push(Space::new(Length::Units(10), Length::Shrink))
+                        .push(Space::new(10, Length::Shrink))
                         .push_some(make_enabler)
                         .push(Text::new(label))
-                        .push(Space::new(Length::Units(10), Length::Shrink))
+                        .push(Space::new(10, Length::Shrink))
                         .push_some(|| {
                             if let Some(FileTreeNodePath::File(path)) = &self.path {
                                 return Some(
                                     Button::new(Icon::OpenInNew.as_text().width(Length::Shrink).size(15))
                                         .on_press(Message::OpenDir { path: path.clone() })
                                         .style(style::Button::Primary)
-                                        .height(Length::Units(25)),
+                                        .height(25),
                                 );
                             }
                             None

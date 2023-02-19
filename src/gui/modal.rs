@@ -83,7 +83,7 @@ impl ModalComponent {
             })
             .horizontal_alignment(HorizontalAlignment::Center),
         )
-        .width(Length::Units(125))
+        .width(125)
         .style(style::Button::Primary);
 
         if let Some(message) = theme.message() {
@@ -93,7 +93,7 @@ impl ModalComponent {
         let negative_button =
             Button::new(Text::new(translator.cancel_button()).horizontal_alignment(HorizontalAlignment::Center))
                 .on_press(Message::CloseModal)
-                .width(Length::Units(125))
+                .width(125)
                 .style(style::Button::Negative);
 
         Container::new(

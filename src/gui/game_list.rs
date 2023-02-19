@@ -140,16 +140,13 @@ impl GameListEntry {
                             || !successful,
                             || Badge::new(&translator.badge_failed()).left_margin(15).view(),
                         )
-                        .push(Space::new(
-                            Length::Units(if restoring { 0 } else { 15 }),
-                            Length::Shrink,
-                        ))
+                        .push(Space::new(if restoring { 0 } else { 15 }, Length::Shrink))
                         .push_some(|| {
                             if self.scan_info.available_backups.len() == 1 {
                                 self.scan_info.backup.as_ref().map(|backup| {
                                     Container::new(Text::new(backup.label()).size(18))
                                         .padding([2, 0, 0, 15])
-                                        .width(Length::Units(185))
+                                        .width(185)
                                         .align_x(HorizontalAlignment::Center)
                                 })
                             } else if !self.scan_info.available_backups.is_empty() {
@@ -158,7 +155,7 @@ impl GameListEntry {
                                         Container::new(
                                             Container::new(Text::new(backup.label()).size(15))
                                                 .padding(2)
-                                                .width(Length::Units(160))
+                                                .width(160)
                                                 .align_x(HorizontalAlignment::Center)
                                                 .style(style::Container::DisabledBackup),
                                         )
@@ -179,7 +176,7 @@ impl GameListEntry {
                                     .text_size(15)
                                     .style(style::PickList::Backup),
                                 )
-                                .width(Length::Units(185))
+                                .width(185)
                                 .padding([0, 0, 0, 15])
                                 .align_x(HorizontalAlignment::Center);
                                 Some(content)
@@ -205,7 +202,7 @@ impl GameListEntry {
                                 None
                             };
                             if let Some(action) = action {
-                                let button = Button::new(action.icon().into_text().width(Length::Units(45)))
+                                let button = Button::new(action.icon().into_text().width(45))
                                     .on_press_if(
                                         || !operating,
                                         || Message::GameAction {
@@ -244,7 +241,7 @@ impl GameListEntry {
                                     translator.adjusted_size(summed)
                                 }
                             }))
-                            .width(Length::Units(115))
+                            .width(115)
                             .center_x(),
                         ),
                 )

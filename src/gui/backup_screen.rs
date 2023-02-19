@@ -81,7 +81,7 @@ impl BackupScreenComponent {
                                 Some(OngoingOperation::PreviewBackup) => Some(Message::CancelOperation),
                                 _ => None,
                             })
-                            .width(Length::Units(125))
+                            .width(125)
                             .style(match operation {
                                 Some(OngoingOperation::PreviewBackup | OngoingOperation::CancelPreviewBackup) => {
                                     style::Button::Negative
@@ -103,7 +103,7 @@ impl BackupScreenComponent {
                                 Some(OngoingOperation::Backup) => Some(Message::CancelOperation),
                                 _ => None,
                             })
-                            .width(Length::Units(125))
+                            .width(125)
                             .style(match operation {
                                 Some(OngoingOperation::Backup | OngoingOperation::CancelBackup) => {
                                     style::Button::Negative
@@ -117,7 +117,7 @@ impl BackupScreenComponent {
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(Message::EditedRoot(EditAction::Add))
-                            .width(Length::Units(125))
+                            .width(125)
                             .style(style::Button::Primary),
                         )
                         .push(
@@ -126,7 +126,7 @@ impl BackupScreenComponent {
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press(Message::FindRoots)
-                            .width(Length::Units(125))
+                            .width(125)
                             .style(style::Button::Primary),
                         )
                         .push({
@@ -144,7 +144,7 @@ impl BackupScreenComponent {
                             } else {
                                 Message::SelectAllGames
                             })
-                            .width(Length::Units(125))
+                            .width(125)
                             .style(style::Button::Primary)
                         })
                         .push(
@@ -195,7 +195,7 @@ impl BackupScreenComponent {
                         Row::new()
                             .padding([0, 20, 0, 20])
                             .spacing(20)
-                            .height(Length::Units(30))
+                            .height(30)
                             .align_items(Alignment::Center)
                             .push(
                                 Checkbox::new(

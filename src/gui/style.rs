@@ -352,7 +352,7 @@ impl checkbox::StyleSheet for Theme {
     fn active(&self, _style: &Self::Style, _is_checked: bool) -> checkbox::Appearance {
         checkbox::Appearance {
             background: self.field.alpha(0.6).into(),
-            checkmark_color: self.text,
+            icon_color: self.text,
             border_radius: 5.0,
             border_width: 1.0,
             border_color: self.text.alpha(0.6),
