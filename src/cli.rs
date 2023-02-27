@@ -24,6 +24,8 @@ use rayon::{
     prelude::IndexedParallelIterator,
 };
 
+use self::parse::ManifestSubcommand;
+
 #[derive(Clone, Debug, Default)]
 struct GameSubjects {
     valid: Vec<String>,
@@ -549,6 +551,18 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             }
 
             reporter.print(&restore_dir);
+        }
+        Subcommand::Manifest { sub: manifest_sub } => {
+            if let Some(ManifestSubcommand::Show { api }) = manifest_sub {
+                let mut manifest = Manifest::load().unwrap_or_default();
+                manifest.load_custom_games(&config);
+
+                if api {
+                    println!("{}", serde_json::to_string(&manifest).unwrap());
+                } else {
+                    println!("{}", serde_yaml::to_string(&manifest).unwrap());
+                }
+            }
         }
     }
 

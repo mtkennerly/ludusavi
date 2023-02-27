@@ -289,6 +289,11 @@ pub enum Subcommand {
         #[clap()]
         names: Vec<String>,
     },
+    /// Options for Ludusavi's data set.
+    Manifest {
+        #[clap(subcommand)]
+        sub: Option<ManifestSubcommand>,
+    },
 }
 
 impl Subcommand {
@@ -298,9 +303,23 @@ impl Subcommand {
             Self::Restore { api, .. } => *api,
             Self::Backups { api, .. } => *api,
             Self::Find { api, .. } => *api,
+            Self::Manifest {
+                sub: Some(ManifestSubcommand::Show { api }),
+            } => *api,
+            Self::Manifest { .. } => false,
             Self::Complete { .. } => false,
         }
     }
+}
+
+#[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
+pub enum ManifestSubcommand {
+    /// Print the content of the manifest, including any custom entries.
+    Show {
+        /// Print information to stdout in machine-readable JSON.
+        #[clap(long)]
+        api: bool,
+    },
 }
 
 #[derive(clap::Parser, Clone, Debug, PartialEq, Eq)]

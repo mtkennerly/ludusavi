@@ -12,6 +12,17 @@ where
     ordered.serialize(serializer)
 }
 
+pub fn ordered_map_maybe<S, V>(value: &Option<HashMap<String, V>>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    V: Serialize,
+    S: Serializer,
+{
+    match value {
+        Some(value) => ordered_map(value, serializer),
+        None => Option::<HashMap<String, V>>::None.serialize(serializer),
+    }
+}
+
 pub fn ordered_set<S>(value: &HashSet<String>, serializer: S) -> Result<S::Ok, S::Error>
 where
     S: Serializer,

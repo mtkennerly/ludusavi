@@ -82,13 +82,16 @@ pub enum Tag {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Manifest(pub std::collections::HashMap<String, Game>);
+pub struct Manifest(
+    #[serde(serialize_with = "crate::serialization::ordered_map")] pub std::collections::HashMap<String, Game>,
+);
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Game {
     pub files: Option<std::collections::HashMap<String, GameFileEntry>>,
-    #[serde(rename = "installDir")]
+    #[serde(rename = "installDir", serialize_with = "crate::serialization::ordered_map_maybe")]
     pub install_dir: Option<std::collections::HashMap<String, GameInstallDirEntry>>,
+    #[serde(serialize_with = "crate::serialization::ordered_map_maybe")]
     pub registry: Option<std::collections::HashMap<String, GameRegistryEntry>>,
     pub steam: Option<SteamMetadata>,
     pub gog: Option<GogMetadata>,
@@ -268,6 +271,15 @@ impl Manifest {
             game.install_dir = existing.install_dir.clone();
         }
         self.0.insert(name, game);
+    }
+
+    pub fn load_custom_games(&mut self, config: &Config) {
+        for custom_game in &config.custom_games {
+            if custom_game.ignore {
+                continue;
+            }
+            self.add_custom_game(custom_game.clone());
+        }
     }
 
     pub fn modified() -> Option<chrono::DateTime<chrono::Utc>> {
