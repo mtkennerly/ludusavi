@@ -962,10 +962,11 @@ pub fn scan_game_for_backup(
     // handle what was found for heroic
     for root in roots {
         if let Some(wp) = heroic_games.get_prefix(root, name) {
+            let with_pfx = wp.joined("pfx");
             scan_game_for_backup_add_prefix(
                 &mut roots_to_check,
                 &mut paths_to_check,
-                wp,
+                if with_pfx.exists() { &with_pfx } else { wp },
                 &manifest_dir_interpreted,
                 game.registry.is_some(),
             );

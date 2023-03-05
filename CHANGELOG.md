@@ -5,6 +5,7 @@
   * Updated translations, including new/partial translations for Dutch (35%) and French (6%).
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:
+  * Heroic Wine/Proton prefixes containing a `pfx` subfolder were not detected.
   * Along with any explicit `installDir` entries in the manifest,
     Ludusavi tries to find each game's install directory based on that game's title.
     However, if that title was not valid as a folder name, then Ludusavi would never find it.
