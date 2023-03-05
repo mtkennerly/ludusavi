@@ -39,7 +39,6 @@ impl OtherScreenComponent {
         Container::new(
             Column::new()
                 .spacing(20)
-                .padding([0, 15, 5, 15])
                 .align_items(iced::Alignment::Center)
                 .push_if(
                     || *crate::prelude::STEAM_DECK,
@@ -62,6 +61,7 @@ impl OtherScreenComponent {
                 .push({
                     let content = Column::new()
                         .spacing(20)
+                        .padding([0, 15, 5, 15])
                         .width(Length::Fill)
                         .push(
                             Row::new()
