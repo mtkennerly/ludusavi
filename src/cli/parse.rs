@@ -157,7 +157,7 @@ pub enum Subcommand {
         /// Compression level to use for new zip backups.
         /// When not specified, this defers to the config file.
         /// Valid ranges: 1 to 9 for deflate/bzip2, -7 to 22 for zstd.
-        #[clap(long)]
+        #[clap(long, allow_hyphen_values(true))]
         compression_level: Option<i32>,
 
         /// Maximum number of full backups to retain per game.
@@ -587,6 +587,35 @@ mod tests {
                 },
             );
         }
+    }
+
+    #[test]
+    fn accepts_cli_backup_with_negative_compression_level() {
+        check_args(
+            &["ludusavi", "backup", "--compression-level", "-7"],
+            Cli {
+                config: None,
+                sub: Some(Subcommand::Backup {
+                    preview: false,
+                    path: None,
+                    force: false,
+                    merge: false,
+                    no_merge: false,
+                    update: false,
+                    try_update: false,
+                    by_steam_id: false,
+                    wine_prefix: None,
+                    api: false,
+                    sort: None,
+                    format: None,
+                    compression: None,
+                    compression_level: Some(-7),
+                    full_limit: None,
+                    differential_limit: None,
+                    games: vec![],
+                }),
+            },
+        );
     }
 
     #[test]
