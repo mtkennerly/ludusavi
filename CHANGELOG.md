@@ -2,6 +2,7 @@
 
 * Added:
   * CLI: `manifest show` command.
+  * CLI: `--compression-level` option for the `backup` command.
   * Updated translations, including new/partial translations for Dutch (35%) and French (6%).
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:

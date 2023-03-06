@@ -154,6 +154,12 @@ pub enum Subcommand {
         #[clap(long, possible_values = ZipCompression::ALL_NAMES)]
         compression: Option<ZipCompression>,
 
+        /// Compression level to use for new zip backups.
+        /// When not specified, this defers to the config file.
+        /// Valid ranges: 1 to 9 for deflate/bzip2, -7 to 22 for zstd.
+        #[clap(long)]
+        compression_level: Option<i32>,
+
         /// Maximum number of full backups to retain per game.
         /// Must be between 1 and 255 (inclusive).
         /// When not specified, this defers to the config file.
@@ -385,6 +391,7 @@ mod tests {
                     sort: None,
                     format: None,
                     compression: None,
+                    compression_level: None,
                     full_limit: None,
                     differential_limit: None,
                     games: vec![],
@@ -415,6 +422,8 @@ mod tests {
                 "zip",
                 "--compression",
                 "bzip2",
+                "--compression-level",
+                "5",
                 "--full-limit",
                 "1",
                 "--differential-limit",
@@ -438,6 +447,7 @@ mod tests {
                     sort: Some(CliSort::Name),
                     format: Some(BackupFormat::Zip),
                     compression: Some(ZipCompression::Bzip2),
+                    compression_level: Some(5),
                     full_limit: Some(1),
                     differential_limit: Some(2),
                     games: vec![s("game1"), s("game2")],
@@ -466,6 +476,7 @@ mod tests {
                     sort: None,
                     format: None,
                     compression: None,
+                    compression_level: None,
                     full_limit: None,
                     differential_limit: None,
                     games: vec![],
@@ -494,6 +505,7 @@ mod tests {
                     sort: None,
                     format: None,
                     compression: None,
+                    compression_level: None,
                     full_limit: None,
                     differential_limit: None,
                     games: vec![],
@@ -522,6 +534,7 @@ mod tests {
                     sort: None,
                     format: None,
                     compression: None,
+                    compression_level: None,
                     full_limit: None,
                     differential_limit: None,
                     games: vec![],
@@ -566,6 +579,7 @@ mod tests {
                         sort: Some(sort),
                         format: None,
                         compression: None,
+                        compression_level: None,
                         full_limit: None,
                         differential_limit: None,
                         games: vec![],

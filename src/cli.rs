@@ -104,6 +104,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             sort,
             format,
             compression,
+            compression_level,
             full_limit,
             differential_limit,
             games,
@@ -235,6 +236,11 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                         }
                         if let Some(compression) = compression {
                             backup_format.zip.compression = compression;
+                        }
+                        if let Some(level) = compression_level {
+                            backup_format
+                                .compression
+                                .set_level(&backup_format.zip.compression, level);
                         }
 
                         back_up_game(

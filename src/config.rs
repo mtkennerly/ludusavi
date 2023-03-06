@@ -322,6 +322,23 @@ pub struct Compression {
     zstd: ZstdCompression,
 }
 
+impl Compression {
+    pub fn set_level(&mut self, method: &ZipCompression, level: i32) {
+        match method {
+            ZipCompression::None => {}
+            ZipCompression::Deflate => {
+                self.deflate.level = level.clamp(*DeflateCompression::RANGE.start(), *DeflateCompression::RANGE.end());
+            }
+            ZipCompression::Bzip2 => {
+                self.bzip2.level = level.clamp(*Bzip2Compression::RANGE.start(), *Bzip2Compression::RANGE.end());
+            }
+            ZipCompression::Zstd => {
+                self.zstd.level = level.clamp(*ZstdCompression::RANGE.start(), *ZstdCompression::RANGE.end());
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub struct DeflateCompression {
     level: i32,
