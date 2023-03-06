@@ -3,12 +3,11 @@ use crate::{
     config::{BackupFormat, Config, ZipCompression},
     gui::{
         common::{
-            make_status_row, BrowseSubject, EditAction, IcedButtonExt, IcedExtension, Message, OngoingOperation,
-            Screen, UndoSubject,
+            make_status_row, BrowseSubject, IcedButtonExt, IcedExtension, Message, OngoingOperation, Screen,
+            UndoSubject,
         },
         game_list::GameList,
         icon::Icon,
-        root_editor::{RootEditor, RootEditorRow},
         style,
     },
     lang::Translator,
@@ -24,7 +23,6 @@ use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
 pub struct BackupScreenComponent {
     pub log: GameList,
     pub backup_target_history: TextHistory,
-    pub root_editor: RootEditor,
     pub previewed_games: std::collections::HashSet<String>,
     pub duplicate_detector: DuplicateDetector,
     full_retention_input: crate::gui::number_input::NumberInput,
@@ -35,14 +33,8 @@ pub struct BackupScreenComponent {
 
 impl BackupScreenComponent {
     pub fn new(config: &Config, cache: &Cache) -> Self {
-        let mut root_editor = RootEditor::default();
-        for root in &config.roots {
-            root_editor.rows.push(RootEditorRow::new(&root.path.raw()))
-        }
-
         Self {
             log: GameList::with_recent_games(false, config, cache),
-            root_editor,
             backup_target_history: TextHistory::new(&config.backup.path.raw(), 100),
             ..Default::default()
         }
@@ -110,24 +102,6 @@ impl BackupScreenComponent {
                                 }
                                 _ => style::Button::Primary,
                             }),
-                        )
-                        .push(
-                            Button::new(
-                                Text::new(translator.add_root_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::EditedRoot(EditAction::Add))
-                            .width(125)
-                            .style(style::Button::Primary),
-                        )
-                        .push(
-                            Button::new(
-                                Text::new(translator.find_roots_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::FindRoots)
-                            .width(125)
-                            .style(style::Button::Primary),
                         )
                         .push({
                             let restoring = false;
@@ -278,7 +252,6 @@ impl BackupScreenComponent {
                             })
                     },
                 )
-                .push(self.root_editor.view(config, translator))
                 .push(
                     self.log
                         .view(false, translator, config, manifest, &self.duplicate_detector, operation),

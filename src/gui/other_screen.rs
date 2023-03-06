@@ -6,6 +6,7 @@ use crate::{
         icon::Icon,
         ignored_items_editor::IgnoredItemsEditor,
         redirect_editor::{RedirectEditor, RedirectEditorRow},
+        root_editor::{RootEditor, RootEditorRow},
         style,
     },
     lang::{Language, Translator},
@@ -17,11 +18,17 @@ use iced::Length;
 #[derive(Default)]
 pub struct OtherScreenComponent {
     pub ignored_items_editor: IgnoredItemsEditor,
+    pub root_editor: RootEditor,
     pub redirect_editor: RedirectEditor,
 }
 
 impl OtherScreenComponent {
     pub fn new(config: &Config) -> Self {
+        let mut root_editor = RootEditor::default();
+        for root in &config.roots {
+            root_editor.rows.push(RootEditorRow::new(&root.path.raw()))
+        }
+
         let mut redirect_editor = RedirectEditor::default();
         for redirect in &config.get_redirects() {
             redirect_editor
@@ -31,6 +38,7 @@ impl OtherScreenComponent {
 
         Self {
             ignored_items_editor: IgnoredItemsEditor::new(config),
+            root_editor,
             redirect_editor,
         }
     }
@@ -145,6 +153,17 @@ impl OtherScreenComponent {
                                         .style(style::Container::GameListEntry),
                                     )
                                 }),
+                        )
+                        .push(
+                            Column::new().spacing(5).push(Text::new(translator.roots_label())).push(
+                                Container::new(
+                                    Column::new()
+                                        .padding(5)
+                                        .spacing(4)
+                                        .push(self.root_editor.view(config, translator)),
+                                )
+                                .style(style::Container::GameListEntry),
+                            ),
                         )
                         .push(
                             Column::new().push(Text::new(translator.ignored_items_label())).push(

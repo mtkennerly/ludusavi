@@ -24,13 +24,8 @@ pub mod id {
     use once_cell::sync::Lazy;
 
     pub static CUSTOM_GAMES: Lazy<iced::widget::scrollable::Id> = Lazy::new(iced::widget::scrollable::Id::unique);
-    pub static ROOTS: Lazy<iced::widget::scrollable::Id> = Lazy::new(iced::widget::scrollable::Id::unique);
 
     pub fn custom_games() -> iced::widget::scrollable::Id {
         (*CUSTOM_GAMES).clone()
-    }
-
-    pub fn roots() -> iced::widget::scrollable::Id {
-        (*ROOTS).clone()
     }
 }

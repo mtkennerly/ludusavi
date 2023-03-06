@@ -81,6 +81,7 @@ field-redirect-source =
     .placeholder = Source (original location)
 field-redirect-target =
     .placeholder = Target (new location)
+field-roots = Roots:
 field-backup-excluded-items = Backup exclusions:
 field-redirects = Redirects:
 # This appears next to the number of full backups that you'd like to keep.

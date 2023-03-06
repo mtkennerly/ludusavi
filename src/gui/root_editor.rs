@@ -10,8 +10,8 @@ use crate::{
     shortcuts::TextHistory,
 };
 
-use crate::gui::widget::{Button, Column, Container, PickList, Row, Scrollable, Text, TextInput, Undoable};
-use iced::Length;
+use crate::gui::widget::{Button, Column, Container, PickList, Row, Text, TextInput, Undoable};
+use iced::{alignment::Horizontal as HorizontalAlignment, Length};
 
 #[derive(Default)]
 pub struct RootEditorRow {
@@ -33,53 +33,65 @@ pub struct RootEditor {
 
 impl RootEditor {
     pub fn view(&self, config: &Config, translator: &Translator) -> Container {
+        let mut content = Column::new().width(Length::Fill).spacing(5);
         let roots = config.roots.clone();
         if roots.is_empty() {
-            Container::new(Text::new(translator.no_roots_are_configured()))
+            content = content.push(Text::new(translator.no_roots_are_configured()));
         } else {
-            Container::new({
-                let content = self.rows.iter().enumerate().fold(
-                    Column::new().width(Length::Fill).spacing(5),
-                    |parent, (i, _)| {
-                        parent.push(
-                            Row::new()
-                                .padding([0, 20, 0, 20])
-                                .spacing(20)
-                                .push(
-                                    Button::new(Icon::RemoveCircle.as_text())
-                                        .on_press(Message::EditedRoot(EditAction::Remove(i)))
-                                        .style(style::Button::Negative),
-                                )
-                                .push(Undoable::new(
-                                    TextInput::new("", &roots[i].path.raw(), move |v| {
-                                        Message::EditedRoot(EditAction::Change(i, v))
-                                    })
-                                    .style(style::TextInput)
-                                    .width(Length::FillPortion(3))
-                                    .padding(5),
-                                    move |action| Message::UndoRedo(action, UndoSubject::Root(i)),
-                                ))
-                                .push(
-                                    PickList::new(Store::ALL, Some(roots[i].store), move |v| {
-                                        Message::SelectedRootStore(i, v)
-                                    })
-                                    .style(style::PickList::Primary),
-                                )
-                                .push(
-                                    Button::new(Icon::FolderOpen.as_text())
-                                        .on_press(Message::BrowseDir(BrowseSubject::Root(i)))
-                                        .style(style::Button::Primary),
-                                ),
+            content = self.rows.iter().enumerate().fold(content, |parent, (i, _)| {
+                parent.push(
+                    Row::new()
+                        .spacing(20)
+                        .push(
+                            Button::new(Icon::RemoveCircle.as_text())
+                                .on_press(Message::EditedRoot(EditAction::Remove(i)))
+                                .style(style::Button::Negative),
                         )
-                    },
-                );
-                Container::new(
-                    Scrollable::new(content)
-                        .id(crate::gui::widget::id::roots())
-                        .style(style::Scrollable),
+                        .push(Undoable::new(
+                            TextInput::new("", &roots[i].path.raw(), move |v| {
+                                Message::EditedRoot(EditAction::Change(i, v))
+                            })
+                            .style(style::TextInput)
+                            .width(Length::FillPortion(3))
+                            .padding(5),
+                            move |action| Message::UndoRedo(action, UndoSubject::Root(i)),
+                        ))
+                        .push(
+                            PickList::new(Store::ALL, Some(roots[i].store), move |v| {
+                                Message::SelectedRootStore(i, v)
+                            })
+                            .style(style::PickList::Primary),
+                        )
+                        .push(
+                            Button::new(Icon::FolderOpen.as_text())
+                                .on_press(Message::BrowseDir(BrowseSubject::Root(i)))
+                                .style(style::Button::Primary),
+                        ),
                 )
-                .max_height(100)
-            })
-        }
+            });
+        };
+
+        content = content.push(
+            Row::new()
+                .spacing(20)
+                .push(
+                    Button::new(
+                        Text::new(translator.add_root_button()).horizontal_alignment(HorizontalAlignment::Center),
+                    )
+                    .on_press(Message::EditedRoot(EditAction::Add))
+                    .width(125)
+                    .style(style::Button::Primary),
+                )
+                .push(
+                    Button::new(
+                        Text::new(translator.find_roots_button()).horizontal_alignment(HorizontalAlignment::Center),
+                    )
+                    .on_press(Message::FindRoots)
+                    .width(125)
+                    .style(style::Button::Primary),
+                ),
+        );
+
+        Container::new(content)
     }
 }

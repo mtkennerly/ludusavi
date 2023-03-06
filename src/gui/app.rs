@@ -860,7 +860,7 @@ impl Application for App {
                 for root in missing {
                     let mut row = RootEditorRow::default();
                     row.text_history.push(&root.path.render());
-                    self.backup_screen.root_editor.rows.push(row);
+                    self.other_screen.root_editor.rows.push(row);
                     self.config.roots.push(root);
                 }
                 self.config.save();
@@ -868,34 +868,25 @@ impl Application for App {
                 Command::none()
             }
             Message::EditedRoot(action) => {
-                let mut snap = false;
                 match action {
                     EditAction::Add => {
-                        self.backup_screen.root_editor.rows.push(RootEditorRow::default());
+                        self.other_screen.root_editor.rows.push(RootEditorRow::default());
                         self.config.roots.push(RootsConfig {
                             path: StrictPath::default(),
                             store: Store::Other,
                         });
-                        snap = true;
                     }
                     EditAction::Change(index, value) => {
-                        self.backup_screen.root_editor.rows[index].text_history.push(&value);
+                        self.other_screen.root_editor.rows[index].text_history.push(&value);
                         self.config.roots[index].path.reset(value);
                     }
                     EditAction::Remove(index) => {
-                        self.backup_screen.root_editor.rows.remove(index);
+                        self.other_screen.root_editor.rows.remove(index);
                         self.config.roots.remove(index);
                     }
                 }
                 self.config.save();
-                if snap {
-                    iced::widget::scrollable::snap_to(
-                        crate::gui::widget::id::roots(),
-                        iced::widget::scrollable::RelativeOffset::END,
-                    )
-                } else {
-                    Command::none()
-                }
+                Command::none()
             }
             Message::SelectedRootStore(index, store) => {
                 self.config.roots[index].store = store;
@@ -1357,7 +1348,7 @@ impl Application for App {
                     UndoSubject::Root(i) => apply_shortcut_to_strict_path_field(
                         &shortcut,
                         &mut self.config.roots[i].path,
-                        &mut self.backup_screen.root_editor.rows[i].text_history,
+                        &mut self.other_screen.root_editor.rows[i].text_history,
                     ),
                     UndoSubject::RedirectSource(i) => apply_shortcut_to_strict_path_field(
                         &shortcut,

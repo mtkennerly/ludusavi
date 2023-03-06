@@ -738,6 +738,10 @@ impl Translator {
         translate("explanation-for-exclude-store-screenshots")
     }
 
+    pub fn roots_label(&self) -> String {
+        translate("field-roots")
+    }
+
     pub fn ignored_items_label(&self) -> String {
         translate("field-backup-excluded-items")
     }
