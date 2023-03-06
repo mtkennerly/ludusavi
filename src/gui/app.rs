@@ -75,6 +75,7 @@ pub struct App {
     updating_manifest: bool,
     notify_on_single_game_scanned: Option<(String, Screen)>,
     timed_notification: Option<Notification>,
+    scroll_offsets: std::collections::HashMap<ScrollSubject, iced_native::widget::scrollable::RelativeOffset>,
 }
 
 impl App {
@@ -511,8 +512,7 @@ impl App {
         self.config.custom_games.push(game);
         self.config.save();
 
-        self.screen = Screen::CustomGames;
-        Command::none()
+        self.switch_screen(Screen::CustomGames)
     }
 
     fn open_wiki(game: String) -> Command<Message> {
@@ -522,6 +522,17 @@ impl App {
             Ok(_) => Message::Ignore,
             Err(_) => Message::OpenUrlFailure { url: url2 },
         })
+    }
+
+    fn switch_screen(&mut self, screen: Screen) -> Command<Message> {
+        self.screen = screen;
+        let subject = ScrollSubject::from(screen);
+
+        if let Some(offset) = self.scroll_offsets.get(&subject) {
+            iced::widget::scrollable::snap_to(subject.id(), *offset)
+        } else {
+            Command::none()
+        }
     }
 }
 
@@ -954,8 +965,12 @@ impl Application for App {
                 }
                 self.config.save();
                 if snap {
+                    self.scroll_offsets.insert(
+                        ScrollSubject::CustomGames,
+                        iced_native::widget::scrollable::RelativeOffset::END,
+                    );
                     iced::widget::scrollable::snap_to(
-                        crate::gui::widget::id::custom_games(),
+                        crate::gui::widget::id::custom_games_scroll(),
                         iced::widget::scrollable::RelativeOffset::END,
                     )
                 } else {
@@ -1071,10 +1086,7 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
-            Message::SwitchScreen(screen) => {
-                self.screen = screen;
-                Command::none()
-            }
+            Message::SwitchScreen(screen) => self.switch_screen(screen),
             Message::ToggleGameListEntryExpanded { name } => {
                 match self.screen {
                     Screen::Backup => {
@@ -1453,6 +1465,10 @@ impl Application for App {
                 GameAction::Customize => self.customize_game(game),
                 GameAction::Wiki => Self::open_wiki(game),
             },
+            Message::Scroll { subject, position } => {
+                self.scroll_offsets.insert(subject, position);
+                Command::none()
+            }
         }
     }
 

@@ -12,8 +12,10 @@ use crate::{
     lang::{Language, Translator},
 };
 
-use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Scrollable, Text};
+use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Text};
 use iced::Length;
+
+use super::common::ScrollSubject;
 
 #[derive(Default)]
 pub struct OtherScreenComponent {
@@ -177,7 +179,7 @@ impl OtherScreenComponent {
                                 .push(Text::new(translator.redirects_label()))
                                 .push(self.redirect_editor.view(config, translator).padding([10, 0, 0, 0])),
                         );
-                    Scrollable::new(content).style(style::Scrollable)
+                    ScrollSubject::Other.into_widget(content)
                 }),
         )
         .height(Length::Fill)

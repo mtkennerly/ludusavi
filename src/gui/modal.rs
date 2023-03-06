@@ -5,8 +5,10 @@ use crate::{
     prelude::Error,
 };
 
-use crate::gui::widget::{Button, Column, Container, Row, Scrollable, Space, Text};
+use crate::gui::widget::{Button, Column, Container, Row, Space, Text};
 use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
+
+use super::common::ScrollSubject;
 
 pub enum ModalVariant {
     Loading,
@@ -115,14 +117,12 @@ impl ModalComponent {
                                 .padding([40, 40, 0, 40])
                                 .align_items(Alignment::Center)
                                 .push(
-                                    Scrollable::new(
+                                    ScrollSubject::Modal.into_widget(
                                         Column::new()
                                             .width(Length::Fill)
                                             .align_items(Alignment::Center)
                                             .push(Text::new(theme.text(config, translator))),
-                                    )
-                                    .height(Length::Fill)
-                                    .style(style::Scrollable),
+                                    ),
                                 )
                                 .height(Length::Fill),
                         )

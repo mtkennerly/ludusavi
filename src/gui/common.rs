@@ -9,7 +9,7 @@ use crate::{
 };
 
 use crate::gui::widget::{Button, Column, Element, Row, Text};
-use iced::Alignment;
+use iced::{Alignment, Length};
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -140,6 +140,10 @@ pub enum Message {
         game: String,
     },
     UndoRedo(crate::gui::undoable::Action, UndoSubject),
+    Scroll {
+        subject: ScrollSubject,
+        position: iced_native::widget::scrollable::RelativeOffset,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -201,6 +205,60 @@ pub enum UndoSubject {
     CustomGameRegistry(usize, usize),
     BackupFilterIgnoredPath(usize),
     BackupFilterIgnoredRegistry(usize),
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub enum ScrollSubject {
+    Backup,
+    Restore,
+    CustomGames,
+    Other,
+    Modal,
+}
+
+impl ScrollSubject {
+    pub fn game_list(restoring: bool) -> Self {
+        if restoring {
+            Self::Restore
+        } else {
+            Self::Backup
+        }
+    }
+
+    pub fn id(&self) -> iced_native::widget::scrollable::Id {
+        match self {
+            Self::Backup => crate::gui::widget::id::backup_scroll(),
+            Self::Restore => crate::gui::widget::id::restore_scroll(),
+            Self::CustomGames => crate::gui::widget::id::custom_games_scroll(),
+            Self::Other => crate::gui::widget::id::other_scroll(),
+            Self::Modal => crate::gui::widget::id::modal_scroll(),
+        }
+    }
+
+    pub fn into_widget<'a>(
+        self,
+        content: impl Into<crate::gui::widget::Element<'a>>,
+    ) -> crate::gui::widget::Scrollable<'a> {
+        crate::gui::widget::Scrollable::new(content)
+            .height(Length::Fill)
+            .style(crate::gui::style::Scrollable)
+            .id(self.id())
+            .on_scroll(move |position| Message::Scroll {
+                subject: self,
+                position,
+            })
+    }
+}
+
+impl From<Screen> for ScrollSubject {
+    fn from(value: Screen) -> Self {
+        match value {
+            Screen::Backup => Self::Backup,
+            Screen::Restore => Self::Restore,
+            Screen::CustomGames => Self::CustomGames,
+            Screen::Other => Self::Other,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

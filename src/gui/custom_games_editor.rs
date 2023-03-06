@@ -9,10 +9,10 @@ use crate::{
     shortcuts::TextHistory,
 };
 
-use crate::gui::widget::{
-    Button, Checkbox, Column, Container, Row, Scrollable, Space, Text, TextInput, Tooltip, Undoable,
-};
+use crate::gui::widget::{Button, Checkbox, Column, Container, Row, Space, Text, TextInput, Tooltip, Undoable};
 use iced::{widget::tooltip, Length};
+
+use super::common::ScrollSubject;
 
 #[derive(Default)]
 pub struct CustomGamesEditorEntryRow {
@@ -225,11 +225,6 @@ impl CustomGamesEditor {
             },
         );
 
-        Container::new(
-            Scrollable::new(content)
-                .height(Length::Fill)
-                .style(style::Scrollable)
-                .id(crate::gui::widget::id::custom_games()),
-        )
+        Container::new(ScrollSubject::CustomGames.into_widget(content))
     }
 }

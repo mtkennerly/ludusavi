@@ -14,7 +14,8 @@
   * For native Linux games installed with the Heroic launcher,
     the `<storeUserId>` path placeholder is now handled in order to detect more saves.
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/issues/177))
-  * Scrollbar position on the other screen.
+  * GUI: Scrollbar position on the other screen overlapped some content.
+  * GUI: Scroll position is once again preserved when switching between screens.
 * Changed:
   * GUI: Updated to Iced 0.7.0, which comes with some improvements:
     * Text fields now have a blinking cursor.

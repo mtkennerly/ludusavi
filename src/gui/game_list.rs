@@ -15,11 +15,11 @@ use crate::{
     prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
 };
 
-use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Scrollable, Space, Text, Tooltip};
+use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Space, Text, Tooltip};
 use fuzzy_matcher::FuzzyMatcher;
 use iced::{alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, widget::tooltip, Alignment, Length};
 
-use super::common::OngoingOperation;
+use super::common::{OngoingOperation, ScrollSubject};
 
 #[derive(Default)]
 pub struct GameListEntry {
@@ -324,7 +324,7 @@ impl GameList {
                             }
                         },
                     );
-                    Scrollable::new(content).style(style::Scrollable)
+                    ScrollSubject::game_list(restoring).into_widget(content)
                 }),
         )
     }
