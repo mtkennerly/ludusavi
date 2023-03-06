@@ -476,14 +476,6 @@ impl Translator {
         translate("button-nav-other")
     }
 
-    pub fn add_root_button(&self) -> String {
-        translate("button-add-root")
-    }
-
-    pub fn find_roots_button(&self) -> String {
-        translate("button-find-roots")
-    }
-
     pub fn customize_button(&self) -> String {
         translate("button-customize")
     }

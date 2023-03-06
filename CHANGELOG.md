@@ -18,6 +18,7 @@
   * GUI: Updated to Iced 0.7.0, which comes with some improvements:
     * Text fields now have a blinking cursor.
     * Text fields now support shift+click to select text.
+  * GUI: Moved roots to the other screen.
 
 ## v0.15.2 (2022-12-22)
 

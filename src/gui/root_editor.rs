@@ -11,7 +11,7 @@ use crate::{
 };
 
 use crate::gui::widget::{Button, Column, Container, PickList, Row, Text, TextInput, Undoable};
-use iced::{alignment::Horizontal as HorizontalAlignment, Length};
+use iced::Length;
 
 #[derive(Default)]
 pub struct RootEditorRow {
@@ -42,11 +42,6 @@ impl RootEditor {
                 parent.push(
                     Row::new()
                         .spacing(20)
-                        .push(
-                            Button::new(Icon::RemoveCircle.as_text())
-                                .on_press(Message::EditedRoot(EditAction::Remove(i)))
-                                .style(style::Button::Negative),
-                        )
                         .push(Undoable::new(
                             TextInput::new("", &roots[i].path.raw(), move |v| {
                                 Message::EditedRoot(EditAction::Change(i, v))
@@ -66,6 +61,11 @@ impl RootEditor {
                             Button::new(Icon::FolderOpen.as_text())
                                 .on_press(Message::BrowseDir(BrowseSubject::Root(i)))
                                 .style(style::Button::Primary),
+                        )
+                        .push(
+                            Button::new(Icon::RemoveCircle.as_text())
+                                .on_press(Message::EditedRoot(EditAction::Remove(i)))
+                                .style(style::Button::Negative),
                         ),
                 )
             });
@@ -75,20 +75,14 @@ impl RootEditor {
             Row::new()
                 .spacing(20)
                 .push(
-                    Button::new(
-                        Text::new(translator.add_root_button()).horizontal_alignment(HorizontalAlignment::Center),
-                    )
-                    .on_press(Message::EditedRoot(EditAction::Add))
-                    .width(125)
-                    .style(style::Button::Primary),
+                    Button::new(Icon::AddCircle.as_text())
+                        .on_press(Message::EditedRoot(EditAction::Add))
+                        .style(style::Button::Primary),
                 )
                 .push(
-                    Button::new(
-                        Text::new(translator.find_roots_button()).horizontal_alignment(HorizontalAlignment::Center),
-                    )
-                    .on_press(Message::FindRoots)
-                    .width(125)
-                    .style(style::Button::Primary),
+                    Button::new(Icon::Refresh.as_text())
+                        .on_press(Message::FindRoots)
+                        .style(style::Button::Primary),
                 ),
         );
 
