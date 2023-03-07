@@ -12,6 +12,8 @@ use crate::{
 use crate::gui::widget::{Button, Column, Container, PickList, Row, TextInput, Undoable};
 use iced::Length;
 
+use super::common::IcedButtonExt;
+
 #[derive(Default)]
 pub struct RedirectEditorRow {
     pub source_text_history: TextHistory,
@@ -44,6 +46,15 @@ impl RedirectEditor {
                     parent.push(
                         Row::new()
                             .spacing(20)
+                            .push(
+                                Icon::ArrowUpward
+                                    .as_button_small()
+                                    .on_press_if(|| i > 0, || Message::EditedRedirect(EditAction::move_up(i), None)),
+                            )
+                            .push(Icon::ArrowDownward.as_button_small().on_press_if(
+                                || i < self.rows.len() - 1,
+                                || Message::EditedRedirect(EditAction::move_down(i), None),
+                            ))
                             .push(
                                 PickList::new(RedirectKind::ALL, Some(redirects[i].kind), move |v| {
                                     Message::SelectedRedirectKind(i, v)

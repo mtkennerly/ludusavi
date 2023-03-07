@@ -1,6 +1,8 @@
 use crate::gui::widget::Text;
 use iced::{alignment::Horizontal as HorizontalAlignment, Font};
 
+use super::widget::Button;
+
 pub const ICONS: Font = Font::External {
     name: "Material Icons",
     bytes: include_bytes!("../../assets/MaterialIcons-Regular.ttf"),
@@ -25,6 +27,8 @@ pub enum Icon {
     MoreVert,
     Refresh,
     FastForward,
+    ArrowUpward,
+    ArrowDownward,
 }
 
 impl Icon {
@@ -48,6 +52,8 @@ impl Icon {
             Self::MoreVert => '\u{E5D4}',
             Self::Refresh => '\u{E5D5}',
             Self::FastForward => '\u{E01F}',
+            Self::ArrowUpward => '\u{E5D8}',
+            Self::ArrowDownward => '\u{E5DB}',
         }
     }
 
@@ -63,5 +69,9 @@ impl Icon {
             .font(ICONS)
             .width(60)
             .horizontal_alignment(HorizontalAlignment::Center)
+    }
+
+    pub fn as_button_small(&self) -> Button {
+        Button::new(self.as_text().width(15).size(15))
     }
 }

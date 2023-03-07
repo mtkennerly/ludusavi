@@ -12,6 +12,8 @@ use crate::{
 use crate::gui::widget::{Button, Column, Container, Row, Text, TextInput, Undoable};
 use iced::Length;
 
+use super::common::IcedButtonExt;
+
 #[derive(Default)]
 pub struct IgnoredItemsEditorEntryRow {
     pub text_history: TextHistory,
@@ -82,6 +84,22 @@ impl IgnoredItemsEditor {
                                             column.push(
                                                 Row::new()
                                                     .spacing(20)
+                                                    .push(Icon::ArrowUpward.as_button_small().on_press_if(
+                                                        || ii > 0,
+                                                        || {
+                                                            Message::EditedBackupFilterIgnoredPath(EditAction::move_up(
+                                                                ii,
+                                                            ))
+                                                        },
+                                                    ))
+                                                    .push(Icon::ArrowDownward.as_button_small().on_press_if(
+                                                        || ii < self.entry.files.len() - 1,
+                                                        || {
+                                                            Message::EditedBackupFilterIgnoredPath(
+                                                                EditAction::move_down(ii),
+                                                            )
+                                                        },
+                                                    ))
                                                     .push(Undoable::new(
                                                         TextInput::new(
                                                             "",
@@ -140,6 +158,22 @@ impl IgnoredItemsEditor {
                                             column.push(
                                                 Row::new()
                                                     .spacing(20)
+                                                    .push(Icon::ArrowUpward.as_button_small().on_press_if(
+                                                        || ii > 0,
+                                                        || {
+                                                            Message::EditedBackupFilterIgnoredRegistry(
+                                                                EditAction::move_up(ii),
+                                                            )
+                                                        },
+                                                    ))
+                                                    .push(Icon::ArrowDownward.as_button_small().on_press_if(
+                                                        || ii < self.entry.registry.len() - 1,
+                                                        || {
+                                                            Message::EditedBackupFilterIgnoredRegistry(
+                                                                EditAction::move_down(ii),
+                                                            )
+                                                        },
+                                                    ))
                                                     .push(Undoable::new(
                                                         TextInput::new(
                                                             "",

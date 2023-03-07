@@ -10,7 +10,7 @@ use crate::{
 };
 
 use crate::gui::widget::{Button, Checkbox, Column, Container, Row, Space, Text, TextInput, Tooltip, Undoable};
-use iced::{widget::tooltip, Length};
+use iced::{widget::tooltip, Alignment, Length};
 
 use super::common::ScrollSubject;
 
@@ -65,13 +65,27 @@ impl CustomGamesEditor {
                             .push(
                                 Row::new()
                                     .spacing(20)
+                                    .align_items(iced::Alignment::Center)
                                     .push(
-                                        Column::new().width(80).push(
-                                            Checkbox::new("", config.is_custom_game_enabled(i), move |enabled| {
-                                                Message::ToggleCustomGameEnabled { index: i, enabled }
-                                            })
-                                            .style(style::Checkbox),
-                                        ),
+                                        Row::new()
+                                            .width(110)
+                                            .spacing(20)
+                                            .align_items(Alignment::Center)
+                                            .push(
+                                                Checkbox::new("", config.is_custom_game_enabled(i), move |enabled| {
+                                                    Message::ToggleCustomGameEnabled { index: i, enabled }
+                                                })
+                                                .spacing(0)
+                                                .style(style::Checkbox),
+                                            )
+                                            .push(Icon::ArrowUpward.as_button_small().on_press_if(
+                                                || i > 0,
+                                                || Message::EditedCustomGame(EditAction::move_up(i)),
+                                            ))
+                                            .push(Icon::ArrowDownward.as_button_small().on_press_if(
+                                                || i < self.entries.len() - 1,
+                                                || Message::EditedCustomGame(EditAction::move_down(i)),
+                                            )),
                                     )
                                     .push(Undoable::new(
                                         TextInput::new(
@@ -112,7 +126,7 @@ impl CustomGamesEditor {
                                 Row::new()
                                     .push(
                                         Column::new()
-                                            .width(100)
+                                            .width(130)
                                             .push(Text::new(translator.custom_files_label())),
                                     )
                                     .push(
@@ -122,7 +136,26 @@ impl CustomGamesEditor {
                                             .fold(Column::new().spacing(4), |column, (ii, _)| {
                                                 column.push(
                                                     Row::new()
+                                                        .align_items(Alignment::Center)
                                                         .spacing(20)
+                                                        .push(Icon::ArrowUpward.as_button_small().on_press_if(
+                                                            || ii > 0,
+                                                            || {
+                                                                Message::EditedCustomGameFile(
+                                                                    i,
+                                                                    EditAction::move_up(ii),
+                                                                )
+                                                            },
+                                                        ))
+                                                        .push(Icon::ArrowDownward.as_button_small().on_press_if(
+                                                            || ii < x.files.len() - 1,
+                                                            || {
+                                                                Message::EditedCustomGameFile(
+                                                                    i,
+                                                                    EditAction::move_down(ii),
+                                                                )
+                                                            },
+                                                        ))
                                                         .push(Undoable::new(
                                                             TextInput::new(
                                                                 "",
@@ -171,7 +204,7 @@ impl CustomGamesEditor {
                                 Row::new()
                                     .push(
                                         Column::new()
-                                            .width(100)
+                                            .width(130)
                                             .push(Text::new(translator.custom_registry_label())),
                                     )
                                     .push(
@@ -182,6 +215,25 @@ impl CustomGamesEditor {
                                                 column.push(
                                                     Row::new()
                                                         .spacing(20)
+                                                        .align_items(Alignment::Center)
+                                                        .push(Icon::ArrowUpward.as_button_small().on_press_if(
+                                                            || ii > 0,
+                                                            || {
+                                                                Message::EditedCustomGameRegistry(
+                                                                    i,
+                                                                    EditAction::move_up(ii),
+                                                                )
+                                                            },
+                                                        ))
+                                                        .push(Icon::ArrowDownward.as_button_small().on_press_if(
+                                                            || ii < x.registry.len() - 1,
+                                                            || {
+                                                                Message::EditedCustomGameRegistry(
+                                                                    i,
+                                                                    EditAction::move_down(ii),
+                                                                )
+                                                            },
+                                                        ))
                                                         .push(Undoable::new(
                                                             TextInput::new(
                                                                 "",

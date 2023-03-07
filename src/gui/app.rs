@@ -895,6 +895,11 @@ impl Application for App {
                         self.other_screen.root_editor.rows.remove(index);
                         self.config.roots.remove(index);
                     }
+                    EditAction::Move(index, direction) => {
+                        let offset = direction.shift(index);
+                        self.other_screen.root_editor.rows.swap(index, offset);
+                        self.config.roots.swap(index, offset);
+                    }
                 }
                 self.config.save();
                 Command::none()
@@ -937,6 +942,11 @@ impl Application for App {
                         self.other_screen.redirect_editor.rows.remove(index);
                         self.config.redirects.remove(index);
                     }
+                    EditAction::Move(index, direction) => {
+                        let offset = direction.shift(index);
+                        self.other_screen.redirect_editor.rows.swap(index, offset);
+                        self.config.redirects.swap(index, offset);
+                    }
                 }
                 self.config.save();
                 Command::none()
@@ -961,6 +971,11 @@ impl Application for App {
                     EditAction::Remove(index) => {
                         self.custom_games_screen.games_editor.entries.remove(index);
                         self.config.custom_games.remove(index);
+                    }
+                    EditAction::Move(index, direction) => {
+                        let offset = direction.shift(index);
+                        self.custom_games_screen.games_editor.entries.swap(index, offset);
+                        self.config.custom_games.swap(index, offset);
                     }
                 }
                 self.config.save();
@@ -997,6 +1012,13 @@ impl Application for App {
                             .remove(index);
                         self.config.custom_games[game_index].files.remove(index);
                     }
+                    EditAction::Move(index, direction) => {
+                        let offset = direction.shift(index);
+                        self.custom_games_screen.games_editor.entries[game_index]
+                            .files
+                            .swap(index, offset);
+                        self.config.custom_games[game_index].files.swap(index, offset);
+                    }
                 }
                 self.config.save();
                 Command::none()
@@ -1020,6 +1042,13 @@ impl Application for App {
                             .registry
                             .remove(index);
                         self.config.custom_games[game_index].registry.remove(index);
+                    }
+                    EditAction::Move(index, direction) => {
+                        let offset = direction.shift(index);
+                        self.custom_games_screen.games_editor.entries[game_index]
+                            .registry
+                            .swap(index, offset);
+                        self.config.custom_games[game_index].registry.swap(index, offset);
                     }
                 }
                 self.config.save();
@@ -1054,6 +1083,11 @@ impl Application for App {
                         self.other_screen.ignored_items_editor.entry.files.remove(index);
                         self.config.backup.filter.ignored_paths.remove(index);
                     }
+                    EditAction::Move(index, direction) => {
+                        let offset = direction.shift(index);
+                        self.other_screen.ignored_items_editor.entry.files.swap(index, offset);
+                        self.config.backup.filter.ignored_paths.swap(index, offset);
+                    }
                 }
                 self.config.save();
                 Command::none()
@@ -1081,6 +1115,15 @@ impl Application for App {
                     EditAction::Remove(index) => {
                         self.other_screen.ignored_items_editor.entry.registry.remove(index);
                         self.config.backup.filter.ignored_registry.remove(index);
+                    }
+                    EditAction::Move(index, direction) => {
+                        let offset = direction.shift(index);
+                        self.other_screen
+                            .ignored_items_editor
+                            .entry
+                            .registry
+                            .swap(index, offset);
+                        self.config.backup.filter.ignored_registry.swap(index, offset);
                     }
                 }
                 self.config.save();

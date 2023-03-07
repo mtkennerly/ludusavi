@@ -13,6 +13,8 @@ use crate::{
 use crate::gui::widget::{Button, Column, Container, PickList, Row, Text, TextInput, Undoable};
 use iced::Length;
 
+use super::common::IcedButtonExt;
+
 #[derive(Default)]
 pub struct RootEditorRow {
     pub text_history: TextHistory,
@@ -42,6 +44,15 @@ impl RootEditor {
                 parent.push(
                     Row::new()
                         .spacing(20)
+                        .push(
+                            Icon::ArrowUpward
+                                .as_button_small()
+                                .on_press_if(|| i > 0, || Message::EditedRoot(EditAction::move_up(i))),
+                        )
+                        .push(Icon::ArrowDownward.as_button_small().on_press_if(
+                            || i < self.rows.len() - 1,
+                            || Message::EditedRoot(EditAction::move_down(i)),
+                        ))
                         .push(Undoable::new(
                             TextInput::new("", &roots[i].path.raw(), move |v| {
                                 Message::EditedRoot(EditAction::Change(i, v))

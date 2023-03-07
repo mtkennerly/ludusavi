@@ -168,10 +168,36 @@ pub enum Screen {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+pub enum EditDirection {
+    Up,
+    Down,
+}
+
+impl EditDirection {
+    pub fn shift(&self, index: usize) -> usize {
+        match self {
+            Self::Up => index - 1,
+            Self::Down => index + 1,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EditAction {
     Add,
     Change(usize, String),
     Remove(usize),
+    Move(usize, EditDirection),
+}
+
+impl EditAction {
+    pub fn move_up(index: usize) -> Self {
+        Self::Move(index, EditDirection::Up)
+    }
+
+    pub fn move_down(index: usize) -> Self {
+        Self::Move(index, EditDirection::Down)
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -1,6 +1,7 @@
 ## Unreleased
 
 * Added:
+  * GUI: You can now reorder custom games, roots, redirects, and ignored paths/registry.
   * CLI: `manifest show` command.
   * CLI: `--compression-level` option for the `backup` command.
   * Updated translations, including new/partial translations for Dutch (35%) and French (6%).
