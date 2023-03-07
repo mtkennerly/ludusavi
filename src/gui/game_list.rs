@@ -15,7 +15,7 @@ use crate::{
     prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
 };
 
-use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Space, Text, Tooltip};
+use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Text, Tooltip};
 use fuzzy_matcher::FuzzyMatcher;
 use iced::{alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, widget::tooltip, Alignment, Length};
 
@@ -68,12 +68,15 @@ impl GameListEntry {
                 .align_items(Alignment::Center)
                 .push(
                     Row::new()
+                        .spacing(15)
+                        .align_items(Alignment::Center)
                         .push(
                             Checkbox::new("", enabled, move |enabled| Message::ToggleGameListEntryEnabled {
                                 name: name_for_checkbox.clone(),
                                 enabled,
                                 restoring,
                             })
+                            .spacing(0)
                             .style(style::Checkbox),
                         )
                         .push(
@@ -114,9 +117,9 @@ impl GameListEntry {
                         )
                         .push_some(|| {
                             if changes.brand_new() {
-                                Some(Badge::new_entry(translator).left_margin(15).view())
+                                Some(Badge::new_entry(translator).view())
                             } else if changes.updated() {
-                                Some(Badge::changed_entry(translator).left_margin(15).view())
+                                Some(Badge::changed_entry(translator).view())
                             } else {
                                 None
                             }
@@ -128,121 +131,120 @@ impl GameListEntry {
                                     &translator
                                         .processed_subset(self.scan_info.total_items(), self.scan_info.enabled_items()),
                                 )
-                                .left_margin(15)
                                 .view()
                             },
                         )
                         .push_if(
                             || duplicate_detector.is_game_duplicated(&self.scan_info),
-                            || Badge::new(&translator.badge_duplicates()).left_margin(15).view(),
+                            || Badge::new(&translator.badge_duplicates()).view(),
                         )
-                        .push_if(
-                            || !successful,
-                            || Badge::new(&translator.badge_failed()).left_margin(15).view(),
-                        )
-                        .push(Space::new(if restoring { 0 } else { 15 }, Length::Shrink))
-                        .push_some(|| {
-                            if self.scan_info.available_backups.len() == 1 {
-                                self.scan_info.backup.as_ref().map(|backup| {
-                                    Container::new(Text::new(backup.label()).size(18))
-                                        .padding([2, 0, 0, 15])
-                                        .width(185)
-                                        .align_x(HorizontalAlignment::Center)
-                                })
-                            } else if !self.scan_info.available_backups.is_empty() {
-                                if operating {
-                                    return self.scan_info.backup.as_ref().map(|backup| {
-                                        Container::new(
-                                            Container::new(Text::new(backup.label()).size(15))
-                                                .padding(2)
-                                                .width(160)
+                        .push_if(|| !successful, || Badge::new(&translator.badge_failed()).view())
+                        .push(
+                            Row::new()
+                                .push_some(|| {
+                                    if self.scan_info.available_backups.len() == 1 {
+                                        self.scan_info.backup.as_ref().map(|backup| {
+                                            Container::new(Text::new(backup.label()).size(18))
+                                                .padding([2, 0, 0, 0])
+                                                .width(165)
                                                 .align_x(HorizontalAlignment::Center)
-                                                .style(style::Container::DisabledBackup),
+                                        })
+                                    } else if !self.scan_info.available_backups.is_empty() {
+                                        if operating {
+                                            return self.scan_info.backup.as_ref().map(|backup| {
+                                                Container::new(
+                                                    Container::new(Text::new(backup.label()).size(15))
+                                                        .padding(2)
+                                                        .width(165)
+                                                        .align_x(HorizontalAlignment::Center)
+                                                        .style(style::Container::DisabledBackup),
+                                                )
+                                                .padding([2, 0, 0, 0])
+                                            });
+                                        }
+
+                                        let game = self.scan_info.game_name.clone();
+                                        let content = Container::new(
+                                            PickList::new(
+                                                &self.scan_info.available_backups,
+                                                self.scan_info.backup.as_ref().cloned(),
+                                                move |backup| Message::SelectedBackupToRestore {
+                                                    game: game.clone(),
+                                                    backup,
+                                                },
+                                            )
+                                            .text_size(15)
+                                            .style(style::PickList::Backup),
                                         )
-                                        .padding([2, 0, 0, 15])
-                                    });
-                                }
-
-                                let game = self.scan_info.game_name.clone();
-                                let content = Container::new(
-                                    PickList::new(
-                                        &self.scan_info.available_backups,
-                                        self.scan_info.backup.as_ref().cloned(),
-                                        move |backup| Message::SelectedBackupToRestore {
-                                            game: game.clone(),
-                                            backup,
-                                        },
-                                    )
-                                    .text_size(15)
-                                    .style(style::PickList::Backup),
-                                )
-                                .width(185)
-                                .padding([0, 0, 0, 15])
-                                .align_x(HorizontalAlignment::Center);
-                                Some(content)
-                            } else {
-                                None
-                            }
-                        })
-                        .push({
-                            let confirm = !modifiers.alt();
-                            let action = if modifiers.shift() {
-                                Some(if restoring {
-                                    GameAction::PreviewRestore
-                                } else {
-                                    GameAction::PreviewBackup
-                                })
-                            } else if modifiers.command() {
-                                Some(if restoring {
-                                    GameAction::Restore { confirm }
-                                } else {
-                                    GameAction::Backup { confirm }
-                                })
-                            } else {
-                                None
-                            };
-                            if let Some(action) = action {
-                                let button = Button::new(action.icon().into_text().width(45))
-                                    .on_press_if(
-                                        || !operating,
-                                        || Message::GameAction {
-                                            action,
-                                            game: self.scan_info.game_name.clone(),
-                                        },
-                                    )
-                                    .style(style::Button::GameActionPrimary)
-                                    .padding(2);
-                                Container::new(
-                                    Tooltip::new(button, action.to_string(), tooltip::Position::Top)
-                                        .size(16)
-                                        .gap(5)
-                                        .style(style::Container::Tooltip),
-                                )
-                            } else {
-                                let options = GameAction::options(restoring, operating, customized, customized_pure);
-                                let game_name = self.scan_info.game_name.clone();
-
-                                let menu = crate::gui::popup_menu::PopupMenu::new(options, move |action| {
-                                    Message::GameAction {
-                                        action,
-                                        game: game_name.clone(),
+                                        .width(165)
+                                        .padding([0, 0, 0, 0])
+                                        .align_x(HorizontalAlignment::Center);
+                                        Some(content)
+                                    } else {
+                                        None
                                     }
                                 })
-                                .style(style::PickList::Popup);
-                                Container::new(menu)
-                            }
-                        })
-                        .push(
-                            Container::new(Text::new({
-                                let summed = self.scan_info.sum_bytes(&self.backup_info);
-                                if summed == 0 && !self.scan_info.found_anything() {
-                                    "".to_string()
-                                } else {
-                                    translator.adjusted_size(summed)
-                                }
-                            }))
-                            .width(115)
-                            .center_x(),
+                                .push({
+                                    let confirm = !modifiers.alt();
+                                    let action = if modifiers.shift() {
+                                        Some(if restoring {
+                                            GameAction::PreviewRestore
+                                        } else {
+                                            GameAction::PreviewBackup
+                                        })
+                                    } else if modifiers.command() {
+                                        Some(if restoring {
+                                            GameAction::Restore { confirm }
+                                        } else {
+                                            GameAction::Backup { confirm }
+                                        })
+                                    } else {
+                                        None
+                                    };
+                                    if let Some(action) = action {
+                                        let button = Button::new(action.icon().into_text().width(45))
+                                            .on_press_if(
+                                                || !operating,
+                                                || Message::GameAction {
+                                                    action,
+                                                    game: self.scan_info.game_name.clone(),
+                                                },
+                                            )
+                                            .style(style::Button::GameActionPrimary)
+                                            .padding(2);
+                                        Container::new(
+                                            Tooltip::new(button, action.to_string(), tooltip::Position::Top)
+                                                .size(16)
+                                                .gap(5)
+                                                .style(style::Container::Tooltip),
+                                        )
+                                    } else {
+                                        let options =
+                                            GameAction::options(restoring, operating, customized, customized_pure);
+                                        let game_name = self.scan_info.game_name.clone();
+
+                                        let menu = crate::gui::popup_menu::PopupMenu::new(options, move |action| {
+                                            Message::GameAction {
+                                                action,
+                                                game: game_name.clone(),
+                                            }
+                                        })
+                                        .style(style::PickList::Popup);
+                                        Container::new(menu)
+                                    }
+                                })
+                                .push(
+                                    Container::new(Text::new({
+                                        let summed = self.scan_info.sum_bytes(&self.backup_info);
+                                        if summed == 0 && !self.scan_info.found_anything() {
+                                            "".to_string()
+                                        } else {
+                                            translator.adjusted_size(summed)
+                                        }
+                                    }))
+                                    .width(115)
+                                    .center_x(),
+                                ),
                         ),
                 )
                 .push_if(

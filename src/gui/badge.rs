@@ -62,11 +62,6 @@ impl Badge {
         }
     }
 
-    pub fn left_margin(mut self, margin: u16) -> Self {
-        self.left_margin = margin;
-        self
-    }
-
     pub fn view(self) -> Container<'static> {
         Container::new({
             let content = Container::new(Text::new(self.text).size(14))

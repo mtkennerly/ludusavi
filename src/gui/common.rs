@@ -404,28 +404,21 @@ pub fn make_status_row<'a>(translator: &Translator, status: &OperationStatus, fo
     Row::new()
         .padding([0, 20, 0, 20])
         .align_items(Alignment::Center)
+        .spacing(15)
         .push(Text::new(translator.processed_games(status)).size(35))
         .push_if(
             || status.changed_games.new > 0,
-            || {
-                Badge::new_entry_with_count(translator, status.changed_games.new)
-                    .left_margin(15)
-                    .view()
-            },
+            || Badge::new_entry_with_count(translator, status.changed_games.new).view(),
         )
         .push_if(
             || status.changed_games.different > 0,
-            || {
-                Badge::changed_entry_with_count(translator, status.changed_games.different)
-                    .left_margin(15)
-                    .view()
-            },
+            || Badge::changed_entry_with_count(translator, status.changed_games.different).view(),
         )
-        .push(Text::new("  |  ").size(35))
+        .push(Text::new("|").size(35))
         .push(Text::new(translator.processed_bytes(status)).size(35))
         .push_if(
             || found_any_duplicates,
-            || Badge::new(&translator.badge_duplicates()).left_margin(15).view(),
+            || Badge::new(&translator.badge_duplicates()).view(),
         )
 }
 

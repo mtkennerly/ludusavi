@@ -5,7 +5,7 @@ use crate::{
         common::{IcedExtension, Message},
         icon::Icon,
         style,
-        widget::{Button, Checkbox, Column, Container, Row, Space, Text},
+        widget::{Button, Checkbox, Column, Container, Row, Text},
     },
     lang::Translator,
     path::StrictPath,
@@ -94,6 +94,7 @@ impl FileTreeNode {
                                 enabled,
                             },
                         })
+                        .spacing(5)
                         .style(style::Checkbox),
                     )
                     .align_x(iced::alignment::Horizontal::Center)
@@ -106,9 +107,10 @@ impl FileTreeNode {
         if self.nodes.is_empty() {
             return Container::new(
                 Row::new()
+                    .align_items(Alignment::Center)
                     .padding([0, 0, 0, 35 * level])
+                    .spacing(10)
                     .push(Icon::SubdirectoryArrowRight.as_text().height(25).width(25).size(25))
-                    .push(Space::new(10, Length::Shrink))
                     .push_some(make_enabler)
                     .push(Text::new(label))
                     .push_some(|| {
@@ -117,16 +119,10 @@ impl FileTreeNode {
                             ScanChange::New => Badge::new_entry(translator),
                             ScanChange::Different => Badge::changed_entry(translator),
                         };
-                        Some(badge.left_margin(15).view())
+                        Some(badge.view())
                     })
-                    .push_if(
-                        || self.duplicated,
-                        || Badge::new(&translator.badge_duplicated()).left_margin(15).view(),
-                    )
-                    .push_if(
-                        || !self.successful,
-                        || Badge::new(&translator.badge_failed()).left_margin(15).view(),
-                    )
+                    .push_if(|| self.duplicated, || Badge::new(&translator.badge_duplicated()).view())
+                    .push_if(|| !self.successful, || Badge::new(&translator.badge_failed()).view())
                     .push_some(|| {
                         self.scanned_file.as_ref().and_then(|scanned| {
                             let restoring = scanned.restoring();
@@ -136,7 +132,7 @@ impl FileTreeNode {
                                 } else {
                                     translator.badge_redirecting_to(alt)
                                 };
-                                Badge::new(&msg).left_margin(15).view()
+                                Badge::new(&msg).view()
                             })
                         })
                     }),
@@ -162,6 +158,7 @@ impl FileTreeNode {
                     Row::new()
                         .align_items(Alignment::Center)
                         .padding([0, 10, 0, 35 * level])
+                        .spacing(10)
                         .push(
                             Button::new(
                                 (if expanded {
@@ -181,10 +178,8 @@ impl FileTreeNode {
                             .height(25)
                             .width(25),
                         )
-                        .push(Space::new(10, Length::Shrink))
                         .push_some(make_enabler)
                         .push(Text::new(label))
-                        .push(Space::new(10, Length::Shrink))
                         .push_some(|| {
                             if let Some(FileTreeNodePath::File(path)) = &self.path {
                                 return Some(

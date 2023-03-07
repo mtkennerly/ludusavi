@@ -17,6 +17,7 @@
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/issues/177))
   * GUI: Scrollbar position on the other screen overlapped some content.
   * GUI: Scroll position is once again preserved when switching between screens.
+  * GUI: Some inconsistent element sizes and spacing.
 * Changed:
   * GUI: Updated to Iced 0.7.0, which comes with some improvements:
     * Text fields now have a blinking cursor.
