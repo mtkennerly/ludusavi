@@ -387,12 +387,12 @@ impl App {
                     if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                         // TODO: https://github.com/hecrj/iced/issues/436
                         std::thread::sleep(std::time::Duration::from_millis(1));
-                        return (None, None, OperationStepDecision::Cancelled);
+                        return (None, None, OperationStepDecision::Cancelled, layout);
                     }
 
                     let scan_info = scan_game_for_restoration(&name, &backup_id, &mut layout, &config.redirects);
                     if !config.is_game_enabled_for_restore(&name) {
-                        return (Some(scan_info), None, OperationStepDecision::Ignored);
+                        return (Some(scan_info), None, OperationStepDecision::Ignored, layout);
                     }
 
                     let backup_info = if scan_info.backup.is_some() && !preview {
@@ -400,13 +400,14 @@ impl App {
                     } else {
                         None
                     };
-                    (Some(scan_info), backup_info, OperationStepDecision::Processed)
+                    (Some(scan_info), backup_info, OperationStepDecision::Processed, layout)
                 },
-                move |(scan_info, backup_info, decision)| Message::RestoreStep {
+                move |(scan_info, backup_info, decision, game_layout)| Message::RestoreStep {
                     scan_info,
                     backup_info,
                     decision,
                     full,
+                    game_layout,
                 },
             ));
         }
@@ -522,6 +523,11 @@ impl App {
             Ok(_) => Message::Ignore,
             Err(_) => Message::OpenUrlFailure { url: url2 },
         })
+    }
+
+    fn toggle_backup_comment_editor(&mut self, name: String) -> Command<Message> {
+        self.restore_screen.log.toggle_backup_comment_editor(&name);
+        Command::none()
     }
 
     fn switch_screen(&mut self, screen: Screen) -> Command<Message> {
@@ -732,6 +738,7 @@ impl Application for App {
                             &self.config,
                             &self.backup_screen.duplicate_detector,
                             &duplicates,
+                            None,
                         );
                     } else if !full {
                         let duplicates = self.backup_screen.duplicate_detector.remove_game(&scan_info.game_name);
@@ -768,6 +775,7 @@ impl Application for App {
                 backup_info,
                 decision: _,
                 full,
+                game_layout,
             } => {
                 self.progress.current += 1.0;
 
@@ -787,6 +795,7 @@ impl Application for App {
                             &self.config,
                             &self.restore_screen.duplicate_detector,
                             &duplicates,
+                            Some(game_layout),
                         );
                     } else if !full {
                         let duplicates = self.restore_screen.duplicate_detector.remove_game(&scan_info.game_name);
@@ -1507,9 +1516,14 @@ impl Application for App {
                 }
                 GameAction::Customize => self.customize_game(game),
                 GameAction::Wiki => Self::open_wiki(game),
+                GameAction::Comment => self.toggle_backup_comment_editor(game),
             },
             Message::Scroll { subject, position } => {
                 self.scroll_offsets.insert(subject, position);
+                Command::none()
+            }
+            Message::EditedBackupComment { game, comment } => {
+                self.restore_screen.log.set_comment(&game, comment);
                 Command::none()
             }
         }

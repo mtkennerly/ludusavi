@@ -223,6 +223,10 @@ impl Translator {
         "PCGamingWiki".to_string()
     }
 
+    pub fn comment_button(&self) -> String {
+        translate("button-comment")
+    }
+
     pub fn handle_error(&self, error: &Error) -> String {
         match error {
             Error::ConfigInvalid { why } => self.config_is_invalid(why),

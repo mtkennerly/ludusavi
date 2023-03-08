@@ -2,7 +2,7 @@ use crate::{
     config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
     gui::{badge::Badge, icon::Icon},
     lang::{Language, Translator},
-    layout::Backup,
+    layout::{Backup, GameLayout},
     manifest::{ManifestUpdate, Store},
     prelude::{BackupInfo, Error, OperationStatus, OperationStepDecision, RegistryItem, ScanInfo, StrictPath},
     shortcuts::{Shortcut, TextHistory},
@@ -50,6 +50,7 @@ pub enum Message {
         backup_info: Option<BackupInfo>,
         decision: OperationStepDecision,
         full: bool,
+        game_layout: GameLayout,
     },
     CancelOperation,
     EditedBackupTarget(String),
@@ -143,6 +144,10 @@ pub enum Message {
     Scroll {
         subject: ScrollSubject,
         position: iced_native::widget::scrollable::RelativeOffset,
+    },
+    EditedBackupComment {
+        game: String,
+        comment: String,
     },
 }
 
@@ -295,10 +300,11 @@ pub enum GameAction {
     PreviewRestore,
     Restore { confirm: bool },
     Wiki,
+    Comment,
 }
 
 impl GameAction {
-    pub fn options(restoring: bool, operating: bool, customized: bool, invented: bool) -> Vec<Self> {
+    pub fn options(restoring: bool, operating: bool, customized: bool, invented: bool, has_backups: bool) -> Vec<Self> {
         let mut options = vec![];
 
         if !operating {
@@ -313,6 +319,10 @@ impl GameAction {
 
         if !restoring && !customized {
             options.push(Self::Customize);
+        }
+
+        if restoring && has_backups {
+            options.push(Self::Comment);
         }
 
         if !invented {
@@ -334,6 +344,7 @@ impl GameAction {
             GameAction::PreviewBackup | GameAction::PreviewRestore => Icon::Refresh,
             GameAction::Customize => Icon::Edit,
             GameAction::Wiki => Icon::Language,
+            GameAction::Comment => Icon::Comment,
         }
     }
 }
@@ -359,6 +370,7 @@ impl ToString for GameAction {
             }
             Self::Customize => translator.customize_button(),
             Self::Wiki => translator.pcgamingwiki(),
+            Self::Comment => translator.comment_button(),
         }
     }
 }

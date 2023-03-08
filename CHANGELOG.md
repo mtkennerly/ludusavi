@@ -1,6 +1,8 @@
 ## Unreleased
 
 * Added:
+  * GUI: In restore mode, you can create a comment on each backup.
+    You can use this to keep track of how each backup reflects your game progress.
   * GUI: You can now reorder custom games, roots, redirects, and ignored paths/registry.
   * CLI: `manifest show` command.
   * CLI: `--compression-level` option for the `backup` command.

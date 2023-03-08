@@ -11,6 +11,7 @@ use crate::{
         style,
     },
     lang::Translator,
+    layout::GameLayout,
     manifest::Manifest,
     prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
 };
@@ -19,7 +20,11 @@ use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Tex
 use fuzzy_matcher::FuzzyMatcher;
 use iced::{alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, widget::tooltip, Alignment, Length};
 
-use super::common::{OngoingOperation, ScrollSubject};
+use super::{
+    common::{OngoingOperation, ScrollSubject},
+    icon::Icon,
+    widget::TextInput,
+};
 
 #[derive(Default)]
 pub struct GameListEntry {
@@ -29,6 +34,8 @@ pub struct GameListEntry {
     pub tree: FileTree,
     pub duplicates: usize,
     pub popup_menu: crate::gui::popup_menu::State<GameAction>,
+    pub show_comment_editor: bool,
+    pub game_layout: Option<GameLayout>,
 }
 
 impl GameListEntry {
@@ -58,6 +65,8 @@ impl GameListEntry {
         let customized = config.is_game_customized(&self.scan_info.game_name);
         let customized_pure = customized && !manifest.0.contains_key(&self.scan_info.game_name);
         let name_for_checkbox = self.scan_info.game_name.clone();
+        let name_for_comment = self.scan_info.game_name.clone();
+        let name_for_comment2 = self.scan_info.game_name.clone();
         let operating = operation.is_some();
         let changes = self.scan_info.count_changes();
 
@@ -139,6 +148,22 @@ impl GameListEntry {
                             || Badge::new(&translator.badge_duplicates()).view(),
                         )
                         .push_if(|| !successful, || Badge::new(&translator.badge_failed()).view())
+                        .push_some(|| {
+                            self.scan_info
+                                .backup
+                                .as_ref()
+                                .and_then(|backup| backup.comment().as_ref())
+                                .map(|comment| {
+                                    Tooltip::new(
+                                        Icon::Comment.as_text().width(Length::Shrink),
+                                        comment,
+                                        tooltip::Position::Top,
+                                    )
+                                    .size(16)
+                                    .gap(5)
+                                    .style(style::Container::Tooltip)
+                                })
+                        })
                         .push(
                             Row::new()
                                 .push_some(|| {
@@ -219,8 +244,13 @@ impl GameListEntry {
                                                 .style(style::Container::Tooltip),
                                         )
                                     } else {
-                                        let options =
-                                            GameAction::options(restoring, operating, customized, customized_pure);
+                                        let options = GameAction::options(
+                                            restoring,
+                                            operating,
+                                            customized,
+                                            customized_pure,
+                                            self.scan_info.backup.is_some(),
+                                        );
                                         let game_name = self.scan_info.game_name.clone();
 
                                         let menu = crate::gui::popup_menu::PopupMenu::new(options, move |action| {
@@ -247,6 +277,35 @@ impl GameListEntry {
                                 ),
                         ),
                 )
+                .push_some(move || {
+                    if !self.show_comment_editor {
+                        return None;
+                    }
+                    let comment = self
+                        .scan_info
+                        .backup
+                        .as_ref()
+                        .and_then(|x| x.comment().as_ref())
+                        .map(|x| x.as_str())
+                        .unwrap_or_else(|| "");
+                    Some(
+                        Row::new()
+                            .align_items(Alignment::Center)
+                            .padding([0, 20])
+                            .spacing(20)
+                            .push(Text::new(translator.comment_button()))
+                            .push(TextInput::new(&translator.comment_button(), comment, move |value| {
+                                Message::EditedBackupComment {
+                                    game: name_for_comment.clone(),
+                                    comment: value,
+                                }
+                            }))
+                            .push(Icon::Close.as_button_small().on_press(Message::GameAction {
+                                action: GameAction::Comment,
+                                game: name_for_comment2,
+                            })),
+                    )
+                })
                 .push_if(
                     || expanded,
                     || {
@@ -438,9 +497,23 @@ impl GameList {
                 config,
                 &DuplicateDetector::default(),
                 &Default::default(),
+                None,
             );
         }
         log
+    }
+
+    fn find_game(&self, game: &str) -> Option<usize> {
+        let mut index = None;
+
+        for (i, entry) in self.entries.iter().enumerate() {
+            if entry.scan_info.game_name == game {
+                index = Some(i);
+                break;
+            }
+        }
+
+        index
     }
 
     pub fn update_game(
@@ -451,22 +524,17 @@ impl GameList {
         config: &Config,
         duplicate_detector: &DuplicateDetector,
         duplicates: &std::collections::HashSet<String>,
+        game_layout: Option<GameLayout>,
     ) {
-        let mut index = None;
         let game_name = scan_info.game_name.clone();
-
-        for (i, entry) in self.entries.iter().enumerate() {
-            if entry.scan_info.game_name == game_name {
-                index = Some(i);
-                break;
-            }
-        }
+        let index = self.find_game(&game_name);
 
         match index {
             Some(i) => {
                 if scan_info.found_anything() {
                     self.entries[i].scan_info = scan_info;
                     self.entries[i].backup_info = backup_info;
+                    self.entries[i].game_layout = game_layout;
                     if self.expanded_games.contains(&game_name) {
                         self.entries[i].populate_tree(config, duplicate_detector);
                     }
@@ -478,6 +546,7 @@ impl GameList {
                 let mut entry = GameListEntry {
                     scan_info,
                     backup_info,
+                    game_layout,
                     ..Default::default()
                 };
                 if self.expanded_games.contains(&game_name) {
@@ -525,5 +594,24 @@ impl GameList {
 
     pub fn contains_unscanned_games(&self) -> bool {
         self.entries.iter().any(|x| !x.scan_info.found_anything())
+    }
+
+    pub fn toggle_backup_comment_editor(&mut self, game: &str) {
+        let index = self.find_game(game);
+
+        if let Some(i) = index {
+            self.entries[i].show_comment_editor = !self.entries[i].show_comment_editor;
+        }
+    }
+
+    pub fn set_comment(&mut self, game: &str, comment: String) {
+        let Some(index) = self.find_game(game) else { return };
+        let entry = &mut self.entries[index];
+        let Some(backup) = &mut entry.scan_info.backup else { return };
+        let Some(layout) = &mut entry.game_layout else { return };
+
+        layout.set_backup_comment(backup.name(), &comment);
+        backup.set_comment(comment);
+        layout.save();
     }
 }

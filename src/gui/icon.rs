@@ -1,7 +1,7 @@
 use crate::gui::widget::Text;
 use iced::{alignment::Horizontal as HorizontalAlignment, Font};
 
-use super::widget::Button;
+use super::{style, widget::Button};
 
 pub const ICONS: Font = Font::External {
     name: "Material Icons",
@@ -29,6 +29,8 @@ pub enum Icon {
     FastForward,
     ArrowUpward,
     ArrowDownward,
+    Comment,
+    Close,
 }
 
 impl Icon {
@@ -54,6 +56,8 @@ impl Icon {
             Self::FastForward => '\u{E01F}',
             Self::ArrowUpward => '\u{E5D8}',
             Self::ArrowDownward => '\u{E5DB}',
+            Self::Comment => '\u{E0B9}',
+            Self::Close => '\u{E5CD}',
         }
     }
 
@@ -72,6 +76,12 @@ impl Icon {
     }
 
     pub fn as_button_small(&self) -> Button {
-        Button::new(self.as_text().width(15).size(15))
+        let mut button = Button::new(self.as_text().width(15).size(15));
+
+        if matches!(self, Self::Close) {
+            button = button.style(style::Button::Negative)
+        }
+
+        button
     }
 }

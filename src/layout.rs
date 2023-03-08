@@ -77,6 +77,22 @@ impl Backup {
         chrono::DateTime::<chrono::Local>::from(*self.when())
     }
 
+    pub fn comment(&self) -> &Option<String> {
+        match self {
+            Self::Full(x) => &x.comment,
+            Self::Differential(x) => &x.comment,
+        }
+    }
+
+    pub fn set_comment(&mut self, comment: String) {
+        let comment = if comment.is_empty() { None } else { Some(comment) };
+
+        match self {
+            Self::Full(x) => x.comment = comment,
+            Self::Differential(x) => x.comment = comment,
+        }
+    }
+
     pub fn label(&self) -> String {
         match self {
             Self::Full(x) => x.label(),
@@ -138,6 +154,8 @@ impl ToString for Backup {
 pub struct FullBackup {
     pub name: String,
     pub when: chrono::DateTime<chrono::Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
     #[serde(default)]
     pub files: BTreeMap<String, IndividualMappingFile>,
     #[serde(default)]
@@ -172,6 +190,8 @@ pub enum BackupInclusion {
 pub struct DifferentialBackup {
     pub name: String,
     pub when: chrono::DateTime<chrono::Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub comment: Option<String>,
     #[serde(default)]
     pub files: BTreeMap<String, Option<IndividualMappingFile>>,
     #[serde(default)]
@@ -903,6 +923,7 @@ impl GameLayout {
         FullBackup {
             name: self.generate_backup_name(&BackupKind::Full, now, format),
             when: *now,
+            comment: None,
             files,
             registry,
             children: vec![],
@@ -960,6 +981,7 @@ impl GameLayout {
         DifferentialBackup {
             name: self.generate_backup_name(&BackupKind::Differential, now, format),
             when: *now,
+            comment: None,
             files,
             registry,
         }
@@ -1491,6 +1513,27 @@ impl GameLayout {
             let _ = file.remove();
         }
         log::trace!("[{}] done removing irrelevant backup files", self.mapping.name);
+    }
+
+    pub fn set_backup_comment(&mut self, backup_name: &str, comment: &str) {
+        let comment = if comment.is_empty() {
+            None
+        } else {
+            Some(comment.to_string())
+        };
+
+        'outer: for backup in &mut self.mapping.backups {
+            if backup.name == backup_name {
+                backup.comment = comment;
+                break 'outer;
+            }
+            for child in &mut backup.children {
+                if child.name == backup_name {
+                    child.comment = comment;
+                    break 'outer;
+                }
+            }
+        }
     }
 }
 
