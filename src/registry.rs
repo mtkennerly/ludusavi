@@ -33,6 +33,8 @@ pub struct Entry {
     dword: Option<u32>,
     #[serde(skip_serializing_if = "Option::is_none")]
     qword: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    binary: Option<Vec<u8>>,
 }
 
 pub fn scan_registry(
@@ -281,6 +283,7 @@ impl Entry {
             || self.multi_sz.is_some()
             || self.dword.is_some()
             || self.qword.is_some()
+            || self.binary.is_some()
     }
 }
 
@@ -307,6 +310,10 @@ impl From<winreg::RegValue> for Entry {
                 qword: Some(u64::from_reg_value(&item).unwrap_or_default()),
                 ..Default::default()
             },
+            winreg::enums::RegType::REG_BINARY => Self {
+                binary: Some(item.bytes),
+                ..Default::default()
+            },
             _ => Default::default(),
         }
     }
@@ -314,6 +321,7 @@ impl From<winreg::RegValue> for Entry {
 
 impl From<&Entry> for Option<winreg::RegValue> {
     fn from(item: &Entry) -> Option<winreg::RegValue> {
+        #[allow(clippy::manual_map)]
         if let Some(x) = &item.sz {
             Some(x.to_reg_value())
         } else if let Some(x) = &item.multi_sz {
@@ -328,8 +336,15 @@ impl From<&Entry> for Option<winreg::RegValue> {
             })
         } else if let Some(x) = &item.dword {
             Some(x.to_reg_value())
+        } else if let Some(x) = &item.qword {
+            Some(x.to_reg_value())
+        } else if let Some(x) = &item.binary {
+            Some(winreg::RegValue {
+                bytes: x.clone(),
+                vtype: winreg::enums::RegType::REG_BINARY,
+            })
         } else {
-            item.qword.as_ref().map(|x| x.to_reg_value())
+            None
         }
     }
 }
@@ -379,6 +394,10 @@ mod tests {
                             qword: Some(2),
                             ..Default::default()
                         },
+                        s("binary") => Entry {
+                            binary: Some(vec![65]),
+                            ..Default::default()
+                        },
                     })
                 })
             }),
@@ -426,6 +445,11 @@ mod tests {
 HKEY_CURRENT_USER:
   "Software\\Ludusavi": {}
   "Software\\Ludusavi\\game3":
+    binary:
+      binary:
+        - 1
+        - 2
+        - 3
     dword:
       dword: 1
     expandSz:
@@ -461,6 +485,10 @@ HKEY_CURRENT_USER:
                         },
                         s("qword") => Entry {
                             qword: Some(2),
+                            ..Default::default()
+                        },
+                        s("binary") => Entry {
+                            binary: Some(vec![1, 2, 3]),
                             ..Default::default()
                         },
                     }),

@@ -1,6 +1,7 @@
 ## Unreleased
 
 * Added:
+  * Registry backups now include binary values.
   * GUI: In restore mode, you can create a comment on each backup.
     You can use this to keep track of how each backup reflects your game progress.
   * GUI: You can now reorder custom games, roots, redirects, and ignored paths/registry.
