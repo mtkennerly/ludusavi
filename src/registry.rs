@@ -2,7 +2,9 @@ use std::collections::HashSet;
 
 use crate::{
     config::{BackupFilter, ToggledRegistry},
-    prelude::{Error, RegistryItem, ScanChange, ScannedRegistry, StrictPath},
+    prelude::{
+        Error, RegistryItem, ScanChange, ScannedRegistry, ScannedRegistryValue, ScannedRegistryValues, StrictPath,
+    },
 };
 use winreg::types::{FromRegValue, ToRegValue};
 
@@ -69,6 +71,30 @@ fn scan_registry_key(
         .map_err(|_| Error::RegistryIssue)?;
 
     if !filter.is_registry_ignored(&path) {
+        let live_entries = read_registry_key(&subkey);
+        let mut live_values = ScannedRegistryValues::new();
+
+        for (live_entry_name, live_entry) in &live_entries.0 {
+            live_values.insert(
+                live_entry_name.clone(),
+                ScannedRegistryValue {
+                    ignored: false, // TODO: registry values
+                    change: previous
+                        .as_ref()
+                        .and_then(|x| x.get(hive_name, key))
+                        .and_then(|x| x.0.get(live_entry_name))
+                        .map(|x| {
+                            if x == live_entry {
+                                ScanChange::Same
+                            } else {
+                                ScanChange::Different
+                            }
+                        })
+                        .unwrap_or(ScanChange::New),
+                },
+            );
+        }
+
         found.push(ScannedRegistry {
             path: path.rendered(),
             ignored: toggled.is_ignored(game, &path),
@@ -77,7 +103,7 @@ fn scan_registry_key(
                 Some(previous) => match previous.get(hive_name, key) {
                     None => ScanChange::New,
                     Some(entries) => {
-                        if entries == &read_registry_key(&subkey) {
+                        if entries == &live_entries {
                             ScanChange::Same
                         } else {
                             ScanChange::Different
@@ -85,6 +111,7 @@ fn scan_registry_key(
                     }
                 },
             },
+            values: live_values,
         });
 
         for name in subkey.enum_keys().filter_map(|x| x.ok()) {
@@ -159,7 +186,7 @@ impl Hives {
     /// This only incorporates the keys, not the values.
     /// It can be used during backup since we know the keys exist, so we can look up the values when needed.
     /// It should not be used during restore since the keys may not exist.
-    pub fn incorporate(&mut self, scan: &HashSet<ScannedRegistry>) -> (bool, HashSet<RegistryItem>) {
+    fn incorporate(&mut self, scan: &HashSet<ScannedRegistry>) -> (bool, HashSet<RegistryItem>) {
         let mut failed = HashSet::new();
         let mut found = false;
 
@@ -187,7 +214,7 @@ impl Hives {
         hives
     }
 
-    pub fn store_key_from_full_path(&mut self, path: &str) -> Result<(), Error> {
+    fn store_key_from_full_path(&mut self, path: &str) -> Result<(), Error> {
         let path = RegistryItem::new(path.to_string()).interpreted();
 
         let (hive_name, key) = path.split_hive().ok_or(Error::RegistryIssue)?;
@@ -198,7 +225,7 @@ impl Hives {
         Ok(())
     }
 
-    pub fn store_key(&mut self, hive: winreg::HKEY, hive_name: &str, key: &str) -> Result<(), Error> {
+    fn store_key(&mut self, hive: winreg::HKEY, hive_name: &str, key: &str) -> Result<(), Error> {
         let subkey = winreg::RegKey::predef(hive)
             .open_subkey(key)
             .map_err(|_| Error::RegistryIssue)?;
@@ -271,13 +298,13 @@ impl Hives {
         self.0.is_empty()
     }
 
-    pub fn get(&self, hive: &str, key: &str) -> Option<&Entries> {
+    fn get(&self, hive: &str, key: &str) -> Option<&Entries> {
         self.0.get(hive)?.0.get(key)
     }
 }
 
 impl Entry {
-    pub fn is_set(&self) -> bool {
+    fn is_set(&self) -> bool {
         self.sz.is_some()
             || self.expand_sz.is_some()
             || self.multi_sz.is_some()

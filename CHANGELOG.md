@@ -1,6 +1,7 @@
 ## Unreleased
 
 * Added:
+  * Registry values are now listed individually, not just keys.
   * Registry backups now include binary values.
   * GUI: In restore mode, you can create a comment on each backup.
     You can use this to keep track of how each backup reflects your game progress.
@@ -18,6 +19,9 @@
   * For native Linux games installed with the Heroic launcher,
     the `<storeUserId>` path placeholder is now handled in order to detect more saves.
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/issues/177))
+  * GUI: If a game had a new registry value inside of a key that also contained other keys,
+    then the game would be flagged as changed, but not the key with the new value.
+    Now that values are listed individually, you can tell what changed.
   * GUI: Scrollbar position on the other screen overlapped some content.
   * GUI: Scroll position is once again preserved when switching between screens.
   * GUI: Some inconsistent element sizes and spacing.

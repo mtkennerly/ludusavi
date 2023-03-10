@@ -9,7 +9,7 @@ use crate::{
     },
     lang::Translator,
     path::StrictPath,
-    prelude::{BackupInfo, DuplicateDetector, RegistryItem, ScanChange, ScanInfo, ScannedFile},
+    prelude::{BackupInfo, DuplicateDetector, RegistryItem, ScanChange, ScanInfo, ScannedFile, ScannedRegistryValues},
 };
 use iced::{Alignment, Length};
 
@@ -17,13 +17,15 @@ use iced::{Alignment, Length};
 enum FileTreeNodeType {
     #[default]
     File,
-    Registry,
+    RegistryKey,
+    RegistryValue(String),
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 enum FileTreeNodePath {
     File(StrictPath),
-    Registry(RegistryItem),
+    RegistryKey(RegistryItem),
+    RegistryValue(RegistryItem, String),
 }
 
 #[derive(Clone, Debug, Default)]
@@ -88,11 +90,12 @@ impl FileTreeNode {
                                 path: path.clone(),
                                 enabled,
                             },
-                            FileTreeNodePath::Registry(path) => Message::ToggleSpecificBackupRegistryIgnored {
+                            FileTreeNodePath::RegistryKey(path) => Message::ToggleSpecificBackupRegistryIgnored {
                                 name: game_name.clone(),
                                 path: path.clone(),
                                 enabled,
                             },
+                            FileTreeNodePath::RegistryValue(_path, _name) => Message::Ignore, // TODO: registry values
                         })
                         .spacing(5)
                         .style(style::Checkbox),
@@ -210,6 +213,7 @@ impl FileTreeNode {
         duplicated: bool,
         change: ScanChange,
         scanned_file: Option<ScannedFile>,
+        registry_values: Option<&ScannedRegistryValues>,
     ) -> &mut Self {
         let node_type = self.node_type.clone();
         let mut node = self;
@@ -228,9 +232,13 @@ impl FileTreeNode {
                         FileTreeNodeType::File => {
                             Some(FileTreeNodePath::File(StrictPath::new(inserted_keys.join("/"))))
                         }
-                        FileTreeNodeType::Registry => {
-                            Some(FileTreeNodePath::Registry(RegistryItem::new(inserted_keys.join("/"))))
-                        }
+                        FileTreeNodeType::RegistryKey => Some(FileTreeNodePath::RegistryKey(RegistryItem::new(
+                            inserted_keys.join("/"),
+                        ))),
+                        FileTreeNodeType::RegistryValue(name) => Some(FileTreeNodePath::RegistryValue(
+                            RegistryItem::new(inserted_keys.join("/")),
+                            name.clone(),
+                        )),
                     },
                     node_type.clone(),
                 )
@@ -241,6 +249,25 @@ impl FileTreeNode {
         node.duplicated = duplicated;
         node.change = change;
         node.scanned_file = scanned_file;
+
+        if let Some(registry_values) = registry_values {
+            for (value_name, value) in registry_values {
+                let mut full_keys = full_keys.clone();
+                full_keys.push(value_name.clone());
+                let mut node = node.nodes.entry(value_name.clone()).or_insert_with(|| {
+                    FileTreeNode::new(
+                        full_keys,
+                        None, // TODO: registry values
+                        // Some(FileTreeNodePath::RegistryValue(RegistryItem::new(inserted_keys.join("/")), value_name.clone())),
+                        FileTreeNodeType::RegistryValue(value_name.clone()),
+                    )
+                });
+                node.successful = true;
+                node.duplicated = false; // TODO: registry values
+                node.change = value.change;
+                node.ignored = false; // TODO: registry values
+            }
+        }
 
         node
     }
@@ -272,8 +299,11 @@ impl FileTreeNode {
             Some(FileTreeNodePath::File(path)) => {
                 self.ignored = ignored_paths.is_ignored(game, path);
             }
-            Some(FileTreeNodePath::Registry(path)) => {
+            Some(FileTreeNodePath::RegistryKey(path)) => {
                 self.ignored = ignored_registry.is_ignored(game, path);
+            }
+            Some(FileTreeNodePath::RegistryValue(_path, _name)) => {
+                self.ignored = false; // TODO: registry values
             }
             None => {}
         }
@@ -318,6 +348,7 @@ impl FileTree {
                     duplicate_detector.is_file_duplicated(item),
                     item.change,
                     Some(item.clone()),
+                    None,
                 );
         }
         for item in scan_info.found_registry_keys.iter() {
@@ -332,7 +363,9 @@ impl FileTree {
 
             nodes
                 .entry(components[0].to_string())
-                .or_insert_with(|| FileTreeNode::new(vec![components[0].to_string()], None, FileTreeNodeType::Registry))
+                .or_insert_with(|| {
+                    FileTreeNode::new(vec![components[0].to_string()], None, FileTreeNodeType::RegistryKey)
+                })
                 .insert_keys(
                     &components[1..],
                     &components[0..1],
@@ -340,6 +373,7 @@ impl FileTree {
                     duplicate_detector.is_registry_duplicated(&item.path),
                     item.change,
                     None,
+                    Some(&item.values),
                 );
         }
 

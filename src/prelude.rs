@@ -229,7 +229,16 @@ pub struct ScannedRegistry {
     pub path: RegistryItem,
     pub ignored: bool,
     pub change: ScanChange,
+    pub values: ScannedRegistryValues,
 }
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct ScannedRegistryValue {
+    pub ignored: bool,
+    pub change: ScanChange,
+}
+
+pub type ScannedRegistryValues = std::collections::BTreeMap<String, ScannedRegistryValue>;
 
 #[cfg(test)]
 impl ScannedRegistry {
@@ -238,6 +247,7 @@ impl ScannedRegistry {
             path: RegistryItem::new(path.to_string()),
             ignored: false,
             change: ScanChange::Unknown,
+            values: Default::default(),
         }
     }
 
@@ -250,6 +260,30 @@ impl ScannedRegistry {
     #[allow(dead_code)]
     pub fn change(mut self, change: ScanChange) -> Self {
         self.change = change;
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_value_new(mut self, value_name: &str) -> Self {
+        self.values.insert(
+            value_name.to_string(),
+            ScannedRegistryValue {
+                change: ScanChange::New,
+                ignored: false,
+            },
+        );
+        self
+    }
+
+    #[allow(dead_code)]
+    pub fn with_value_same(mut self, value_name: &str) -> Self {
+        self.values.insert(
+            value_name.to_string(),
+            ScannedRegistryValue {
+                change: ScanChange::Same,
+                ignored: false,
+            },
+        );
         self
     }
 }
@@ -1220,19 +1254,43 @@ pub fn scan_game_for_restoration(
             if let Some(hives) = crate::registry::Hives::deserialize(&registry_content) {
                 for (hive_name, keys) in hives.0.iter() {
                     for (key_name, entries) in keys.0.iter() {
+                        let live_entries = crate::registry::try_read_registry_key(hive_name, key_name);
+                        let mut live_values = ScannedRegistryValues::new();
+
+                        for (entry_name, entry) in entries.0.iter() {
+                            live_values.insert(
+                                entry_name.clone(),
+                                ScannedRegistryValue {
+                                    ignored: false, // TODO: registry values
+                                    change: live_entries
+                                        .as_ref()
+                                        .and_then(|x| x.0.get(entry_name))
+                                        .map(|live_entry| {
+                                            if entry == live_entry {
+                                                ScanChange::Same
+                                            } else {
+                                                ScanChange::Different
+                                            }
+                                        })
+                                        .unwrap_or(ScanChange::New),
+                                },
+                            );
+                        }
+
                         found_registry_keys.insert(ScannedRegistry {
                             path: RegistryItem::new(format!("{}/{}", hive_name, key_name).replace('\\', "/")),
                             ignored: false,
-                            change: match crate::registry::try_read_registry_key(hive_name, key_name) {
+                            change: match &live_entries {
                                 None => ScanChange::New,
                                 Some(current) => {
-                                    if entries == &current {
+                                    if entries == current {
                                         ScanChange::Same
                                     } else {
                                         ScanChange::Different
                                     }
                                 }
                             },
+                            values: live_values,
                         });
                     }
                 }
@@ -2217,6 +2275,12 @@ mod tests {
                 found_files: hashset! {},
                 found_registry_keys: hashset! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New)
+                        .with_value_new("binary")
+                        .with_value_new("dword")
+                        .with_value_new("expandSz")
+                        .with_value_new("multiSz")
+                        .with_value_new("qword")
+                        .with_value_new("sz")
                 },
                 ..Default::default()
             },
@@ -2248,7 +2312,13 @@ mod tests {
                 found_files: hashset! {},
                 found_registry_keys: hashset! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New)
+                        .with_value_new("binary")
+                        .with_value_new("dword")
+                        .with_value_new("expandSz")
+                        .with_value_new("multiSz")
+                        .with_value_new("qword")
+                        .with_value_new("sz"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change(ScanChange::New),
                 },
                 ..Default::default()
@@ -2284,7 +2354,13 @@ mod tests {
                 ToggledRegistry::default(),
                 hashset! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New)
+                        .with_value_new("binary")
+                        .with_value_new("dword")
+                        .with_value_new("expandSz")
+                        .with_value_new("multiSz")
+                        .with_value_new("qword")
+                        .with_value_new("sz"),
                 },
             ),
             (
@@ -2296,7 +2372,13 @@ mod tests {
                 }),
                 hashset! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").ignored().change(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").ignored().change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").ignored().change(ScanChange::New)
+                        .with_value_new("binary")
+                        .with_value_new("dword")
+                        .with_value_new("expandSz")
+                        .with_value_new("multiSz")
+                        .with_value_new("qword")
+                        .with_value_new("sz"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change(ScanChange::New),
                 },
             ),
@@ -2309,7 +2391,13 @@ mod tests {
                 }),
                 hashset! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New)
+                        .with_value_new("binary")
+                        .with_value_new("dword")
+                        .with_value_new("expandSz")
+                        .with_value_new("multiSz")
+                        .with_value_new("qword")
+                        .with_value_new("sz"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change(ScanChange::New),
                 },
             ),
@@ -2441,6 +2529,12 @@ mod tests {
                     game_name: s("game3"),
                     found_registry_keys: hashset! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::Same)
+                            .with_value_same("binary")
+                            .with_value_same("dword")
+                            .with_value_same("expandSz")
+                            .with_value_same("multiSz")
+                            .with_value_same("qword")
+                            .with_value_same("sz")
                     },
                     available_backups: vec![Backup::Full(FullBackup {
                         name: ".".to_string(),

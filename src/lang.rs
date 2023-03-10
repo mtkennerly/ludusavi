@@ -369,6 +369,7 @@ impl Translator {
         ignored: bool,
         duplicated: bool,
         change: ScanChange,
+        nested: bool,
     ) -> String {
         let mut parts = vec![];
         match change {
@@ -387,7 +388,11 @@ impl Translator {
         }
         parts.push(item.to_string());
 
-        format!("  - {}", parts.join(" "))
+        if nested {
+            format!("    - {}", parts.join(" "))
+        } else {
+            format!("  - {}", parts.join(" "))
+        }
     }
 
     pub fn cli_game_line_item_redirected(&self, item: &str) -> String {

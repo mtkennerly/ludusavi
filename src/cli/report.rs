@@ -46,6 +46,15 @@ struct ApiRegistry {
         skip_serializing_if = "crate::serialization::is_empty_set"
     )]
     duplicated_by: std::collections::HashSet<String>,
+    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    values: std::collections::BTreeMap<String, ApiRegistryValue>,
+}
+
+#[derive(Debug, Default, serde::Serialize)]
+struct ApiRegistryValue {
+    #[serde(skip_serializing_if = "crate::serialization::is_false")]
+    ignored: bool,
+    change: ScanChange,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -188,6 +197,7 @@ impl Reporter {
                         entry.ignored,
                         duplicate_detector.is_file_duplicated(entry),
                         entry.change,
+                        false,
                     ));
 
                     if let Some(alt) = entry.alt_readable(restoring) {
@@ -209,7 +219,18 @@ impl Reporter {
                         entry.ignored,
                         duplicate_detector.is_registry_duplicated(&entry.path),
                         entry.change,
+                        false,
                     ));
+                    for (value_name, value) in itertools::sorted(&entry.values) {
+                        parts.push(translator.cli_game_line_item(
+                            value_name,
+                            true,
+                            value.ignored,
+                            false, // TODO: registry values
+                            value.change,
+                            true,
+                        ));
+                    }
                 }
 
                 // Blank line between games.
@@ -264,6 +285,19 @@ impl Reporter {
                         failed: backup_info.failed_registry.contains(&entry.path),
                         ignored: entry.ignored,
                         change: entry.change,
+                        values: entry
+                            .values
+                            .iter()
+                            .map(|(k, v)| {
+                                (
+                                    k.clone(),
+                                    ApiRegistryValue {
+                                        change: v.change,
+                                        ignored: v.ignored,
+                                    },
+                                )
+                            })
+                            .collect(),
                         ..Default::default()
                     };
                     if duplicate_detector.is_registry_duplicated(&entry.path) {
