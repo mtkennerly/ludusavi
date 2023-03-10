@@ -493,6 +493,7 @@ Overall:
                 found_registry_keys: hashset! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key2"),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Key3").with_value_same("Value1"),
                 },
                 ..Default::default()
             },
@@ -514,6 +515,8 @@ foo [100.00 KiB]:
   - [FAILED] <drive>/file2
   - [FAILED] HKEY_CURRENT_USER/Key1
   - HKEY_CURRENT_USER/Key2
+  - HKEY_CURRENT_USER/Key3
+    - Value1
 
 Overall:
   Games: 1
@@ -816,7 +819,8 @@ Overall:
                 },
                 found_registry_keys: hashset! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Key2")
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Key2"),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Key3").with_value_same("Value1")
                 },
                 ..Default::default()
             },
@@ -870,6 +874,14 @@ Overall:
         },
         "HKEY_CURRENT_USER/Key2": {
           "change": "Unknown"
+        },
+        "HKEY_CURRENT_USER/Key3": {
+          "change": "Unknown",
+          "values": {
+            "Value1": {
+              "change": "Same"
+            }
+          }
         }
       }
     }
