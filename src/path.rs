@@ -479,6 +479,7 @@ impl StrictPath {
         if self.is_file() {
             let mut perms = std::fs::metadata(&interpreted)?.permissions();
             if perms.readonly() {
+                #[allow(clippy::permissions_set_readonly_false)]
                 perms.set_readonly(false);
                 std::fs::set_permissions(&interpreted, perms)?;
             }
@@ -494,6 +495,7 @@ impl StrictPath {
                 let file = &mut entry.path().display().to_string();
                 let mut perms = std::fs::metadata(&file)?.permissions();
                 if perms.readonly() {
+                    #[allow(clippy::permissions_set_readonly_false)]
                     perms.set_readonly(false);
                     std::fs::set_permissions(&file, perms)?;
                 }
