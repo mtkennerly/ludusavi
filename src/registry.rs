@@ -115,6 +115,10 @@ fn scan_registry_key(
         });
 
         for name in subkey.enum_keys().filter_map(|x| x.ok()) {
+            if name.contains('/') {
+                // TODO: Handle key names containing a slash.
+                continue;
+            }
             found.extend(
                 scan_registry_key(
                     game,

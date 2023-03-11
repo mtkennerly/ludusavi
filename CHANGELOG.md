@@ -19,6 +19,9 @@
   * For native Linux games installed with the Heroic launcher,
     the `<storeUserId>` path placeholder is now handled in order to detect more saves.
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/issues/177))
+  * Ludusavi currently cannot back up registry keys whose names contain a forward slash.
+    This limitation still exists, but now such keys are no longer listed incorrectly as two separate keys.
+    This was only a display issue, because such keys were not included in the backup regardless.
   * GUI: If a game had a new registry value inside of a key that also contained other keys,
     then the game would be flagged as changed, but not the key with the new value.
     Now that values are listed individually, you can tell what changed.
