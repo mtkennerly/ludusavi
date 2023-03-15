@@ -11,3 +11,6 @@ Windows Registry Editor Version 5.00
 "binary"=hex:41
 
 [HKEY_CURRENT_USER\Software\Ludusavi\other]
+
+[HKEY_CURRENT_USER\Software\Ludusavi\sp/ecial]
+"va/lu\\e"=""

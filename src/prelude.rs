@@ -264,6 +264,13 @@ impl ScannedRegistry {
     }
 
     #[allow(dead_code)]
+    pub fn with_value(mut self, value_name: &str, change: ScanChange, ignored: bool) -> Self {
+        self.values
+            .insert(value_name.to_string(), ScannedRegistryValue { change, ignored });
+        self
+    }
+
+    #[allow(dead_code)]
     pub fn with_value_new(mut self, value_name: &str) -> Self {
         self.values.insert(
             value_name.to_string(),
@@ -342,7 +349,10 @@ impl ScanInfo {
             .iter()
             .map(|x| {
                 let mut y = x.clone();
-                y.ignored = toggled_registry.is_ignored(&self.game_name, &x.path);
+                y.ignored = toggled_registry.is_ignored(&self.game_name, &x.path, None);
+                for (value_name, value) in &mut y.values {
+                    value.ignored = toggled_registry.is_ignored(&self.game_name, &x.path, Some(value_name));
+                }
                 y
             })
             .collect();
@@ -1261,7 +1271,7 @@ pub fn scan_game_for_restoration(
                             live_values.insert(
                                 entry_name.clone(),
                                 ScannedRegistryValue {
-                                    ignored: false, // TODO: registry values
+                                    ignored: false,
                                     change: live_entries
                                         .as_ref()
                                         .and_then(|x| x.0.get(entry_name))
@@ -1788,6 +1798,7 @@ pub fn compare_games_by_size(
 #[cfg(test)]
 mod tests {
     use crate::{
+        config::ToggledRegistryEntry,
         serialization::ResourceFile,
         testing::{repo, s},
     };
@@ -2367,18 +2378,18 @@ mod tests {
                 BackupFilter::default(),
                 ToggledRegistry::new(btreemap! {
                     s("game3-outer") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi")) => false
+                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi")) => ToggledRegistryEntry::Key(false)
                     }
                 }),
                 hashset! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").ignored().change(ScanChange::New),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").ignored().change(ScanChange::New)
-                        .with_value_new("binary")
-                        .with_value_new("dword")
-                        .with_value_new("expandSz")
-                        .with_value_new("multiSz")
-                        .with_value_new("qword")
-                        .with_value_new("sz"),
+                        .with_value("binary", ScanChange::New, true)
+                        .with_value("dword", ScanChange::New, true)
+                        .with_value("expandSz", ScanChange::New, true)
+                        .with_value("multiSz", ScanChange::New, true)
+                        .with_value("qword", ScanChange::New, true)
+                        .with_value("sz", ScanChange::New, true),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change(ScanChange::New),
                 },
             ),
@@ -2386,7 +2397,13 @@ mod tests {
                 BackupFilter::default(),
                 ToggledRegistry::new(btreemap! {
                     s("game3-outer") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/other")) => false
+                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/game3")) => ToggledRegistryEntry::Complex {
+                            key: None,
+                            values: btreemap! {
+                                s("qword") => false,
+                            },
+                        },
+                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/other")) => ToggledRegistryEntry::Key(false),
                     }
                 }),
                 hashset! {
@@ -2396,7 +2413,7 @@ mod tests {
                         .with_value_new("dword")
                         .with_value_new("expandSz")
                         .with_value_new("multiSz")
-                        .with_value_new("qword")
+                        .with_value("qword", ScanChange::New, true)
                         .with_value_new("sz"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change(ScanChange::New),
                 },

@@ -1224,8 +1224,8 @@ impl Application for App {
                 );
                 Command::none()
             }
-            Message::ToggleSpecificBackupRegistryIgnored { name, path, .. } => {
-                self.config.backup.toggled_registry.toggle(&name, &path);
+            Message::ToggleSpecificBackupRegistryIgnored { name, path, value, .. } => {
+                self.config.backup.toggled_registry.toggle_owned(&name, &path, value);
                 self.config.save();
                 self.backup_screen.log.update_ignored(
                     &name,

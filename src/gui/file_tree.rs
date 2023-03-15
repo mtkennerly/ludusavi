@@ -93,9 +93,17 @@ impl FileTreeNode {
                             FileTreeNodePath::RegistryKey(path) => Message::ToggleSpecificBackupRegistryIgnored {
                                 name: game_name.clone(),
                                 path: path.clone(),
+                                value: None,
                                 enabled,
                             },
-                            FileTreeNodePath::RegistryValue(_path, _name) => Message::Ignore, // TODO: registry values
+                            FileTreeNodePath::RegistryValue(path, name) => {
+                                Message::ToggleSpecificBackupRegistryIgnored {
+                                    name: game_name.clone(),
+                                    path: path.clone(),
+                                    value: Some(name.clone()),
+                                    enabled,
+                                }
+                            }
                         })
                         .spacing(5)
                         .style(style::Checkbox),
@@ -257,15 +265,18 @@ impl FileTreeNode {
                 let mut node = node.nodes.entry(value_name.clone()).or_insert_with(|| {
                     FileTreeNode::new(
                         full_keys,
-                        None, // TODO: registry values
-                        // Some(FileTreeNodePath::RegistryValue(RegistryItem::new(inserted_keys.join("/")), value_name.clone())),
+                        // None, // TODO: registry values
+                        Some(FileTreeNodePath::RegistryValue(
+                            RegistryItem::new(inserted_keys.join("/")),
+                            value_name.clone(),
+                        )),
                         FileTreeNodeType::RegistryValue(value_name.clone()),
                     )
                 });
                 node.successful = true;
                 node.duplicated = false; // TODO: registry values
                 node.change = value.change;
-                node.ignored = false; // TODO: registry values
+                node.ignored = value.ignored;
             }
         }
 
@@ -300,10 +311,10 @@ impl FileTreeNode {
                 self.ignored = ignored_paths.is_ignored(game, path);
             }
             Some(FileTreeNodePath::RegistryKey(path)) => {
-                self.ignored = ignored_registry.is_ignored(game, path);
+                self.ignored = ignored_registry.is_ignored(game, path, None);
             }
-            Some(FileTreeNodePath::RegistryValue(_path, _name)) => {
-                self.ignored = false; // TODO: registry values
+            Some(FileTreeNodePath::RegistryValue(path, name)) => {
+                self.ignored = ignored_registry.is_ignored(game, path, Some(name));
             }
             None => {}
         }

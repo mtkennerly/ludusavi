@@ -2,6 +2,7 @@
 
 * Added:
   * Registry values are now listed individually, not just keys.
+    This also means you can exclude specific values from the backup.
   * Registry backups now include binary values.
   * GUI: In restore mode, you can create a comment on each backup.
     You can use this to keep track of how each backup reflects your game progress.

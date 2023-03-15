@@ -78,7 +78,7 @@ fn scan_registry_key(
             live_values.insert(
                 live_entry_name.clone(),
                 ScannedRegistryValue {
-                    ignored: false, // TODO: registry values
+                    ignored: toggled.is_ignored(game, &path, Some(live_entry_name)),
                     change: previous
                         .as_ref()
                         .and_then(|x| x.get(hive_name, key))
@@ -97,7 +97,7 @@ fn scan_registry_key(
 
         found.push(ScannedRegistry {
             path: path.rendered(),
-            ignored: toggled.is_ignored(game, &path),
+            ignored: toggled.is_ignored(game, &path, None),
             change: match previous {
                 None => ScanChange::New,
                 Some(previous) => match previous.get(hive_name, key) {

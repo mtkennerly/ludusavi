@@ -146,7 +146,108 @@ impl BackupFilter {
 pub struct ToggledPaths(std::collections::BTreeMap<String, std::collections::BTreeMap<StrictPath, bool>>);
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct ToggledRegistry(std::collections::BTreeMap<String, std::collections::BTreeMap<RegistryItem, bool>>);
+pub struct ToggledRegistry(
+    std::collections::BTreeMap<String, std::collections::BTreeMap<RegistryItem, ToggledRegistryEntry>>,
+);
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged)]
+pub enum ToggledRegistryEntry {
+    Unset,
+    Key(bool),
+    Complex {
+        #[serde(skip_serializing_if = "Option::is_none")]
+        key: Option<bool>,
+        #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+        values: std::collections::BTreeMap<String, bool>,
+    },
+}
+
+impl ToggledRegistryEntry {
+    fn prune(&mut self) {
+        if let Self::Complex { key, values } = self {
+            if let Some(key) = key {
+                let mut unnecessary = vec![];
+                for (value_name, value) in values.iter() {
+                    if value == key {
+                        unnecessary.push(value_name.clone());
+                    }
+                }
+                for item in unnecessary {
+                    values.remove(&item);
+                }
+                if values.is_empty() {
+                    *self = Self::Key(*key);
+                }
+            } else if values.is_empty() {
+                *self = Self::Unset;
+            }
+        }
+    }
+
+    pub fn enable(&mut self, value: Option<&str>, enabled: bool) {
+        match value {
+            Some(value) => self.enable_value(value, enabled),
+            None => self.enable_key(enabled),
+        }
+        self.prune();
+    }
+
+    fn enable_key(&mut self, enabled: bool) {
+        match self {
+            Self::Unset => *self = Self::Key(enabled),
+            Self::Key(key) => *key = enabled,
+            Self::Complex { key, .. } => *key = Some(enabled),
+        }
+    }
+
+    fn enable_value(&mut self, value: &str, enabled: bool) {
+        match self {
+            Self::Unset => {
+                let mut values = std::collections::BTreeMap::<String, bool>::new();
+                values.insert(value.to_string(), enabled);
+                *self = Self::Complex { key: None, values };
+            }
+            Self::Key(key) => {
+                let mut values = std::collections::BTreeMap::<String, bool>::new();
+                values.insert(value.to_string(), enabled);
+                *self = Self::Complex {
+                    key: Some(*key),
+                    values,
+                };
+            }
+            Self::Complex { values, .. } => {
+                values.insert(value.to_string(), enabled);
+            }
+        }
+    }
+
+    pub fn key_enabled(&self) -> Option<bool> {
+        match self {
+            Self::Unset => None,
+            Self::Key(enabled) => Some(*enabled),
+            Self::Complex { key, .. } => *key,
+        }
+    }
+
+    pub fn value_enabled(&self, name: &str) -> Option<bool> {
+        match self {
+            Self::Unset => None,
+            Self::Key(_) => None,
+            Self::Complex { values, .. } => values.get(name).copied(),
+        }
+    }
+
+    pub fn remove_value(&mut self, value: &str) {
+        if let Self::Complex { key, values } = self {
+            values.remove(value);
+            if key.is_none() && values.is_empty() {
+                *self = Self::Unset;
+            }
+        }
+        self.prune();
+    }
+}
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SortKey {
@@ -833,16 +934,34 @@ impl ToggledPaths {
 impl ToggledRegistry {
     #[allow(dead_code)]
     #[cfg(test)]
-    pub fn new(data: std::collections::BTreeMap<String, std::collections::BTreeMap<RegistryItem, bool>>) -> Self {
+    pub fn new(
+        data: std::collections::BTreeMap<String, std::collections::BTreeMap<RegistryItem, ToggledRegistryEntry>>,
+    ) -> Self {
         Self(data)
     }
 
-    pub fn is_ignored(&self, game: &str, path: &RegistryItem) -> bool {
+    fn prune(&mut self, game: &str, path: &RegistryItem) {
+        if !self.0.contains_key(game) {
+            return;
+        }
+        if let Some(entry) = self.0.get_mut(game) {
+            if entry.get(path) == Some(&ToggledRegistryEntry::Unset) {
+                entry.remove(path);
+            }
+        }
+        if self.0[game].is_empty() {
+            self.0.remove(game);
+        }
+    }
+
+    pub fn is_ignored(&self, game: &str, path: &RegistryItem, value: Option<&str>) -> bool {
         let transitive = self.is_enabled_transitively(game, path);
-        let specific = self.is_enabled_specifically(game, path);
-        match (transitive, specific) {
-            (_, Some(x)) => !x,
-            (Some(x), _) => !x,
+        let specific = self.is_key_enabled_specifically(game, path);
+        let by_value = value.and_then(|value| self.is_value_enabled_specifically(game, path, value));
+        match (transitive, specific, by_value) {
+            (_, _, Some(x)) => !x,
+            (_, Some(x), _) => !x,
+            (Some(x), _, _) => !x,
             _ => false,
         }
     }
@@ -851,69 +970,130 @@ impl ToggledRegistry {
         self.0.get(game).and_then(|x| {
             path.nearest_prefix(x.keys().cloned().collect())
                 .as_ref()
-                .map(|prefix| x[prefix])
+                .and_then(|prefix| x[prefix].key_enabled())
         })
     }
 
-    fn is_enabled_specifically(&self, game: &str, path: &RegistryItem) -> Option<bool> {
+    fn is_key_enabled_specifically(&self, game: &str, path: &RegistryItem) -> Option<bool> {
         self.0.get(game).and_then(|x| match x.get(path) {
-            Some(enabled) => Some(*enabled),
+            Some(entry) => entry.key_enabled(),
             None => x
                 .iter()
                 .find(|(k, _)| path.interpret() == k.interpret())
-                .map(|(_, v)| *v),
+                .and_then(|(_, v)| v.key_enabled()),
         })
     }
 
-    fn set_enabled(&mut self, game: &str, path: &RegistryItem, enabled: bool) {
-        self.remove_with_children(game, path);
+    fn is_value_enabled_specifically(&self, game: &str, path: &RegistryItem, value: &str) -> Option<bool> {
+        self.0.get(game).and_then(|x| match x.get(path) {
+            Some(entry) => entry.value_enabled(value),
+            None => x
+                .iter()
+                .find(|(k, _)| path.interpret() == k.interpret())
+                .and_then(|(_, v)| v.value_enabled(value)),
+        })
+    }
+
+    fn set_enabled(&mut self, game: &str, path: &RegistryItem, value: Option<&str>, enabled: bool) {
+        if value.is_none() {
+            self.remove_children(game, path);
+        }
         self.0
             .entry(game.to_string())
             .or_insert_with(Default::default)
-            .insert(path.clone(), enabled);
+            .entry(path.clone())
+            .or_insert(ToggledRegistryEntry::Unset)
+            .enable(value, enabled);
     }
 
-    fn remove(&mut self, game: &str, path: &RegistryItem) {
-        self.remove_with_children(game, path);
-        self.0.get_mut(game).map(|entry| entry.remove(path));
+    fn remove(&mut self, game: &str, path: &RegistryItem, value: Option<&str>) {
+        match value {
+            Some(value) => {
+                self.0
+                    .get_mut(game)
+                    .map(|entry| entry.get_mut(path).map(|key| key.remove_value(value)));
+            }
+            None => {
+                self.remove_children(game, path);
+                self.0.get_mut(game).map(|entry| entry.remove(path));
+            }
+        }
+        if let Some(entry) = self.0.get_mut(game) {
+            if entry.get(path) == Some(&ToggledRegistryEntry::Unset) {
+                entry.remove(path);
+            }
+        }
         if self.0[game].is_empty() {
             self.0.remove(game);
         }
     }
 
-    fn remove_with_children(&mut self, game: &str, path: &RegistryItem) {
+    fn remove_children(&mut self, game: &str, path: &RegistryItem) {
         let keys: Vec<_> = self
             .0
             .get(game)
             .map(|x| x.keys().cloned().collect())
             .unwrap_or_default();
         for key in keys {
-            if path.is_prefix_of(&key) || key.interpret() == path.interpret() {
+            if path.is_prefix_of(&key) {
                 self.0.get_mut(game).map(|entry| entry.remove(&key));
             }
         }
     }
 
-    pub fn toggle(&mut self, game: &str, path: &RegistryItem) {
+    pub fn toggle_owned(&mut self, game: &str, path: &RegistryItem, value: Option<String>) {
+        match value {
+            Some(value) => self.toggle(game, path, Some(value.as_str())),
+            None => self.toggle(game, path, None),
+        }
+    }
+
+    pub fn toggle(&mut self, game: &str, path: &RegistryItem, value: Option<&str>) {
         let transitive = self.is_enabled_transitively(game, path);
-        let specific = self.is_enabled_specifically(game, path);
+        let specific = self.is_key_enabled_specifically(game, path);
+
+        if value.is_some() {
+            let by_value = value.and_then(|value| self.is_value_enabled_specifically(game, path, value));
+            match (transitive, specific) {
+                (None, None) => {
+                    if by_value == Some(false) {
+                        self.remove(game, path, value);
+                    } else {
+                        self.set_enabled(game, path, value, false);
+                    }
+                }
+                (_, Some(inherited)) | (Some(inherited), None) => match by_value {
+                    Some(own) if own != inherited => {
+                        self.remove(game, path, value);
+                    }
+                    _ => {
+                        self.set_enabled(game, path, value, !inherited);
+                    }
+                },
+            }
+            self.prune(game, path);
+            return;
+        }
+
         match (transitive, specific) {
             (None, None | Some(true)) => {
-                self.set_enabled(game, path, false);
+                self.set_enabled(game, path, value, false);
             }
             (None, Some(false)) => {
-                self.remove(game, path);
+                self.remove(game, path, value);
             }
             (Some(x), None) => {
-                self.set_enabled(game, path, !x);
+                self.set_enabled(game, path, value, !x);
             }
             (Some(x), Some(y)) if x == y => {
-                self.set_enabled(game, path, !x);
+                self.set_enabled(game, path, value, !x);
             }
             (Some(_), Some(_)) => {
-                self.remove(game, path);
+                self.remove(game, path, value);
             }
         }
+
+        self.prune(game, path);
     }
 }
 
@@ -1554,37 +1734,39 @@ customGames:
         fn verify_toggle_registry_bouncing(
             mut toggled: ToggledRegistry,
             path: &str,
+            value: Option<&str>,
             initial: bool,
             after: ToggledRegistry,
         ) {
             let untoggled = toggled.clone();
 
             let path = RegistryItem::new(path.to_string());
-            assert_eq!(initial, !toggled.is_ignored("game", &path));
+            assert_eq!(initial, !toggled.is_ignored("game", &path, value));
 
-            toggled.toggle("game", &path);
-            assert_eq!(!initial, !toggled.is_ignored("game", &path));
+            toggled.toggle("game", &path, value);
+            assert_eq!(!initial, !toggled.is_ignored("game", &path, value));
             assert_eq!(after, toggled);
 
-            toggled.toggle("game", &path);
-            assert_eq!(initial, !toggled.is_ignored("game", &path));
+            toggled.toggle("game", &path, value);
+            assert_eq!(initial, !toggled.is_ignored("game", &path, value));
             assert_eq!(untoggled, toggled);
         }
 
         fn verify_toggle_registry_sequential(
             mut toggled: ToggledRegistry,
             path: &str,
+            value: Option<&str>,
             initial: bool,
             states: Vec<ToggledRegistry>,
         ) {
             let path = RegistryItem::new(path.to_string());
-            assert_eq!(initial, !toggled.is_ignored("game", &path));
+            assert_eq!(initial, !toggled.is_ignored("game", &path, value));
 
             let mut enabled = initial;
             for state in states {
                 enabled = !enabled;
-                toggled.toggle("game", &path);
-                assert_eq!(enabled, !toggled.is_ignored("game", &path));
+                toggled.toggle("game", &path, value);
+                assert_eq!(enabled, !toggled.is_ignored("game", &path, value));
                 assert_eq!(state, toggled);
             }
         }
@@ -1594,10 +1776,11 @@ customGames:
             verify_toggle_registry_bouncing(
                 ToggledRegistry::default(),
                 "HKEY_CURRENT_USER/Software/Ludusavi",
+                None,
                 true,
                 ToggledRegistry(btreemap! {
                     s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => false,
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false),
                     }
                 }),
             );
@@ -1608,15 +1791,16 @@ customGames:
             verify_toggle_registry_sequential(
                 ToggledRegistry(btreemap! {
                     s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => true,
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true),
                     }
                 }),
                 "HKEY_CURRENT_USER/Software/Ludusavi",
+                None,
                 true,
                 vec![
                     ToggledRegistry(btreemap! {
                         s("game") => btreemap! {
-                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => false,
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false),
                         }
                     }),
                     ToggledRegistry::default(),
@@ -1629,15 +1813,16 @@ customGames:
             verify_toggle_registry_bouncing(
                 ToggledRegistry(btreemap! {
                     s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => false,
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => ToggledRegistryEntry::Key(false),
                     }
                 }),
                 "HKEY_CURRENT_USER/Software/Ludusavi",
+                None,
                 false,
                 ToggledRegistry(btreemap! {
                     s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => false,
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => true,
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => ToggledRegistryEntry::Key(false),
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true),
                     }
                 }),
             );
@@ -1648,24 +1833,184 @@ customGames:
             verify_toggle_registry_sequential(
                 ToggledRegistry(btreemap! {
                     s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => false,
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => false,
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => ToggledRegistryEntry::Key(false),
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false),
                     }
                 }),
                 "HKEY_CURRENT_USER/Software/Ludusavi",
+                None,
                 false,
                 vec![
                     ToggledRegistry(btreemap! {
                         s("game") => btreemap! {
-                            RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => false,
-                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => true,
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => ToggledRegistryEntry::Key(false),
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true),
                         }
                     }),
                     ToggledRegistry(btreemap! {
                         s("game") => btreemap! {
-                            RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => false,
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => ToggledRegistryEntry::Key(false),
                         }
                     }),
+                ],
+            );
+        }
+
+        #[test]
+        fn value_is_unset_and_without_inheritance() {
+            verify_toggle_registry_bouncing(
+                ToggledRegistry::default(),
+                "HKEY_CURRENT_USER/Software/Ludusavi",
+                Some("qword"),
+                true,
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Complex {
+                            key: None,
+                            values: btreemap! {
+                                s("qword") => false,
+                            },
+                        },
+                    }
+                }),
+            );
+        }
+
+        #[test]
+        fn value_is_unset_and_inherits_specifically() {
+            verify_toggle_registry_bouncing(
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false)
+                    }
+                }),
+                "HKEY_CURRENT_USER/Software/Ludusavi",
+                Some("qword"),
+                false,
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Complex {
+                            key: Some(false),
+                            values: btreemap! {
+                                s("qword") => true,
+                            },
+                        },
+                    }
+                }),
+            );
+            verify_toggle_registry_bouncing(
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true)
+                    }
+                }),
+                "HKEY_CURRENT_USER/Software/Ludusavi",
+                Some("qword"),
+                true,
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Complex {
+                            key: Some(true),
+                            values: btreemap! {
+                                s("qword") => false,
+                            },
+                        },
+                    }
+                }),
+            );
+        }
+
+        #[test]
+        fn value_is_unset_and_inherits_transitively() {
+            verify_toggle_registry_bouncing(
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false)
+                    }
+                }),
+                "HKEY_CURRENT_USER/Software/Ludusavi/other",
+                Some("qword"),
+                false,
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false),
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")) => ToggledRegistryEntry::Complex {
+                            key: None,
+                            values: btreemap! {
+                                s("qword") => true,
+                            },
+                        },
+                    }
+                }),
+            );
+            verify_toggle_registry_bouncing(
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true)
+                    }
+                }),
+                "HKEY_CURRENT_USER/Software/Ludusavi/other",
+                Some("qword"),
+                true,
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true),
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")) => ToggledRegistryEntry::Complex {
+                            key: None,
+                            values: btreemap! {
+                                s("qword") => false,
+                            },
+                        },
+                    }
+                }),
+            );
+        }
+
+        #[test]
+        fn value_is_set() {
+            verify_toggle_registry_bouncing(
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")) => ToggledRegistryEntry::Complex {
+                            key: None,
+                            values: btreemap! {
+                                s("qword") => false,
+                            },
+                        }
+                    }
+                }),
+                "HKEY_CURRENT_USER/Software/Ludusavi/other",
+                Some("qword"),
+                false,
+                ToggledRegistry::default(),
+            );
+
+            verify_toggle_registry_sequential(
+                ToggledRegistry(btreemap! {
+                    s("game") => btreemap! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")) => ToggledRegistryEntry::Complex {
+                            key: None,
+                            values: btreemap! {
+                                s("qword") => true,
+                            },
+                        }
+                    }
+                }),
+                "HKEY_CURRENT_USER/Software/Ludusavi/other",
+                Some("qword"),
+                true,
+                vec![
+                    ToggledRegistry(btreemap! {
+                        s("game") => btreemap! {
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")) => ToggledRegistryEntry::Complex {
+                                key: None,
+                                values: btreemap! {
+                                    s("qword") => false,
+                                },
+                            },
+                        }
+                    }),
+                    ToggledRegistry::default(),
                 ],
             );
         }

@@ -92,6 +92,7 @@ pub enum Message {
     ToggleSpecificBackupRegistryIgnored {
         name: String,
         path: RegistryItem,
+        value: Option<String>,
         enabled: bool,
     },
     ToggleCustomGameEnabled {
