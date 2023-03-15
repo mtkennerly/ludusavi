@@ -331,7 +331,11 @@ impl ScanInfo {
     }
 
     pub fn found_anything_processable(&self) -> bool {
-        self.found_files.iter().any(|x| !x.ignored) || self.found_registry_keys.iter().any(|x| !x.ignored)
+        self.found_files.iter().any(|x| !x.ignored)
+            || self
+                .found_registry_keys
+                .iter()
+                .any(|x| !x.ignored || x.values.values().any(|y| !y.ignored))
     }
 
     pub fn update_ignored(&mut self, toggled_paths: &ToggledPaths, toggled_registry: &ToggledRegistry) {
@@ -362,20 +366,37 @@ impl ScanInfo {
         if self.found_files.is_empty() && self.found_registry_keys.is_empty() {
             return false;
         }
-        self.found_files.iter().all(|x| x.ignored) && self.found_registry_keys.iter().all(|x| x.ignored)
+        self.found_files.iter().all(|x| x.ignored)
+            && self
+                .found_registry_keys
+                .iter()
+                .all(|x| x.ignored && x.values.values().all(|y| y.ignored))
     }
 
     pub fn any_ignored(&self) -> bool {
-        self.found_files.iter().any(|x| x.ignored) || self.found_registry_keys.iter().any(|x| x.ignored)
+        self.found_files.iter().any(|x| x.ignored)
+            || self
+                .found_registry_keys
+                .iter()
+                .any(|x| x.ignored || x.values.values().any(|y| y.ignored))
     }
 
     pub fn total_items(&self) -> usize {
-        self.found_files.len() + self.found_registry_keys.len()
+        self.found_files.len()
+            + self
+                .found_registry_keys
+                .iter()
+                .map(|x| 1 + x.values.len())
+                .sum::<usize>()
     }
 
     pub fn enabled_items(&self) -> usize {
         self.found_files.iter().filter(|x| !x.ignored).count()
-            + self.found_registry_keys.iter().filter(|x| !x.ignored).count()
+            + self
+                .found_registry_keys
+                .iter()
+                .map(|x| if x.ignored { 0 } else { 1 } + x.values.values().filter(|y| !y.ignored).count())
+                .sum::<usize>()
     }
 
     pub fn restoring(&self) -> bool {
@@ -397,14 +418,21 @@ impl ScanInfo {
             }
         }
         for entry in &self.found_registry_keys {
-            if entry.ignored {
-                continue;
+            if !entry.ignored {
+                match entry.change {
+                    ScanChange::New => count.new += 1,
+                    ScanChange::Different => count.different += 1,
+                    ScanChange::Same => count.same += 1,
+                    ScanChange::Unknown => (),
+                }
             }
-            match entry.change {
-                ScanChange::New => count.new += 1,
-                ScanChange::Different => count.different += 1,
-                ScanChange::Same => count.same += 1,
-                ScanChange::Unknown => (),
+            for value in entry.values.values().filter(|x| !x.ignored) {
+                match value.change {
+                    ScanChange::New => count.new += 1,
+                    ScanChange::Different => count.different += 1,
+                    ScanChange::Same => count.same += 1,
+                    ScanChange::Unknown => (),
+                }
             }
         }
 
