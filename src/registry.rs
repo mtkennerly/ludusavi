@@ -209,6 +209,8 @@ impl Hives {
             }
         }
 
+        self.prune_ignored_values(scan);
+
         (found, failed)
     }
 
@@ -216,6 +218,20 @@ impl Hives {
         let mut hives = Hives::default();
         hives.incorporate(scan);
         hives
+    }
+
+    fn prune_ignored_values(&mut self, scan: &HashSet<ScannedRegistry>) {
+        for scanned in scan {
+            if let Some((hive, key)) = scanned.path.split_hive() {
+                if let Some(stored) = self.get_mut(&hive, &key) {
+                    for (value_name, value) in &scanned.values {
+                        if value.ignored {
+                            stored.0.remove(value_name);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     fn store_key_from_full_path(&mut self, path: &str) -> Result<(), Error> {
@@ -304,6 +320,10 @@ impl Hives {
 
     fn get(&self, hive: &str, key: &str) -> Option<&Entries> {
         self.0.get(hive)?.0.get(key)
+    }
+
+    fn get_mut(&mut self, hive: &str, key: &str) -> Option<&mut Entries> {
+        self.0.get_mut(hive)?.0.get_mut(key)
     }
 }
 
