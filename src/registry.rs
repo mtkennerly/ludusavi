@@ -102,13 +102,7 @@ fn scan_registry_key(
                 None => ScanChange::New,
                 Some(previous) => match previous.get(hive_name, key) {
                     None => ScanChange::New,
-                    Some(entries) => {
-                        if entries == &live_entries {
-                            ScanChange::Same
-                        } else {
-                            ScanChange::Different
-                        }
-                    }
+                    Some(_) => ScanChange::Same,
                 },
             },
             values: live_values,

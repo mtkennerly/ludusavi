@@ -1320,13 +1320,7 @@ pub fn scan_game_for_restoration(
                             ignored: false,
                             change: match &live_entries {
                                 None => ScanChange::New,
-                                Some(current) => {
-                                    if entries == current {
-                                        ScanChange::Same
-                                    } else {
-                                        ScanChange::Different
-                                    }
-                                }
+                                Some(_) => ScanChange::Same,
                             },
                             values: live_values,
                         });
