@@ -222,6 +222,7 @@ impl FileTreeNode {
         change: ScanChange,
         scanned_file: Option<ScannedFile>,
         registry_values: Option<&ScannedRegistryValues>,
+        duplicate_detector: &DuplicateDetector,
     ) -> &mut Self {
         let node_type = self.node_type.clone();
         let mut node = self;
@@ -265,7 +266,6 @@ impl FileTreeNode {
                 let mut node = node.nodes.entry(value_name.clone()).or_insert_with(|| {
                     FileTreeNode::new(
                         full_keys,
-                        // None, // TODO: registry values
                         Some(FileTreeNodePath::RegistryValue(
                             RegistryItem::new(inserted_keys.join("/")),
                             value_name.clone(),
@@ -274,7 +274,8 @@ impl FileTreeNode {
                     )
                 });
                 node.successful = true;
-                node.duplicated = false; // TODO: registry values
+                node.duplicated = duplicate_detector
+                    .is_registry_value_duplicated(&RegistryItem::new(inserted_keys.join("/")), value_name);
                 node.change = value.change;
                 node.ignored = value.ignored;
             }
@@ -360,6 +361,7 @@ impl FileTree {
                     item.change,
                     Some(item.clone()),
                     None,
+                    duplicate_detector,
                 );
         }
         for item in scan_info.found_registry_keys.iter() {
@@ -385,6 +387,7 @@ impl FileTree {
                     item.change,
                     None,
                     Some(&item.values),
+                    duplicate_detector,
                 );
         }
 

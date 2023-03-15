@@ -226,7 +226,7 @@ impl Reporter {
                             value_name,
                             true,
                             value.ignored,
-                            false, // TODO: registry values
+                            duplicate_detector.is_registry_value_duplicated(&entry.path, value_name),
                             value.change,
                             true,
                         ));
