@@ -74,7 +74,7 @@ pub enum Message {
     },
     ToggleGameListEntryTreeExpanded {
         name: String,
-        keys: Vec<String>,
+        keys: Vec<TreeNodeKey>,
     },
     ToggleGameListEntryEnabled {
         name: String,
@@ -372,6 +372,23 @@ impl ToString for GameAction {
             Self::Customize => translator.customize_button(),
             Self::Wiki => translator.pcgamingwiki(),
             Self::Comment => translator.comment_button(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub enum TreeNodeKey {
+    File(String),
+    RegistryKey(String),
+    RegistryValue(String),
+}
+
+impl TreeNodeKey {
+    pub fn raw(&self) -> &str {
+        match self {
+            Self::File(x) => x,
+            Self::RegistryKey(x) => x,
+            Self::RegistryValue(x) => x,
         }
     }
 }

@@ -2,7 +2,7 @@ use crate::{
     config::{Config, ToggledPaths, ToggledRegistry},
     gui::{
         badge::Badge,
-        common::{IcedExtension, Message},
+        common::{IcedExtension, Message, TreeNodeKey},
         icon::Icon,
         style,
         widget::{Button, Checkbox, Column, Container, Row, Text},
@@ -30,10 +30,10 @@ enum FileTreeNodePath {
 
 #[derive(Clone, Debug, Default)]
 struct FileTreeNode {
-    keys: Vec<String>,
+    keys: Vec<TreeNodeKey>,
     expanded: bool,
     path: Option<FileTreeNodePath>,
-    nodes: std::collections::BTreeMap<String, FileTreeNode>,
+    nodes: std::collections::BTreeMap<TreeNodeKey, FileTreeNode>,
     successful: bool,
     ignored: bool,
     duplicated: bool,
@@ -43,7 +43,7 @@ struct FileTreeNode {
 }
 
 impl FileTreeNode {
-    pub fn new(keys: Vec<String>, path: Option<FileTreeNodePath>, node_type: FileTreeNodeType) -> Self {
+    pub fn new(keys: Vec<TreeNodeKey>, path: Option<FileTreeNodePath>, node_type: FileTreeNodeType) -> Self {
         Self {
             keys,
             path,
@@ -121,7 +121,17 @@ impl FileTreeNode {
                     .align_items(Alignment::Center)
                     .padding([0, 0, 0, 35 * level])
                     .spacing(10)
-                    .push(Icon::SubdirectoryArrowRight.as_text().height(25).width(25).size(25))
+                    .push(match self.node_type {
+                        FileTreeNodeType::File | FileTreeNodeType::RegistryValue(_) => {
+                            Container::new(Icon::SubdirectoryArrowRight.as_text().height(25).width(25).size(25))
+                        }
+                        FileTreeNodeType::RegistryKey => Container::new(
+                            Button::new(Icon::KeyboardArrowDown.into_text().width(15).size(15))
+                                .style(style::Button::Primary)
+                                .height(25)
+                                .width(25),
+                        ),
+                    })
                     .push_some(make_enabler)
                     .push(Text::new(label))
                     .push_some(|| {
@@ -151,10 +161,10 @@ impl FileTreeNode {
         } else if self.nodes.len() == 1 {
             let keys: Vec<_> = self.nodes.keys().cloned().collect();
             let key = &keys[0];
-            if !self.nodes.get::<str>(key).unwrap().nodes.is_empty() {
-                return Container::new(self.nodes.get::<str>(key).unwrap().view(
+            if !self.nodes.get(key).unwrap().nodes.is_empty() {
+                return Container::new(self.nodes.get(key).unwrap().view(
                     level,
-                    format!("{}/{}", label, key),
+                    format!("{}/{}", label, key.raw()),
                     translator,
                     game_name,
                     _config,
@@ -206,17 +216,26 @@ impl FileTreeNode {
                 |parent, (k, v)| {
                     parent.push_if(
                         || expanded,
-                        || v.view(level + 1, k.to_owned(), translator, game_name, _config, restoring),
+                        || {
+                            v.view(
+                                level + 1,
+                                k.raw().to_string(),
+                                translator,
+                                game_name,
+                                _config,
+                                restoring,
+                            )
+                        },
                     )
                 },
             ),
         )
     }
 
-    fn insert_keys<T: AsRef<str> + ToString>(
+    fn insert_keys(
         &mut self,
-        keys: &[T],
-        prefix_keys: &[T],
+        keys: &[TreeNodeKey],
+        prefix_keys: &[TreeNodeKey],
         successful: bool,
         duplicated: bool,
         change: ScanChange,
@@ -228,24 +247,23 @@ impl FileTreeNode {
         let mut node = self;
         let mut inserted_keys = vec![];
         for key in prefix_keys.iter() {
-            inserted_keys.push(key.to_string());
+            inserted_keys.push(key.clone());
         }
-        let mut full_keys: Vec<_> = prefix_keys.iter().map(|x| x.to_string()).collect();
+        let mut full_keys: Vec<_> = prefix_keys.to_vec();
         for key in keys.iter() {
-            inserted_keys.push(key.to_string());
-            full_keys.push(key.to_string());
-            node = node.nodes.entry(key.to_string()).or_insert_with(|| {
+            inserted_keys.push(key.clone());
+            full_keys.push(key.clone());
+            let raw_path = inserted_keys.iter().map(|x| x.raw()).collect::<Vec<_>>().join("/");
+            node = node.nodes.entry(key.clone()).or_insert_with(|| {
                 FileTreeNode::new(
                     full_keys.clone(),
                     match &node_type {
-                        FileTreeNodeType::File => {
-                            Some(FileTreeNodePath::File(StrictPath::new(inserted_keys.join("/"))))
+                        FileTreeNodeType::File => Some(FileTreeNodePath::File(StrictPath::new(raw_path))),
+                        FileTreeNodeType::RegistryKey => {
+                            Some(FileTreeNodePath::RegistryKey(RegistryItem::new(raw_path)))
                         }
-                        FileTreeNodeType::RegistryKey => Some(FileTreeNodePath::RegistryKey(RegistryItem::new(
-                            inserted_keys.join("/"),
-                        ))),
                         FileTreeNodeType::RegistryValue(name) => Some(FileTreeNodePath::RegistryValue(
-                            RegistryItem::new(inserted_keys.join("/")),
+                            RegistryItem::new(raw_path),
                             name.clone(),
                         )),
                     },
@@ -260,22 +278,26 @@ impl FileTreeNode {
         node.scanned_file = scanned_file;
 
         if let Some(registry_values) = registry_values {
+            let raw_key_path = inserted_keys.iter().map(|x| x.raw()).collect::<Vec<_>>().join("/");
             for (value_name, value) in registry_values {
                 let mut full_keys = full_keys.clone();
-                full_keys.push(value_name.clone());
-                let mut node = node.nodes.entry(value_name.clone()).or_insert_with(|| {
-                    FileTreeNode::new(
-                        full_keys,
-                        Some(FileTreeNodePath::RegistryValue(
-                            RegistryItem::new(inserted_keys.join("/")),
-                            value_name.clone(),
-                        )),
-                        FileTreeNodeType::RegistryValue(value_name.clone()),
-                    )
-                });
+                full_keys.push(TreeNodeKey::RegistryKey(value_name.clone()));
+                let mut node = node
+                    .nodes
+                    .entry(TreeNodeKey::RegistryValue(value_name.clone()))
+                    .or_insert_with(|| {
+                        FileTreeNode::new(
+                            full_keys,
+                            Some(FileTreeNodePath::RegistryValue(
+                                RegistryItem::new(raw_key_path.clone()),
+                                value_name.clone(),
+                            )),
+                            FileTreeNodeType::RegistryValue(value_name.clone()),
+                        )
+                    });
                 node.successful = true;
                 node.duplicated = duplicate_detector
-                    .is_registry_value_duplicated(&RegistryItem::new(inserted_keys.join("/")), value_name);
+                    .is_registry_value_duplicated(&RegistryItem::new(raw_key_path.clone()), value_name);
                 node.change = value.change;
                 node.ignored = value.ignored;
             }
@@ -284,12 +306,12 @@ impl FileTreeNode {
         node
     }
 
-    fn expand_or_collapse_keys(&mut self, keys: &[String]) -> &mut Self {
+    fn expand_or_collapse_keys(&mut self, keys: &[TreeNodeKey]) -> &mut Self {
         let mut node = self;
         let mut visited_keys = vec![];
         for key in keys.iter() {
-            visited_keys.push(key.to_string());
-            node = node.nodes.entry(key.to_string()).or_insert_with(Default::default);
+            visited_keys.push(key.clone());
+            node = node.nodes.entry(key.clone()).or_insert_with(Default::default);
         }
 
         node.expanded = !node.expanded;
@@ -327,7 +349,7 @@ impl FileTreeNode {
 
 #[derive(Debug, Default)]
 pub struct FileTree {
-    nodes: std::collections::BTreeMap<String, FileTreeNode>,
+    nodes: std::collections::BTreeMap<TreeNodeKey, FileTreeNode>,
 }
 
 impl FileTree {
@@ -337,7 +359,7 @@ impl FileTree {
         backup_info: &Option<BackupInfo>,
         duplicate_detector: &DuplicateDetector,
     ) -> Self {
-        let mut nodes = std::collections::BTreeMap::<String, FileTreeNode>::new();
+        let mut nodes = std::collections::BTreeMap::<TreeNodeKey, FileTreeNode>::new();
 
         for item in scan_info.found_files.iter() {
             let mut successful = true;
@@ -348,14 +370,14 @@ impl FileTree {
             }
 
             let rendered = item.readable(scan_info.restoring());
-            let components: Vec<_> = rendered.split('/').collect();
+            let components: Vec<_> = rendered.split('/').map(|x| TreeNodeKey::File(x.to_string())).collect();
 
             nodes
-                .entry(components[0].to_string())
-                .or_insert_with(|| FileTreeNode::new(vec![components[0].to_string()], None, FileTreeNodeType::File))
+                .entry(components[0].clone())
+                .or_insert_with(|| FileTreeNode::new(vec![components[0].clone()], None, FileTreeNodeType::File))
                 .insert_keys(
                     &components[1..],
-                    &[components[0]],
+                    &[components[0].clone()],
                     successful,
                     duplicate_detector.is_file_duplicated(item),
                     item.change,
@@ -372,13 +394,16 @@ impl FileTree {
                 }
             }
 
-            let components: Vec<_> = item.path.split();
+            let components: Vec<_> = item
+                .path
+                .split()
+                .iter()
+                .map(|x| TreeNodeKey::RegistryKey(x.to_string()))
+                .collect();
 
             nodes
-                .entry(components[0].to_string())
-                .or_insert_with(|| {
-                    FileTreeNode::new(vec![components[0].to_string()], None, FileTreeNodeType::RegistryKey)
-                })
+                .entry(components[0].clone())
+                .or_insert_with(|| FileTreeNode::new(vec![components[0].clone()], None, FileTreeNodeType::RegistryKey))
                 .insert_keys(
                     &components[1..],
                     &components[0..1],
@@ -409,12 +434,12 @@ impl FileTree {
                 .iter()
                 .filter(|(_, v)| v.anything_showable())
                 .fold(Column::new().spacing(4), |parent, (k, v)| {
-                    parent.push(v.view(0, k.to_owned(), translator, game_name, config, restoring))
+                    parent.push(v.view(0, k.raw().to_string(), translator, game_name, config, restoring))
                 }),
         )
     }
 
-    pub fn expand_or_collapse_keys(&mut self, keys: &[String]) {
+    pub fn expand_or_collapse_keys(&mut self, keys: &[TreeNodeKey]) {
         if keys.is_empty() {
             return;
         }
