@@ -4,6 +4,12 @@
   * Registry values are now listed individually, not just keys.
     This also means you can exclude specific values from the backup.
   * Registry backups now include binary values.
+  * Registry backups now handle alternatives to `HKEY_LOCAL_MACHINE\SOFTWARE`.
+    For example, when Ludusavi tries to find `HKEY_LOCAL_MACHINE\SOFTWARE\example`,
+    it will now also look for:
+    * `HKEY_LOCAL_MACHINE\SOFTWARE\Wow6432Node\example`
+    * `HKEY_CURRENT_USER\Software\Classes\VirtualStore\MACHINE\SOFTWARE\example`
+    * `HKEY_CURRENT_USER\Software\Classes\VirtualStore\MACHINE\SOFTWARE\Wow6432Node\example`
   * GUI: In restore mode, you can create a comment on each backup.
     You can use this to keep track of how each backup reflects your game progress.
   * GUI: You can now reorder custom games, roots, redirects, and ignored paths/registry.

@@ -1212,12 +1212,32 @@ pub fn scan_game_for_backup(
                 if key.trim().is_empty() {
                     continue;
                 }
-                log::trace!("[{name}] checking registry: {key}");
-                for scanned in crate::registry::scan_registry(name, key, filter, ignored_registry, &previous_registry)
-                    .unwrap_or_default()
-                {
-                    log::debug!("[{name}] found registry: {}", scanned.path.raw());
-                    found_registry_keys.insert(scanned);
+
+                log::trace!("[{name}] computing candidates for registry: {key}");
+                let mut candidates = vec![key.clone()];
+                let normalized = key.replace('\\', "/").to_lowercase();
+                if normalized.starts_with("hkey_local_machine/software/") && !normalized.contains("/wow6432node/") {
+                    let tail = &key[28..];
+                    candidates.push(format!("HKEY_LOCAL_MACHINE/SOFTWARE/Wow6432Node/{}", tail));
+                    candidates.push(format!(
+                        "HKEY_CURRENT_USER/Software/Classes/VirtualStore/MACHINE/SOFTWARE/{}",
+                        tail
+                    ));
+                    candidates.push(format!(
+                        "HKEY_CURRENT_USER/Software/Classes/VirtualStore/MACHINE/SOFTWARE/Wow6432Node/{}",
+                        tail
+                    ));
+                }
+
+                for candidate in candidates {
+                    log::trace!("[{name}] checking registry: {candidate}");
+                    for scanned in
+                        crate::registry::scan_registry(name, &candidate, filter, ignored_registry, &previous_registry)
+                            .unwrap_or_default()
+                    {
+                        log::debug!("[{name}] found registry: {}", scanned.path.raw());
+                        found_registry_keys.insert(scanned);
+                    }
                 }
             }
         }
