@@ -1998,8 +1998,10 @@ mod tests {
     }
 
     fn now() -> chrono::DateTime<chrono::Utc> {
-        chrono::NaiveDate::from_ymd(2000, 1, 2)
-            .and_hms(3, 4, 5)
+        chrono::NaiveDate::from_ymd_opt(2000, 1, 2)
+            .unwrap()
+            .and_hms_opt(3, 4, 5)
+            .unwrap()
             .and_local_timezone(chrono::Utc)
             .unwrap()
     }

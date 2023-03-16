@@ -18,6 +18,12 @@ const UNC_PREFIX: &str = "\\\\";
 #[allow(dead_code)]
 const UNC_LOCAL_PREFIX: &str = "\\\\?\\";
 
+#[derive(Debug)]
+pub enum SetFileTimeError {
+    Write(std::io::Error),
+    InvalidTimestamp,
+}
+
 fn parse_home(path: &str) -> String {
     if path == "~" || path.starts_with("~/") || path.starts_with("~\\") {
         path.replacen('~', &dirs::home_dir().unwrap().to_string_lossy(), 1)
@@ -336,12 +342,15 @@ impl StrictPath {
     }
 
     /// Zips don't store time zones, so we normalize to/from UTC.
-    pub fn set_mtime_zip(&self, mtime: zip::DateTime) -> Result<(), std::io::Error> {
+    pub fn set_mtime_zip(&self, mtime: zip::DateTime) -> Result<(), SetFileTimeError> {
         let naive_mtime = chrono::NaiveDateTime::new(
-            chrono::NaiveDate::from_ymd(mtime.year() as i32, mtime.month() as u32, mtime.day() as u32),
-            chrono::NaiveTime::from_hms(mtime.hour() as u32, mtime.minute() as u32, mtime.second() as u32),
+            chrono::NaiveDate::from_ymd_opt(mtime.year() as i32, mtime.month() as u32, mtime.day() as u32)
+                .ok_or(SetFileTimeError::InvalidTimestamp)?,
+            chrono::NaiveTime::from_hms_opt(mtime.hour() as u32, mtime.minute() as u32, mtime.second() as u32)
+                .ok_or(SetFileTimeError::InvalidTimestamp)?,
         );
         self.set_mtime(chrono::DateTime::<chrono::Utc>::from_utc(naive_mtime, chrono::Utc).into())
+            .map_err(SetFileTimeError::Write)
     }
 
     pub fn remove(&self) -> Result<(), Box<dyn std::error::Error>> {

@@ -1487,7 +1487,7 @@ impl GameLayout {
                 let mtime = source_file.last_modified();
                 if let Err(e) = target.set_mtime_zip(mtime) {
                     log::error!(
-                        "[{}] unable to set modification time: {} -> {} to {:#?} | {e}",
+                        "[{}] unable to set modification time: {} -> {} to {:#?} | {e:?}",
                         self.mapping.name,
                         file.path.raw(),
                         target.raw(),
@@ -1850,8 +1850,10 @@ mod tests {
         }
 
         fn past() -> chrono::DateTime<chrono::Utc> {
-            chrono::NaiveDate::from_ymd(2000, 1, 2)
-                .and_hms(3, 4, 1)
+            chrono::NaiveDate::from_ymd_opt(2000, 1, 2)
+                .unwrap()
+                .and_hms_opt(3, 4, 1)
+                .unwrap()
                 .and_local_timezone(chrono::Utc)
                 .unwrap()
         }
@@ -1861,8 +1863,10 @@ mod tests {
         }
 
         fn past2() -> chrono::DateTime<chrono::Utc> {
-            chrono::NaiveDate::from_ymd(2000, 1, 2)
-                .and_hms(3, 4, 2)
+            chrono::NaiveDate::from_ymd_opt(2000, 1, 2)
+                .unwrap()
+                .and_hms_opt(3, 4, 2)
+                .unwrap()
                 .and_local_timezone(chrono::Utc)
                 .unwrap()
         }
@@ -1872,8 +1876,10 @@ mod tests {
         }
 
         fn now() -> chrono::DateTime<chrono::Utc> {
-            chrono::NaiveDate::from_ymd(2000, 1, 2)
-                .and_hms(3, 4, 5)
+            chrono::NaiveDate::from_ymd_opt(2000, 1, 2)
+                .unwrap()
+                .and_hms_opt(3, 4, 5)
+                .unwrap()
                 .and_local_timezone(chrono::Utc)
                 .unwrap()
         }
