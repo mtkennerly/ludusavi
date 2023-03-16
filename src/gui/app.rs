@@ -441,14 +441,13 @@ impl App {
 
         self.cache.save();
 
+        self.go_idle();
+
         if failed {
             self.modal_theme = Some(ModalTheme::Error {
                 variant: Error::SomeEntriesFailed,
             });
-            return;
         }
-
-        self.go_idle();
     }
 
     fn complete_restore(&mut self, full: bool) {
@@ -475,13 +474,13 @@ impl App {
 
         self.cache.save();
 
+        self.go_idle();
+
         if failed {
             self.modal_theme = Some(ModalTheme::Error {
                 variant: Error::SomeEntriesFailed,
             });
         }
-
-        self.go_idle();
     }
 
     fn customize_game(&mut self, name: String) -> Command<Message> {

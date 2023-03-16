@@ -29,6 +29,8 @@
   * Ludusavi currently cannot back up registry keys whose names contain a forward slash.
     This limitation still exists, but now such keys are no longer listed incorrectly as two separate keys.
     This was only a display issue, because such keys were not included in the backup regardless.
+  * GUI: If some saves failed to back up, then the scan buttons would stay deactivated,
+    and you would have to reopen the program in order to do another scan.
   * GUI: If a game had a new registry value inside of a key that also contained other keys,
     then the game would be flagged as changed, but not the key with the new value.
     Now that values are listed individually, you can tell what changed.
