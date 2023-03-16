@@ -18,6 +18,12 @@
   * Updated translations, including new/partial translations for Dutch (35%) and French (6%).
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:
+  * When a save file failed to be backed up,
+    Ludusavi would still record that file in the backup's `mapping.yaml`.
+    Because of this, when Ludusavi would later check whether a new backup was needed,
+    it would assume that the failed file had been backed up previously.
+    Now, failed files are not recorded in `mapping.yaml`,
+    so subsequent scans will detect that they still need to be backed up.
   * Heroic Wine/Proton prefixes containing a `pfx` subfolder were not detected.
   * Along with any explicit `installDir` entries in the manifest,
     Ludusavi tries to find each game's install directory based on that game's title.

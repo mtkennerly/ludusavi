@@ -142,6 +142,43 @@ impl Backup {
             Self::Differential(backup) => backup.files.values().all(|x| x.is_none()) && backup.registry.is_none(),
         }
     }
+
+    pub fn prune_failures(&mut self, backup_info: &BackupInfo) {
+        match self {
+            Self::Full(backup) => {
+                let mut failed = vec![];
+                for file in backup.files.keys() {
+                    if backup_info.failed_files.iter().any(|x| &x.path.raw() == file) {
+                        failed.push(file.to_string());
+                    }
+                }
+                for file in failed {
+                    backup.files.remove(&file);
+                }
+
+                // TODO: Registry failures are currently ignored during backup.
+                // If that changes, then make sure this logic is still appropriate.
+                if !backup_info.failed_registry.is_empty() {
+                    backup.registry.hash = None;
+                }
+            }
+            Self::Differential(backup) => {
+                let mut failed = vec![];
+                for file in backup.files.keys() {
+                    if backup_info.failed_files.iter().any(|x| &x.path.raw() == file) {
+                        failed.push(file.to_string());
+                    }
+                }
+                for file in failed {
+                    backup.files.remove(&file);
+                }
+
+                if !backup_info.failed_registry.is_empty() {
+                    backup.registry = None;
+                }
+            }
+        }
+    }
 }
 
 impl ToString for Backup {
@@ -1209,21 +1246,20 @@ impl GameLayout {
     }
 
     fn execute_backup(&mut self, backup: &Backup, scan: &ScanInfo, format: &BackupFormats) -> BackupInfo {
-        let backup_info = if backup.only_inherits_and_overrides() {
+        if backup.only_inherits_and_overrides() {
             BackupInfo::default()
         } else {
             match format.chosen {
                 BackupFormat::Simple => self.execute_backup_as_simple(backup, scan),
                 BackupFormat::Zip => self.execute_backup_as_zip(backup, scan, format),
             }
-        };
+        }
+    }
 
+    fn prune_irrelevant_parents(&self) {
         for irrelevant_parent in self.mapping.irrelevant_parents(&self.path) {
             let _ = irrelevant_parent.remove();
         }
-
-        self.save();
-        backup_info
     }
 
     /// Handle legacy backups from before multi-backup support.
@@ -1280,15 +1316,21 @@ impl GameLayout {
                 log::info!("[{}] no need for new backup", &scan.game_name);
                 BackupInfo::default()
             }
-            Some(backup) => {
+            Some(mut backup) => {
                 log::info!(
                     "[{}] creating a {:?} backup: {}",
                     &scan.game_name,
                     backup.kind(),
                     backup.name()
                 );
-                self.insert_backup(backup.clone());
-                self.execute_backup(&backup, scan, format)
+                let backup_info = self.execute_backup(&backup, scan, format);
+                backup.prune_failures(&backup_info);
+                if self.need_backup(&backup) {
+                    self.insert_backup(backup.clone());
+                    self.save();
+                }
+                self.prune_irrelevant_parents();
+                backup_info
             }
         }
     }
