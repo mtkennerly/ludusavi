@@ -47,28 +47,39 @@ pub enum Language {
     #[serde(rename = "it-IT")]
     Italian,
     #[allow(dead_code)]
+    #[serde(rename = "ja-JP")]
+    Japanese,
+    #[allow(dead_code)]
     #[serde(rename = "ko-KR")]
     Korean,
     #[serde(rename = "pt-BR")]
     PortugueseBrazilian,
     #[serde(rename = "pl-PL")]
     Polish,
-    #[serde(rename = "es-ES")]
+    #[allow(dead_code)]
+    #[serde(rename = "ja-JP")]
+    Russian,
+    #[serde(rename = "ru-RU")]
     Spanish,
+    #[allow(dead_code)]
+    #[serde(rename = "uk-UA")]
+    Ukrainian,
 }
 
 impl Language {
     pub const ALL: &'static [Self] = &[
         Self::German,
         Self::English,
-        Self::Esperanto,
-        Self::French,
         Self::Spanish,
+        Self::Esperanto,
         Self::Filipino,
+        Self::French,
         Self::Italian,
         Self::Dutch,
         Self::Polish,
         Self::PortugueseBrazilian,
+        Self::Russian,
+        Self::Ukrainian,
     ];
 
     pub fn id(&self) -> LanguageIdentifier {
@@ -82,10 +93,13 @@ impl Language {
             Self::French => "fr-FR",
             Self::German => "de-DE",
             Self::Italian => "it-IT",
+            Self::Japanese => "ja-JP",
             Self::Korean => "ko-KR",
             Self::Polish => "pl-PL",
             Self::PortugueseBrazilian => "pt-BR",
+            Self::Russian => "ru-RU",
             Self::Spanish => "es-ES",
+            Self::Ukrainian => "uk-UA",
         };
         id.parse().unwrap()
     }
@@ -94,19 +108,22 @@ impl Language {
 impl ToString for Language {
     fn to_string(&self) -> String {
         match self {
-            Self::Arabic => "العربية (97%)",
-            Self::ChineseSimplified => "中文（简体） (61%)",
-            Self::Dutch => "Nederlands (35%)",
+            Self::Arabic => "العربية (98%)",
+            Self::ChineseSimplified => "中文（简体） (99%)",
+            Self::Dutch => "Nederlands (34%)",
             Self::English => "English",
-            Self::Esperanto => "Esperanto (20%)",
+            Self::Esperanto => "Esperanto (21%)",
             Self::Filipino => "Filipino (57%)",
             Self::French => "Français (6%)",
-            Self::German => "Deutsch (94%)",
-            Self::Italian => "Italiano (100%)",
-            Self::Korean => "한국어 (47%)",
-            Self::Polish => "Polski (94%)",
-            Self::PortugueseBrazilian => "Português brasileiro (100%)",
+            Self::German => "Deutsch (99%)",
+            Self::Italian => "Italiano (99%)",
+            Self::Japanese => "日本語 (73%)",
+            Self::Korean => "한국어 (46%)",
+            Self::Polish => "Polski (93%)",
+            Self::PortugueseBrazilian => "Português brasileiro (99%)",
+            Self::Russian => "Русский язык (11%)",
             Self::Spanish => "Español (84%)",
+            Self::Ukrainian => "Украї́нська мо́ва (9%)",
         }
         .to_string()
     }
@@ -142,10 +159,13 @@ fn set_language(language: Language) {
         Language::French => include_str!("../lang/fr-FR.ftl"),
         Language::German => include_str!("../lang/de-DE.ftl"),
         Language::Italian => include_str!("../lang/it-IT.ftl"),
+        Language::Japanese => include_str!("../lang/ja-JP.ftl"),
         Language::Korean => include_str!("../lang/ko-KR.ftl"),
         Language::Polish => include_str!("../lang/pl-PL.ftl"),
         Language::PortugueseBrazilian => include_str!("../lang/pt-BR.ftl"),
+        Language::Russian => include_str!("../lang/ru-RU.ftl"),
         Language::Spanish => include_str!("../lang/es-ES.ftl"),
+        Language::Ukrainian => include_str!("../lang/uk-UA.ftl"),
     }
     .to_owned();
 

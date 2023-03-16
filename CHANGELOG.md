@@ -15,8 +15,12 @@
   * GUI: You can now reorder custom games, roots, redirects, and ignored paths/registry.
   * CLI: `manifest show` command.
   * CLI: `--compression-level` option for the `backup` command.
-  * Updated translations, including new/partial translations for Dutch (35%) and French (6%).
+  * Updated translations, including new/partial translations for Dutch, French, Russian, and Ukrainian.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
+
+    A translation for Japanese has also been added, but it only has experimental support
+    because of a [technical limitation](https://github.com/mtkennerly/ludusavi/issues/9).
+    You can enable it by editing the config file directly with language code `ja-JP`,
 * Fixed:
   * When a save file failed to be backed up,
     Ludusavi would still record that file in the backup's `mapping.yaml`.

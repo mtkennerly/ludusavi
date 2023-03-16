@@ -8,7 +8,7 @@ file-location = Ort
 overall = Insgesamt
 cli-unrecognized-games = Keine Informationen für diese Spiele:
 cli-unable-to-request-confirmation = Bestätigung konnte nicht angefordert werden.
-    .winpty-workaround = Wenn du einen Bash Emulator (wie Git Bash) verwendest, versuche winpty auszuführen.
+    .winpty-workaround = Falls du einen Bash-Emulator (wie Git Bash) verwendest, versuche winpty auszuführen.
 cli-backup-id-with-multiple-games = Sicherungs-ID kann nicht angegeben werden, wenn mehrere Spiele wiederhergestellt werden.
 cli-invalid-backup-id = Ungültige Sicherungs-ID.
 badge-failed = FEHLGESCHLAGEN
@@ -16,10 +16,10 @@ badge-duplicates = DUPLIKATE
 badge-duplicated = DUPLIZIERT
 badge-ignored = IGNORIERT
 badge-redirected-from = VON: { $path }
-badge-redirecting-to = TO: { $path }
-some-entries-failed = Einige Einträge konnten nicht verarbeitet werden; Suche nach { badge-failed } in der Ausgabe für Details. Überprüfen Sie, ob Sie auf diese Dateien zugreifen können oder ob ihre Pfade sehr lang sind.
+badge-redirecting-to = AN: { $path }
+some-entries-failed = Einige Einträge konnten nicht verarbeitet werden. Suche innerhalb der Ausgabe nach { badge-failed } für Details. Überprüfe, ob du auf diese Dateien zugreifen kannst oder ob deren Pfade sehr lang sind.
 cli-game-line-item-redirected = Umgeleitet von: { $path }
-cli-game-line-item-redirecting = Redirecting to: { $path }
+cli-game-line-item-redirecting = Umleiten an: { $path }
 button-backup = Sichern
 button-preview = Vorschau
 button-restore = Wiederherstellen
@@ -27,9 +27,6 @@ button-nav-backup = SICHERUNGSMODUS
 button-nav-restore = WIEDERHERSTELLUNGSMODUS
 button-nav-custom-games = BENUTZERDEFINIERTE SPIELE
 button-nav-other = ANDERE
-button-add-root = Wurzel hinzufügen
-button-find-roots = Wurzeln suchen
-button-add-redirect = Weiterleitung hinzufügen
 button-add-game = Spiel hinzufügen
 button-continue = Weiter
 button-cancel = Abbrechen
@@ -40,15 +37,16 @@ button-deselect-all = Alle abwählen
 button-enable-all = Alle aktivieren
 button-disable-all = Alle deaktivieren
 button-customize = Anpassen
-button-exit = Exit
-no-roots-are-configured = Fügen Sie einige Wurzeln hinzu, um noch mehr Daten zu sichern.
+button-exit = Verlassen
+button-comment = Comment
+no-roots-are-configured = Füge einige Wurzelverzeichnisse hinzu, um weitere Daten zu sichern.
 config-is-invalid = Fehler: Die Konfigurationsdatei ist ungültig.
 manifest-is-invalid = Fehler: Die Manifest-Datei ist ungültig.
-manifest-cannot-be-updated = Fehler: Konnte nicht auf eine Aktualisierung der Manifest-Datei überprüfen. Ist Ihre Internetverbindung abgeschlossen?
-cannot-prepare-backup-target = Fehler: Kann Backup-Ziel nicht vorbereiten (entweder erstellen oder leeren des Ordners). Wenn Sie den Ordner in Ihrem Datei-Browser geöffnet haben, schließen Sie ihn: { $path }
-restoration-source-is-invalid = Fehler: Die Wiederherstellungsquelle ist ungültig (entweder existiert nicht oder ist kein Verzeichnis). Bitte überprüfen Sie den Speicherort: { $path }
+manifest-cannot-be-updated = Fehler: Die Manifest-Datei konnte nicht auf eine Aktualisierung überprüft werden. Besteht eine Internetverbindung?
+cannot-prepare-backup-target = Fehler: Das Sicherungsziel kann nicht vorbereitet werden (entweder beim Erstellen oder Leeren des Ordners). Falls du den Ordner in deinem Dateibrowser geöffnet hast, versuche diesen zu schließen: { $path }
+restoration-source-is-invalid = Fehler: Die Wiederherstellungsquelle ist ungültig (entweder sie existiert nicht oder ist kein Verzeichnis). Bitte überprüfe den Speicherort: { $path }
 registry-issue = Fehler: Einige Registrierungseinträge wurden übersprungen.
-unable-to-browse-file-system = Fehler: Konnte ihr System nicht durchsuchen.
+unable-to-browse-file-system = Fehler: Dateisystem kann nicht durchsucht werden.
 unable-to-open-directory = Fehler: Verzeichnis konnte nicht geöffnet werden:
 unable-to-open-url = Fehler: Kann URL nicht öffnen:
 processed-games =
@@ -73,8 +71,9 @@ field-redirect-source =
     .placeholder = Quelle (Originalort)
 field-redirect-target =
     .placeholder = Ziel (neuer Ort)
+field-roots = Roots:
 field-backup-excluded-items = Sicherungsausschlüsse:
-field-redirects = Redirects:
+field-redirects = Umleitungen:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
 field-retention-full = Komplett:
@@ -84,13 +83,13 @@ field-retention-differential = Differenz:
 field-backup-format = Format:
 field-backup-compression = Komprimierung:
 # The compression level determines how much compresison we perform.
-field-backup-compression-level = Level:
+field-backup-compression-level = Stufe:
 label-manifest = Manifest
 # This shows the time when we checked for an update to the manifest.
-label-checked = Checked
+label-checked = Überprüft
 # This shows the time when we found an update to the manifest.
-label-updated = Updated
-label-new = New
+label-updated = Aktualisiert
+label-new = Neu
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -114,26 +113,26 @@ compression-zstd = Zstd
 theme = Aussehen
 theme-light = Hell
 theme-dark = Dunkel
-redirect-bidirectional = Bidirectional
+redirect-bidirectional = Bidirektional
 explanation-for-exclude-store-screenshots = Schließe Starterspezifische Bildschirmfotos in Sicherungen aus. Dies gilt momentan nur für { store-steam }-Bildschirmfotos. Wenn ein Spiel eine eigene Bildschirmfotofunktion hat, werden Bildschirmfotos unabhängig dieser Einstellung gesichert.
 consider-doing-a-preview =
     Falls du es noch nicht getan hast, erwäge zuerst eine Vorschau zu machen, damit
     keine Überraschungen gibt.
 confirm-backup =
-    Sind Sie sicher, dass Sie die Sicherung fortsetzen möchten? { $path-action ->
-        [merge] Neue Speicherdaten werden in den Zielordner zusammengeführt:
+    Bist du sicher, dass du mit der Sicherung fortfahren möchtest? { $path-action ->
+        [merge] Neue Speicherdaten werden mit dem Zielordner zusammengeführt:
         [recreate] Der Zielordner wird gelöscht und von Grund auf neu erstellt:
        *[create] Der Zielordner wird erstellt:
     }
 confirm-restore =
-    Sind Sie sicher, dass Sie die Wiederherstellung fortsetzen möchten?
+    Bist du sicher, dass du mit der Wiederherstellung fortfahren möchtest?
     Dies überschreibt alle aktuellen Dateien mit den Sicherungen von hier:
-confirm-add-missing-roots = Diese Wurzeln hinzufügen?
-no-missing-roots = Keine zusätzlichen Wurzeln gefunden.
+confirm-add-missing-roots = Diese Wurzelverzeichnisse hinzufügen?
+no-missing-roots = Keine weiteren Wurzelverzeichnisse gefunden.
 preparing-backup-target = Sicherungsverzeichnis wird vorbereitet...
 updating-manifest = Manifest wird aktualisiert...
-saves-found = Save data found.
-no-saves-found = No save data found.
+saves-found = Spielstanddaten gefunden.
+no-saves-found = Keine Spielstanddaten gefunden.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
-suffix-no-confirmation = no confirmation
+suffix-no-confirmation = ohne Bestätigung
