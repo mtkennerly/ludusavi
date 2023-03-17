@@ -1,4 +1,4 @@
-## Unreleased
+## v0.16.0 (2023-03-18)
 
 * Added:
   * Registry values are now listed individually, not just keys.

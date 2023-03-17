@@ -303,6 +303,9 @@ For the `backup`/`restore` commands:
         * `ignored` (optional, boolean): Whether this entry was ignored.
         * `duplicatedBy` (optional, array of strings): Any other games that
           also have the same registry path.
+        * `values` (optional, map): Any registry values inside of the registry key.
+          * `change` (string): Same as game-level field, but for a specific backup item.
+          * `ignored` (optional, boolean): Whether this entry was ignored.
 
 The `backups` command is similar, but without `overall`, and with each game containing
 `{"backups": [ {"name": <string>, "when": <string>} ]}`.
@@ -365,10 +368,24 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   * `url` (string): Where to download the primary manifest.
   * `etag` (string or null): This field is deprecated and has been superseded by cache.yaml.
 * `language` (string, optional): Display language. Valid options:
-  `en-US` (English, default), `fil-PH` (Filipino), `de-DE` (German), `it-IT` (Italian), `pt-BR` (Brazilian Portuguese), `pl-PL` (Polish), `es-ES` (Spanish).
+  `en-US` (English, default),
+  `de-DE` (German),
+  `eo-UY` (Esperanto),
+  `es-ES` (Spanish),
+  `fil-PH` (Filipino),
+  `fr-FR` (French),
+  `it-IT` (Italian),
+  `nl-NL` (Dutch),
+  `pl-PL` (Polish),
+  `pt-BR` (Brazilian Portuguese),
+  `ru-RU` (Russian),
+  `uk-UA` (Ukrainian).
 
   Experimental options that currently have graphical display issues:
-  `ar-SA` (Arabic), `zh-Hans` (Simplified Chinese), `ko-KR` (Korean).
+  `ar-SA` (Arabic),
+  `ja-JP` (Japanese),
+  `ko-KR` (Korean),
+  `zh-Hans` (Simplified Chinese).
 * `theme` (string, optional): Visual theme. Valid options:
   `light` (default), `dark`.
 * `roots` (list):
@@ -403,7 +420,13 @@ Here are the available settings in `config.yaml` (all are required unless otherw
     Each key is a game name, and the value is another map. In the inner map,
     each key is a path, and the value is a boolean (true = included).
     Settings on child paths override settings on parent paths.
-  * `toggledRegistry` (map): Same as `toggledPaths`, but for registry entries.
+  * `toggledRegistry` (map): Registry overridden for inclusion/exclusion in the backup.
+    Each map key is a game name, and the map value is another map. In the inner map,
+    each key is a path, and the value is a boolean (true = included).
+    each map key is a registry key path, and the map value is boolean (true = included).
+    Instead of a plain boolean, you can specify `{ key: boolean, values: { value_name: boolean } }`
+    to control individual registry values as well.
+    Settings on child paths override settings on parent paths.
   * `sort` (map):
     * `key` (string): One of `name`, `size`.
     * `reversed` (boolean): If true, sort reverse alphabetical or from the largest size.
