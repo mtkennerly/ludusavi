@@ -48,10 +48,12 @@
   * GUI: Scroll position is once again preserved when switching between screens.
   * GUI: Some inconsistent element sizes and spacing.
 * Changed:
-  * GUI: Updated to Iced 0.7.0, which comes with some improvements:
+  * GUI: Moved roots to the other screen.
+  * GUI: Thanks to updates in [Iced](https://github.com/iced-rs/iced):
     * Text fields now have a blinking cursor.
     * Text fields now support shift+click to select text.
-  * GUI: Moved roots to the other screen.
+  * Thanks to updates in [steamlocate](https://github.com/WilliamVenner/steamlocate-rs),
+    the titles of Steam shortcuts for non-Steam games are now looked up case-insensitively.
 
 ## v0.15.2 (2022-12-22)
 
