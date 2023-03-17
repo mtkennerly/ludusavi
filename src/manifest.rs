@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use crate::{
     cache::{self, Cache},
     config::{Config, CustomGame, ManifestConfig},
@@ -14,7 +16,7 @@ pub enum Os {
     #[serde(rename = "mac")]
     Mac,
     #[default]
-    #[serde(other)]
+    #[serde(other, rename = "other")]
     Other,
 }
 
@@ -77,29 +79,32 @@ pub enum Tag {
     #[serde(rename = "config")]
     Config,
     #[default]
-    #[serde(other)]
+    #[serde(other, rename = "other")]
     Other,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Manifest(
-    #[serde(serialize_with = "crate::serialization::ordered_map")] pub std::collections::HashMap<String, Game>,
-);
+pub struct Manifest(pub BTreeMap<String, Game>);
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Game {
-    pub files: Option<std::collections::HashMap<String, GameFileEntry>>,
-    #[serde(rename = "installDir", serialize_with = "crate::serialization::ordered_map_maybe")]
-    pub install_dir: Option<std::collections::HashMap<String, GameInstallDirEntry>>,
-    #[serde(serialize_with = "crate::serialization::ordered_map_maybe")]
-    pub registry: Option<std::collections::HashMap<String, GameRegistryEntry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub files: Option<BTreeMap<String, GameFileEntry>>,
+    #[serde(rename = "installDir", skip_serializing_if = "Option::is_none")]
+    pub install_dir: Option<BTreeMap<String, GameInstallDirEntry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub registry: Option<BTreeMap<String, GameRegistryEntry>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub steam: Option<SteamMetadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub gog: Option<GogMetadata>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GameFileEntry {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<Tag>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub when: Option<Vec<GameFileConstraint>>,
 }
 
@@ -108,41 +113,48 @@ pub struct GameInstallDirEntry {}
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GameRegistryEntry {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub tags: Option<Vec<Tag>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub when: Option<Vec<GameRegistryConstraint>>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GameFileConstraint {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub os: Option<Os>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub store: Option<Store>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GameRegistryConstraint {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub store: Option<Store>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct SteamMetadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GogMetadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<u64>,
 }
 
 impl From<CustomGame> for Game {
     fn from(item: CustomGame) -> Self {
         let file_tuples = item.files.iter().map(|x| (x.to_string(), GameFileEntry::default()));
-        let files: std::collections::HashMap<_, _> = file_tuples.collect();
+        let files: BTreeMap<_, _> = file_tuples.collect();
 
         let registry_tuples = item
             .registry
             .iter()
             .map(|x| (x.to_string(), GameRegistryEntry::default()));
-        let registry: std::collections::HashMap<_, _> = registry_tuples.collect();
+        let registry: BTreeMap<_, _> = registry_tuples.collect();
 
         Self {
             files: Some(files),
@@ -293,7 +305,7 @@ impl Manifest {
 mod tests {
     use super::*;
     use crate::testing::s;
-    use maplit::hashmap;
+    use maplit::btreemap;
     use pretty_assertions::assert_eq;
 
     #[test]
@@ -347,7 +359,7 @@ mod tests {
 
         assert_eq!(
             Game {
-                files: Some(hashmap! {
+                files: Some(btreemap! {
                     s("foo") => GameFileEntry {
                         when: Some(vec![
                             GameFileConstraint {
@@ -358,10 +370,10 @@ mod tests {
                         tags: Some(vec![Tag::Save]),
                     }
                 }),
-                install_dir: Some(hashmap! {
+                install_dir: Some(btreemap! {
                     s("ExampleGame") => GameInstallDirEntry {}
                 }),
-                registry: Some(hashmap! {
+                registry: Some(btreemap! {
                     s("bar") => GameRegistryEntry {
                         when: Some(vec![
                             GameRegistryConstraint {
