@@ -90,6 +90,7 @@ label-checked = Verificado
 # This shows the time when we found an update to the manifest.
 label-updated = Atualizado
 label-new = Novo
+label-comment = Comment
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy

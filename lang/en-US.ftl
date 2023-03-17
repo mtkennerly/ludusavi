@@ -99,6 +99,7 @@ label-checked = Checked
 # This shows the time when we found an update to the manifest.
 label-updated = Updated
 label-new = New
+label-comment = Comment
 
 store-epic = Epic
 store-gog = GOG

@@ -38,7 +38,7 @@ button-enable-all = Alle aktivieren
 button-disable-all = Alle deaktivieren
 button-customize = Anpassen
 button-exit = Verlassen
-button-comment = Comment
+button-comment = Kommentieren
 no-roots-are-configured = Füge einige Wurzelverzeichnisse hinzu, um weitere Daten zu sichern.
 config-is-invalid = Fehler: Die Konfigurationsdatei ist ungültig.
 manifest-is-invalid = Fehler: Die Manifest-Datei ist ungültig.
@@ -71,7 +71,7 @@ field-redirect-source =
     .placeholder = Quelle (Originalort)
 field-redirect-target =
     .placeholder = Ziel (neuer Ort)
-field-roots = Roots:
+field-roots = Wurzelverzeichnisse:
 field-backup-excluded-items = Sicherungsausschlüsse:
 field-redirects = Umleitungen:
 # This appears next to the number of full backups that you'd like to keep.
@@ -90,6 +90,7 @@ label-checked = Überprüft
 # This shows the time when we found an update to the manifest.
 label-updated = Aktualisiert
 label-new = Neu
+label-comment = Kommentar
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy

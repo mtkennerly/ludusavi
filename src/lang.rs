@@ -115,7 +115,7 @@ impl ToString for Language {
             Self::Esperanto => "Esperanto (21%)",
             Self::Filipino => "Filipino (57%)",
             Self::French => "Français (6%)",
-            Self::German => "Deutsch (99%)",
+            Self::German => "Deutsch (100%)",
             Self::Italian => "Italiano (99%)",
             Self::Japanese => "日本語 (73%)",
             Self::Korean => "한국어 (46%)",
@@ -801,6 +801,10 @@ impl Translator {
 
     pub fn updated_label(&self) -> String {
         self.field(&translate("label-updated"))
+    }
+
+    pub fn comment_label(&self) -> String {
+        translate("label-comment")
     }
 
     pub fn new_tooltip(&self) -> String {

@@ -90,6 +90,7 @@ label-checked = متحقق
 # This shows the time when we found an update to the manifest.
 label-updated = محدث
 label-new = جديد
+label-comment = Comment
 store-epic = متجر Epic
 store-gog = متجر GOG
 store-gog-galaxy = متجر GOG Galaxy

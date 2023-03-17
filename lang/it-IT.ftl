@@ -90,6 +90,7 @@ label-checked = Controllato
 # This shows the time when we found an update to the manifest.
 label-updated = Aggiornato
 label-new = Nuovo
+label-comment = Comment
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy

@@ -293,8 +293,8 @@ impl GameListEntry {
                             .align_items(Alignment::Center)
                             .padding([0, 20])
                             .spacing(20)
-                            .push(Text::new(translator.comment_button()))
-                            .push(TextInput::new(&translator.comment_button(), comment, move |value| {
+                            .push(Text::new(translator.comment_label()))
+                            .push(TextInput::new(&translator.comment_label(), comment, move |value| {
                                 Message::EditedBackupComment {
                                     game: name_for_comment.clone(),
                                     comment: value,

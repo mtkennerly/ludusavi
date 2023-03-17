@@ -82,6 +82,7 @@ label-checked = 已检查
 # This shows the time when we found an update to the manifest.
 label-updated = 已更新
 label-new = 新的存档
+label-comment = Comment
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
