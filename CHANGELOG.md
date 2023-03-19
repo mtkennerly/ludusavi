@@ -1,3 +1,8 @@
+## Unreleased
+
+* Added:
+  * CLI: Backup comments are now included in the output of the `backups` command.
+
 ## v0.16.0 (2023-03-18)
 
 * Added:

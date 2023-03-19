@@ -78,6 +78,8 @@ enum ApiGame {
 struct ApiBackup {
     name: String,
     when: chrono::DateTime<chrono::Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    comment: Option<String>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -347,11 +349,20 @@ impl Reporter {
 
                 parts.push(format!("{}:", name));
                 for backup in &scan_info.available_backups {
-                    parts.push(format!(
-                        "  - {} ({})",
-                        backup.name(),
-                        backup.when_local().format("%Y-%m-%dT%H:%M:%S")
-                    ));
+                    if let Some(comment) = backup.comment() {
+                        parts.push(format!(
+                            "  - \"{}\" ({}) - {}",
+                            backup.name(),
+                            backup.when_local().format("%Y-%m-%dT%H:%M:%S"),
+                            comment,
+                        ));
+                    } else {
+                        parts.push(format!(
+                            "  - \"{}\" ({})",
+                            backup.name(),
+                            backup.when_local().format("%Y-%m-%dT%H:%M:%S"),
+                        ));
+                    }
                 }
 
                 // Blank line between games.
@@ -367,6 +378,7 @@ impl Reporter {
                     backups.push(ApiBackup {
                         name: backup.name().to_string(),
                         when: *backup.when(),
+                        comment: backup.comment().to_owned(),
                     });
                 }
 
