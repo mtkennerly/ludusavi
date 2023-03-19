@@ -84,11 +84,11 @@ field-backup-format = Format:
 field-backup-compression = Kompresja:
 # The compression level determines how much compresison we perform.
 field-backup-compression-level = Poziom kompresji:
-label-manifest = Wzory ścieżek zapisu:
+label-manifest = Wzory ścieżek zapisu
 # This shows the time when we checked for an update to the manifest.
-label-checked = Sprawdzono:
+label-checked = Sprawdzono
 # This shows the time when we found an update to the manifest.
-label-updated = Zaktualizowano:
+label-updated = Zaktualizowano
 label-new = Nowy
 label-comment = Komentarz
 store-epic = Epic
