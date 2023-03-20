@@ -834,7 +834,31 @@ impl Config {
     }
 
     pub fn expanded_roots(&self) -> Vec<RootsConfig> {
-        self.roots.iter().flat_map(|x| x.glob()).collect()
+        for root in &self.roots {
+            log::trace!(
+                "Configured root ({:?}): {} | interpreted: {} | exists: {} | is dir: {}",
+                &root.store,
+                &root.path.raw(),
+                &root.path.interpret(),
+                root.path.exists(),
+                root.path.is_dir()
+            );
+        }
+
+        let expanded: Vec<RootsConfig> = self.roots.iter().flat_map(|x| x.glob()).collect();
+
+        for root in &expanded {
+            log::trace!(
+                "Expanded root ({:?}): {} | interpreted: {} | exists: {} | is dir: {}",
+                &root.store,
+                &root.path.raw(),
+                &root.path.interpret(),
+                root.path.exists(),
+                root.path.is_dir()
+            );
+        }
+
+        expanded
     }
 }
 
