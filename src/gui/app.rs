@@ -1074,7 +1074,6 @@ impl Application for App {
                     EditAction::Add => {
                         self.other_screen
                             .ignored_items_editor
-                            .entry
                             .files
                             .push(crate::gui::ignored_items_editor::IgnoredItemsEditorEntryRow::default());
                         self.config
@@ -1084,18 +1083,18 @@ impl Application for App {
                             .push(StrictPath::new("".to_string()));
                     }
                     EditAction::Change(index, value) => {
-                        self.other_screen.ignored_items_editor.entry.files[index]
+                        self.other_screen.ignored_items_editor.files[index]
                             .text_history
                             .push(&value);
                         self.config.backup.filter.ignored_paths[index] = StrictPath::new(value);
                     }
                     EditAction::Remove(index) => {
-                        self.other_screen.ignored_items_editor.entry.files.remove(index);
+                        self.other_screen.ignored_items_editor.files.remove(index);
                         self.config.backup.filter.ignored_paths.remove(index);
                     }
                     EditAction::Move(index, direction) => {
                         let offset = direction.shift(index);
-                        self.other_screen.ignored_items_editor.entry.files.swap(index, offset);
+                        self.other_screen.ignored_items_editor.files.swap(index, offset);
                         self.config.backup.filter.ignored_paths.swap(index, offset);
                     }
                 }
@@ -1107,7 +1106,6 @@ impl Application for App {
                     EditAction::Add => {
                         self.other_screen
                             .ignored_items_editor
-                            .entry
                             .registry
                             .push(crate::gui::ignored_items_editor::IgnoredItemsEditorEntryRow::default());
                         self.config
@@ -1117,22 +1115,18 @@ impl Application for App {
                             .push(RegistryItem::new("".to_string()));
                     }
                     EditAction::Change(index, value) => {
-                        self.other_screen.ignored_items_editor.entry.registry[index]
+                        self.other_screen.ignored_items_editor.registry[index]
                             .text_history
                             .push(&value);
                         self.config.backup.filter.ignored_registry[index] = RegistryItem::new(value);
                     }
                     EditAction::Remove(index) => {
-                        self.other_screen.ignored_items_editor.entry.registry.remove(index);
+                        self.other_screen.ignored_items_editor.registry.remove(index);
                         self.config.backup.filter.ignored_registry.remove(index);
                     }
                     EditAction::Move(index, direction) => {
                         let offset = direction.shift(index);
-                        self.other_screen
-                            .ignored_items_editor
-                            .entry
-                            .registry
-                            .swap(index, offset);
+                        self.other_screen.ignored_items_editor.registry.swap(index, offset);
                         self.config.backup.filter.ignored_registry.swap(index, offset);
                     }
                 }
@@ -1443,12 +1437,12 @@ impl Application for App {
                     UndoSubject::BackupFilterIgnoredPath(i) => apply_shortcut_to_strict_path_field(
                         &shortcut,
                         &mut self.config.backup.filter.ignored_paths[i],
-                        &mut self.other_screen.ignored_items_editor.entry.files[i].text_history,
+                        &mut self.other_screen.ignored_items_editor.files[i].text_history,
                     ),
                     UndoSubject::BackupFilterIgnoredRegistry(i) => apply_shortcut_to_registry_path_field(
                         &shortcut,
                         &mut self.config.backup.filter.ignored_registry[i],
-                        &mut self.other_screen.ignored_items_editor.entry.registry[i].text_history,
+                        &mut self.other_screen.ignored_items_editor.registry[i].text_history,
                     ),
                 }
                 self.config.save();

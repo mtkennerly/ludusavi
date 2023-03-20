@@ -28,35 +28,21 @@ impl IgnoredItemsEditorEntryRow {
 }
 
 #[derive(Default)]
-pub struct IgnoredItemsEditorEntry {
-    pub text_history: TextHistory,
+pub struct IgnoredItemsEditor {
     pub files: Vec<IgnoredItemsEditorEntryRow>,
     pub registry: Vec<IgnoredItemsEditorEntryRow>,
-}
-
-impl IgnoredItemsEditorEntry {
-    pub fn new() -> Self {
-        Self { ..Default::default() }
-    }
-}
-
-#[derive(Default)]
-pub struct IgnoredItemsEditor {
-    pub entry: IgnoredItemsEditorEntry,
 }
 
 impl IgnoredItemsEditor {
     pub fn new(config: &Config) -> Self {
         let mut editor = IgnoredItemsEditor::default();
 
-        let mut row = IgnoredItemsEditorEntry::new();
         for file in &config.backup.filter.ignored_paths {
-            row.files.push(IgnoredItemsEditorEntryRow::new(&file.raw()))
+            editor.files.push(IgnoredItemsEditorEntryRow::new(&file.raw()))
         }
         for key in &config.backup.filter.ignored_registry {
-            row.registry.push(IgnoredItemsEditorEntryRow::new(&key.raw()))
+            editor.registry.push(IgnoredItemsEditorEntryRow::new(&key.raw()))
         }
-        editor.entry = row;
 
         editor
     }
@@ -76,8 +62,7 @@ impl IgnoredItemsEditor {
                                         .push(Text::new(translator.custom_files_label())),
                                 )
                                 .push(
-                                    self.entry
-                                        .files
+                                    self.files
                                         .iter()
                                         .enumerate()
                                         .fold(Column::new().spacing(4), |column, (ii, _)| {
@@ -93,7 +78,7 @@ impl IgnoredItemsEditor {
                                                         },
                                                     ))
                                                     .push(Icon::ArrowDownward.as_button_small().on_press_if(
-                                                        || ii < self.entry.files.len() - 1,
+                                                        || ii < self.files.len() - 1,
                                                         || {
                                                             Message::EditedBackupFilterIgnoredPath(
                                                                 EditAction::move_down(ii),
@@ -150,8 +135,7 @@ impl IgnoredItemsEditor {
                                         .push(Text::new(translator.custom_registry_label())),
                                 )
                                 .push(
-                                    self.entry
-                                        .registry
+                                    self.registry
                                         .iter()
                                         .enumerate()
                                         .fold(Column::new().spacing(4), |column, (ii, _)| {
@@ -167,7 +151,7 @@ impl IgnoredItemsEditor {
                                                         },
                                                     ))
                                                     .push(Icon::ArrowDownward.as_button_small().on_press_if(
-                                                        || ii < self.entry.registry.len() - 1,
+                                                        || ii < self.registry.len() - 1,
                                                         || {
                                                             Message::EditedBackupFilterIgnoredRegistry(
                                                                 EditAction::move_down(ii),
