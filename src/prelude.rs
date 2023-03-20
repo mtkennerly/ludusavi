@@ -13,6 +13,10 @@ use regex::Regex;
 
 pub use crate::{path::StrictPath, registry_compat::RegistryItem};
 
+pub static VERSION: Lazy<&'static str> =
+    Lazy::new(|| option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")));
+pub static VARIANT: Option<&'static str> = option_env!("LUDUSAVI_VARIANT");
+
 const WINDOWS: bool = cfg!(target_os = "windows");
 const MAC: bool = cfg!(target_os = "macos");
 const LINUX: bool = cfg!(target_os = "linux");

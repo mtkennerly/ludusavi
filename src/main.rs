@@ -1,6 +1,6 @@
 #![allow(clippy::too_many_arguments)]
 
-use crate::prelude::CONFIG_DIR;
+use crate::prelude::{CONFIG_DIR, VERSION};
 
 mod cache;
 mod cli;
@@ -65,11 +65,15 @@ fn main() {
             #[allow(unused)]
             let logger = prepare_logging();
 
+            log::debug!("Version: {}", *VERSION);
+
             gui::run();
         }
         Some(sub) => {
             #[allow(unused)]
             let logger = prepare_logging();
+
+            log::debug!("Version: {}", *VERSION);
 
             let api = sub.api();
             if let Err(e) = cli::run(sub) {

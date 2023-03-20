@@ -560,9 +560,21 @@ impl StrictPath {
             require_literal_separator: true,
             require_literal_leading_dot: false,
         };
-        match globetter::glob_with(&self.render(), options) {
-            Ok(xs) => xs.filter_map(|r| r.ok()).map(StrictPath::from).collect(),
-            Err(_) => vec![],
+        let rendered = self.render();
+        match globetter::glob_with(&rendered, options) {
+            Ok(xs) => xs
+                .filter_map(|r| {
+                    if let Err(e) = &r {
+                        log::trace!("Glob error 2: {rendered} | {e}");
+                    }
+                    r.ok()
+                })
+                .map(StrictPath::from)
+                .collect(),
+            Err(e) => {
+                log::trace!("Glob error 1: {rendered} | {e}");
+                vec![]
+            }
         }
     }
 

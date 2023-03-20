@@ -583,6 +583,8 @@ impl Application for App {
         let manifest_config = config.manifest.clone();
         let manifest_cache = cache.manifests.clone();
 
+        log::debug!("Config on startup: {config:?}");
+
         (
             Self {
                 backup_screen: BackupScreenComponent::new(&config, &cache),

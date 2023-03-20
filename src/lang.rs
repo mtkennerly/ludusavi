@@ -9,7 +9,9 @@ use unic_langid::LanguageIdentifier;
 use crate::{
     config::{BackupFormat, RedirectKind, SortKey, Theme, ZipCompression},
     manifest::Store,
-    prelude::{Error, OperationStatus, OperationStepDecision, ScanChange, ScanChangeCount, StrictPath},
+    prelude::{
+        Error, OperationStatus, OperationStepDecision, ScanChange, ScanChangeCount, StrictPath, VARIANT, VERSION,
+    },
 };
 
 const PATH: &str = "path";
@@ -232,10 +234,9 @@ impl Translator {
 
     pub fn window_title(&self) -> String {
         let name = translate("ludusavi");
-        let version = option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION"));
-        match option_env!("LUDUSAVI_VARIANT") {
-            Some(variant) => format!("{} v{} ({})", name, version, variant),
-            None => format!("{} v{}", name, version),
+        match VARIANT {
+            Some(variant) => format!("{} v{} ({})", name, *VERSION, variant),
+            None => format!("{} v{}", name, *VERSION),
         }
     }
 

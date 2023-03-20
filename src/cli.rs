@@ -89,6 +89,9 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
     let mut failed = false;
     let mut duplicate_detector = DuplicateDetector::default();
 
+    log::debug!("Config on startup: {config:?}");
+    log::debug!("Invocation: {sub:?}");
+
     match sub {
         Subcommand::Backup {
             preview,
