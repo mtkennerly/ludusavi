@@ -51,10 +51,10 @@ impl IgnoredItemsEditor {
 
         let mut row = IgnoredItemsEditorEntry::new();
         for file in &config.backup.filter.ignored_paths {
-            row.files.push(IgnoredItemsEditorEntryRow::new(&file.render()))
+            row.files.push(IgnoredItemsEditorEntryRow::new(&file.raw()))
         }
         for key in &config.backup.filter.ignored_registry {
-            row.registry.push(IgnoredItemsEditorEntryRow::new(&key.render()))
+            row.registry.push(IgnoredItemsEditorEntryRow::new(&key.raw()))
         }
         editor.entry = row;
 
