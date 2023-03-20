@@ -6,6 +6,7 @@
   * GUI: On Mac, if a backup included multiple direct children of the root directory,
     then the first entry in the list would be displayed blank.
     It now correctly shows "/" to indicate the root directory.
+  * GUI: On Mac, undo now uses the standard shortcut cmd+z instead of ctrl+z.
 
 ## v0.16.0 (2023-03-18)
 

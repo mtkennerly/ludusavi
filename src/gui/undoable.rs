@@ -92,12 +92,7 @@ where
                 .downcast_ref::<iced_native::widget::text_input::State>()
                 .is_focused();
             if focused {
-                let activated = if cfg!(target_os = "mac") {
-                    modifiers.logo() || modifiers.control()
-                } else {
-                    modifiers.control()
-                };
-                match (key_code, activated, modifiers.shift()) {
+                match (key_code, modifiers.command(), modifiers.shift()) {
                     (KeyCode::Z, true, false) => {
                         shell.publish((self.on_change)(Action::Undo));
                         return event::Status::Captured;
