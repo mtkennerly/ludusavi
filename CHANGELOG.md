@@ -2,6 +2,10 @@
 
 * Added:
   * CLI: Backup comments are now included in the output of the `backups` command.
+* Fixed:
+  * GUI: On Mac, if a backup included multiple direct children of the root directory,
+    then the first entry in the list would be displayed blank.
+    It now correctly shows "/" to indicate the root directory.
 
 ## v0.16.0 (2023-03-18)
 

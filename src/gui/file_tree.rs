@@ -200,7 +200,13 @@ impl FileTreeNode {
                             .width(25),
                         )
                         .push_some(make_enabler)
-                        .push(Text::new(label))
+                        .push(Text::new(
+                            if label.is_empty() && self.node_type == FileTreeNodeType::File {
+                                "/".to_string()
+                            } else {
+                                label
+                            },
+                        ))
                         .push_some(|| {
                             if let Some(FileTreeNodePath::File(path)) = &self.path {
                                 return Some(
