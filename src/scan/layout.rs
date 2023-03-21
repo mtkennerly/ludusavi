@@ -8,7 +8,6 @@ use chrono::{Datelike, Timelike};
 use crate::{
     config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
     path::StrictPath,
-    prelude::sha1,
     scan::{game_file_target, BackupId, BackupInfo, ScanChange, ScanInfo, ScannedFile, ScannedRegistry},
 };
 
@@ -954,7 +953,7 @@ impl GameLayout {
             use crate::registry::Hives;
             let hives = Hives::incorporated(&scan.found_registry_keys);
             if !hives.is_empty() {
-                registry.hash = Some(sha1(hives.serialize()));
+                registry.hash = Some(crate::prelude::sha1(hives.serialize()));
             }
         }
 
@@ -994,7 +993,7 @@ impl GameLayout {
             let hives = Hives::incorporated(&scan.found_registry_keys);
             if !hives.is_empty() {
                 registry = Some(IndividualMappingRegistry {
-                    hash: Some(sha1(hives.serialize())),
+                    hash: Some(crate::prelude::sha1(hives.serialize())),
                 });
             }
         }
@@ -1292,7 +1291,7 @@ impl GameLayout {
         {
             if let Some(content) = self.registry_content_in(&backup.name, &BackupFormat::Simple) {
                 registry = IndividualMappingRegistry {
-                    hash: Some(sha1(content)),
+                    hash: Some(crate::prelude::sha1(content)),
                 };
             }
         }

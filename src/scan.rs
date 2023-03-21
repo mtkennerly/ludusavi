@@ -1841,7 +1841,6 @@ pub fn compare_games_by_size(
 #[cfg(test)]
 mod tests {
     use crate::{
-        config::ToggledRegistryEntry,
         resource::ResourceFile,
         testing::{repo, s},
     };
@@ -1849,7 +1848,10 @@ mod tests {
 
     use super::*;
     #[cfg(target_os = "windows")]
-    use crate::layout::{BackupLayout, IndividualMappingRegistry};
+    use crate::{
+        config::ToggledRegistryEntry,
+        layout::{BackupLayout, IndividualMappingRegistry},
+    };
     use crate::{
         config::{Config, Retention},
         layout::{FullBackup, IndividualMapping, IndividualMappingFile},
