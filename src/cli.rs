@@ -1,12 +1,19 @@
 mod parse;
 mod report;
 
-use parse::{Cli, CompletionShell, Subcommand};
-use report::Reporter;
+use clap::CommandFactory;
+use indicatif::ParallelProgressIterator;
+use rayon::{
+    iter::{IntoParallelRefIterator, ParallelIterator},
+    prelude::IndexedParallelIterator,
+};
 
 use crate::{
     cache::Cache,
-    cli::parse::ManifestSubcommand,
+    cli::{
+        parse::{Cli, CompletionShell, ManifestSubcommand, Subcommand},
+        report::Reporter,
+    },
     config::{Config, SortKey},
     heroic::HeroicGames,
     lang::Translator,
@@ -18,12 +25,6 @@ use crate::{
         back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId,
         DuplicateDetector, InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
     },
-};
-use clap::CommandFactory;
-use indicatif::ParallelProgressIterator;
-use rayon::{
-    iter::{IntoParallelRefIterator, ParallelIterator},
-    prelude::IndexedParallelIterator,
 };
 
 #[derive(Clone, Debug, Default)]

@@ -111,9 +111,10 @@ impl<'de> serde::Deserialize<'de> for RegistryItem {
 
 #[cfg(test)]
 mod tests {
+    use pretty_assertions::assert_eq;
+
     use super::*;
     use crate::testing::s;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn is_prefix_of() {

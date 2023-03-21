@@ -1700,13 +1700,15 @@ impl BackupLayout {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::testing::{repo_raw, *};
     use maplit::*;
 
+    use super::*;
+    use crate::testing::{repo_raw, *};
+
     mod individual_mapping {
-        use super::*;
         use pretty_assertions::assert_eq;
+
+        use super::*;
 
         #[test]
         fn can_generate_drive_folder_name() {
@@ -1722,8 +1724,9 @@ mod tests {
     mod backup_layout {
         use std::collections::HashMap;
 
-        use super::*;
         use pretty_assertions::assert_eq;
+
+        use super::*;
 
         fn layout() -> BackupLayout {
             BackupLayout::new(

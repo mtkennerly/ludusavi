@@ -1,11 +1,12 @@
 use std::collections::HashSet;
 
+use winreg::types::{FromRegValue, ToRegValue};
+
 use crate::{
     config::{BackupFilter, ToggledRegistry},
     prelude::{Error, StrictPath},
     scan::{RegistryItem, ScanChange, ScannedRegistry, ScannedRegistryValue, ScannedRegistryValues},
 };
-use winreg::types::{FromRegValue, ToRegValue};
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Hives(
@@ -403,10 +404,11 @@ fn get_hkey_from_name(name: &str) -> Option<winreg::HKEY> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::testing::s;
     use maplit::hashmap;
     use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::testing::s;
 
     #[test]
     fn can_store_key_from_full_path_of_leaf_key_with_values() {

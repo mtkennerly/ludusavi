@@ -1124,10 +1124,11 @@ impl ToggledRegistry {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::testing::s;
     use maplit::hashset;
     use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::testing::s;
 
     #[test]
     #[allow(deprecated)]
@@ -1627,10 +1628,11 @@ customGames:
     }
 
     mod ignored_paths {
-        use super::*;
-        use crate::testing::repo;
         use maplit::*;
         use pretty_assertions::assert_eq;
+
+        use super::*;
+        use crate::testing::repo;
 
         fn repo_path(path: &str) -> String {
             format!("{}/{}", repo(), path)
@@ -1752,9 +1754,10 @@ customGames:
     }
 
     mod ignored_registry {
-        use super::*;
         use maplit::*;
         use pretty_assertions::assert_eq;
+
+        use super::*;
 
         fn verify_toggle_registry_bouncing(
             mut toggled: ToggledRegistry,

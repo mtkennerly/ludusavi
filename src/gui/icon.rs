@@ -1,7 +1,9 @@
-use crate::gui::widget::Text;
 use iced::{alignment::Horizontal as HorizontalAlignment, Font};
 
-use super::{style, widget::Button};
+use crate::gui::{
+    style,
+    widget::{Button, Text},
+};
 
 pub const ICONS: Font = Font::External {
     name: "Material Icons",

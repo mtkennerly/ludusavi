@@ -1,3 +1,5 @@
+use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
+
 use crate::{
     cache::Cache,
     config::Config,
@@ -7,14 +9,12 @@ use crate::{
         icon::Icon,
         shortcuts::TextHistory,
         style,
+        widget::{Button, Column, Container, Row, Text, TextInput, Undoable},
     },
     lang::Translator,
     manifest::Manifest,
     scan::DuplicateDetector,
 };
-
-use crate::gui::widget::{Button, Column, Container, Row, Text, TextInput, Undoable};
-use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
 
 #[derive(Default)]
 pub struct RestoreScreenComponent {

@@ -1,3 +1,5 @@
+use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
+
 use crate::{
     cache::Cache,
     config::{BackupFormat, Config, ZipCompression},
@@ -10,14 +12,12 @@ use crate::{
         icon::Icon,
         shortcuts::TextHistory,
         style,
+        widget::{Button, Checkbox, Column, Container, PickList, Row, Text, TextInput, Undoable},
     },
     lang::Translator,
     manifest::Manifest,
     scan::DuplicateDetector,
 };
-
-use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Text, TextInput, Undoable};
-use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
 
 #[derive(Default)]
 pub struct BackupScreenComponent {

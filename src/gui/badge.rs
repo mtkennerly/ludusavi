@@ -1,3 +1,5 @@
+use iced::widget::tooltip;
+
 use crate::{
     gui::{
         style,
@@ -6,7 +8,6 @@ use crate::{
     lang::Translator,
     scan::ScanChange,
 };
-use iced::widget::tooltip;
 
 #[derive(Default)]
 pub struct Badge {

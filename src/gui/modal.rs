@@ -1,14 +1,15 @@
+use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
+
 use crate::{
     config::{Config, RootsConfig},
-    gui::{common::Message, style},
+    gui::{
+        common::{Message, ScrollSubject},
+        style,
+        widget::{Button, Column, Container, Row, Space, Text},
+    },
     lang::Translator,
     prelude::Error,
 };
-
-use crate::gui::widget::{Button, Column, Container, Row, Space, Text};
-use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
-
-use super::common::ScrollSubject;
 
 pub enum ModalVariant {
     Loading,

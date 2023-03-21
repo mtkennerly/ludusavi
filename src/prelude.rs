@@ -1,7 +1,8 @@
-pub use crate::path::StrictPath;
+use std::{path::PathBuf, sync::Mutex};
 
 use once_cell::sync::Lazy;
-use std::{path::PathBuf, sync::Mutex};
+
+pub use crate::path::StrictPath;
 
 pub static VERSION: Lazy<&'static str> =
     Lazy::new(|| option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")));

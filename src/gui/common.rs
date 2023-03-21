@@ -1,9 +1,12 @@
+use iced::{Alignment, Length};
+
 use crate::{
     config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
     gui::{
         badge::Badge,
         icon::Icon,
         shortcuts::{Shortcut, TextHistory},
+        widget::{Button, Column, Element, Row, Text},
     },
     lang::{Language, Translator},
     layout::{Backup, GameLayout},
@@ -11,9 +14,6 @@ use crate::{
     prelude::{Error, StrictPath},
     scan::{registry_compat::RegistryItem, BackupInfo, OperationStatus, OperationStepDecision, ScanInfo},
 };
-
-use crate::gui::widget::{Button, Column, Element, Row, Text};
-use iced::{Alignment, Length};
 
 #[derive(Debug, Clone)]
 pub enum Message {

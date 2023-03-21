@@ -1,7 +1,8 @@
-use crate::prelude::AnyError;
+use std::sync::{Arc, Mutex};
 
 use filetime::FileTime;
-use std::sync::{Arc, Mutex};
+
+use crate::prelude::AnyError;
 
 #[cfg(target_os = "windows")]
 const TYPICAL_SEPARATOR: &str = "\\";
@@ -644,8 +645,9 @@ impl StrictPath {
     }
 
     pub fn try_sha1(&self) -> Result<String, Box<dyn std::error::Error>> {
-        use sha1::Digest;
         use std::io::Read;
+
+        use sha1::Digest;
 
         let mut hasher = sha1::Sha1::new();
 
@@ -752,8 +754,9 @@ mod tests {
     }
 
     mod strict_path {
-        use super::*;
         use pretty_assertions::assert_eq;
+
+        use super::*;
 
         #[test]
         fn can_interpret_general_paths() {

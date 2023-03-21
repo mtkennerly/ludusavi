@@ -1,22 +1,20 @@
+use iced::Length;
+
 use crate::{
     cache::Cache,
     config::{Config, Theme},
     gui::{
-        common::{IcedButtonExt, IcedExtension, Message},
+        common::{IcedButtonExt, IcedExtension, Message, ScrollSubject},
         icon::Icon,
         ignored_items_editor::IgnoredItemsEditor,
         redirect_editor::{RedirectEditor, RedirectEditorRow},
         root_editor::{RootEditor, RootEditorRow},
         style,
+        widget::{Button, Checkbox, Column, Container, PickList, Row, Text},
     },
     lang::{Language, Translator},
     prelude::STEAM_DECK,
 };
-
-use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Text};
-use iced::Length;
-
-use super::common::ScrollSubject;
 
 #[derive(Default)]
 pub struct OtherScreenComponent {

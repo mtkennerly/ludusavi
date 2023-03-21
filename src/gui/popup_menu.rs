@@ -2,6 +2,8 @@
 // https://github.com/iced-rs/iced/blob/0.5.0/native/src/widget/pick_list.rs
 
 //! Display a dropdown list of selectable values.
+use std::borrow::Cow;
+
 use iced_native::{
     alignment,
     event::{self, Event},
@@ -16,8 +18,6 @@ use iced_native::{
     },
     Clipboard, Element, Layout, Length, Padding, Point, Rectangle, Shell, Size, Widget,
 };
-use std::borrow::Cow;
-
 pub use iced_style::pick_list::{Appearance, StyleSheet};
 
 /// A widget for selecting a single value from a list of options.

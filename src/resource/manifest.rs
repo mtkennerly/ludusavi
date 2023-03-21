@@ -303,10 +303,11 @@ impl Manifest {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::testing::s;
     use maplit::btreemap;
     use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::testing::s;
 
     #[test]
     fn can_parse_game_with_no_fields() {

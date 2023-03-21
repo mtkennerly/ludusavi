@@ -430,13 +430,14 @@ impl Reporter {
 
 #[cfg(test)]
 mod tests {
+    use maplit::hashset;
+    use pretty_assertions::assert_eq;
+
     use super::*;
     use crate::{
         scan::{registry_compat::RegistryItem, ScannedFile, ScannedRegistry},
         testing::s,
     };
-    use maplit::hashset;
-    use pretty_assertions::assert_eq;
 
     fn drive() -> String {
         if cfg!(target_os = "windows") {

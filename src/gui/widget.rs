@@ -1,5 +1,6 @@
-use crate::gui::{common::Message, style::Theme};
 use iced::widget as w;
+
+use crate::gui::{common::Message, style::Theme};
 
 pub type Renderer = iced::Renderer<Theme>;
 

@@ -1,9 +1,10 @@
-use crate::{config, scan::ScanChange};
 use iced::{
     widget::{button, checkbox, container, pick_list, scrollable, text_input},
     Background, Color, Vector,
 };
 use iced_style::menu;
+
+use crate::{config, scan::ScanChange};
 
 macro_rules! rgb8 {
     ($r:expr, $g:expr, $b:expr) => {

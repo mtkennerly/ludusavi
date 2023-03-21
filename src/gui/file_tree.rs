@@ -1,3 +1,5 @@
+use iced::{Alignment, Length};
+
 use crate::{
     config::{Config, ToggledPaths, ToggledRegistry},
     gui::{
@@ -14,7 +16,6 @@ use crate::{
         ScannedRegistryValues,
     },
 };
-use iced::{Alignment, Length};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 enum FileTreeNodeType {

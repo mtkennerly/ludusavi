@@ -1,15 +1,15 @@
+use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
+
 use crate::{
     config::Config,
     gui::{
         common::{EditAction, Message},
         custom_games_editor::{CustomGamesEditor, CustomGamesEditorEntry, CustomGamesEditorEntryRow},
         style,
+        widget::{Button, Column, Container, Row, Text},
     },
     lang::Translator,
 };
-
-use crate::gui::widget::{Button, Column, Container, Row, Text};
-use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
 
 #[derive(Default)]
 pub struct CustomGamesScreenComponent {

@@ -1,9 +1,11 @@
+use std::time::Instant;
+
+use iced::alignment;
+
 use crate::gui::{
     style,
     widget::{Container, Text},
 };
-use iced::alignment;
-use std::time::Instant;
 
 pub struct Notification {
     text: String,

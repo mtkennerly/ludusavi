@@ -1,3 +1,7 @@
+use iced::{
+    alignment::Horizontal as HorizontalAlignment, executor, Alignment, Application, Command, Length, Subscription,
+};
+
 use crate::{
     cache::Cache,
     config::{Config, CustomGame, RootsConfig},
@@ -14,6 +18,7 @@ use crate::{
         root_editor::RootEditorRow,
         shortcuts::Shortcut,
         style,
+        widget::{Button, Column, Container, Element, ProgressBar, Row, Text},
     },
     heroic::HeroicGames,
     lang::Translator,
@@ -26,11 +31,6 @@ use crate::{
         back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId,
         InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
     },
-};
-
-use crate::gui::widget::{Button, Column, Container, Element, ProgressBar, Row, Text};
-use iced::{
-    alignment::Horizontal as HorizontalAlignment, executor, Alignment, Application, Command, Length, Subscription,
 };
 
 fn make_nav_button<'a>(text: String, screen: Screen, current_screen: Screen) -> Button<'a> {

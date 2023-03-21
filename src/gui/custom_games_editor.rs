@@ -1,18 +1,16 @@
+use iced::{widget::tooltip, Alignment, Length};
+
 use crate::{
     config::Config,
     gui::{
-        common::{BrowseSubject, EditAction, IcedButtonExt, Message, UndoSubject},
+        common::{BrowseSubject, EditAction, IcedButtonExt, Message, ScrollSubject, UndoSubject},
         icon::Icon,
         shortcuts::TextHistory,
         style,
+        widget::{Button, Checkbox, Column, Container, Row, Space, Text, TextInput, Tooltip, Undoable},
     },
     lang::Translator,
 };
-
-use crate::gui::widget::{Button, Checkbox, Column, Container, Row, Space, Text, TextInput, Tooltip, Undoable};
-use iced::{widget::tooltip, Alignment, Length};
-
-use super::common::ScrollSubject;
 
 #[derive(Default)]
 pub struct CustomGamesEditorEntryRow {

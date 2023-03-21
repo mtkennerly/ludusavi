@@ -1,9 +1,10 @@
+use std::sync::Mutex;
+
 use byte_unit::Byte;
 use fluent::{bundle::FluentBundle, FluentArgs, FluentResource};
 use intl_memoizer::concurrent::IntlLangMemoizer;
 use once_cell::sync::Lazy;
 use regex::Regex;
-use std::sync::Mutex;
 use unic_langid::LanguageIdentifier;
 
 use crate::{

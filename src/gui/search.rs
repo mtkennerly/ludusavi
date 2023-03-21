@@ -1,15 +1,15 @@
+use iced::Alignment;
+
 use crate::{
     config::{Sort, SortKey},
     gui::{
         common::{Message, Screen, UndoSubject},
         shortcuts::TextHistory,
         style,
+        widget::{Checkbox, Container, PickList, Row, Text, TextInput, Undoable},
     },
     lang::Translator,
 };
-
-use crate::gui::widget::{Checkbox, Container, PickList, Row, Text, TextInput, Undoable};
-use iced::Alignment;
 
 #[derive(Default)]
 pub struct SearchComponent {

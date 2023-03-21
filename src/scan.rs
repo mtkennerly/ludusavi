@@ -5,6 +5,11 @@ pub mod registry_compat;
 #[cfg(target_os = "windows")]
 pub mod registry;
 
+use fuzzy_matcher::FuzzyMatcher;
+use once_cell::sync::Lazy;
+use rayon::prelude::*;
+use regex::Regex;
+
 use crate::{
     config::{BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry},
     heroic::HeroicGames,
@@ -16,10 +21,6 @@ use crate::{
     },
     registry_compat::RegistryItem,
 };
-use fuzzy_matcher::FuzzyMatcher;
-use once_cell::sync::Lazy;
-use rayon::prelude::*;
-use regex::Regex;
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize)]
 pub enum ScanChange {
@@ -1840,11 +1841,10 @@ pub fn compare_games_by_size(
 
 #[cfg(test)]
 mod tests {
-    use crate::{
-        resource::ResourceFile,
-        testing::{repo, s},
-    };
     use std::collections::VecDeque;
+
+    use maplit::*;
+    use pretty_assertions::assert_eq;
 
     use super::*;
     #[cfg(target_os = "windows")]
@@ -1856,10 +1856,9 @@ mod tests {
         config::{Config, Retention},
         layout::{FullBackup, IndividualMapping, IndividualMappingFile},
         manifest::Manifest,
-        testing::*,
+        resource::ResourceFile,
+        testing::{repo, s, *},
     };
-    use maplit::*;
-    use pretty_assertions::assert_eq;
 
     #[test]
     fn fuzzy_matching() {
@@ -2645,8 +2644,9 @@ mod tests {
     }
 
     mod duplicate_detector {
-        use super::*;
         use pretty_assertions::assert_eq;
+
+        use super::*;
 
         #[test]
         fn can_add_games_in_backup_mode() {

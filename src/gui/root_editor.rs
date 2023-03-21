@@ -1,19 +1,17 @@
+use iced::Length;
+
 use crate::{
     config::Config,
     gui::{
-        common::{BrowseSubject, EditAction, Message, UndoSubject},
+        common::{BrowseSubject, EditAction, IcedButtonExt, Message, UndoSubject},
         icon::Icon,
         shortcuts::TextHistory,
         style,
+        widget::{Button, Column, Container, PickList, Row, Text, TextInput, Undoable},
     },
     lang::Translator,
     manifest::Store,
 };
-
-use crate::gui::widget::{Button, Column, Container, PickList, Row, Text, TextInput, Undoable};
-use iced::Length;
-
-use super::common::IcedButtonExt;
 
 #[derive(Default)]
 pub struct RootEditorRow {

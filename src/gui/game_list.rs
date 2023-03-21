@@ -1,29 +1,24 @@
 use std::collections::HashSet;
 
+use fuzzy_matcher::FuzzyMatcher;
+use iced::{alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, widget::tooltip, Alignment, Length};
+
 use crate::{
     cache::Cache,
     config::{Config, Sort, SortKey, ToggledPaths, ToggledRegistry},
     gui::{
         badge::Badge,
-        common::{GameAction, IcedButtonExt, IcedExtension, Message, Screen},
+        common::{GameAction, IcedButtonExt, IcedExtension, Message, OngoingOperation, Screen, ScrollSubject},
         file_tree::FileTree,
+        icon::Icon,
         search::SearchComponent,
         style,
+        widget::{Button, Checkbox, Column, Container, PickList, Row, Text, TextInput, Tooltip},
     },
     lang::Translator,
     layout::GameLayout,
     manifest::Manifest,
     scan::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
-};
-
-use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Text, Tooltip};
-use fuzzy_matcher::FuzzyMatcher;
-use iced::{alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, widget::tooltip, Alignment, Length};
-
-use super::{
-    common::{OngoingOperation, ScrollSubject},
-    icon::Icon,
-    widget::TextInput,
 };
 
 #[derive(Default)]

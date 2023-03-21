@@ -346,9 +346,10 @@ pub struct Cli {
 
 #[cfg(test)]
 mod tests {
+    use clap::Parser;
+
     use super::*;
     use crate::testing::s;
-    use clap::Parser;
 
     fn check_args(args: &[&str], expected: Cli) {
         assert_eq!(expected, Cli::from_clap(&Cli::clap().get_matches_from(args)));

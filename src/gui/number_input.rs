@@ -1,13 +1,13 @@
+use std::ops::RangeInclusive;
+
+use iced::{Alignment, Length};
+
 use crate::gui::{
-    common::Message,
+    common::{IcedButtonExt, Message},
     icon::Icon,
     style,
     widget::{Button, Container, Row, Text},
 };
-use iced::{Alignment, Length};
-use std::ops::RangeInclusive;
-
-use super::common::IcedButtonExt;
 
 #[derive(Clone, Debug, Default)]
 pub struct NumberInput {}

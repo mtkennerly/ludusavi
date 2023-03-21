@@ -352,10 +352,11 @@ impl HeroicGames {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::{manifest::Manifest, resource::ResourceFile, testing::repo};
     use maplit::hashmap;
     use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::{manifest::Manifest, resource::ResourceFile, testing::repo};
 
     fn manifest() -> Manifest {
         Manifest::load_from_string(

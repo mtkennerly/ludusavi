@@ -1,18 +1,16 @@
+use iced::Length;
+
 use crate::{
     config::{Config, RedirectKind},
     gui::{
-        common::{BrowseSubject, EditAction, Message, RedirectEditActionField, UndoSubject},
+        common::{BrowseSubject, EditAction, IcedButtonExt, Message, RedirectEditActionField, UndoSubject},
         icon::Icon,
         shortcuts::TextHistory,
         style,
+        widget::{Button, Column, Container, PickList, Row, TextInput, Undoable},
     },
     lang::Translator,
 };
-
-use crate::gui::widget::{Button, Column, Container, PickList, Row, TextInput, Undoable};
-use iced::Length;
-
-use super::common::IcedButtonExt;
 
 #[derive(Default)]
 pub struct RedirectEditorRow {
