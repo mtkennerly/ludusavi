@@ -1,8 +1,7 @@
 use crate::{
     lang::Translator,
-    prelude::{
-        BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision, ScanChange, ScanInfo, StrictPath,
-    },
+    prelude::StrictPath,
+    scan::{BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision, ScanChange, ScanInfo},
 };
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -433,7 +432,7 @@ impl Reporter {
 mod tests {
     use super::*;
     use crate::{
-        prelude::{RegistryItem, ScannedFile, ScannedRegistry},
+        scan::{registry_compat::RegistryItem, ScannedFile, ScannedRegistry},
         testing::s,
     };
     use maplit::hashset;

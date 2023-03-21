@@ -9,7 +9,10 @@ use crate::{
     },
     lang::Translator,
     path::StrictPath,
-    prelude::{BackupInfo, DuplicateDetector, RegistryItem, ScanChange, ScanInfo, ScannedFile, ScannedRegistryValues},
+    scan::{
+        registry_compat::RegistryItem, BackupInfo, DuplicateDetector, ScanChange, ScanInfo, ScannedFile,
+        ScannedRegistryValues,
+    },
 };
 use iced::{Alignment, Length};
 

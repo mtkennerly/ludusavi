@@ -9,9 +9,8 @@ use unic_langid::LanguageIdentifier;
 use crate::{
     config::{BackupFormat, RedirectKind, SortKey, Theme, ZipCompression},
     manifest::Store,
-    prelude::{
-        Error, OperationStatus, OperationStepDecision, ScanChange, ScanChangeCount, StrictPath, VARIANT, VERSION,
-    },
+    prelude::{Error, StrictPath, VARIANT, VERSION},
+    scan::{OperationStatus, OperationStepDecision, ScanChange, ScanChangeCount},
 };
 
 const PATH: &str = "path";

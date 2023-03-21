@@ -3,10 +3,10 @@ use crate::{
     gui::{
         common::{BrowseSubject, EditAction, Message, UndoSubject},
         icon::Icon,
+        shortcuts::TextHistory,
         style,
     },
     lang::Translator,
-    shortcuts::TextHistory,
 };
 
 use crate::gui::widget::{Button, Column, Container, Row, Text, TextInput, Undoable};

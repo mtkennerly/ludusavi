@@ -10,6 +10,7 @@ use crate::{
         style,
     },
     lang::{Language, Translator},
+    prelude::STEAM_DECK,
 };
 
 use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Text};
@@ -51,7 +52,7 @@ impl OtherScreenComponent {
                 .spacing(20)
                 .align_items(iced::Alignment::Center)
                 .push_if(
-                    || *crate::prelude::STEAM_DECK,
+                    || *STEAM_DECK,
                     || {
                         Row::new()
                             .padding([0, 20, 0, 20])

@@ -1,33 +1,31 @@
 #![allow(clippy::too_many_arguments)]
 
-use crate::prelude::{CONFIG_DIR, VERSION};
-
-mod cache;
 mod cli;
-mod config;
 mod gui;
-mod heroic;
 mod lang;
-mod layout;
-mod manifest;
 mod path;
 mod prelude;
-mod registry_compat;
+mod resource;
+mod scan;
 mod serialization;
-mod shortcuts;
-
-#[cfg(target_os = "windows")]
-mod registry;
 
 #[cfg(test)]
 mod testing;
+
+use lang::Translator;
+use prelude::{app_dir, CONFIG_DIR, VERSION};
+use resource::{cache, config, manifest};
+use scan::{heroic, layout, registry_compat};
+
+#[cfg(target_os = "windows")]
+use scan::registry;
 
 /// The logger must be assigned to a variable because we're using async logging.
 /// https://docs.rs/flexi_logger/0.23.1/flexi_logger/error_info/index.html#write
 fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLoggerError> {
     flexi_logger::Logger::try_with_env_or_str("ludusavi=warn")
         .unwrap()
-        .log_to_file(flexi_logger::FileSpec::default().directory(prelude::app_dir()))
+        .log_to_file(flexi_logger::FileSpec::default().directory(app_dir()))
         .write_mode(flexi_logger::WriteMode::Async)
         .rotate(
             flexi_logger::Criterion::Size(1024 * 1024 * 10),
@@ -77,7 +75,7 @@ fn main() {
 
             let api = sub.api();
             if let Err(e) = cli::run(sub) {
-                let translator = crate::lang::Translator::default();
+                let translator = Translator::default();
                 if !api {
                     eprintln!("{}", translator.handle_error(&e));
                 }

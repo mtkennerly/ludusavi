@@ -1,8 +1,9 @@
 use crate::{
     lang::Language,
     manifest::Store,
-    prelude::{app_dir, Error, RegistryItem, StrictPath},
-    serialization::{ResourceFile, SaveableResourceFile},
+    prelude::{app_dir, Error, StrictPath},
+    resource::{ResourceFile, SaveableResourceFile},
+    scan::registry_compat::RegistryItem,
 };
 
 const MANIFEST_URL: &str = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";

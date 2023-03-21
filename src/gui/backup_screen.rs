@@ -8,12 +8,12 @@ use crate::{
         },
         game_list::GameList,
         icon::Icon,
+        shortcuts::TextHistory,
         style,
     },
     lang::Translator,
     manifest::Manifest,
-    prelude::DuplicateDetector,
-    shortcuts::TextHistory,
+    scan::DuplicateDetector,
 };
 
 use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Text, TextInput, Undoable};

@@ -1,4 +1,4 @@
-use crate::{config, prelude::ScanChange};
+use crate::{config, scan::ScanChange};
 use iced::{
     widget::{button, checkbox, container, pick_list, scrollable, text_input},
     Background, Color, Vector,

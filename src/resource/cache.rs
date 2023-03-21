@@ -3,7 +3,7 @@ use std::collections::{BTreeSet, HashMap};
 use crate::{
     config::{Config, RootsConfig},
     prelude::{app_dir, StrictPath},
-    serialization::{ResourceFile, SaveableResourceFile},
+    resource::{ResourceFile, SaveableResourceFile},
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

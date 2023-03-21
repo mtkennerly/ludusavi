@@ -4,7 +4,7 @@ use crate::{
         widget::{Container, Text, Tooltip},
     },
     lang::Translator,
-    prelude::ScanChange,
+    scan::ScanChange,
 };
 use iced::widget::tooltip;
 

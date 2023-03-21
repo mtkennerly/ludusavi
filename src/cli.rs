@@ -6,16 +6,18 @@ use report::Reporter;
 
 use crate::{
     cache::Cache,
+    cli::parse::ManifestSubcommand,
     config::{Config, SortKey},
     heroic::HeroicGames,
     lang::Translator,
     layout::BackupLayout,
     manifest::Manifest,
-    prelude::{
-        app_dir, back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId,
-        DuplicateDetector, Error, InstallDirRanking, OperationStepDecision, SteamShortcuts, StrictPath, TitleFinder,
+    prelude::{app_dir, Error, StrictPath},
+    resource::ResourceFile,
+    scan::{
+        back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId,
+        DuplicateDetector, InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
     },
-    serialization::ResourceFile,
 };
 use clap::CommandFactory;
 use indicatif::ParallelProgressIterator;
@@ -23,8 +25,6 @@ use rayon::{
     iter::{IntoParallelRefIterator, ParallelIterator},
     prelude::IndexedParallelIterator,
 };
-
-use self::parse::ManifestSubcommand;
 
 #[derive(Clone, Debug, Default)]
 struct GameSubjects {
@@ -172,7 +172,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
-                return Err(crate::prelude::Error::CliUnrecognizedGames {
+                return Err(Error::CliUnrecognizedGames {
                     games: subjects.invalid,
                 });
             }
@@ -231,7 +231,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                         OperationStepDecision::Processed
                     };
                     let backup_info = if preview || ignored {
-                        crate::prelude::BackupInfo::default()
+                        crate::scan::BackupInfo::default()
                     } else {
                         let mut backup_format = config.backup.format.clone();
                         if let Some(format) = format {
@@ -270,11 +270,11 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             let sort = sort.map(From::from).unwrap_or_else(|| config.backup.sort.clone());
             match sort.key {
                 SortKey::Name => {
-                    info.sort_by(|(name1, ..), (name2, ..)| crate::prelude::compare_games_by_name(name1, name2))
+                    info.sort_by(|(name1, ..), (name2, ..)| crate::scan::compare_games_by_name(name1, name2))
                 }
                 SortKey::Size => {
                     info.sort_by(|(_, scan_info1, backup_info1, ..), (_, scan_info2, backup_info2, ..)| {
-                        crate::prelude::compare_games_by_size(
+                        crate::scan::compare_games_by_size(
                             scan_info1,
                             &Some(backup_info1.clone()),
                             scan_info2,
@@ -347,7 +347,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
-                return Err(crate::prelude::Error::CliUnrecognizedGames {
+                return Err(Error::CliUnrecognizedGames {
                     games: subjects.invalid,
                 });
             }
@@ -391,7 +391,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                     }
 
                     let restore_info = if scan_info.backup.is_none() || preview || ignored {
-                        crate::prelude::BackupInfo::default()
+                        crate::scan::BackupInfo::default()
                     } else {
                         layout.restore(&scan_info)
                     };
@@ -414,11 +414,11 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             let sort = sort.map(From::from).unwrap_or_else(|| config.restore.sort.clone());
             match sort.key {
                 SortKey::Name => {
-                    info.sort_by(|(name1, ..), (name2, ..)| crate::prelude::compare_games_by_name(name1, name2))
+                    info.sort_by(|(name1, ..), (name2, ..)| crate::scan::compare_games_by_name(name1, name2))
                 }
                 SortKey::Size => {
                     info.sort_by(|(_, scan_info1, backup_info1, ..), (_, scan_info2, backup_info2, ..)| {
-                        crate::prelude::compare_games_by_size(
+                        crate::scan::compare_games_by_size(
                             scan_info1,
                             &Some(backup_info1.clone()),
                             scan_info2,
@@ -486,7 +486,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
-                return Err(crate::prelude::Error::CliUnrecognizedGames {
+                return Err(Error::CliUnrecognizedGames {
                     games: subjects.invalid,
                 });
             }
@@ -556,7 +556,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 }
                 reporter.trip_unknown_games(invalid.clone());
                 reporter.print_failure();
-                return Err(crate::prelude::Error::CliUnrecognizedGames { games: invalid });
+                return Err(Error::CliUnrecognizedGames { games: invalid });
             }
 
             reporter.print(&restore_dir);
@@ -576,7 +576,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
     }
 
     if failed {
-        Err(crate::prelude::Error::SomeEntriesFailed)
+        Err(Error::SomeEntriesFailed)
     } else {
         Ok(())
     }

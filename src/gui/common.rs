@@ -1,11 +1,15 @@
 use crate::{
     config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
-    gui::{badge::Badge, icon::Icon},
+    gui::{
+        badge::Badge,
+        icon::Icon,
+        shortcuts::{Shortcut, TextHistory},
+    },
     lang::{Language, Translator},
     layout::{Backup, GameLayout},
     manifest::{ManifestUpdate, Store},
-    prelude::{BackupInfo, Error, OperationStatus, OperationStepDecision, RegistryItem, ScanInfo, StrictPath},
-    shortcuts::{Shortcut, TextHistory},
+    prelude::{Error, StrictPath},
+    scan::{registry_compat::RegistryItem, BackupInfo, OperationStatus, OperationStepDecision, ScanInfo},
 };
 
 use crate::gui::widget::{Button, Column, Element, Row, Text};

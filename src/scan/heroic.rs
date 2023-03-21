@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{
-    config::RootsConfig,
-    manifest::Store,
-    prelude::{StrictPath, TitleFinder},
-};
+use crate::{config::RootsConfig, manifest::Store, prelude::StrictPath, scan::TitleFinder};
 
 //
 /// Deserialization of Heroic gog_store/installed.json
@@ -357,7 +353,7 @@ impl HeroicGames {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{manifest::Manifest, serialization::ResourceFile, testing::repo};
+    use crate::{manifest::Manifest, resource::ResourceFile, testing::repo};
     use maplit::hashmap;
     use pretty_assertions::assert_eq;
 

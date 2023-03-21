@@ -4,7 +4,7 @@ use crate::{
     cache::{self, Cache},
     config::{Config, CustomGame, ManifestConfig},
     prelude::{app_dir, Error, StrictPath},
-    serialization::{ResourceFile, SaveableResourceFile},
+    resource::{ResourceFile, SaveableResourceFile},
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

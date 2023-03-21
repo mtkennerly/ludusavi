@@ -12,19 +12,20 @@ use crate::{
         redirect_editor::RedirectEditorRow,
         restore_screen::RestoreScreenComponent,
         root_editor::RootEditorRow,
+        shortcuts::Shortcut,
         style,
     },
     heroic::HeroicGames,
     lang::Translator,
     layout::BackupLayout,
     manifest::{Manifest, Store},
-    prelude::{
-        app_dir, back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId, Error,
-        InstallDirRanking, OperationStepDecision, SteamShortcuts, StrictPath, TitleFinder,
-    },
+    prelude::{app_dir, Error, StrictPath},
     registry_compat::RegistryItem,
-    serialization::{ResourceFile, SaveableResourceFile},
-    shortcuts::Shortcut,
+    resource::{ResourceFile, SaveableResourceFile},
+    scan::{
+        back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId,
+        InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
+    },
 };
 
 use crate::gui::widget::{Button, Column, Container, Element, ProgressBar, Row, Text};

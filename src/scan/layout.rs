@@ -8,7 +8,8 @@ use chrono::{Datelike, Timelike};
 use crate::{
     config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
     path::StrictPath,
-    prelude::{game_file_target, BackupId, BackupInfo, ScanChange, ScanInfo, ScannedFile, ScannedRegistry},
+    prelude::sha1,
+    scan::{game_file_target, BackupId, BackupInfo, ScanChange, ScanInfo, ScannedFile, ScannedRegistry},
 };
 
 const SAFE: &str = "_";
@@ -44,7 +45,7 @@ fn escape_folder_name(name: &str) -> String {
         escaped.replace_range(escaped.len() - 1.., SAFE);
     }
 
-    escaped.replace(crate::prelude::INVALID_FILE_CHARS, SAFE)
+    escaped.replace(crate::scan::INVALID_FILE_CHARS, SAFE)
 }
 
 pub struct LatestBackup {
@@ -441,7 +442,7 @@ impl IndividualMapping {
             .max_depth(1)
             .follow_links(false)
             .into_iter()
-            .filter_map(crate::prelude::filter_map_walkdir)
+            .filter_map(crate::scan::filter_map_walkdir)
         {
             let name = child.file_name().to_string_lossy();
 
@@ -723,7 +724,7 @@ impl GameLayout {
             .max_depth(1)
             .follow_links(false)
             .into_iter()
-            .filter_map(crate::prelude::filter_map_walkdir)
+            .filter_map(crate::scan::filter_map_walkdir)
         {
             let raw_drive_dir = drive_dir.path().display().to_string();
             let drive_mapping =
@@ -733,14 +734,14 @@ impl GameLayout {
                 .max_depth(100)
                 .follow_links(false)
                 .into_iter()
-                .filter_map(crate::prelude::filter_map_walkdir)
+                .filter_map(crate::scan::filter_map_walkdir)
                 .filter(|x| x.file_type().is_file())
             {
                 let raw_file = file.path().display().to_string();
                 let original_path = Some(StrictPath::new(raw_file.replace(&raw_drive_dir, drive_mapping)));
                 let path = StrictPath::new(raw_file);
                 files.insert(ScannedFile {
-                    change: crate::prelude::ScanChange::Unknown,
+                    change: crate::scan::ScanChange::Unknown,
                     size: path.size(),
                     hash: path.sha1(),
                     path,
@@ -953,7 +954,7 @@ impl GameLayout {
             use crate::registry::Hives;
             let hives = Hives::incorporated(&scan.found_registry_keys);
             if !hives.is_empty() {
-                registry.hash = Some(crate::prelude::sha1(hives.serialize()));
+                registry.hash = Some(sha1(hives.serialize()));
             }
         }
 
@@ -993,7 +994,7 @@ impl GameLayout {
             let hives = Hives::incorporated(&scan.found_registry_keys);
             if !hives.is_empty() {
                 registry = Some(IndividualMappingRegistry {
-                    hash: Some(crate::prelude::sha1(hives.serialize())),
+                    hash: Some(sha1(hives.serialize())),
                 });
             }
         }
@@ -1291,7 +1292,7 @@ impl GameLayout {
         {
             if let Some(content) = self.registry_content_in(&backup.name, &BackupFormat::Simple) {
                 registry = IndividualMappingRegistry {
-                    hash: Some(crate::prelude::sha1(content)),
+                    hash: Some(sha1(content)),
                 };
             }
         }
@@ -1520,14 +1521,14 @@ impl GameLayout {
             .max_depth(1)
             .follow_links(false)
             .into_iter()
-            .filter_map(crate::prelude::filter_map_walkdir)
+            .filter_map(crate::scan::filter_map_walkdir)
             .filter(|x| x.file_name().to_string_lossy().starts_with("drive-"))
         {
             for file in walkdir::WalkDir::new(drive_dir.path())
                 .max_depth(100)
                 .follow_links(false)
                 .into_iter()
-                .filter_map(crate::prelude::filter_map_walkdir)
+                .filter_map(crate::scan::filter_map_walkdir)
                 .filter(|x| x.file_type().is_file())
             {
                 let backup_file = StrictPath::new(file.path().display().to_string());
@@ -1614,7 +1615,7 @@ impl BackupLayout {
             .follow_links(false)
             .into_iter()
             .skip(1) // the base path itself
-            .filter_map(crate::prelude::filter_map_walkdir)
+            .filter_map(crate::scan::filter_map_walkdir)
             .filter(|x| x.file_type().is_dir())
         {
             let game_dir = StrictPath::from(&game_dir);
@@ -1653,7 +1654,7 @@ impl BackupLayout {
 
     fn contains_game(&self, name: &str) -> bool {
         self.games.contains_key(name)
-            || (crate::prelude::CASE_INSENSITIVE_OS && self.games_lowercase.contains_key(&name.to_lowercase()))
+            || (crate::scan::CASE_INSENSITIVE_OS && self.games_lowercase.contains_key(&name.to_lowercase()))
     }
 
     pub fn latest_backup(&self, name: &str, restoring: bool, redirects: &[RedirectConfig]) -> Option<LatestBackup> {

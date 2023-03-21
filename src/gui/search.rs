@@ -2,10 +2,10 @@ use crate::{
     config::{Sort, SortKey},
     gui::{
         common::{Message, Screen, UndoSubject},
+        shortcuts::TextHistory,
         style,
     },
     lang::Translator,
-    shortcuts::TextHistory,
 };
 
 use crate::gui::widget::{Checkbox, Container, PickList, Row, Text, TextInput, Undoable};

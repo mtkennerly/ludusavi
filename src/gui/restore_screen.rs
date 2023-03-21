@@ -5,12 +5,12 @@ use crate::{
         common::{make_status_row, BrowseSubject, IcedButtonExt, Message, OngoingOperation, Screen, UndoSubject},
         game_list::GameList,
         icon::Icon,
+        shortcuts::TextHistory,
         style,
     },
     lang::Translator,
     manifest::Manifest,
-    prelude::DuplicateDetector,
-    shortcuts::TextHistory,
+    scan::DuplicateDetector,
 };
 
 use crate::gui::widget::{Button, Column, Container, Row, Text, TextInput, Undoable};

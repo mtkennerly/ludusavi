@@ -13,7 +13,7 @@ use crate::{
     lang::Translator,
     layout::GameLayout,
     manifest::Manifest,
-    prelude::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
+    scan::{BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
 };
 
 use crate::gui::widget::{Button, Checkbox, Column, Container, PickList, Row, Text, Tooltip};
@@ -438,9 +438,9 @@ impl GameList {
         match sort.key {
             SortKey::Name => self
                 .entries
-                .sort_by(|x, y| crate::prelude::compare_games_by_name(&x.scan_info.game_name, &y.scan_info.game_name)),
+                .sort_by(|x, y| crate::scan::compare_games_by_name(&x.scan_info.game_name, &y.scan_info.game_name)),
             SortKey::Size => self.entries.sort_by(|x, y| {
-                crate::prelude::compare_games_by_size(&x.scan_info, &x.backup_info, &y.scan_info, &y.backup_info)
+                crate::scan::compare_games_by_size(&x.scan_info, &x.backup_info, &y.scan_info, &y.backup_info)
             }),
         }
         if sort.reversed {
