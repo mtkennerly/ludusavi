@@ -83,8 +83,9 @@ If you are on Mac:
 ### Roots
 Roots are folders that Ludusavi can check for additional game data. When you
 first run Ludusavi, it will try to find some common roots on your system, but
-you may end up without any configured. You can click `add root` to configure
-as many as you need, along with the root's type:
+you may end up without any configured. These are listed on the "other" screen,
+where you can use the plus button in the roots section to configure as many as you need,
+along with the root's type:
 
 * For a Steam root, this should be the folder containing the `steamapps` and
   `userdata` subdirectories. Here are some common/standard locations:
@@ -190,7 +191,8 @@ file list to see which exact entries are duplicated.
 
 ### Redirects
 You can use redirects to back up or restore to a different location than the original file.
-Click `add redirect` on the restore screen, and then enter both the old and new location.
+These are listed on the "other" screen, where you can click the plus button to add more
+and then enter both the old and new location.
 For example, if you backed up some saves from `C:/Games`, but then you moved it to `D:/Games`,
 then you could create a restore redirect with `C:/Games` as the source and `D:/Games` as the target.
 
