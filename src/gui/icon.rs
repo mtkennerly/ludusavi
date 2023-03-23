@@ -1,9 +1,6 @@
 use iced::{alignment::Horizontal as HorizontalAlignment, Font};
 
-use crate::gui::{
-    style,
-    widget::{Button, Text},
-};
+use crate::gui::widget::Text;
 
 pub const ICONS: Font = Font::External {
     name: "Material Icons",
@@ -75,15 +72,5 @@ impl Icon {
             .font(ICONS)
             .width(60)
             .horizontal_alignment(HorizontalAlignment::Center)
-    }
-
-    pub fn as_button_small(&self) -> Button {
-        let mut button = Button::new(self.as_text().width(15).size(15));
-
-        if matches!(self, Self::Close) {
-            button = button.style(style::Button::Negative)
-        }
-
-        button
     }
 }

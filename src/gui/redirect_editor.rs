@@ -3,7 +3,8 @@ use iced::Length;
 use crate::{
     config::{Config, RedirectKind},
     gui::{
-        common::{BrowseSubject, CommonButton, EditAction, Message, RedirectEditActionField, UndoSubject},
+        button,
+        common::{BrowseSubject, EditAction, Message, RedirectEditActionField, UndoSubject},
         shortcuts::TextHistory,
         style,
         widget::{Column, Container, PickList, Row, TextInput, Undoable},
@@ -43,15 +44,12 @@ impl RedirectEditor {
                     parent.push(
                         Row::new()
                             .spacing(20)
-                            .push(CommonButton::MoveUp {
-                                action: Message::EditedRedirect(EditAction::move_up(i), None),
-                                index: i,
-                            })
-                            .push(CommonButton::MoveDown {
-                                action: Message::EditedRedirect(EditAction::move_down(i), None),
-                                index: i,
-                                max: self.rows.len(),
-                            })
+                            .push(button::move_up(|x| Message::EditedRedirect(x, None), i))
+                            .push(button::move_down(
+                                |x| Message::EditedRedirect(x, None),
+                                i,
+                                self.rows.len(),
+                            ))
                             .push(
                                 PickList::new(RedirectKind::ALL, Some(redirects[i].kind), move |v| {
                                     Message::SelectedRedirectKind(i, v)
@@ -74,9 +72,7 @@ impl RedirectEditor {
                                 .padding(5),
                                 move |action| Message::UndoRedo(action, UndoSubject::RedirectSource(i)),
                             ))
-                            .push(CommonButton::OpenFolder {
-                                subject: BrowseSubject::RedirectSource(i),
-                            })
+                            .push(button::open_folder(BrowseSubject::RedirectSource(i)))
                             .push(Undoable::new(
                                 TextInput::new(
                                     &translator.redirect_target_placeholder(),
@@ -93,17 +89,11 @@ impl RedirectEditor {
                                 .padding(5),
                                 move |action| Message::UndoRedo(action, UndoSubject::RedirectTarget(i)),
                             ))
-                            .push(CommonButton::OpenFolder {
-                                subject: BrowseSubject::RedirectTarget(i),
-                            })
-                            .push(CommonButton::Remove {
-                                action: Message::EditedRedirect(EditAction::Remove(i), None),
-                            }),
+                            .push(button::open_folder(BrowseSubject::RedirectTarget(i)))
+                            .push(button::remove(|x| Message::EditedRedirect(x, None), i)),
                     )
                 })
-                .push(CommonButton::Add {
-                    action: Message::EditedRedirect(EditAction::Add, None),
-                })
+                .push(button::add(|x| Message::EditedRedirect(x, None)))
         })
         .style(style::Container::GameListEntry);
 

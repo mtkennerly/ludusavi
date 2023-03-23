@@ -4,7 +4,8 @@ use crate::{
     cache::Cache,
     config::{Config, Theme},
     gui::{
-        common::{CommonButton, IcedExtension, Message, ScrollSubject},
+        button,
+        common::{IcedExtension, Message, ScrollSubject},
         ignored_items_editor::IgnoredItemsEditor,
         redirect_editor::{RedirectEditor, RedirectEditorRow},
         root_editor::{RootEditor, RootEditorRow},
@@ -106,10 +107,7 @@ impl OtherScreenComponent {
                                     Row::new()
                                         .align_items(iced::Alignment::Center)
                                         .push(Text::new(translator.manifest_label()).width(100))
-                                        .push(CommonButton::Refresh {
-                                            action: Message::UpdateManifest,
-                                            ongoing: updating_manifest,
-                                        }),
+                                        .push(button::refresh(Message::UpdateManifest, updating_manifest)),
                                 )
                                 .push_some(|| {
                                     let cached = cache.manifests.get(&config.manifest.url)?;

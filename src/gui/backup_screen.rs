@@ -4,10 +4,8 @@ use crate::{
     cache::Cache,
     config::{BackupFormat, Config, ZipCompression},
     gui::{
-        common::{
-            make_status_row, operation_button, BrowseSubject, CommonButton, IcedExtension, Message, OngoingOperation,
-            Screen, UndoSubject,
-        },
+        button,
+        common::{make_status_row, BrowseSubject, IcedExtension, Message, OngoingOperation, Screen, UndoSubject},
         game_list::GameList,
         shortcuts::TextHistory,
         style,
@@ -55,15 +53,12 @@ impl BackupScreenComponent {
                         .padding([0, 20, 0, 20])
                         .spacing(20)
                         .align_items(Alignment::Center)
-                        .push(operation_button(OngoingOperation::PreviewBackup, operation.to_owned()))
-                        .push(operation_button(OngoingOperation::Backup, operation.to_owned()))
-                        .push(CommonButton::ToggleAllScannedGames {
-                            all_enabled: self.log.all_entries_selected(config, false),
-                        })
-                        .push(CommonButton::Search {
-                            screen: Screen::Backup,
-                            open: self.log.search.show,
-                        }),
+                        .push(button::operation(OngoingOperation::PreviewBackup, operation.to_owned()))
+                        .push(button::operation(OngoingOperation::Backup, operation.to_owned()))
+                        .push(button::toggle_all_scanned_games(
+                            self.log.all_entries_selected(config, false),
+                        ))
+                        .push(button::search(Screen::Backup, self.log.search.show)),
                 )
                 .push(make_status_row(
                     translator,
@@ -82,12 +77,8 @@ impl BackupScreenComponent {
                                 .padding(5),
                             move |action| Message::UndoRedo(action, UndoSubject::BackupTarget),
                         ))
-                        .push(CommonButton::Settings {
-                            open: self.show_settings,
-                        })
-                        .push(CommonButton::OpenFolder {
-                            subject: BrowseSubject::BackupTarget,
-                        }),
+                        .push(button::settings(self.show_settings))
+                        .push(button::open_folder(BrowseSubject::BackupTarget)),
                 )
                 .push_if(
                     || self.show_settings,

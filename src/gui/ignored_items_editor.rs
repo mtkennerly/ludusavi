@@ -3,7 +3,8 @@ use iced::Length;
 use crate::{
     config::Config,
     gui::{
-        common::{BrowseSubject, CommonButton, EditAction, Message, UndoSubject},
+        button,
+        common::{BrowseSubject, EditAction, Message, UndoSubject},
         shortcuts::TextHistory,
         style,
         widget::{Column, Container, Row, Text, TextInput, Undoable},
@@ -66,19 +67,12 @@ impl IgnoredItemsEditor {
                                             column.push(
                                                 Row::new()
                                                     .spacing(20)
-                                                    .push(CommonButton::MoveUp {
-                                                        action: Message::EditedBackupFilterIgnoredPath(
-                                                            EditAction::move_up(ii),
-                                                        ),
-                                                        index: ii,
-                                                    })
-                                                    .push(CommonButton::MoveDown {
-                                                        action: Message::EditedBackupFilterIgnoredPath(
-                                                            EditAction::move_down(ii),
-                                                        ),
-                                                        index: ii,
-                                                        max: self.files.len(),
-                                                    })
+                                                    .push(button::move_up(Message::EditedBackupFilterIgnoredPath, ii))
+                                                    .push(button::move_down(
+                                                        Message::EditedBackupFilterIgnoredPath,
+                                                        ii,
+                                                        self.files.len(),
+                                                    ))
                                                     .push(Undoable::new(
                                                         TextInput::new(
                                                             "",
@@ -98,19 +92,13 @@ impl IgnoredItemsEditor {
                                                             )
                                                         },
                                                     ))
-                                                    .push(CommonButton::OpenFolder {
-                                                        subject: BrowseSubject::BackupFilterIgnoredPath(ii),
-                                                    })
-                                                    .push(CommonButton::Remove {
-                                                        action: Message::EditedBackupFilterIgnoredPath(
-                                                            EditAction::Remove(ii),
-                                                        ),
-                                                    }),
+                                                    .push(button::open_folder(BrowseSubject::BackupFilterIgnoredPath(
+                                                        ii,
+                                                    )))
+                                                    .push(button::remove(Message::EditedBackupFilterIgnoredPath, ii)),
                                             )
                                         })
-                                        .push(CommonButton::Add {
-                                            action: Message::EditedBackupFilterIgnoredPath(EditAction::Add),
-                                        }),
+                                        .push(button::add(Message::EditedBackupFilterIgnoredPath)),
                                 ),
                         )
                         .push(
@@ -128,19 +116,15 @@ impl IgnoredItemsEditor {
                                             column.push(
                                                 Row::new()
                                                     .spacing(20)
-                                                    .push(CommonButton::MoveUp {
-                                                        action: Message::EditedBackupFilterIgnoredRegistry(
-                                                            EditAction::move_up(ii),
-                                                        ),
-                                                        index: ii,
-                                                    })
-                                                    .push(CommonButton::MoveDown {
-                                                        action: Message::EditedBackupFilterIgnoredRegistry(
-                                                            EditAction::move_down(ii),
-                                                        ),
-                                                        index: ii,
-                                                        max: self.registry.len(),
-                                                    })
+                                                    .push(button::move_up(
+                                                        Message::EditedBackupFilterIgnoredRegistry,
+                                                        ii,
+                                                    ))
+                                                    .push(button::move_down(
+                                                        Message::EditedBackupFilterIgnoredRegistry,
+                                                        ii,
+                                                        self.registry.len(),
+                                                    ))
                                                     .push(Undoable::new(
                                                         TextInput::new(
                                                             "",
@@ -160,16 +144,13 @@ impl IgnoredItemsEditor {
                                                             )
                                                         },
                                                     ))
-                                                    .push(CommonButton::Remove {
-                                                        action: Message::EditedBackupFilterIgnoredRegistry(
-                                                            EditAction::Remove(ii),
-                                                        ),
-                                                    }),
+                                                    .push(button::remove(
+                                                        Message::EditedBackupFilterIgnoredRegistry,
+                                                        ii,
+                                                    )),
                                             )
                                         })
-                                        .push(CommonButton::Add {
-                                            action: Message::EditedBackupFilterIgnoredRegistry(EditAction::Add),
-                                        }),
+                                        .push(button::add(Message::EditedBackupFilterIgnoredRegistry)),
                                 ),
                         ),
                 )

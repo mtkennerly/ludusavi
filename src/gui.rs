@@ -1,6 +1,7 @@
 pub mod app;
 pub mod backup_screen;
 pub mod badge;
+mod button;
 pub mod common;
 pub mod custom_games_editor;
 pub mod custom_games_screen;

@@ -4,10 +4,8 @@ use crate::{
     cache::Cache,
     config::Config,
     gui::{
-        common::{
-            make_status_row, operation_button, BrowseSubject, CommonButton, Message, OngoingOperation, Screen,
-            UndoSubject,
-        },
+        button,
+        common::{make_status_row, BrowseSubject, Message, OngoingOperation, Screen, UndoSubject},
         game_list::GameList,
         shortcuts::TextHistory,
         style,
@@ -50,15 +48,15 @@ impl RestoreScreenComponent {
                         .padding([0, 20, 0, 20])
                         .spacing(20)
                         .align_items(Alignment::Center)
-                        .push(operation_button(OngoingOperation::PreviewRestore, operation.to_owned()))
-                        .push(operation_button(OngoingOperation::Restore, operation.to_owned()))
-                        .push(CommonButton::ToggleAllScannedGames {
-                            all_enabled: self.log.all_entries_selected(config, true),
-                        })
-                        .push(CommonButton::Search {
-                            screen: Screen::Restore,
-                            open: self.log.search.show,
-                        }),
+                        .push(button::operation(
+                            OngoingOperation::PreviewRestore,
+                            operation.to_owned(),
+                        ))
+                        .push(button::operation(OngoingOperation::Restore, operation.to_owned()))
+                        .push(button::toggle_all_scanned_games(
+                            self.log.all_entries_selected(config, true),
+                        ))
+                        .push(button::search(Screen::Restore, self.log.search.show)),
                 )
                 .push(make_status_row(
                     translator,
@@ -77,9 +75,7 @@ impl RestoreScreenComponent {
                                 .padding(5),
                             move |action| Message::UndoRedo(action, UndoSubject::RestoreSource),
                         ))
-                        .push(CommonButton::OpenFolder {
-                            subject: BrowseSubject::RestoreSource,
-                        }),
+                        .push(button::open_folder(BrowseSubject::RestoreSource)),
                 )
                 .push(
                     self.log

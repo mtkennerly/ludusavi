@@ -3,7 +3,8 @@ use iced::Length;
 use crate::{
     config::Config,
     gui::{
-        common::{BrowseSubject, CommonButton, EditAction, Message, UndoSubject},
+        button,
+        common::{BrowseSubject, EditAction, Message, UndoSubject},
         shortcuts::TextHistory,
         style,
         widget::{Column, Container, PickList, Row, Text, TextInput, Undoable},
@@ -41,15 +42,8 @@ impl RootEditor {
                 parent.push(
                     Row::new()
                         .spacing(20)
-                        .push(CommonButton::MoveUp {
-                            action: Message::EditedRoot(EditAction::move_up(i)),
-                            index: i,
-                        })
-                        .push(CommonButton::MoveDown {
-                            action: Message::EditedRoot(EditAction::move_down(i)),
-                            index: i,
-                            max: self.rows.len(),
-                        })
+                        .push(button::move_up(Message::EditedRoot, i))
+                        .push(button::move_down(Message::EditedRoot, i, self.rows.len()))
                         .push(Undoable::new(
                             TextInput::new("", &roots[i].path.raw(), move |v| {
                                 Message::EditedRoot(EditAction::Change(i, v))
@@ -65,12 +59,8 @@ impl RootEditor {
                             })
                             .style(style::PickList::Primary),
                         )
-                        .push(CommonButton::OpenFolder {
-                            subject: BrowseSubject::Root(i),
-                        })
-                        .push(CommonButton::Remove {
-                            action: Message::EditedRoot(EditAction::Remove(i)),
-                        }),
+                        .push(button::open_folder(BrowseSubject::Root(i)))
+                        .push(button::remove(Message::EditedRoot, i)),
                 )
             });
         };
@@ -78,13 +68,8 @@ impl RootEditor {
         content = content.push(
             Row::new()
                 .spacing(20)
-                .push(CommonButton::Add {
-                    action: Message::EditedRoot(EditAction::Add),
-                })
-                .push(CommonButton::Refresh {
-                    action: Message::FindRoots,
-                    ongoing: false,
-                }),
+                .push(button::add(Message::EditedRoot))
+                .push(button::refresh(Message::FindRoots, false)),
         );
 
         Container::new(content)

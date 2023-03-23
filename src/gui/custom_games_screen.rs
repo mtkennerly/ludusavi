@@ -1,12 +1,11 @@
-use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
+use iced::{Alignment, Length};
 
 use crate::{
     config::Config,
     gui::{
-        common::{EditAction, Message},
+        button,
         custom_games_editor::{CustomGamesEditor, CustomGamesEditorEntry, CustomGamesEditorEntryRow},
-        style,
-        widget::{Button, Column, Container, Row, Text},
+        widget::{Column, Container, Row},
     },
     lang::Translator,
 };
@@ -43,32 +42,8 @@ impl CustomGamesScreenComponent {
                         .padding([0, 20, 0, 20])
                         .spacing(20)
                         .align_items(Alignment::Center)
-                        .push(
-                            Button::new(
-                                Text::new(translator.add_game_button())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(Message::EditedCustomGame(EditAction::Add))
-                            .width(125)
-                            .style(style::Button::Primary),
-                        )
-                        .push({
-                            Button::new(
-                                Text::new(if config.are_all_custom_games_enabled() {
-                                    translator.disable_all_button()
-                                } else {
-                                    translator.enable_all_button()
-                                })
-                                .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(if config.are_all_custom_games_enabled() {
-                                Message::DeselectAllGames
-                            } else {
-                                Message::SelectAllGames
-                            })
-                            .width(125)
-                            .style(style::Button::Primary)
-                        }),
+                        .push(button::add_game())
+                        .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled())),
                 )
                 .push(self.games_editor.view(config, translator, operating)),
         )
