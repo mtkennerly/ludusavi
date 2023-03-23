@@ -1,15 +1,17 @@
-use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
+use iced::{Alignment, Length};
 
 use crate::{
     cache::Cache,
     config::Config,
     gui::{
-        common::{make_status_row, BrowseSubject, IcedButtonExt, Message, OngoingOperation, Screen, UndoSubject},
+        common::{
+            make_status_row, operation_button, BrowseSubject, CommonButton, Message, OngoingOperation, Screen,
+            UndoSubject,
+        },
         game_list::GameList,
-        icon::Icon,
         shortcuts::TextHistory,
         style,
-        widget::{Button, Column, Container, Row, Text, TextInput, Undoable},
+        widget::{Column, Container, Row, Text, TextInput, Undoable},
     },
     lang::Translator,
     manifest::Manifest,
@@ -48,82 +50,15 @@ impl RestoreScreenComponent {
                         .padding([0, 20, 0, 20])
                         .spacing(20)
                         .align_items(Alignment::Center)
-                        .push(
-                            Button::new(
-                                Text::new(match operation {
-                                    Some(OngoingOperation::PreviewRestore) => translator.cancel_button(),
-                                    Some(OngoingOperation::CancelPreviewRestore) => translator.cancelling_button(),
-                                    _ => translator.preview_button(),
-                                })
-                                .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press_some(match operation {
-                                None => Some(Message::RestoreStart {
-                                    preview: true,
-                                    games: None,
-                                }),
-                                Some(OngoingOperation::PreviewRestore) => Some(Message::CancelOperation),
-                                _ => None,
-                            })
-                            .width(125)
-                            .style(match operation {
-                                Some(OngoingOperation::PreviewRestore | OngoingOperation::CancelPreviewRestore) => {
-                                    style::Button::Negative
-                                }
-                                _ => style::Button::Primary,
-                            }),
-                        )
-                        .push(
-                            Button::new(
-                                Text::new(match operation {
-                                    Some(OngoingOperation::Restore) => translator.cancel_button(),
-                                    Some(OngoingOperation::CancelRestore) => translator.cancelling_button(),
-                                    _ => translator.restore_button(),
-                                })
-                                .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press_some(match operation {
-                                None => Some(Message::ConfirmRestoreStart { games: None }),
-                                Some(OngoingOperation::Restore) => Some(Message::CancelOperation),
-                                _ => None,
-                            })
-                            .width(125)
-                            .style(match operation {
-                                Some(OngoingOperation::Restore | OngoingOperation::CancelRestore) => {
-                                    style::Button::Negative
-                                }
-                                _ => style::Button::Primary,
-                            }),
-                        )
-                        .push({
-                            let restoring = true;
-                            Button::new(
-                                Text::new(if self.log.all_entries_selected(config, restoring) {
-                                    translator.deselect_all_button()
-                                } else {
-                                    translator.select_all_button()
-                                })
-                                .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(if self.log.all_entries_selected(config, restoring) {
-                                Message::DeselectAllGames
-                            } else {
-                                Message::SelectAllGames
-                            })
-                            .width(125)
-                            .style(style::Button::Primary)
+                        .push(operation_button(OngoingOperation::PreviewRestore, operation.to_owned()))
+                        .push(operation_button(OngoingOperation::Restore, operation.to_owned()))
+                        .push(CommonButton::ToggleAllScannedGames {
+                            all_enabled: self.log.all_entries_selected(config, true),
                         })
-                        .push(
-                            Button::new(Icon::Search.as_text())
-                                .on_press(Message::ToggleSearch {
-                                    screen: Screen::Restore,
-                                })
-                                .style(if self.log.search.show {
-                                    style::Button::Negative
-                                } else {
-                                    style::Button::Primary
-                                }),
-                        ),
+                        .push(CommonButton::Search {
+                            screen: Screen::Restore,
+                            open: self.log.search.show,
+                        }),
                 )
                 .push(make_status_row(
                     translator,
@@ -142,11 +77,9 @@ impl RestoreScreenComponent {
                                 .padding(5),
                             move |action| Message::UndoRedo(action, UndoSubject::RestoreSource),
                         ))
-                        .push(
-                            Button::new(Icon::FolderOpen.as_text())
-                                .on_press(Message::BrowseDir(BrowseSubject::RestoreSource))
-                                .style(style::Button::Primary),
-                        ),
+                        .push(CommonButton::OpenFolder {
+                            subject: BrowseSubject::RestoreSource,
+                        }),
                 )
                 .push(
                     self.log

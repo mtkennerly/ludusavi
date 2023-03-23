@@ -3,11 +3,10 @@ use iced::Length;
 use crate::{
     config::{Config, RedirectKind},
     gui::{
-        common::{BrowseSubject, EditAction, IcedButtonExt, Message, RedirectEditActionField, UndoSubject},
-        icon::Icon,
+        common::{BrowseSubject, CommonButton, EditAction, Message, RedirectEditActionField, UndoSubject},
         shortcuts::TextHistory,
         style,
-        widget::{Button, Column, Container, PickList, Row, TextInput, Undoable},
+        widget::{Column, Container, PickList, Row, TextInput, Undoable},
     },
     lang::Translator,
 };
@@ -44,15 +43,15 @@ impl RedirectEditor {
                     parent.push(
                         Row::new()
                             .spacing(20)
-                            .push(
-                                Icon::ArrowUpward
-                                    .as_button_small()
-                                    .on_press_if(|| i > 0, || Message::EditedRedirect(EditAction::move_up(i), None)),
-                            )
-                            .push(Icon::ArrowDownward.as_button_small().on_press_if(
-                                || i < self.rows.len() - 1,
-                                || Message::EditedRedirect(EditAction::move_down(i), None),
-                            ))
+                            .push(CommonButton::MoveUp {
+                                action: Message::EditedRedirect(EditAction::move_up(i), None),
+                                index: i,
+                            })
+                            .push(CommonButton::MoveDown {
+                                action: Message::EditedRedirect(EditAction::move_down(i), None),
+                                index: i,
+                                max: self.rows.len(),
+                            })
                             .push(
                                 PickList::new(RedirectKind::ALL, Some(redirects[i].kind), move |v| {
                                     Message::SelectedRedirectKind(i, v)
@@ -75,11 +74,9 @@ impl RedirectEditor {
                                 .padding(5),
                                 move |action| Message::UndoRedo(action, UndoSubject::RedirectSource(i)),
                             ))
-                            .push(
-                                Button::new(Icon::FolderOpen.as_text())
-                                    .on_press(Message::BrowseDir(BrowseSubject::RedirectSource(i)))
-                                    .style(style::Button::Primary),
-                            )
+                            .push(CommonButton::OpenFolder {
+                                subject: BrowseSubject::RedirectSource(i),
+                            })
                             .push(Undoable::new(
                                 TextInput::new(
                                     &translator.redirect_target_placeholder(),
@@ -96,23 +93,17 @@ impl RedirectEditor {
                                 .padding(5),
                                 move |action| Message::UndoRedo(action, UndoSubject::RedirectTarget(i)),
                             ))
-                            .push(
-                                Button::new(Icon::FolderOpen.as_text())
-                                    .on_press(Message::BrowseDir(BrowseSubject::RedirectTarget(i)))
-                                    .style(style::Button::Primary),
-                            )
-                            .push(
-                                Button::new(Icon::RemoveCircle.as_text())
-                                    .on_press(Message::EditedRedirect(EditAction::Remove(i), None))
-                                    .style(style::Button::Negative),
-                            ),
+                            .push(CommonButton::OpenFolder {
+                                subject: BrowseSubject::RedirectTarget(i),
+                            })
+                            .push(CommonButton::Remove {
+                                action: Message::EditedRedirect(EditAction::Remove(i), None),
+                            }),
                     )
                 })
-                .push(
-                    Button::new(Icon::AddCircle.as_text())
-                        .on_press(Message::EditedRedirect(EditAction::Add, None))
-                        .style(style::Button::Primary),
-                )
+                .push(CommonButton::Add {
+                    action: Message::EditedRedirect(EditAction::Add, None),
+                })
         })
         .style(style::Container::GameListEntry);
 

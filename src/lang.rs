@@ -21,6 +21,7 @@ const PROCESSED_SIZE: &str = "processed-size";
 const TOTAL_GAMES: &str = "total-games";
 const TOTAL_SIZE: &str = "total-size";
 
+pub const TRANSLATOR: Translator = Translator {};
 pub const ADD_SYMBOL: &str = "+";
 pub const CHANGE_SYMBOL: &str = "Δ";
 

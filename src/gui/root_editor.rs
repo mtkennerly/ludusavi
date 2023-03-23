@@ -3,11 +3,10 @@ use iced::Length;
 use crate::{
     config::Config,
     gui::{
-        common::{BrowseSubject, EditAction, IcedButtonExt, Message, UndoSubject},
-        icon::Icon,
+        common::{BrowseSubject, CommonButton, EditAction, Message, UndoSubject},
         shortcuts::TextHistory,
         style,
-        widget::{Button, Column, Container, PickList, Row, Text, TextInput, Undoable},
+        widget::{Column, Container, PickList, Row, Text, TextInput, Undoable},
     },
     lang::Translator,
     manifest::Store,
@@ -42,15 +41,15 @@ impl RootEditor {
                 parent.push(
                     Row::new()
                         .spacing(20)
-                        .push(
-                            Icon::ArrowUpward
-                                .as_button_small()
-                                .on_press_if(|| i > 0, || Message::EditedRoot(EditAction::move_up(i))),
-                        )
-                        .push(Icon::ArrowDownward.as_button_small().on_press_if(
-                            || i < self.rows.len() - 1,
-                            || Message::EditedRoot(EditAction::move_down(i)),
-                        ))
+                        .push(CommonButton::MoveUp {
+                            action: Message::EditedRoot(EditAction::move_up(i)),
+                            index: i,
+                        })
+                        .push(CommonButton::MoveDown {
+                            action: Message::EditedRoot(EditAction::move_down(i)),
+                            index: i,
+                            max: self.rows.len(),
+                        })
                         .push(Undoable::new(
                             TextInput::new("", &roots[i].path.raw(), move |v| {
                                 Message::EditedRoot(EditAction::Change(i, v))
@@ -66,16 +65,12 @@ impl RootEditor {
                             })
                             .style(style::PickList::Primary),
                         )
-                        .push(
-                            Button::new(Icon::FolderOpen.as_text())
-                                .on_press(Message::BrowseDir(BrowseSubject::Root(i)))
-                                .style(style::Button::Primary),
-                        )
-                        .push(
-                            Button::new(Icon::RemoveCircle.as_text())
-                                .on_press(Message::EditedRoot(EditAction::Remove(i)))
-                                .style(style::Button::Negative),
-                        ),
+                        .push(CommonButton::OpenFolder {
+                            subject: BrowseSubject::Root(i),
+                        })
+                        .push(CommonButton::Remove {
+                            action: Message::EditedRoot(EditAction::Remove(i)),
+                        }),
                 )
             });
         };
@@ -83,16 +78,13 @@ impl RootEditor {
         content = content.push(
             Row::new()
                 .spacing(20)
-                .push(
-                    Button::new(Icon::AddCircle.as_text())
-                        .on_press(Message::EditedRoot(EditAction::Add))
-                        .style(style::Button::Primary),
-                )
-                .push(
-                    Button::new(Icon::Refresh.as_text())
-                        .on_press(Message::FindRoots)
-                        .style(style::Button::Primary),
-                ),
+                .push(CommonButton::Add {
+                    action: Message::EditedRoot(EditAction::Add),
+                })
+                .push(CommonButton::Refresh {
+                    action: Message::FindRoots,
+                    ongoing: false,
+                }),
         );
 
         Container::new(content)

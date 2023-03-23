@@ -1,18 +1,17 @@
-use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
+use iced::{Alignment, Length};
 
 use crate::{
     cache::Cache,
     config::{BackupFormat, Config, ZipCompression},
     gui::{
         common::{
-            make_status_row, BrowseSubject, IcedButtonExt, IcedExtension, Message, OngoingOperation, Screen,
-            UndoSubject,
+            make_status_row, operation_button, BrowseSubject, CommonButton, IcedExtension, Message, OngoingOperation,
+            Screen, UndoSubject,
         },
         game_list::GameList,
-        icon::Icon,
         shortcuts::TextHistory,
         style,
-        widget::{Button, Checkbox, Column, Container, PickList, Row, Text, TextInput, Undoable},
+        widget::{Checkbox, Column, Container, PickList, Row, Text, TextInput, Undoable},
     },
     lang::Translator,
     manifest::Manifest,
@@ -56,80 +55,15 @@ impl BackupScreenComponent {
                         .padding([0, 20, 0, 20])
                         .spacing(20)
                         .align_items(Alignment::Center)
-                        .push(
-                            Button::new(
-                                Text::new(match operation {
-                                    Some(OngoingOperation::PreviewBackup) => translator.cancel_button(),
-                                    Some(OngoingOperation::CancelPreviewBackup) => translator.cancelling_button(),
-                                    _ => translator.preview_button(),
-                                })
-                                .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press_some(match operation {
-                                None => Some(Message::BackupPrep {
-                                    preview: true,
-                                    games: None,
-                                }),
-                                Some(OngoingOperation::PreviewBackup) => Some(Message::CancelOperation),
-                                _ => None,
-                            })
-                            .width(125)
-                            .style(match operation {
-                                Some(OngoingOperation::PreviewBackup | OngoingOperation::CancelPreviewBackup) => {
-                                    style::Button::Negative
-                                }
-                                _ => style::Button::Primary,
-                            }),
-                        )
-                        .push(
-                            Button::new(
-                                Text::new(match operation {
-                                    Some(OngoingOperation::Backup) => translator.cancel_button(),
-                                    Some(OngoingOperation::CancelBackup) => translator.cancelling_button(),
-                                    _ => translator.backup_button(),
-                                })
-                                .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press_some(match operation {
-                                None => Some(Message::ConfirmBackupStart { games: None }),
-                                Some(OngoingOperation::Backup) => Some(Message::CancelOperation),
-                                _ => None,
-                            })
-                            .width(125)
-                            .style(match operation {
-                                Some(OngoingOperation::Backup | OngoingOperation::CancelBackup) => {
-                                    style::Button::Negative
-                                }
-                                _ => style::Button::Primary,
-                            }),
-                        )
-                        .push({
-                            let restoring = false;
-                            Button::new(
-                                Text::new(if self.log.all_entries_selected(config, restoring) {
-                                    translator.deselect_all_button()
-                                } else {
-                                    translator.select_all_button()
-                                })
-                                .horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press(if self.log.all_entries_selected(config, restoring) {
-                                Message::DeselectAllGames
-                            } else {
-                                Message::SelectAllGames
-                            })
-                            .width(125)
-                            .style(style::Button::Primary)
+                        .push(operation_button(OngoingOperation::PreviewBackup, operation.to_owned()))
+                        .push(operation_button(OngoingOperation::Backup, operation.to_owned()))
+                        .push(CommonButton::ToggleAllScannedGames {
+                            all_enabled: self.log.all_entries_selected(config, false),
                         })
-                        .push(
-                            Button::new(Icon::Search.as_text())
-                                .on_press(Message::ToggleSearch { screen: Screen::Backup })
-                                .style(if self.log.search.show {
-                                    style::Button::Negative
-                                } else {
-                                    style::Button::Primary
-                                }),
-                        ),
+                        .push(CommonButton::Search {
+                            screen: Screen::Backup,
+                            open: self.log.search.show,
+                        }),
                 )
                 .push(make_status_row(
                     translator,
@@ -148,20 +82,12 @@ impl BackupScreenComponent {
                                 .padding(5),
                             move |action| Message::UndoRedo(action, UndoSubject::BackupTarget),
                         ))
-                        .push(
-                            Button::new(Icon::Settings.as_text())
-                                .on_press(Message::ToggleBackupSettings)
-                                .style(if self.show_settings {
-                                    style::Button::Negative
-                                } else {
-                                    style::Button::Primary
-                                }),
-                        )
-                        .push(
-                            Button::new(Icon::FolderOpen.as_text())
-                                .on_press(Message::BrowseDir(BrowseSubject::BackupTarget))
-                                .style(style::Button::Primary),
-                        ),
+                        .push(CommonButton::Settings {
+                            open: self.show_settings,
+                        })
+                        .push(CommonButton::OpenFolder {
+                            subject: BrowseSubject::BackupTarget,
+                        }),
                 )
                 .push_if(
                     || self.show_settings,

@@ -3,11 +3,10 @@ use iced::{widget::tooltip, Alignment, Length};
 use crate::{
     config::Config,
     gui::{
-        common::{BrowseSubject, EditAction, IcedButtonExt, Message, ScrollSubject, UndoSubject},
-        icon::Icon,
+        common::{BrowseSubject, CommonButton, EditAction, Message, ScrollSubject, UndoSubject},
         shortcuts::TextHistory,
         style,
-        widget::{Button, Checkbox, Column, Container, Row, Space, Text, TextInput, Tooltip, Undoable},
+        widget::{Checkbox, Column, Container, Row, Space, Text, TextInput, Tooltip, Undoable},
     },
     lang::Translator,
 };
@@ -76,14 +75,15 @@ impl CustomGamesEditor {
                                                 .spacing(0)
                                                 .style(style::Checkbox),
                                             )
-                                            .push(Icon::ArrowUpward.as_button_small().on_press_if(
-                                                || i > 0,
-                                                || Message::EditedCustomGame(EditAction::move_up(i)),
-                                            ))
-                                            .push(Icon::ArrowDownward.as_button_small().on_press_if(
-                                                || i < self.entries.len() - 1,
-                                                || Message::EditedCustomGame(EditAction::move_down(i)),
-                                            )),
+                                            .push(CommonButton::MoveUp {
+                                                action: Message::EditedCustomGame(EditAction::move_up(i)),
+                                                index: i,
+                                            })
+                                            .push(CommonButton::MoveDown {
+                                                action: Message::EditedCustomGame(EditAction::move_down(i)),
+                                                index: i,
+                                                max: self.entries.len(),
+                                            }),
                                     )
                                     .push(Undoable::new(
                                         TextInput::new(
@@ -98,15 +98,13 @@ impl CustomGamesEditor {
                                     ))
                                     .push(
                                         Tooltip::new(
-                                            Button::new(Icon::Refresh.as_text())
-                                                .on_press_if(
-                                                    || !operating,
-                                                    || Message::BackupStart {
-                                                        games: Some(vec![config.custom_games[i].name.clone()]),
-                                                        preview: true,
-                                                    },
-                                                )
-                                                .style(style::Button::Primary),
+                                            CommonButton::Refresh {
+                                                action: Message::BackupStart {
+                                                    games: Some(vec![config.custom_games[i].name.clone()]),
+                                                    preview: true,
+                                                },
+                                                ongoing: operating,
+                                            },
                                             translator.preview_button_in_custom_mode(),
                                             tooltip::Position::Top,
                                         )
@@ -114,11 +112,9 @@ impl CustomGamesEditor {
                                         .gap(5)
                                         .style(style::Container::Tooltip),
                                     )
-                                    .push(
-                                        Button::new(Icon::Delete.as_text())
-                                            .on_press(Message::EditedCustomGame(EditAction::Remove(i)))
-                                            .style(style::Button::Negative),
-                                    ),
+                                    .push(CommonButton::Delete {
+                                        action: Message::EditedCustomGame(EditAction::Remove(i)),
+                                    }),
                             )
                             .push(
                                 Row::new()
@@ -136,24 +132,21 @@ impl CustomGamesEditor {
                                                     Row::new()
                                                         .align_items(Alignment::Center)
                                                         .spacing(20)
-                                                        .push(Icon::ArrowUpward.as_button_small().on_press_if(
-                                                            || ii > 0,
-                                                            || {
-                                                                Message::EditedCustomGameFile(
-                                                                    i,
-                                                                    EditAction::move_up(ii),
-                                                                )
-                                                            },
-                                                        ))
-                                                        .push(Icon::ArrowDownward.as_button_small().on_press_if(
-                                                            || ii < x.files.len() - 1,
-                                                            || {
-                                                                Message::EditedCustomGameFile(
-                                                                    i,
-                                                                    EditAction::move_down(ii),
-                                                                )
-                                                            },
-                                                        ))
+                                                        .push(CommonButton::MoveUp {
+                                                            action: Message::EditedCustomGameFile(
+                                                                i,
+                                                                EditAction::move_up(ii),
+                                                            ),
+                                                            index: ii,
+                                                        })
+                                                        .push(CommonButton::MoveDown {
+                                                            action: Message::EditedCustomGameFile(
+                                                                i,
+                                                                EditAction::move_down(ii),
+                                                            ),
+                                                            index: ii,
+                                                            max: x.files.len(),
+                                                        })
                                                         .push(Undoable::new(
                                                             TextInput::new(
                                                                 "",
@@ -174,28 +167,20 @@ impl CustomGamesEditor {
                                                                 )
                                                             },
                                                         ))
-                                                        .push(
-                                                            Button::new(Icon::FolderOpen.as_text())
-                                                                .on_press(Message::BrowseDir(
-                                                                    BrowseSubject::CustomGameFile(i, ii),
-                                                                ))
-                                                                .style(style::Button::Primary),
-                                                        )
-                                                        .push(
-                                                            Button::new(Icon::RemoveCircle.as_text())
-                                                                .on_press(Message::EditedCustomGameFile(
-                                                                    i,
-                                                                    EditAction::Remove(ii),
-                                                                ))
-                                                                .style(style::Button::Negative),
-                                                        ),
+                                                        .push(CommonButton::OpenFolder {
+                                                            subject: BrowseSubject::CustomGameFile(i, ii),
+                                                        })
+                                                        .push(CommonButton::Remove {
+                                                            action: Message::EditedCustomGameFile(
+                                                                i,
+                                                                EditAction::Remove(ii),
+                                                            ),
+                                                        }),
                                                 )
                                             })
-                                            .push(
-                                                Button::new(Icon::AddCircle.as_text())
-                                                    .on_press(Message::EditedCustomGameFile(i, EditAction::Add))
-                                                    .style(style::Button::Primary),
-                                            ),
+                                            .push(CommonButton::Add {
+                                                action: Message::EditedCustomGameFile(i, EditAction::Add),
+                                            }),
                                     ),
                             )
                             .push(
@@ -214,24 +199,21 @@ impl CustomGamesEditor {
                                                     Row::new()
                                                         .spacing(20)
                                                         .align_items(Alignment::Center)
-                                                        .push(Icon::ArrowUpward.as_button_small().on_press_if(
-                                                            || ii > 0,
-                                                            || {
-                                                                Message::EditedCustomGameRegistry(
-                                                                    i,
-                                                                    EditAction::move_up(ii),
-                                                                )
-                                                            },
-                                                        ))
-                                                        .push(Icon::ArrowDownward.as_button_small().on_press_if(
-                                                            || ii < x.registry.len() - 1,
-                                                            || {
-                                                                Message::EditedCustomGameRegistry(
-                                                                    i,
-                                                                    EditAction::move_down(ii),
-                                                                )
-                                                            },
-                                                        ))
+                                                        .push(CommonButton::MoveUp {
+                                                            action: Message::EditedCustomGameRegistry(
+                                                                i,
+                                                                EditAction::move_up(ii),
+                                                            ),
+                                                            index: ii,
+                                                        })
+                                                        .push(CommonButton::MoveDown {
+                                                            action: Message::EditedCustomGameRegistry(
+                                                                i,
+                                                                EditAction::move_down(ii),
+                                                            ),
+                                                            index: ii,
+                                                            max: x.registry.len(),
+                                                        })
                                                         .push(Undoable::new(
                                                             TextInput::new(
                                                                 "",
@@ -252,21 +234,17 @@ impl CustomGamesEditor {
                                                                 )
                                                             },
                                                         ))
-                                                        .push(
-                                                            Button::new(Icon::RemoveCircle.as_text())
-                                                                .on_press(Message::EditedCustomGameRegistry(
-                                                                    i,
-                                                                    EditAction::Remove(ii),
-                                                                ))
-                                                                .style(style::Button::Negative),
-                                                        ),
+                                                        .push(CommonButton::Remove {
+                                                            action: Message::EditedCustomGameRegistry(
+                                                                i,
+                                                                EditAction::Remove(ii),
+                                                            ),
+                                                        }),
                                                 )
                                             })
-                                            .push(
-                                                Button::new(Icon::AddCircle.as_text())
-                                                    .on_press(Message::EditedCustomGameRegistry(i, EditAction::Add))
-                                                    .style(style::Button::Primary),
-                                            ),
+                                            .push(CommonButton::Add {
+                                                action: Message::EditedCustomGameRegistry(i, EditAction::Add),
+                                            }),
                                     ),
                             ),
                     )

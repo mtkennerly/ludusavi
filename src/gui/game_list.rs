@@ -8,7 +8,9 @@ use crate::{
     config::{Config, Sort, SortKey, ToggledPaths, ToggledRegistry},
     gui::{
         badge::Badge,
-        common::{GameAction, IcedButtonExt, IcedExtension, Message, OngoingOperation, Screen, ScrollSubject},
+        common::{
+            CommonButton, GameAction, IcedButtonExt, IcedExtension, Message, OngoingOperation, Screen, ScrollSubject,
+        },
         file_tree::FileTree,
         icon::Icon,
         search::SearchComponent,
@@ -295,10 +297,12 @@ impl GameListEntry {
                                     comment: value,
                                 }
                             }))
-                            .push(Icon::Close.as_button_small().on_press(Message::GameAction {
-                                action: GameAction::Comment,
-                                game: name_for_comment2,
-                            })),
+                            .push(CommonButton::Close {
+                                action: Message::GameAction {
+                                    action: GameAction::Comment,
+                                    game: name_for_comment2,
+                                },
+                            }),
                     )
                 })
                 .push_if(

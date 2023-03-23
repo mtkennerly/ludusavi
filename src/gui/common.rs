@@ -1,4 +1,4 @@
-use iced::{Alignment, Length};
+use iced::{alignment, Alignment, Length};
 
 use crate::{
     config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
@@ -6,9 +6,10 @@ use crate::{
         badge::Badge,
         icon::Icon,
         shortcuts::{Shortcut, TextHistory},
+        style,
         widget::{Button, Column, Element, Row, Text},
     },
-    lang::{Language, Translator},
+    lang::{Language, Translator, TRANSLATOR},
     layout::{Backup, GameLayout},
     manifest::{ManifestUpdate, Store},
     prelude::{Error, StrictPath},
@@ -156,7 +157,7 @@ pub enum Message {
     },
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OngoingOperation {
     Backup,
     CancelBackup,
@@ -454,6 +455,154 @@ pub fn make_status_row<'a>(translator: &Translator, status: &OperationStatus, fo
             || found_any_duplicates,
             || Badge::new(&translator.badge_duplicates()).view(),
         )
+}
+
+pub fn operation_button<'a>(action: OngoingOperation, ongoing: Option<OngoingOperation>) -> Button<'a> {
+    use OngoingOperation::*;
+
+    Button::new(
+        Text::new(match action {
+            Backup => match ongoing {
+                Some(Backup) => TRANSLATOR.cancel_button(),
+                Some(CancelBackup) => TRANSLATOR.cancelling_button(),
+                _ => TRANSLATOR.backup_button(),
+            },
+            PreviewBackup => match ongoing {
+                Some(PreviewBackup) => TRANSLATOR.cancel_button(),
+                Some(CancelPreviewBackup) => TRANSLATOR.cancelling_button(),
+                _ => TRANSLATOR.preview_button(),
+            },
+            Restore => match ongoing {
+                Some(Restore) => TRANSLATOR.cancel_button(),
+                Some(CancelRestore) => TRANSLATOR.cancelling_button(),
+                _ => TRANSLATOR.restore_button(),
+            },
+            PreviewRestore => match ongoing {
+                Some(PreviewRestore) => TRANSLATOR.cancel_button(),
+                Some(CancelPreviewRestore) => TRANSLATOR.cancelling_button(),
+                _ => TRANSLATOR.preview_button(),
+            },
+            CancelBackup | CancelPreviewBackup | CancelRestore | CancelPreviewRestore => TRANSLATOR.cancel_button(),
+        })
+        .horizontal_alignment(alignment::Horizontal::Center),
+    )
+    .on_press_some(match ongoing {
+        Some(ongoing) => (action == ongoing).then_some(Message::CancelOperation),
+        None => match action {
+            Backup => Some(Message::ConfirmBackupStart { games: None }),
+            PreviewBackup => Some(Message::BackupPrep {
+                preview: true,
+                games: None,
+            }),
+            Restore => Some(Message::ConfirmRestoreStart { games: None }),
+            PreviewRestore => Some(Message::RestoreStart {
+                preview: true,
+                games: None,
+            }),
+            _ => None,
+        },
+    })
+    .width(125)
+    .style(match (action, ongoing) {
+        (Backup, Some(Backup | CancelBackup)) => style::Button::Negative,
+        (PreviewBackup, Some(PreviewBackup | CancelPreviewBackup)) => style::Button::Negative,
+        (Restore, Some(Restore | CancelRestore)) => style::Button::Negative,
+        (PreviewRestore, Some(PreviewRestore | CancelPreviewRestore)) => style::Button::Negative,
+        _ => style::Button::Primary,
+    })
+}
+
+pub enum CommonButton {
+    ToggleAllScannedGames { all_enabled: bool },
+    ToggleAllCustomGames { all_enabled: bool },
+    OpenFolder { subject: BrowseSubject },
+    Search { screen: Screen, open: bool },
+    Add { action: Message },
+    Remove { action: Message },
+    Delete { action: Message },
+    Close { action: Message },
+    Refresh { action: Message, ongoing: bool },
+    Settings { open: bool },
+    MoveUp { action: Message, index: usize },
+    MoveDown { action: Message, index: usize, max: usize },
+}
+
+impl<'a> From<CommonButton> for Element<'a> {
+    fn from(value: CommonButton) -> Self {
+        let (content, action, style) = match value {
+            CommonButton::ToggleAllScannedGames { all_enabled } => {
+                if all_enabled {
+                    (
+                        Text::new(TRANSLATOR.deselect_all_button()).width(125),
+                        Some(Message::DeselectAllGames),
+                        None,
+                    )
+                } else {
+                    (
+                        Text::new(TRANSLATOR.select_all_button()).width(125),
+                        Some(Message::SelectAllGames),
+                        None,
+                    )
+                }
+            }
+            CommonButton::ToggleAllCustomGames { all_enabled } => {
+                if all_enabled {
+                    (
+                        Text::new(TRANSLATOR.disable_all_button()).width(125),
+                        Some(Message::DeselectAllGames),
+                        None,
+                    )
+                } else {
+                    (
+                        Text::new(TRANSLATOR.enable_all_button()).width(125),
+                        Some(Message::SelectAllGames),
+                        None,
+                    )
+                }
+            }
+            CommonButton::OpenFolder { subject } => {
+                (Icon::FolderOpen.as_text(), Some(Message::BrowseDir(subject)), None)
+            }
+            CommonButton::Search { screen, open } => (
+                Icon::Search.as_text(),
+                Some(Message::ToggleSearch { screen }),
+                open.then_some(style::Button::Negative),
+            ),
+            CommonButton::Add { action } => (Icon::AddCircle.as_text(), Some(action), None),
+            CommonButton::Remove { action } => (
+                Icon::RemoveCircle.as_text(),
+                Some(action),
+                Some(style::Button::Negative),
+            ),
+            CommonButton::Delete { action } => (Icon::Delete.as_text(), Some(action), Some(style::Button::Negative)),
+            CommonButton::Close { action } => (
+                Icon::Close.as_text().width(15).size(15),
+                Some(action),
+                Some(style::Button::Negative),
+            ),
+            CommonButton::Refresh { action, ongoing } => (Icon::Refresh.as_text(), (!ongoing).then_some(action), None),
+            CommonButton::Settings { open } => (
+                Icon::Settings.as_text(),
+                Some(Message::ToggleBackupSettings),
+                open.then_some(style::Button::Negative),
+            ),
+            CommonButton::MoveUp { action, index } => (
+                Icon::ArrowUpward.as_text().width(15).size(15),
+                (index > 0).then_some(action),
+                None,
+            ),
+            CommonButton::MoveDown { action, index, max } => (
+                Icon::ArrowDownward.as_text().width(15).size(15),
+                (index < max - 1).then_some(action),
+                None,
+            ),
+        };
+
+        Button::new(content.horizontal_alignment(alignment::Horizontal::Center))
+            .on_press_some(action)
+            .style(style.unwrap_or(style::Button::Primary))
+            .into()
+    }
 }
 
 pub trait IcedExtension<'a> {
