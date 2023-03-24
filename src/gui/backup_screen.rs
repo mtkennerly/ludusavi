@@ -5,11 +5,13 @@ use crate::{
     config::{BackupFormat, Config, ZipCompression},
     gui::{
         button,
-        common::{make_status_row, BrowseSubject, IcedExtension, Message, OngoingOperation, Screen, UndoSubject},
+        common::{
+            make_status_row, BrowseSubject, IcedExtension, Message, OngoingOperation, Screen, TextHistories,
+            UndoSubject,
+        },
         game_list::GameList,
-        shortcuts::TextHistory,
         style,
-        widget::{Checkbox, Column, Container, PickList, Row, Text, TextInput, Undoable},
+        widget::{Checkbox, Column, Container, PickList, Row, Text},
     },
     lang::Translator,
     manifest::Manifest,
@@ -19,7 +21,6 @@ use crate::{
 #[derive(Default)]
 pub struct BackupScreenComponent {
     pub log: GameList,
-    pub backup_target_history: TextHistory,
     pub previewed_games: std::collections::HashSet<String>,
     pub duplicate_detector: DuplicateDetector,
     full_retention_input: crate::gui::number_input::NumberInput,
@@ -32,7 +33,6 @@ impl BackupScreenComponent {
     pub fn new(config: &Config, cache: &Cache) -> Self {
         Self {
             log: GameList::with_recent_games(false, config, cache),
-            backup_target_history: TextHistory::new(&config.backup.path.raw(), 100),
             ..Default::default()
         }
     }
@@ -43,6 +43,7 @@ impl BackupScreenComponent {
         manifest: &Manifest,
         translator: &Translator,
         operation: &Option<OngoingOperation>,
+        histories: &TextHistories,
     ) -> Container {
         Container::new(
             Column::new()
@@ -71,12 +72,7 @@ impl BackupScreenComponent {
                         .spacing(20)
                         .align_items(Alignment::Center)
                         .push(Text::new(translator.backup_target_label()))
-                        .push(Undoable::new(
-                            TextInput::new("", &config.backup.path.raw(), Message::EditedBackupTarget)
-                                .style(style::TextInput)
-                                .padding(5),
-                            move |action| Message::UndoRedo(action, UndoSubject::BackupTarget),
-                        ))
+                        .push(histories.input(UndoSubject::BackupTarget))
                         .push(button::settings(self.show_settings))
                         .push(button::open_folder(BrowseSubject::BackupTarget)),
                 )
@@ -169,10 +165,15 @@ impl BackupScreenComponent {
                             })
                     },
                 )
-                .push(
-                    self.log
-                        .view(false, translator, config, manifest, &self.duplicate_detector, operation),
-                ),
+                .push(self.log.view(
+                    false,
+                    translator,
+                    config,
+                    manifest,
+                    &self.duplicate_detector,
+                    operation,
+                    histories,
+                )),
         )
         .style(style::Container::Primary)
         .height(Length::Fill)

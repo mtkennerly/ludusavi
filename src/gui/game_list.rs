@@ -9,7 +9,9 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{GameAction, IcedButtonExt, IcedExtension, Message, OngoingOperation, Screen, ScrollSubject},
+        common::{
+            GameAction, IcedButtonExt, IcedExtension, Message, OngoingOperation, Screen, ScrollSubject, TextHistories,
+        },
         file_tree::FileTree,
         icon::Icon,
         search::SearchComponent,
@@ -340,6 +342,7 @@ impl GameList {
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
         operation: &Option<OngoingOperation>,
+        histories: &TextHistories,
     ) -> Container {
         let use_search = self.search.show;
         let search_game_name = self.search.game_name.clone();
@@ -355,6 +358,7 @@ impl GameList {
                         } else {
                             &config.backup.sort
                         },
+                        histories,
                     )
                 })
                 .push({

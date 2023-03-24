@@ -1,6 +1,8 @@
 // Iced has built-in support for some keyboard shortcuts. This module provides
 // support for implementing other shortcuts until Iced provides its own support.
 
+use crate::prelude::StrictPath;
+
 pub enum Shortcut {
     Undo,
     Redo,
@@ -34,6 +36,26 @@ impl TextHistory {
         Self {
             history,
             limit,
+            position: 0,
+        }
+    }
+
+    pub fn raw(initial: &str) -> Self {
+        let mut history = std::collections::VecDeque::<String>::new();
+        history.push_back(initial.to_string());
+        Self {
+            history,
+            limit: 100,
+            position: 0,
+        }
+    }
+
+    pub fn path(initial: &StrictPath) -> Self {
+        let mut history = std::collections::VecDeque::<String>::new();
+        history.push_back(initial.raw());
+        Self {
+            history,
+            limit: 100,
             position: 0,
         }
     }

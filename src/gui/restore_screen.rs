@@ -5,11 +5,9 @@ use crate::{
     config::Config,
     gui::{
         button,
-        common::{make_status_row, BrowseSubject, Message, OngoingOperation, Screen, UndoSubject},
+        common::{make_status_row, BrowseSubject, OngoingOperation, Screen, TextHistories, UndoSubject},
         game_list::GameList,
-        shortcuts::TextHistory,
-        style,
-        widget::{Column, Container, Row, Text, TextInput, Undoable},
+        widget::{Column, Container, Row, Text},
     },
     lang::Translator,
     manifest::Manifest,
@@ -19,7 +17,6 @@ use crate::{
 #[derive(Default)]
 pub struct RestoreScreenComponent {
     pub log: GameList,
-    pub restore_source_history: TextHistory,
     pub duplicate_detector: DuplicateDetector,
 }
 
@@ -27,7 +24,6 @@ impl RestoreScreenComponent {
     pub fn new(config: &Config, cache: &Cache) -> Self {
         Self {
             log: GameList::with_recent_games(true, config, cache),
-            restore_source_history: TextHistory::new(&config.backup.path.raw(), 100),
             ..Default::default()
         }
     }
@@ -38,6 +34,7 @@ impl RestoreScreenComponent {
         manifest: &Manifest,
         translator: &Translator,
         operation: &Option<OngoingOperation>,
+        histories: &TextHistories,
     ) -> Container {
         Container::new(
             Column::new()
@@ -69,18 +66,18 @@ impl RestoreScreenComponent {
                         .spacing(20)
                         .align_items(Alignment::Center)
                         .push(Text::new(translator.restore_source_label()))
-                        .push(Undoable::new(
-                            TextInput::new("", &config.restore.path.raw(), Message::EditedRestoreSource)
-                                .style(style::TextInput)
-                                .padding(5),
-                            move |action| Message::UndoRedo(action, UndoSubject::RestoreSource),
-                        ))
+                        .push(histories.input(UndoSubject::RestoreSource))
                         .push(button::open_folder(BrowseSubject::RestoreSource)),
                 )
-                .push(
-                    self.log
-                        .view(true, translator, config, manifest, &self.duplicate_detector, operation),
-                ),
+                .push(self.log.view(
+                    true,
+                    translator,
+                    config,
+                    manifest,
+                    &self.duplicate_detector,
+                    operation,
+                    histories,
+                )),
         )
         .height(Length::Fill)
         .width(Length::Fill)

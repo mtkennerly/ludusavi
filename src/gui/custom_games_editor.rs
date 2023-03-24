@@ -4,55 +4,28 @@ use crate::{
     config::Config,
     gui::{
         button,
-        common::{BrowseSubject, EditAction, Message, ScrollSubject, UndoSubject},
-        shortcuts::TextHistory,
+        common::{BrowseSubject, Message, ScrollSubject, TextHistories, UndoSubject},
         style,
-        widget::{Checkbox, Column, Container, Row, Space, Text, TextInput, Tooltip, Undoable},
+        widget::{Checkbox, Column, Container, Row, Space, Text, Tooltip},
     },
     lang::Translator,
 };
 
 #[derive(Default)]
-pub struct CustomGamesEditorEntryRow {
-    pub text_history: TextHistory,
-}
-
-impl CustomGamesEditorEntryRow {
-    pub fn new(initial_text: &str) -> Self {
-        Self {
-            text_history: TextHistory::new(initial_text, 100),
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct CustomGamesEditorEntry {
-    pub text_history: TextHistory,
-    pub files: Vec<CustomGamesEditorEntryRow>,
-    pub registry: Vec<CustomGamesEditorEntryRow>,
-}
-
-impl CustomGamesEditorEntry {
-    pub fn new(initial_text: &str) -> Self {
-        Self {
-            text_history: TextHistory::new(initial_text, 100),
-            ..Default::default()
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct CustomGamesEditor {
-    pub entries: Vec<CustomGamesEditorEntry>,
-}
+pub struct CustomGamesEditor {}
 
 impl CustomGamesEditor {
-    pub fn view(&self, config: &Config, translator: &Translator, operating: bool) -> Container {
+    pub fn view<'a>(
+        config: &Config,
+        translator: &Translator,
+        operating: bool,
+        histories: &TextHistories,
+    ) -> Container<'a> {
         if config.custom_games.is_empty() {
             return Container::new(Space::new(Length::Shrink, Length::Shrink));
         }
 
-        let content = self.entries.iter().enumerate().fold(
+        let content = config.custom_games.iter().enumerate().fold(
             Column::new().width(Length::Fill).padding([0, 15, 5, 15]).spacing(10),
             |parent, (i, x)| {
                 parent.push(
@@ -77,19 +50,13 @@ impl CustomGamesEditor {
                                                 .style(style::Checkbox),
                                             )
                                             .push(button::move_up(Message::EditedCustomGame, i))
-                                            .push(button::move_down(Message::EditedCustomGame, i, self.entries.len())),
+                                            .push(button::move_down(
+                                                Message::EditedCustomGame,
+                                                i,
+                                                config.custom_games.len(),
+                                            )),
                                     )
-                                    .push(Undoable::new(
-                                        TextInput::new(
-                                            &translator.custom_game_name_placeholder(),
-                                            &config.custom_games[i].name,
-                                            move |v| Message::EditedCustomGame(EditAction::Change(i, v)),
-                                        )
-                                        .style(style::TextInput)
-                                        .width(Length::Fill)
-                                        .padding(5),
-                                        move |action| Message::UndoRedo(action, UndoSubject::CustomGameName(i)),
-                                    ))
+                                    .push(histories.input(UndoSubject::CustomGameName(i)))
                                     .push(
                                         Tooltip::new(
                                             button::refresh(
@@ -135,26 +102,7 @@ impl CustomGamesEditor {
                                                             ii,
                                                             x.files.len(),
                                                         ))
-                                                        .push(Undoable::new(
-                                                            TextInput::new(
-                                                                "",
-                                                                &config.custom_games[i].files[ii],
-                                                                move |v| {
-                                                                    Message::EditedCustomGameFile(
-                                                                        i,
-                                                                        EditAction::Change(ii, v),
-                                                                    )
-                                                                },
-                                                            )
-                                                            .style(style::TextInput)
-                                                            .padding(5),
-                                                            move |action| {
-                                                                Message::UndoRedo(
-                                                                    action,
-                                                                    UndoSubject::CustomGameFile(i, ii),
-                                                                )
-                                                            },
-                                                        ))
+                                                        .push(histories.input(UndoSubject::CustomGameFile(i, ii)))
                                                         .push(button::open_folder(BrowseSubject::CustomGameFile(i, ii)))
                                                         .push(button::remove_nested(
                                                             Message::EditedCustomGameFile,
@@ -193,26 +141,7 @@ impl CustomGamesEditor {
                                                             ii,
                                                             x.registry.len(),
                                                         ))
-                                                        .push(Undoable::new(
-                                                            TextInput::new(
-                                                                "",
-                                                                &config.custom_games[i].registry[ii],
-                                                                move |v| {
-                                                                    Message::EditedCustomGameRegistry(
-                                                                        i,
-                                                                        EditAction::Change(ii, v),
-                                                                    )
-                                                                },
-                                                            )
-                                                            .style(style::TextInput)
-                                                            .padding(5),
-                                                            move |action| {
-                                                                Message::UndoRedo(
-                                                                    action,
-                                                                    UndoSubject::CustomGameRegistry(i, ii),
-                                                                )
-                                                            },
-                                                        ))
+                                                        .push(histories.input(UndoSubject::CustomGameRegistry(i, ii)))
                                                         .push(button::remove_nested(
                                                             Message::EditedCustomGameRegistry,
                                                             i,

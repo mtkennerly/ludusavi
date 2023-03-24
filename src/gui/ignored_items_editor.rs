@@ -4,48 +4,18 @@ use crate::{
     config::Config,
     gui::{
         button,
-        common::{BrowseSubject, EditAction, Message, UndoSubject},
-        shortcuts::TextHistory,
+        common::{BrowseSubject, Message, TextHistories, UndoSubject},
         style,
-        widget::{Column, Container, Row, Text, TextInput, Undoable},
+        widget::{Column, Container, Row, Text},
     },
     lang::Translator,
 };
 
 #[derive(Default)]
-pub struct IgnoredItemsEditorEntryRow {
-    pub text_history: TextHistory,
-}
-
-impl IgnoredItemsEditorEntryRow {
-    pub fn new(initial_text: &str) -> Self {
-        Self {
-            text_history: TextHistory::new(initial_text, 100),
-        }
-    }
-}
-
-#[derive(Default)]
-pub struct IgnoredItemsEditor {
-    pub files: Vec<IgnoredItemsEditorEntryRow>,
-    pub registry: Vec<IgnoredItemsEditorEntryRow>,
-}
+pub struct IgnoredItemsEditor {}
 
 impl IgnoredItemsEditor {
-    pub fn new(config: &Config) -> Self {
-        let mut editor = IgnoredItemsEditor::default();
-
-        for file in &config.backup.filter.ignored_paths {
-            editor.files.push(IgnoredItemsEditorEntryRow::new(&file.raw()))
-        }
-        for key in &config.backup.filter.ignored_registry {
-            editor.registry.push(IgnoredItemsEditorEntryRow::new(&key.raw()))
-        }
-
-        editor
-    }
-
-    pub fn view(&self, config: &Config, translator: &Translator) -> Container {
+    pub fn view<'a>(config: &Config, translator: &Translator, histories: &TextHistories) -> Container<'a> {
         Container::new({
             Column::new().width(Length::Fill).height(Length::Fill).spacing(10).push(
                 Container::new(
@@ -60,7 +30,10 @@ impl IgnoredItemsEditor {
                                         .push(Text::new(translator.custom_files_label())),
                                 )
                                 .push(
-                                    self.files
+                                    config
+                                        .backup
+                                        .filter
+                                        .ignored_paths
                                         .iter()
                                         .enumerate()
                                         .fold(Column::new().spacing(4), |column, (ii, _)| {
@@ -71,27 +44,9 @@ impl IgnoredItemsEditor {
                                                     .push(button::move_down(
                                                         Message::EditedBackupFilterIgnoredPath,
                                                         ii,
-                                                        self.files.len(),
+                                                        config.backup.filter.ignored_paths.len(),
                                                     ))
-                                                    .push(Undoable::new(
-                                                        TextInput::new(
-                                                            "",
-                                                            &config.backup.filter.ignored_paths[ii].raw(),
-                                                            move |v| {
-                                                                Message::EditedBackupFilterIgnoredPath(
-                                                                    EditAction::Change(ii, v),
-                                                                )
-                                                            },
-                                                        )
-                                                        .style(style::TextInput)
-                                                        .padding(5),
-                                                        move |action| {
-                                                            Message::UndoRedo(
-                                                                action,
-                                                                UndoSubject::BackupFilterIgnoredPath(ii),
-                                                            )
-                                                        },
-                                                    ))
+                                                    .push(histories.input(UndoSubject::BackupFilterIgnoredPath(ii)))
                                                     .push(button::open_folder(BrowseSubject::BackupFilterIgnoredPath(
                                                         ii,
                                                     )))
@@ -109,7 +64,10 @@ impl IgnoredItemsEditor {
                                         .push(Text::new(translator.custom_registry_label())),
                                 )
                                 .push(
-                                    self.registry
+                                    config
+                                        .backup
+                                        .filter
+                                        .ignored_registry
                                         .iter()
                                         .enumerate()
                                         .fold(Column::new().spacing(4), |column, (ii, _)| {
@@ -123,27 +81,9 @@ impl IgnoredItemsEditor {
                                                     .push(button::move_down(
                                                         Message::EditedBackupFilterIgnoredRegistry,
                                                         ii,
-                                                        self.registry.len(),
+                                                        config.backup.filter.ignored_registry.len(),
                                                     ))
-                                                    .push(Undoable::new(
-                                                        TextInput::new(
-                                                            "",
-                                                            &config.backup.filter.ignored_registry[ii].raw(),
-                                                            move |v| {
-                                                                Message::EditedBackupFilterIgnoredRegistry(
-                                                                    EditAction::Change(ii, v),
-                                                                )
-                                                            },
-                                                        )
-                                                        .style(style::TextInput)
-                                                        .padding(5),
-                                                        move |action| {
-                                                            Message::UndoRedo(
-                                                                action,
-                                                                UndoSubject::BackupFilterIgnoredRegistry(ii),
-                                                            )
-                                                        },
-                                                    ))
+                                                    .push(histories.input(UndoSubject::BackupFilterIgnoredRegistry(ii)))
                                                     .push(button::remove(
                                                         Message::EditedBackupFilterIgnoredRegistry,
                                                         ii,

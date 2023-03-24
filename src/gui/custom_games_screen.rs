@@ -4,35 +4,23 @@ use crate::{
     config::Config,
     gui::{
         button,
-        custom_games_editor::{CustomGamesEditor, CustomGamesEditorEntry, CustomGamesEditorEntryRow},
+        common::TextHistories,
+        custom_games_editor::CustomGamesEditor,
         widget::{Column, Container, Row},
     },
     lang::Translator,
 };
 
 #[derive(Default)]
-pub struct CustomGamesScreenComponent {
-    pub games_editor: CustomGamesEditor,
-}
+pub struct CustomGamesScreenComponent {}
 
 impl CustomGamesScreenComponent {
-    pub fn new(config: &Config) -> Self {
-        let mut games_editor = CustomGamesEditor::default();
-        for custom_game in &config.custom_games {
-            let mut row = CustomGamesEditorEntry::new(&custom_game.name.to_string());
-            for file in &custom_game.files {
-                row.files.push(CustomGamesEditorEntryRow::new(file))
-            }
-            for key in &custom_game.registry {
-                row.registry.push(CustomGamesEditorEntryRow::new(key))
-            }
-            games_editor.entries.push(row);
-        }
-
-        Self { games_editor }
-    }
-
-    pub fn view(&self, config: &Config, translator: &Translator, operating: bool) -> Container {
+    pub fn view<'a>(
+        config: &Config,
+        translator: &Translator,
+        operating: bool,
+        histories: &TextHistories,
+    ) -> Container<'a> {
         Container::new(
             Column::new()
                 .spacing(20)
@@ -45,7 +33,7 @@ impl CustomGamesScreenComponent {
                         .push(button::add_game())
                         .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled())),
                 )
-                .push(self.games_editor.view(config, translator, operating)),
+                .push(CustomGamesEditor::view(config, translator, operating, histories)),
         )
         .height(Length::Fill)
         .width(Length::Fill)

@@ -8,15 +8,12 @@ use crate::{
     gui::{
         backup_screen::BackupScreenComponent,
         common::*,
-        custom_games_editor::{CustomGamesEditorEntry, CustomGamesEditorEntryRow},
         custom_games_screen::CustomGamesScreenComponent,
         modal::{ModalComponent, ModalTheme},
         notification::Notification,
         other_screen::OtherScreenComponent,
-        redirect_editor::RedirectEditorRow,
         restore_screen::RestoreScreenComponent,
-        root_editor::RootEditorRow,
-        shortcuts::Shortcut,
+        shortcuts::{Shortcut, TextHistory},
         style,
         widget::{Button, Column, Container, Element, ProgressBar, Row, Text},
     },
@@ -66,8 +63,6 @@ pub struct App {
     modal: ModalComponent,
     backup_screen: BackupScreenComponent,
     restore_screen: RestoreScreenComponent,
-    custom_games_screen: CustomGamesScreenComponent,
-    other_screen: OtherScreenComponent,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     operation_steps: Vec<Command<Message>>,
     operation_steps_active: usize,
@@ -77,6 +72,7 @@ pub struct App {
     notify_on_single_game_scanned: Option<(String, Screen)>,
     timed_notification: Option<Notification>,
     scroll_offsets: std::collections::HashMap<ScrollSubject, iced_native::widget::scrollable::RelativeOffset>,
+    text_histories: TextHistories,
 }
 
 impl App {
@@ -501,15 +497,6 @@ impl App {
             }
         };
 
-        let mut gui_entry = CustomGamesEditorEntry::new(&name);
-        for item in game.files.iter() {
-            gui_entry.files.push(CustomGamesEditorEntryRow::new(item));
-        }
-        for item in game.registry.iter() {
-            gui_entry.registry.push(CustomGamesEditorEntryRow::new(item));
-        }
-        self.custom_games_screen.games_editor.entries.push(gui_entry);
-
         self.config.custom_games.push(game);
         self.config.save();
 
@@ -583,6 +570,7 @@ impl Application for App {
 
         let manifest_config = config.manifest.clone();
         let manifest_cache = cache.manifests.clone();
+        let text_histories = TextHistories::new(&config);
 
         log::debug!("Config on startup: {config:?}");
 
@@ -590,14 +578,13 @@ impl Application for App {
             Self {
                 backup_screen: BackupScreenComponent::new(&config, &cache),
                 restore_screen: RestoreScreenComponent::new(&config, &cache),
-                custom_games_screen: CustomGamesScreenComponent::new(&config),
-                other_screen: OtherScreenComponent::new(&config),
                 translator,
                 config,
                 manifest,
                 cache,
                 modal_theme,
                 updating_manifest: true,
+                text_histories,
                 ..Self::default()
             },
             Command::perform(
@@ -851,7 +838,7 @@ impl Application for App {
                 Command::none()
             }
             Message::EditedBackupTarget(text) => {
-                self.backup_screen.backup_target_history.push(&text);
+                self.text_histories.backup_target.push(&text);
                 self.config.backup.path.reset(text);
                 self.config.save();
                 Command::none()
@@ -862,7 +849,7 @@ impl Application for App {
                 Command::none()
             }
             Message::EditedRestoreSource(text) => {
-                self.restore_screen.restore_source_history.push(&text);
+                self.text_histories.restore_source.push(&text);
                 self.config.restore.path.reset(text);
                 self.config.save();
                 Command::none()
@@ -880,9 +867,7 @@ impl Application for App {
             }
             Message::ConfirmAddMissingRoots(missing) => {
                 for root in missing {
-                    let mut row = RootEditorRow::default();
-                    row.text_history.push(&root.path.render());
-                    self.other_screen.root_editor.rows.push(row);
+                    self.text_histories.roots.push(TextHistory::raw(&root.path.render()));
                     self.config.roots.push(root);
                 }
                 self.config.save();
@@ -892,23 +877,23 @@ impl Application for App {
             Message::EditedRoot(action) => {
                 match action {
                     EditAction::Add => {
-                        self.other_screen.root_editor.rows.push(RootEditorRow::default());
+                        self.text_histories.roots.push(Default::default());
                         self.config.roots.push(RootsConfig {
                             path: StrictPath::default(),
                             store: Store::Other,
                         });
                     }
                     EditAction::Change(index, value) => {
-                        self.other_screen.root_editor.rows[index].text_history.push(&value);
+                        self.text_histories.roots[index].push(&value);
                         self.config.roots[index].path.reset(value);
                     }
                     EditAction::Remove(index) => {
-                        self.other_screen.root_editor.rows.remove(index);
+                        self.text_histories.roots.remove(index);
                         self.config.roots.remove(index);
                     }
                     EditAction::Move(index, direction) => {
                         let offset = direction.shift(index);
-                        self.other_screen.root_editor.rows.swap(index, offset);
+                        self.text_histories.roots.swap(index, offset);
                         self.config.roots.swap(index, offset);
                     }
                 }
@@ -928,34 +913,27 @@ impl Application for App {
             Message::EditedRedirect(action, field) => {
                 match action {
                     EditAction::Add => {
-                        self.other_screen
-                            .redirect_editor
-                            .rows
-                            .push(RedirectEditorRow::default());
+                        self.text_histories.redirects.push(Default::default());
                         self.config.add_redirect(&StrictPath::default(), &StrictPath::default());
                     }
                     EditAction::Change(index, value) => match field {
                         Some(RedirectEditActionField::Source) => {
-                            self.other_screen.redirect_editor.rows[index]
-                                .source_text_history
-                                .push(&value);
+                            self.text_histories.redirects[index].source.push(&value);
                             self.config.redirects[index].source.reset(value);
                         }
                         Some(RedirectEditActionField::Target) => {
-                            self.other_screen.redirect_editor.rows[index]
-                                .target_text_history
-                                .push(&value);
+                            self.text_histories.redirects[index].target.push(&value);
                             self.config.redirects[index].target.reset(value);
                         }
                         _ => {}
                     },
                     EditAction::Remove(index) => {
-                        self.other_screen.redirect_editor.rows.remove(index);
+                        self.text_histories.redirects.remove(index);
                         self.config.redirects.remove(index);
                     }
                     EditAction::Move(index, direction) => {
                         let offset = direction.shift(index);
-                        self.other_screen.redirect_editor.rows.swap(index, offset);
+                        self.text_histories.redirects.swap(index, offset);
                         self.config.redirects.swap(index, offset);
                     }
                 }
@@ -966,26 +944,21 @@ impl Application for App {
                 let mut snap = false;
                 match action {
                     EditAction::Add => {
-                        self.custom_games_screen
-                            .games_editor
-                            .entries
-                            .push(CustomGamesEditorEntry::default());
+                        self.text_histories.custom_games.push(Default::default());
                         self.config.add_custom_game();
                         snap = true;
                     }
                     EditAction::Change(index, value) => {
-                        self.custom_games_screen.games_editor.entries[index]
-                            .text_history
-                            .push(&value);
+                        self.text_histories.custom_games[index].name.push(&value);
                         self.config.custom_games[index].name = value;
                     }
                     EditAction::Remove(index) => {
-                        self.custom_games_screen.games_editor.entries.remove(index);
+                        self.text_histories.custom_games.remove(index);
                         self.config.custom_games.remove(index);
                     }
                     EditAction::Move(index, direction) => {
                         let offset = direction.shift(index);
-                        self.custom_games_screen.games_editor.entries.swap(index, offset);
+                        self.text_histories.custom_games.swap(index, offset);
                         self.config.custom_games.swap(index, offset);
                     }
                 }
@@ -1006,28 +979,22 @@ impl Application for App {
             Message::EditedCustomGameFile(game_index, action) => {
                 match action {
                     EditAction::Add => {
-                        self.custom_games_screen.games_editor.entries[game_index]
+                        self.text_histories.custom_games[game_index]
                             .files
-                            .push(CustomGamesEditorEntryRow::default());
+                            .push(Default::default());
                         self.config.custom_games[game_index].files.push("".to_string());
                     }
                     EditAction::Change(index, value) => {
-                        self.custom_games_screen.games_editor.entries[game_index].files[index]
-                            .text_history
-                            .push(&value);
+                        self.text_histories.custom_games[game_index].files[index].push(&value);
                         self.config.custom_games[game_index].files[index] = value;
                     }
                     EditAction::Remove(index) => {
-                        self.custom_games_screen.games_editor.entries[game_index]
-                            .files
-                            .remove(index);
+                        self.text_histories.custom_games[game_index].files.remove(index);
                         self.config.custom_games[game_index].files.remove(index);
                     }
                     EditAction::Move(index, direction) => {
                         let offset = direction.shift(index);
-                        self.custom_games_screen.games_editor.entries[game_index]
-                            .files
-                            .swap(index, offset);
+                        self.text_histories.custom_games[game_index].files.swap(index, offset);
                         self.config.custom_games[game_index].files.swap(index, offset);
                     }
                 }
@@ -1037,26 +1004,22 @@ impl Application for App {
             Message::EditedCustomGameRegistry(game_index, action) => {
                 match action {
                     EditAction::Add => {
-                        self.custom_games_screen.games_editor.entries[game_index]
+                        self.text_histories.custom_games[game_index]
                             .registry
-                            .push(CustomGamesEditorEntryRow::default());
+                            .push(Default::default());
                         self.config.custom_games[game_index].registry.push("".to_string());
                     }
                     EditAction::Change(index, value) => {
-                        self.custom_games_screen.games_editor.entries[game_index].registry[index]
-                            .text_history
-                            .push(&value);
+                        self.text_histories.custom_games[game_index].registry[index].push(&value);
                         self.config.custom_games[game_index].registry[index] = value;
                     }
                     EditAction::Remove(index) => {
-                        self.custom_games_screen.games_editor.entries[game_index]
-                            .registry
-                            .remove(index);
+                        self.text_histories.custom_games[game_index].registry.remove(index);
                         self.config.custom_games[game_index].registry.remove(index);
                     }
                     EditAction::Move(index, direction) => {
                         let offset = direction.shift(index);
-                        self.custom_games_screen.games_editor.entries[game_index]
+                        self.text_histories.custom_games[game_index]
                             .registry
                             .swap(index, offset);
                         self.config.custom_games[game_index].registry.swap(index, offset);
@@ -1073,10 +1036,7 @@ impl Application for App {
             Message::EditedBackupFilterIgnoredPath(action) => {
                 match action {
                     EditAction::Add => {
-                        self.other_screen
-                            .ignored_items_editor
-                            .files
-                            .push(crate::gui::ignored_items_editor::IgnoredItemsEditorEntryRow::default());
+                        self.text_histories.backup_filter_ignored_paths.push(Default::default());
                         self.config
                             .backup
                             .filter
@@ -1084,18 +1044,16 @@ impl Application for App {
                             .push(StrictPath::new("".to_string()));
                     }
                     EditAction::Change(index, value) => {
-                        self.other_screen.ignored_items_editor.files[index]
-                            .text_history
-                            .push(&value);
+                        self.text_histories.backup_filter_ignored_paths[index].push(&value);
                         self.config.backup.filter.ignored_paths[index] = StrictPath::new(value);
                     }
                     EditAction::Remove(index) => {
-                        self.other_screen.ignored_items_editor.files.remove(index);
+                        self.text_histories.backup_filter_ignored_paths.remove(index);
                         self.config.backup.filter.ignored_paths.remove(index);
                     }
                     EditAction::Move(index, direction) => {
                         let offset = direction.shift(index);
-                        self.other_screen.ignored_items_editor.files.swap(index, offset);
+                        self.text_histories.backup_filter_ignored_paths.swap(index, offset);
                         self.config.backup.filter.ignored_paths.swap(index, offset);
                     }
                 }
@@ -1105,10 +1063,9 @@ impl Application for App {
             Message::EditedBackupFilterIgnoredRegistry(action) => {
                 match action {
                     EditAction::Add => {
-                        self.other_screen
-                            .ignored_items_editor
-                            .registry
-                            .push(crate::gui::ignored_items_editor::IgnoredItemsEditorEntryRow::default());
+                        self.text_histories
+                            .backup_filter_ignored_registry
+                            .push(Default::default());
                         self.config
                             .backup
                             .filter
@@ -1116,18 +1073,16 @@ impl Application for App {
                             .push(RegistryItem::new("".to_string()));
                     }
                     EditAction::Change(index, value) => {
-                        self.other_screen.ignored_items_editor.registry[index]
-                            .text_history
-                            .push(&value);
+                        self.text_histories.backup_filter_ignored_registry[index].push(&value);
                         self.config.backup.filter.ignored_registry[index] = RegistryItem::new(value);
                     }
                     EditAction::Remove(index) => {
-                        self.other_screen.ignored_items_editor.registry.remove(index);
+                        self.text_histories.backup_filter_ignored_registry.remove(index);
                         self.config.backup.filter.ignored_registry.remove(index);
                     }
                     EditAction::Move(index, direction) => {
                         let offset = direction.shift(index);
-                        self.other_screen.ignored_items_editor.registry.swap(index, offset);
+                        self.text_histories.backup_filter_ignored_registry.swap(index, offset);
                         self.config.backup.filter.ignored_registry.swap(index, offset);
                     }
                 }
@@ -1233,11 +1188,11 @@ impl Application for App {
             Message::EditedSearchGameName { screen, value } => {
                 match screen {
                     Screen::Backup => {
-                        self.backup_screen.log.search.game_name_history.push(&value);
+                        self.text_histories.backup_search_game_name.push(&value);
                         self.backup_screen.log.search.game_name = value;
                     }
                     Screen::Restore => {
-                        self.restore_screen.log.search.game_name_history.push(&value);
+                        self.text_histories.restore_search_game_name.push(&value);
                         self.restore_screen.log.search.game_name = value;
                     }
                     _ => {}
@@ -1388,62 +1343,62 @@ impl Application for App {
                     UndoSubject::BackupTarget => apply_shortcut_to_strict_path_field(
                         &shortcut,
                         &mut self.config.backup.path,
-                        &mut self.backup_screen.backup_target_history,
+                        &mut self.text_histories.backup_target,
                     ),
                     UndoSubject::RestoreSource => apply_shortcut_to_strict_path_field(
                         &shortcut,
                         &mut self.config.restore.path,
-                        &mut self.restore_screen.restore_source_history,
+                        &mut self.text_histories.restore_source,
                     ),
                     UndoSubject::BackupSearchGameName => apply_shortcut_to_string_field(
                         &shortcut,
                         &mut self.backup_screen.log.search.game_name,
-                        &mut self.backup_screen.log.search.game_name_history,
+                        &mut self.text_histories.backup_search_game_name,
                     ),
                     UndoSubject::RestoreSearchGameName => apply_shortcut_to_string_field(
                         &shortcut,
                         &mut self.restore_screen.log.search.game_name,
-                        &mut self.restore_screen.log.search.game_name_history,
+                        &mut self.text_histories.restore_search_game_name,
                     ),
                     UndoSubject::Root(i) => apply_shortcut_to_strict_path_field(
                         &shortcut,
                         &mut self.config.roots[i].path,
-                        &mut self.other_screen.root_editor.rows[i].text_history,
+                        &mut self.text_histories.roots[i],
                     ),
                     UndoSubject::RedirectSource(i) => apply_shortcut_to_strict_path_field(
                         &shortcut,
                         &mut self.config.redirects[i].source,
-                        &mut self.other_screen.redirect_editor.rows[i].source_text_history,
+                        &mut self.text_histories.redirects[i].source,
                     ),
                     UndoSubject::RedirectTarget(i) => apply_shortcut_to_strict_path_field(
                         &shortcut,
                         &mut self.config.redirects[i].target,
-                        &mut self.other_screen.redirect_editor.rows[i].target_text_history,
+                        &mut self.text_histories.redirects[i].target,
                     ),
                     UndoSubject::CustomGameName(i) => apply_shortcut_to_string_field(
                         &shortcut,
                         &mut self.config.custom_games[i].name,
-                        &mut self.custom_games_screen.games_editor.entries[i].text_history,
+                        &mut self.text_histories.custom_games[i].name,
                     ),
                     UndoSubject::CustomGameFile(i, j) => apply_shortcut_to_string_field(
                         &shortcut,
                         &mut self.config.custom_games[i].files[j],
-                        &mut self.custom_games_screen.games_editor.entries[i].files[j].text_history,
+                        &mut self.text_histories.custom_games[i].files[j],
                     ),
                     UndoSubject::CustomGameRegistry(i, j) => apply_shortcut_to_string_field(
                         &shortcut,
                         &mut self.config.custom_games[i].registry[j],
-                        &mut self.custom_games_screen.games_editor.entries[i].registry[j].text_history,
+                        &mut self.text_histories.custom_games[i].registry[j],
                     ),
                     UndoSubject::BackupFilterIgnoredPath(i) => apply_shortcut_to_strict_path_field(
                         &shortcut,
                         &mut self.config.backup.filter.ignored_paths[i],
-                        &mut self.other_screen.ignored_items_editor.files[i].text_history,
+                        &mut self.text_histories.backup_filter_ignored_paths[i],
                     ),
                     UndoSubject::BackupFilterIgnoredRegistry(i) => apply_shortcut_to_registry_path_field(
                         &shortcut,
                         &mut self.config.backup.filter.ignored_registry[i],
-                        &mut self.other_screen.ignored_items_editor.registry[i].text_history,
+                        &mut self.text_histories.backup_filter_ignored_registry[i],
                     ),
                 }
                 self.config.save();
@@ -1579,22 +1534,33 @@ impl Application for App {
             )
             .push(
                 match self.screen {
-                    Screen::Backup => {
-                        self.backup_screen
-                            .view(&self.config, &self.manifest, &self.translator, &self.operation)
-                    }
-                    Screen::Restore => {
-                        self.restore_screen
-                            .view(&self.config, &self.manifest, &self.translator, &self.operation)
-                    }
-                    Screen::CustomGames => {
-                        self.custom_games_screen
-                            .view(&self.config, &self.translator, self.operation.is_some())
-                    }
-                    Screen::Other => {
-                        self.other_screen
-                            .view(self.updating_manifest, &self.config, &self.cache, &self.translator)
-                    }
+                    Screen::Backup => self.backup_screen.view(
+                        &self.config,
+                        &self.manifest,
+                        &self.translator,
+                        &self.operation,
+                        &self.text_histories,
+                    ),
+                    Screen::Restore => self.restore_screen.view(
+                        &self.config,
+                        &self.manifest,
+                        &self.translator,
+                        &self.operation,
+                        &self.text_histories,
+                    ),
+                    Screen::CustomGames => CustomGamesScreenComponent::view(
+                        &self.config,
+                        &self.translator,
+                        self.operation.is_some(),
+                        &self.text_histories,
+                    ),
+                    Screen::Other => OtherScreenComponent::view(
+                        self.updating_manifest,
+                        &self.config,
+                        &self.cache,
+                        &self.translator,
+                        &self.text_histories,
+                    ),
                 }
                 .padding([0, 5, 5, 5])
                 .height(Length::Fill),

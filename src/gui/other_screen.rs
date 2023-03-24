@@ -5,10 +5,10 @@ use crate::{
     config::{Config, Theme},
     gui::{
         button,
-        common::{IcedExtension, Message, ScrollSubject},
+        common::{IcedExtension, Message, ScrollSubject, TextHistories},
         ignored_items_editor::IgnoredItemsEditor,
-        redirect_editor::{RedirectEditor, RedirectEditorRow},
-        root_editor::{RootEditor, RootEditorRow},
+        redirect_editor::RedirectEditor,
+        root_editor::RootEditor,
         style,
         widget::{Button, Checkbox, Column, Container, PickList, Row, Text},
     },
@@ -17,34 +17,16 @@ use crate::{
 };
 
 #[derive(Default)]
-pub struct OtherScreenComponent {
-    pub ignored_items_editor: IgnoredItemsEditor,
-    pub root_editor: RootEditor,
-    pub redirect_editor: RedirectEditor,
-}
+pub struct OtherScreenComponent {}
 
 impl OtherScreenComponent {
-    pub fn new(config: &Config) -> Self {
-        let mut root_editor = RootEditor::default();
-        for root in &config.roots {
-            root_editor.rows.push(RootEditorRow::new(&root.path.raw()))
-        }
-
-        let mut redirect_editor = RedirectEditor::default();
-        for redirect in &config.get_redirects() {
-            redirect_editor
-                .rows
-                .push(RedirectEditorRow::new(&redirect.source.raw(), &redirect.target.raw()))
-        }
-
-        Self {
-            ignored_items_editor: IgnoredItemsEditor::new(config),
-            root_editor,
-            redirect_editor,
-        }
-    }
-
-    pub fn view(&self, updating_manifest: bool, config: &Config, cache: &Cache, translator: &Translator) -> Container {
+    pub fn view<'a>(
+        updating_manifest: bool,
+        config: &Config,
+        cache: &Cache,
+        translator: &Translator,
+        histories: &TextHistories,
+    ) -> Container<'a> {
         Container::new(
             Column::new()
                 .spacing(20)
@@ -157,22 +139,20 @@ impl OtherScreenComponent {
                                     Column::new()
                                         .padding(5)
                                         .spacing(4)
-                                        .push(self.root_editor.view(config, translator)),
+                                        .push(RootEditor::view(config, translator, histories)),
                                 )
                                 .style(style::Container::GameListEntry),
                             ),
                         )
                         .push(
-                            Column::new().push(Text::new(translator.ignored_items_label())).push(
-                                self.ignored_items_editor
-                                    .view(config, translator)
-                                    .padding([10, 0, 0, 0]),
-                            ),
+                            Column::new()
+                                .push(Text::new(translator.ignored_items_label()))
+                                .push(IgnoredItemsEditor::view(config, translator, histories).padding([10, 0, 0, 0])),
                         )
                         .push(
                             Column::new()
                                 .push(Text::new(translator.redirects_label()))
-                                .push(self.redirect_editor.view(config, translator).padding([10, 0, 0, 0])),
+                                .push(RedirectEditor::view(config, histories).padding([10, 0, 0, 0])),
                         );
                     ScrollSubject::Other.into_widget(content)
                 }),

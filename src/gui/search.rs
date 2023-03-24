@@ -3,10 +3,9 @@ use iced::Alignment;
 use crate::{
     config::{Sort, SortKey},
     gui::{
-        common::{Message, Screen, UndoSubject},
-        shortcuts::TextHistory,
+        common::{Message, Screen, TextHistories, UndoSubject},
         style,
-        widget::{Checkbox, Container, PickList, Row, Text, TextInput, Undoable},
+        widget::{Checkbox, Container, PickList, Row, Text},
     },
     lang::Translator,
 };
@@ -15,11 +14,16 @@ use crate::{
 pub struct SearchComponent {
     pub show: bool,
     pub game_name: String,
-    pub game_name_history: TextHistory,
 }
 
 impl SearchComponent {
-    pub fn view(&self, screen: Screen, translator: &Translator, sort: &Sort) -> Option<Container> {
+    pub fn view(
+        &self,
+        screen: Screen,
+        translator: &Translator,
+        sort: &Sort,
+        histories: &TextHistories,
+    ) -> Option<Container> {
         if !self.show {
             return None;
         }
@@ -29,24 +33,10 @@ impl SearchComponent {
                 .spacing(20)
                 .align_items(Alignment::Center)
                 .push(Text::new(translator.search_label()))
-                .push(Undoable::new(
-                    TextInput::new(
-                        &translator.search_game_name_placeholder(),
-                        &self.game_name,
-                        move |value| Message::EditedSearchGameName { screen, value },
-                    )
-                    .style(style::TextInput)
-                    .padding(5),
-                    move |action| {
-                        Message::UndoRedo(
-                            action,
-                            match screen {
-                                Screen::Restore => UndoSubject::RestoreSearchGameName,
-                                _ => UndoSubject::BackupSearchGameName,
-                            },
-                        )
-                    },
-                ))
+                .push(histories.input(match screen {
+                    Screen::Restore => UndoSubject::RestoreSearchGameName,
+                    _ => UndoSubject::BackupSearchGameName,
+                }))
                 .push(Text::new(translator.sort_label()))
                 .push(
                     PickList::new(SortKey::ALL, Some(sort.key), move |value| Message::EditedSortKey {
