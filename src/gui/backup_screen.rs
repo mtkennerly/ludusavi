@@ -11,7 +11,7 @@ use crate::{
         },
         game_list::GameList,
         style,
-        widget::{Checkbox, Column, Container, PickList, Row, Text},
+        widget::{number_input, Checkbox, Column, Container, PickList, Row, Text},
     },
     lang::Translator,
     manifest::Manifest,
@@ -23,9 +23,6 @@ pub struct BackupScreenComponent {
     pub log: GameList,
     pub previewed_games: std::collections::HashSet<String>,
     pub duplicate_detector: DuplicateDetector,
-    full_retention_input: crate::gui::number_input::NumberInput,
-    diff_retention_input: crate::gui::number_input::NumberInput,
-    compression_level_input: crate::gui::number_input::NumberInput,
     pub show_settings: bool,
 }
 
@@ -95,7 +92,7 @@ impl BackupScreenComponent {
                             .push_if(
                                 || config.backup.merge,
                                 || {
-                                    self.full_retention_input.view(
+                                    number_input(
                                         config.backup.retention.full as i32,
                                         translator.full_retention(),
                                         1..=255,
@@ -106,7 +103,7 @@ impl BackupScreenComponent {
                             .push_if(
                                 || config.backup.merge,
                                 || {
-                                    self.diff_retention_input.view(
+                                    number_input(
                                         config.backup.retention.differential as i32,
                                         translator.differential_retention(),
                                         0..=255,
@@ -155,7 +152,7 @@ impl BackupScreenComponent {
                                 },
                             )
                             .push_some(|| match (config.backup.format.level(), config.backup.format.range()) {
-                                (Some(level), Some(range)) => Some(self.compression_level_input.view(
+                                (Some(level), Some(range)) => Some(number_input(
                                     level,
                                     translator.backup_compression_level_field(),
                                     range,

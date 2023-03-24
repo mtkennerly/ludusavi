@@ -1,6 +1,12 @@
-use iced::widget as w;
+use std::ops::RangeInclusive;
 
-use crate::gui::{common::Message, style::Theme};
+use iced::{widget as w, Alignment, Length};
+
+use crate::gui::{
+    common::{IcedButtonExt, Message},
+    icon::Icon,
+    style::{self, Theme},
+};
 
 pub type Renderer = iced::Renderer<Theme>;
 
@@ -50,4 +56,30 @@ pub mod id {
     pub fn modal_scroll() -> iced::widget::scrollable::Id {
         (*MODAL_SCROLL).clone()
     }
+}
+
+pub fn number_input<'a>(
+    value: i32,
+    label: String,
+    range: RangeInclusive<i32>,
+    change: fn(i32) -> Message,
+) -> Element<'a> {
+    Container::new(
+        Row::new()
+            .spacing(5)
+            .align_items(Alignment::Center)
+            .push(Text::new(label))
+            .push(Text::new(value.to_string()))
+            .push({
+                Button::new(Icon::Remove.as_text().width(Length::Shrink))
+                    .on_press_if(|| &value > range.start(), || (change)(value - 1))
+                    .style(style::Button::Negative)
+            })
+            .push({
+                Button::new(Icon::Add.as_text().width(Length::Shrink))
+                    .on_press_if(|| &value < range.end(), || (change)(value + 1))
+                    .style(style::Button::Primary)
+            }),
+    )
+    .into()
 }
