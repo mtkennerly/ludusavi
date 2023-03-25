@@ -1,6 +1,8 @@
 // Iced has built-in support for some keyboard shortcuts. This module provides
 // support for implementing other shortcuts until Iced provides its own support.
 
+use std::collections::VecDeque;
+
 use iced::Length;
 
 use crate::{
@@ -65,7 +67,7 @@ impl From<crate::gui::undoable::Action> for Shortcut {
 }
 
 pub struct TextHistory {
-    history: std::collections::VecDeque<String>,
+    history: VecDeque<String>,
     limit: usize,
     position: usize,
 }
@@ -78,7 +80,7 @@ impl Default for TextHistory {
 
 impl TextHistory {
     pub fn new(initial: &str, limit: usize) -> Self {
-        let mut history = std::collections::VecDeque::<String>::new();
+        let mut history = VecDeque::<String>::new();
         history.push_back(initial.to_string());
         Self {
             history,
@@ -88,7 +90,7 @@ impl TextHistory {
     }
 
     pub fn raw(initial: &str) -> Self {
-        let mut history = std::collections::VecDeque::<String>::new();
+        let mut history = VecDeque::<String>::new();
         history.push_back(initial.to_string());
         Self {
             history,
@@ -98,7 +100,7 @@ impl TextHistory {
     }
 
     pub fn path(initial: &StrictPath) -> Self {
-        let mut history = std::collections::VecDeque::<String>::new();
+        let mut history = VecDeque::<String>::new();
         history.push_back(initial.raw());
         Self {
             history,

@@ -1,3 +1,5 @@
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+
 use crate::{
     lang::TRANSLATOR,
     prelude::StrictPath,
@@ -29,7 +31,7 @@ struct ApiFile {
         serialize_with = "crate::serialization::ordered_set",
         skip_serializing_if = "crate::serialization::is_empty_set"
     )]
-    duplicated_by: std::collections::HashSet<String>,
+    duplicated_by: HashSet<String>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -44,9 +46,9 @@ struct ApiRegistry {
         serialize_with = "crate::serialization::ordered_set",
         skip_serializing_if = "crate::serialization::is_empty_set"
     )]
-    duplicated_by: std::collections::HashSet<String>,
-    #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
-    values: std::collections::BTreeMap<String, ApiRegistryValue>,
+    duplicated_by: HashSet<String>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    values: BTreeMap<String, ApiRegistryValue>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -63,9 +65,9 @@ enum ApiGame {
         decision: OperationStepDecision,
         change: ScanChange,
         #[serde(serialize_with = "crate::serialization::ordered_map")]
-        files: std::collections::HashMap<String, ApiFile>,
+        files: HashMap<String, ApiFile>,
         #[serde(serialize_with = "crate::serialization::ordered_map")]
-        registry: std::collections::HashMap<String, ApiRegistry>,
+        registry: HashMap<String, ApiRegistry>,
     },
     Stored {
         backups: Vec<ApiBackup>,
@@ -88,7 +90,7 @@ pub struct JsonOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     overall: Option<OperationStatus>,
     #[serde(serialize_with = "crate::serialization::ordered_map")]
-    games: std::collections::HashMap<String, ApiGame>,
+    games: HashMap<String, ApiGame>,
 }
 
 #[derive(Debug)]
@@ -245,8 +247,8 @@ impl Reporter {
                 }
 
                 let decision = decision.clone();
-                let mut files = std::collections::HashMap::new();
-                let mut registry = std::collections::HashMap::new();
+                let mut files = HashMap::new();
+                let mut registry = HashMap::new();
 
                 for entry in itertools::sorted(&scan_info.found_files) {
                     let mut api_file = ApiFile {
@@ -380,7 +382,7 @@ impl Reporter {
         }
     }
 
-    pub fn add_found_titles(&mut self, names: &std::collections::BTreeSet<String>) {
+    pub fn add_found_titles(&mut self, names: &BTreeSet<String>) {
         match self {
             Self::Standard { parts, .. } => {
                 for name in names {

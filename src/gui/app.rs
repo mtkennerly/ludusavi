@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use iced::{executor, Alignment, Application, Command, Subscription};
 
 use crate::{
@@ -47,11 +49,11 @@ pub struct App {
     operation_steps: Vec<Command<Message>>,
     operation_steps_active: usize,
     progress: Progress,
-    backups_to_restore: std::collections::HashMap<String, BackupId>,
+    backups_to_restore: HashMap<String, BackupId>,
     updating_manifest: bool,
     notify_on_single_game_scanned: Option<(String, Screen)>,
     timed_notification: Option<Notification>,
-    scroll_offsets: std::collections::HashMap<ScrollSubject, iced_native::widget::scrollable::RelativeOffset>,
+    scroll_offsets: HashMap<ScrollSubject, iced_native::widget::scrollable::RelativeOffset>,
     text_histories: TextHistories,
 }
 

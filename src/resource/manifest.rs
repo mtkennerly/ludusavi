@@ -258,7 +258,7 @@ impl Manifest {
         Ok(())
     }
 
-    pub fn map_steam_ids_to_names(&self) -> std::collections::HashMap<u32, String> {
+    pub fn map_steam_ids_to_names(&self) -> HashMap<u32, String> {
         self.0
             .iter()
             .filter_map(|(k, v)| match &v.steam {
@@ -268,7 +268,7 @@ impl Manifest {
             .collect()
     }
 
-    pub fn map_gog_ids_to_names(&self) -> std::collections::HashMap<u64, String> {
+    pub fn map_gog_ids_to_names(&self) -> HashMap<u64, String> {
         self.0
             .iter()
             .filter_map(|(k, v)| match &v.gog {

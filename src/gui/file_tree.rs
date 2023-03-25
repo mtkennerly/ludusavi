@@ -1,3 +1,5 @@
+use std::collections::BTreeMap;
+
 use iced::{Alignment, Length};
 
 use crate::{
@@ -37,7 +39,7 @@ struct FileTreeNode {
     keys: Vec<TreeNodeKey>,
     expanded: bool,
     path: Option<FileTreeNodePath>,
-    nodes: std::collections::BTreeMap<TreeNodeKey, FileTreeNode>,
+    nodes: BTreeMap<TreeNodeKey, FileTreeNode>,
     successful: bool,
     ignored: bool,
     duplicated: bool,
@@ -341,7 +343,7 @@ impl FileTreeNode {
 
 #[derive(Debug, Default)]
 pub struct FileTree {
-    nodes: std::collections::BTreeMap<TreeNodeKey, FileTreeNode>,
+    nodes: BTreeMap<TreeNodeKey, FileTreeNode>,
 }
 
 impl FileTree {
@@ -351,7 +353,7 @@ impl FileTree {
         backup_info: &Option<BackupInfo>,
         duplicate_detector: &DuplicateDetector,
     ) -> Self {
-        let mut nodes = std::collections::BTreeMap::<TreeNodeKey, FileTreeNode>::new();
+        let mut nodes = BTreeMap::<TreeNodeKey, FileTreeNode>::new();
 
         for item in scan_info.found_files.iter() {
             let mut successful = true;

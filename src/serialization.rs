@@ -25,7 +25,7 @@ pub fn is_false(v: &bool) -> bool {
     !v
 }
 
-pub fn is_empty_set<T>(v: &std::collections::HashSet<T>) -> bool {
+pub fn is_empty_set<T>(v: &HashSet<T>) -> bool {
     v.is_empty()
 }
 

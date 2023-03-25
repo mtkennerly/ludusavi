@@ -44,13 +44,13 @@ pub struct Manifest {
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Backup {
     #[serde(default)]
-    pub recent_games: std::collections::BTreeSet<String>,
+    pub recent_games: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Restore {
     #[serde(default)]
-    pub recent_games: std::collections::BTreeSet<String>,
+    pub recent_games: BTreeSet<String>,
 }
 
 impl ResourceFile for Cache {

@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use winreg::types::{FromRegValue, ToRegValue};
 
@@ -9,19 +9,13 @@ use crate::{
 };
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Hives(
-    #[serde(serialize_with = "crate::serialization::ordered_map")] pub std::collections::HashMap<String, Keys>,
-);
+pub struct Hives(#[serde(serialize_with = "crate::serialization::ordered_map")] pub HashMap<String, Keys>);
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Keys(
-    #[serde(serialize_with = "crate::serialization::ordered_map")] pub std::collections::HashMap<String, Entries>,
-);
+pub struct Keys(#[serde(serialize_with = "crate::serialization::ordered_map")] pub HashMap<String, Entries>);
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Entries(
-    #[serde(serialize_with = "crate::serialization::ordered_map")] pub std::collections::HashMap<String, Entry>,
-);
+pub struct Entries(#[serde(serialize_with = "crate::serialization::ordered_map")] pub HashMap<String, Entry>);
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Entry {

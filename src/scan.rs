@@ -5,6 +5,8 @@ pub mod registry_compat;
 #[cfg(target_os = "windows")]
 pub mod registry;
 
+use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+
 use fuzzy_matcher::FuzzyMatcher;
 use once_cell::sync::Lazy;
 use rayon::prelude::*;
@@ -211,7 +213,7 @@ pub struct ScannedRegistryValue {
     pub change: ScanChange,
 }
 
-pub type ScannedRegistryValues = std::collections::BTreeMap<String, ScannedRegistryValue>;
+pub type ScannedRegistryValues = BTreeMap<String, ScannedRegistryValue>;
 
 #[cfg(test)]
 impl ScannedRegistry {
@@ -271,8 +273,8 @@ impl ScannedRegistry {
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ScanInfo {
     pub game_name: String,
-    pub found_files: std::collections::HashSet<ScannedFile>,
-    pub found_registry_keys: std::collections::HashSet<ScannedRegistry>,
+    pub found_files: HashSet<ScannedFile>,
+    pub found_registry_keys: HashSet<ScannedRegistry>,
     /// Only populated by a restoration scan.
     pub available_backups: Vec<Backup>,
     /// Only populated by a restoration scan.
@@ -415,8 +417,8 @@ impl ScanInfo {
 
 #[derive(Clone, Debug, Default)]
 pub struct BackupInfo {
-    pub failed_files: std::collections::HashSet<ScannedFile>,
-    pub failed_registry: std::collections::HashSet<RegistryItem>,
+    pub failed_files: HashSet<ScannedFile>,
+    pub failed_registry: HashSet<RegistryItem>,
 }
 
 impl BackupInfo {
@@ -570,8 +572,8 @@ pub fn parse_paths(
     steam_id: &Option<u32>,
     manifest_dir: &StrictPath,
     steam_shortcut: Option<&SteamShortcut>,
-) -> std::collections::HashSet<(StrictPath, Option<bool>)> {
-    let mut paths = std::collections::HashSet::new();
+) -> HashSet<(StrictPath, Option<bool>)> {
+    let mut paths = HashSet::new();
 
     let install_dir = match install_dir {
         Some(d) => d,
@@ -780,7 +782,7 @@ pub fn parse_paths(
 }
 
 #[derive(Clone, Default)]
-pub struct InstallDirRanking(std::collections::HashMap<(RootsConfig, String), (i64, String)>);
+pub struct InstallDirRanking(HashMap<(RootsConfig, String), (i64, String)>);
 
 impl InstallDirRanking {
     /// Get the installation directory for some root/game combination.
@@ -882,7 +884,7 @@ impl InstallDirRanking {
 }
 
 #[derive(Clone, Default)]
-pub struct SteamShortcuts(std::collections::HashMap<String, SteamShortcut>);
+pub struct SteamShortcuts(HashMap<String, SteamShortcut>);
 
 #[derive(Clone, Default)]
 pub struct SteamShortcut {
@@ -946,11 +948,11 @@ pub fn scan_game_for_backup(
 ) -> ScanInfo {
     log::trace!("[{name}] beginning scan for backup");
 
-    let mut found_files = std::collections::HashSet::new();
+    let mut found_files = HashSet::new();
     #[allow(unused_mut)]
-    let mut found_registry_keys = std::collections::HashSet::new();
+    let mut found_registry_keys = HashSet::new();
 
-    let mut paths_to_check = std::collections::HashSet::<(StrictPath, Option<bool>)>::new();
+    let mut paths_to_check = HashSet::<(StrictPath, Option<bool>)>::new();
 
     // Add a dummy root for checking paths without `<root>`.
     let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig {
@@ -1064,7 +1066,7 @@ pub fn scan_game_for_backup(
         }
     }
 
-    let previous_files: std::collections::HashMap<&StrictPath, &String> = previous
+    let previous_files: HashMap<&StrictPath, &String> = previous
         .as_ref()
         .map(|previous| {
             previous
@@ -1199,7 +1201,7 @@ pub fn scan_game_for_backup(
 
 fn scan_game_for_backup_add_prefix(
     roots_to_check: &mut Vec<RootsConfig>,
-    paths_to_check: &mut std::collections::HashSet<(StrictPath, Option<bool>)>,
+    paths_to_check: &mut HashSet<(StrictPath, Option<bool>)>,
     wp: &StrictPath,
     manifest_dir_interpreted: &str,
     has_registry: bool,
@@ -1234,9 +1236,9 @@ pub fn scan_game_for_restoration(
 ) -> ScanInfo {
     log::trace!("[{name}] beginning scan for restore");
 
-    let mut found_files = std::collections::HashSet::new();
+    let mut found_files = HashSet::new();
     #[allow(unused_mut)]
-    let mut found_registry_keys = std::collections::HashSet::new();
+    let mut found_registry_keys = HashSet::new();
     #[allow(unused_mut)]
     let mut available_backups = vec![];
     let mut backup = None;
@@ -1381,19 +1383,17 @@ pub fn back_up_game(
 
 #[derive(Clone, Debug, Default)]
 pub struct DuplicateDetector {
-    files: std::collections::HashMap<StrictPath, std::collections::HashSet<String>>,
-    registry: std::collections::HashMap<RegistryItem, std::collections::HashSet<String>>,
-    registry_values:
-        std::collections::HashMap<RegistryItem, std::collections::HashMap<String, std::collections::HashSet<String>>>,
-    game_files: std::collections::HashMap<String, std::collections::HashSet<StrictPath>>,
-    game_registry: std::collections::HashMap<String, std::collections::HashSet<RegistryItem>>,
-    game_registry_values:
-        std::collections::HashMap<String, std::collections::HashMap<RegistryItem, std::collections::HashSet<String>>>,
-    game_duplicated_items: std::collections::HashMap<String, usize>,
+    files: HashMap<StrictPath, HashSet<String>>,
+    registry: HashMap<RegistryItem, HashSet<String>>,
+    registry_values: HashMap<RegistryItem, HashMap<String, HashSet<String>>>,
+    game_files: HashMap<String, HashSet<StrictPath>>,
+    game_registry: HashMap<String, HashSet<RegistryItem>>,
+    game_registry_values: HashMap<String, HashMap<RegistryItem, HashSet<String>>>,
+    game_duplicated_items: HashMap<String, usize>,
 }
 
 impl DuplicateDetector {
-    pub fn add_game(&mut self, scan_info: &ScanInfo) -> std::collections::HashSet<String> {
+    pub fn add_game(&mut self, scan_info: &ScanInfo) -> HashSet<String> {
         let mut stale = self.remove_game_and_refresh(&scan_info.game_name, false);
         stale.insert(scan_info.game_name.clone());
 
@@ -1459,12 +1459,12 @@ impl DuplicateDetector {
         stale
     }
 
-    pub fn remove_game(&mut self, game: &str) -> std::collections::HashSet<String> {
+    pub fn remove_game(&mut self, game: &str) -> HashSet<String> {
         self.remove_game_and_refresh(game, true)
     }
 
-    fn remove_game_and_refresh(&mut self, game: &str, refresh: bool) -> std::collections::HashSet<String> {
-        let mut stale = std::collections::HashSet::new();
+    fn remove_game_and_refresh(&mut self, game: &str, refresh: bool) -> HashSet<String> {
+        let mut stale = HashSet::new();
 
         self.game_duplicated_items.remove(game);
 
@@ -1526,7 +1526,7 @@ impl DuplicateDetector {
         }
     }
 
-    pub fn file(&self, file: &ScannedFile) -> std::collections::HashSet<String> {
+    pub fn file(&self, file: &ScannedFile) -> HashSet<String> {
         match self.files.get(&self.pick_path(file)) {
             Some(games) => games.clone(),
             None => Default::default(),
@@ -1537,7 +1537,7 @@ impl DuplicateDetector {
         self.file(file).len() > 1
     }
 
-    pub fn registry(&self, path: &RegistryItem) -> std::collections::HashSet<String> {
+    pub fn registry(&self, path: &RegistryItem) -> HashSet<String> {
         match self.registry.get(path) {
             Some(games) => games.clone(),
             None => Default::default(),
@@ -1548,7 +1548,7 @@ impl DuplicateDetector {
         self.registry(path).len() > 1
     }
 
-    pub fn registry_value(&self, path: &RegistryItem, value: &str) -> std::collections::HashSet<String> {
+    pub fn registry_value(&self, path: &RegistryItem, value: &str) -> HashSet<String> {
         match self.registry_values.get(path).and_then(|key| key.get(value)) {
             Some(games) => games.clone(),
             None => Default::default(),
@@ -1601,8 +1601,8 @@ impl DuplicateDetector {
         self.game_duplicated_items.get(game).copied().unwrap_or_default()
     }
 
-    pub fn duplicate_games(&self, game: &str) -> std::collections::HashSet<String> {
-        let mut duplicates = std::collections::HashSet::new();
+    pub fn duplicate_games(&self, game: &str) -> HashSet<String> {
+        let mut duplicates = HashSet::new();
 
         if let Some(files) = self.game_files.get(game) {
             for file in files {
@@ -1714,22 +1714,22 @@ pub fn normalize_title(title: &str) -> String {
 }
 
 pub struct TitleFinder {
-    all_games: std::collections::HashSet<String>,
-    can_backup: std::collections::HashSet<String>,
-    can_restore: std::collections::HashSet<String>,
-    steam_ids: std::collections::HashMap<u32, String>,
-    gog_ids: std::collections::HashMap<u64, String>,
-    normalized: std::collections::HashMap<String, String>,
+    all_games: HashSet<String>,
+    can_backup: HashSet<String>,
+    can_restore: HashSet<String>,
+    steam_ids: HashMap<u32, String>,
+    gog_ids: HashMap<u64, String>,
+    normalized: HashMap<String, String>,
 }
 
 impl TitleFinder {
     pub fn new(manifest: &Manifest, layout: &BackupLayout) -> Self {
-        let can_backup: std::collections::HashSet<_> = manifest.0.keys().cloned().collect();
-        let can_restore: std::collections::HashSet<_> = layout.restorable_games().into_iter().collect();
-        let all_games: std::collections::HashSet<_> = can_backup.union(&can_restore).cloned().collect();
+        let can_backup: HashSet<_> = manifest.0.keys().cloned().collect();
+        let can_restore: HashSet<_> = layout.restorable_games().into_iter().collect();
+        let all_games: HashSet<_> = can_backup.union(&can_restore).cloned().collect();
         let steam_ids = manifest.map_steam_ids_to_names();
         let gog_ids = manifest.map_gog_ids_to_names();
-        let normalized: std::collections::HashMap<_, _> = all_games
+        let normalized: HashMap<_, _> = all_games
             .iter()
             .map(|title| (normalize_title(title), title.to_owned()))
             .collect();
@@ -1780,8 +1780,8 @@ impl TitleFinder {
         normalized: bool,
         backup: bool,
         restore: bool,
-    ) -> std::collections::BTreeSet<String> {
-        let mut output = std::collections::BTreeSet::new();
+    ) -> BTreeSet<String> {
+        let mut output = BTreeSet::new();
 
         if let Some(steam_id) = steam_id {
             if let Some(found) = self.steam_ids.get(steam_id) {

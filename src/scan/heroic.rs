@@ -188,7 +188,7 @@ impl HeroicGames {
 
         // use gog_store/library.json to build map .app_name -> .title
         let library_path = root.path.joined("gog_store").joined("library.json");
-        let game_titles: std::collections::HashMap<String, String> =
+        let game_titles: HashMap<String, String> =
             match serde_json::from_str::<GogLibrary>(&library_path.read().unwrap_or_default()) {
                 Ok(gog_library) => gog_library
                     .games

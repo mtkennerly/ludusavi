@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashSet, VecDeque},
+    collections::{BTreeMap, HashMap, HashSet, VecDeque},
     io::Write,
 };
 
@@ -288,7 +288,7 @@ pub struct IndividualMappingRegistry {
 pub struct IndividualMapping {
     pub name: String,
     #[serde(serialize_with = "crate::serialization::ordered_map")]
-    pub drives: std::collections::HashMap<String, String>,
+    pub drives: HashMap<String, String>,
     #[serde(default = "default_backup_list")]
     pub backups: VecDeque<FullBackup>,
 }
@@ -301,7 +301,7 @@ impl IndividualMapping {
         }
     }
 
-    fn reversed_drives(&self) -> std::collections::HashMap<String, String> {
+    fn reversed_drives(&self) -> HashMap<String, String> {
         self.drives.iter().map(|(k, v)| (v.to_owned(), k.to_owned())).collect()
     }
 
@@ -587,8 +587,8 @@ impl GameLayout {
         id: &BackupId,
         restoring: bool,
         redirects: &[RedirectConfig],
-    ) -> std::collections::HashSet<ScannedFile> {
-        let mut files = std::collections::HashSet::new();
+    ) -> HashSet<ScannedFile> {
+        let mut files = HashSet::new();
 
         match self.find_by_id(id) {
             None => {}
@@ -615,8 +615,8 @@ impl GameLayout {
         backup: &FullBackup,
         restoring: bool,
         redirects: &[RedirectConfig],
-    ) -> std::collections::HashSet<ScannedFile> {
-        let mut restorables = std::collections::HashSet::new();
+    ) -> HashSet<ScannedFile> {
+        let mut restorables = HashSet::new();
 
         for (k, v) in &backup.files {
             let original_path = StrictPath::new(k.to_string());
@@ -667,8 +667,8 @@ impl GameLayout {
         backup: &DifferentialBackup,
         restoring: bool,
         redirects: &[RedirectConfig],
-    ) -> std::collections::HashSet<ScannedFile> {
-        let mut restorables = std::collections::HashSet::new();
+    ) -> HashSet<ScannedFile> {
+        let mut restorables = HashSet::new();
 
         for (k, v) in &backup.files {
             let v = some_or_continue!(v);
@@ -717,8 +717,8 @@ impl GameLayout {
 
     // Since this is only used for a specific migration use case,
     // we don't need to fill out all of the `ScannedFile` info.
-    fn restorable_files_in_simple(&self, backup: &str) -> std::collections::HashSet<ScannedFile> {
-        let mut files = std::collections::HashSet::new();
+    fn restorable_files_in_simple(&self, backup: &str) -> HashSet<ScannedFile> {
+        let mut files = HashSet::new();
         for drive_dir in walkdir::WalkDir::new(self.path.joined(backup).interpret())
             .max_depth(1)
             .follow_links(false)
@@ -1338,8 +1338,8 @@ impl GameLayout {
     pub fn restore(&self, scan: &ScanInfo) -> BackupInfo {
         log::trace!("[{}] beginning restore", &scan.game_name);
 
-        let mut failed_files = std::collections::HashSet::new();
-        let failed_registry = std::collections::HashSet::new();
+        let mut failed_files = HashSet::new();
+        let failed_registry = HashSet::new();
 
         for file in &scan.found_files {
             let original_path = some_or_continue!(&file.original_path);
@@ -1589,8 +1589,8 @@ pub enum BackupKind {
 #[derive(Clone, Debug, Default)]
 pub struct BackupLayout {
     pub base: StrictPath,
-    games: std::collections::HashMap<String, StrictPath>,
-    games_lowercase: std::collections::HashMap<String, StrictPath>,
+    games: HashMap<String, StrictPath>,
+    games_lowercase: HashMap<String, StrictPath>,
     retention: Retention,
 }
 
@@ -1606,8 +1606,8 @@ impl BackupLayout {
         }
     }
 
-    pub fn load(base: &StrictPath) -> std::collections::HashMap<String, StrictPath> {
-        let mut overall = std::collections::HashMap::new();
+    pub fn load(base: &StrictPath) -> HashMap<String, StrictPath> {
+        let mut overall = HashMap::new();
 
         for game_dir in walkdir::WalkDir::new(base.interpret())
             .max_depth(1)
@@ -1722,7 +1722,7 @@ mod tests {
     }
 
     mod backup_layout {
-        use std::collections::HashMap;
+        use HashMap;
 
         use pretty_assertions::assert_eq;
 

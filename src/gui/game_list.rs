@@ -521,7 +521,7 @@ impl GameList {
         sort: &Sort,
         config: &Config,
         duplicate_detector: &DuplicateDetector,
-        duplicates: &std::collections::HashSet<String>,
+        duplicates: &HashSet<String>,
         game_layout: Option<GameLayout>,
     ) {
         let game_name = scan_info.game_name.clone();
@@ -571,7 +571,7 @@ impl GameList {
         game: &str,
         config: &Config,
         duplicate_detector: &DuplicateDetector,
-        duplicates: &std::collections::HashSet<String>,
+        duplicates: &HashSet<String>,
     ) {
         self.entries.retain(|entry| entry.scan_info.game_name != game);
         for entry in self.entries.iter_mut() {

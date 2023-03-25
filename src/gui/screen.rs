@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use iced::{Alignment, Length};
 
 use crate::{
@@ -55,7 +57,7 @@ fn make_status_row<'a>(status: &OperationStatus, found_any_duplicates: bool) -> 
 #[derive(Default)]
 pub struct Backup {
     pub log: GameList,
-    pub previewed_games: std::collections::HashSet<String>,
+    pub previewed_games: HashSet<String>,
     pub duplicate_detector: DuplicateDetector,
     pub show_settings: bool,
 }

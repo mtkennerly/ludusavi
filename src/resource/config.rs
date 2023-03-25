@@ -1,3 +1,5 @@
+use std::collections::{BTreeMap, HashSet};
+
 use crate::{
     lang::{Language, TRANSLATOR},
     prelude::{app_dir, Error, StrictPath},
@@ -143,12 +145,10 @@ impl BackupFilter {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct ToggledPaths(std::collections::BTreeMap<String, std::collections::BTreeMap<StrictPath, bool>>);
+pub struct ToggledPaths(BTreeMap<String, BTreeMap<StrictPath, bool>>);
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct ToggledRegistry(
-    std::collections::BTreeMap<String, std::collections::BTreeMap<RegistryItem, ToggledRegistryEntry>>,
-);
+pub struct ToggledRegistry(BTreeMap<String, BTreeMap<RegistryItem, ToggledRegistryEntry>>);
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(untagged)]
@@ -158,8 +158,8 @@ pub enum ToggledRegistryEntry {
     Complex {
         #[serde(skip_serializing_if = "Option::is_none")]
         key: Option<bool>,
-        #[serde(skip_serializing_if = "std::collections::BTreeMap::is_empty")]
-        values: std::collections::BTreeMap<String, bool>,
+        #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+        values: BTreeMap<String, bool>,
     },
 }
 
@@ -204,12 +204,12 @@ impl ToggledRegistryEntry {
     fn enable_value(&mut self, value: &str, enabled: bool) {
         match self {
             Self::Unset => {
-                let mut values = std::collections::BTreeMap::<String, bool>::new();
+                let mut values = BTreeMap::<String, bool>::new();
                 values.insert(value.to_string(), enabled);
                 *self = Self::Complex { key: None, values };
             }
             Self::Key(key) => {
-                let mut values = std::collections::BTreeMap::<String, bool>::new();
+                let mut values = BTreeMap::<String, bool>::new();
                 values.insert(value.to_string(), enabled);
                 *self = Self::Complex {
                     key: Some(*key),
@@ -493,7 +493,7 @@ pub struct BackupConfig {
         rename = "ignoredGames",
         serialize_with = "crate::serialization::ordered_set"
     )]
-    pub ignored_games: std::collections::HashSet<String>,
+    pub ignored_games: HashSet<String>,
     #[serde(default, rename = "recentGames", skip_serializing)]
     #[deprecated(note = "use cache")]
     pub recent_games: Vec<String>,
@@ -521,7 +521,7 @@ pub struct RestoreConfig {
         rename = "ignoredGames",
         serialize_with = "crate::serialization::ordered_set"
     )]
-    pub ignored_games: std::collections::HashSet<String>,
+    pub ignored_games: HashSet<String>,
     #[serde(default, rename = "recentGames", skip_serializing)]
     #[deprecated(note = "use cache")]
     pub recent_games: Vec<String>,
@@ -558,7 +558,7 @@ impl Default for BackupConfig {
         #[allow(deprecated)]
         Self {
             path: default_backup_dir(),
-            ignored_games: std::collections::HashSet::new(),
+            ignored_games: HashSet::new(),
             recent_games: vec![],
             merge: true,
             filter: BackupFilter::default(),
@@ -576,7 +576,7 @@ impl Default for RestoreConfig {
         #[allow(deprecated)]
         Self {
             path: default_backup_dir(),
-            ignored_games: std::collections::HashSet::new(),
+            ignored_games: HashSet::new(),
             recent_games: vec![],
             redirects: vec![],
             sort: Default::default(),
@@ -742,7 +742,7 @@ impl Config {
         #[cfg(not(target_os = "windows"))]
         let detected_epic = vec![];
 
-        let mut checked = std::collections::HashSet::<StrictPath>::new();
+        let mut checked = HashSet::<StrictPath>::new();
         let mut roots = vec![];
         for (path, store) in [candidates, detected_steam, detected_epic].concat() {
             let sp = StrictPath::new(path);
@@ -864,7 +864,7 @@ impl Config {
 
 impl ToggledPaths {
     #[cfg(test)]
-    pub fn new(data: std::collections::BTreeMap<String, std::collections::BTreeMap<StrictPath, bool>>) -> Self {
+    pub fn new(data: BTreeMap<String, BTreeMap<StrictPath, bool>>) -> Self {
         Self(data)
     }
 
@@ -958,9 +958,7 @@ impl ToggledPaths {
 impl ToggledRegistry {
     #[allow(dead_code)]
     #[cfg(test)]
-    pub fn new(
-        data: std::collections::BTreeMap<String, std::collections::BTreeMap<RegistryItem, ToggledRegistryEntry>>,
-    ) -> Self {
+    pub fn new(data: BTreeMap<String, BTreeMap<RegistryItem, ToggledRegistryEntry>>) -> Self {
         Self(data)
     }
 
@@ -1158,7 +1156,7 @@ mod tests {
                 redirects: vec![],
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
-                    ignored_games: std::collections::HashSet::new(),
+                    ignored_games: HashSet::new(),
                     recent_games: Default::default(),
                     merge: true,
                     filter: BackupFilter {
@@ -1173,7 +1171,7 @@ mod tests {
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
-                    ignored_games: std::collections::HashSet::new(),
+                    ignored_games: HashSet::new(),
                     recent_games: Default::default(),
                     redirects: vec![],
                     sort: Default::default(),
@@ -1338,7 +1336,7 @@ mod tests {
                 redirects: vec![],
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
-                    ignored_games: std::collections::HashSet::new(),
+                    ignored_games: HashSet::new(),
                     recent_games: Default::default(),
                     merge: true,
                     filter: BackupFilter {
@@ -1353,7 +1351,7 @@ mod tests {
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
-                    ignored_games: std::collections::HashSet::new(),
+                    ignored_games: HashSet::new(),
                     recent_games: Default::default(),
                     redirects: vec![],
                     sort: Default::default(),
