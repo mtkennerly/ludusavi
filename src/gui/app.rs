@@ -7,7 +7,7 @@ use crate::{
         modal::{ModalComponent, ModalTheme},
         notification::Notification,
         screen,
-        shortcuts::{Shortcut, TextHistory},
+        shortcuts::{Shortcut, TextHistories, TextHistory},
         style,
         widget::{Column, Container, Element, IcedParentExt, ProgressBar, Row},
     },
@@ -1318,63 +1318,49 @@ impl Application for App {
             Message::UndoRedo(action, subject) => {
                 let shortcut = Shortcut::from(action);
                 match subject {
-                    UndoSubject::BackupTarget => apply_shortcut_to_strict_path_field(
-                        &shortcut,
+                    UndoSubject::BackupTarget => shortcut.apply_to_strict_path_field(
                         &mut self.config.backup.path,
                         &mut self.text_histories.backup_target,
                     ),
-                    UndoSubject::RestoreSource => apply_shortcut_to_strict_path_field(
-                        &shortcut,
+                    UndoSubject::RestoreSource => shortcut.apply_to_strict_path_field(
                         &mut self.config.restore.path,
                         &mut self.text_histories.restore_source,
                     ),
-                    UndoSubject::BackupSearchGameName => apply_shortcut_to_string_field(
-                        &shortcut,
+                    UndoSubject::BackupSearchGameName => shortcut.apply_to_string_field(
                         &mut self.backup_screen.log.search.game_name,
                         &mut self.text_histories.backup_search_game_name,
                     ),
-                    UndoSubject::RestoreSearchGameName => apply_shortcut_to_string_field(
-                        &shortcut,
+                    UndoSubject::RestoreSearchGameName => shortcut.apply_to_string_field(
                         &mut self.restore_screen.log.search.game_name,
                         &mut self.text_histories.restore_search_game_name,
                     ),
-                    UndoSubject::Root(i) => apply_shortcut_to_strict_path_field(
-                        &shortcut,
-                        &mut self.config.roots[i].path,
-                        &mut self.text_histories.roots[i],
-                    ),
-                    UndoSubject::RedirectSource(i) => apply_shortcut_to_strict_path_field(
-                        &shortcut,
+                    UndoSubject::Root(i) => shortcut
+                        .apply_to_strict_path_field(&mut self.config.roots[i].path, &mut self.text_histories.roots[i]),
+                    UndoSubject::RedirectSource(i) => shortcut.apply_to_strict_path_field(
                         &mut self.config.redirects[i].source,
                         &mut self.text_histories.redirects[i].source,
                     ),
-                    UndoSubject::RedirectTarget(i) => apply_shortcut_to_strict_path_field(
-                        &shortcut,
+                    UndoSubject::RedirectTarget(i) => shortcut.apply_to_strict_path_field(
                         &mut self.config.redirects[i].target,
                         &mut self.text_histories.redirects[i].target,
                     ),
-                    UndoSubject::CustomGameName(i) => apply_shortcut_to_string_field(
-                        &shortcut,
+                    UndoSubject::CustomGameName(i) => shortcut.apply_to_string_field(
                         &mut self.config.custom_games[i].name,
                         &mut self.text_histories.custom_games[i].name,
                     ),
-                    UndoSubject::CustomGameFile(i, j) => apply_shortcut_to_string_field(
-                        &shortcut,
+                    UndoSubject::CustomGameFile(i, j) => shortcut.apply_to_string_field(
                         &mut self.config.custom_games[i].files[j],
                         &mut self.text_histories.custom_games[i].files[j],
                     ),
-                    UndoSubject::CustomGameRegistry(i, j) => apply_shortcut_to_string_field(
-                        &shortcut,
+                    UndoSubject::CustomGameRegistry(i, j) => shortcut.apply_to_string_field(
                         &mut self.config.custom_games[i].registry[j],
                         &mut self.text_histories.custom_games[i].registry[j],
                     ),
-                    UndoSubject::BackupFilterIgnoredPath(i) => apply_shortcut_to_strict_path_field(
-                        &shortcut,
+                    UndoSubject::BackupFilterIgnoredPath(i) => shortcut.apply_to_strict_path_field(
                         &mut self.config.backup.filter.ignored_paths[i],
                         &mut self.text_histories.backup_filter_ignored_paths[i],
                     ),
-                    UndoSubject::BackupFilterIgnoredRegistry(i) => apply_shortcut_to_registry_path_field(
-                        &shortcut,
+                    UndoSubject::BackupFilterIgnoredRegistry(i) => shortcut.apply_to_registry_path_field(
                         &mut self.config.backup.filter.ignored_registry[i],
                         &mut self.text_histories.backup_filter_ignored_registry[i],
                     ),

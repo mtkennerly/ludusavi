@@ -7,10 +7,11 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{GameAction, Message, OngoingOperation, Screen, ScrollSubject, TextHistories},
+        common::{GameAction, Message, OngoingOperation, Screen, ScrollSubject},
         file_tree::FileTree,
         icon::Icon,
         search::SearchComponent,
+        shortcuts::TextHistories,
         style,
         widget::{
             Button, Checkbox, Column, Container, IcedButtonExt, IcedParentExt, PickList, Row, Text, TextInput, Tooltip,

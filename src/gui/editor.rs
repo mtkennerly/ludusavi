@@ -4,7 +4,8 @@ use iced_native::widget::tooltip;
 use crate::{
     gui::{
         button,
-        common::{BrowseSubject, Message, ScrollSubject, TextHistories, UndoSubject},
+        common::{BrowseSubject, Message, ScrollSubject, UndoSubject},
+        shortcuts::TextHistories,
         style,
         widget::{Checkbox, Column, Container, PickList, Row, Text, Tooltip},
     },

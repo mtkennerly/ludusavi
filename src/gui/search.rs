@@ -2,7 +2,8 @@ use iced::Alignment;
 
 use crate::{
     gui::{
-        common::{Message, Screen, TextHistories, UndoSubject},
+        common::{Message, Screen, UndoSubject},
+        shortcuts::TextHistories,
         style,
         widget::{Checkbox, Container, PickList, Row, Text},
     },
