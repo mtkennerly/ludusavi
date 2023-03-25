@@ -8,17 +8,17 @@ use crate::{
         style,
         widget::{Checkbox, Column, Container, PickList, Row, Text, Tooltip},
     },
-    lang::Translator,
+    lang::TRANSLATOR,
     resource::{
         config::{Config, RedirectKind},
         manifest::Store,
     },
 };
 
-pub fn root<'a>(config: &Config, translator: &Translator, histories: &TextHistories) -> Container<'a> {
+pub fn root<'a>(config: &Config, histories: &TextHistories) -> Container<'a> {
     let mut content = Column::new().width(Length::Fill).spacing(5);
     if config.roots.is_empty() {
-        content = content.push(Text::new(translator.no_roots_are_configured()));
+        content = content.push(Text::new(TRANSLATOR.no_roots_are_configured()));
     } else {
         content = config.roots.iter().enumerate().fold(content, |parent, (i, root)| {
             parent.push(
@@ -85,12 +85,7 @@ pub fn redirect<'a>(config: &Config, histories: &TextHistories) -> Container<'a>
     Container::new(inner)
 }
 
-pub fn custom_games<'a>(
-    config: &Config,
-    translator: &Translator,
-    operating: bool,
-    histories: &TextHistories,
-) -> Container<'a> {
+pub fn custom_games<'a>(config: &Config, operating: bool, histories: &TextHistories) -> Container<'a> {
     if config.custom_games.is_empty() {
         return Container::new(Space::new(Length::Shrink, Length::Shrink));
     }
@@ -136,7 +131,7 @@ pub fn custom_games<'a>(
                                             },
                                             operating,
                                         ),
-                                        translator.preview_button_in_custom_mode(),
+                                        TRANSLATOR.preview_button_in_custom_mode(),
                                         tooltip::Position::Top,
                                     )
                                     .size(16)
@@ -150,7 +145,7 @@ pub fn custom_games<'a>(
                                 .push(
                                     Column::new()
                                         .width(130)
-                                        .push(Text::new(translator.custom_files_label())),
+                                        .push(Text::new(TRANSLATOR.custom_files_label())),
                                 )
                                 .push(
                                     x.files
@@ -181,7 +176,7 @@ pub fn custom_games<'a>(
                                 .push(
                                     Column::new()
                                         .width(130)
-                                        .push(Text::new(translator.custom_registry_label())),
+                                        .push(Text::new(TRANSLATOR.custom_registry_label())),
                                 )
                                 .push(
                                     x.registry
@@ -223,7 +218,7 @@ pub fn custom_games<'a>(
     Container::new(ScrollSubject::CustomGames.into_widget(content))
 }
 
-pub fn ignored_items<'a>(config: &Config, translator: &Translator, histories: &TextHistories) -> Container<'a> {
+pub fn ignored_items<'a>(config: &Config, histories: &TextHistories) -> Container<'a> {
     Container::new({
         Column::new().width(Length::Fill).height(Length::Fill).spacing(10).push(
             Container::new(
@@ -235,7 +230,7 @@ pub fn ignored_items<'a>(config: &Config, translator: &Translator, histories: &T
                             .push(
                                 Column::new()
                                     .width(100)
-                                    .push(Text::new(translator.custom_files_label())),
+                                    .push(Text::new(TRANSLATOR.custom_files_label())),
                             )
                             .push(
                                 config
@@ -267,7 +262,7 @@ pub fn ignored_items<'a>(config: &Config, translator: &Translator, histories: &T
                             .push(
                                 Column::new()
                                     .width(100)
-                                    .push(Text::new(translator.custom_registry_label())),
+                                    .push(Text::new(TRANSLATOR.custom_registry_label())),
                             )
                             .push(
                                 config

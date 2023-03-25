@@ -13,7 +13,7 @@ use crate::{
         parse::{Cli, CompletionShell, ManifestSubcommand, Subcommand},
         report::Reporter,
     },
-    lang::Translator,
+    lang::TRANSLATOR,
     prelude::{app_dir, Error, StrictPath},
     resource::{
         cache::Cache,
@@ -84,9 +84,8 @@ pub fn parse() -> Cli {
 }
 
 pub fn run(sub: Subcommand) -> Result<(), Error> {
-    let translator = Translator::default();
     let mut config = Config::load()?;
-    translator.set_language(config.language);
+    TRANSLATOR.set_language(config.language);
     let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
     let mut failed = false;
     let mut duplicate_detector = DuplicateDetector::default();
@@ -116,15 +115,11 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
         } => {
             warn_deprecations(by_steam_id);
 
-            let mut reporter = if api {
-                Reporter::json()
-            } else {
-                Reporter::standard(translator)
-            };
+            let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
             let manifest = if try_update {
                 if let Err(e) = Manifest::update_mut(&config, &mut cache, true) {
-                    eprintln!("{}", translator.handle_error(&e));
+                    eprintln!("{}", TRANSLATOR.handle_error(&e));
                 }
                 Manifest::load().unwrap_or_default()
             } else {
@@ -148,7 +143,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
 
             if !preview && !force {
                 match dialoguer::Confirm::new()
-                    .with_prompt(translator.confirm_backup(&backup_dir, backup_dir.exists(), merge, false))
+                    .with_prompt(TRANSLATOR.confirm_backup(&backup_dir, backup_dir.exists(), merge, false))
                     .interact()
                 {
                     Ok(true) => (),
@@ -308,11 +303,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
         } => {
             warn_deprecations(by_steam_id);
 
-            let mut reporter = if api {
-                Reporter::json()
-            } else {
-                Reporter::standard(translator)
-            };
+            let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
             if !Manifest::path().exists() {
                 Manifest::update_mut(&config, &mut cache, true)?;
@@ -326,7 +317,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
 
             if !preview && !force {
                 match dialoguer::Confirm::new()
-                    .with_prompt(translator.confirm_restore(&restore_dir, false))
+                    .with_prompt(TRANSLATOR.confirm_restore(&restore_dir, false))
                     .interact()
                 {
                     Ok(true) => (),
@@ -463,11 +454,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
         } => {
             warn_deprecations(by_steam_id);
 
-            let mut reporter = if api {
-                Reporter::json()
-            } else {
-                Reporter::standard(translator)
-            };
+            let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
             reporter.suppress_overall();
 
             if !Manifest::path().exists() {
@@ -519,15 +506,11 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             normalized,
             names,
         } => {
-            let mut reporter = if api {
-                Reporter::json()
-            } else {
-                Reporter::standard(translator)
-            };
+            let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
             reporter.suppress_overall();
 
             if let Err(e) = Manifest::update_mut(&config, &mut cache, false) {
-                eprintln!("{}", translator.handle_error(&e));
+                eprintln!("{}", TRANSLATOR.handle_error(&e));
             }
             let mut manifest = Manifest::load().unwrap_or_default();
 

@@ -6,7 +6,7 @@ use crate::{
         style,
         widget::{Checkbox, Container, PickList, Row, Text},
     },
-    lang::Translator,
+    lang::TRANSLATOR,
     resource::config::{Sort, SortKey},
 };
 
@@ -17,13 +17,7 @@ pub struct SearchComponent {
 }
 
 impl SearchComponent {
-    pub fn view(
-        &self,
-        screen: Screen,
-        translator: &Translator,
-        sort: &Sort,
-        histories: &TextHistories,
-    ) -> Option<Container> {
+    pub fn view(&self, screen: Screen, sort: &Sort, histories: &TextHistories) -> Option<Container> {
         if !self.show {
             return None;
         }
@@ -32,12 +26,12 @@ impl SearchComponent {
                 .padding([0, 20, 20, 20])
                 .spacing(20)
                 .align_items(Alignment::Center)
-                .push(Text::new(translator.search_label()))
+                .push(Text::new(TRANSLATOR.search_label()))
                 .push(histories.input(match screen {
                     Screen::Restore => UndoSubject::RestoreSearchGameName,
                     _ => UndoSubject::BackupSearchGameName,
                 }))
-                .push(Text::new(translator.sort_label()))
+                .push(Text::new(TRANSLATOR.sort_label()))
                 .push(
                     PickList::new(SortKey::ALL, Some(sort.key), move |value| Message::EditedSortKey {
                         screen,
@@ -46,7 +40,7 @@ impl SearchComponent {
                     .style(style::PickList::Primary),
                 )
                 .push(
-                    Checkbox::new(translator.sort_reversed(), sort.reversed, move |value| {
+                    Checkbox::new(TRANSLATOR.sort_reversed(), sort.reversed, move |value| {
                         Message::EditedSortReversed { screen, value }
                     })
                     .style(style::Checkbox),

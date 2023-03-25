@@ -7,7 +7,7 @@ use crate::{
         style,
         widget::{Button, Column, Element, Row, TextInput, Undoable},
     },
-    lang::{Language, Translator, TRANSLATOR},
+    lang::{Language, TRANSLATOR},
     prelude::{Error, StrictPath},
     resource::{
         config::{BackupFormat, Config, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
@@ -361,26 +361,25 @@ impl GameAction {
 
 impl ToString for GameAction {
     fn to_string(&self) -> String {
-        let translator = Translator::default();
         match self {
-            Self::PreviewBackup | Self::PreviewRestore => translator.preview_button(),
+            Self::PreviewBackup | Self::PreviewRestore => TRANSLATOR.preview_button(),
             Self::Backup { confirm } => {
                 if *confirm {
-                    translator.backup_button()
+                    TRANSLATOR.backup_button()
                 } else {
-                    translator.backup_button_no_confirmation()
+                    TRANSLATOR.backup_button_no_confirmation()
                 }
             }
             Self::Restore { confirm } => {
                 if *confirm {
-                    translator.restore_button()
+                    TRANSLATOR.restore_button()
                 } else {
-                    translator.restore_button_no_confirmation()
+                    TRANSLATOR.restore_button_no_confirmation()
                 }
             }
-            Self::Customize => translator.customize_button(),
-            Self::Wiki => translator.pcgamingwiki(),
-            Self::Comment => translator.comment_button(),
+            Self::Customize => TRANSLATOR.customize_button(),
+            Self::Wiki => TRANSLATOR.pcgamingwiki(),
+            Self::Comment => TRANSLATOR.comment_button(),
         }
     }
 }

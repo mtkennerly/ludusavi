@@ -1,5 +1,5 @@
 use crate::{
-    lang::Translator,
+    lang::TRANSLATOR,
     prelude::StrictPath,
     scan::{BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision, ScanChange, ScanInfo},
 };
@@ -94,7 +94,6 @@ pub struct JsonOutput {
 #[derive(Debug)]
 pub enum Reporter {
     Standard {
-        translator: Translator,
         parts: Vec<String>,
         status: Option<OperationStatus>,
     },
@@ -104,9 +103,8 @@ pub enum Reporter {
 }
 
 impl Reporter {
-    pub fn standard(translator: Translator) -> Self {
+    pub fn standard() -> Self {
         Self::Standard {
-            translator,
             parts: vec![],
             status: Some(Default::default()),
         }
@@ -171,16 +169,12 @@ impl Reporter {
         let restoring = scan_info.restoring();
 
         match self {
-            Self::Standard {
-                parts,
-                status,
-                translator,
-            } => {
+            Self::Standard { parts, status } => {
                 if !scan_info.found_anything() {
                     return true;
                 }
 
-                parts.push(translator.cli_game_header(
+                parts.push(TRANSLATOR.cli_game_header(
                     name,
                     scan_info.sum_bytes(&Some(backup_info.to_owned())),
                     decision,
@@ -192,7 +186,7 @@ impl Reporter {
                     if !entry_successful {
                         successful = false;
                     }
-                    parts.push(translator.cli_game_line_item(
+                    parts.push(TRANSLATOR.cli_game_line_item(
                         &entry.readable(restoring),
                         entry_successful,
                         entry.ignored,
@@ -203,9 +197,9 @@ impl Reporter {
 
                     if let Some(alt) = entry.alt_readable(restoring) {
                         if restoring {
-                            parts.push(translator.cli_game_line_item_redirected(&alt));
+                            parts.push(TRANSLATOR.cli_game_line_item_redirected(&alt));
                         } else {
-                            parts.push(translator.cli_game_line_item_redirecting(&alt));
+                            parts.push(TRANSLATOR.cli_game_line_item_redirecting(&alt));
                         }
                     }
                 }
@@ -214,7 +208,7 @@ impl Reporter {
                     if !entry_successful {
                         successful = false;
                     }
-                    parts.push(translator.cli_game_line_item(
+                    parts.push(TRANSLATOR.cli_game_line_item(
                         &entry.path.render(),
                         entry_successful,
                         entry.ignored,
@@ -223,7 +217,7 @@ impl Reporter {
                         false,
                     ));
                     for (value_name, value) in itertools::sorted(&entry.values) {
-                        parts.push(translator.cli_game_line_item(
+                        parts.push(TRANSLATOR.cli_game_line_item(
                             value_name,
                             true,
                             value.ignored,
@@ -403,12 +397,8 @@ impl Reporter {
 
     fn render(&self, path: &StrictPath) -> String {
         match self {
-            Self::Standard {
-                parts,
-                status,
-                translator,
-            } => match status {
-                Some(status) => parts.join("\n") + "\n" + &translator.cli_summary(status, path),
+            Self::Standard { parts, status } => match status {
+                Some(status) => parts.join("\n") + "\n" + &TRANSLATOR.cli_summary(status, path),
                 None => parts.join("\n"),
             },
             Self::Json { output } => serde_json::to_string_pretty(&output).unwrap(),
@@ -449,7 +439,7 @@ mod tests {
 
     #[test]
     fn can_render_in_standard_mode_with_minimal_input() {
-        let mut reporter = Reporter::standard(Translator::default());
+        let mut reporter = Reporter::standard();
         reporter.add_game(
             "foo",
             &ScanInfo::default(),
@@ -474,7 +464,7 @@ Overall:
 
     #[test]
     fn can_render_in_standard_mode_with_one_game_in_backup_mode() {
-        let mut reporter = Reporter::standard(Translator::default());
+        let mut reporter = Reporter::standard();
 
         reporter.add_game(
             "foo",
@@ -543,7 +533,7 @@ Overall:
 
     #[test]
     fn can_render_in_standard_mode_with_multiple_games_in_backup_mode() {
-        let mut reporter = Reporter::standard(Translator::default());
+        let mut reporter = Reporter::standard();
 
         reporter.add_game(
             "foo",
@@ -618,7 +608,7 @@ Overall:
 
     #[test]
     fn can_render_in_standard_mode_with_one_game_in_restore_mode() {
-        let mut reporter = Reporter::standard(Translator::default());
+        let mut reporter = Reporter::standard();
 
         reporter.add_game(
             "foo",
@@ -672,7 +662,7 @@ Overall:
 
     #[test]
     fn can_render_in_standard_mode_with_duplicated_entries() {
-        let mut reporter = Reporter::standard(Translator::default());
+        let mut reporter = Reporter::standard();
 
         let mut duplicate_detector = DuplicateDetector::default();
         for name in &["foo", "bar"] {
@@ -723,7 +713,7 @@ Overall:
 
     #[test]
     fn can_render_in_standard_mode_with_different_file_changes() {
-        let mut reporter = Reporter::standard(Translator::default());
+        let mut reporter = Reporter::standard();
 
         reporter.add_game(
             "foo",

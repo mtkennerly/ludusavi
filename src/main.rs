@@ -13,7 +13,7 @@ mod serialization;
 mod testing;
 
 use crate::{
-    lang::Translator,
+    lang::TRANSLATOR,
     prelude::{app_dir, CONFIG_DIR, VERSION},
 };
 
@@ -72,9 +72,8 @@ fn main() {
 
             let api = sub.api();
             if let Err(e) = cli::run(sub) {
-                let translator = Translator::default();
                 if !api {
-                    eprintln!("{}", translator.handle_error(&e));
+                    eprintln!("{}", TRANSLATOR.handle_error(&e));
                 }
                 std::process::exit(1);
             }

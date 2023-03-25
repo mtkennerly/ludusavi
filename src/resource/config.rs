@@ -1,5 +1,5 @@
 use crate::{
-    lang::Language,
+    lang::{Language, TRANSLATOR},
     prelude::{app_dir, Error, StrictPath},
     resource::{manifest::Store, ResourceFile, SaveableResourceFile},
     scan::registry_compat::RegistryItem,
@@ -52,7 +52,7 @@ impl Theme {
 
 impl ToString for Theme {
     fn to_string(&self) -> String {
-        crate::lang::Translator::default().theme_name(self)
+        TRANSLATOR.theme_name(self)
     }
 }
 
@@ -101,7 +101,7 @@ impl RedirectKind {
 
 impl ToString for RedirectKind {
     fn to_string(&self) -> String {
-        crate::lang::Translator::default().redirect_kind(self)
+        TRANSLATOR.redirect_kind(self)
     }
 }
 
@@ -264,7 +264,7 @@ impl SortKey {
 
 impl ToString for SortKey {
     fn to_string(&self) -> String {
-        crate::lang::Translator::default().sort_key(self)
+        TRANSLATOR.sort_key(self)
     }
 }
 
@@ -317,7 +317,7 @@ impl std::str::FromStr for BackupFormat {
 
 impl ToString for BackupFormat {
     fn to_string(&self) -> String {
-        crate::lang::Translator::default().backup_format(self)
+        TRANSLATOR.backup_format(self)
     }
 }
 
@@ -412,7 +412,7 @@ impl std::str::FromStr for ZipCompression {
 
 impl ToString for ZipCompression {
     fn to_string(&self) -> String {
-        crate::lang::Translator::default().backup_compression(self)
+        TRANSLATOR.backup_compression(self)
     }
 }
 

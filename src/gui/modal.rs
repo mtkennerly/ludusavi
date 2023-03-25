@@ -6,7 +6,7 @@ use crate::{
         style,
         widget::{Button, Column, Container, Row, Space, Text},
     },
-    lang::Translator,
+    lang::TRANSLATOR,
     prelude::Error,
     resource::config::{Config, RootsConfig},
 };
@@ -39,20 +39,20 @@ impl ModalTheme {
         }
     }
 
-    pub fn text(&self, config: &Config, translator: &Translator) -> String {
+    pub fn text(&self, config: &Config) -> String {
         match self {
-            Self::Error { variant } => translator.handle_error(variant),
-            Self::ConfirmBackup { .. } => translator.confirm_backup(
+            Self::Error { variant } => TRANSLATOR.handle_error(variant),
+            Self::ConfirmBackup { .. } => TRANSLATOR.confirm_backup(
                 &config.backup.path,
                 config.backup.path.exists(),
                 config.backup.merge,
                 true,
             ),
-            Self::ConfirmRestore { .. } => translator.confirm_restore(&config.restore.path, true),
-            Self::NoMissingRoots => translator.no_missing_roots(),
-            Self::ConfirmAddMissingRoots(missing) => translator.confirm_add_missing_roots(missing),
-            Self::PreparingBackupDir => translator.preparing_backup_dir(),
-            Self::UpdatingManifest => translator.updating_manifest(),
+            Self::ConfirmRestore { .. } => TRANSLATOR.confirm_restore(&config.restore.path, true),
+            Self::NoMissingRoots => TRANSLATOR.no_missing_roots(),
+            Self::ConfirmAddMissingRoots(missing) => TRANSLATOR.confirm_add_missing_roots(missing),
+            Self::PreparingBackupDir => TRANSLATOR.preparing_backup_dir(),
+            Self::UpdatingManifest => TRANSLATOR.updating_manifest(),
         }
     }
 
@@ -77,12 +77,12 @@ impl ModalTheme {
 pub struct ModalComponent {}
 
 impl ModalComponent {
-    pub fn view(&self, theme: &ModalTheme, config: &Config, translator: &Translator) -> Container {
+    pub fn view(&self, theme: &ModalTheme, config: &Config) -> Container {
         let mut positive_button = Button::new(
             Text::new(match theme.variant() {
-                ModalVariant::Loading => translator.okay_button(), // dummy
-                ModalVariant::Info => translator.okay_button(),
-                ModalVariant::Confirm => translator.continue_button(),
+                ModalVariant::Loading => TRANSLATOR.okay_button(), // dummy
+                ModalVariant::Info => TRANSLATOR.okay_button(),
+                ModalVariant::Confirm => TRANSLATOR.continue_button(),
             })
             .horizontal_alignment(HorizontalAlignment::Center),
         )
@@ -94,7 +94,7 @@ impl ModalComponent {
         }
 
         let negative_button =
-            Button::new(Text::new(translator.cancel_button()).horizontal_alignment(HorizontalAlignment::Center))
+            Button::new(Text::new(TRANSLATOR.cancel_button()).horizontal_alignment(HorizontalAlignment::Center))
                 .on_press(Message::CloseModal)
                 .width(125)
                 .style(style::Button::Negative);
@@ -122,7 +122,7 @@ impl ModalComponent {
                                         Column::new()
                                             .width(Length::Fill)
                                             .align_items(Alignment::Center)
-                                            .push(Text::new(theme.text(config, translator))),
+                                            .push(Text::new(theme.text(config))),
                                     ),
                                 )
                                 .height(Length::Fill),

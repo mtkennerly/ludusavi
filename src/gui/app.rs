@@ -10,7 +10,7 @@ use crate::{
         style,
         widget::{Button, Column, Container, Element, ProgressBar, Row, Text},
     },
-    lang::Translator,
+    lang::TRANSLATOR,
     prelude::{app_dir, Error, StrictPath},
     resource::{
         cache::Cache,
@@ -51,7 +51,6 @@ pub struct App {
     config: Config,
     manifest: Manifest,
     cache: Cache,
-    translator: Translator,
     operation: Option<OngoingOperation>,
     screen: Screen,
     modal_theme: Option<ModalTheme>,
@@ -149,7 +148,7 @@ impl App {
                 return;
             }
 
-            let msg = self.translator.notify_single_game_status(found);
+            let msg = TRANSLATOR.notify_single_game_status(found);
             self.timed_notification = Some(Notification::new(msg).expires(3));
         }
     }
@@ -531,7 +530,6 @@ impl Application for App {
     type Theme = crate::gui::style::Theme;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
-        let translator = Translator::default();
         let mut modal_theme: Option<ModalTheme> = None;
         let mut config = match Config::load() {
             Ok(x) => x,
@@ -541,7 +539,7 @@ impl Application for App {
                 Config::default()
             }
         };
-        translator.set_language(config.language);
+        TRANSLATOR.set_language(config.language);
         let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
         let manifest = match Manifest::load() {
             Ok(y) => y,
@@ -573,7 +571,6 @@ impl Application for App {
             Self {
                 backup_screen: screen::Backup::new(&config, &cache),
                 restore_screen: screen::Restore::new(&config, &cache),
-                translator,
                 config,
                 manifest,
                 cache,
@@ -595,7 +592,7 @@ impl Application for App {
     }
 
     fn title(&self) -> String {
-        self.translator.window_title()
+        TRANSLATOR.window_title()
     }
 
     fn theme(&self) -> Self::Theme {
@@ -1414,7 +1411,7 @@ impl Application for App {
                 self.start_restore(true, Some(vec![game]))
             }
             Message::SelectedLanguage(language) => {
-                self.translator.set_language(language);
+                TRANSLATOR.set_language(language);
                 self.config.language = language;
                 self.config.save();
                 Command::none()
@@ -1493,11 +1490,7 @@ impl Application for App {
 
     fn view(&self) -> Element {
         if let Some(m) = &self.modal_theme {
-            return self
-                .modal
-                .view(m, &self.config, &self.translator)
-                .style(style::Container::Primary)
-                .into();
+            return self.modal.view(m, &self.config).style(style::Container::Primary).into();
         }
 
         let content = Column::new()
@@ -1507,59 +1500,44 @@ impl Application for App {
                     .padding([2, 20, 25, 20])
                     .spacing(20)
                     .push(make_nav_button(
-                        self.translator.nav_backup_button(),
+                        TRANSLATOR.nav_backup_button(),
                         Screen::Backup,
                         self.screen,
                     ))
                     .push(make_nav_button(
-                        self.translator.nav_restore_button(),
+                        TRANSLATOR.nav_restore_button(),
                         Screen::Restore,
                         self.screen,
                     ))
                     .push(make_nav_button(
-                        self.translator.nav_custom_games_button(),
+                        TRANSLATOR.nav_custom_games_button(),
                         Screen::CustomGames,
                         self.screen,
                     ))
                     .push(make_nav_button(
-                        self.translator.nav_other_button(),
+                        TRANSLATOR.nav_other_button(),
                         Screen::Other,
                         self.screen,
                     )),
             )
             .push(match self.screen {
-                Screen::Backup => self.backup_screen.view(
-                    &self.config,
-                    &self.manifest,
-                    &self.translator,
-                    &self.operation,
-                    &self.text_histories,
-                ),
-                Screen::Restore => self.restore_screen.view(
-                    &self.config,
-                    &self.manifest,
-                    &self.translator,
-                    &self.operation,
-                    &self.text_histories,
-                ),
-                Screen::CustomGames => screen::custom_games(
-                    &self.config,
-                    &self.translator,
-                    self.operation.is_some(),
-                    &self.text_histories,
-                ),
-                Screen::Other => screen::other(
-                    self.updating_manifest,
-                    &self.config,
-                    &self.cache,
-                    &self.translator,
-                    &self.text_histories,
-                ),
+                Screen::Backup => {
+                    self.backup_screen
+                        .view(&self.config, &self.manifest, &self.operation, &self.text_histories)
+                }
+                Screen::Restore => {
+                    self.restore_screen
+                        .view(&self.config, &self.manifest, &self.operation, &self.text_histories)
+                }
+                Screen::CustomGames => {
+                    screen::custom_games(&self.config, self.operation.is_some(), &self.text_histories)
+                }
+                Screen::Other => screen::other(self.updating_manifest, &self.config, &self.cache, &self.text_histories),
             })
             .push_some(|| self.timed_notification.as_ref().map(|x| x.view()))
             .push_if(
                 || self.updating_manifest,
-                || Notification::new(self.translator.updating_manifest()).view(),
+                || Notification::new(TRANSLATOR.updating_manifest()).view(),
             )
             .push_if(
                 || self.progress.max > 1.0,

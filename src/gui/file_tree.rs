@@ -8,7 +8,7 @@ use crate::{
         style,
         widget::{Button, Checkbox, Column, Container, Row, Text},
     },
-    lang::Translator,
+    lang::TRANSLATOR,
     path::StrictPath,
     resource::config::{Config, ToggledPaths, ToggledRegistry},
     scan::{
@@ -68,15 +68,7 @@ impl FileTreeNode {
         false
     }
 
-    pub fn view(
-        &self,
-        level: u16,
-        label: String,
-        translator: &Translator,
-        game_name: &str,
-        _config: &Config,
-        restoring: bool,
-    ) -> Container {
+    pub fn view(&self, level: u16, label: String, game_name: &str, _config: &Config, restoring: bool) -> Container {
         let expanded = self.expanded;
 
         let make_enabler = || {
@@ -141,21 +133,21 @@ impl FileTreeNode {
                     .push_some(|| {
                         let badge = match self.change {
                             ScanChange::Same | ScanChange::Unknown => return None,
-                            ScanChange::New => Badge::new_entry(translator),
-                            ScanChange::Different => Badge::changed_entry(translator),
+                            ScanChange::New => Badge::new_entry(),
+                            ScanChange::Different => Badge::changed_entry(),
                         };
                         Some(badge.view())
                     })
-                    .push_if(|| self.duplicated, || Badge::new(&translator.badge_duplicated()).view())
-                    .push_if(|| !self.successful, || Badge::new(&translator.badge_failed()).view())
+                    .push_if(|| self.duplicated, || Badge::new(&TRANSLATOR.badge_duplicated()).view())
+                    .push_if(|| !self.successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
                     .push_some(|| {
                         self.scanned_file.as_ref().and_then(|scanned| {
                             let restoring = scanned.restoring();
                             scanned.alt(restoring).as_ref().map(|alt| {
                                 let msg = if restoring {
-                                    translator.badge_redirected_from(alt)
+                                    TRANSLATOR.badge_redirected_from(alt)
                                 } else {
-                                    translator.badge_redirecting_to(alt)
+                                    TRANSLATOR.badge_redirecting_to(alt)
                                 };
                                 Badge::new(&msg).view()
                             })
@@ -169,7 +161,6 @@ impl FileTreeNode {
                 return Container::new(self.nodes.get(key).unwrap().view(
                     level,
                     format!("{}/{}", label, key.raw()),
-                    translator,
                     game_name,
                     _config,
                     restoring,
@@ -226,16 +217,7 @@ impl FileTreeNode {
                 |parent, (k, v)| {
                     parent.push_if(
                         || expanded,
-                        || {
-                            v.view(
-                                level + 1,
-                                k.raw().to_string(),
-                                translator,
-                                game_name,
-                                _config,
-                                restoring,
-                            )
-                        },
+                        || v.view(level + 1, k.raw().to_string(), game_name, _config, restoring),
                     )
                 },
             ),
@@ -438,13 +420,13 @@ impl FileTree {
         Self { nodes }
     }
 
-    pub fn view(&self, translator: &Translator, game_name: &str, config: &Config, restoring: bool) -> Container {
+    pub fn view(&self, game_name: &str, config: &Config, restoring: bool) -> Container {
         Container::new(
             self.nodes
                 .iter()
                 .filter(|(_, v)| v.anything_showable())
                 .fold(Column::new().spacing(4), |parent, (k, v)| {
-                    parent.push(v.view(0, k.raw().to_string(), translator, game_name, config, restoring))
+                    parent.push(v.view(0, k.raw().to_string(), game_name, config, restoring))
                 }),
         )
     }

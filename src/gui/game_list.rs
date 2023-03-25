@@ -16,7 +16,7 @@ use crate::{
         style,
         widget::{Button, Checkbox, Column, Container, PickList, Row, Text, TextInput, Tooltip},
     },
-    lang::Translator,
+    lang::TRANSLATOR,
     resource::{
         cache::Cache,
         config::{Config, Sort, SortKey, ToggledPaths, ToggledRegistry},
@@ -41,7 +41,6 @@ impl GameListEntry {
     fn view(
         &self,
         restoring: bool,
-        translator: &Translator,
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
@@ -125,9 +124,9 @@ impl GameListEntry {
                         )
                         .push_some(|| {
                             if changes.brand_new() {
-                                Some(Badge::new_entry(translator).view())
+                                Some(Badge::new_entry().view())
                             } else if changes.updated() {
-                                Some(Badge::changed_entry(translator).view())
+                                Some(Badge::changed_entry().view())
                             } else {
                                 None
                             }
@@ -136,7 +135,7 @@ impl GameListEntry {
                             || self.scan_info.any_ignored(),
                             || {
                                 Badge::new(
-                                    &translator
+                                    &TRANSLATOR
                                         .processed_subset(self.scan_info.total_items(), self.scan_info.enabled_items()),
                                 )
                                 .view()
@@ -144,9 +143,9 @@ impl GameListEntry {
                         )
                         .push_if(
                             || duplicate_detector.is_game_duplicated(&self.scan_info),
-                            || Badge::new(&translator.badge_duplicates()).view(),
+                            || Badge::new(&TRANSLATOR.badge_duplicates()).view(),
                         )
-                        .push_if(|| !successful, || Badge::new(&translator.badge_failed()).view())
+                        .push_if(|| !successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
                         .push_some(|| {
                             self.scan_info
                                 .backup
@@ -268,7 +267,7 @@ impl GameListEntry {
                                         if summed == 0 && !self.scan_info.found_anything() {
                                             "".to_string()
                                         } else {
-                                            translator.adjusted_size(summed)
+                                            TRANSLATOR.adjusted_size(summed)
                                         }
                                     }))
                                     .width(115)
@@ -292,8 +291,8 @@ impl GameListEntry {
                             .align_items(Alignment::Center)
                             .padding([0, 20])
                             .spacing(20)
-                            .push(Text::new(translator.comment_label()))
-                            .push(TextInput::new(&translator.comment_label(), comment, move |value| {
+                            .push(Text::new(TRANSLATOR.comment_label()))
+                            .push(TextInput::new(&TRANSLATOR.comment_label(), comment, move |value| {
                                 Message::EditedBackupComment {
                                     game: name_for_comment.clone(),
                                     comment: value,
@@ -309,7 +308,7 @@ impl GameListEntry {
                     || expanded,
                     || {
                         self.tree
-                            .view(translator, &self.scan_info.game_name, config, restoring)
+                            .view(&self.scan_info.game_name, config, restoring)
                             .width(Length::Fill)
                     },
                 ),
@@ -338,7 +337,6 @@ impl GameList {
     pub fn view(
         &self,
         restoring: bool,
-        translator: &Translator,
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
@@ -353,7 +351,6 @@ impl GameList {
                 .push_some(|| {
                     self.search.view(
                         if restoring { Screen::Restore } else { Screen::Backup },
-                        translator,
                         if restoring {
                             &config.restore.sort
                         } else {
@@ -373,7 +370,6 @@ impl GameList {
                             {
                                 parent.push(x.view(
                                     restoring,
-                                    translator,
                                     config,
                                     manifest,
                                     duplicate_detector,

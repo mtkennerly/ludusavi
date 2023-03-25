@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use crate::{
+    lang::TRANSLATOR,
     prelude::{app_dir, Error, StrictPath},
     resource::{
         cache::{self, Cache},
@@ -70,7 +71,7 @@ impl Store {
 
 impl ToString for Store {
     fn to_string(&self) -> String {
-        crate::lang::Translator::default().store(self)
+        TRANSLATOR.store(self)
     }
 }
 

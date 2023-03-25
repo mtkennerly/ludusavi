@@ -12,7 +12,7 @@ use crate::{
         style,
         widget::{number_input, Button, Checkbox, Column, Container, Element, PickList, Row, Text},
     },
-    lang::{Language, Translator},
+    lang::{Language, TRANSLATOR},
     prelude::STEAM_DECK,
     resource::{
         cache::Cache,
@@ -31,25 +31,25 @@ fn template(content: Column) -> Element {
         .into()
 }
 
-fn make_status_row<'a>(translator: &Translator, status: &OperationStatus, found_any_duplicates: bool) -> Row<'a> {
+fn make_status_row<'a>(status: &OperationStatus, found_any_duplicates: bool) -> Row<'a> {
     Row::new()
         .padding([0, 20, 0, 20])
         .align_items(Alignment::Center)
         .spacing(15)
-        .push(Text::new(translator.processed_games(status)).size(35))
+        .push(Text::new(TRANSLATOR.processed_games(status)).size(35))
         .push_if(
             || status.changed_games.new > 0,
-            || Badge::new_entry_with_count(translator, status.changed_games.new).view(),
+            || Badge::new_entry_with_count(status.changed_games.new).view(),
         )
         .push_if(
             || status.changed_games.different > 0,
-            || Badge::changed_entry_with_count(translator, status.changed_games.different).view(),
+            || Badge::changed_entry_with_count(status.changed_games.different).view(),
         )
         .push(Text::new("|").size(35))
-        .push(Text::new(translator.processed_bytes(status)).size(35))
+        .push(Text::new(TRANSLATOR.processed_bytes(status)).size(35))
         .push_if(
             || found_any_duplicates,
-            || Badge::new(&translator.badge_duplicates()).view(),
+            || Badge::new(&TRANSLATOR.badge_duplicates()).view(),
         )
 }
 
@@ -73,7 +73,6 @@ impl Backup {
         &self,
         config: &Config,
         manifest: &Manifest,
-        translator: &Translator,
         operation: &Option<OngoingOperation>,
         histories: &TextHistories,
     ) -> Element {
@@ -91,7 +90,6 @@ impl Backup {
                     .push(button::search(Screen::Backup, self.log.search.show)),
             )
             .push(make_status_row(
-                translator,
                 &self.log.compute_operation_status(config, false),
                 self.duplicate_detector.any_duplicates(),
             ))
@@ -100,7 +98,7 @@ impl Backup {
                     .padding([0, 20, 0, 20])
                     .spacing(20)
                     .align_items(Alignment::Center)
-                    .push(Text::new(translator.backup_target_label()))
+                    .push(Text::new(TRANSLATOR.backup_target_label()))
                     .push(histories.input(UndoSubject::BackupTarget))
                     .push(button::settings(self.show_settings))
                     .push(button::open_folder(BrowseSubject::BackupTarget)),
@@ -115,7 +113,7 @@ impl Backup {
                         .align_items(Alignment::Center)
                         .push(
                             Checkbox::new(
-                                translator.backup_merge_label(),
+                                TRANSLATOR.backup_merge_label(),
                                 config.backup.merge,
                                 Message::EditedBackupMerge,
                             )
@@ -126,7 +124,7 @@ impl Backup {
                             || {
                                 number_input(
                                     config.backup.retention.full as i32,
-                                    translator.full_retention(),
+                                    TRANSLATOR.full_retention(),
                                     1..=255,
                                     |x| Message::EditedFullRetention(x as u8),
                                 )
@@ -137,7 +135,7 @@ impl Backup {
                             || {
                                 number_input(
                                     config.backup.retention.differential as i32,
-                                    translator.differential_retention(),
+                                    TRANSLATOR.differential_retention(),
                                     0..=255,
                                     |x| Message::EditedDiffRetention(x as u8),
                                 )
@@ -156,7 +154,7 @@ impl Backup {
                             Row::new()
                                 .spacing(5)
                                 .align_items(Alignment::Center)
-                                .push(Text::new(translator.backup_format_field()))
+                                .push(Text::new(TRANSLATOR.backup_format_field()))
                                 .push(
                                     PickList::new(
                                         BackupFormat::ALL,
@@ -172,7 +170,7 @@ impl Backup {
                                 Row::new()
                                     .spacing(5)
                                     .align_items(Alignment::Center)
-                                    .push(Text::new(translator.backup_compression_field()))
+                                    .push(Text::new(TRANSLATOR.backup_compression_field()))
                                     .push(
                                         PickList::new(
                                             ZipCompression::ALL,
@@ -186,7 +184,7 @@ impl Backup {
                         .push_some(|| match (config.backup.format.level(), config.backup.format.range()) {
                             (Some(level), Some(range)) => Some(number_input(
                                 level,
-                                translator.backup_compression_level_field(),
+                                TRANSLATOR.backup_compression_level_field(),
                                 range,
                                 Message::EditedCompressionLevel,
                             )),
@@ -194,15 +192,10 @@ impl Backup {
                         })
                 },
             )
-            .push(self.log.view(
-                false,
-                translator,
-                config,
-                manifest,
-                &self.duplicate_detector,
-                operation,
-                histories,
-            ));
+            .push(
+                self.log
+                    .view(false, config, manifest, &self.duplicate_detector, operation, histories),
+            );
 
         template(content)
     }
@@ -226,7 +219,6 @@ impl Restore {
         &self,
         config: &Config,
         manifest: &Manifest,
-        translator: &Translator,
         operation: &Option<OngoingOperation>,
         histories: &TextHistories,
     ) -> Element {
@@ -247,7 +239,6 @@ impl Restore {
                     .push(button::search(Screen::Restore, self.log.search.show)),
             )
             .push(make_status_row(
-                translator,
                 &self.log.compute_operation_status(config, true),
                 self.duplicate_detector.any_duplicates(),
             ))
@@ -256,30 +247,20 @@ impl Restore {
                     .padding([0, 20, 0, 20])
                     .spacing(20)
                     .align_items(Alignment::Center)
-                    .push(Text::new(translator.restore_source_label()))
+                    .push(Text::new(TRANSLATOR.restore_source_label()))
                     .push(histories.input(UndoSubject::RestoreSource))
                     .push(button::open_folder(BrowseSubject::RestoreSource)),
             )
-            .push(self.log.view(
-                true,
-                translator,
-                config,
-                manifest,
-                &self.duplicate_detector,
-                operation,
-                histories,
-            ));
+            .push(
+                self.log
+                    .view(true, config, manifest, &self.duplicate_detector, operation, histories),
+            );
 
         template(content)
     }
 }
 
-pub fn custom_games<'a>(
-    config: &Config,
-    translator: &Translator,
-    operating: bool,
-    histories: &TextHistories,
-) -> Element<'a> {
+pub fn custom_games<'a>(config: &Config, operating: bool, histories: &TextHistories) -> Element<'a> {
     let content = Column::new()
         .push(
             Row::new()
@@ -289,18 +270,12 @@ pub fn custom_games<'a>(
                 .push(button::add_game())
                 .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled())),
         )
-        .push(editor::custom_games(config, translator, operating, histories));
+        .push(editor::custom_games(config, operating, histories));
 
     template(content)
 }
 
-pub fn other<'a>(
-    updating_manifest: bool,
-    config: &Config,
-    cache: &Cache,
-    translator: &Translator,
-    histories: &TextHistories,
-) -> Element<'a> {
+pub fn other<'a>(updating_manifest: bool, config: &Config, cache: &Cache, histories: &TextHistories) -> Element<'a> {
     let content = Column::new()
         .push_if(
             || *STEAM_DECK,
@@ -311,7 +286,7 @@ pub fn other<'a>(
                     .align_items(iced::Alignment::Center)
                     .push(
                         Button::new(
-                            Text::new(translator.exit_button())
+                            Text::new(TRANSLATOR.exit_button())
                                 .horizontal_alignment(iced::alignment::Horizontal::Center),
                         )
                         .on_press(Message::Exit)
@@ -329,7 +304,7 @@ pub fn other<'a>(
                     Row::new()
                         .align_items(iced::Alignment::Center)
                         .spacing(20)
-                        .push(Text::new(translator.field_language()))
+                        .push(Text::new(TRANSLATOR.field_language()))
                         .push(
                             PickList::new(Language::ALL, Some(config.language), Message::SelectedLanguage)
                                 .style(style::PickList::Primary),
@@ -339,7 +314,7 @@ pub fn other<'a>(
                     Row::new()
                         .align_items(iced::Alignment::Center)
                         .spacing(20)
-                        .push(Text::new(translator.field_theme()))
+                        .push(Text::new(TRANSLATOR.field_theme()))
                         .push(
                             PickList::new(Theme::ALL, Some(config.theme), Message::SelectedTheme)
                                 .style(style::PickList::Primary),
@@ -347,7 +322,7 @@ pub fn other<'a>(
                 )
                 .push(
                     Checkbox::new(
-                        translator.explanation_for_exclude_store_screenshots(),
+                        TRANSLATOR.explanation_for_exclude_store_screenshots(),
                         config.backup.filter.exclude_store_screenshots,
                         Message::EditedExcludeStoreScreenshots,
                     )
@@ -359,7 +334,7 @@ pub fn other<'a>(
                         .push(
                             Row::new()
                                 .align_items(iced::Alignment::Center)
-                                .push(Text::new(translator.manifest_label()).width(100))
+                                .push(Text::new(TRANSLATOR.manifest_label()).width(100))
                                 .push(button::refresh(Message::UpdateManifest, updating_manifest)),
                         )
                         .push_some(|| {
@@ -384,13 +359,13 @@ pub fn other<'a>(
                                         .push(
                                             Row::new()
                                                 .align_items(iced::Alignment::Center)
-                                                .push(Container::new(Text::new(translator.checked_label())).width(100))
+                                                .push(Container::new(Text::new(TRANSLATOR.checked_label())).width(100))
                                                 .push(Container::new(Text::new(checked))),
                                         )
                                         .push(
                                             Row::new()
                                                 .align_items(iced::Alignment::Center)
-                                                .push(Container::new(Text::new(translator.updated_label())).width(100))
+                                                .push(Container::new(Text::new(TRANSLATOR.updated_label())).width(100))
                                                 .push(Container::new(Text::new(updated))),
                                         ),
                                 )
@@ -399,24 +374,24 @@ pub fn other<'a>(
                         }),
                 )
                 .push(
-                    Column::new().spacing(5).push(Text::new(translator.roots_label())).push(
+                    Column::new().spacing(5).push(Text::new(TRANSLATOR.roots_label())).push(
                         Container::new(
                             Column::new()
                                 .padding(5)
                                 .spacing(4)
-                                .push(editor::root(config, translator, histories)),
+                                .push(editor::root(config, histories)),
                         )
                         .style(style::Container::GameListEntry),
                     ),
                 )
                 .push(
                     Column::new()
-                        .push(Text::new(translator.ignored_items_label()))
-                        .push(editor::ignored_items(config, translator, histories).padding([10, 0, 0, 0])),
+                        .push(Text::new(TRANSLATOR.ignored_items_label()))
+                        .push(editor::ignored_items(config, histories).padding([10, 0, 0, 0])),
                 )
                 .push(
                     Column::new()
-                        .push(Text::new(translator.redirects_label()))
+                        .push(Text::new(TRANSLATOR.redirects_label()))
                         .push(editor::redirect(config, histories).padding([10, 0, 0, 0])),
                 );
             ScrollSubject::Other.into_widget(content)
