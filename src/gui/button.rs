@@ -158,6 +158,28 @@ pub fn add_game<'a>() -> Element<'a> {
     )
 }
 
+pub fn nav<'a>(screen: Screen, current_screen: Screen) -> Button<'a> {
+    let text = match screen {
+        Screen::Backup => TRANSLATOR.nav_backup_button(),
+        Screen::Restore => TRANSLATOR.nav_restore_button(),
+        Screen::CustomGames => TRANSLATOR.nav_custom_games_button(),
+        Screen::Other => TRANSLATOR.nav_other_button(),
+    };
+
+    Button::new(
+        Text::new(text)
+            .size(16)
+            .horizontal_alignment(alignment::Horizontal::Center),
+    )
+    .on_press(Message::SwitchScreen(screen))
+    .padding([5, 20, 5, 20])
+    .style(if current_screen == screen {
+        style::Button::NavButtonActive
+    } else {
+        style::Button::NavButtonInactive
+    })
+}
+
 pub fn operation<'a>(action: OngoingOperation, ongoing: Option<OngoingOperation>) -> Element<'a> {
     use OngoingOperation::*;
 

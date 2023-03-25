@@ -1,14 +1,15 @@
-use iced::{alignment::Horizontal as HorizontalAlignment, executor, Alignment, Application, Command, Subscription};
+use iced::{executor, Alignment, Application, Command, Subscription};
 
 use crate::{
     gui::{
+        button,
         common::*,
         modal::{ModalComponent, ModalTheme},
         notification::Notification,
         screen,
         shortcuts::{Shortcut, TextHistory},
         style,
-        widget::{Button, Column, Container, Element, ProgressBar, Row, Text},
+        widget::{Column, Container, Element, ProgressBar, Row},
     },
     lang::TRANSLATOR,
     prelude::{app_dir, Error, StrictPath},
@@ -24,21 +25,6 @@ use crate::{
         SteamShortcuts, TitleFinder,
     },
 };
-
-fn make_nav_button<'a>(text: String, screen: Screen, current_screen: Screen) -> Button<'a> {
-    Button::new(
-        Text::new(text)
-            .size(16)
-            .horizontal_alignment(HorizontalAlignment::Center),
-    )
-    .on_press(Message::SwitchScreen(screen))
-    .padding([5, 20, 5, 20])
-    .style(if current_screen == screen {
-        style::Button::NavButtonActive
-    } else {
-        style::Button::NavButtonInactive
-    })
-}
 
 #[derive(Default)]
 struct Progress {
@@ -1499,26 +1485,10 @@ impl Application for App {
                 Row::new()
                     .padding([2, 20, 25, 20])
                     .spacing(20)
-                    .push(make_nav_button(
-                        TRANSLATOR.nav_backup_button(),
-                        Screen::Backup,
-                        self.screen,
-                    ))
-                    .push(make_nav_button(
-                        TRANSLATOR.nav_restore_button(),
-                        Screen::Restore,
-                        self.screen,
-                    ))
-                    .push(make_nav_button(
-                        TRANSLATOR.nav_custom_games_button(),
-                        Screen::CustomGames,
-                        self.screen,
-                    ))
-                    .push(make_nav_button(
-                        TRANSLATOR.nav_other_button(),
-                        Screen::Other,
-                        self.screen,
-                    )),
+                    .push(button::nav(Screen::Backup, self.screen))
+                    .push(button::nav(Screen::Restore, self.screen))
+                    .push(button::nav(Screen::CustomGames, self.screen))
+                    .push(button::nav(Screen::Other, self.screen)),
             )
             .push(match self.screen {
                 Screen::Backup => {
