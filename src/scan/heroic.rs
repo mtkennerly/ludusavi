@@ -1,6 +1,10 @@
 use std::collections::HashMap;
 
-use crate::{config::RootsConfig, manifest::Store, prelude::StrictPath, scan::TitleFinder};
+use crate::{
+    prelude::StrictPath,
+    resource::{config::RootsConfig, manifest::Store},
+    scan::TitleFinder,
+};
 
 //
 /// Deserialization of Heroic gog_store/installed.json
@@ -356,7 +360,10 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use super::*;
-    use crate::{manifest::Manifest, resource::ResourceFile, testing::repo};
+    use crate::{
+        resource::{manifest::Manifest, ResourceFile},
+        testing::repo,
+    };
 
     fn manifest() -> Manifest {
         Manifest::load_from_string(

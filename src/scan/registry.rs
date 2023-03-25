@@ -3,8 +3,8 @@ use std::collections::HashSet;
 use winreg::types::{FromRegValue, ToRegValue};
 
 use crate::{
-    config::{BackupFilter, ToggledRegistry},
     prelude::{Error, StrictPath},
+    resource::config::{BackupFilter, ToggledRegistry},
     scan::{RegistryItem, ScanChange, ScannedRegistry, ScannedRegistryValue, ScannedRegistryValues},
 };
 

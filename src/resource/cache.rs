@@ -1,9 +1,12 @@
 use std::collections::{BTreeSet, HashMap};
 
 use crate::{
-    config::{Config, RootsConfig},
     prelude::{app_dir, StrictPath},
-    resource::{ResourceFile, SaveableResourceFile},
+    resource::{
+        config::{Config, RootsConfig},
+        manifest::{self, ManifestUpdate},
+        ResourceFile, SaveableResourceFile,
+    },
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -67,7 +70,7 @@ impl Cache {
                 .entry(config.manifest.url.clone())
                 .or_insert_with(Default::default);
             manifest.etag = Some(etag);
-            if let Some(modified) = crate::manifest::Manifest::modified() {
+            if let Some(modified) = manifest::Manifest::modified() {
                 manifest.checked = Some(modified);
                 manifest.updated = Some(modified);
             }
@@ -97,7 +100,7 @@ impl Cache {
         self
     }
 
-    pub fn update_manifest(&mut self, update: crate::manifest::ManifestUpdate) {
+    pub fn update_manifest(&mut self, update: ManifestUpdate) {
         let mut cached = self.manifests.entry(update.url).or_insert_with(Default::default);
         cached.etag = update.etag;
         cached.checked = Some(update.timestamp);

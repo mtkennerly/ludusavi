@@ -6,8 +6,8 @@ use std::{
 use chrono::{Datelike, Timelike};
 
 use crate::{
-    config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
     path::StrictPath,
+    resource::config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
     scan::{game_file_target, BackupId, BackupInfo, ScanChange, ScanInfo, ScannedFile, ScannedRegistry},
 };
 
@@ -950,7 +950,7 @@ impl GameLayout {
 
         #[cfg(target_os = "windows")]
         {
-            use crate::registry::Hives;
+            use crate::scan::registry::Hives;
             let hives = Hives::incorporated(&scan.found_registry_keys);
             if !hives.is_empty() {
                 registry.hash = Some(crate::prelude::sha1(hives.serialize()));
@@ -989,7 +989,7 @@ impl GameLayout {
 
         #[cfg(target_os = "windows")]
         {
-            use crate::registry::Hives;
+            use crate::scan::registry::Hives;
             let hives = Hives::incorporated(&scan.found_registry_keys);
             if !hives.is_empty() {
                 registry = Some(IndividualMappingRegistry {
@@ -1060,7 +1060,7 @@ impl GameLayout {
 
         #[cfg(target_os = "windows")]
         {
-            use crate::registry::Hives;
+            use crate::scan::registry::Hives;
             let target_registry_file = self.registry_file_in(backup.name());
 
             if backup.includes_registry() {
@@ -1212,7 +1212,7 @@ impl GameLayout {
 
         #[cfg(target_os = "windows")]
         {
-            use crate::registry::Hives;
+            use crate::scan::registry::Hives;
 
             if backup.includes_registry() {
                 let hives = Hives::incorporated(&scan.found_registry_keys);
@@ -1361,7 +1361,7 @@ impl GameLayout {
 
         #[cfg(target_os = "windows")]
         {
-            use crate::registry::Hives;
+            use crate::scan::registry::Hives;
 
             if let Some(backup) = scan.backup.as_ref() {
                 if let Some(registry_content) = self.registry_content(&backup.id()) {

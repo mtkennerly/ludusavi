@@ -1,8 +1,7 @@
 use crate::{
     lang::Language,
-    manifest::Store,
     prelude::{app_dir, Error, StrictPath},
-    resource::{ResourceFile, SaveableResourceFile},
+    resource::{manifest::Store, ResourceFile, SaveableResourceFile},
     scan::registry_compat::RegistryItem,
 };
 

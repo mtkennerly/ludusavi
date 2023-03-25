@@ -4,7 +4,7 @@ use iced::{
 };
 use iced_style::menu;
 
-use crate::{config, scan::ScanChange};
+use crate::{resource::config, scan::ScanChange};
 
 macro_rules! rgb8 {
     ($r:expr, $g:expr, $b:expr) => {

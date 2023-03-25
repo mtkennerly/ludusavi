@@ -9,21 +9,22 @@ use rayon::{
 };
 
 use crate::{
-    cache::Cache,
     cli::{
         parse::{Cli, CompletionShell, ManifestSubcommand, Subcommand},
         report::Reporter,
     },
-    config::{Config, SortKey},
-    heroic::HeroicGames,
     lang::Translator,
-    layout::BackupLayout,
-    manifest::Manifest,
     prelude::{app_dir, Error, StrictPath},
-    resource::ResourceFile,
+    resource::{
+        cache::Cache,
+        config::{Config, SortKey},
+        manifest::Manifest,
+        ResourceFile,
+    },
     scan::{
-        back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId,
-        DuplicateDetector, InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
+        back_up_game, heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, scan_game_for_backup,
+        scan_game_for_restoration, BackupId, DuplicateDetector, InstallDirRanking, OperationStepDecision,
+        SteamShortcuts, TitleFinder,
     },
 };
 

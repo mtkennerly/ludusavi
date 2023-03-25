@@ -1,13 +1,13 @@
 use iced::Alignment;
 
 use crate::{
-    config::{Sort, SortKey},
     gui::{
         common::{Message, Screen, TextHistories, UndoSubject},
         style,
         widget::{Checkbox, Container, PickList, Row, Text},
     },
     lang::Translator,
+    resource::config::{Sort, SortKey},
 };
 
 #[derive(Default)]

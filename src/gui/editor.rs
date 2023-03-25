@@ -2,7 +2,6 @@ use iced::{widget::Space, Alignment, Length};
 use iced_native::widget::tooltip;
 
 use crate::{
-    config::Config,
     gui::{
         button,
         common::{BrowseSubject, Message, ScrollSubject, TextHistories, UndoSubject},
@@ -10,7 +9,10 @@ use crate::{
         widget::{Checkbox, Column, Container, PickList, Row, Text, Tooltip},
     },
     lang::Translator,
-    resource::{config::RedirectKind, manifest::Store},
+    resource::{
+        config::{Config, RedirectKind},
+        manifest::Store,
+    },
 };
 
 pub fn root<'a>(config: &Config, translator: &Translator, histories: &TextHistories) -> Container<'a> {

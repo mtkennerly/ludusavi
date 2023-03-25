@@ -11,15 +11,21 @@ use rayon::prelude::*;
 use regex::Regex;
 
 use crate::{
-    config::{BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry},
-    heroic::HeroicGames,
-    layout::{Backup, BackupLayout, GameLayout, LatestBackup},
-    manifest::{Game, Manifest, Os, Store},
     path::StrictPath,
     prelude::{
         filter_map_walkdir, AnyError, Error, CASE_INSENSITIVE_OS, INVALID_FILE_CHARS, LINUX, MAC, SKIP, WINDOWS,
     },
-    registry_compat::RegistryItem,
+    resource::{
+        config::{
+            BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry,
+        },
+        manifest::{Game, Manifest, Os, Store},
+    },
+    scan::{
+        heroic::HeroicGames,
+        layout::{Backup, BackupLayout, GameLayout, LatestBackup},
+        registry_compat::RegistryItem,
+    },
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize)]
@@ -793,7 +799,7 @@ impl InstallDirRanking {
         })
     }
 
-    pub fn scan(roots: &[RootsConfig], manifest: &crate::manifest::Manifest, subjects: &[String]) -> Self {
+    pub fn scan(roots: &[RootsConfig], manifest: &Manifest, subjects: &[String]) -> Self {
         let mut ranking = Self::default();
         for root in roots {
             if root.store == Store::Heroic {
@@ -805,7 +811,7 @@ impl InstallDirRanking {
         ranking
     }
 
-    fn scan_root(&mut self, root: &RootsConfig, manifest: &crate::manifest::Manifest, subjects: &[String]) {
+    fn scan_root(&mut self, root: &RootsConfig, manifest: &Manifest, subjects: &[String]) {
         log::debug!("ranking installations for {:?}: {}", root.store, root.path.raw());
 
         let install_parent = match root.store {
@@ -1142,7 +1148,7 @@ pub fn scan_game_for_backup(
     {
         if let Some(registry) = &game.registry {
             let previous_registry = match previous.map(|x| x.registry_content) {
-                Some(Some(content)) => crate::registry::Hives::deserialize(&content),
+                Some(Some(content)) => registry::Hives::deserialize(&content),
                 _ => None,
             };
 
@@ -1170,7 +1176,7 @@ pub fn scan_game_for_backup(
                 for candidate in candidates {
                     log::trace!("[{name}] checking registry: {candidate}");
                     for scanned in
-                        crate::registry::scan_registry(name, &candidate, filter, ignored_registry, &previous_registry)
+                        registry::scan_registry(name, &candidate, filter, ignored_registry, &previous_registry)
                             .unwrap_or_default()
                     {
                         log::debug!("[{name}] found registry: {}", scanned.path.raw());
@@ -1247,10 +1253,10 @@ pub fn scan_game_for_restoration(
     #[cfg(target_os = "windows")]
     {
         if let Some(registry_content) = layout.registry_content(&id) {
-            if let Some(hives) = crate::registry::Hives::deserialize(&registry_content) {
+            if let Some(hives) = registry::Hives::deserialize(&registry_content) {
                 for (hive_name, keys) in hives.0.iter() {
                     for (key_name, entries) in keys.0.iter() {
-                        let live_entries = crate::registry::try_read_registry_key(hive_name, key_name);
+                        let live_entries = registry::try_read_registry_key(hive_name, key_name);
                         let mut live_values = ScannedRegistryValues::new();
 
                         for (entry_name, entry) in entries.0.iter() {
@@ -1849,14 +1855,16 @@ mod tests {
     use super::*;
     #[cfg(target_os = "windows")]
     use crate::{
-        config::ToggledRegistryEntry,
-        layout::{BackupLayout, IndividualMappingRegistry},
+        resource::config::ToggledRegistryEntry,
+        scan::layout::{BackupLayout, IndividualMappingRegistry},
     };
     use crate::{
-        config::{Config, Retention},
-        layout::{FullBackup, IndividualMapping, IndividualMappingFile},
-        manifest::Manifest,
-        resource::ResourceFile,
+        resource::{
+            config::{Config, Retention},
+            manifest::Manifest,
+            ResourceFile,
+        },
+        scan::layout::{FullBackup, IndividualMapping, IndividualMappingFile},
         testing::{repo, s, *},
     };
 

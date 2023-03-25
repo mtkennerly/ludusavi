@@ -8,9 +8,11 @@ use regex::Regex;
 use unic_langid::LanguageIdentifier;
 
 use crate::{
-    config::{BackupFormat, RedirectKind, SortKey, Theme, ZipCompression},
-    manifest::Store,
     prelude::{Error, StrictPath, VARIANT, VERSION},
+    resource::{
+        config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
+        manifest::Store,
+    },
     scan::{OperationStatus, OperationStepDecision, ScanChange, ScanChangeCount},
 };
 
@@ -523,7 +525,7 @@ impl Translator {
         translate("updating-manifest")
     }
 
-    pub fn confirm_add_missing_roots(&self, roots: &[crate::config::RootsConfig]) -> String {
+    pub fn confirm_add_missing_roots(&self, roots: &[RootsConfig]) -> String {
         use std::fmt::Write;
         let mut msg = translate("confirm-add-missing-roots") + "\n";
 

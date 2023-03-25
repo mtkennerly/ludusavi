@@ -1,8 +1,8 @@
 use std::path::PathBuf;
 
 use crate::{
-    config::{BackupFormat, Sort, SortKey, ZipCompression},
     prelude::StrictPath,
+    resource::config::{BackupFormat, Sort, SortKey, ZipCompression},
 };
 
 fn parse_strict_path(path: &str) -> StrictPath {

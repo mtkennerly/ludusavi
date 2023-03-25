@@ -1,7 +1,6 @@
 use iced::Length;
 
 use crate::{
-    config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
     gui::{
         icon::Icon,
         shortcuts::{Shortcut, TextHistory},
@@ -9,11 +8,16 @@ use crate::{
         widget::{Button, Column, Element, Row, TextInput, Undoable},
     },
     lang::{Language, Translator, TRANSLATOR},
-    layout::{Backup, GameLayout},
-    manifest::{ManifestUpdate, Store},
     prelude::{Error, StrictPath},
-    resource::config::Config,
-    scan::{registry_compat::RegistryItem, BackupInfo, OperationStepDecision, ScanInfo},
+    resource::{
+        config::{BackupFormat, Config, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
+        manifest::{ManifestUpdate, Store},
+    },
+    scan::{
+        layout::{Backup, GameLayout},
+        registry_compat::RegistryItem,
+        BackupInfo, OperationStepDecision, ScanInfo,
+    },
 };
 
 #[derive(Debug, Clone)]

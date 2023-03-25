@@ -1,7 +1,6 @@
 use iced::{Alignment, Length};
 
 use crate::{
-    config::{Config, ToggledPaths, ToggledRegistry},
     gui::{
         badge::Badge,
         common::{IcedExtension, Message, TreeNodeKey},
@@ -11,6 +10,7 @@ use crate::{
     },
     lang::Translator,
     path::StrictPath,
+    resource::config::{Config, ToggledPaths, ToggledRegistry},
     scan::{
         registry_compat::RegistryItem, BackupInfo, DuplicateDetector, ScanChange, ScanInfo, ScannedFile,
         ScannedRegistryValues,

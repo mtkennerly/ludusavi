@@ -12,13 +12,9 @@ mod serialization;
 #[cfg(test)]
 mod testing;
 
-#[cfg(target_os = "windows")]
-use crate::scan::registry;
 use crate::{
     lang::Translator,
     prelude::{app_dir, CONFIG_DIR, VERSION},
-    resource::{cache, config, manifest},
-    scan::{heroic, layout, registry_compat},
 };
 
 /// The logger must be assigned to a variable because we're using async logging.

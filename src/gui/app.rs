@@ -1,8 +1,6 @@
 use iced::{alignment::Horizontal as HorizontalAlignment, executor, Alignment, Application, Command, Subscription};
 
 use crate::{
-    cache::Cache,
-    config::{Config, CustomGame, RootsConfig},
     gui::{
         common::*,
         modal::{ModalComponent, ModalTheme},
@@ -12,16 +10,18 @@ use crate::{
         style,
         widget::{Button, Column, Container, Element, ProgressBar, Row, Text},
     },
-    heroic::HeroicGames,
     lang::Translator,
-    layout::BackupLayout,
-    manifest::{Manifest, Store},
     prelude::{app_dir, Error, StrictPath},
-    registry_compat::RegistryItem,
-    resource::{ResourceFile, SaveableResourceFile},
+    resource::{
+        cache::Cache,
+        config::{Config, CustomGame, RootsConfig},
+        manifest::{Manifest, Store},
+        ResourceFile, SaveableResourceFile,
+    },
     scan::{
-        back_up_game, prepare_backup_target, scan_game_for_backup, scan_game_for_restoration, BackupId,
-        InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
+        back_up_game, heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, registry_compat::RegistryItem,
+        scan_game_for_backup, scan_game_for_restoration, BackupId, InstallDirRanking, OperationStepDecision,
+        SteamShortcuts, TitleFinder,
     },
 };
 

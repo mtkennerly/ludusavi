@@ -1,10 +1,12 @@
 use std::collections::{BTreeMap, HashMap};
 
 use crate::{
-    cache::{self, Cache},
-    config::{Config, CustomGame, ManifestConfig},
     prelude::{app_dir, Error, StrictPath},
-    resource::{ResourceFile, SaveableResourceFile},
+    resource::{
+        cache::{self, Cache},
+        config::{Config, CustomGame, ManifestConfig},
+        ResourceFile, SaveableResourceFile,
+    },
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

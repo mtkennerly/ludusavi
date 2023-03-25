@@ -1,7 +1,6 @@
 use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
 
 use crate::{
-    config::{Config, RootsConfig},
     gui::{
         common::{Message, ScrollSubject},
         style,
@@ -9,6 +8,7 @@ use crate::{
     },
     lang::Translator,
     prelude::Error,
+    resource::config::{Config, RootsConfig},
 };
 
 pub enum ModalVariant {

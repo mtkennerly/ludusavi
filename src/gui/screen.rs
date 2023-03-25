@@ -1,7 +1,6 @@
 use iced::{Alignment, Length};
 
 use crate::{
-    config::Config,
     gui::{
         badge::Badge,
         button,
@@ -17,7 +16,7 @@ use crate::{
     prelude::STEAM_DECK,
     resource::{
         cache::Cache,
-        config::{BackupFormat, Theme, ZipCompression},
+        config::{BackupFormat, Config, Theme, ZipCompression},
         manifest::Manifest,
     },
     scan::{DuplicateDetector, OperationStatus},

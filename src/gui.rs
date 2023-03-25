@@ -1,20 +1,20 @@
-pub mod app;
-pub mod badge;
+mod app;
+mod badge;
 mod button;
-pub mod common;
+mod common;
 mod editor;
-pub mod file_tree;
-pub mod game_list;
-pub mod icon;
-pub mod modal;
-pub mod notification;
-pub mod popup_menu;
+mod file_tree;
+mod game_list;
+mod icon;
+mod modal;
+mod notification;
+mod popup_menu;
 mod screen;
-pub mod search;
-pub mod shortcuts;
-pub mod style;
-pub mod undoable;
-pub mod widget;
+mod search;
+mod shortcuts;
+mod style;
+mod undoable;
+mod widget;
 
 use iced::Application;
 
