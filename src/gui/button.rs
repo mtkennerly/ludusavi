@@ -2,10 +2,10 @@ use iced::alignment;
 
 use crate::{
     gui::{
-        common::{BrowseSubject, EditAction, IcedButtonExt, Message, OngoingOperation, Screen},
+        common::{BrowseSubject, EditAction, Message, OngoingOperation, Screen},
         icon::Icon,
         style,
-        widget::{Button, Element, Text},
+        widget::{Button, Element, IcedButtonExt, Text},
     },
     lang::TRANSLATOR,
 };

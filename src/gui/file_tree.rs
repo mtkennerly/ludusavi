@@ -3,10 +3,10 @@ use iced::{Alignment, Length};
 use crate::{
     gui::{
         badge::Badge,
-        common::{IcedExtension, Message, TreeNodeKey},
+        common::{Message, TreeNodeKey},
         icon::Icon,
         style,
-        widget::{Button, Checkbox, Column, Container, Row, Text},
+        widget::{Button, Checkbox, Column, Container, IcedParentExt, Row, Text},
     },
     lang::TRANSLATOR,
     path::StrictPath,

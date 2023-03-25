@@ -7,14 +7,14 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{
-            GameAction, IcedButtonExt, IcedExtension, Message, OngoingOperation, Screen, ScrollSubject, TextHistories,
-        },
+        common::{GameAction, Message, OngoingOperation, Screen, ScrollSubject, TextHistories},
         file_tree::FileTree,
         icon::Icon,
         search::SearchComponent,
         style,
-        widget::{Button, Checkbox, Column, Container, PickList, Row, Text, TextInput, Tooltip},
+        widget::{
+            Button, Checkbox, Column, Container, IcedButtonExt, IcedParentExt, PickList, Row, Text, TextInput, Tooltip,
+        },
     },
     lang::TRANSLATOR,
     resource::{

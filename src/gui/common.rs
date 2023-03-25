@@ -5,7 +5,7 @@ use crate::{
         icon::Icon,
         shortcuts::{Shortcut, TextHistory},
         style,
-        widget::{Button, Column, Element, Row, TextInput, Undoable},
+        widget::{Element, TextInput, Undoable},
     },
     lang::{Language, TRANSLATOR},
     prelude::{Error, StrictPath},
@@ -600,86 +600,6 @@ pub fn apply_shortcut_to_string_field(shortcut: &Shortcut, config: &mut String, 
         }
         Shortcut::Redo => {
             *config = history.redo();
-        }
-    }
-}
-
-pub trait IcedExtension<'a> {
-    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
-    where
-        E: Into<Element<'a>>;
-
-    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
-    where
-        E: Into<Element<'a>>;
-}
-
-impl<'a> IcedExtension<'a> for Column<'a> {
-    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
-    where
-        E: Into<Element<'a>>,
-    {
-        if condition() {
-            self.push(element().into())
-        } else {
-            self
-        }
-    }
-
-    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
-    where
-        E: Into<Element<'a>>,
-    {
-        if let Some(element) = element() {
-            self.push(element.into())
-        } else {
-            self
-        }
-    }
-}
-
-impl<'a> IcedExtension<'a> for Row<'a> {
-    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
-    where
-        E: Into<Element<'a>>,
-    {
-        if condition() {
-            self.push(element().into())
-        } else {
-            self
-        }
-    }
-
-    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
-    where
-        E: Into<Element<'a>>,
-    {
-        if let Some(element) = element() {
-            self.push(element.into())
-        } else {
-            self
-        }
-    }
-}
-
-pub trait IcedButtonExt<'a> {
-    fn on_press_if(self, condition: impl FnOnce() -> bool, msg: impl FnOnce() -> Message) -> Self;
-    fn on_press_some(self, msg: Option<Message>) -> Self;
-}
-
-impl<'a> IcedButtonExt<'a> for Button<'a> {
-    fn on_press_if(self, condition: impl FnOnce() -> bool, msg: impl FnOnce() -> Message) -> Self {
-        if condition() {
-            self.on_press(msg())
-        } else {
-            self
-        }
-    }
-
-    fn on_press_some(self, msg: Option<Message>) -> Self {
-        match msg {
-            Some(msg) => self.on_press(msg),
-            None => self,
         }
     }
 }

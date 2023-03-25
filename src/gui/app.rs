@@ -9,7 +9,7 @@ use crate::{
         screen,
         shortcuts::{Shortcut, TextHistory},
         style,
-        widget::{Column, Container, Element, ProgressBar, Row},
+        widget::{Column, Container, Element, IcedParentExt, ProgressBar, Row},
     },
     lang::TRANSLATOR,
     prelude::{app_dir, Error, StrictPath},

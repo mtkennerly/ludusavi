@@ -4,13 +4,11 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{
-            BrowseSubject, IcedExtension, Message, OngoingOperation, Screen, ScrollSubject, TextHistories, UndoSubject,
-        },
+        common::{BrowseSubject, Message, OngoingOperation, Screen, ScrollSubject, TextHistories, UndoSubject},
         editor,
         game_list::GameList,
         style,
-        widget::{number_input, Button, Checkbox, Column, Container, Element, PickList, Row, Text},
+        widget::{number_input, Button, Checkbox, Column, Container, Element, IcedParentExt, PickList, Row, Text},
     },
     lang::{Language, TRANSLATOR},
     prelude::STEAM_DECK,

@@ -3,7 +3,7 @@ use std::ops::RangeInclusive;
 use iced::{widget as w, Alignment, Length};
 
 use crate::gui::{
-    common::{IcedButtonExt, Message},
+    common::Message,
     icon::Icon,
     style::{self, Theme},
 };
@@ -82,4 +82,84 @@ pub fn number_input<'a>(
             }),
     )
     .into()
+}
+
+pub trait IcedParentExt<'a> {
+    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
+    where
+        E: Into<Element<'a>>;
+
+    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
+    where
+        E: Into<Element<'a>>;
+}
+
+impl<'a> IcedParentExt<'a> for Column<'a> {
+    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
+    where
+        E: Into<Element<'a>>,
+    {
+        if condition() {
+            self.push(element().into())
+        } else {
+            self
+        }
+    }
+
+    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
+    where
+        E: Into<Element<'a>>,
+    {
+        if let Some(element) = element() {
+            self.push(element.into())
+        } else {
+            self
+        }
+    }
+}
+
+impl<'a> IcedParentExt<'a> for Row<'a> {
+    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
+    where
+        E: Into<Element<'a>>,
+    {
+        if condition() {
+            self.push(element().into())
+        } else {
+            self
+        }
+    }
+
+    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
+    where
+        E: Into<Element<'a>>,
+    {
+        if let Some(element) = element() {
+            self.push(element.into())
+        } else {
+            self
+        }
+    }
+}
+
+pub trait IcedButtonExt<'a> {
+    fn on_press_if(self, condition: impl FnOnce() -> bool, msg: impl FnOnce() -> Message) -> Self;
+    fn on_press_some(self, msg: Option<Message>) -> Self;
+}
+
+impl<'a> IcedButtonExt<'a> for Button<'a> {
+    fn on_press_if(self, condition: impl FnOnce() -> bool, msg: impl FnOnce() -> Message) -> Self {
+        if condition() {
+            self.on_press(msg())
+        } else {
+            self
+        }
+    }
+
+    fn on_press_some(self, msg: Option<Message>) -> Self {
+        match msg {
+            Some(msg) => self.on_press(msg),
+            None => self,
+        }
+    }
 }
