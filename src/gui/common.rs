@@ -1,20 +1,19 @@
-use iced::{Alignment, Length};
+use iced::Length;
 
 use crate::{
     config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
     gui::{
-        badge::Badge,
         icon::Icon,
         shortcuts::{Shortcut, TextHistory},
         style,
-        widget::{Button, Column, Element, Row, Text, TextInput, Undoable},
+        widget::{Button, Column, Element, Row, TextInput, Undoable},
     },
     lang::{Language, Translator, TRANSLATOR},
     layout::{Backup, GameLayout},
     manifest::{ManifestUpdate, Store},
     prelude::{Error, StrictPath},
     resource::config::Config,
-    scan::{registry_compat::RegistryItem, BackupInfo, OperationStatus, OperationStepDecision, ScanInfo},
+    scan::{registry_compat::RegistryItem, BackupInfo, OperationStepDecision, ScanInfo},
 };
 
 #[derive(Debug, Clone)]
@@ -600,28 +599,6 @@ pub fn apply_shortcut_to_string_field(shortcut: &Shortcut, config: &mut String, 
             *config = history.redo();
         }
     }
-}
-
-pub fn make_status_row<'a>(translator: &Translator, status: &OperationStatus, found_any_duplicates: bool) -> Row<'a> {
-    Row::new()
-        .padding([0, 20, 0, 20])
-        .align_items(Alignment::Center)
-        .spacing(15)
-        .push(Text::new(translator.processed_games(status)).size(35))
-        .push_if(
-            || status.changed_games.new > 0,
-            || Badge::new_entry_with_count(translator, status.changed_games.new).view(),
-        )
-        .push_if(
-            || status.changed_games.different > 0,
-            || Badge::changed_entry_with_count(translator, status.changed_games.different).view(),
-        )
-        .push(Text::new("|").size(35))
-        .push(Text::new(translator.processed_bytes(status)).size(35))
-        .push_if(
-            || found_any_duplicates,
-            || Badge::new(&translator.badge_duplicates()).view(),
-        )
 }
 
 pub trait IcedExtension<'a> {

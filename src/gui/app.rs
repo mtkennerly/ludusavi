@@ -1,18 +1,13 @@
-use iced::{
-    alignment::Horizontal as HorizontalAlignment, executor, Alignment, Application, Command, Length, Subscription,
-};
+use iced::{alignment::Horizontal as HorizontalAlignment, executor, Alignment, Application, Command, Subscription};
 
 use crate::{
     cache::Cache,
     config::{Config, CustomGame, RootsConfig},
     gui::{
-        backup_screen::BackupScreenComponent,
         common::*,
-        custom_games_screen::CustomGamesScreenComponent,
         modal::{ModalComponent, ModalTheme},
         notification::Notification,
-        other_screen::OtherScreenComponent,
-        restore_screen::RestoreScreenComponent,
+        screen,
         shortcuts::{Shortcut, TextHistory},
         style,
         widget::{Button, Column, Container, Element, ProgressBar, Row, Text},
@@ -61,8 +56,8 @@ pub struct App {
     screen: Screen,
     modal_theme: Option<ModalTheme>,
     modal: ModalComponent,
-    backup_screen: BackupScreenComponent,
-    restore_screen: RestoreScreenComponent,
+    backup_screen: screen::Backup,
+    restore_screen: screen::Restore,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     operation_steps: Vec<Command<Message>>,
     operation_steps_active: usize,
@@ -576,8 +571,8 @@ impl Application for App {
 
         (
             Self {
-                backup_screen: BackupScreenComponent::new(&config, &cache),
-                restore_screen: RestoreScreenComponent::new(&config, &cache),
+                backup_screen: screen::Backup::new(&config, &cache),
+                restore_screen: screen::Restore::new(&config, &cache),
                 translator,
                 config,
                 manifest,
@@ -1532,39 +1527,35 @@ impl Application for App {
                         self.screen,
                     )),
             )
-            .push(
-                match self.screen {
-                    Screen::Backup => self.backup_screen.view(
-                        &self.config,
-                        &self.manifest,
-                        &self.translator,
-                        &self.operation,
-                        &self.text_histories,
-                    ),
-                    Screen::Restore => self.restore_screen.view(
-                        &self.config,
-                        &self.manifest,
-                        &self.translator,
-                        &self.operation,
-                        &self.text_histories,
-                    ),
-                    Screen::CustomGames => CustomGamesScreenComponent::view(
-                        &self.config,
-                        &self.translator,
-                        self.operation.is_some(),
-                        &self.text_histories,
-                    ),
-                    Screen::Other => OtherScreenComponent::view(
-                        self.updating_manifest,
-                        &self.config,
-                        &self.cache,
-                        &self.translator,
-                        &self.text_histories,
-                    ),
-                }
-                .padding([0, 5, 5, 5])
-                .height(Length::Fill),
-            )
+            .push(match self.screen {
+                Screen::Backup => self.backup_screen.view(
+                    &self.config,
+                    &self.manifest,
+                    &self.translator,
+                    &self.operation,
+                    &self.text_histories,
+                ),
+                Screen::Restore => self.restore_screen.view(
+                    &self.config,
+                    &self.manifest,
+                    &self.translator,
+                    &self.operation,
+                    &self.text_histories,
+                ),
+                Screen::CustomGames => screen::custom_games(
+                    &self.config,
+                    &self.translator,
+                    self.operation.is_some(),
+                    &self.text_histories,
+                ),
+                Screen::Other => screen::other(
+                    self.updating_manifest,
+                    &self.config,
+                    &self.cache,
+                    &self.translator,
+                    &self.text_histories,
+                ),
+            })
             .push_some(|| self.timed_notification.as_ref().map(|x| x.view()))
             .push_if(
                 || self.updating_manifest,
