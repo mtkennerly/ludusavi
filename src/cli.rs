@@ -22,9 +22,8 @@ use crate::{
         ResourceFile,
     },
     scan::{
-        back_up_game, heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, scan_game_for_backup,
-        scan_game_for_restoration, BackupId, DuplicateDetector, InstallDirRanking, OperationStepDecision,
-        SteamShortcuts, TitleFinder,
+        heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId,
+        DuplicateDetector, InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
     },
 };
 
@@ -243,13 +242,9 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                                 .set_level(&backup_format.zip.compression, level);
                         }
 
-                        back_up_game(
-                            &scan_info,
-                            layout.game_layout(name),
-                            merge,
-                            &chrono::Utc::now(),
-                            &backup_format,
-                        )
+                        layout
+                            .game_layout(name)
+                            .back_up(&scan_info, merge, &chrono::Utc::now(), &backup_format)
                     };
                     log::trace!("step {i} completed");
                     (name, scan_info, backup_info, decision)
@@ -355,10 +350,9 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 .map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let mut layout = layout.game_layout(name);
-                    let scan_info = scan_game_for_restoration(
+                    let scan_info = layout.scan_for_restoration(
                         name,
                         backup_id.as_ref().unwrap_or(&BackupId::Latest),
-                        &mut layout,
                         &config.redirects,
                     );
                     let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified;
@@ -486,7 +480,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 .progress_count(subjects.valid.len() as u64)
                 .map(|name| {
                     let mut layout = layout.game_layout(name);
-                    let scan_info = scan_game_for_restoration(name, &BackupId::Latest, &mut layout, &config.redirects);
+                    let scan_info = layout.scan_for_restoration(name, &BackupId::Latest, &config.redirects);
                     (name, scan_info)
                 })
                 .collect();

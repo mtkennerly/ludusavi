@@ -7,6 +7,7 @@ use chrono::{Datelike, Timelike};
 
 use crate::{
     path::StrictPath,
+    prelude::AnyError,
     resource::{
         config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
         manifest::Os,
@@ -1265,6 +1266,18 @@ impl GameLayout {
         }
     }
 
+    fn prepare_backup_target(&self, merge: bool) -> Result<(), AnyError> {
+        if !merge {
+            self.path.unset_readonly()?;
+            self.path.remove()?;
+        } else if self.path.exists() && !self.path.is_dir() {
+            return Err("must merge into existing target, but target is not a directory".into());
+        }
+
+        std::fs::create_dir_all(self.path.interpret())?;
+        Ok(())
+    }
+
     /// Handle legacy backups from before multi-backup support.
     /// In this case, a default backup with name "." has already been inserted.
     pub fn migrate_legacy_backup(&mut self) {
@@ -1310,9 +1323,25 @@ impl GameLayout {
     pub fn back_up(
         &mut self,
         scan: &ScanInfo,
+        merge: bool,
         now: &chrono::DateTime<chrono::Utc>,
         format: &BackupFormats,
     ) -> BackupInfo {
+        if !scan.found_anything_processable() {
+            log::trace!("[{}] nothing to back up", &scan.game_name);
+            return BackupInfo::default();
+        }
+
+        log::trace!("[{}] preparing for backup", &scan.game_name);
+        if let Err(e) = self.prepare_backup_target(merge) {
+            log::error!(
+                "[{}] failed to prepare backup target: {} | {e}",
+                scan.game_name,
+                self.path.raw()
+            );
+            return BackupInfo::total_failure(scan);
+        }
+
         self.migrate_legacy_backup();
         match self.plan_backup(scan, now, format) {
             None => {
@@ -1335,6 +1364,82 @@ impl GameLayout {
                 self.prune_irrelevant_parents();
                 backup_info
             }
+        }
+    }
+
+    pub fn scan_for_restoration(&mut self, name: &str, id: &BackupId, redirects: &[RedirectConfig]) -> ScanInfo {
+        log::trace!("[{name}] beginning scan for restore");
+
+        let mut found_files = HashSet::new();
+        #[allow(unused_mut)]
+        let mut found_registry_keys = HashSet::new();
+        #[allow(unused_mut)]
+        let mut available_backups = vec![];
+        let mut backup = None;
+
+        let id = self.verify_id(id);
+
+        if self.path.is_dir() {
+            self.migrate_legacy_backup();
+            found_files = self.restorable_files(&id, true, redirects);
+            available_backups = self.restorable_backups_flattened();
+            backup = self.find_by_id_flattened(&id);
+        }
+
+        #[cfg(target_os = "windows")]
+        {
+            use crate::scan::{registry, RegistryItem, ScannedRegistryValue, ScannedRegistryValues};
+
+            if let Some(registry_content) = self.registry_content(&id) {
+                if let Some(hives) = registry::Hives::deserialize(&registry_content) {
+                    for (hive_name, keys) in hives.0.iter() {
+                        for (key_name, entries) in keys.0.iter() {
+                            let live_entries = registry::try_read_registry_key(hive_name, key_name);
+                            let mut live_values = ScannedRegistryValues::new();
+
+                            for (entry_name, entry) in entries.0.iter() {
+                                live_values.insert(
+                                    entry_name.clone(),
+                                    ScannedRegistryValue {
+                                        ignored: false,
+                                        change: live_entries
+                                            .as_ref()
+                                            .and_then(|x| x.0.get(entry_name))
+                                            .map(|live_entry| {
+                                                if entry == live_entry {
+                                                    ScanChange::Same
+                                                } else {
+                                                    ScanChange::Different
+                                                }
+                                            })
+                                            .unwrap_or(ScanChange::New),
+                                    },
+                                );
+                            }
+
+                            found_registry_keys.insert(ScannedRegistry {
+                                path: RegistryItem::new(format!("{}/{}", hive_name, key_name).replace('\\', "/")),
+                                ignored: false,
+                                change: match &live_entries {
+                                    None => ScanChange::New,
+                                    Some(_) => ScanChange::Same,
+                                },
+                                values: live_values,
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        log::trace!("[{name}] completed scan for restore");
+
+        ScanInfo {
+            game_name: name.to_string(),
+            found_files,
+            found_registry_keys,
+            available_backups,
+            backup,
         }
     }
 
@@ -1706,7 +1811,7 @@ mod tests {
     use maplit::*;
 
     use super::*;
-    use crate::testing::{repo_raw, *};
+    use crate::testing::{drives_x, make_original_path, mapping_file_key, repo, repo_raw, s};
 
     mod individual_mapping {
         use pretty_assertions::assert_eq;
@@ -2738,6 +2843,171 @@ mod tests {
                 },
                 layout.restorable_files(&BackupId::Latest, false, &[]),
             );
+        }
+    }
+
+    mod game_layout {
+        use pretty_assertions::assert_eq;
+
+        use super::*;
+
+        fn now() -> chrono::DateTime<chrono::Utc> {
+            chrono::NaiveDate::from_ymd_opt(2000, 1, 2)
+                .unwrap()
+                .and_hms_opt(3, 4, 5)
+                .unwrap()
+                .and_local_timezone(chrono::Utc)
+                .unwrap()
+        }
+
+        fn restorable_file_simple(backup: &str, file: &str) -> StrictPath {
+            StrictPath::relative(
+                format!(
+                    "{backup}/drive-{}/{file}",
+                    if cfg!(target_os = "windows") { "X" } else { "0" }
+                ),
+                Some(if cfg!(target_os = "windows") {
+                    format!("\\\\?\\{}\\tests\\backup\\game1", repo().replace('/', "\\"))
+                } else {
+                    format!("{}/tests/backup/game1", repo())
+                }),
+            )
+        }
+
+        #[test]
+        fn can_scan_game_for_restoration_with_files() {
+            let mut layout = GameLayout::new(
+                StrictPath::new(format!("{}/tests/backup/game1", repo())),
+                IndividualMapping {
+                    name: "game1".to_string(),
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: ".".into(),
+                        when: now(),
+                        files: btreemap! {
+                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        },
+                        ..Default::default()
+                    }]),
+                },
+                Retention {
+                    full: 1,
+                    differential: 1,
+                },
+            );
+            let backups = vec![Backup::Full(FullBackup {
+                name: ".".to_string(),
+                when: now(),
+                files: btreemap! {
+                    mapping_file_key("/file1.txt") => IndividualMappingFile {
+                        hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
+                        size: 1,
+                    },
+                    mapping_file_key("/file2.txt") => IndividualMappingFile {
+                        hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
+                        size: 2,
+                    },
+                },
+                ..Default::default()
+            })];
+
+            assert_eq!(
+                ScanInfo {
+                    game_name: s("game1"),
+                    found_files: hashset! {
+                        ScannedFile {
+                            path: restorable_file_simple(".", "file1.txt"),
+                            size: 1,
+                            hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
+                            original_path: Some(make_original_path("/file1.txt")),
+                            ignored: false,
+                            change: ScanChange::New,
+                            container: None,
+                            redirected: None,
+                        },
+                        ScannedFile {
+                            path: restorable_file_simple(".", "file2.txt"),
+                            size: 2,
+                            hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
+                            original_path: Some(make_original_path("/file2.txt")),
+                            ignored: false,
+                            change: ScanChange::New,
+                            container: None,
+                            redirected: None,
+                        },
+                    },
+                    available_backups: backups.clone(),
+                    backup: Some(backups[0].clone()),
+                    ..Default::default()
+                },
+                layout.scan_for_restoration("game1", &BackupId::Latest, &[]),
+            );
+        }
+
+        #[test]
+        #[cfg(target_os = "windows")]
+        fn can_scan_game_for_restoration_with_registry() {
+            let mut layout = BackupLayout::new(
+                StrictPath::new(format!("{}/tests/backup", repo())),
+                Retention::default(),
+            )
+            .game_layout("game3");
+            if cfg!(target_os = "windows") {
+                assert_eq!(
+                    ScanInfo {
+                        game_name: s("game3"),
+                        found_registry_keys: hashset! {
+                            ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::Same)
+                                .with_value_same("binary")
+                                .with_value_same("dword")
+                                .with_value_same("expandSz")
+                                .with_value_same("multiSz")
+                                .with_value_same("qword")
+                                .with_value_same("sz")
+                        },
+                        available_backups: vec![Backup::Full(FullBackup {
+                            name: ".".to_string(),
+                            when: now(),
+                            registry: IndividualMappingRegistry {
+                                hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
+                            },
+                            ..Default::default()
+                        })],
+                        backup: Some(Backup::Full(FullBackup {
+                            name: ".".to_string(),
+                            when: now(),
+                            registry: IndividualMappingRegistry {
+                                hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
+                            },
+                            ..Default::default()
+                        })),
+                        ..Default::default()
+                    },
+                    layout.scan_for_restoration("game3", &BackupId::Latest, &[]),
+                );
+            } else {
+                assert_eq!(
+                    ScanInfo {
+                        game_name: s("game3"),
+                        available_backups: vec![Backup::Full(FullBackup {
+                            name: ".".to_string(),
+                            when: now(),
+                            registry: IndividualMappingRegistry {
+                                hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
+                            },
+                            ..Default::default()
+                        })],
+                        backup: Some(Backup::Full(FullBackup {
+                            name: ".".to_string(),
+                            when: now(),
+                            ..Default::default()
+                        })),
+                        ..Default::default()
+                    },
+                    layout.scan_for_restoration("game3", &BackupId::Latest, &[]),
+                );
+            }
         }
     }
 }

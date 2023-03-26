@@ -22,9 +22,8 @@ use crate::{
         ResourceFile, SaveableResourceFile,
     },
     scan::{
-        back_up_game, heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, registry_compat::RegistryItem,
-        scan_game_for_backup, scan_game_for_restoration, BackupId, InstallDirRanking, OperationStepDecision,
-        SteamShortcuts, TitleFinder,
+        heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, registry_compat::RegistryItem,
+        scan_game_for_backup, BackupId, InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
     },
 };
 
@@ -267,9 +266,8 @@ impl App {
                     }
 
                     let backup_info = if !preview {
-                        Some(back_up_game(
+                        Some(layout.game_layout(&key).back_up(
                             &scan_info,
-                            layout.game_layout(&key),
                             merge,
                             &chrono::Utc::now(),
                             &config.backup.format,
@@ -369,7 +367,7 @@ impl App {
                         return (None, None, OperationStepDecision::Cancelled, layout);
                     }
 
-                    let scan_info = scan_game_for_restoration(&name, &backup_id, &mut layout, &config.redirects);
+                    let scan_info = layout.scan_for_restoration(&name, &backup_id, &config.redirects);
                     if !config.is_game_enabled_for_restore(&name) {
                         return (Some(scan_info), None, OperationStepDecision::Ignored, layout);
                     }
