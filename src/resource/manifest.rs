@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Os {
     #[serde(rename = "windows")]
     Windows,
@@ -21,6 +21,39 @@ pub enum Os {
     #[default]
     #[serde(other, rename = "other")]
     Other,
+}
+
+impl Os {
+    const WINDOWS: bool = cfg!(target_os = "windows");
+    const MAC: bool = cfg!(target_os = "macos");
+    const LINUX: bool = cfg!(target_os = "linux");
+    pub const HOST: Os = if Self::WINDOWS {
+        Self::Windows
+    } else if Self::MAC {
+        Self::Mac
+    } else if Self::LINUX {
+        Self::Linux
+    } else {
+        Self::Other
+    };
+
+    pub fn is_case_sensitive(&self) -> bool {
+        match self {
+            Self::Windows | Self::Mac => false,
+            Self::Linux | Self::Other => true,
+        }
+    }
+}
+
+impl From<&str> for Os {
+    fn from(value: &str) -> Self {
+        match value.to_lowercase().as_str() {
+            "windows" => Self::Windows,
+            "linux" => Self::Linux,
+            "mac" | "macos" => Self::Mac,
+            _ => Self::Other,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]

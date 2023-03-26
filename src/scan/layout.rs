@@ -7,7 +7,10 @@ use chrono::{Datelike, Timelike};
 
 use crate::{
     path::StrictPath,
-    resource::config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
+    resource::{
+        config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
+        manifest::Os,
+    },
     scan::{game_file_target, BackupId, BackupInfo, ScanChange, ScanInfo, ScannedFile, ScannedRegistry},
 };
 
@@ -1653,7 +1656,7 @@ impl BackupLayout {
 
     fn contains_game(&self, name: &str) -> bool {
         self.games.contains_key(name)
-            || (crate::scan::CASE_INSENSITIVE_OS && self.games_lowercase.contains_key(&name.to_lowercase()))
+            || (!Os::HOST.is_case_sensitive() && self.games_lowercase.contains_key(&name.to_lowercase()))
     }
 
     pub fn latest_backup(&self, name: &str, restoring: bool, redirects: &[RedirectConfig]) -> Option<LatestBackup> {

@@ -2,7 +2,10 @@ use std::collections::HashMap;
 
 use crate::{
     prelude::StrictPath,
-    resource::{config::RootsConfig, manifest::Store},
+    resource::{
+        config::RootsConfig,
+        manifest::{Os, Store},
+    },
     scan::TitleFinder,
 };
 
@@ -75,9 +78,10 @@ struct GamesConfigWine {
 }
 
 #[derive(Debug, Clone, Eq, PartialEq)]
-struct MemorizedGame {
+pub struct MemorizedGame {
     install_dir: StrictPath,
     prefix: Option<StrictPath>,
+    platform: Os,
 }
 
 //
@@ -101,6 +105,10 @@ impl HeroicGames {
         self.games
             .get(&(root.clone(), game.to_string()))
             .map(|x| &x.install_dir)
+    }
+
+    pub fn get_platform(&self, root: &RootsConfig, game: &str) -> Option<Os> {
+        self.games.get(&(root.clone(), game.to_string())).map(|x| x.platform)
     }
 
     pub fn scan(roots: &[RootsConfig], title_finder: &TitleFinder, legendary: Option<StrictPath>) -> Self {
@@ -167,6 +175,7 @@ impl HeroicGames {
                                 official_title,
                                 StrictPath::new(game.install_path.clone()),
                                 prefix,
+                                &game.platform,
                             );
                         }
                     }
@@ -226,6 +235,7 @@ impl HeroicGames {
                         official_title,
                         StrictPath::new(game.install_path),
                         prefix,
+                        &game.platform,
                     );
                 }
             }
@@ -239,7 +249,9 @@ impl HeroicGames {
         official_title: Option<String>,
         install_dir: StrictPath,
         prefix: Option<StrictPath>,
+        platform: &str,
     ) {
+        let platform = Os::from(platform);
         if let Some(official) = official_title {
             log::trace!(
                 "memorize_game memorizing info for '{}' (from: '{}'): install_dir={:?}, prefix={:?}",
@@ -248,8 +260,14 @@ impl HeroicGames {
                 &install_dir,
                 &prefix
             );
-            self.games
-                .insert((root.clone(), official), MemorizedGame { install_dir, prefix });
+            self.games.insert(
+                (root.clone(), official),
+                MemorizedGame {
+                    install_dir,
+                    prefix,
+                    platform,
+                },
+            );
         } else {
             // Handling game name mismatches, e.g. GRIP vs. GRIP: Combat Racing
             let log_message = format!("Ignoring unrecognized Heroic game: '{}'", heroic_title);
@@ -266,7 +284,11 @@ impl HeroicGames {
             );
             self.games.insert(
                 (root.clone(), heroic_title.to_string()),
-                MemorizedGame { install_dir, prefix },
+                MemorizedGame {
+                    install_dir,
+                    prefix,
+                    platform,
+                },
             );
         }
     }
@@ -407,10 +429,12 @@ mod tests {
                 (roots[0].clone(), "windows-game".to_string()) => MemorizedGame {
                     install_dir: StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string()),
                     prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string())),
+                    platform: Os::Windows,
                 },
                 (roots[0].clone(), "proton-game".to_string()) => MemorizedGame {
                     install_dir: StrictPath::new("/home/root/Games/proton-game".to_string()),
                     prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/proton-game/pfx".to_string())),
+                    platform: Os::Windows,
                 },
             },
             prefixes.games,

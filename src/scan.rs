@@ -14,9 +14,7 @@ use regex::Regex;
 
 use crate::{
     path::StrictPath,
-    prelude::{
-        filter_map_walkdir, AnyError, Error, CASE_INSENSITIVE_OS, INVALID_FILE_CHARS, LINUX, MAC, SKIP, WINDOWS,
-    },
+    prelude::{filter_map_walkdir, AnyError, Error, INVALID_FILE_CHARS, SKIP},
     resource::{
         config::{
             BackupFilter, BackupFormats, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry,
@@ -519,45 +517,33 @@ pub fn game_file_target(
     }
 }
 
-pub fn get_os() -> Os {
-    if LINUX {
-        Os::Linux
-    } else if WINDOWS {
-        Os::Windows
-    } else if MAC {
-        Os::Mac
-    } else {
-        Os::Other
-    }
-}
-
 fn check_path(path: Option<std::path::PathBuf>) -> String {
     path.unwrap_or_else(|| SKIP.into()).to_string_lossy().to_string()
 }
 
 fn check_windows_path(path: Option<std::path::PathBuf>) -> String {
-    match get_os() {
+    match Os::HOST {
         Os::Windows => check_path(path),
         _ => SKIP.to_string(),
     }
 }
 
 fn check_windows_path_str(path: &str) -> &str {
-    match get_os() {
+    match Os::HOST {
         Os::Windows => path,
         _ => SKIP,
     }
 }
 
 fn check_nonwindows_path(path: Option<std::path::PathBuf>) -> String {
-    match get_os() {
+    match Os::HOST {
         Os::Windows => SKIP.to_string(),
         _ => check_path(path),
     }
 }
 
 fn check_nonwindows_path_str(path: &str) -> &str {
-    match get_os() {
+    match Os::HOST {
         Os::Windows => SKIP,
         _ => path,
     }
@@ -572,7 +558,8 @@ pub fn parse_paths(
     steam_id: &Option<u32>,
     manifest_dir: &StrictPath,
     steam_shortcut: Option<&SteamShortcut>,
-) -> HashSet<(StrictPath, Option<bool>)> {
+    platform: Os,
+) -> HashSet<(StrictPath, bool)> {
     let mut paths = HashSet::new();
 
     let install_dir = match install_dir {
@@ -614,9 +601,9 @@ pub fn parse_paths(
             .replace("<xdgConfig>", check_nonwindows_path_str(&config_dir))
             .replace("<regHkcu>", SKIP)
             .replace("<regHklm>", SKIP),
-        None,
+        platform.is_case_sensitive(),
     ));
-    if get_os() == Os::Windows {
+    if Os::HOST == Os::Windows {
         let (mut virtual_store, case_sensitive) = paths.iter().next().unwrap().clone();
         for virtualized in ["Program Files (x86)", "Program Files", "Windows", "ProgramData"] {
             for separator in ['/', '\\'] {
@@ -628,11 +615,11 @@ pub fn parse_paths(
         }
         paths.insert((virtual_store, case_sensitive));
     }
-    if root.store == Store::Gog && get_os() == Os::Linux {
+    if root.store == Store::Gog && Os::HOST == Os::Linux {
         paths.insert((
             path.replace("<game>", &format!("{}/game", install_dir))
                 .replace("<base>", &format!("{}/{}/game", root.path.interpret(), install_dir)),
-            None,
+            platform.is_case_sensitive(),
         ));
     }
 
@@ -646,7 +633,7 @@ pub fn parse_paths(
     // by looking at the `root_interpreted` and check for
     // ".var/app/com.heroicgameslauncher.hgl/config/heroic"
     if root.store == Store::Heroic
-        && get_os() == Os::Linux
+        && Os::HOST == Os::Linux
         && root_interpreted.ends_with(".var/app/com.heroicgameslauncher.hgl/config/heroic")
     {
         paths.insert((
@@ -659,7 +646,7 @@ pub fn parse_paths(
                 check_nonwindows_path_str(&format!("{}/../../config", &root_interpreted)),
             )
             .replace("<storeUserId>", "*"),
-            None,
+            platform.is_case_sensitive(),
         ));
     }
     if root.store == Store::OtherHome {
@@ -680,17 +667,20 @@ pub fn parse_paths(
                 .replace("<regHkcu>", SKIP)
                 .replace("<regHklm>", SKIP)
                 .replace("<home>", &root_interpreted),
-            None,
+            platform.is_case_sensitive(),
         ));
     }
     if root.store == Store::Steam {
         if let Some(steam_shortcut) = steam_shortcut {
             if let Some(start_dir) = &steam_shortcut.start_dir {
-                paths.insert((path.replace("<base>", &start_dir.interpret()), None));
+                paths.insert((
+                    path.replace("<base>", &start_dir.interpret()),
+                    platform.is_case_sensitive(),
+                ));
             }
         }
     }
-    if root.store == Store::Steam && get_os() == Os::Linux {
+    if root.store == Store::Steam && Os::HOST == Os::Linux {
         let mut ids = vec![];
         if let Some(steam_id) = steam_id {
             ids.push(*steam_id);
@@ -726,7 +716,7 @@ pub fn parse_paths(
                         "<winLocalAppData>",
                         &format!("{}/users/steamuser/AppData/Local", prefix),
                     ),
-                Some(false),
+                false,
             ));
             paths.insert((
                 path2
@@ -736,7 +726,7 @@ pub fn parse_paths(
                         "<winLocalAppData>",
                         &format!("{}/users/steamuser/Local Settings/Application Data", prefix),
                     ),
-                Some(false),
+                false,
             ));
         }
     }
@@ -761,7 +751,7 @@ pub fn parse_paths(
                 .replace("<winDocuments>", &format!("{}/users/*/Documents", prefix))
                 .replace("<winAppData>", &format!("{}/users/*/AppData/Roaming", prefix))
                 .replace("<winLocalAppData>", &format!("{}/users/*/AppData/Local", prefix)),
-            Some(false),
+            false,
         ));
         paths.insert((
             path2
@@ -771,7 +761,7 @@ pub fn parse_paths(
                     "<winLocalAppData>",
                     &format!("{}/users/*/Local Settings/Application Data", prefix),
                 ),
-            Some(false),
+            false,
         ));
     }
 
@@ -1002,6 +992,8 @@ pub fn scan_game_for_backup(
         }
         let root_interpreted = root.path.interpret();
 
+        let platform = heroic_games.get_platform(&root, name).unwrap_or(Os::HOST);
+
         if let Some(files) = &game.files {
             let install_dir = ranking.get(&root, name);
             let full_install_dir = heroic_games.get_install_dir(&root, name);
@@ -1019,6 +1011,7 @@ pub fn scan_game_for_backup(
                     steam_id,
                     manifest_dir,
                     steam_shortcuts.get(name),
+                    platform,
                 );
                 for (candidate, case_sensitive) in candidates {
                     log::trace!("[{name}] parsed candidate: {}", candidate.raw());
@@ -1026,7 +1019,7 @@ pub fn scan_game_for_backup(
                         // This covers `SKIP` and any other unmatched placeholders.
                         continue;
                     }
-                    paths_to_check.insert((candidate, case_sensitive));
+                    paths_to_check.insert((candidate, Some(case_sensitive)));
                 }
             }
         }

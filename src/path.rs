@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 
 use filetime::FileTime;
 
-use crate::prelude::AnyError;
+use crate::{prelude::AnyError, resource::manifest::Os};
 
 #[cfg(target_os = "windows")]
 const TYPICAL_SEPARATOR: &str = "\\";
@@ -552,7 +552,7 @@ impl StrictPath {
     }
 
     pub fn glob(&self) -> Vec<StrictPath> {
-        self.glob_case_sensitive(!crate::prelude::CASE_INSENSITIVE_OS)
+        self.glob_case_sensitive(Os::HOST.is_case_sensitive())
     }
 
     pub fn glob_case_sensitive(&self, case_sensitive: bool) -> Vec<StrictPath> {
