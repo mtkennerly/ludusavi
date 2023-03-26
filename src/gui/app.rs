@@ -229,7 +229,6 @@ impl App {
             let filter = filter.clone();
             let ranking = ranking.clone();
             let steam_shortcuts = steam_shortcuts.clone();
-            let steam_id = game.steam.as_ref().and_then(|x| x.id);
             let cancel_flag = self.operation_should_cancel.clone();
             let merge = self.config.backup.merge;
             self.operation_steps.push(Command::perform(
@@ -251,7 +250,6 @@ impl App {
                         &roots,
                         &StrictPath::from_std_path_buf(&app_dir()),
                         &heroic_games,
-                        &steam_id,
                         &filter,
                         &None,
                         &ranking,
