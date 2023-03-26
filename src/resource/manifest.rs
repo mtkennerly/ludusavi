@@ -10,6 +10,23 @@ use crate::{
     },
 };
 
+pub mod placeholder {
+    pub const ROOT: &str = "<root>";
+    pub const GAME: &str = "<game>";
+    pub const BASE: &str = "<base>";
+    pub const HOME: &str = "<home>";
+    pub const STORE_USER_ID: &str = "<storeUserId>";
+    pub const OS_USER_NAME: &str = "<osUserName>";
+    pub const WIN_APP_DATA: &str = "<winAppData>";
+    pub const WIN_LOCAL_APP_DATA: &str = "<winLocalAppData>";
+    pub const WIN_DOCUMENTS: &str = "<winDocuments>";
+    pub const WIN_PUBLIC: &str = "<winPublic>";
+    pub const WIN_PROGRAM_DATA: &str = "<winProgramData>";
+    pub const WIN_DIR: &str = "<winDir>";
+    pub const XDG_DATA: &str = "<xdgData>";
+    pub const XDG_CONFIG: &str = "<xdgConfig>";
+}
+
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub enum Os {
     #[serde(rename = "windows")]
