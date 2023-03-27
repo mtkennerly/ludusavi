@@ -5,10 +5,22 @@
     If a game includes a `.ludusavi.yaml` file,
     then it will be incorporated into the backup scan.
   * CLI: Backup comments are now included in the output of the `backups` command.
+* Changed:
+  * When making a new backup for a game,
+    if the backup retention limits are reached for that game,
+    but your full backup limit is only 1 and you have differential backups enabled,
+    Ludusavi will now prune only the oldest differential backup and then make a new differential.
+
+    Previously, Ludusavi would prune the full backup along with its associated differentials
+    and then make a new full backup.
+    That is still the case when your full backup limit is 2 or more,
+    but there is now a special exception when it is only set to 1.
 * Fixed:
+  * Ludusavi only pruned old backups that exceeded your retention settings
+    when making a new full backup, but not when making a new differential backup.
+    Now, pruning is also performed as needed after a differential backup.
   * When using Heroic on Linux to run Windows games,
     save paths in the game install folders are now checked case-insensitively.
-* Fixed:
   * GUI: On the other screen, backup exclusions could be formatted incorrectly
     if you tried to undo/redo before making any changes to them.
   * GUI: On Mac, if a backup included multiple direct children of the root directory,

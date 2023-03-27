@@ -201,7 +201,7 @@ pub struct FullBackup {
     pub files: BTreeMap<String, IndividualMappingFile>,
     #[serde(default)]
     pub registry: IndividualMappingRegistry,
-    pub children: Vec<DifferentialBackup>,
+    pub children: VecDeque<DifferentialBackup>,
 }
 
 impl FullBackup {
@@ -370,7 +370,7 @@ impl IndividualMapping {
 
     fn latest_backup(&self) -> Option<(&FullBackup, Option<&DifferentialBackup>)> {
         let full = self.backups.back();
-        full.map(|x| (x, x.children.last()))
+        full.map(|x| (x, x.children.back()))
     }
 
     pub fn save(&self, file: &StrictPath) {
@@ -918,7 +918,9 @@ impl GameLayout {
         }
 
         let (fulls, diffs) = self.count_backups();
-        let kind = if fulls > 0 && diffs < self.retention.differential {
+        let kind = if fulls > 0
+            && (diffs < self.retention.differential || (self.retention.full == 1 && self.retention.differential > 0))
+        {
             BackupKind::Differential
         } else {
             BackupKind::Full
@@ -967,7 +969,7 @@ impl GameLayout {
             comment: None,
             files,
             registry,
-            children: vec![],
+            children: VecDeque::new(),
         }
     }
 
@@ -1237,14 +1239,20 @@ impl GameLayout {
         match backup {
             Backup::Full(backup) => {
                 self.mapping.backups.push_back(backup);
-                while self.mapping.backups.len() as u8 > self.retention.full {
-                    self.mapping.backups.pop_front();
-                }
             }
             Backup::Differential(backup) => {
                 if let Some(parent) = self.mapping.backups.back_mut() {
-                    parent.children.push(backup);
+                    parent.children.push_back(backup);
                 }
+            }
+        }
+
+        while self.mapping.backups.len() as u8 > self.retention.full {
+            self.mapping.backups.pop_front();
+        }
+        for full in &mut self.mapping.backups {
+            while full.children.len() as u8 > self.retention.differential {
+                full.children.pop_front();
             }
         }
     }
@@ -2249,7 +2257,7 @@ mod tests {
                             StrictPath::new(format!("{}/tests/root/game1/delete.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 3 },
                             StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
-                        children: vec![DifferentialBackup {
+                        children: VecDeque::from([DifferentialBackup {
                             name: format!("backup-{}", now_str()),
                             when: now(),
                             files: btreemap! {
@@ -2259,7 +2267,7 @@ mod tests {
                                 StrictPath::new(format!("{}/tests/root/game1/added.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                             },
                             ..Default::default()
-                        }],
+                        }]),
                         ..Default::default()
                     }]),
                 },
@@ -2307,7 +2315,7 @@ mod tests {
                             StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                             StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
-                        children: vec![DifferentialBackup {
+                        children: VecDeque::from([DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
@@ -2315,7 +2323,7 @@ mod tests {
                                 StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
                             },
                             ..Default::default()
-                        }],
+                        }]),
                         ..Default::default()
                     }]),
                 },
@@ -2348,14 +2356,14 @@ mod tests {
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                         },
-                        children: vec![DifferentialBackup {
+                        children: VecDeque::from([DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
                                 StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 1 }),
                             },
                             ..Default::default()
-                        }],
+                        }]),
                         ..Default::default()
                     }]),
                 },
@@ -2437,14 +2445,14 @@ mod tests {
                         files: btreemap! {
                             StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 4 },
                         },
-                        children: vec![DifferentialBackup {
+                        children: VecDeque::from([DifferentialBackup {
                             name: format!("backup-{}", now_str()),
                             when: now(),
                             files: btreemap! {
                                 StrictPath::new(format!("{}/tests/root/game1/ignore.txt", repo_raw())).render() => None,
                             },
                             ..Default::default()
-                        }],
+                        }]),
                         ..Default::default()
                     }]),
                 },
@@ -2489,7 +2497,7 @@ mod tests {
                             StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                             StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
-                        children: vec![DifferentialBackup {
+                        children: VecDeque::from([DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
@@ -2497,7 +2505,7 @@ mod tests {
                                 StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
                             },
                             ..Default::default()
-                        }],
+                        }]),
                         ..Default::default()
                     }]),
                 },
@@ -2543,7 +2551,7 @@ mod tests {
                             StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
                             StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
-                        children: vec![DifferentialBackup {
+                        children: VecDeque::from([DifferentialBackup {
                             name: format!("backup-{}", past2_str()),
                             when: past2(),
                             files: btreemap! {
@@ -2551,7 +2559,7 @@ mod tests {
                                 StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "old".into(), size: 2 }),
                             },
                             ..Default::default()
-                        }],
+                        }]),
                         ..Default::default()
                     }]),
                 },
@@ -2561,12 +2569,11 @@ mod tests {
                 },
             };
             assert_eq!(
-                Some(Backup::Full(FullBackup {
-                    name: ".".to_string(),
+                Some(Backup::Differential(DifferentialBackup {
+                    name: "backup-20000102T030405Z".to_string(),
                     when: now(),
                     files: btreemap! {
-                        StrictPath::new(format!("{}/tests/root/game1/file1.txt", repo_raw())).render() => IndividualMappingFile { hash: "old".into(), size: 1 },
-                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => IndividualMappingFile { hash: "new".into(), size: 2 },
+                        StrictPath::new(format!("{}/tests/root/game1/file2.txt", repo_raw())).render() => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
                     },
                     ..Default::default()
                 })),
@@ -2720,7 +2727,7 @@ mod tests {
                             mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
                             mapping_file_key("/delete.txt") => IndividualMappingFile { hash: "old".into(), size: 3 },
                         },
-                        children: vec![DifferentialBackup {
+                        children: VecDeque::from([DifferentialBackup {
                             name: "backup-2".into(),
                             when: past2(),
                             files: btreemap! {
@@ -2729,7 +2736,7 @@ mod tests {
                                 mapping_file_key("/added.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                             },
                             ..Default::default()
-                        }],
+                        }]),
                         ..Default::default()
                     }]),
                 },
@@ -2790,7 +2797,7 @@ mod tests {
                             mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
                             mapping_file_key("/delete.txt") => IndividualMappingFile { hash: "old".into(), size: 3 },
                         },
-                        children: vec![DifferentialBackup {
+                        children: VecDeque::from([DifferentialBackup {
                             name: "backup-2.zip".into(),
                             when: past2(),
                             files: btreemap! {
@@ -2799,7 +2806,7 @@ mod tests {
                                 mapping_file_key("/added.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                             },
                             ..Default::default()
-                        }],
+                        }]),
                         ..Default::default()
                     }]),
                 },
