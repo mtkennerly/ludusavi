@@ -5,7 +5,7 @@ use crate::{
     prelude::{app_dir, Error, StrictPath},
     resource::{
         cache::{self, Cache},
-        config::{Config, CustomGame, ManifestConfig},
+        config::{Config, CustomGame, ManifestConfig, RootsConfig},
         ResourceFile, SaveableResourceFile,
     },
 };
@@ -328,7 +328,22 @@ impl Manifest {
             .collect()
     }
 
-    pub fn add_custom_game(&mut self, custom: CustomGame) {
+    pub fn incorporate_extensions(&mut self, roots: &[RootsConfig], custom_games: &[CustomGame]) {
+        for root in roots {
+            for (path, secondary) in root.find_secondary_manifests() {
+                self.incorporate_secondary_manifest(path, secondary);
+            }
+        }
+
+        for custom_game in custom_games {
+            if custom_game.ignore {
+                continue;
+            }
+            self.add_custom_game(custom_game.clone());
+        }
+    }
+
+    fn add_custom_game(&mut self, custom: CustomGame) {
         let name = custom.name.clone();
         let mut game: Game = custom.into();
         if let Some(existing) = self.0.get(&name) {
@@ -338,12 +353,59 @@ impl Manifest {
         self.0.insert(name, game);
     }
 
-    pub fn load_custom_games(&mut self, config: &Config) {
-        for custom_game in &config.custom_games {
-            if custom_game.ignore {
-                continue;
+    fn incorporate_secondary_manifest(&mut self, path: StrictPath, secondary: Manifest) {
+        for (name, mut game) in secondary.0 {
+            if let Some(standard) = self.0.get_mut(&name) {
+                log::debug!("overriding game from secondary manifest: {name}");
+
+                if let Some(secondary) = game.files {
+                    if let Some(standard) = &mut standard.files {
+                        standard.extend(secondary);
+                    } else {
+                        standard.files = Some(secondary);
+                    }
+                }
+
+                if let Some(secondary) = game.registry {
+                    if let Some(standard) = &mut standard.registry {
+                        standard.extend(secondary);
+                    } else {
+                        standard.registry = Some(secondary);
+                    }
+                }
+
+                if let Some(mut secondary) = game.install_dir {
+                    if let Some(folder) = path.parent().and_then(|x| x.leaf()) {
+                        secondary.insert(folder, GameInstallDirEntry {});
+                    }
+
+                    if let Some(standard) = &mut standard.install_dir {
+                        standard.extend(secondary);
+                    } else {
+                        standard.install_dir = Some(secondary);
+                    }
+                }
+
+                if let (None, Some(secondary)) = (standard.steam.as_ref(), game.steam) {
+                    standard.steam = Some(secondary);
+                }
+
+                if let (None, Some(secondary)) = (standard.gog.as_ref(), game.gog) {
+                    standard.gog = Some(secondary);
+                }
+            } else {
+                log::debug!("adding game from secondary manifest: {name}");
+
+                if let Some(folder) = path.parent().and_then(|x| x.leaf()) {
+                    if let Some(secondary) = &mut game.install_dir {
+                        secondary.insert(folder, GameInstallDirEntry {});
+                    } else {
+                        game.install_dir = Some(BTreeMap::from([(folder, GameInstallDirEntry {})]));
+                    }
+                }
+
+                self.0.insert(name, game);
             }
-            self.add_custom_game(custom_game.clone());
         }
     }
 

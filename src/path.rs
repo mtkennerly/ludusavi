@@ -374,6 +374,16 @@ impl StrictPath {
         Ok(())
     }
 
+    pub fn parent(&self) -> Option<Self> {
+        self.as_std_path_buf().parent().map(Self::from)
+    }
+
+    pub fn leaf(&self) -> Option<String> {
+        self.as_std_path_buf()
+            .file_name()
+            .map(|x| x.to_string_lossy().to_string())
+    }
+
     pub fn copy_to_path(&self, context: &str, attempt: u8, target_file: &StrictPath) -> Result<(), std::io::Error> {
         log::trace!(
             "[{context}] try {attempt}, copy {} -> {}",

@@ -27,15 +27,19 @@ where
     }
 
     fn load() -> Result<Self, AnyError> {
-        if !Self::path().exists() {
+        Self::load_from(&Self::path())
+    }
+
+    fn load_from(path: &std::path::PathBuf) -> Result<Self, AnyError> {
+        if !path.exists() {
             return Ok(Self::default().initialize());
         }
-        let content = Self::load_raw()?;
+        let content = Self::load_raw(path)?;
         Self::load_from_string(&content)
     }
 
-    fn load_raw() -> Result<String, AnyError> {
-        Ok(std::fs::read_to_string(Self::path())?)
+    fn load_raw(path: &std::path::PathBuf) -> Result<String, AnyError> {
+        Ok(std::fs::read_to_string(path)?)
     }
 
     fn load_from_string(content: &str) -> Result<Self, AnyError> {
@@ -50,7 +54,7 @@ where
     fn save(&self) {
         let new_content = serde_yaml::to_string(&self).unwrap();
 
-        if let Ok(old_content) = Self::load_raw() {
+        if let Ok(old_content) = Self::load_raw(&Self::path()) {
             if old_content == new_content {
                 return;
             }

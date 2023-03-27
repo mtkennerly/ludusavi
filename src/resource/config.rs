@@ -1,9 +1,12 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::{
     lang::{Language, TRANSLATOR},
     prelude::{app_dir, Error, StrictPath},
-    resource::{manifest::Store, ResourceFile, SaveableResourceFile},
+    resource::{
+        manifest::{Manifest, Store},
+        ResourceFile, SaveableResourceFile,
+    },
     scan::registry_compat::RegistryItem,
 };
 
@@ -73,6 +76,28 @@ impl RootsConfig {
             .map(|path| RootsConfig {
                 path,
                 store: self.store,
+            })
+            .collect()
+    }
+
+    pub fn find_secondary_manifests(&self) -> HashMap<StrictPath, Manifest> {
+        self.path
+            .joined(match self.store {
+                Store::Steam => "steamapps/common/*/.ludusavi.yaml",
+                _ => "*/.ludusavi.yaml",
+            })
+            .glob()
+            .into_iter()
+            .filter_map(|path| match Manifest::load_from(&path.as_std_path_buf()) {
+                Ok(manifest) => {
+                    log::info!("Loaded secondary manifest: {}", path.render());
+                    log::trace!("Secondary manifest content: {:?}", &manifest);
+                    Some((path, manifest))
+                }
+                Err(e) => {
+                    log::error!("Failed to load secondary manifest: {} | {e}", path.render());
+                    None
+                }
             })
             .collect()
     }

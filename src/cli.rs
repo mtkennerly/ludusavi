@@ -156,12 +156,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             }
 
             let mut all_games = manifest;
-            for custom_game in &config.custom_games {
-                if custom_game.ignore {
-                    continue;
-                }
-                all_games.add_custom_game(custom_game.clone());
-            }
+            all_games.incorporate_extensions(&config.roots, &config.custom_games);
 
             let games_specified = !games.is_empty();
             let subjects = GameSubjects::new(all_games.0.keys().cloned().collect(), games, by_steam_id, &all_games);
@@ -505,13 +500,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 eprintln!("{}", TRANSLATOR.handle_error(&e));
             }
             let mut manifest = Manifest::load().unwrap_or_default();
-
-            for custom_game in &config.custom_games {
-                if custom_game.ignore {
-                    continue;
-                }
-                manifest.add_custom_game(custom_game.clone());
-            }
+            manifest.incorporate_extensions(&config.roots, &config.custom_games);
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),
@@ -541,7 +530,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
         Subcommand::Manifest { sub: manifest_sub } => {
             if let Some(ManifestSubcommand::Show { api }) = manifest_sub {
                 let mut manifest = Manifest::load().unwrap_or_default();
-                manifest.load_custom_games(&config);
+                manifest.incorporate_extensions(&config.roots, &config.custom_games);
 
                 if api {
                     println!("{}", serde_json::to_string(&manifest).unwrap());

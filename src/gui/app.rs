@@ -150,12 +150,7 @@ impl App {
         let full = games.is_none();
 
         let mut all_games = self.manifest.clone();
-        for custom_game in &self.config.custom_games {
-            if custom_game.ignore {
-                continue;
-            }
-            all_games.add_custom_game(custom_game.clone());
-        }
+        all_games.incorporate_extensions(&self.config.roots, &self.config.custom_games);
 
         if preview && full {
             self.backup_screen.previewed_games.clear();
