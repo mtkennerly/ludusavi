@@ -1,6 +1,9 @@
 ## Unreleased
 
 * Added:
+  * Support for secondary manifests bundled with games.
+    If a game includes a `.ludusavi.yaml` file,
+    then it will be incorporated into the backup scan.
   * CLI: Backup comments are now included in the output of the `backups` command.
 * Fixed:
   * When using Heroic on Linux to run Windows games,
