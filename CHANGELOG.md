@@ -6,6 +6,8 @@
     then it will be incorporated into the backup scan.
   * CLI: Backup comments are now included in the output of the `backups` command.
 * Changed:
+  * The standalone Linux release is now compiled on Ubuntu 20.04 instead of Ubuntu 18.04
+    because of [a change by GitHub](https://github.com/actions/runner-images/issues/6002).
   * When making a new backup for a game,
     if the backup retention limits are reached for that game,
     but your full backup limit is only 1 and you have differential backups enabled,
