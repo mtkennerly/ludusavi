@@ -759,6 +759,18 @@ impl Translator {
         translate("game-name")
     }
 
+    pub fn show_deselected_games(&self) -> String {
+        translate("show-deselected-games")
+    }
+
+    pub fn show_unchanged_games(&self) -> String {
+        translate("show-unchanged-games")
+    }
+
+    pub fn show_unscanned_games(&self) -> String {
+        translate("show-unscanned-games")
+    }
+
     pub fn explanation_for_exclude_store_screenshots(&self) -> String {
         translate("explanation-for-exclude-store-screenshots")
     }
@@ -809,6 +821,10 @@ impl Translator {
 
     pub fn comment_label(&self) -> String {
         translate("label-comment")
+    }
+
+    pub fn scan_label(&self) -> String {
+        self.field(&translate("label-scan"))
     }
 
     pub fn new_tooltip(&self) -> String {

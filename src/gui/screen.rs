@@ -322,12 +322,32 @@ pub fn other<'a>(updating_manifest: bool, config: &Config, cache: &Cache, histor
                         ),
                 )
                 .push(
-                    Checkbox::new(
-                        TRANSLATOR.explanation_for_exclude_store_screenshots(),
-                        config.backup.filter.exclude_store_screenshots,
-                        Message::EditedExcludeStoreScreenshots,
-                    )
-                    .style(style::Checkbox),
+                    Column::new()
+                        .spacing(10)
+                        .push(Text::new(TRANSLATOR.scan_label()))
+                        .push(
+                            Checkbox::new(
+                                TRANSLATOR.explanation_for_exclude_store_screenshots(),
+                                config.backup.filter.exclude_store_screenshots,
+                                Message::EditedExcludeStoreScreenshots,
+                            )
+                            .style(style::Checkbox),
+                        )
+                        .push(Checkbox::new(
+                            TRANSLATOR.show_deselected_games(),
+                            config.scan.show_deselected_games,
+                            Message::SetShowDeselectedGames,
+                        ))
+                        .push(Checkbox::new(
+                            TRANSLATOR.show_unchanged_games(),
+                            dbg!(config.scan.show_unchanged_games),
+                            Message::SetShowUnchangedGames,
+                        ))
+                        .push(Checkbox::new(
+                            TRANSLATOR.show_unscanned_games(),
+                            config.scan.show_unscanned_games,
+                            Message::SetShowUnscannedGames,
+                        )),
                 )
                 .push(
                     Column::new()

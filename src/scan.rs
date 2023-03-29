@@ -35,6 +35,18 @@ pub enum ScanChange {
     Unknown,
 }
 
+impl ScanChange {
+    pub fn is_changed(&self) -> bool {
+        match self {
+            Self::New => true,
+            Self::Different => true,
+            Self::Same => false,
+            // This is because we want unchanged and unscanned games to be filtered differently:
+            Self::Unknown => true,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize)]
 pub struct ScanChangeCount {
     pub new: usize,
@@ -372,6 +384,29 @@ impl ScanInfo {
 
     pub fn restoring(&self) -> bool {
         self.backup.is_some()
+    }
+
+    pub fn is_changed(&self) -> bool {
+        for entry in &self.found_files {
+            if entry.ignored {
+                continue;
+            }
+            if entry.change.is_changed() {
+                return true;
+            }
+        }
+        for entry in &self.found_registry_keys {
+            if !entry.ignored && entry.change.is_changed() {
+                return true;
+            }
+            for value in entry.values.values().filter(|x| !x.ignored) {
+                if value.change.is_changed() {
+                    return true;
+                }
+            }
+        }
+
+        false
     }
 
     pub fn count_changes(&self) -> ScanChangeCount {

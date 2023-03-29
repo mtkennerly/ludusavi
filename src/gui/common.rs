@@ -154,6 +154,9 @@ pub enum Message {
         game: String,
         comment: String,
     },
+    SetShowDeselectedGames(bool),
+    SetShowUnchangedGames(bool),
+    SetShowUnscannedGames(bool),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

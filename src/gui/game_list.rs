@@ -55,11 +55,7 @@ impl GameListEntry {
         };
 
         let scanned = self.scan_info.found_anything();
-        let enabled = if restoring {
-            config.is_game_enabled_for_restore(&self.scan_info.game_name)
-        } else {
-            config.is_game_enabled_for_backup(&self.scan_info.game_name)
-        };
+        let enabled = config.is_game_enabled_for_operation(&self.scan_info.game_name, restoring);
         let all_items_ignored = self.scan_info.all_ignored();
         let customized = config.is_game_customized(&self.scan_info.game_name);
         let customized_pure = customized && !manifest.0.contains_key(&self.scan_info.game_name);
@@ -361,41 +357,48 @@ impl GameList {
                     )
                 })
                 .push({
-                    let content = self.entries.iter().fold(
-                        Column::new().width(Length::Fill).padding([0, 15, 5, 15]).spacing(10),
-                        |parent, x| {
-                            if !use_search
-                                || fuzzy_matcher::skim::SkimMatcherV2::default()
-                                    .fuzzy_match(&x.scan_info.game_name, &search_game_name)
-                                    .is_some()
-                            {
-                                parent.push(x.view(
-                                    restoring,
-                                    config,
-                                    manifest,
-                                    duplicate_detector,
-                                    operation,
-                                    self.expanded_games.contains(&x.scan_info.game_name),
-                                    &self.modifiers,
-                                ))
-                            } else {
-                                parent
-                            }
-                        },
-                    );
+                    let content = self
+                        .entries
+                        .iter()
+                        .filter(|x| {
+                            config.should_show_game(
+                                &x.scan_info.game_name,
+                                restoring,
+                                x.scan_info.is_changed(),
+                                x.scan_info.found_anything(),
+                            )
+                        })
+                        .fold(
+                            Column::new().width(Length::Fill).padding([0, 15, 5, 15]).spacing(10),
+                            |parent, x| {
+                                if !use_search
+                                    || fuzzy_matcher::skim::SkimMatcherV2::default()
+                                        .fuzzy_match(&x.scan_info.game_name, &search_game_name)
+                                        .is_some()
+                                {
+                                    parent.push(x.view(
+                                        restoring,
+                                        config,
+                                        manifest,
+                                        duplicate_detector,
+                                        operation,
+                                        self.expanded_games.contains(&x.scan_info.game_name),
+                                        &self.modifiers,
+                                    ))
+                                } else {
+                                    parent
+                                }
+                            },
+                        );
                     ScrollSubject::game_list(restoring).into_widget(content)
                 }),
         )
     }
 
     pub fn all_entries_selected(&self, config: &Config, restoring: bool) -> bool {
-        self.entries.iter().all(|x| {
-            if restoring {
-                config.is_game_enabled_for_restore(&x.scan_info.game_name)
-            } else {
-                config.is_game_enabled_for_backup(&x.scan_info.game_name)
-            }
-        })
+        self.entries
+            .iter()
+            .all(|x| config.is_game_enabled_for_operation(&x.scan_info.game_name, restoring))
     }
 
     pub fn compute_operation_status(&self, config: &Config, restoring: bool) -> OperationStatus {
@@ -404,8 +407,7 @@ impl GameList {
             status.total_games += 1;
             status.total_bytes += entry.scan_info.total_possible_bytes();
             if !entry.scan_info.all_ignored()
-                && ((restoring && config.is_game_enabled_for_restore(&entry.scan_info.game_name))
-                    || (!restoring && config.is_game_enabled_for_backup(&entry.scan_info.game_name)))
+                && config.is_game_enabled_for_operation(&entry.scan_info.game_name, restoring)
             {
                 status.processed_games += 1;
                 status.processed_bytes += entry.scan_info.sum_bytes(&None);

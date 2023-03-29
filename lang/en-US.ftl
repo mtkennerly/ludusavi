@@ -100,6 +100,7 @@ label-checked = Checked
 label-updated = Updated
 label-new = New
 label-comment = Comment
+label-scan = Scan
 
 store-epic = Epic
 store-gog = GOG
@@ -130,6 +131,10 @@ theme-light = Light
 theme-dark = Dark
 
 redirect-bidirectional = Bidirectional
+
+show-deselected-games = Show deselected games
+show-unchanged-games = Show unchanged games
+show-unscanned-games = Show unscanned games
 
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies

@@ -30,6 +30,8 @@ pub struct Config {
     pub redirects: Vec<RedirectConfig>,
     pub backup: BackupConfig,
     pub restore: RestoreConfig,
+    #[serde(default)]
+    pub scan: Scan,
     #[serde(default, rename = "customGames")]
     pub custom_games: Vec<CustomGame>,
 }
@@ -558,6 +560,36 @@ pub struct RestoreConfig {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Scan {
+    #[serde(
+        default = "crate::serialization::default_true",
+        skip_serializing_if = "crate::serialization::is_true"
+    )]
+    pub show_deselected_games: bool,
+    #[serde(
+        default = "crate::serialization::default_true",
+        skip_serializing_if = "crate::serialization::is_true"
+    )]
+    pub show_unchanged_games: bool,
+    #[serde(
+        default = "crate::serialization::default_true",
+        skip_serializing_if = "crate::serialization::is_true"
+    )]
+    pub show_unscanned_games: bool,
+}
+
+impl Default for Scan {
+    fn default() -> Self {
+        Self {
+            show_deselected_games: true,
+            show_unchanged_games: true,
+            show_unscanned_games: true,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CustomGame {
     pub name: String,
     #[serde(default, skip_serializing_if = "crate::serialization::is_false")]
@@ -792,6 +824,14 @@ impl Config {
         self.roots.extend(self.find_missing_roots());
     }
 
+    pub fn is_game_enabled_for_operation(&self, name: &str, restoring: bool) -> bool {
+        if restoring {
+            self.is_game_enabled_for_restore(name)
+        } else {
+            self.is_game_enabled_for_backup(name)
+        }
+    }
+
     pub fn is_game_enabled_for_backup(&self, name: &str) -> bool {
         !self.backup.ignored_games.contains(name)
     }
@@ -884,6 +924,12 @@ impl Config {
         }
 
         expanded
+    }
+
+    pub fn should_show_game(&self, name: &str, restoring: bool, changed: bool, scanned: bool) -> bool {
+        (self.scan.show_deselected_games || self.is_game_enabled_for_operation(name, restoring))
+            && (self.scan.show_unchanged_games || changed || !scanned)
+            && (self.scan.show_unscanned_games || scanned)
     }
 }
 
@@ -1201,6 +1247,7 @@ mod tests {
                     redirects: vec![],
                     sort: Default::default(),
                 },
+                scan: Default::default(),
                 custom_games: vec![],
             },
             config,
@@ -1239,6 +1286,10 @@ mod tests {
                 - Restore Game 1
                 - Restore Game 2
                 - Restore Game 2
+            scan:
+              showDeselectedGames: false
+              showUnchangedGames: false
+              showUnscannedGames: false
             customGames:
               - name: Custom Game 1
               - name: Custom Game 2
@@ -1304,6 +1355,11 @@ mod tests {
                     recent_games: Default::default(),
                     redirects: vec![],
                     sort: Default::default(),
+                },
+                scan: Scan {
+                    show_deselected_games: false,
+                    show_unchanged_games: false,
+                    show_unscanned_games: false,
                 },
                 custom_games: vec![
                     CustomGame {
@@ -1381,6 +1437,7 @@ mod tests {
                     redirects: vec![],
                     sort: Default::default(),
                 },
+                scan: Default::default(),
                 custom_games: vec![],
             },
             config,
@@ -1484,6 +1541,7 @@ mod tests {
                     redirects: vec![],
                     sort: Default::default(),
                 },
+                scan: Default::default(),
                 custom_games: vec![
                     CustomGame {
                         name: s("Custom Game 1"),
@@ -1562,6 +1620,10 @@ restore:
   sort:
     key: name
     reversed: false
+scan:
+  showDeselectedGames: false
+  showUnchangedGames: false
+  showUnscannedGames: false
 customGames:
   - name: Custom Game 1
     files: []
@@ -1628,6 +1690,11 @@ customGames:
                     recent_games: Default::default(),
                     redirects: vec![],
                     sort: Default::default(),
+                },
+                scan: Scan {
+                    show_deselected_games: false,
+                    show_unchanged_games: false,
+                    show_unscanned_games: false,
                 },
                 custom_games: vec![
                     CustomGame {

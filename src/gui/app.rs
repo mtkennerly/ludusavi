@@ -1434,6 +1434,21 @@ impl Application for App {
                 self.restore_screen.log.set_comment(&game, comment);
                 Command::none()
             }
+            Message::SetShowDeselectedGames(value) => {
+                self.config.scan.show_deselected_games = value;
+                self.config.save();
+                Command::none()
+            }
+            Message::SetShowUnchangedGames(value) => {
+                self.config.scan.show_unchanged_games = value;
+                self.config.save();
+                Command::none()
+            }
+            Message::SetShowUnscannedGames(value) => {
+                self.config.scan.show_unscanned_games = value;
+                self.config.save();
+                Command::none()
+            }
         }
     }
 
