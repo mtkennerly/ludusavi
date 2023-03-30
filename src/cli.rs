@@ -15,12 +15,7 @@ use crate::{
     },
     lang::TRANSLATOR,
     prelude::{app_dir, Error, StrictPath},
-    resource::{
-        cache::Cache,
-        config::{Config, SortKey},
-        manifest::Manifest,
-        ResourceFile,
-    },
+    resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile},
     scan::{
         heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId,
         DuplicateDetector, InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
@@ -253,21 +248,9 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             }
 
             let sort = sort.map(From::from).unwrap_or_else(|| config.backup.sort.clone());
-            match sort.key {
-                SortKey::Name => {
-                    info.sort_by(|(name1, ..), (name2, ..)| crate::scan::compare_games_by_name(name1, name2))
-                }
-                SortKey::Size => {
-                    info.sort_by(|(_, scan_info1, backup_info1, ..), (_, scan_info2, backup_info2, ..)| {
-                        crate::scan::compare_games_by_size(
-                            scan_info1,
-                            &Some(backup_info1.clone()),
-                            scan_info2,
-                            &Some(backup_info2.clone()),
-                        )
-                    })
-                }
-            }
+            info.sort_by(|(_, scan_info1, backup_info1, ..), (_, scan_info2, backup_info2, ..)| {
+                crate::scan::compare_games(sort.key, scan_info1, Some(backup_info1), scan_info2, Some(backup_info2))
+            });
             if sort.reversed {
                 info.reverse();
             }
@@ -392,21 +375,9 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             }
 
             let sort = sort.map(From::from).unwrap_or_else(|| config.restore.sort.clone());
-            match sort.key {
-                SortKey::Name => {
-                    info.sort_by(|(name1, ..), (name2, ..)| crate::scan::compare_games_by_name(name1, name2))
-                }
-                SortKey::Size => {
-                    info.sort_by(|(_, scan_info1, backup_info1, ..), (_, scan_info2, backup_info2, ..)| {
-                        crate::scan::compare_games_by_size(
-                            scan_info1,
-                            &Some(backup_info1.clone()),
-                            scan_info2,
-                            &Some(backup_info2.clone()),
-                        )
-                    })
-                }
-            }
+            info.sort_by(|(_, scan_info1, backup_info1, ..), (_, scan_info2, backup_info2, ..)| {
+                crate::scan::compare_games(sort.key, scan_info1, Some(backup_info1), scan_info2, Some(backup_info2))
+            });
             if sort.reversed {
                 info.reverse();
             }

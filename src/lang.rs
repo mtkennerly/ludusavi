@@ -705,6 +705,7 @@ impl Translator {
         translate(match key {
             SortKey::Name => "game-name",
             SortKey::Size => "file-size",
+            SortKey::Status => "status",
         })
     }
 

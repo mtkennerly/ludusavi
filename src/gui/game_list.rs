@@ -20,7 +20,7 @@ use crate::{
     lang::TRANSLATOR,
     resource::{
         cache::Cache,
-        config::{Config, Sort, SortKey, ToggledPaths, ToggledRegistry},
+        config::{Config, Sort, ToggledPaths, ToggledRegistry},
         manifest::Manifest,
     },
     scan::{layout::GameLayout, BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
@@ -260,7 +260,7 @@ impl GameListEntry {
                                 })
                                 .push(
                                     Container::new(Text::new({
-                                        let summed = self.scan_info.sum_bytes(&self.backup_info);
+                                        let summed = self.scan_info.sum_bytes(self.backup_info.as_ref());
                                         if summed == 0 && !self.scan_info.found_anything() {
                                             "".to_string()
                                         } else {
@@ -410,7 +410,7 @@ impl GameList {
                 && config.is_game_enabled_for_operation(&entry.scan_info.game_name, restoring)
             {
                 status.processed_games += 1;
-                status.processed_bytes += entry.scan_info.sum_bytes(&None);
+                status.processed_bytes += entry.scan_info.sum_bytes(None);
             }
 
             let changes = entry.scan_info.count_changes();
@@ -435,14 +435,15 @@ impl GameList {
     }
 
     pub fn sort(&mut self, sort: &Sort) {
-        match sort.key {
-            SortKey::Name => self
-                .entries
-                .sort_by(|x, y| crate::scan::compare_games_by_name(&x.scan_info.game_name, &y.scan_info.game_name)),
-            SortKey::Size => self.entries.sort_by(|x, y| {
-                crate::scan::compare_games_by_size(&x.scan_info, &x.backup_info, &y.scan_info, &y.backup_info)
-            }),
-        }
+        self.entries.sort_by(|x, y| {
+            crate::scan::compare_games(
+                sort.key,
+                &x.scan_info,
+                x.backup_info.as_ref(),
+                &y.scan_info,
+                y.backup_info.as_ref(),
+            )
+        });
         if sort.reversed {
             self.entries.reverse();
         }

@@ -178,7 +178,7 @@ impl Reporter {
 
                 parts.push(TRANSLATOR.cli_game_header(
                     name,
-                    scan_info.sum_bytes(&Some(backup_info.to_owned())),
+                    scan_info.sum_bytes(Some(backup_info)),
                     decision,
                     duplicate_detector.is_game_duplicated(scan_info),
                     &scan_info.count_changes(),

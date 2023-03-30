@@ -7,6 +7,7 @@ total-games = Games
 file-size = Size
 file-location = Location
 overall = Overall
+status = Status
 
 cli-unrecognized-games = No info for these games:
 cli-unable-to-request-confirmation = Unable to request confirmation.

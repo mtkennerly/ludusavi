@@ -36,10 +36,12 @@ pub enum CliSort {
     NameReversed,
     Size,
     SizeReversed,
+    Status,
+    StatusReversed,
 }
 
 impl CliSort {
-    pub const ALL: &'static [&'static str] = &["name", "name-rev", "size", "size-rev"];
+    pub const ALL: &'static [&'static str] = &["name", "name-rev", "size", "size-rev", "status", "status-rev"];
 }
 
 impl std::str::FromStr for CliSort {
@@ -51,6 +53,8 @@ impl std::str::FromStr for CliSort {
             "name-rev" => Ok(Self::NameReversed),
             "size" => Ok(Self::Size),
             "size-rev" => Ok(Self::SizeReversed),
+            "status" => Ok(Self::Status),
+            "status-rev" => Ok(Self::StatusReversed),
             _ => Err(format!("invalid sort key: {}", s)),
         }
     }
@@ -73,6 +77,14 @@ impl From<CliSort> for Sort {
             },
             CliSort::SizeReversed => Self {
                 key: SortKey::Size,
+                reversed: true,
+            },
+            CliSort::Status => Self {
+                key: SortKey::Status,
+                reversed: false,
+            },
+            CliSort::StatusReversed => Self {
+                key: SortKey::Status,
                 reversed: true,
             },
         }

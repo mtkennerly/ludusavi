@@ -4,6 +4,7 @@
   * Support for secondary manifests bundled with games.
     If a game includes a `.ludusavi.yaml` file,
     then it will be incorporated into the backup scan.
+  * Option to sort games by status: new -> different -> same -> unscanned.
   * GUI: Filters for viewing scan results, configurable on the other screen.
     You can now show/hide games that are deselected, unchanged, and unscanned.
   * CLI: Backup comments are now included in the output of the `backups` command.

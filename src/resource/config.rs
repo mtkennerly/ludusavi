@@ -283,10 +283,12 @@ pub enum SortKey {
     Name,
     #[serde(rename = "size")]
     Size,
+    #[serde(rename = "status")]
+    Status,
 }
 
 impl SortKey {
-    pub const ALL: &'static [Self] = &[Self::Name, Self::Size];
+    pub const ALL: &'static [Self] = &[Self::Name, Self::Size, Self::Status];
 }
 
 impl ToString for SortKey {

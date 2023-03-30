@@ -16,7 +16,7 @@ use crate::{
     path::StrictPath,
     prelude::{filter_map_walkdir, Error, INVALID_FILE_CHARS, SKIP},
     resource::{
-        config::{BackupFilter, RedirectConfig, RedirectKind, RootsConfig, ToggledPaths, ToggledRegistry},
+        config::{BackupFilter, RedirectConfig, RedirectKind, RootsConfig, SortKey, ToggledPaths, ToggledRegistry},
         manifest::{Game, Manifest, Os, Store},
     },
     scan::{
@@ -290,7 +290,7 @@ pub struct ScanInfo {
 }
 
 impl ScanInfo {
-    pub fn sum_bytes(&self, backup_info: &Option<BackupInfo>) -> u64 {
+    pub fn sum_bytes(&self, backup_info: Option<&BackupInfo>) -> u64 {
         let successful_bytes = self
             .found_files
             .iter()
@@ -497,7 +497,7 @@ impl OperationStatus {
         self.total_bytes += scan_info.total_possible_bytes();
         if processed {
             self.processed_games += 1;
-            self.processed_bytes += scan_info.sum_bytes(backup_info);
+            self.processed_bytes += scan_info.sum_bytes(backup_info.as_ref());
         }
 
         let changes = scan_info.count_changes();
@@ -1712,26 +1712,42 @@ impl TitleFinder {
     }
 }
 
-pub fn compare_games_by_name(name1: &str, name2: &str) -> std::cmp::Ordering {
+pub fn compare_games(
+    key: SortKey,
+    scan_info1: &ScanInfo,
+    backup_info1: Option<&BackupInfo>,
+    scan_info2: &ScanInfo,
+    backup_info2: Option<&BackupInfo>,
+) -> std::cmp::Ordering {
+    match key {
+        SortKey::Name => compare_games_by_name(&scan_info1.game_name, &scan_info2.game_name),
+        SortKey::Size => compare_games_by_size(scan_info1, backup_info1, scan_info2, backup_info2),
+        SortKey::Status => compare_games_by_status(scan_info1, scan_info2),
+    }
+}
+
+fn compare_games_by_name(name1: &str, name2: &str) -> std::cmp::Ordering {
     name1.to_lowercase().cmp(&name2.to_lowercase()).then(name1.cmp(name2))
 }
 
-pub fn compare_games_by_size(
+fn compare_games_by_size(
     scan_info1: &ScanInfo,
-    backup_info1: &Option<BackupInfo>,
+    backup_info1: Option<&BackupInfo>,
     scan_info2: &ScanInfo,
-    backup_info2: &Option<BackupInfo>,
+    backup_info2: Option<&BackupInfo>,
 ) -> std::cmp::Ordering {
     scan_info1
         .sum_bytes(backup_info1)
         .cmp(&scan_info2.sum_bytes(backup_info2))
-        .then_with(|| {
-            scan_info1
-                .game_name
-                .to_lowercase()
-                .cmp(&scan_info2.game_name.to_lowercase())
-        })
-        .then(scan_info1.game_name.cmp(&scan_info2.game_name))
+        .then_with(|| compare_games_by_name(&scan_info1.game_name, &scan_info2.game_name))
+}
+
+fn compare_games_by_status(scan_info1: &ScanInfo, scan_info2: &ScanInfo) -> std::cmp::Ordering {
+    scan_info1
+        .count_changes()
+        .overall()
+        .cmp(&scan_info2.count_changes().overall())
+        .then_with(|| compare_games_by_name(&scan_info1.game_name, &scan_info2.game_name))
 }
 
 #[cfg(test)]
