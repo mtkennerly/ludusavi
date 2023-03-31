@@ -24,6 +24,8 @@
   * Ludusavi only pruned old backups that exceeded your retention settings
     when making a new full backup, but not when making a new differential backup.
     Now, pruning is also performed as needed after a differential backup.
+  * The `backups` command needlessly performed a full restoration preview when determining the available backups.
+    Now, it only reads the `mapping.yaml` file for each game.
   * When using Heroic on Linux to run Windows games,
     save paths in the game install folders are now checked case-insensitively.
   * GUI: On the other screen, backup exclusions could be formatted incorrectly

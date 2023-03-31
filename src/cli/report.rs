@@ -3,7 +3,9 @@ use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 use crate::{
     lang::TRANSLATOR,
     prelude::StrictPath,
-    scan::{BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision, ScanChange, ScanInfo},
+    scan::{
+        layout::Backup, BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision, ScanChange, ScanInfo,
+    },
 };
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -335,15 +337,15 @@ impl Reporter {
         successful
     }
 
-    pub fn add_backup(&mut self, name: &str, scan_info: &ScanInfo) {
+    pub fn add_backups(&mut self, name: &str, available_backups: &[Backup]) {
         match self {
             Self::Standard { parts, .. } => {
-                if scan_info.available_backups.is_empty() {
+                if available_backups.is_empty() {
                     return;
                 }
 
                 parts.push(format!("{}:", name));
-                for backup in &scan_info.available_backups {
+                for backup in available_backups {
                     if let Some(comment) = backup.comment() {
                         parts.push(format!(
                             "  - \"{}\" ({}) - {}",
@@ -364,12 +366,12 @@ impl Reporter {
                 parts.push("".to_string());
             }
             Self::Json { output } => {
-                if scan_info.available_backups.is_empty() {
+                if available_backups.is_empty() {
                     return;
                 }
 
                 let mut backups = vec![];
-                for backup in &scan_info.available_backups {
+                for backup in available_backups {
                     backups.push(ApiBackup {
                         name: backup.name().to_string(),
                         when: *backup.when(),

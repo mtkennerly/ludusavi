@@ -1302,6 +1302,8 @@ impl GameLayout {
         #[allow(unused_mut)]
         let mut registry = IndividualMappingRegistry::default();
 
+        log::info!("[{}] migrating legacy backup", &self.mapping.name);
+
         for file in self.restorable_files_in_simple(&backup.name) {
             files.insert(
                 file.original_path.unwrap().render(),
@@ -1373,6 +1375,17 @@ impl GameLayout {
                 backup_info
             }
         }
+    }
+
+    pub fn get_backups(&mut self) -> Vec<Backup> {
+        let mut available_backups = vec![];
+
+        if self.path.is_dir() {
+            self.migrate_legacy_backup();
+            available_backups = self.restorable_backups_flattened();
+        }
+
+        available_backups
     }
 
     pub fn scan_for_restoration(&mut self, name: &str, id: &BackupId, redirects: &[RedirectConfig]) -> ScanInfo {

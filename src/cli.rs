@@ -444,13 +444,13 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 .progress_count(subjects.valid.len() as u64)
                 .map(|name| {
                     let mut layout = layout.game_layout(name);
-                    let scan_info = layout.scan_for_restoration(name, &BackupId::Latest, &config.redirects);
-                    (name, scan_info)
+                    let backups = layout.get_backups();
+                    (name, backups)
                 })
                 .collect();
 
-            for (name, scan_info) in info {
-                reporter.add_backup(name, &scan_info);
+            for (name, backups) in info {
+                reporter.add_backups(name, &backups);
             }
             reporter.print(&restore_dir);
         }
