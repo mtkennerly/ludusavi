@@ -2826,6 +2826,9 @@ mod tests {
                         backup: Some(Backup::Full(FullBackup {
                             name: ".".to_string(),
                             when: now(),
+                            registry: IndividualMappingRegistry {
+                                hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into())
+                            },
                             ..Default::default()
                         })),
                         ..Default::default()
