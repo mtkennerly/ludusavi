@@ -8,6 +8,7 @@ impl RegistryItem {
         Self { raw }
     }
 
+    #[allow(unused)]
     pub fn from_hive_and_key(hive: &str, key: &str) -> Self {
         Self {
             raw: format!("{}/{}", hive, key),
