@@ -23,7 +23,7 @@ use crate::{
         config::{Config, Sort, ToggledPaths, ToggledRegistry},
         manifest::Manifest,
     },
-    scan::{layout::GameLayout, BackupInfo, DuplicateDetector, OperationStatus, ScanInfo},
+    scan::{layout::GameLayout, BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo},
 };
 
 #[derive(Default)]
@@ -119,15 +119,22 @@ impl GameListEntry {
                             .width(Length::Fill)
                             .padding(2),
                         )
-                        .push_some(|| {
-                            if changes.brand_new() {
-                                Some(Badge::new_entry().view())
-                            } else if changes.updated() {
-                                Some(Badge::changed_entry().view())
-                            } else {
-                                None
-                            }
+                        .push_some(|| match changes.overall() {
+                            ScanChange::New => Some(Badge::new_entry().view()),
+                            ScanChange::Different => Some(Badge::changed_entry().view()),
+                            ScanChange::Removed => None,
+                            ScanChange::Same => None,
+                            ScanChange::Unknown => None,
                         })
+                        // .push_some(|| {
+                        //     if changes.brand_new() {
+                        //         Some(Badge::new_entry().view())
+                        //     } else if changes.updated() {
+                        //         Some(Badge::changed_entry().view())
+                        //     } else {
+                        //         None
+                        //     }
+                        // })
                         .push_if(
                             || self.scan_info.any_ignored(),
                             || {
@@ -413,14 +420,7 @@ impl GameList {
                 status.processed_bytes += entry.scan_info.sum_bytes(None);
             }
 
-            let changes = entry.scan_info.count_changes();
-            if changes.brand_new() {
-                status.changed_games.new += 1;
-            } else if changes.updated() {
-                status.changed_games.different += 1;
-            } else {
-                status.changed_games.same += 1;
-            }
+            status.changed_games.add(entry.scan_info.count_changes().overall());
         }
         status
     }

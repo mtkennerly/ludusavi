@@ -1,6 +1,10 @@
 ## Unreleased
 
 * Added:
+  * A new "removed" status (icon: `x`) is now displayed for saves.
+    This indicates that a save from the latest backup no longer exists on the system.
+    If a game has some removed saves, then that game will be marked as updated and will trigger a new backup.
+    If 100% of a game's saves are removed, then the game won't be listed, and no backup will be performed.
   * Support for secondary manifests bundled with games.
     If a game includes a `.ludusavi.yaml` file,
     then it will be incorporated into the backup scan.

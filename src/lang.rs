@@ -26,6 +26,7 @@ const TOTAL_SIZE: &str = "total-size";
 pub const TRANSLATOR: Translator = Translator {};
 pub const ADD_SYMBOL: &str = "+";
 pub const CHANGE_SYMBOL: &str = "Δ";
+pub const REMOVAL_SYMBOL: &str = "x";
 
 // TODO: Some are blocked by https://github.com/mtkennerly/ludusavi/issues/9.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -400,6 +401,7 @@ impl Translator {
             ScanChange::Same | ScanChange::Unknown => (),
             ScanChange::New => parts.push(format!("[{}]", ADD_SYMBOL)),
             ScanChange::Different => parts.push(format!("[{}]", CHANGE_SYMBOL)),
+            ScanChange::Removed => parts.push(format!("[{}]", REMOVAL_SYMBOL)),
         }
         if !successful {
             parts.push(self.label_failed());
@@ -834,6 +836,10 @@ impl Translator {
 
     pub fn updated_tooltip(&self) -> String {
         translate("label-updated")
+    }
+
+    pub fn removed_tooltip(&self) -> String {
+        translate("label-removed")
     }
 
     fn consider_doing_a_preview(&self) -> String {

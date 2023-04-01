@@ -8,6 +8,12 @@ impl RegistryItem {
         Self { raw }
     }
 
+    pub fn from_hive_and_key(hive: &str, key: &str) -> Self {
+        Self {
+            raw: format!("{}/{}", hive, key),
+        }
+    }
+
     pub fn reset(&mut self, raw: String) {
         self.raw = raw;
     }

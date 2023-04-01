@@ -617,28 +617,6 @@ impl StrictPath {
         Ok(true)
     }
 
-    pub fn try_same_content_as_zip(&self, other: &mut zip::read::ZipFile) -> Result<bool, Box<dyn std::error::Error>> {
-        use std::io::Read;
-
-        let handle = std::fs::File::open(self.interpret())?;
-        let mut reader = std::io::BufReader::new(handle);
-
-        let mut disk_buffer = [0; 1024];
-        let mut zip_buffer = [0; 1024];
-        loop {
-            let read_disk = reader.read(&mut disk_buffer[..])?;
-            let read_zip = other.read(&mut zip_buffer[..])?;
-
-            if read_disk != read_zip || disk_buffer.iter().zip(zip_buffer.iter()).any(|(a, b)| a != b) {
-                return Ok(false);
-            }
-            if read_disk == 0 || read_zip == 0 {
-                break;
-            }
-        }
-        Ok(true)
-    }
-
     pub fn read(&self) -> Option<String> {
         std::fs::read_to_string(std::path::Path::new(&self.interpret())).ok()
     }

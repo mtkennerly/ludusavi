@@ -246,6 +246,7 @@ impl container::StyleSheet for Theme {
                 Self::Style::ChangeBadge(change) => match change {
                     ScanChange::New => self.added,
                     ScanChange::Different => self.positive,
+                    ScanChange::Removed => self.negative,
                     ScanChange::Same | ScanChange::Unknown => self.disabled,
                 },
                 _ => self.text,
@@ -270,6 +271,7 @@ impl container::StyleSheet for Theme {
                 Self::Style::ChangeBadge(change) => match change {
                     ScanChange::New => Some(self.added),
                     ScanChange::Different => Some(self.positive),
+                    ScanChange::Removed => Some(self.negative),
                     ScanChange::Same | ScanChange::Unknown => Some(self.disabled),
                 },
                 _ => Some(self.text),

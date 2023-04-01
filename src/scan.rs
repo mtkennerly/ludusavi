@@ -30,18 +30,44 @@ use crate::{
 pub enum ScanChange {
     New,
     Different,
+    Removed,
     Same,
     #[default]
     Unknown,
 }
 
 impl ScanChange {
+    pub fn normalize(&self, ignored: bool, restoring: bool) -> Self {
+        match self {
+            ScanChange::New if ignored => Self::Same,
+            ScanChange::New => *self,
+            ScanChange::Different if ignored && restoring => Self::Same,
+            ScanChange::Different if ignored && !restoring => Self::Removed,
+            ScanChange::Different => Self::Different,
+            ScanChange::Removed => *self,
+            ScanChange::Same if ignored && !restoring => Self::Removed,
+            ScanChange::Same => *self,
+            ScanChange::Unknown => *self,
+        }
+    }
+
     pub fn is_changed(&self) -> bool {
         match self {
             Self::New => true,
             Self::Different => true,
+            Self::Removed => true,
             Self::Same => false,
             // This is because we want unchanged and unscanned games to be filtered differently:
+            Self::Unknown => true,
+        }
+    }
+
+    pub fn will_take_space(&self) -> bool {
+        match self {
+            Self::New => true,
+            Self::Different => true,
+            Self::Removed => false,
+            Self::Same => true,
             Self::Unknown => true,
         }
     }
@@ -51,6 +77,8 @@ impl ScanChange {
 pub struct ScanChangeCount {
     pub new: usize,
     pub different: usize,
+    #[serde(skip)]
+    pub removed: usize,
     pub same: usize,
 }
 
@@ -59,21 +87,46 @@ impl ScanChangeCount {
         Self {
             new: 0,
             different: 0,
+            removed: 0,
             same: 0,
         }
     }
 
+    pub fn add(&mut self, change: ScanChange) {
+        match change {
+            ScanChange::New => self.new += 1,
+            ScanChange::Different => self.different += 1,
+            ScanChange::Removed => self.removed += 1,
+            ScanChange::Same => self.same += 1,
+            ScanChange::Unknown => (),
+        }
+    }
+
     pub fn brand_new(&self) -> bool {
-        self.new > 0 && self.different == 0 && self.same == 0
+        self.only(ScanChange::New)
     }
 
     pub fn updated(&self) -> bool {
-        !self.brand_new() && (self.new > 0 || self.different > 0)
+        !self.brand_new() && (self.new > 0 || self.different > 0 || self.removed > 0)
+    }
+
+    fn only(&self, change: ScanChange) -> bool {
+        let total = self.new + self.different + self.removed + self.same;
+        let only = |count: usize| count > 0 && count == total;
+        match change {
+            ScanChange::New => only(self.new),
+            ScanChange::Different => only(self.different),
+            ScanChange::Removed => only(self.removed),
+            ScanChange::Same => only(self.same),
+            ScanChange::Unknown => false,
+        }
     }
 
     pub fn overall(&self) -> ScanChange {
         if self.brand_new() {
             ScanChange::New
+        } else if self.only(ScanChange::Removed) {
+            ScanChange::Removed
         } else if self.updated() {
             ScanChange::Different
         } else {
@@ -83,7 +136,7 @@ impl ScanChangeCount {
 }
 
 impl ScanChange {
-    pub fn evaluate(current_hash: &str, previous_hash: Option<&&String>) -> Self {
+    pub fn evaluate_backup(current_hash: &str, previous_hash: Option<&&String>) -> Self {
         match previous_hash {
             None => Self::New,
             Some(&previous) => {
@@ -98,7 +151,7 @@ impl ScanChange {
 
     pub fn evaluate_restore(original_path: &StrictPath, previous_hash: &str) -> Self {
         match original_path.try_sha1() {
-            Err(_) => ScanChange::New,
+            Err(_) => Self::New,
             Ok(current_hash) => {
                 if current_hash == previous_hash {
                     Self::Same
@@ -137,6 +190,20 @@ impl ScannedFile {
             original_path: None,
             ignored: false,
             change: Default::default(),
+            container: None,
+            redirected: None,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn with_change<T: AsRef<str> + ToString, H: ToString>(path: T, size: u64, hash: H, change: ScanChange) -> Self {
+        Self {
+            path: StrictPath::new(path.to_string()),
+            size,
+            hash: hash.to_string(),
+            original_path: None,
+            ignored: false,
+            change,
             container: None,
             redirected: None,
         }
@@ -205,6 +272,18 @@ impl ScannedFile {
     pub fn alt_readable(&self, restoring: bool) -> Option<String> {
         self.alt(restoring).map(|x| x.render())
     }
+
+    pub fn will_take_space(&self) -> bool {
+        !self.ignored && self.change.will_take_space()
+    }
+
+    pub fn is_changed(&self) -> bool {
+        self.change.normalize(self.ignored, self.restoring()).is_changed()
+    }
+
+    pub fn effective_change(&self) -> ScanChange {
+        self.change.normalize(self.ignored, self.restoring())
+    }
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -223,8 +302,8 @@ pub struct ScannedRegistryValue {
 
 pub type ScannedRegistryValues = BTreeMap<String, ScannedRegistryValue>;
 
-#[cfg(test)]
 impl ScannedRegistry {
+    #[cfg(test)]
     pub fn new<T: AsRef<str> + ToString>(path: T) -> Self {
         Self {
             path: RegistryItem::new(path.to_string()),
@@ -234,18 +313,21 @@ impl ScannedRegistry {
         }
     }
 
+    #[cfg(test)]
     #[allow(dead_code)]
     pub fn ignored(mut self) -> Self {
         self.ignored = true;
         self
     }
 
+    #[cfg(test)]
     #[allow(dead_code)]
     pub fn change(mut self, change: ScanChange) -> Self {
         self.change = change;
         self
     }
 
+    #[cfg(test)]
     #[allow(dead_code)]
     pub fn with_value(mut self, value_name: &str, change: ScanChange, ignored: bool) -> Self {
         self.values
@@ -253,6 +335,7 @@ impl ScannedRegistry {
         self
     }
 
+    #[cfg(test)]
     #[allow(dead_code)]
     pub fn with_value_new(mut self, value_name: &str) -> Self {
         self.values.insert(
@@ -265,6 +348,7 @@ impl ScannedRegistry {
         self
     }
 
+    #[cfg(test)]
     #[allow(dead_code)]
     pub fn with_value_same(mut self, value_name: &str) -> Self {
         self.values.insert(
@@ -294,7 +378,7 @@ impl ScanInfo {
         let successful_bytes = self
             .found_files
             .iter()
-            .filter(|x| !x.ignored)
+            .filter(|x| x.will_take_space())
             .map(|x| x.size)
             .sum::<u64>();
         let failed_bytes = if let Some(backup_info) = &backup_info {
@@ -310,15 +394,18 @@ impl ScanInfo {
     }
 
     pub fn found_anything(&self) -> bool {
-        !self.found_files.is_empty() || !self.found_registry_keys.is_empty()
+        let can_report = match self.count_changes().overall() {
+            ScanChange::New => true,
+            ScanChange::Different => true,
+            ScanChange::Removed => false,
+            ScanChange::Same => true,
+            ScanChange::Unknown => true,
+        };
+        can_report && (!self.found_files.is_empty() || !self.found_registry_keys.is_empty())
     }
 
     pub fn found_anything_processable(&self) -> bool {
-        self.found_files.iter().any(|x| !x.ignored)
-            || self
-                .found_registry_keys
-                .iter()
-                .any(|x| !x.ignored || x.values.values().any(|y| !y.ignored))
+        self.count_changes().overall().is_changed()
     }
 
     pub fn update_ignored(&mut self, toggled_paths: &ToggledPaths, toggled_registry: &ToggledRegistry) {
@@ -413,32 +500,12 @@ impl ScanInfo {
         let mut count = ScanChangeCount::new();
 
         for entry in &self.found_files {
-            if entry.ignored {
-                continue;
-            }
-            match entry.change {
-                ScanChange::New => count.new += 1,
-                ScanChange::Different => count.different += 1,
-                ScanChange::Same => count.same += 1,
-                ScanChange::Unknown => (),
-            }
+            count.add(entry.change.normalize(entry.ignored, self.restoring()));
         }
         for entry in &self.found_registry_keys {
-            if !entry.ignored {
-                match entry.change {
-                    ScanChange::New => count.new += 1,
-                    ScanChange::Different => count.different += 1,
-                    ScanChange::Same => count.same += 1,
-                    ScanChange::Unknown => (),
-                }
-            }
-            for value in entry.values.values().filter(|x| !x.ignored) {
-                match value.change {
-                    ScanChange::New => count.new += 1,
-                    ScanChange::Different => count.different += 1,
-                    ScanChange::Same => count.same += 1,
-                    ScanChange::Unknown => (),
-                }
+            count.add(entry.change.normalize(entry.ignored, self.restoring()));
+            for value in entry.values.values() {
+                count.add(value.change.normalize(entry.ignored, self.restoring()));
             }
         }
 
@@ -1127,7 +1194,7 @@ pub fn scan_game_for_backup(
                 let hash = p.sha1();
                 let redirected = game_file_target(&p, redirects, false);
                 found_files.insert(ScannedFile {
-                    change: ScanChange::evaluate(&hash, previous_files.get(redirected.as_ref().unwrap_or(&p))),
+                    change: ScanChange::evaluate_backup(&hash, previous_files.get(redirected.as_ref().unwrap_or(&p))),
                     size: p.size(),
                     hash,
                     redirected,
@@ -1155,7 +1222,7 @@ pub fn scan_game_for_backup(
                         let hash = child.sha1();
                         let redirected = game_file_target(&child, redirects, false);
                         found_files.insert(ScannedFile {
-                            change: ScanChange::evaluate(
+                            change: ScanChange::evaluate_backup(
                                 &hash,
                                 previous_files.get(redirected.as_ref().unwrap_or(&child)),
                             ),
@@ -1173,14 +1240,32 @@ pub fn scan_game_for_backup(
         }
     }
 
+    // Mark removed files.
+    let current_files: Vec<_> = found_files.iter().map(|x| x.path.interpret()).collect();
+    for (previous_file, _) in previous_files {
+        let previous_file_interpreted = previous_file.interpret();
+        if !current_files.contains(&previous_file_interpreted) {
+            found_files.insert(ScannedFile {
+                change: ScanChange::Removed,
+                size: 0,
+                hash: "".to_string(),
+                redirected: None,
+                path: previous_file.to_owned(),
+                original_path: None,
+                ignored: ignored_paths.is_ignored(name, previous_file),
+                container: None,
+            });
+        }
+    }
+
     #[cfg(target_os = "windows")]
     {
-        if let Some(registry) = &game.registry {
-            let previous_registry = match previous.map(|x| x.registry_content) {
-                Some(Some(content)) => registry::Hives::deserialize(&content),
-                _ => None,
-            };
+        let previous_registry = match previous.map(|x| x.registry_content) {
+            Some(Some(content)) => registry::Hives::deserialize(&content),
+            _ => None,
+        };
 
+        if let Some(registry) = &game.registry {
             for key in registry.keys() {
                 if key.trim().is_empty() {
                     continue;
@@ -1204,12 +1289,55 @@ pub fn scan_game_for_backup(
 
                 for candidate in candidates {
                     log::trace!("[{name}] checking registry: {candidate}");
-                    for scanned in
+                    for mut scanned in
                         registry::scan_registry(name, &candidate, filter, ignored_registry, &previous_registry)
                             .unwrap_or_default()
                     {
                         log::debug!("[{name}] found registry: {}", scanned.path.raw());
+
+                        // Mark removed registry values.
+                        let previous_values = previous_registry
+                            .as_ref()
+                            .and_then(|x| {
+                                x.get_path(&scanned.path)
+                                    .map(|y| y.0.keys().cloned().collect::<Vec<_>>())
+                            })
+                            .unwrap_or_default();
+                        for previous_value in previous_values {
+                            #[allow(clippy::map_entry)]
+                            if !scanned.values.contains_key(&previous_value) {
+                                let ignored = ignored_registry.is_ignored(name, &scanned.path, Some(&previous_value));
+                                scanned.values.insert(
+                                    previous_value,
+                                    ScannedRegistryValue {
+                                        ignored,
+                                        change: ScanChange::Removed,
+                                    },
+                                );
+                            }
+                        }
+
                         found_registry_keys.insert(scanned);
+                    }
+                }
+            }
+        }
+
+        // Mark removed registry keys.
+        if let Some(previous_registry) = &previous_registry {
+            let current_registry_keys: Vec<_> = found_registry_keys.iter().map(|x| x.path.interpret()).collect();
+            dbg!(&current_registry_keys);
+            for (previous_hive, previous_keys) in &previous_registry.0 {
+                for previous_key in previous_keys.0.keys() {
+                    let path = RegistryItem::from_hive_and_key(previous_hive, previous_key);
+                    if !current_registry_keys.contains(&path.interpret()) {
+                        let ignored = ignored_registry.is_ignored(name, &path, None);
+                        found_registry_keys.insert(ScannedRegistry {
+                            change: ScanChange::Removed,
+                            path,
+                            ignored,
+                            values: Default::default(),
+                        });
                     }
                 }
             }

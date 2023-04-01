@@ -137,6 +137,7 @@ impl FileTreeNode {
                             ScanChange::Same | ScanChange::Unknown => return None,
                             ScanChange::New => Badge::new_entry(),
                             ScanChange::Different => Badge::changed_entry(),
+                            ScanChange::Removed => Badge::removed_entry(),
                         };
                         Some(badge.view())
                     })

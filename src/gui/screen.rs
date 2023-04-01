@@ -340,7 +340,7 @@ pub fn other<'a>(updating_manifest: bool, config: &Config, cache: &Cache, histor
                         ))
                         .push(Checkbox::new(
                             TRANSLATOR.show_unchanged_games(),
-                            dbg!(config.scan.show_unchanged_games),
+                            config.scan.show_unchanged_games,
                             Message::SetShowUnchangedGames,
                         ))
                         .push(Checkbox::new(

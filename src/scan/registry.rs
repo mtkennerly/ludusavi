@@ -33,6 +33,51 @@ pub struct Entry {
     binary: Option<Vec<u8>>,
 }
 
+#[cfg(test)]
+impl Entry {
+    pub fn sz(value: String) -> Self {
+        Self {
+            sz: Some(value),
+            ..Default::default()
+        }
+    }
+
+    pub fn expand_sz(value: String) -> Self {
+        Self {
+            expand_sz: Some(value),
+            ..Default::default()
+        }
+    }
+
+    pub fn multi_sz(value: String) -> Self {
+        Self {
+            multi_sz: Some(value),
+            ..Default::default()
+        }
+    }
+
+    pub fn dword(value: u32) -> Self {
+        Self {
+            dword: Some(value),
+            ..Default::default()
+        }
+    }
+
+    pub fn qword(value: u64) -> Self {
+        Self {
+            qword: Some(value),
+            ..Default::default()
+        }
+    }
+
+    pub fn binary(value: Vec<u8>) -> Self {
+        Self {
+            binary: Some(value),
+            ..Default::default()
+        }
+    }
+}
+
 pub fn scan_registry(
     game: &str,
     path: &str,
@@ -186,6 +231,10 @@ impl Hives {
             if scanned.ignored {
                 continue;
             }
+            match scanned.change {
+                ScanChange::New | ScanChange::Different | ScanChange::Same => (),
+                ScanChange::Removed | ScanChange::Unknown => continue,
+            }
 
             match self.store_key_from_full_path(&scanned.path.raw()) {
                 Err(_) => {
@@ -312,6 +361,11 @@ impl Hives {
 
     fn get_mut(&mut self, hive: &str, key: &str) -> Option<&mut Entries> {
         self.0.get_mut(hive)?.0.get_mut(key)
+    }
+
+    pub fn get_path(&self, path: &RegistryItem) -> Option<&Entries> {
+        let (hive, key) = path.split_hive()?;
+        self.get(&hive, &key)
     }
 }
 

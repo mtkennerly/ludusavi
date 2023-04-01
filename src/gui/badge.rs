@@ -54,6 +54,15 @@ impl Badge {
         }
     }
 
+    pub fn removed_entry() -> Self {
+        Self {
+            text: crate::lang::REMOVAL_SYMBOL.to_string(),
+            change: Some(ScanChange::Removed),
+            tooltip: Some(TRANSLATOR.removed_tooltip()),
+            ..Default::default()
+        }
+    }
+
     pub fn changed_entry_with_count(count: usize) -> Self {
         Self {
             text: format!("{}{}", crate::lang::CHANGE_SYMBOL, count),
