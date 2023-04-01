@@ -2772,7 +2772,6 @@ mod tests {
         }
 
         #[test]
-        #[cfg(target_os = "windows")]
         fn can_scan_game_for_restoration_with_registry() {
             let mut layout = BackupLayout::new(
                 StrictPath::new(format!("{}/tests/backup", repo())),

@@ -1326,7 +1326,6 @@ pub fn scan_game_for_backup(
         // Mark removed registry keys.
         if let Some(previous_registry) = &previous_registry {
             let current_registry_keys: Vec<_> = found_registry_keys.iter().map(|x| x.path.interpret()).collect();
-            dbg!(&current_registry_keys);
             for (previous_hive, previous_keys) in &previous_registry.0 {
                 for previous_key in previous_keys.0.keys() {
                     let path = RegistryItem::from_hive_and_key(previous_hive, previous_key);
