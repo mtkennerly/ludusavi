@@ -32,6 +32,10 @@
     Now, it only reads the `mapping.yaml` file for each game.
   * When using Heroic on Linux to run Windows games,
     save paths in the game install folders are now checked case-insensitively.
+  * When a registry key was toggled off, but one of its values was toggled on,
+    the key and value would not be backed up.
+    Now, the key will be included along with just the selected values.
+    The inverse (key toggled on and values toggled off) was working correctly.
   * GUI: On the other screen, backup exclusions could be formatted incorrectly
     if you tried to undo/redo before making any changes to them.
   * GUI: On Mac, if a backup included multiple direct children of the root directory,

@@ -1093,6 +1093,7 @@ impl ToggledRegistry {
         if value.is_none() {
             self.remove_children(game, path);
         }
+
         self.0
             .entry(game.to_string())
             .or_insert_with(Default::default)

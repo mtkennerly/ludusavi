@@ -505,7 +505,7 @@ impl ScanInfo {
         for entry in &self.found_registry_keys {
             count.add(entry.change.normalize(entry.ignored, self.restoring()));
             for value in entry.values.values() {
-                count.add(value.change.normalize(entry.ignored, self.restoring()));
+                count.add(value.change.normalize(value.ignored, self.restoring()));
             }
         }
 

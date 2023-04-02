@@ -220,7 +220,6 @@ impl Hives {
         serde_yaml::from_str(content).ok()
     }
 
-    /// This only incorporates the keys, not the values.
     /// It can be used during backup since we know the keys exist, so we can look up the values when needed.
     /// It should not be used during restore since the keys may not exist.
     fn incorporate(&mut self, scan: &HashSet<ScannedRegistry>) -> (bool, HashSet<RegistryItem>) {
@@ -228,7 +227,7 @@ impl Hives {
         let mut found = false;
 
         for scanned in scan {
-            if scanned.ignored {
+            if scanned.ignored && scanned.values.values().all(|x| x.ignored) {
                 continue;
             }
             match scanned.change {
