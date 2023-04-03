@@ -1485,6 +1485,15 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::FilterDuplicates { restoring, game } => {
+                let log = if restoring {
+                    &mut self.restore_screen.log
+                } else {
+                    &mut self.backup_screen.log
+                };
+                log.filter_duplicates_of = game;
+                Command::none()
+            }
         }
     }
 

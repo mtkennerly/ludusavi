@@ -165,6 +165,10 @@ pub enum Message {
     SetShowDeselectedGames(bool),
     SetShowUnchangedGames(bool),
     SetShowUnscannedGames(bool),
+    FilterDuplicates {
+        restoring: bool,
+        game: Option<String>,
+    },
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

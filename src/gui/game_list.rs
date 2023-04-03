@@ -47,6 +47,7 @@ impl GameListEntry {
         operation: &Option<OngoingOperation>,
         expanded: bool,
         modifiers: &Modifiers,
+        filtering_duplicates: bool,
     ) -> Container {
         let successful = match &self.backup_info {
             Some(x) => x.successful(),
@@ -61,6 +62,7 @@ impl GameListEntry {
         let name_for_checkbox = self.scan_info.game_name.clone();
         let name_for_comment = self.scan_info.game_name.clone();
         let name_for_comment2 = self.scan_info.game_name.clone();
+        let name_for_duplicate_toggle = self.scan_info.game_name.clone();
         let operating = operation.is_some();
         let changes = self.scan_info.count_changes();
 
@@ -137,7 +139,14 @@ impl GameListEntry {
                         )
                         .push_if(
                             || duplicate_detector.is_game_duplicated(&self.scan_info),
-                            || Badge::new(&TRANSLATOR.badge_duplicates()).view(),
+                            || {
+                                Badge::new(&TRANSLATOR.badge_duplicates())
+                                    .on_press(Message::FilterDuplicates {
+                                        restoring,
+                                        game: (!filtering_duplicates).then_some(name_for_duplicate_toggle),
+                                    })
+                                    .view()
+                            },
                         )
                         .push_if(|| !successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
                         .push_some(|| {
@@ -325,6 +334,7 @@ pub struct GameList {
     pub search: FilterComponent,
     expanded_games: HashSet<String>,
     pub modifiers: Modifiers,
+    pub filter_duplicates_of: Option<String>,
 }
 
 impl GameList {
@@ -337,6 +347,16 @@ impl GameList {
         operation: &Option<OngoingOperation>,
         histories: &TextHistories,
     ) -> Container {
+        let duplicatees = self.filter_duplicates_of.as_ref().and_then(|game| {
+            let mut duplicatees = duplicate_detector.duplicate_games(game);
+            if duplicatees.is_empty() {
+                None
+            } else {
+                duplicatees.insert(game.clone());
+                Some(duplicatees)
+            }
+        });
+
         Container::new(
             Column::new()
                 .push_some(|| {
@@ -367,6 +387,12 @@ impl GameList {
                                     config.scan.show_deselected_games,
                                 )
                         })
+                        .filter(|x| {
+                            duplicatees
+                                .as_ref()
+                                .map(|xs| xs.contains(&x.scan_info.game_name))
+                                .unwrap_or(true)
+                        })
                         .fold(
                             Column::new().width(Length::Fill).padding([0, 15, 5, 15]).spacing(10),
                             |parent, x| {
@@ -378,6 +404,7 @@ impl GameList {
                                     operation,
                                     self.expanded_games.contains(&x.scan_info.game_name),
                                     &self.modifiers,
+                                    duplicatees.is_some(),
                                 ))
                             },
                         );

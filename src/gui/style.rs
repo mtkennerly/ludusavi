@@ -137,6 +137,7 @@ pub enum Button {
     GameListEntryTitleUnscanned,
     NavButtonActive,
     NavButtonInactive,
+    Badge,
 }
 impl button::StyleSheet for Theme {
     type Style = Button;
@@ -152,6 +153,7 @@ impl button::StyleSheet for Theme {
                 Self::Style::Negative => Some(self.negative.into()),
                 Self::Style::NavButtonActive => Some(self.navigation.alpha(0.9).into()),
                 Self::Style::NavButtonInactive => None,
+                Self::Style::Badge => None,
             },
             border_radius: match style {
                 Self::Style::GameActionPrimary
@@ -225,6 +227,7 @@ pub enum Container {
     ModalBackground,
     GameListEntry,
     Badge,
+    BadgeActivated,
     ChangeBadge(ScanChange),
     DisabledBackup,
     Notification,
@@ -239,6 +242,7 @@ impl container::StyleSheet for Theme {
                 Self::Style::Wrapper => Color::TRANSPARENT.into(),
                 Self::Style::ModalBackground | Self::Style::Notification | Self::Style::Tooltip => self.field.into(),
                 Self::Style::DisabledBackup => self.disabled.into(),
+                Self::Style::BadgeActivated => self.negative.into(),
                 _ => self.background.into(),
             },
             border_color: match style {
@@ -249,11 +253,13 @@ impl container::StyleSheet for Theme {
                     ScanChange::Removed => self.negative,
                     ScanChange::Same | ScanChange::Unknown => self.disabled,
                 },
+                Self::Style::BadgeActivated => self.negative,
                 _ => self.text,
             },
             border_width: match style {
                 Self::Style::GameListEntry
                 | Self::Style::Badge
+                | Self::Style::BadgeActivated
                 | Self::Style::ChangeBadge(..)
                 | Self::Style::Notification => 1.0,
                 _ => 0.0,
@@ -261,6 +267,7 @@ impl container::StyleSheet for Theme {
             border_radius: match style {
                 Self::Style::GameListEntry
                 | Self::Style::Badge
+                | Self::Style::BadgeActivated
                 | Self::Style::ChangeBadge(..)
                 | Self::Style::DisabledBackup => 10.0,
                 Self::Style::Notification | Self::Style::Tooltip => 20.0,
@@ -274,6 +281,7 @@ impl container::StyleSheet for Theme {
                     ScanChange::Removed => Some(self.negative),
                     ScanChange::Same | ScanChange::Unknown => Some(self.disabled),
                 },
+                Self::Style::BadgeActivated => Some(self.text_button),
                 _ => Some(self.text),
             },
         }
