@@ -9,6 +9,7 @@ use crate::{
         manifest::{ManifestUpdate, Store},
     },
     scan::{
+        game_filter,
         layout::{Backup, GameLayout},
         registry_compat::RegistryItem,
         BackupInfo, OperationStepDecision, ScanInfo,
@@ -107,6 +108,13 @@ pub enum Message {
         screen: Screen,
         value: String,
     },
+    ToggledSearchFilter {
+        filter: game_filter::FilterKind,
+        enabled: bool,
+    },
+    EditedSearchFilterUniqueness(game_filter::Uniqueness),
+    EditedSearchFilterCompleteness(game_filter::Completeness),
+    EditedSearchFilterEnablement(game_filter::Enablement),
     EditedSortKey {
         screen: Screen,
         value: SortKey,

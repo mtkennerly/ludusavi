@@ -9,8 +9,12 @@
     If a game includes a `.ludusavi.yaml` file,
     then it will be incorporated into the backup scan.
   * Option to sort games by status: new -> different -> same -> unscanned.
-  * GUI: Filters for viewing scan results, configurable on the other screen.
-    You can now show/hide games that are deselected, unchanged, and unscanned.
+  * GUI: On the backup/restore screen, you can use the filter icon to show games
+    based on whether they are enabled and whether they have duplicate or ignored saves.
+    These filters are reset when you close the program.
+  * GUI: On the other screen, there are new options to hide certain kinds of games.
+    You can now hide games that are deselected, unchanged, and unscanned.
+    These settings are saved between sessions.
   * CLI: Backup comments are now included in the output of the `backups` command.
 * Changed:
   * The standalone Linux release is now compiled on Ubuntu 20.04 instead of Ubuntu 18.04
@@ -24,6 +28,10 @@
     and then make a new full backup.
     That is still the case when your full backup limit is 2 or more,
     but there is now a special exception when it is only set to 1.
+  * GUI: On the backup and restore screens, the search icon has been replaced with a filter icon,
+    which reveals the existing title search along with the new filters described above.
+    The sort settings are now always visible, and the "reversed" checkbox is replaced with an ascending/descending icon.
+  * GUI: On the backup screen, the gear icon is now on the top row.
 * Fixed:
   * Ludusavi only pruned old backups that exceeded your retention settings
     when making a new full backup, but not when making a new differential backup.

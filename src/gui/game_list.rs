@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 
-use fuzzy_matcher::FuzzyMatcher;
 use iced::{alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, widget::tooltip, Alignment, Length};
 
 use crate::{
@@ -10,7 +9,7 @@ use crate::{
         common::{GameAction, Message, OngoingOperation, Screen, ScrollSubject},
         file_tree::FileTree,
         icon::Icon,
-        search::SearchComponent,
+        search::FilterComponent,
         shortcuts::TextHistories,
         style,
         widget::{
@@ -126,15 +125,6 @@ impl GameListEntry {
                             ScanChange::Same => None,
                             ScanChange::Unknown => None,
                         })
-                        // .push_some(|| {
-                        //     if changes.brand_new() {
-                        //         Some(Badge::new_entry().view())
-                        //     } else if changes.updated() {
-                        //         Some(Badge::changed_entry().view())
-                        //     } else {
-                        //         None
-                        //     }
-                        // })
                         .push_if(
                             || self.scan_info.any_ignored(),
                             || {
@@ -332,7 +322,7 @@ impl GameListEntry {
 #[derive(Default)]
 pub struct GameList {
     pub entries: Vec<GameListEntry>,
-    pub search: SearchComponent,
+    pub search: FilterComponent,
     expanded_games: HashSet<String>,
     pub modifiers: Modifiers,
 }
@@ -347,20 +337,13 @@ impl GameList {
         operation: &Option<OngoingOperation>,
         histories: &TextHistories,
     ) -> Container {
-        let use_search = self.search.show;
-        let search_game_name = self.search.game_name.clone();
-
         Container::new(
             Column::new()
                 .push_some(|| {
                     self.search.view(
                         if restoring { Screen::Restore } else { Screen::Backup },
-                        if restoring {
-                            &config.restore.sort
-                        } else {
-                            &config.backup.sort
-                        },
                         histories,
+                        config.scan.show_deselected_games,
                     )
                 })
                 .push({
@@ -375,26 +358,27 @@ impl GameList {
                                 x.scan_info.found_anything(),
                             )
                         })
+                        .filter(|x| {
+                            !self.search.show
+                                || self.search.qualifies(
+                                    &x.scan_info,
+                                    config.is_game_enabled_for_operation(&x.scan_info.game_name, restoring),
+                                    duplicate_detector.is_game_duplicated(&x.scan_info),
+                                    config.scan.show_deselected_games,
+                                )
+                        })
                         .fold(
                             Column::new().width(Length::Fill).padding([0, 15, 5, 15]).spacing(10),
                             |parent, x| {
-                                if !use_search
-                                    || fuzzy_matcher::skim::SkimMatcherV2::default()
-                                        .fuzzy_match(&x.scan_info.game_name, &search_game_name)
-                                        .is_some()
-                                {
-                                    parent.push(x.view(
-                                        restoring,
-                                        config,
-                                        manifest,
-                                        duplicate_detector,
-                                        operation,
-                                        self.expanded_games.contains(&x.scan_info.game_name),
-                                        &self.modifiers,
-                                    ))
-                                } else {
-                                    parent
-                                }
+                                parent.push(x.view(
+                                    restoring,
+                                    config,
+                                    manifest,
+                                    duplicate_detector,
+                                    operation,
+                                    self.expanded_games.contains(&x.scan_info.game_name),
+                                    &self.modifiers,
+                                ))
                             },
                         );
                     ScrollSubject::game_list(restoring).into_widget(content)

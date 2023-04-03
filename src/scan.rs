@@ -1,3 +1,4 @@
+pub mod game_filter;
 pub mod heroic;
 pub mod layout;
 pub mod registry_compat;

@@ -61,11 +61,26 @@ pub fn open_folder<'a>(subject: BrowseSubject) -> Element<'a> {
     template(Icon::FolderOpen.as_text(), Some(Message::BrowseDir(subject)), None)
 }
 
-pub fn search<'a>(screen: Screen, open: bool) -> Element<'a> {
+pub fn filter<'a>(screen: Screen, open: bool) -> Element<'a> {
     template(
-        Icon::Search.as_text(),
+        Icon::Filter.as_text(),
         Some(Message::ToggleSearch { screen }),
         open.then_some(style::Button::Negative),
+    )
+}
+
+pub fn sort_order<'a>(screen: Screen, reversed: bool) -> Element<'a> {
+    template(
+        if reversed {
+            Icon::ArrowDownward.as_text()
+        } else {
+            Icon::ArrowUpward.as_text()
+        },
+        Some(Message::EditedSortReversed {
+            screen,
+            value: !reversed,
+        }),
+        None,
     )
 }
 

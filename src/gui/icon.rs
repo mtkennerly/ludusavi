@@ -18,7 +18,6 @@ pub enum Icon {
     OpenInNew,
     Remove,
     RemoveCircle,
-    Search,
     SubdirectoryArrowRight,
     Delete,
     PlayCircleOutline,
@@ -30,6 +29,7 @@ pub enum Icon {
     ArrowDownward,
     Comment,
     Close,
+    Filter,
 }
 
 impl Icon {
@@ -45,7 +45,6 @@ impl Icon {
             Self::OpenInNew => '\u{E89E}',
             Self::Remove => '\u{E15B}',
             Self::RemoveCircle => '\u{E15C}',
-            Self::Search => '\u{E8B6}',
             Self::SubdirectoryArrowRight => '\u{E5DA}',
             Self::Delete => '\u{E872}',
             Self::PlayCircleOutline => '\u{E039}',
@@ -57,6 +56,7 @@ impl Icon {
             Self::ArrowDownward => '\u{E5DB}',
             Self::Comment => '\u{E0B9}',
             Self::Close => '\u{E5CD}',
+            Self::Filter => '\u{ef4f}',
         }
     }
 

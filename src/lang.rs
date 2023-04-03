@@ -13,7 +13,7 @@ use crate::{
         config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
         manifest::Store,
     },
-    scan::{OperationStatus, OperationStepDecision, ScanChange, ScanChangeCount},
+    scan::{game_filter, OperationStatus, OperationStepDecision, ScanChange, ScanChangeCount},
 };
 
 const PATH: &str = "path";
@@ -678,10 +678,6 @@ impl Translator {
         translate("field-custom-registry")
     }
 
-    pub fn search_label(&self) -> String {
-        translate("field-search")
-    }
-
     pub fn sort_label(&self) -> String {
         translate("field-sort")
     }
@@ -711,8 +707,25 @@ impl Translator {
         })
     }
 
-    pub fn sort_reversed(&self) -> String {
-        translate("sort-reversed")
+    pub fn filter_uniqueness(&self, filter: game_filter::Uniqueness) -> String {
+        translate(match filter {
+            game_filter::Uniqueness::Unique => "filter-unique",
+            game_filter::Uniqueness::Duplicate => "filter-duplicate",
+        })
+    }
+
+    pub fn filter_completeness(&self, filter: game_filter::Completeness) -> String {
+        translate(match filter {
+            game_filter::Completeness::Complete => "filter-complete",
+            game_filter::Completeness::Partial => "filter-partial",
+        })
+    }
+
+    pub fn filter_enablement(&self, filter: game_filter::Enablement) -> String {
+        translate(match filter {
+            game_filter::Enablement::Enabled => "filter-enabled",
+            game_filter::Enablement::Disabled => "filter-disabled",
+        })
     }
 
     pub fn backup_format(&self, key: &BackupFormat) -> String {
@@ -828,6 +841,10 @@ impl Translator {
 
     pub fn scan_label(&self) -> String {
         self.field(&translate("label-scan"))
+    }
+
+    pub fn filter_label(&self) -> String {
+        self.field(&translate("label-filter"))
     }
 
     pub fn new_tooltip(&self) -> String {

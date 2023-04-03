@@ -1170,6 +1170,42 @@ impl Application for App {
                 }
                 Command::none()
             }
+            Message::ToggledSearchFilter { filter, enabled } => {
+                let search = if self.screen == Screen::Backup {
+                    &mut self.backup_screen.log.search
+                } else {
+                    &mut self.restore_screen.log.search
+                };
+                search.toggle_filter(filter, enabled);
+                Command::none()
+            }
+            Message::EditedSearchFilterUniqueness(filter) => {
+                let search = if self.screen == Screen::Backup {
+                    &mut self.backup_screen.log.search
+                } else {
+                    &mut self.restore_screen.log.search
+                };
+                search.uniqueness.choice = filter;
+                Command::none()
+            }
+            Message::EditedSearchFilterCompleteness(filter) => {
+                let search = if self.screen == Screen::Backup {
+                    &mut self.backup_screen.log.search
+                } else {
+                    &mut self.restore_screen.log.search
+                };
+                search.completeness.choice = filter;
+                Command::none()
+            }
+            Message::EditedSearchFilterEnablement(filter) => {
+                let search = if self.screen == Screen::Backup {
+                    &mut self.backup_screen.log.search
+                } else {
+                    &mut self.restore_screen.log.search
+                };
+                search.enablement.choice = filter;
+                Command::none()
+            }
             Message::EditedSortKey { screen, value } => {
                 match screen {
                     Screen::Backup => {

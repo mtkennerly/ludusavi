@@ -17,7 +17,7 @@ use crate::{
     prelude::STEAM_DECK,
     resource::{
         cache::Cache,
-        config::{BackupFormat, Config, Theme, ZipCompression},
+        config::{BackupFormat, Config, SortKey, Theme, ZipCompression},
         manifest::Manifest,
     },
     scan::{DuplicateDetector, OperationStatus},
@@ -77,6 +77,9 @@ impl Backup {
         operation: &Option<OngoingOperation>,
         histories: &TextHistories,
     ) -> Element {
+        let screen = Screen::Backup;
+        let sort = &config.backup.sort;
+
         let content = Column::new()
             .push(
                 Row::new()
@@ -88,7 +91,8 @@ impl Backup {
                     .push(button::toggle_all_scanned_games(
                         self.log.all_entries_selected(config, false),
                     ))
-                    .push(button::search(Screen::Backup, self.log.search.show)),
+                    .push(button::filter(Screen::Backup, self.log.search.show))
+                    .push(button::settings(self.show_settings)),
             )
             .push(make_status_row(
                 &self.log.compute_operation_status(config, false),
@@ -101,8 +105,17 @@ impl Backup {
                     .align_items(Alignment::Center)
                     .push(Text::new(TRANSLATOR.backup_target_label()))
                     .push(histories.input(UndoSubject::BackupTarget))
-                    .push(button::settings(self.show_settings))
-                    .push(button::open_folder(BrowseSubject::BackupTarget)),
+                    .push(button::open_folder(BrowseSubject::BackupTarget))
+                    .push("|")
+                    .push(Text::new(TRANSLATOR.sort_label()))
+                    .push(
+                        PickList::new(SortKey::ALL, Some(sort.key), move |value| Message::EditedSortKey {
+                            screen,
+                            value,
+                        })
+                        .style(style::PickList::Primary),
+                    )
+                    .push(button::sort_order(screen, sort.reversed)),
             )
             .push_if(
                 || self.show_settings,
@@ -223,6 +236,9 @@ impl Restore {
         operation: &Option<OngoingOperation>,
         histories: &TextHistories,
     ) -> Element {
+        let screen = Screen::Restore;
+        let sort = &config.restore.sort;
+
         let content = Column::new()
             .push(
                 Row::new()
@@ -237,7 +253,7 @@ impl Restore {
                     .push(button::toggle_all_scanned_games(
                         self.log.all_entries_selected(config, true),
                     ))
-                    .push(button::search(Screen::Restore, self.log.search.show)),
+                    .push(button::filter(Screen::Restore, self.log.search.show)),
             )
             .push(make_status_row(
                 &self.log.compute_operation_status(config, true),
@@ -250,7 +266,17 @@ impl Restore {
                     .align_items(Alignment::Center)
                     .push(Text::new(TRANSLATOR.restore_source_label()))
                     .push(histories.input(UndoSubject::RestoreSource))
-                    .push(button::open_folder(BrowseSubject::RestoreSource)),
+                    .push(button::open_folder(BrowseSubject::RestoreSource))
+                    .push("|")
+                    .push(Text::new(TRANSLATOR.sort_label()))
+                    .push(
+                        PickList::new(SortKey::ALL, Some(sort.key), move |value| Message::EditedSortKey {
+                            screen,
+                            value,
+                        })
+                        .style(style::PickList::Primary),
+                    )
+                    .push(button::sort_order(screen, sort.reversed)),
             )
             .push(
                 self.log
