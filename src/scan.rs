@@ -1470,67 +1470,66 @@ impl DuplicateDetector {
         let mut stale = self.remove_game_and_refresh(&scan_info.game_name, false);
         stale.insert(scan_info.game_name.clone());
 
-        if scan_info.found_anything() {
-            for item in scan_info.found_files.iter() {
-                let path = self.pick_path(item);
-                if let Some(existing) = self.files.get(&path).map(|x| x.keys()) {
-                    // Len 0: No games to update counts for.
-                    // Len 2+: These games already include the item in their duplicate counts.
-                    if existing.len() == 1 {
-                        stale.extend(existing.cloned());
-                    }
+        for item in scan_info.found_files.iter() {
+            let path = self.pick_path(item);
+            if let Some(existing) = self.files.get(&path).map(|x| x.keys()) {
+                // Len 0: No games to update counts for.
+                // Len 2+: These games already include the item in their duplicate counts.
+                if existing.len() == 1 {
+                    stale.extend(existing.cloned());
                 }
-                self.files.entry(path.clone()).or_insert_with(Default::default).insert(
+            }
+            self.files.entry(path.clone()).or_insert_with(Default::default).insert(
+                scan_info.game_name.clone(),
+                DuplicateDetectorEntry {
+                    enabled: game_enabled && !item.ignored,
+                },
+            );
+            self.game_files
+                .entry(scan_info.game_name.clone())
+                .or_insert_with(Default::default)
+                .insert(path);
+        }
+
+        for item in scan_info.found_registry_keys.iter() {
+            let path = item.path.clone();
+            if let Some(existing) = self.registry.get(&path).map(|x| x.keys()) {
+                if existing.len() == 1 {
+                    stale.extend(existing.cloned());
+                }
+            }
+            self.registry
+                .entry(path.clone())
+                .or_insert_with(Default::default)
+                .insert(
                     scan_info.game_name.clone(),
                     DuplicateDetectorEntry {
                         enabled: game_enabled && !item.ignored,
                     },
                 );
-                self.game_files
-                    .entry(scan_info.game_name.clone())
-                    .or_insert_with(Default::default)
-                    .insert(path);
-            }
-            for item in scan_info.found_registry_keys.iter() {
-                let path = item.path.clone();
-                if let Some(existing) = self.registry.get(&path).map(|x| x.keys()) {
-                    if existing.len() == 1 {
-                        stale.extend(existing.cloned());
-                    }
-                }
-                self.registry
+            self.game_registry
+                .entry(scan_info.game_name.clone())
+                .or_insert_with(Default::default)
+                .insert(path.clone());
+
+            for (value_name, value) in item.values.iter() {
+                self.registry_values
                     .entry(path.clone())
+                    .or_insert_with(Default::default)
+                    .entry(value_name.to_string())
                     .or_insert_with(Default::default)
                     .insert(
                         scan_info.game_name.clone(),
                         DuplicateDetectorEntry {
-                            enabled: game_enabled && !item.ignored,
+                            enabled: game_enabled && !value.ignored,
                         },
                     );
-                self.game_registry
+                self.game_registry_values
                     .entry(scan_info.game_name.clone())
                     .or_insert_with(Default::default)
-                    .insert(path.clone());
-
-                for (value_name, value) in item.values.iter() {
-                    self.registry_values
-                        .entry(path.clone())
-                        .or_insert_with(Default::default)
-                        .entry(value_name.to_string())
-                        .or_insert_with(Default::default)
-                        .insert(
-                            scan_info.game_name.clone(),
-                            DuplicateDetectorEntry {
-                                enabled: game_enabled && !value.ignored,
-                            },
-                        );
-                    self.game_registry_values
-                        .entry(scan_info.game_name.clone())
-                        .or_insert_with(Default::default)
-                        .entry(path.clone())
-                        .or_insert_with(Default::default)
-                        .insert(value_name.to_string());
-                }
+                    .entry(path.clone())
+                    .or_insert_with(Default::default)
+                    .insert(value_name.to_string());
             }
         }
 
