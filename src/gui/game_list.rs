@@ -19,7 +19,7 @@ use crate::{
     lang::TRANSLATOR,
     resource::{
         cache::Cache,
-        config::{Config, Sort, ToggledPaths, ToggledRegistry},
+        config::{Config, Sort},
         manifest::Manifest,
     },
     scan::{layout::GameLayout, BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo},
@@ -34,6 +34,9 @@ pub struct GameListEntry {
     pub popup_menu: crate::gui::popup_menu::State<GameAction>,
     pub show_comment_editor: bool,
     pub game_layout: Option<GameLayout>,
+    /// The `scan_info` gets mutated in response to things like toggling saves off,
+    /// so we need a persistent flag to say if the game has been scanned yet.
+    pub scanned: bool,
 }
 
 impl GameListEntry {
@@ -53,7 +56,6 @@ impl GameListEntry {
             _ => true,
         };
 
-        let scanned = self.scan_info.found_anything();
         let enabled = config.is_game_enabled_for_operation(&self.scan_info.game_name, restoring);
         let all_items_ignored = self.scan_info.all_ignored();
         let customized = config.is_game_customized(&self.scan_info.game_name);
@@ -89,7 +91,7 @@ impl GameListEntry {
                                 Text::new(self.scan_info.game_name.clone())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press_some(if scanned {
+                            .on_press_some(if self.scanned {
                                 Some(Message::ToggleGameListEntryExpanded {
                                     name: self.scan_info.game_name.clone(),
                                 })
@@ -108,7 +110,7 @@ impl GameListEntry {
                             } else {
                                 None
                             })
-                            .style(if !scanned {
+                            .style(if !self.scanned {
                                 style::Button::GameListEntryTitleUnscanned
                             } else if !enabled || all_items_ignored {
                                 style::Button::GameListEntryTitleDisabled
@@ -322,13 +324,12 @@ impl GameListEntry {
         .style(style::Container::GameListEntry)
     }
 
-    pub fn refresh_tree(&mut self, config: &Config, duplicate_detector: &DuplicateDetector) {
+    pub fn refresh_tree(&mut self, duplicate_detector: &DuplicateDetector) {
         match self.tree.as_mut() {
-            Some(tree) => tree.reset_nodes(self.scan_info.clone(), config, &self.backup_info, duplicate_detector),
+            Some(tree) => tree.reset_nodes(self.scan_info.clone(), &self.backup_info, duplicate_detector),
             None => {
                 self.tree = Some(FileTree::new(
                     self.scan_info.clone(),
-                    config,
                     &self.backup_info,
                     duplicate_detector,
                 ))
@@ -451,17 +452,6 @@ impl GameList {
         status
     }
 
-    pub fn update_ignored(&mut self, game: &str, ignored_paths: &ToggledPaths, ignored_registry: &ToggledRegistry) {
-        for item in self.entries.iter_mut() {
-            if item.scan_info.game_name == game {
-                item.scan_info.update_ignored(ignored_paths, ignored_registry);
-                if let Some(tree) = item.tree.as_mut() {
-                    tree.update_ignored(game, ignored_paths, ignored_registry);
-                }
-            }
-        }
-    }
-
     pub fn sort(&mut self, sort: &Sort) {
         self.entries.sort_by(|x, y| {
             crate::scan::compare_games(
@@ -477,7 +467,7 @@ impl GameList {
         }
     }
 
-    pub fn toggle_game_expanded(&mut self, game: &str, config: &Config, duplicate_detector: &DuplicateDetector) {
+    pub fn toggle_game_expanded(&mut self, game: &str, duplicate_detector: &DuplicateDetector) {
         if self.expanded_games.contains(game) {
             self.expanded_games.remove(game);
             for entry in self.entries.iter_mut() {
@@ -490,7 +480,7 @@ impl GameList {
             self.expanded_games.insert(game.to_string());
             for entry in self.entries.iter_mut() {
                 if entry.scan_info.game_name == game {
-                    entry.refresh_tree(config, duplicate_detector);
+                    entry.refresh_tree(duplicate_detector);
                     break;
                 }
             }
@@ -523,7 +513,6 @@ impl GameList {
                 },
                 Default::default(),
                 sort,
-                config,
                 &DuplicateDetector::default(),
                 &Default::default(),
                 None,
@@ -550,13 +539,13 @@ impl GameList {
         scan_info: ScanInfo,
         backup_info: Option<BackupInfo>,
         sort: &Sort,
-        config: &Config,
         duplicate_detector: &DuplicateDetector,
         duplicates: &HashSet<String>,
         game_layout: Option<GameLayout>,
     ) {
         let game_name = scan_info.game_name.clone();
         let index = self.find_game(&game_name);
+        let scanned = scan_info.found_anything();
 
         match index {
             Some(i) => {
@@ -564,8 +553,9 @@ impl GameList {
                     self.entries[i].scan_info = scan_info;
                     self.entries[i].backup_info = backup_info;
                     self.entries[i].game_layout = game_layout;
+                    self.entries[i].scanned ^= scanned;
                     if self.expanded_games.contains(&game_name) {
-                        self.entries[i].refresh_tree(config, duplicate_detector);
+                        self.entries[i].refresh_tree(duplicate_detector);
                     }
                 } else {
                     self.entries.remove(i);
@@ -576,10 +566,11 @@ impl GameList {
                     scan_info,
                     backup_info,
                     game_layout,
+                    scanned,
                     ..Default::default()
                 };
                 if self.expanded_games.contains(&game_name) {
-                    entry.refresh_tree(config, duplicate_detector);
+                    entry.refresh_tree(duplicate_detector);
                 }
                 self.entries.push(entry);
                 self.sort(sort);
@@ -591,7 +582,7 @@ impl GameList {
                 if duplicates.contains(&entry.scan_info.game_name)
                     && self.expanded_games.contains(&entry.scan_info.game_name)
                 {
-                    entry.refresh_tree(config, duplicate_detector);
+                    entry.refresh_tree(duplicate_detector);
                 }
             }
         }
@@ -604,38 +595,34 @@ impl GameList {
         duplicate_detector: &mut DuplicateDetector,
         restoring: bool,
     ) {
-        // Can't toggle restore items.
-        if !restoring {
-            self.update_ignored(game, &config.backup.toggled_paths, &config.backup.toggled_registry);
-        }
-
         if let Some(index) = self.find_game(game) {
+            // Can't toggle restore items.
+            if !restoring {
+                self.entries[index]
+                    .scan_info
+                    .update_ignored(&config.backup.toggled_paths, &config.backup.toggled_registry);
+            }
+
             let stale = duplicate_detector.add_game(
                 &self.entries[index].scan_info,
                 config.is_game_enabled_for_operation(game, restoring),
             );
 
-            self.entries[index].refresh_tree(config, duplicate_detector);
+            self.entries[index].refresh_tree(duplicate_detector);
 
             for entry in &mut self.entries {
                 if stale.contains(&entry.scan_info.game_name) {
-                    entry.refresh_tree(config, duplicate_detector);
+                    entry.refresh_tree(duplicate_detector);
                 }
             }
         }
     }
 
-    pub fn remove_game(
-        &mut self,
-        game: &str,
-        config: &Config,
-        duplicate_detector: &DuplicateDetector,
-        duplicates: &HashSet<String>,
-    ) {
+    pub fn remove_game(&mut self, game: &str, duplicate_detector: &DuplicateDetector, duplicates: &HashSet<String>) {
         self.entries.retain(|entry| entry.scan_info.game_name != game);
         for entry in self.entries.iter_mut() {
             if duplicates.contains(&entry.scan_info.game_name) {
-                entry.refresh_tree(config, duplicate_detector);
+                entry.refresh_tree(duplicate_detector);
             }
         }
     }
@@ -650,7 +637,7 @@ impl GameList {
     }
 
     pub fn contains_unscanned_games(&self) -> bool {
-        self.entries.iter().any(|x| !x.scan_info.found_anything())
+        self.entries.iter().any(|x| !x.scanned)
     }
 
     pub fn toggle_backup_comment_editor(&mut self, game: &str) {

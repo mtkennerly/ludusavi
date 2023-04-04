@@ -12,7 +12,7 @@ use crate::{
     },
     lang::TRANSLATOR,
     path::StrictPath,
-    resource::config::{Config, ToggledPaths, ToggledRegistry},
+    resource::config::Config,
     scan::{
         registry_compat::RegistryItem, BackupInfo, DuplicateDetector, Duplication, ScanChange, ScanInfo, ScannedFile,
         ScannedRegistryValues,
@@ -315,24 +315,6 @@ impl FileTreeNode {
 
         node
     }
-
-    pub fn update_ignored(&mut self, game: &str, ignored_paths: &ToggledPaths, ignored_registry: &ToggledRegistry) {
-        match &self.path {
-            Some(FileTreeNodePath::File(path)) => {
-                self.ignored = ignored_paths.is_ignored(game, path);
-            }
-            Some(FileTreeNodePath::RegistryKey(path)) => {
-                self.ignored = ignored_registry.is_ignored(game, path, None);
-            }
-            Some(FileTreeNodePath::RegistryValue(path, name)) => {
-                self.ignored = ignored_registry.is_ignored(game, path, Some(name));
-            }
-            None => {}
-        }
-        for item in self.nodes.values_mut() {
-            item.update_ignored(game, ignored_paths, ignored_registry);
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -391,13 +373,8 @@ pub struct FileTree {
 }
 
 impl FileTree {
-    pub fn new(
-        scan_info: ScanInfo,
-        config: &Config,
-        backup_info: &Option<BackupInfo>,
-        duplicate_detector: &DuplicateDetector,
-    ) -> Self {
-        let nodes = Self::initialize_nodes(scan_info, config, backup_info, duplicate_detector);
+    pub fn new(scan_info: ScanInfo, backup_info: &Option<BackupInfo>, duplicate_detector: &DuplicateDetector) -> Self {
+        let nodes = Self::initialize_nodes(scan_info, backup_info, duplicate_detector);
         let expansion = Expansion::new(&nodes);
         Self { nodes, expansion }
     }
@@ -409,16 +386,14 @@ impl FileTree {
     pub fn reset_nodes(
         &mut self,
         scan_info: ScanInfo,
-        config: &Config,
         backup_info: &Option<BackupInfo>,
         duplicate_detector: &DuplicateDetector,
     ) {
-        self.nodes = Self::initialize_nodes(scan_info, config, backup_info, duplicate_detector);
+        self.nodes = Self::initialize_nodes(scan_info, backup_info, duplicate_detector);
     }
 
     fn initialize_nodes(
         scan_info: ScanInfo,
-        config: &Config,
         backup_info: &Option<BackupInfo>,
         duplicate_detector: &DuplicateDetector,
     ) -> BTreeMap<TreeNodeKey, FileTreeNode> {
@@ -479,14 +454,6 @@ impl FileTree {
                 );
         }
 
-        for item in nodes.values_mut() {
-            item.update_ignored(
-                &scan_info.game_name,
-                &config.backup.toggled_paths,
-                &config.backup.toggled_registry,
-            );
-        }
-
         nodes
     }
 
@@ -518,12 +485,6 @@ impl FileTree {
 
         if let Some(state) = node {
             state.expanded = !state.expanded
-        }
-    }
-
-    pub fn update_ignored(&mut self, game: &str, ignored_paths: &ToggledPaths, ignored_registry: &ToggledRegistry) {
-        for item in self.nodes.values_mut() {
-            item.update_ignored(game, ignored_paths, ignored_registry);
         }
     }
 }

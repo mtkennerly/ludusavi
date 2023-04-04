@@ -175,12 +175,9 @@ impl App {
             if let Some(games) = &games {
                 for game in games {
                     let duplicates = self.backup_screen.duplicate_detector.remove_game(game);
-                    self.backup_screen.log.remove_game(
-                        game,
-                        &self.config,
-                        &self.backup_screen.duplicate_detector,
-                        &duplicates,
-                    );
+                    self.backup_screen
+                        .log
+                        .remove_game(game, &self.backup_screen.duplicate_detector, &duplicates);
                 }
                 self.cache.backup.recent_games.retain(|x| !games.contains(x));
                 self.cache.save();
@@ -320,12 +317,9 @@ impl App {
             if let Some(games) = &games {
                 for game in games {
                     let duplicates = self.restore_screen.duplicate_detector.remove_game(game);
-                    self.restore_screen.log.remove_game(
-                        game,
-                        &self.config,
-                        &self.restore_screen.duplicate_detector,
-                        &duplicates,
-                    );
+                    self.restore_screen
+                        .log
+                        .remove_game(game, &self.restore_screen.duplicate_detector, &duplicates);
                 }
                 self.cache.restore.recent_games.retain(|x| !games.contains(x));
                 self.cache.save();
@@ -698,7 +692,6 @@ impl Application for App {
                             scan_info,
                             backup_info,
                             &self.config.backup.sort,
-                            &self.config,
                             &self.backup_screen.duplicate_detector,
                             &duplicates,
                             None,
@@ -707,7 +700,6 @@ impl Application for App {
                         let duplicates = self.backup_screen.duplicate_detector.remove_game(&scan_info.game_name);
                         self.backup_screen.log.remove_game(
                             &scan_info.game_name,
-                            &self.config,
                             &self.backup_screen.duplicate_detector,
                             &duplicates,
                         );
@@ -758,7 +750,6 @@ impl Application for App {
                             scan_info,
                             backup_info,
                             &self.config.backup.sort,
-                            &self.config,
                             &self.restore_screen.duplicate_detector,
                             &duplicates,
                             Some(game_layout),
@@ -767,7 +758,6 @@ impl Application for App {
                         let duplicates = self.restore_screen.duplicate_detector.remove_game(&scan_info.game_name);
                         self.restore_screen.log.remove_game(
                             &scan_info.game_name,
-                            &self.config,
                             &self.restore_screen.duplicate_detector,
                             &duplicates,
                         );
@@ -1070,18 +1060,14 @@ impl Application for App {
             Message::ToggleGameListEntryExpanded { name } => {
                 match self.screen {
                     Screen::Backup => {
-                        self.backup_screen.log.toggle_game_expanded(
-                            &name,
-                            &self.config,
-                            &self.backup_screen.duplicate_detector,
-                        );
+                        self.backup_screen
+                            .log
+                            .toggle_game_expanded(&name, &self.backup_screen.duplicate_detector);
                     }
                     Screen::Restore => {
-                        self.restore_screen.log.toggle_game_expanded(
-                            &name,
-                            &self.config,
-                            &self.restore_screen.duplicate_detector,
-                        );
+                        self.restore_screen
+                            .log
+                            .toggle_game_expanded(&name, &self.restore_screen.duplicate_detector);
                     }
                     _ => {}
                 }
