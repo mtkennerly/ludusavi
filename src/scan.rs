@@ -1437,6 +1437,23 @@ struct DuplicateDetectorCount {
     resolved: u32,
 }
 
+impl DuplicateDetectorCount {
+    pub fn evaluate(&self) -> Duplication {
+        if self.non_unique == 0 {
+            Duplication::Unique
+        } else if self.non_unique == self.resolved {
+            Duplication::Resolved
+        } else {
+            Duplication::Duplicate
+        }
+    }
+
+    pub fn add(&mut self, other: &Self) {
+        self.non_unique += other.non_unique;
+        self.resolved += other.resolved;
+    }
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct DuplicateDetector {
     files: HashMap<StrictPath, HashMap<String, DuplicateDetectorEntry>>,
@@ -1584,14 +1601,7 @@ impl DuplicateDetector {
     }
 
     pub fn is_game_duplicated(&self, game: &str) -> Duplication {
-        let count = self.count_duplicates_for(game);
-        if count.non_unique == 0 {
-            Duplication::Unique
-        } else if count.non_unique == count.resolved {
-            Duplication::Resolved
-        } else {
-            Duplication::Duplicate
-        }
+        self.count_duplicates_for(game).evaluate()
     }
 
     fn pick_path(&self, file: &ScannedFile) -> StrictPath {
@@ -1641,13 +1651,14 @@ impl DuplicateDetector {
         self.game_duplicated_items.clear();
     }
 
-    pub fn any_duplicates(&self) -> bool {
+    pub fn overall(&self) -> Duplication {
+        let mut count = DuplicateDetectorCount::default();
+
         for item in self.game_duplicated_items.values() {
-            if item.non_unique > 0 {
-                return true;
-            }
+            count.add(item);
         }
-        false
+
+        count.evaluate()
     }
 
     fn count_duplicated_items_for(&self, game: &str) -> DuplicateDetectorCount {

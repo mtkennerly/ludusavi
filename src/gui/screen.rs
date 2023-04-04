@@ -20,7 +20,7 @@ use crate::{
         config::{BackupFormat, Config, SortKey, Theme, ZipCompression},
         manifest::Manifest,
     },
-    scan::{DuplicateDetector, OperationStatus},
+    scan::{DuplicateDetector, Duplication, OperationStatus},
 };
 
 fn template(content: Column) -> Element {
@@ -32,7 +32,7 @@ fn template(content: Column) -> Element {
         .into()
 }
 
-fn make_status_row<'a>(status: &OperationStatus, found_any_duplicates: bool) -> Row<'a> {
+fn make_status_row<'a>(status: &OperationStatus, duplication: Duplication) -> Row<'a> {
     Row::new()
         .padding([0, 20, 0, 20])
         .align_items(Alignment::Center)
@@ -49,7 +49,7 @@ fn make_status_row<'a>(status: &OperationStatus, found_any_duplicates: bool) -> 
         .push(Text::new("|").size(35))
         .push(Text::new(TRANSLATOR.processed_bytes(status)).size(35))
         .push_if(
-            || found_any_duplicates,
+            || !duplication.resolved(),
             || Badge::new(&TRANSLATOR.badge_duplicates()).view(),
         )
 }
@@ -96,7 +96,7 @@ impl Backup {
             )
             .push(make_status_row(
                 &self.log.compute_operation_status(config, false),
-                self.duplicate_detector.any_duplicates(),
+                self.duplicate_detector.overall(),
             ))
             .push(
                 Row::new()
@@ -257,7 +257,7 @@ impl Restore {
             )
             .push(make_status_row(
                 &self.log.compute_operation_status(config, true),
-                self.duplicate_detector.any_duplicates(),
+                self.duplicate_detector.overall(),
             ))
             .push(
                 Row::new()

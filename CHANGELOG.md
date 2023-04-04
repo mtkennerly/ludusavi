@@ -12,6 +12,7 @@
   * GUI: On the backup/restore screen, you can click on the "duplicates" badge next to a game
     to filter the list down to just the games that conflict with it.
     You can click the badge again to reset the filter.
+    If the badge is faded out, that means the conflicting saves have been resolved.
   * GUI: On the backup/restore screen, you can use the filter icon to show games
     based on whether they are enabled and whether they have duplicate or ignored saves.
     These filters are reset when you close the program.
