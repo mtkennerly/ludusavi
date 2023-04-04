@@ -19,6 +19,20 @@ use crate::{
     },
 };
 
+fn check_ignored(game: &str, path: &FileTreeNodePath, config: &Config, restoring: bool) -> bool {
+    if restoring {
+        false
+    } else {
+        match path {
+            FileTreeNodePath::File(path) => config.backup.toggled_paths.is_ignored(game, path),
+            FileTreeNodePath::RegistryKey(path) => config.backup.toggled_registry.is_ignored(game, path, None),
+            FileTreeNodePath::RegistryValue(path, name) => {
+                config.backup.toggled_registry.is_ignored(game, path, Some(name))
+            }
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 enum FileTreeNodeType {
     #[default]
@@ -34,10 +48,10 @@ enum FileTreeNodePath {
     RegistryValue(RegistryItem, String),
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 struct FileTreeNode {
     keys: Vec<TreeNodeKey>,
-    path: Option<FileTreeNodePath>,
+    path: FileTreeNodePath,
     nodes: BTreeMap<TreeNodeKey, FileTreeNode>,
     successful: bool,
     ignored: bool,
@@ -48,12 +62,25 @@ struct FileTreeNode {
 }
 
 impl FileTreeNode {
-    pub fn new(keys: Vec<TreeNodeKey>, path: Option<FileTreeNodePath>, node_type: FileTreeNodeType) -> Self {
+    pub fn new(
+        game: &str,
+        keys: Vec<TreeNodeKey>,
+        path: FileTreeNodePath,
+        node_type: FileTreeNodeType,
+        config: &Config,
+        restoring: bool,
+    ) -> Self {
+        let ignored = check_ignored(game, &path, config, restoring);
         Self {
             keys,
             path,
+            nodes: Default::default(),
+            successful: false,
+            ignored,
+            duplicated: Default::default(),
+            change: Default::default(),
+            scanned_file: None,
             node_type,
-            ..Default::default()
         }
     }
 
@@ -84,40 +111,36 @@ impl FileTreeNode {
             if restoring {
                 return None;
             }
-            if let Some(path) = &self.path {
-                let game_name = game_name.to_string();
-                let path = path.clone();
-                return Some(
-                    Container::new(
-                        Checkbox::new("", !self.ignored, move |enabled| match &path {
-                            FileTreeNodePath::File(path) => Message::ToggleSpecificBackupPathIgnored {
-                                name: game_name.clone(),
-                                path: path.clone(),
-                                enabled,
-                            },
-                            FileTreeNodePath::RegistryKey(path) => Message::ToggleSpecificBackupRegistryIgnored {
-                                name: game_name.clone(),
-                                path: path.clone(),
-                                value: None,
-                                enabled,
-                            },
-                            FileTreeNodePath::RegistryValue(path, name) => {
-                                Message::ToggleSpecificBackupRegistryIgnored {
-                                    name: game_name.clone(),
-                                    path: path.clone(),
-                                    value: Some(name.clone()),
-                                    enabled,
-                                }
-                            }
-                        })
-                        .spacing(5)
-                        .style(style::Checkbox),
-                    )
-                    .align_x(iced::alignment::Horizontal::Center)
-                    .align_y(iced::alignment::Vertical::Center),
-                );
-            }
-            None
+
+            let game_name = game_name.to_string();
+            let path = self.path.clone();
+            Some(
+                Container::new(
+                    Checkbox::new("", !self.ignored, move |enabled| match &path {
+                        FileTreeNodePath::File(path) => Message::ToggleSpecificBackupPathIgnored {
+                            name: game_name.clone(),
+                            path: path.clone(),
+                            enabled,
+                        },
+                        FileTreeNodePath::RegistryKey(path) => Message::ToggleSpecificBackupRegistryIgnored {
+                            name: game_name.clone(),
+                            path: path.clone(),
+                            value: None,
+                            enabled,
+                        },
+                        FileTreeNodePath::RegistryValue(path, name) => Message::ToggleSpecificBackupRegistryIgnored {
+                            name: game_name.clone(),
+                            path: path.clone(),
+                            value: Some(name.clone()),
+                            enabled,
+                        },
+                    })
+                    .spacing(5)
+                    .style(style::Checkbox),
+                )
+                .align_x(iced::alignment::Horizontal::Center)
+                .align_y(iced::alignment::Vertical::Center),
+            )
         };
 
         if self.nodes.is_empty() {
@@ -221,7 +244,7 @@ impl FileTreeNode {
                             },
                         ))
                         .push_some(|| {
-                            if let Some(FileTreeNodePath::File(path)) = &self.path {
+                            if let FileTreeNodePath::File(path) = &self.path {
                                 return Some(
                                     Button::new(Icon::OpenInNew.as_text().width(Length::Shrink).size(15))
                                         .on_press(Message::OpenDir { path: path.clone() })
@@ -269,18 +292,18 @@ impl FileTreeNode {
             let raw_path = inserted_keys.iter().map(|x| x.raw()).collect::<Vec<_>>().join("/");
             node = node.nodes.entry(key.clone()).or_insert_with(|| {
                 FileTreeNode::new(
+                    game,
                     full_keys.clone(),
                     match &node_type {
-                        FileTreeNodeType::File => Some(FileTreeNodePath::File(StrictPath::new(raw_path))),
-                        FileTreeNodeType::RegistryKey => {
-                            Some(FileTreeNodePath::RegistryKey(RegistryItem::new(raw_path)))
+                        FileTreeNodeType::File => FileTreeNodePath::File(StrictPath::new(raw_path)),
+                        FileTreeNodeType::RegistryKey => FileTreeNodePath::RegistryKey(RegistryItem::new(raw_path)),
+                        FileTreeNodeType::RegistryValue(name) => {
+                            FileTreeNodePath::RegistryValue(RegistryItem::new(raw_path), name.clone())
                         }
-                        FileTreeNodeType::RegistryValue(name) => Some(FileTreeNodePath::RegistryValue(
-                            RegistryItem::new(raw_path),
-                            name.clone(),
-                        )),
                     },
                     node_type.clone(),
+                    config,
+                    restoring,
                 )
             });
         }
@@ -289,21 +312,7 @@ impl FileTreeNode {
         node.duplicated = duplicated;
         node.change = change;
         node.scanned_file = scanned_file;
-
-        node.ignored = if restoring {
-            false
-        } else {
-            match node.path.as_ref() {
-                Some(FileTreeNodePath::File(path)) => config.backup.toggled_paths.is_ignored(game, path),
-                Some(FileTreeNodePath::RegistryKey(path)) => {
-                    config.backup.toggled_registry.is_ignored(game, path, None)
-                }
-                Some(FileTreeNodePath::RegistryValue(path, name)) => {
-                    config.backup.toggled_registry.is_ignored(game, path, Some(name))
-                }
-                None => false,
-            }
-        };
+        node.ignored = check_ignored(game, &node.path, config, restoring);
 
         if let Some(registry_values) = registry_values {
             let raw_key_path = inserted_keys.iter().map(|x| x.raw()).collect::<Vec<_>>().join("/");
@@ -315,12 +324,15 @@ impl FileTreeNode {
                     .entry(TreeNodeKey::RegistryValue(value_name.clone()))
                     .or_insert_with(|| {
                         FileTreeNode::new(
+                            game,
                             full_keys,
-                            Some(FileTreeNodePath::RegistryValue(
+                            FileTreeNodePath::RegistryValue(
                                 RegistryItem::new(raw_key_path.clone()),
                                 value_name.clone(),
-                            )),
+                            ),
                             FileTreeNodeType::RegistryValue(value_name.clone()),
+                            config,
+                            restoring,
                         )
                     });
                 node.successful = true;
@@ -440,7 +452,23 @@ impl FileTree {
 
             nodes
                 .entry(components[0].clone())
-                .or_insert_with(|| FileTreeNode::new(vec![components[0].clone()], None, FileTreeNodeType::File))
+                .or_insert_with(|| {
+                    FileTreeNode::new(
+                        &scan_info.game_name,
+                        vec![components[0].clone()],
+                        FileTreeNodePath::File(StrictPath::new({
+                            let tip = components[0].raw().to_string();
+                            if tip.is_empty() {
+                                "/".to_string()
+                            } else {
+                                tip
+                            }
+                        })),
+                        FileTreeNodeType::File,
+                        config,
+                        restoring,
+                    )
+                })
                 .insert_keys(
                     &scan_info.game_name,
                     &components[1..],
@@ -472,7 +500,16 @@ impl FileTree {
 
             nodes
                 .entry(components[0].clone())
-                .or_insert_with(|| FileTreeNode::new(vec![components[0].clone()], None, FileTreeNodeType::RegistryKey))
+                .or_insert_with(|| {
+                    FileTreeNode::new(
+                        &scan_info.game_name,
+                        vec![components[0].clone()],
+                        FileTreeNodePath::RegistryKey(RegistryItem::new(components[0].raw().to_string())),
+                        FileTreeNodeType::RegistryKey,
+                        config,
+                        restoring,
+                    )
+                })
                 .insert_keys(
                     &scan_info.game_name,
                     &components[1..],
