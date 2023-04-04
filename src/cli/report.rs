@@ -182,7 +182,7 @@ impl Reporter {
                     name,
                     scan_info.sum_bytes(Some(backup_info)),
                     decision,
-                    duplicate_detector.is_game_duplicated(scan_info),
+                    !duplicate_detector.is_game_duplicated(&scan_info.game_name).unique(),
                     &scan_info.count_changes(),
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
@@ -194,7 +194,7 @@ impl Reporter {
                         &entry.readable(restoring),
                         entry_successful,
                         entry.ignored,
-                        duplicate_detector.is_file_duplicated(entry),
+                        !duplicate_detector.is_file_duplicated(entry).unique(),
                         entry.change,
                         false,
                     ));
@@ -216,19 +216,23 @@ impl Reporter {
                         &entry.path.render(),
                         entry_successful,
                         entry.ignored,
-                        duplicate_detector.is_registry_duplicated(&entry.path),
+                        !duplicate_detector.is_registry_duplicated(&entry.path).unique(),
                         entry.change,
                         false,
                     ));
                     for (value_name, value) in itertools::sorted(&entry.values) {
-                        parts.push(TRANSLATOR.cli_game_line_item(
-                            value_name,
-                            true,
-                            value.ignored,
-                            duplicate_detector.is_registry_value_duplicated(&entry.path, value_name),
-                            value.change,
-                            true,
-                        ));
+                        parts.push(
+                            TRANSLATOR.cli_game_line_item(
+                                value_name,
+                                true,
+                                value.ignored,
+                                !duplicate_detector
+                                    .is_registry_value_duplicated(&entry.path, value_name)
+                                    .unique(),
+                                value.change,
+                                true,
+                            ),
+                        );
                     }
                 }
 
@@ -260,8 +264,8 @@ impl Reporter {
                         change: entry.change,
                         ..Default::default()
                     };
-                    if duplicate_detector.is_file_duplicated(entry) {
-                        let mut duplicated_by = duplicate_detector.file(entry);
+                    if !duplicate_detector.is_file_duplicated(entry).unique() {
+                        let mut duplicated_by: HashSet<_> = duplicate_detector.file(entry).into_keys().collect();
                         duplicated_by.remove(&scan_info.game_name);
                         api_file.duplicated_by = duplicated_by;
                     }
@@ -299,8 +303,9 @@ impl Reporter {
                             .collect(),
                         ..Default::default()
                     };
-                    if duplicate_detector.is_registry_duplicated(&entry.path) {
-                        let mut duplicated_by = duplicate_detector.registry(&entry.path);
+                    if !duplicate_detector.is_registry_duplicated(&entry.path).unique() {
+                        let mut duplicated_by: HashSet<_> =
+                            duplicate_detector.registry(&entry.path).into_keys().collect();
                         duplicated_by.remove(&scan_info.game_name);
                         api_registry.duplicated_by = duplicated_by;
                     }
@@ -670,16 +675,19 @@ Overall:
 
         let mut duplicate_detector = DuplicateDetector::default();
         for name in &["foo", "bar"] {
-            duplicate_detector.add_game(&ScanInfo {
-                game_name: s(name),
-                found_files: hashset! {
-                    ScannedFile::new("/file1", 102_400, "1"),
+            duplicate_detector.add_game(
+                &ScanInfo {
+                    game_name: s(name),
+                    found_files: hashset! {
+                        ScannedFile::new("/file1", 102_400, "1"),
+                    },
+                    found_registry_keys: hashset! {
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
+                    },
+                    ..Default::default()
                 },
-                found_registry_keys: hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
-                },
-                ..Default::default()
-            });
+                true,
+            );
         }
 
         reporter.add_game(
@@ -982,16 +990,19 @@ Overall:
 
         let mut duplicate_detector = DuplicateDetector::default();
         for name in &["foo", "bar"] {
-            duplicate_detector.add_game(&ScanInfo {
-                game_name: s(name),
-                found_files: hashset! {
-                    ScannedFile::new("/file1", 102_400, "1"),
+            duplicate_detector.add_game(
+                &ScanInfo {
+                    game_name: s(name),
+                    found_files: hashset! {
+                        ScannedFile::new("/file1", 102_400, "1"),
+                    },
+                    found_registry_keys: hashset! {
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
+                    },
+                    ..Default::default()
                 },
-                found_registry_keys: hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
-                },
-                ..Default::default()
-            });
+                true,
+            );
         }
 
         reporter.add_game(

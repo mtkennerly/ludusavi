@@ -228,6 +228,7 @@ pub enum Container {
     GameListEntry,
     Badge,
     BadgeActivated,
+    BadgeFaded,
     ChangeBadge(ScanChange),
     DisabledBackup,
     Notification,
@@ -254,12 +255,14 @@ impl container::StyleSheet for Theme {
                     ScanChange::Same | ScanChange::Unknown => self.disabled,
                 },
                 Self::Style::BadgeActivated => self.negative,
+                Self::Style::BadgeFaded => self.disabled,
                 _ => self.text,
             },
             border_width: match style {
                 Self::Style::GameListEntry
                 | Self::Style::Badge
                 | Self::Style::BadgeActivated
+                | Self::Style::BadgeFaded
                 | Self::Style::ChangeBadge(..)
                 | Self::Style::Notification => 1.0,
                 _ => 0.0,
@@ -268,6 +271,7 @@ impl container::StyleSheet for Theme {
                 Self::Style::GameListEntry
                 | Self::Style::Badge
                 | Self::Style::BadgeActivated
+                | Self::Style::BadgeFaded
                 | Self::Style::ChangeBadge(..)
                 | Self::Style::DisabledBackup => 10.0,
                 Self::Style::Notification | Self::Style::Tooltip => 20.0,
@@ -282,6 +286,7 @@ impl container::StyleSheet for Theme {
                     ScanChange::Same | ScanChange::Unknown => Some(self.disabled),
                 },
                 Self::Style::BadgeActivated => Some(self.text_button),
+                Self::Style::BadgeFaded => Some(self.disabled),
                 _ => Some(self.text),
             },
         }

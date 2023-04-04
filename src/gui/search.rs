@@ -10,7 +10,7 @@ use crate::{
     lang::TRANSLATOR,
     scan::{
         game_filter::{self, FilterKind},
-        ScanInfo,
+        Duplication, ScanInfo,
     },
 };
 
@@ -50,7 +50,13 @@ fn template<'a, T: 'static + Default + Copy + Eq + PartialEq + ToString>(
 }
 
 impl FilterComponent {
-    pub fn qualifies(&self, scan: &ScanInfo, enabled: bool, duplicated: bool, show_deselected_games: bool) -> bool {
+    pub fn qualifies(
+        &self,
+        scan: &ScanInfo,
+        enabled: bool,
+        duplicated: Duplication,
+        show_deselected_games: bool,
+    ) -> bool {
         let fuzzy = self.game_name.is_empty()
             || fuzzy_matcher::skim::SkimMatcherV2::default()
                 .fuzzy_match(&scan.game_name, &self.game_name)

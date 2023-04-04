@@ -394,7 +394,7 @@ impl ToString for GameAction {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum TreeNodeKey {
     File(String),
     RegistryKey(String),

@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use iced::{Alignment, Length};
 
@@ -14,7 +14,7 @@ use crate::{
     path::StrictPath,
     resource::config::{Config, ToggledPaths, ToggledRegistry},
     scan::{
-        registry_compat::RegistryItem, BackupInfo, DuplicateDetector, ScanChange, ScanInfo, ScannedFile,
+        registry_compat::RegistryItem, BackupInfo, DuplicateDetector, Duplication, ScanChange, ScanInfo, ScannedFile,
         ScannedRegistryValues,
     },
 };
@@ -37,12 +37,11 @@ enum FileTreeNodePath {
 #[derive(Clone, Debug, Default)]
 struct FileTreeNode {
     keys: Vec<TreeNodeKey>,
-    expanded: bool,
     path: Option<FileTreeNodePath>,
     nodes: BTreeMap<TreeNodeKey, FileTreeNode>,
     successful: bool,
     ignored: bool,
-    duplicated: bool,
+    duplicated: Duplication,
     change: ScanChange,
     scanned_file: Option<ScannedFile>,
     node_type: FileTreeNodeType,
@@ -70,8 +69,16 @@ impl FileTreeNode {
         false
     }
 
-    pub fn view(&self, level: u16, label: String, game_name: &str, _config: &Config, restoring: bool) -> Container {
-        let expanded = self.expanded;
+    pub fn view(
+        &self,
+        level: u16,
+        label: String,
+        game_name: &str,
+        _config: &Config,
+        restoring: bool,
+        expansion: &Expansion,
+    ) -> Container {
+        let expanded = expansion.expanded(&self.keys);
 
         let make_enabler = || {
             if restoring {
@@ -141,7 +148,14 @@ impl FileTreeNode {
                         };
                         Some(badge.view())
                     })
-                    .push_if(|| self.duplicated, || Badge::new(&TRANSLATOR.badge_duplicated()).view())
+                    .push_if(
+                        || !self.duplicated.unique(),
+                        || {
+                            Badge::new(&TRANSLATOR.badge_duplicated())
+                                .faded(self.duplicated.resolved())
+                                .view()
+                        },
+                    )
                     .push_if(|| !self.successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
                     .push_some(|| {
                         self.scanned_file.as_ref().and_then(|scanned| {
@@ -167,6 +181,7 @@ impl FileTreeNode {
                     game_name,
                     _config,
                     restoring,
+                    expansion,
                 ));
             }
         }
@@ -220,7 +235,7 @@ impl FileTreeNode {
                 |parent, (k, v)| {
                     parent.push_if(
                         || expanded,
-                        || v.view(level + 1, k.raw().to_string(), game_name, _config, restoring),
+                        || v.view(level + 1, k.raw().to_string(), game_name, _config, restoring, expansion),
                     )
                 },
             ),
@@ -232,7 +247,7 @@ impl FileTreeNode {
         keys: &[TreeNodeKey],
         prefix_keys: &[TreeNodeKey],
         successful: bool,
-        duplicated: bool,
+        duplicated: Duplication,
         change: ScanChange,
         scanned_file: Option<ScannedFile>,
         registry_values: Option<&ScannedRegistryValues>,
@@ -301,26 +316,8 @@ impl FileTreeNode {
         node
     }
 
-    fn expand_or_collapse_keys(&mut self, keys: &[TreeNodeKey]) -> &mut Self {
-        let mut node = self;
-        let mut visited_keys = vec![];
-        for key in keys.iter() {
-            visited_keys.push(key.clone());
-            node = node.nodes.entry(key.clone()).or_insert_with(Default::default);
-        }
-
-        node.expanded = !node.expanded;
-
-        node
-    }
-
-    fn expand_short(&mut self) {
-        if self.nodes.len() < 30 {
-            self.expanded = true;
-        }
-        for item in self.nodes.values_mut() {
-            item.expand_short();
-        }
+    fn is_short(&self) -> bool {
+        self.nodes.len() < 30
     }
 
     pub fn update_ignored(&mut self, game: &str, ignored_paths: &ToggledPaths, ignored_registry: &ToggledRegistry) {
@@ -342,9 +339,59 @@ impl FileTreeNode {
     }
 }
 
+#[derive(Debug)]
+struct FileTreeStateNode {
+    expanded: bool,
+    nodes: HashMap<TreeNodeKey, FileTreeStateNode>,
+}
+
+#[derive(Debug, Default)]
+struct Expansion(HashMap<TreeNodeKey, FileTreeStateNode>);
+
+impl Expansion {
+    pub fn new(nodes: &BTreeMap<TreeNodeKey, FileTreeNode>) -> Self {
+        Self(Self::recurse_nodes(nodes))
+    }
+
+    fn recurse_nodes(nodes: &BTreeMap<TreeNodeKey, FileTreeNode>) -> HashMap<TreeNodeKey, FileTreeStateNode> {
+        let mut expansion = HashMap::<TreeNodeKey, FileTreeStateNode>::new();
+
+        for (key, node) in nodes {
+            expansion.insert(
+                key.clone(),
+                FileTreeStateNode {
+                    expanded: node.is_short(),
+                    nodes: Self::recurse_nodes(&node.nodes),
+                },
+            );
+        }
+
+        expansion
+    }
+
+    pub fn expanded(&self, keys: &[TreeNodeKey]) -> bool {
+        if keys.is_empty() {
+            return false;
+        }
+
+        let mut node = self.0.get(&keys[0]);
+        for key in &keys[1..] {
+            match node {
+                Some(state) => {
+                    node = state.nodes.get(key);
+                }
+                None => break,
+            }
+        }
+
+        node.map(|x| x.expanded).unwrap_or(true)
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct FileTree {
     nodes: BTreeMap<TreeNodeKey, FileTreeNode>,
+    expansion: Expansion,
 }
 
 impl FileTree {
@@ -354,6 +401,27 @@ impl FileTree {
         backup_info: &Option<BackupInfo>,
         duplicate_detector: &DuplicateDetector,
     ) -> Self {
+        let nodes = Self::initialize_nodes(scan_info, config, backup_info, duplicate_detector);
+        let expansion = Expansion::new(&nodes);
+        Self { nodes, expansion }
+    }
+
+    pub fn reset_nodes(
+        &mut self,
+        scan_info: ScanInfo,
+        config: &Config,
+        backup_info: &Option<BackupInfo>,
+        duplicate_detector: &DuplicateDetector,
+    ) {
+        self.nodes = Self::initialize_nodes(scan_info, config, backup_info, duplicate_detector);
+    }
+
+    fn initialize_nodes(
+        scan_info: ScanInfo,
+        config: &Config,
+        backup_info: &Option<BackupInfo>,
+        duplicate_detector: &DuplicateDetector,
+    ) -> BTreeMap<TreeNodeKey, FileTreeNode> {
         let mut nodes = BTreeMap::<TreeNodeKey, FileTreeNode>::new();
 
         for item in scan_info.found_files.iter() {
@@ -412,7 +480,6 @@ impl FileTree {
         }
 
         for item in nodes.values_mut() {
-            item.expand_short();
             item.update_ignored(
                 &scan_info.game_name,
                 &config.backup.toggled_paths,
@@ -420,17 +487,17 @@ impl FileTree {
             );
         }
 
-        Self { nodes }
+        nodes
     }
 
     pub fn view(&self, game_name: &str, config: &Config, restoring: bool) -> Container {
         Container::new(
-            self.nodes
-                .iter()
-                .filter(|(_, v)| v.anything_showable())
-                .fold(Column::new().spacing(4), |parent, (k, v)| {
-                    parent.push(v.view(0, k.raw().to_string(), game_name, config, restoring))
-                }),
+            self.nodes.iter().filter(|(_, v)| v.anything_showable()).fold(
+                Column::new().spacing(4),
+                |parent, (k, v)| {
+                    parent.push(v.view(0, k.raw().to_string(), game_name, config, restoring, &self.expansion))
+                },
+            ),
         )
     }
 
@@ -438,11 +505,19 @@ impl FileTree {
         if keys.is_empty() {
             return;
         }
-        for (k, v) in self.nodes.iter_mut() {
-            if k == &keys[0] {
-                v.expand_or_collapse_keys(&keys[1..]);
-                break;
+
+        let mut node = self.expansion.0.get_mut(&keys[0]);
+        for key in &keys[1..] {
+            match node {
+                Some(state) => {
+                    node = state.nodes.get_mut(key);
+                }
+                None => break,
             }
+        }
+
+        if let Some(state) = node {
+            state.expanded = !state.expanded
         }
     }
 

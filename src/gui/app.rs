@@ -689,7 +689,10 @@ impl Application for App {
                         scan_info.game_name
                     );
                     if scan_info.found_anything() {
-                        let duplicates = self.backup_screen.duplicate_detector.add_game(&scan_info);
+                        let duplicates = self.backup_screen.duplicate_detector.add_game(
+                            &scan_info,
+                            self.config.is_game_enabled_for_operation(&scan_info.game_name, false),
+                        );
                         self.backup_screen.previewed_games.insert(scan_info.game_name.clone());
                         self.backup_screen.log.update_game(
                             scan_info,
@@ -747,7 +750,10 @@ impl Application for App {
                         scan_info.game_name
                     );
                     if scan_info.found_anything() {
-                        let duplicates = self.restore_screen.duplicate_detector.add_game(&scan_info);
+                        let duplicates = self.restore_screen.duplicate_detector.add_game(
+                            &scan_info,
+                            self.config.is_game_enabled_for_operation(&scan_info.game_name, true),
+                        );
                         self.restore_screen.log.update_game(
                             scan_info,
                             backup_info,
@@ -1113,6 +1119,23 @@ impl Application for App {
                     (true, true) => self.config.enable_game_for_restore(&name),
                 };
                 self.config.save();
+
+                if restoring {
+                    self.restore_screen.log.refresh_game_tree(
+                        &name,
+                        &self.config,
+                        &mut self.restore_screen.duplicate_detector,
+                        restoring,
+                    );
+                } else {
+                    self.backup_screen.log.refresh_game_tree(
+                        &name,
+                        &self.config,
+                        &mut self.backup_screen.duplicate_detector,
+                        restoring,
+                    );
+                }
+
                 Command::none()
             }
             Message::ToggleCustomGameEnabled { index, enabled } => {
@@ -1139,20 +1162,22 @@ impl Application for App {
             Message::ToggleSpecificBackupPathIgnored { name, path, .. } => {
                 self.config.backup.toggled_paths.toggle(&name, &path);
                 self.config.save();
-                self.backup_screen.log.update_ignored(
+                self.backup_screen.log.refresh_game_tree(
                     &name,
-                    &self.config.backup.toggled_paths,
-                    &self.config.backup.toggled_registry,
+                    &self.config,
+                    &mut self.backup_screen.duplicate_detector,
+                    false,
                 );
                 Command::none()
             }
             Message::ToggleSpecificBackupRegistryIgnored { name, path, value, .. } => {
                 self.config.backup.toggled_registry.toggle_owned(&name, &path, value);
                 self.config.save();
-                self.backup_screen.log.update_ignored(
+                self.backup_screen.log.refresh_game_tree(
                     &name,
-                    &self.config.backup.toggled_paths,
-                    &self.config.backup.toggled_registry,
+                    &self.config,
+                    &mut self.backup_screen.duplicate_detector,
+                    false,
                 );
                 Command::none()
             }

@@ -1398,36 +1398,77 @@ pub fn prepare_backup_target(target: &StrictPath, merge: bool) -> Result<(), Err
     Ok(())
 }
 
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum Duplication {
+    #[default]
+    Unique,
+    Resolved,
+    Duplicate,
+}
+
+impl Duplication {
+    pub fn unique(&self) -> bool {
+        self == &Self::Unique
+    }
+
+    pub fn resolved(&self) -> bool {
+        self == &Self::Resolved
+    }
+
+    pub fn evaluate<'a>(items: impl Iterator<Item = &'a DuplicateDetectorEntry> + Clone) -> Duplication {
+        if items.clone().count() < 2 {
+            Duplication::Unique
+        } else if items.filter(|x| x.enabled).count() == 1 {
+            Duplication::Resolved
+        } else {
+            Duplication::Duplicate
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct DuplicateDetectorEntry {
+    enabled: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+struct DuplicateDetectorCount {
+    non_unique: u32,
+    resolved: u32,
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct DuplicateDetector {
-    files: HashMap<StrictPath, HashSet<String>>,
-    registry: HashMap<RegistryItem, HashSet<String>>,
-    registry_values: HashMap<RegistryItem, HashMap<String, HashSet<String>>>,
+    files: HashMap<StrictPath, HashMap<String, DuplicateDetectorEntry>>,
+    registry: HashMap<RegistryItem, HashMap<String, DuplicateDetectorEntry>>,
+    registry_values: HashMap<RegistryItem, HashMap<String, HashMap<String, DuplicateDetectorEntry>>>,
     game_files: HashMap<String, HashSet<StrictPath>>,
     game_registry: HashMap<String, HashSet<RegistryItem>>,
     game_registry_values: HashMap<String, HashMap<RegistryItem, HashSet<String>>>,
-    game_duplicated_items: HashMap<String, usize>,
+    game_duplicated_items: HashMap<String, DuplicateDetectorCount>,
 }
 
 impl DuplicateDetector {
-    pub fn add_game(&mut self, scan_info: &ScanInfo) -> HashSet<String> {
+    pub fn add_game(&mut self, scan_info: &ScanInfo, game_enabled: bool) -> HashSet<String> {
         let mut stale = self.remove_game_and_refresh(&scan_info.game_name, false);
         stale.insert(scan_info.game_name.clone());
 
         if scan_info.found_anything() {
             for item in scan_info.found_files.iter() {
                 let path = self.pick_path(item);
-                if let Some(existing) = self.files.get(&path) {
+                if let Some(existing) = self.files.get(&path).map(|x| x.keys()) {
                     // Len 0: No games to update counts for.
                     // Len 2+: These games already include the item in their duplicate counts.
                     if existing.len() == 1 {
-                        stale.extend(existing.clone());
+                        stale.extend(existing.cloned());
                     }
                 }
-                self.files
-                    .entry(path.clone())
-                    .or_insert_with(Default::default)
-                    .insert(scan_info.game_name.clone());
+                self.files.entry(path.clone()).or_insert_with(Default::default).insert(
+                    scan_info.game_name.clone(),
+                    DuplicateDetectorEntry {
+                        enabled: game_enabled && !item.ignored,
+                    },
+                );
                 self.game_files
                     .entry(scan_info.game_name.clone())
                     .or_insert_with(Default::default)
@@ -1435,27 +1476,37 @@ impl DuplicateDetector {
             }
             for item in scan_info.found_registry_keys.iter() {
                 let path = item.path.clone();
-                if let Some(existing) = self.registry.get(&path) {
+                if let Some(existing) = self.registry.get(&path).map(|x| x.keys()) {
                     if existing.len() == 1 {
-                        stale.extend(existing.clone());
+                        stale.extend(existing.cloned());
                     }
                 }
                 self.registry
                     .entry(path.clone())
                     .or_insert_with(Default::default)
-                    .insert(scan_info.game_name.clone());
+                    .insert(
+                        scan_info.game_name.clone(),
+                        DuplicateDetectorEntry {
+                            enabled: game_enabled && !item.ignored,
+                        },
+                    );
                 self.game_registry
                     .entry(scan_info.game_name.clone())
                     .or_insert_with(Default::default)
                     .insert(path.clone());
 
-                for value_name in item.values.keys() {
+                for (value_name, value) in item.values.iter() {
                     self.registry_values
                         .entry(path.clone())
                         .or_insert_with(Default::default)
                         .entry(value_name.to_string())
                         .or_insert_with(Default::default)
-                        .insert(scan_info.game_name.clone());
+                        .insert(
+                            scan_info.game_name.clone(),
+                            DuplicateDetectorEntry {
+                                enabled: game_enabled && !value.ignored,
+                            },
+                        );
                     self.game_registry_values
                         .entry(scan_info.game_name.clone())
                         .or_insert_with(Default::default)
@@ -1489,7 +1540,7 @@ impl DuplicateDetector {
             for file in files {
                 if let Some(games) = self.files.get_mut(&file) {
                     games.remove(game);
-                    for duplicate in games.iter() {
+                    for duplicate in games.keys() {
                         stale.insert(duplicate.clone());
                     }
                 }
@@ -1499,7 +1550,7 @@ impl DuplicateDetector {
             for registry in registry_keys {
                 if let Some(games) = self.registry.get_mut(&registry) {
                     games.remove(game);
-                    for duplicate in games.iter() {
+                    for duplicate in games.keys() {
                         stale.insert(duplicate.clone());
                     }
                 }
@@ -1514,7 +1565,7 @@ impl DuplicateDetector {
                         .and_then(|x| x.get_mut(&registry_value))
                     {
                         games.remove(game);
-                        for duplicate in games.iter() {
+                        for duplicate in games.keys() {
                             stale.insert(duplicate.clone());
                         }
                     }
@@ -1532,8 +1583,15 @@ impl DuplicateDetector {
         stale
     }
 
-    pub fn is_game_duplicated(&self, scan_info: &ScanInfo) -> bool {
-        self.count_duplicates_for(&scan_info.game_name) > 0
+    pub fn is_game_duplicated(&self, game: &str) -> Duplication {
+        let count = self.count_duplicates_for(game);
+        if count.non_unique == 0 {
+            Duplication::Unique
+        } else if count.non_unique == count.resolved {
+            Duplication::Resolved
+        } else {
+            Duplication::Duplicate
+        }
     }
 
     fn pick_path(&self, file: &ScannedFile) -> StrictPath {
@@ -1543,37 +1601,37 @@ impl DuplicateDetector {
         }
     }
 
-    pub fn file(&self, file: &ScannedFile) -> HashSet<String> {
+    pub fn file(&self, file: &ScannedFile) -> HashMap<String, DuplicateDetectorEntry> {
         match self.files.get(&self.pick_path(file)) {
             Some(games) => games.clone(),
             None => Default::default(),
         }
     }
 
-    pub fn is_file_duplicated(&self, file: &ScannedFile) -> bool {
-        self.file(file).len() > 1
+    pub fn is_file_duplicated(&self, file: &ScannedFile) -> Duplication {
+        Duplication::evaluate(self.file(file).values())
     }
 
-    pub fn registry(&self, path: &RegistryItem) -> HashSet<String> {
+    pub fn registry(&self, path: &RegistryItem) -> HashMap<String, DuplicateDetectorEntry> {
         match self.registry.get(path) {
             Some(games) => games.clone(),
             None => Default::default(),
         }
     }
 
-    pub fn is_registry_duplicated(&self, path: &RegistryItem) -> bool {
-        self.registry(path).len() > 1
+    pub fn is_registry_duplicated(&self, path: &RegistryItem) -> Duplication {
+        Duplication::evaluate(self.registry(path).values())
     }
 
-    pub fn registry_value(&self, path: &RegistryItem, value: &str) -> HashSet<String> {
+    pub fn registry_value(&self, path: &RegistryItem, value: &str) -> HashMap<String, DuplicateDetectorEntry> {
         match self.registry_values.get(path).and_then(|key| key.get(value)) {
             Some(games) => games.clone(),
             None => Default::default(),
         }
     }
 
-    pub fn is_registry_value_duplicated(&self, path: &RegistryItem, value: &str) -> bool {
-        self.registry_value(path, value).len() > 1
+    pub fn is_registry_value_duplicated(&self, path: &RegistryItem, value: &str) -> Duplication {
+        Duplication::evaluate(self.registry_value(path, value).values())
     }
 
     pub fn clear(&mut self) {
@@ -1585,36 +1643,45 @@ impl DuplicateDetector {
 
     pub fn any_duplicates(&self) -> bool {
         for item in self.game_duplicated_items.values() {
-            if *item > 0 {
+            if item.non_unique > 0 {
                 return true;
             }
         }
         false
     }
 
-    fn count_duplicated_items_for(&self, game: &str) -> usize {
-        let mut tally = 0;
+    fn count_duplicated_items_for(&self, game: &str) -> DuplicateDetectorCount {
+        let mut tally = DuplicateDetectorCount::default();
         for item in self.files.values() {
-            if item.contains(game) && item.len() > 1 {
-                tally += 1;
+            if item.contains_key(game) && item.len() > 1 {
+                tally.non_unique += 1;
+                if item.values().filter(|x| x.enabled).count() <= 1 {
+                    tally.resolved += 1;
+                }
             }
         }
         for item in self.registry.values() {
-            if item.contains(game) && item.len() > 1 {
-                tally += 1;
+            if item.contains_key(game) && item.len() > 1 {
+                tally.non_unique += 1;
+                if item.values().filter(|x| x.enabled).count() <= 1 {
+                    tally.resolved += 1;
+                }
             }
         }
         for item in self.registry_values.values() {
             for item in item.values() {
-                if item.contains(game) && item.len() > 1 {
-                    tally += 1;
+                if item.contains_key(game) && item.len() > 1 {
+                    tally.non_unique += 1;
+                    if item.values().filter(|x| x.enabled).count() <= 1 {
+                        tally.resolved += 1;
+                    }
                 }
             }
         }
         tally
     }
 
-    pub fn count_duplicates_for(&self, game: &str) -> usize {
+    fn count_duplicates_for(&self, game: &str) -> DuplicateDetectorCount {
         self.game_duplicated_items.get(game).copied().unwrap_or_default()
     }
 
@@ -1627,7 +1694,7 @@ impl DuplicateDetector {
                     if games.len() < 2 {
                         continue;
                     }
-                    for duplicate in games.iter() {
+                    for duplicate in games.keys() {
                         duplicates.insert(duplicate.clone());
                     }
                 }
@@ -1639,7 +1706,7 @@ impl DuplicateDetector {
                     if games.len() < 2 {
                         continue;
                     }
-                    for duplicate in games.iter() {
+                    for duplicate in games.keys() {
                         duplicates.insert(duplicate.clone());
                     }
                 }
@@ -1656,7 +1723,7 @@ impl DuplicateDetector {
                         if games.len() < 2 {
                             continue;
                         }
-                        for duplicate in games.iter() {
+                        for duplicate in games.keys() {
                             duplicates.insert(duplicate.clone());
                         }
                     }
@@ -2520,33 +2587,64 @@ mod tests {
             let reg1 = s("reg1");
             let reg2 = s("reg2");
 
-            detector.add_game(&ScanInfo {
-                game_name: game1.clone(),
-                found_files: hashset! { file1.clone(), file2.clone() },
-                found_registry_keys: hashset! { ScannedRegistry::new(&reg1) },
-                ..Default::default()
-            });
-            detector.add_game(&ScanInfo {
-                game_name: game2.clone(),
-                found_files: hashset! { file1.clone() },
-                found_registry_keys: hashset! { ScannedRegistry::new(&reg1), ScannedRegistry::new(&reg2) },
-                ..Default::default()
-            });
+            detector.add_game(
+                &ScanInfo {
+                    game_name: game1.clone(),
+                    found_files: hashset! { file1.clone(), file2.clone() },
+                    found_registry_keys: hashset! { ScannedRegistry::new(&reg1) },
+                    ..Default::default()
+                },
+                true,
+            );
+            detector.add_game(
+                &ScanInfo {
+                    game_name: game2.clone(),
+                    found_files: hashset! { file1.clone() },
+                    found_registry_keys: hashset! { ScannedRegistry::new(&reg1), ScannedRegistry::new(&reg2) },
+                    ..Default::default()
+                },
+                true,
+            );
 
-            assert!(detector.is_file_duplicated(&file1));
-            assert_eq!(hashset! { game1.clone(), game2.clone() }, detector.file(&file1));
-
-            assert!(!detector.is_file_duplicated(&file2));
-            assert_eq!(hashset! { game1.clone() }, detector.file(&file2));
-
-            assert!(detector.is_registry_duplicated(&RegistryItem::new(reg1.clone())));
+            assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1));
             assert_eq!(
-                hashset! { game1, game2.clone() },
+                hashmap! {
+                    game1.clone() => DuplicateDetectorEntry { enabled: true },
+                    game2.clone() => DuplicateDetectorEntry { enabled: true }
+                },
+                detector.file(&file1)
+            );
+
+            assert_eq!(Duplication::Unique, detector.is_file_duplicated(&file2));
+            assert_eq!(
+                hashmap! {
+                    game1.clone() => DuplicateDetectorEntry { enabled: true }
+                },
+                detector.file(&file2)
+            );
+
+            assert_eq!(
+                Duplication::Duplicate,
+                detector.is_registry_duplicated(&RegistryItem::new(reg1.clone()))
+            );
+            assert_eq!(
+                hashmap! {
+                    game1 => DuplicateDetectorEntry { enabled: true },
+                    game2.clone() => DuplicateDetectorEntry { enabled: true }
+                },
                 detector.registry(&RegistryItem::new(reg1))
             );
 
-            assert!(!detector.is_registry_duplicated(&RegistryItem::new(reg2.clone())));
-            assert_eq!(hashset! { game2 }, detector.registry(&RegistryItem::new(reg2)));
+            assert_eq!(
+                Duplication::Unique,
+                detector.is_registry_duplicated(&RegistryItem::new(reg2.clone()))
+            );
+            assert_eq!(
+                hashmap! {
+                    game2 => DuplicateDetectorEntry { enabled: true }
+                },
+                detector.registry(&RegistryItem::new(reg2))
+            );
         }
 
         #[test]
@@ -2576,42 +2674,66 @@ mod tests {
                 redirected: None,
             };
 
-            detector.add_game(&ScanInfo {
-                game_name: game1.clone(),
-                found_files: hashset! { file1a.clone() },
-                ..Default::default()
-            });
-            detector.add_game(&ScanInfo {
-                game_name: game2.clone(),
-                found_files: hashset! { file1b.clone() },
-                ..Default::default()
-            });
+            detector.add_game(
+                &ScanInfo {
+                    game_name: game1.clone(),
+                    found_files: hashset! { file1a.clone() },
+                    ..Default::default()
+                },
+                true,
+            );
+            detector.add_game(
+                &ScanInfo {
+                    game_name: game2.clone(),
+                    found_files: hashset! { file1b.clone() },
+                    ..Default::default()
+                },
+                true,
+            );
 
-            assert!(detector.is_file_duplicated(&file1a));
-            assert_eq!(hashset! { game1.clone(), game2.clone() }, detector.file(&file1a));
-            assert!(!detector.is_file_duplicated(&ScannedFile {
-                path: StrictPath::new(s("file1a.txt")),
-                size: 1,
-                hash: "1a".to_string(),
-                original_path: None,
-                ignored: false,
-                change: Default::default(),
-                container: None,
-                redirected: None,
-            }));
+            assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1a));
+            assert_eq!(
+                hashmap! {
+                    game1.clone() => DuplicateDetectorEntry { enabled: true },
+                    game2.clone() => DuplicateDetectorEntry { enabled: true }
+                },
+                detector.file(&file1a)
+            );
+            assert_eq!(
+                Duplication::Unique,
+                detector.is_file_duplicated(&ScannedFile {
+                    path: StrictPath::new(s("file1a.txt")),
+                    size: 1,
+                    hash: "1a".to_string(),
+                    original_path: None,
+                    ignored: false,
+                    change: Default::default(),
+                    container: None,
+                    redirected: None,
+                })
+            );
 
-            assert!(detector.is_file_duplicated(&file1b));
-            assert_eq!(hashset! { game1, game2 }, detector.file(&file1b));
-            assert!(!detector.is_file_duplicated(&ScannedFile {
-                path: StrictPath::new(s("file1b.txt")),
-                size: 1,
-                hash: "1b".to_string(),
-                original_path: None,
-                ignored: false,
-                change: Default::default(),
-                container: None,
-                redirected: None,
-            }));
+            assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1b));
+            assert_eq!(
+                hashmap! {
+                    game1 => DuplicateDetectorEntry { enabled: true },
+                    game2 => DuplicateDetectorEntry { enabled: true }
+                },
+                detector.file(&file1b)
+            );
+            assert_eq!(
+                Duplication::Unique,
+                detector.is_file_duplicated(&ScannedFile {
+                    path: StrictPath::new(s("file1b.txt")),
+                    size: 1,
+                    hash: "1b".to_string(),
+                    original_path: None,
+                    ignored: false,
+                    change: Default::default(),
+                    container: None,
+                    redirected: None,
+                })
+            );
         }
     }
 }

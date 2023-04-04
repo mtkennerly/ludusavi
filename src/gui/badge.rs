@@ -17,6 +17,7 @@ pub struct Badge {
     change: Option<ScanChange>,
     tooltip: Option<String>,
     on_press: Option<Message>,
+    faded: bool,
 }
 
 impl Badge {
@@ -27,6 +28,7 @@ impl Badge {
             change: None,
             tooltip: None,
             on_press: None,
+            faded: false,
         }
     }
 
@@ -80,6 +82,11 @@ impl Badge {
         self
     }
 
+    pub fn faded(mut self, faded: bool) -> Self {
+        self.faded = faded;
+        self
+    }
+
     pub fn view(self) -> Container<'static> {
         Container::new({
             let content = Container::new(Text::new(self.text).size(14))
@@ -87,6 +94,7 @@ impl Badge {
                 .style(match self.change {
                     None => match self.on_press.as_ref() {
                         Some(Message::FilterDuplicates { game: None, .. }) => style::Container::BadgeActivated,
+                        _ if self.faded => style::Container::BadgeFaded,
                         _ => style::Container::Badge,
                     },
                     Some(change) => style::Container::ChangeBadge(change),

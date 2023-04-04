@@ -1,4 +1,7 @@
-use crate::{lang::TRANSLATOR, scan::ScanInfo};
+use crate::{
+    lang::TRANSLATOR,
+    scan::{Duplication, ScanInfo},
+};
 
 #[derive(Clone, Copy, Debug)]
 pub enum FilterKind {
@@ -17,10 +20,10 @@ pub enum Uniqueness {
 impl Uniqueness {
     pub const ALL: &'static [Self] = &[Self::Unique, Self::Duplicate];
 
-    pub fn qualifies(&self, duplicated: bool) -> bool {
+    pub fn qualifies(&self, duplicated: Duplication) -> bool {
         match self {
-            Self::Unique => !duplicated,
-            Self::Duplicate => duplicated,
+            Self::Unique => duplicated.unique(),
+            Self::Duplicate => !duplicated.unique(),
         }
     }
 }

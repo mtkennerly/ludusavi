@@ -244,7 +244,10 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 if !scan_info.found_anything() {
                     continue;
                 }
-                duplicate_detector.add_game(scan_info);
+                duplicate_detector.add_game(
+                    scan_info,
+                    config.is_game_enabled_for_operation(&scan_info.game_name, false),
+                );
             }
 
             let sort = sort.map(From::from).unwrap_or_else(|| config.backup.sort.clone());
@@ -371,7 +374,10 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 if let Some(failure) = failure {
                     return failure.clone();
                 }
-                duplicate_detector.add_game(scan_info);
+                duplicate_detector.add_game(
+                    scan_info,
+                    config.is_game_enabled_for_operation(&scan_info.game_name, true),
+                );
             }
 
             let sort = sort.map(From::from).unwrap_or_else(|| config.restore.sort.clone());
