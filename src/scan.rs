@@ -1408,11 +1408,11 @@ pub enum Duplication {
 
 impl Duplication {
     pub fn unique(&self) -> bool {
-        self == &Self::Unique
+        matches!(self, Self::Unique)
     }
 
     pub fn resolved(&self) -> bool {
-        self == &Self::Resolved
+        matches!(self, Self::Resolved | Self::Unique)
     }
 
     pub fn evaluate<'a>(items: impl Iterator<Item = &'a DuplicateDetectorEntry> + Clone) -> Duplication {
