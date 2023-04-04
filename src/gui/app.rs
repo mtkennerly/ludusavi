@@ -1092,14 +1092,18 @@ impl Application for App {
                     Screen::Backup => {
                         for entry in &mut self.backup_screen.log.entries {
                             if entry.scan_info.game_name == name {
-                                entry.tree.expand_or_collapse_keys(&keys);
+                                if let Some(tree) = entry.tree.as_mut() {
+                                    tree.expand_or_collapse_keys(&keys);
+                                }
                             }
                         }
                     }
                     Screen::Restore => {
                         for entry in &mut self.restore_screen.log.entries {
                             if entry.scan_info.game_name == name {
-                                entry.tree.expand_or_collapse_keys(&keys);
+                                if let Some(tree) = entry.tree.as_mut() {
+                                    tree.expand_or_collapse_keys(&keys);
+                                }
                             }
                         }
                     }

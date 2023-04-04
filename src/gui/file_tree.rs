@@ -316,10 +316,6 @@ impl FileTreeNode {
         node
     }
 
-    fn is_short(&self) -> bool {
-        self.nodes.len() < 30
-    }
-
     pub fn update_ignored(&mut self, game: &str, ignored_paths: &ToggledPaths, ignored_registry: &ToggledRegistry) {
         match &self.path {
             Some(FileTreeNodePath::File(path)) => {
@@ -360,7 +356,7 @@ impl Expansion {
             expansion.insert(
                 key.clone(),
                 FileTreeStateNode {
-                    expanded: node.is_short(),
+                    expanded: !node.ignored && node.nodes.len() < 30,
                     nodes: Self::recurse_nodes(&node.nodes),
                 },
             );
@@ -404,6 +400,10 @@ impl FileTree {
         let nodes = Self::initialize_nodes(scan_info, config, backup_info, duplicate_detector);
         let expansion = Expansion::new(&nodes);
         Self { nodes, expansion }
+    }
+
+    pub fn clear_nodes(&mut self) {
+        self.nodes.clear();
     }
 
     pub fn reset_nodes(

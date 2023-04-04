@@ -32,6 +32,9 @@
     and then make a new full backup.
     That is still the case when your full backup limit is 2 or more,
     but there is now a special exception when it is only set to 1.
+  * GUI: In the save file hierarchy, if a folder is disabled, it will now be collapsed by default.
+    Also, when you re-scan a single game, its folders remain expanded or collapsed as you had them
+    instead of reverting to the default state.
   * GUI: On the backup and restore screens, the search icon has been replaced with a filter icon,
     which reveals the existing title search along with the new filters described above.
     The sort settings are now always visible, and the "reversed" checkbox is replaced with an ascending/descending icon.
