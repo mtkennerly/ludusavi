@@ -111,7 +111,12 @@ impl Badge {
             };
 
             match self.on_press {
-                Some(message) => Container::new(Button::new(content).on_press(message).style(style::Button::Badge)),
+                Some(message) => Container::new(
+                    Button::new(content)
+                        .padding(0)
+                        .on_press(message)
+                        .style(style::Button::Badge),
+                ),
                 None => Container::new(content),
             }
         })
