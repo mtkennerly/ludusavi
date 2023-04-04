@@ -324,14 +324,22 @@ impl GameListEntry {
         .style(style::Container::GameListEntry)
     }
 
-    pub fn refresh_tree(&mut self, duplicate_detector: &DuplicateDetector) {
+    pub fn refresh_tree(&mut self, duplicate_detector: &DuplicateDetector, config: &Config, restoring: bool) {
         match self.tree.as_mut() {
-            Some(tree) => tree.reset_nodes(self.scan_info.clone(), &self.backup_info, duplicate_detector),
+            Some(tree) => tree.reset_nodes(
+                self.scan_info.clone(),
+                &self.backup_info,
+                duplicate_detector,
+                config,
+                restoring,
+            ),
             None => {
                 self.tree = Some(FileTree::new(
                     self.scan_info.clone(),
                     &self.backup_info,
                     duplicate_detector,
+                    config,
+                    restoring,
                 ))
             }
         }
@@ -467,7 +475,13 @@ impl GameList {
         }
     }
 
-    pub fn toggle_game_expanded(&mut self, game: &str, duplicate_detector: &DuplicateDetector) {
+    pub fn toggle_game_expanded(
+        &mut self,
+        game: &str,
+        duplicate_detector: &DuplicateDetector,
+        config: &Config,
+        restoring: bool,
+    ) {
         if self.expanded_games.contains(game) {
             self.expanded_games.remove(game);
             for entry in self.entries.iter_mut() {
@@ -480,7 +494,7 @@ impl GameList {
             self.expanded_games.insert(game.to_string());
             for entry in self.entries.iter_mut() {
                 if entry.scan_info.game_name == game {
-                    entry.refresh_tree(duplicate_detector);
+                    entry.refresh_tree(duplicate_detector, config, restoring);
                     break;
                 }
             }
@@ -516,6 +530,8 @@ impl GameList {
                 &DuplicateDetector::default(),
                 &Default::default(),
                 None,
+                config,
+                restoring,
             );
         }
         log
@@ -542,6 +558,8 @@ impl GameList {
         duplicate_detector: &DuplicateDetector,
         duplicates: &HashSet<String>,
         game_layout: Option<GameLayout>,
+        config: &Config,
+        restoring: bool,
     ) {
         let game_name = scan_info.game_name.clone();
         let index = self.find_game(&game_name);
@@ -555,7 +573,7 @@ impl GameList {
                     self.entries[i].game_layout = game_layout;
                     self.entries[i].scanned ^= scanned;
                     if self.expanded_games.contains(&game_name) {
-                        self.entries[i].refresh_tree(duplicate_detector);
+                        self.entries[i].refresh_tree(duplicate_detector, config, restoring);
                     }
                 } else {
                     self.entries.remove(i);
@@ -570,7 +588,7 @@ impl GameList {
                     ..Default::default()
                 };
                 if self.expanded_games.contains(&game_name) {
-                    entry.refresh_tree(duplicate_detector);
+                    entry.refresh_tree(duplicate_detector, config, restoring);
                 }
                 self.entries.push(entry);
                 self.sort(sort);
@@ -582,7 +600,7 @@ impl GameList {
                 if duplicates.contains(&entry.scan_info.game_name)
                     && self.expanded_games.contains(&entry.scan_info.game_name)
                 {
-                    entry.refresh_tree(duplicate_detector);
+                    entry.refresh_tree(duplicate_detector, config, restoring);
                 }
             }
         }
@@ -608,21 +626,28 @@ impl GameList {
                 config.is_game_enabled_for_operation(game, restoring),
             );
 
-            self.entries[index].refresh_tree(duplicate_detector);
+            self.entries[index].refresh_tree(duplicate_detector, config, restoring);
 
             for entry in &mut self.entries {
                 if stale.contains(&entry.scan_info.game_name) {
-                    entry.refresh_tree(duplicate_detector);
+                    entry.refresh_tree(duplicate_detector, config, restoring);
                 }
             }
         }
     }
 
-    pub fn remove_game(&mut self, game: &str, duplicate_detector: &DuplicateDetector, duplicates: &HashSet<String>) {
+    pub fn remove_game(
+        &mut self,
+        game: &str,
+        duplicate_detector: &DuplicateDetector,
+        duplicates: &HashSet<String>,
+        config: &Config,
+        restoring: bool,
+    ) {
         self.entries.retain(|entry| entry.scan_info.game_name != game);
         for entry in self.entries.iter_mut() {
             if duplicates.contains(&entry.scan_info.game_name) {
-                entry.refresh_tree(duplicate_detector);
+                entry.refresh_tree(duplicate_detector, config, restoring);
             }
         }
     }

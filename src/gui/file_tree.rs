@@ -244,6 +244,7 @@ impl FileTreeNode {
 
     fn insert_keys(
         &mut self,
+        game: &str,
         keys: &[TreeNodeKey],
         prefix_keys: &[TreeNodeKey],
         successful: bool,
@@ -252,6 +253,8 @@ impl FileTreeNode {
         scanned_file: Option<ScannedFile>,
         registry_values: Option<&ScannedRegistryValues>,
         duplicate_detector: &DuplicateDetector,
+        config: &Config,
+        restoring: bool,
     ) -> &mut Self {
         let node_type = self.node_type.clone();
         let mut node = self;
@@ -286,6 +289,21 @@ impl FileTreeNode {
         node.duplicated = duplicated;
         node.change = change;
         node.scanned_file = scanned_file;
+
+        node.ignored = if restoring {
+            false
+        } else {
+            match node.path.as_ref() {
+                Some(FileTreeNodePath::File(path)) => config.backup.toggled_paths.is_ignored(game, path),
+                Some(FileTreeNodePath::RegistryKey(path)) => {
+                    config.backup.toggled_registry.is_ignored(game, path, None)
+                }
+                Some(FileTreeNodePath::RegistryValue(path, name)) => {
+                    config.backup.toggled_registry.is_ignored(game, path, Some(name))
+                }
+                None => false,
+            }
+        };
 
         if let Some(registry_values) = registry_values {
             let raw_key_path = inserted_keys.iter().map(|x| x.raw()).collect::<Vec<_>>().join("/");
@@ -373,8 +391,14 @@ pub struct FileTree {
 }
 
 impl FileTree {
-    pub fn new(scan_info: ScanInfo, backup_info: &Option<BackupInfo>, duplicate_detector: &DuplicateDetector) -> Self {
-        let nodes = Self::initialize_nodes(scan_info, backup_info, duplicate_detector);
+    pub fn new(
+        scan_info: ScanInfo,
+        backup_info: &Option<BackupInfo>,
+        duplicate_detector: &DuplicateDetector,
+        config: &Config,
+        restoring: bool,
+    ) -> Self {
+        let nodes = Self::initialize_nodes(scan_info, backup_info, duplicate_detector, config, restoring);
         let expansion = Expansion::new(&nodes);
         Self { nodes, expansion }
     }
@@ -388,14 +412,18 @@ impl FileTree {
         scan_info: ScanInfo,
         backup_info: &Option<BackupInfo>,
         duplicate_detector: &DuplicateDetector,
+        config: &Config,
+        restoring: bool,
     ) {
-        self.nodes = Self::initialize_nodes(scan_info, backup_info, duplicate_detector);
+        self.nodes = Self::initialize_nodes(scan_info, backup_info, duplicate_detector, config, restoring);
     }
 
     fn initialize_nodes(
         scan_info: ScanInfo,
         backup_info: &Option<BackupInfo>,
         duplicate_detector: &DuplicateDetector,
+        config: &Config,
+        restoring: bool,
     ) -> BTreeMap<TreeNodeKey, FileTreeNode> {
         let mut nodes = BTreeMap::<TreeNodeKey, FileTreeNode>::new();
 
@@ -414,6 +442,7 @@ impl FileTree {
                 .entry(components[0].clone())
                 .or_insert_with(|| FileTreeNode::new(vec![components[0].clone()], None, FileTreeNodeType::File))
                 .insert_keys(
+                    &scan_info.game_name,
                     &components[1..],
                     &[components[0].clone()],
                     successful,
@@ -422,6 +451,8 @@ impl FileTree {
                     Some(item.clone()),
                     None,
                     duplicate_detector,
+                    config,
+                    restoring,
                 );
         }
         for item in scan_info.found_registry_keys.iter() {
@@ -443,6 +474,7 @@ impl FileTree {
                 .entry(components[0].clone())
                 .or_insert_with(|| FileTreeNode::new(vec![components[0].clone()], None, FileTreeNodeType::RegistryKey))
                 .insert_keys(
+                    &scan_info.game_name,
                     &components[1..],
                     &components[0..1],
                     successful,
@@ -451,6 +483,8 @@ impl FileTree {
                     None,
                     Some(&item.values),
                     duplicate_detector,
+                    config,
+                    restoring,
                 );
         }
 
