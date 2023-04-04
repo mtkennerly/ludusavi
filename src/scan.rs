@@ -1418,7 +1418,7 @@ impl Duplication {
     pub fn evaluate<'a>(items: impl Iterator<Item = &'a DuplicateDetectorEntry> + Clone) -> Duplication {
         if items.clone().count() < 2 {
             Duplication::Unique
-        } else if items.filter(|x| x.enabled).count() == 1 {
+        } else if items.filter(|x| x.enabled).count() <= 1 {
             Duplication::Resolved
         } else {
             Duplication::Duplicate

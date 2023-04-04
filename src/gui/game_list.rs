@@ -604,25 +604,23 @@ impl GameList {
         duplicate_detector: &mut DuplicateDetector,
         restoring: bool,
     ) {
-        let mut affected_games = duplicate_detector.duplicate_games(game);
-        affected_games.insert(game.to_string());
-
         // Can't toggle restore items.
         if !restoring {
             self.update_ignored(game, &config.backup.toggled_paths, &config.backup.toggled_registry);
         }
 
         if let Some(index) = self.find_game(game) {
-            duplicate_detector.add_game(
+            let stale = duplicate_detector.add_game(
                 &self.entries[index].scan_info,
                 config.is_game_enabled_for_operation(game, restoring),
             );
-            affected_games.extend(duplicate_detector.duplicate_games(game));
-        }
 
-        for entry in &mut self.entries {
-            if affected_games.contains(&entry.scan_info.game_name) {
-                entry.refresh_tree(config, duplicate_detector);
+            self.entries[index].refresh_tree(config, duplicate_detector);
+
+            for entry in &mut self.entries {
+                if stale.contains(&entry.scan_info.game_name) {
+                    entry.refresh_tree(config, duplicate_detector);
+                }
             }
         }
     }
