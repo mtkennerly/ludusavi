@@ -175,21 +175,21 @@ impl Reporter {
         decision: &OperationStepDecision,
         duplicate_detector: &DuplicateDetector,
     ) -> bool {
+        if !scan_info.can_report_game() {
+            return true;
+        }
+
         let mut successful = true;
         let restoring = scan_info.restoring();
 
         match self {
             Self::Standard { parts, status } => {
-                if !scan_info.found_anything() {
-                    return true;
-                }
-
                 parts.push(TRANSLATOR.cli_game_header(
                     name,
                     scan_info.sum_bytes(Some(backup_info)),
                     decision,
                     !duplicate_detector.is_game_duplicated(&scan_info.game_name).resolved(),
-                    &scan_info.count_changes(),
+                    scan_info.overall_change(),
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
                     let entry_successful = !backup_info.failed_files.contains(entry);
@@ -254,10 +254,6 @@ impl Reporter {
                 }
             }
             Self::Json { output } => {
-                if !scan_info.found_anything() {
-                    return true;
-                }
-
                 let decision = decision.clone();
                 let mut files = HashMap::new();
                 let mut registry = HashMap::new();
@@ -349,7 +345,7 @@ impl Reporter {
                     name.to_string(),
                     ApiGame::Operative {
                         decision,
-                        change: scan_info.count_changes().overall(),
+                        change: scan_info.overall_change(),
                         files,
                         registry,
                     },

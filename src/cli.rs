@@ -241,7 +241,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             log::info!("completed backup");
 
             for (_, scan_info, _, _) in info.iter() {
-                if !scan_info.found_anything() {
+                if !scan_info.can_report_game() {
                     continue;
                 }
                 duplicate_detector.add_game(
@@ -368,7 +368,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             log::info!("completed restore");
 
             for (_, scan_info, _, _, failure) in info.iter() {
-                if !scan_info.found_anything() {
+                if !scan_info.can_report_game() {
                     continue;
                 }
                 if let Some(failure) = failure {

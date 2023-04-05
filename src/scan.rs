@@ -287,7 +287,7 @@ impl ScannedFile {
     }
 
     pub fn is_changed(&self) -> bool {
-        self.change.normalize(self.ignored, self.restoring()).is_changed()
+        self.effective_change().is_changed()
     }
 
     pub fn effective_change(&self) -> ScanChange {
@@ -402,19 +402,29 @@ impl ScanInfo {
         self.found_files.iter().map(|x| x.size).sum::<u64>()
     }
 
+    pub fn can_report_game(&self) -> bool {
+        self.found_anything()
+            && match self.overall_change() {
+                ScanChange::New => true,
+                ScanChange::Different => true,
+                ScanChange::Removed => false,
+                ScanChange::Same => true,
+                ScanChange::Unknown => true,
+            }
+    }
+
     pub fn found_anything(&self) -> bool {
-        let can_report = match self.count_changes().overall() {
-            ScanChange::New => true,
-            ScanChange::Different => true,
-            ScanChange::Removed => false,
-            ScanChange::Same => true,
-            ScanChange::Unknown => true,
-        };
-        can_report && (!self.found_files.is_empty() || !self.found_registry_keys.is_empty())
+        !self.found_files.is_empty() || !self.found_registry_keys.is_empty()
     }
 
     pub fn found_anything_processable(&self) -> bool {
-        self.count_changes().overall().is_changed()
+        match self.overall_change() {
+            ScanChange::New => true,
+            ScanChange::Different => true,
+            ScanChange::Removed => false,
+            ScanChange::Same => false,
+            ScanChange::Unknown => false,
+        }
     }
 
     pub fn update_ignored(&mut self, toggled_paths: &ToggledPaths, toggled_registry: &ToggledRegistry) {
@@ -505,7 +515,16 @@ impl ScanInfo {
         false
     }
 
-    pub fn count_changes(&self) -> ScanChangeCount {
+    fn is_brand_new(&self) -> bool {
+        self.found_anything()
+            && self.found_files.iter().all(|x| x.change == ScanChange::New)
+            && self
+                .found_registry_keys
+                .iter()
+                .all(|x| x.change == ScanChange::New && x.values.values().all(|y| y.change == ScanChange::New))
+    }
+
+    fn count_changes(&self) -> ScanChangeCount {
         let mut count = ScanChangeCount::new();
         let all_ignored = self.all_ignored();
 
@@ -533,6 +552,18 @@ impl ScanInfo {
         }
 
         count
+    }
+
+    pub fn overall_change(&self) -> ScanChange {
+        if self.is_brand_new() {
+            if self.all_ignored() {
+                ScanChange::Same
+            } else {
+                ScanChange::New
+            }
+        } else {
+            self.count_changes().overall()
+        }
     }
 }
 

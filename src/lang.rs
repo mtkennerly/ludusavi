@@ -13,7 +13,7 @@ use crate::{
         config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
         manifest::Store,
     },
-    scan::{game_filter, OperationStatus, OperationStepDecision, ScanChange, ScanChangeCount},
+    scan::{game_filter, OperationStatus, OperationStepDecision, ScanChange},
 };
 
 const PATH: &str = "path";
@@ -365,13 +365,17 @@ impl Translator {
         bytes: u64,
         decision: &OperationStepDecision,
         duplicated: bool,
-        changes: &ScanChangeCount,
+        change: ScanChange,
     ) -> String {
         let mut labels = vec![];
-        if changes.brand_new() {
-            labels.push(format!("[{}]", crate::lang::ADD_SYMBOL));
-        } else if changes.updated() {
-            labels.push(format!("[{}]", crate::lang::CHANGE_SYMBOL));
+        match change {
+            ScanChange::New => {
+                labels.push(format!("[{}]", crate::lang::ADD_SYMBOL));
+            }
+            ScanChange::Different => {
+                labels.push(format!("[{}]", crate::lang::CHANGE_SYMBOL));
+            }
+            ScanChange::Removed | ScanChange::Same | ScanChange::Unknown => (),
         }
         if *decision == OperationStepDecision::Ignored {
             labels.push(self.label_ignored());

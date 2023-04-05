@@ -65,7 +65,7 @@ impl GameListEntry {
         let name_for_comment2 = self.scan_info.game_name.clone();
         let name_for_duplicate_toggle = self.scan_info.game_name.clone();
         let operating = operation.is_some();
-        let changes = self.scan_info.count_changes();
+        let changes = self.scan_info.overall_change();
         let duplication = duplicate_detector.is_game_duplicated(&self.scan_info.game_name);
 
         Container::new(
@@ -122,7 +122,7 @@ impl GameListEntry {
                             .width(Length::Fill)
                             .padding(2),
                         )
-                        .push_some(|| match changes.overall() {
+                        .push_some(|| match changes {
                             ScanChange::New => Some(Badge::new_entry().view()),
                             ScanChange::Different => Some(Badge::changed_entry().view()),
                             ScanChange::Removed => None,
@@ -455,7 +455,7 @@ impl GameList {
                 status.processed_bytes += entry.scan_info.sum_bytes(None);
             }
 
-            status.changed_games.add(entry.scan_info.count_changes().overall());
+            status.changed_games.add(entry.scan_info.overall_change());
         }
         status
     }
@@ -567,7 +567,7 @@ impl GameList {
 
         match index {
             Some(i) => {
-                if scan_info.found_anything() {
+                if scan_info.can_report_game() {
                     self.entries[i].scan_info = scan_info;
                     self.entries[i].backup_info = backup_info;
                     self.entries[i].game_layout = game_layout;

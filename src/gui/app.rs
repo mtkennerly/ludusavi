@@ -691,7 +691,7 @@ impl Application for App {
                         self.progress.max,
                         scan_info.game_name
                     );
-                    if scan_info.found_anything() {
+                    if scan_info.can_report_game() {
                         let duplicates = self.backup_screen.duplicate_detector.add_game(
                             &scan_info,
                             self.config
@@ -756,7 +756,7 @@ impl Application for App {
                         self.progress.max,
                         scan_info.game_name
                     );
-                    if scan_info.found_anything() {
+                    if scan_info.can_report_game() {
                         let duplicates = self.restore_screen.duplicate_detector.add_game(
                             &scan_info,
                             self.config
