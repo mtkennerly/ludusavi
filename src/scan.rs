@@ -52,6 +52,14 @@ impl ScanChange {
         }
     }
 
+    pub fn normalize_at_game_level(&self, ignored: bool, all_ignored: bool, restoring: bool) -> Self {
+        if all_ignored {
+            Self::Same
+        } else {
+            self.normalize(ignored, restoring)
+        }
+    }
+
     pub fn is_changed(&self) -> bool {
         match self {
             Self::New => true,
@@ -164,7 +172,7 @@ impl ScanChange {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ScannedFile {
     /// The actual location on disk.
     /// When `container` is set, this is the path inside of the container
@@ -499,14 +507,28 @@ impl ScanInfo {
 
     pub fn count_changes(&self) -> ScanChangeCount {
         let mut count = ScanChangeCount::new();
+        let all_ignored = self.all_ignored();
 
         for entry in &self.found_files {
-            count.add(entry.change.normalize(entry.ignored, self.restoring()));
+            count.add(
+                entry
+                    .change
+                    .normalize_at_game_level(entry.ignored, all_ignored, self.restoring()),
+            );
         }
         for entry in &self.found_registry_keys {
-            count.add(entry.change.normalize(entry.ignored, self.restoring()));
-            for value in entry.values.values() {
-                count.add(value.change.normalize(value.ignored, self.restoring()));
+            count.add(
+                entry
+                    .change
+                    .normalize_at_game_level(entry.ignored, all_ignored, self.restoring()),
+            );
+
+            for entry in entry.values.values() {
+                count.add(
+                    entry
+                        .change
+                        .normalize_at_game_level(entry.ignored, all_ignored, self.restoring()),
+                );
             }
         }
 
@@ -2577,6 +2599,102 @@ mod tests {
                     &[],
                     &Default::default(),
                 ),
+            );
+        }
+    }
+
+    mod scan_info {
+        use pretty_assertions::assert_eq;
+
+        use super::*;
+
+        #[test]
+        fn count_changes_when_all_files_ignored() {
+            let scan = ScanInfo {
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new("a".into()),
+                        ignored: true,
+                        change: ScanChange::Different,
+                        ..Default::default()
+                    },
+                    ScannedFile {
+                        path: StrictPath::new("b".into()),
+                        ignored: true,
+                        change: ScanChange::Same,
+                        ..Default::default()
+                    },
+                },
+                ..Default::default()
+            };
+
+            assert_eq!(
+                ScanChangeCount {
+                    new: 0,
+                    different: 0,
+                    removed: 0,
+                    same: 2
+                },
+                scan.count_changes(),
+            );
+        }
+
+        #[test]
+        fn count_changes_when_all_registry_keys_ignored() {
+            let scan = ScanInfo {
+                found_registry_keys: hashset! {
+                    ScannedRegistry {
+                        path: RegistryItem::new("a".into()),
+                        ignored: true,
+                        change: ScanChange::Different,
+                        values: Default::default(),
+                    },
+                    ScannedRegistry {
+                        path: RegistryItem::new("b".into()),
+                        ignored: true,
+                        change: ScanChange::Same,
+                        values: Default::default(),
+                    },
+                },
+                ..Default::default()
+            };
+
+            assert_eq!(
+                ScanChangeCount {
+                    new: 0,
+                    different: 0,
+                    removed: 0,
+                    same: 2
+                },
+                scan.count_changes(),
+            );
+        }
+
+        #[test]
+        fn count_changes_when_all_registry_values_ignored() {
+            let scan = ScanInfo {
+                found_registry_keys: hashset! {
+                    ScannedRegistry {
+                        path: RegistryItem::new("k".into()),
+                        change: ScanChange::Same,
+                        ignored: true,
+                        values: btreemap! {
+                            "a".to_string() => ScannedRegistryValue { ignored: true, change: ScanChange::Different },
+                            "b".to_string() => ScannedRegistryValue { ignored: true, change: ScanChange::Same },
+                        },
+                    },
+                },
+                ..Default::default()
+            };
+
+            assert_eq!(
+                ScanChangeCount {
+                    new: 0,
+                    different: 0,
+                    removed: 0,
+                    same: 3
+                },
+                scan.count_changes(),
             );
         }
     }

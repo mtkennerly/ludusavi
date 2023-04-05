@@ -571,7 +571,7 @@ impl GameList {
                     self.entries[i].scan_info = scan_info;
                     self.entries[i].backup_info = backup_info;
                     self.entries[i].game_layout = game_layout;
-                    self.entries[i].scanned ^= scanned;
+                    self.entries[i].scanned = scanned || self.entries[i].scanned;
                     if self.expanded_games.contains(&game_name) {
                         self.entries[i].refresh_tree(duplicate_detector, config, restoring);
                     }
