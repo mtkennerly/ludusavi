@@ -58,6 +58,12 @@ struct ApiRegistryValue {
     #[serde(skip_serializing_if = "crate::serialization::is_false")]
     ignored: bool,
     change: ScanChange,
+    #[serde(
+        rename = "duplicatedBy",
+        serialize_with = "crate::serialization::ordered_set",
+        skip_serializing_if = "crate::serialization::is_empty_set"
+    )]
+    duplicated_by: HashSet<String>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -182,7 +188,7 @@ impl Reporter {
                     name,
                     scan_info.sum_bytes(Some(backup_info)),
                     decision,
-                    !duplicate_detector.is_game_duplicated(&scan_info.game_name).unique(),
+                    !duplicate_detector.is_game_duplicated(&scan_info.game_name).resolved(),
                     &scan_info.count_changes(),
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
@@ -194,7 +200,7 @@ impl Reporter {
                         &entry.readable(restoring),
                         entry_successful,
                         entry.ignored,
-                        !duplicate_detector.is_file_duplicated(entry).unique(),
+                        !duplicate_detector.is_file_duplicated(entry).resolved(),
                         entry.change,
                         false,
                     ));
@@ -216,7 +222,7 @@ impl Reporter {
                         &entry.path.render(),
                         entry_successful,
                         entry.ignored,
-                        !duplicate_detector.is_registry_duplicated(&entry.path).unique(),
+                        !duplicate_detector.is_registry_duplicated(&entry.path).resolved(),
                         entry.change,
                         false,
                     ));
@@ -228,7 +234,7 @@ impl Reporter {
                                 value.ignored,
                                 !duplicate_detector
                                     .is_registry_value_duplicated(&entry.path, value_name)
-                                    .unique(),
+                                    .resolved(),
                                 value.change,
                                 true,
                             ),
@@ -264,7 +270,7 @@ impl Reporter {
                         change: entry.change,
                         ..Default::default()
                     };
-                    if !duplicate_detector.is_file_duplicated(entry).unique() {
+                    if !duplicate_detector.is_file_duplicated(entry).resolved() {
                         let mut duplicated_by: HashSet<_> = duplicate_detector.file(entry).into_keys().collect();
                         duplicated_by.remove(&scan_info.game_name);
                         api_file.duplicated_by = duplicated_by;
@@ -297,13 +303,28 @@ impl Reporter {
                                     ApiRegistryValue {
                                         change: v.change,
                                         ignored: v.ignored,
+                                        duplicated_by: {
+                                            if !duplicate_detector
+                                                .is_registry_value_duplicated(&entry.path, k)
+                                                .resolved()
+                                            {
+                                                let mut duplicated_by: HashSet<_> = duplicate_detector
+                                                    .registry_value(&entry.path, k)
+                                                    .into_keys()
+                                                    .collect();
+                                                duplicated_by.remove(&scan_info.game_name);
+                                                duplicated_by
+                                            } else {
+                                                HashSet::new()
+                                            }
+                                        },
                                     },
                                 )
                             })
                             .collect(),
                         ..Default::default()
                     };
-                    if !duplicate_detector.is_registry_duplicated(&entry.path).unique() {
+                    if !duplicate_detector.is_registry_duplicated(&entry.path).resolved() {
                         let mut duplicated_by: HashSet<_> =
                             duplicate_detector.registry(&entry.path).into_keys().collect();
                         duplicated_by.remove(&scan_info.game_name);

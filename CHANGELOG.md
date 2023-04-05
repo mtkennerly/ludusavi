@@ -20,6 +20,7 @@
     You can now hide games that are deselected, unchanged, and unscanned.
     These settings are saved between sessions.
   * CLI: Backup comments are now included in the output of the `backups` command.
+  * CLI: Registry values now have the `duplicatedBy` field, like files and registry keys.
 * Changed:
   * The standalone Linux release is now compiled on Ubuntu 20.04 instead of Ubuntu 18.04
     because of [a change by GitHub](https://github.com/actions/runner-images/issues/6002).
