@@ -398,7 +398,7 @@ impl GameList {
                             config.should_show_game(
                                 &x.scan_info.game_name,
                                 restoring,
-                                x.scan_info.is_changed(),
+                                x.scan_info.overall_change().is_changed(),
                                 x.scan_info.found_anything(),
                             )
                         })

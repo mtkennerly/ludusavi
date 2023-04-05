@@ -492,29 +492,6 @@ impl ScanInfo {
         self.backup.is_some()
     }
 
-    pub fn is_changed(&self) -> bool {
-        for entry in &self.found_files {
-            if entry.ignored {
-                continue;
-            }
-            if entry.change.is_changed() {
-                return true;
-            }
-        }
-        for entry in &self.found_registry_keys {
-            if !entry.ignored && entry.change.is_changed() {
-                return true;
-            }
-            for value in entry.values.values().filter(|x| !x.ignored) {
-                if value.change.is_changed() {
-                    return true;
-                }
-            }
-        }
-
-        false
-    }
-
     fn is_brand_new(&self) -> bool {
         self.found_anything()
             && self.found_files.iter().all(|x| x.change == ScanChange::New)
