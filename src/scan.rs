@@ -27,6 +27,16 @@ use crate::{
     },
 };
 
+fn is_inert(change: ScanChange, enabled: bool) -> bool {
+    match change {
+        ScanChange::New => !enabled,
+        ScanChange::Different => !enabled,
+        ScanChange::Removed => true,
+        ScanChange::Same => !enabled,
+        ScanChange::Unknown => true,
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize)]
 pub enum ScanChange {
     New,
@@ -201,6 +211,14 @@ impl ScannedFile {
             change: Default::default(),
             container: None,
             redirected: None,
+        }
+    }
+
+    #[cfg(test)]
+    pub fn with_name<T: AsRef<str> + ToString>(path: T) -> Self {
+        Self {
+            path: StrictPath::new(path.to_string()),
+            ..Default::default()
         }
     }
 
@@ -452,7 +470,7 @@ impl ScanInfo {
     }
 
     pub fn all_ignored(&self) -> bool {
-        if self.found_files.is_empty() && self.found_registry_keys.is_empty() {
+        if !self.found_anything() {
             return false;
         }
         self.found_files.iter().all(|x| x.ignored)
@@ -468,6 +486,27 @@ impl ScanInfo {
                 .found_registry_keys
                 .iter()
                 .any(|x| x.ignored || x.values.values().any(|y| y.ignored))
+    }
+
+    fn all_inert(&self) -> bool {
+        if !self.found_anything() {
+            return false;
+        }
+
+        self.found_files.iter().all(|x| is_inert(x.change, !x.ignored))
+            && self
+                .found_registry_keys
+                .iter()
+                .all(|x| is_inert(x.change, !x.ignored) && x.values.values().all(|y| is_inert(y.change, !y.ignored)))
+    }
+
+    fn is_total_removal(&self) -> bool {
+        self.found_anything()
+            && self.found_files.iter().all(|x| x.change == ScanChange::Removed)
+            && self
+                .found_registry_keys
+                .iter()
+                .all(|x| x.change == ScanChange::Removed && x.values.values().all(|y| y.change == ScanChange::Removed))
     }
 
     pub fn total_items(&self) -> usize {
@@ -532,12 +571,16 @@ impl ScanInfo {
     }
 
     pub fn overall_change(&self) -> ScanChange {
-        if self.is_brand_new() {
+        if self.is_total_removal() {
+            ScanChange::Removed
+        } else if self.is_brand_new() {
             if self.all_ignored() {
                 ScanChange::Same
             } else {
                 ScanChange::New
             }
+        } else if self.all_inert() {
+            ScanChange::Same
         } else {
             self.count_changes().overall()
         }
@@ -1446,9 +1489,23 @@ impl Duplication {
     }
 
     pub fn evaluate<'a>(items: impl Iterator<Item = &'a DuplicateDetectorEntry> + Clone) -> Duplication {
-        if items.clone().count() < 2 {
+        let mut total = 0;
+        let mut enabled = 0;
+        let mut removed = 0;
+
+        for item in items {
+            total += 1;
+            if item.enabled {
+                enabled += 1;
+            }
+            if item.change == ScanChange::Removed {
+                removed += 1;
+            }
+        }
+
+        if total < 2 {
             Duplication::Unique
-        } else if items.filter(|x| x.enabled).count() <= 1 {
+        } else if enabled <= 1 || removed >= total - 1 {
             Duplication::Resolved
         } else {
             Duplication::Duplicate
@@ -1459,6 +1516,7 @@ impl Duplication {
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct DuplicateDetectorEntry {
     enabled: bool,
+    change: ScanChange,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -1513,6 +1571,7 @@ impl DuplicateDetector {
                 scan_info.game_name.clone(),
                 DuplicateDetectorEntry {
                     enabled: game_enabled && !item.ignored,
+                    change: item.change,
                 },
             );
             self.game_files
@@ -1535,6 +1594,7 @@ impl DuplicateDetector {
                     scan_info.game_name.clone(),
                     DuplicateDetectorEntry {
                         enabled: game_enabled && !item.ignored,
+                        change: item.change,
                     },
                 );
             self.game_registry
@@ -1552,6 +1612,7 @@ impl DuplicateDetector {
                         scan_info.game_name.clone(),
                         DuplicateDetectorEntry {
                             enabled: game_enabled && !value.ignored,
+                            change: value.change,
                         },
                     );
                 self.game_registry_values
@@ -1695,7 +1756,7 @@ impl DuplicateDetector {
         for item in self.files.values() {
             if item.contains_key(game) && item.len() > 1 {
                 tally.non_unique += 1;
-                if item.values().filter(|x| x.enabled).count() <= 1 {
+                if item.values().filter(|x| !is_inert(x.change, x.enabled)).count() <= 1 {
                     tally.resolved += 1;
                 }
             }
@@ -1703,7 +1764,7 @@ impl DuplicateDetector {
         for item in self.registry.values() {
             if item.contains_key(game) && item.len() > 1 {
                 tally.non_unique += 1;
-                if item.values().filter(|x| x.enabled).count() <= 1 {
+                if item.values().filter(|x| !is_inert(x.change, x.enabled)).count() <= 1 {
                     tally.resolved += 1;
                 }
             }
@@ -1712,7 +1773,7 @@ impl DuplicateDetector {
             for item in item.values() {
                 if item.contains_key(game) && item.len() > 1 {
                     tally.non_unique += 1;
-                    if item.values().filter(|x| x.enabled).count() <= 1 {
+                    if item.values().filter(|x| !is_inert(x.change, x.enabled)).count() <= 1 {
                         tally.resolved += 1;
                     }
                 }
@@ -2648,6 +2709,32 @@ mod tests {
         }
 
         #[test]
+        fn overall_change_when_game_is_different_with_removed_file() {
+            let scan = ScanInfo {
+                found_files: hashset! {
+                    ScannedFile::with_name("removed").change(ScanChange::Removed),
+                    ScannedFile::with_name("same").change(ScanChange::Same),
+                },
+                ..Default::default()
+            };
+
+            assert_eq!(ScanChange::Different, scan.overall_change());
+        }
+
+        #[test]
+        fn overall_change_when_game_is_different_but_inert() {
+            let scan = ScanInfo {
+                found_files: hashset! {
+                    ScannedFile::with_name("removed").change(ScanChange::Removed),
+                    ScannedFile::with_name("same").change(ScanChange::Different).ignored(),
+                },
+                ..Default::default()
+            };
+
+            assert_eq!(ScanChange::Same, scan.overall_change());
+        }
+
+        #[test]
         fn count_changes_when_all_registry_keys_ignored() {
             let scan = ScanInfo {
                 found_registry_keys: hashset! {
@@ -2705,6 +2792,64 @@ mod tests {
                 scan.count_changes(),
             );
         }
+
+        #[test]
+        fn no_can_report_game_when_total_removal() {
+            let scan = ScanInfo {
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new("a".into()),
+                        ignored: false,
+                        change: ScanChange::Removed,
+                        ..Default::default()
+                    },
+                },
+                ..Default::default()
+            };
+
+            assert_eq!(
+                ScanChangeCount {
+                    new: 0,
+                    different: 0,
+                    removed: 1,
+                    same: 0,
+                },
+                scan.count_changes(),
+            );
+            assert!(!scan.can_report_game());
+        }
+
+        #[test]
+        fn can_report_game_when_inert_but_not_total_removal() {
+            let scan = ScanInfo {
+                found_files: hashset! {
+                    ScannedFile {
+                        path: StrictPath::new("a".into()),
+                        ignored: false,
+                        change: ScanChange::Removed,
+                        ..Default::default()
+                    },
+                    ScannedFile {
+                        path: StrictPath::new("b".into()),
+                        ignored: true,
+                        change: ScanChange::Same,
+                        ..Default::default()
+                    },
+                },
+                ..Default::default()
+            };
+
+            assert_eq!(
+                ScanChangeCount {
+                    new: 0,
+                    different: 0,
+                    removed: 2,
+                    same: 0,
+                },
+                scan.count_changes(),
+            );
+            assert!(scan.can_report_game());
+        }
     }
 
     mod duplicate_detector {
@@ -2745,8 +2890,8 @@ mod tests {
             assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1));
             assert_eq!(
                 hashmap! {
-                    game1.clone() => DuplicateDetectorEntry { enabled: true },
-                    game2.clone() => DuplicateDetectorEntry { enabled: true }
+                    game1.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
+                    game2.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
                 },
                 detector.file(&file1)
             );
@@ -2754,7 +2899,7 @@ mod tests {
             assert_eq!(Duplication::Unique, detector.is_file_duplicated(&file2));
             assert_eq!(
                 hashmap! {
-                    game1.clone() => DuplicateDetectorEntry { enabled: true }
+                    game1.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
                 },
                 detector.file(&file2)
             );
@@ -2765,8 +2910,8 @@ mod tests {
             );
             assert_eq!(
                 hashmap! {
-                    game1 => DuplicateDetectorEntry { enabled: true },
-                    game2.clone() => DuplicateDetectorEntry { enabled: true }
+                    game1 => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
+                    game2.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
                 },
                 detector.registry(&RegistryItem::new(reg1))
             );
@@ -2777,7 +2922,7 @@ mod tests {
             );
             assert_eq!(
                 hashmap! {
-                    game2 => DuplicateDetectorEntry { enabled: true }
+                    game2 => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
                 },
                 detector.registry(&RegistryItem::new(reg2))
             );
@@ -2830,8 +2975,8 @@ mod tests {
             assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1a));
             assert_eq!(
                 hashmap! {
-                    game1.clone() => DuplicateDetectorEntry { enabled: true },
-                    game2.clone() => DuplicateDetectorEntry { enabled: true }
+                    game1.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
+                    game2.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
                 },
                 detector.file(&file1a)
             );
@@ -2852,8 +2997,8 @@ mod tests {
             assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1b));
             assert_eq!(
                 hashmap! {
-                    game1 => DuplicateDetectorEntry { enabled: true },
-                    game2 => DuplicateDetectorEntry { enabled: true }
+                    game1 => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
+                    game2 => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
                 },
                 detector.file(&file1b)
             );
@@ -2869,6 +3014,74 @@ mod tests {
                     container: None,
                     redirected: None,
                 })
+            );
+        }
+
+        #[test]
+        fn removed_file_is_resolved() {
+            let mut detector = DuplicateDetector::default();
+
+            detector.add_game(
+                &ScanInfo {
+                    game_name: "base".into(),
+                    found_files: hashset! {
+                        ScannedFile::with_name("unique-base"),
+                        ScannedFile::with_name("file1").change(ScanChange::Removed),
+                    },
+                    ..Default::default()
+                },
+                true,
+            );
+            detector.add_game(
+                &ScanInfo {
+                    game_name: "conflict".into(),
+                    found_files: hashset! {
+                        ScannedFile::with_name("unique-conflict"),
+                        ScannedFile::with_name("file1").change(ScanChange::Removed),
+                    },
+                    ..Default::default()
+                },
+                true,
+            );
+
+            assert_eq!(Duplication::Resolved, detector.is_game_duplicated("conflict"));
+            assert_eq!(
+                Duplication::Resolved,
+                detector.is_file_duplicated(&ScannedFile::with_name("file1"))
+            );
+        }
+
+        #[test]
+        fn ignored_file_is_resolved() {
+            let mut detector = DuplicateDetector::default();
+
+            detector.add_game(
+                &ScanInfo {
+                    game_name: "base".into(),
+                    found_files: hashset! {
+                        ScannedFile::with_name("unique-base"),
+                        ScannedFile::with_name("file1").change(ScanChange::Different),
+                    },
+                    ..Default::default()
+                },
+                true,
+            );
+            detector.add_game(
+                &ScanInfo {
+                    game_name: "conflict".into(),
+                    found_files: hashset! {
+                        ScannedFile::with_name("unique-conflict"),
+                        ScannedFile::with_name("file1").change(ScanChange::Different).ignored(),
+                    },
+                    ..Default::default()
+                },
+                true,
+            );
+
+            assert_eq!(Duplication::Resolved, detector.is_game_duplicated("conflict"));
+            assert_eq!(
+                Duplication::Resolved,
+                detector.is_file_duplicated(&ScannedFile::with_name("file1"))
             );
         }
     }

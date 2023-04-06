@@ -696,10 +696,10 @@ Overall:
                 &ScanInfo {
                     game_name: s(name),
                     found_files: hashset! {
-                        ScannedFile::new("/file1", 102_400, "1"),
+                        ScannedFile::new("/file1", 102_400, "1").change(ScanChange::New),
                     },
                     found_registry_keys: hashset! {
-                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1").change(ScanChange::New),
                     },
                     ..Default::default()
                 },
