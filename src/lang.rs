@@ -28,6 +28,15 @@ pub const ADD_SYMBOL: &str = "+";
 pub const CHANGE_SYMBOL: &str = "Δ";
 pub const REMOVAL_SYMBOL: &str = "x";
 
+fn title_case(text: &str) -> String {
+    let lowercase = text.to_lowercase();
+    let mut chars = lowercase.chars();
+    match chars.next() {
+        None => lowercase,
+        Some(char) => format!("{}{}", char.to_uppercase(), chars.as_str()),
+    }
+}
+
 // TODO: Some are blocked by https://github.com/mtkennerly/ludusavi/issues/9.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Language {
@@ -712,23 +721,23 @@ impl Translator {
     }
 
     pub fn filter_uniqueness(&self, filter: game_filter::Uniqueness) -> String {
-        translate(match filter {
-            game_filter::Uniqueness::Unique => "filter-unique",
-            game_filter::Uniqueness::Duplicate => "filter-duplicate",
-        })
+        match filter {
+            game_filter::Uniqueness::Unique => translate("label-unique"),
+            game_filter::Uniqueness::Duplicate => title_case(&self.badge_duplicated()),
+        }
     }
 
     pub fn filter_completeness(&self, filter: game_filter::Completeness) -> String {
         translate(match filter {
-            game_filter::Completeness::Complete => "filter-complete",
-            game_filter::Completeness::Partial => "filter-partial",
+            game_filter::Completeness::Complete => "label-complete",
+            game_filter::Completeness::Partial => "label-partial",
         })
     }
 
     pub fn filter_enablement(&self, filter: game_filter::Enablement) -> String {
         translate(match filter {
-            game_filter::Enablement::Enabled => "filter-enabled",
-            game_filter::Enablement::Disabled => "filter-disabled",
+            game_filter::Enablement::Enabled => "label-enabled",
+            game_filter::Enablement::Disabled => "label-disabled",
         })
     }
 

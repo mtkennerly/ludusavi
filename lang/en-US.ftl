@@ -103,6 +103,11 @@ label-removed = Removed
 label-comment = Comment
 label-scan = Scan
 label-filter  = Filter
+label-unique = Unique
+label-complete = Complete
+label-partial = Partial
+label-enabled = Enabled
+label-disabled = Disabled
 
 store-epic = Epic
 store-gog = GOG
@@ -116,13 +121,6 @@ store-uplay = Uplay
 store-other-home = Home folder
 store-other-wine = Wine prefix
 store-other = Other
-
-filter-unique = Unique
-filter-duplicate = Duplicate
-filter-complete = Complete
-filter-partial = Partial
-filter-enabled = Enabled
-filter-disabled = Disabled
 
 backup-format-simple = Simple
 backup-format-zip = Zip
