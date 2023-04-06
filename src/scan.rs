@@ -2040,9 +2040,8 @@ fn compare_games_by_size(
 
 fn compare_games_by_status(scan_info1: &ScanInfo, scan_info2: &ScanInfo) -> std::cmp::Ordering {
     scan_info1
-        .count_changes()
-        .overall()
-        .cmp(&scan_info2.count_changes().overall())
+        .overall_change()
+        .cmp(&scan_info2.overall_change())
         .then_with(|| compare_games_by_name(&scan_info1.game_name, &scan_info2.game_name))
 }
 

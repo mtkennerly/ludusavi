@@ -278,11 +278,11 @@ impl ToggledRegistryEntry {
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum SortKey {
-    #[default]
     #[serde(rename = "name")]
     Name,
     #[serde(rename = "size")]
     Size,
+    #[default]
     #[serde(rename = "status")]
     Status,
 }
@@ -1598,7 +1598,7 @@ backup:
   toggledPaths: {}
   toggledRegistry: {}
   sort:
-    key: name
+    key: status
     reversed: false
   retention:
     full: 1
@@ -1621,7 +1621,7 @@ restore:
     - Restore Game 2
     - Restore Game 3
   sort:
-    key: name
+    key: status
     reversed: false
 scan:
   showDeselectedGames: false
