@@ -108,6 +108,8 @@ label-complete = Complete
 label-partial = Partial
 label-enabled = Enabled
 label-disabled = Disabled
+# https://en.wikipedia.org/wiki/Thread_(computing)
+label-threads = Threads
 
 store-epic = Epic
 store-gog = GOG
@@ -140,6 +142,7 @@ redirect-bidirectional = Bidirectional
 show-deselected-games = Show deselected games
 show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
+override-max-threads = Override max threads
 
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies
@@ -173,3 +176,6 @@ no-saves-found = No save data found.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = no confirmation
+
+# This is shown when a setting will only take effect after closing and reopening Ludusavi.
+suffix-restart-required = restart required

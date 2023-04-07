@@ -1,9 +1,9 @@
-use std::{path::PathBuf, sync::Mutex};
+use std::{num::NonZeroUsize, path::PathBuf, sync::Mutex};
 
 use once_cell::sync::Lazy;
 
 pub use crate::path::StrictPath;
-use crate::resource::manifest::Os;
+use crate::resource::{config::Config, manifest::Os};
 
 pub static VERSION: Lazy<&'static str> =
     Lazy::new(|| option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")));
@@ -18,6 +18,8 @@ pub const INVALID_FILE_CHARS: &[char] = &['\\', '/', ':', '*', '?', '"', '<', '>
 
 pub static STEAM_DECK: Lazy<bool> =
     Lazy::new(|| Os::HOST == Os::Linux && StrictPath::new("/home/deck".to_string()).exists());
+
+pub static AVAILABLE_PARALELLISM: Lazy<Option<NonZeroUsize>> = Lazy::new(|| std::thread::available_parallelism().ok());
 
 // NOTE.2022-11-04 not very pretty singleton like global variable
 pub static CONFIG_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
@@ -83,4 +85,12 @@ pub fn sha1(content: String) -> String {
     let mut hasher = sha1::Sha1::new();
     hasher.update(content);
     format!("{:x}", hasher.finalize())
+}
+
+pub fn initialize_rayon(config: &Config) {
+    if let Some(threads) = config.runtime.threads {
+        let _ = rayon::ThreadPoolBuilder::new()
+            .num_threads(threads.get())
+            .build_global();
+    }
 }

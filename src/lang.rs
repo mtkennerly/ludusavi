@@ -800,6 +800,14 @@ impl Translator {
         translate("show-unscanned-games")
     }
 
+    pub fn override_max_threads(&self) -> String {
+        format!(
+            "{} ({})",
+            translate("override-max-threads"),
+            self.suffix_restart_required()
+        )
+    }
+
     pub fn explanation_for_exclude_store_screenshots(&self) -> String {
         translate("explanation-for-exclude-store-screenshots")
     }
@@ -858,6 +866,10 @@ impl Translator {
 
     pub fn filter_label(&self) -> String {
         self.field(&translate("label-filter"))
+    }
+
+    pub fn threads_label(&self) -> String {
+        self.field(&translate("label-threads"))
     }
 
     pub fn new_tooltip(&self) -> String {
@@ -925,5 +937,9 @@ impl Translator {
 
     pub fn suffix_no_confirmation(&self) -> String {
         translate("suffix-no-confirmation")
+    }
+
+    pub fn suffix_restart_required(&self) -> String {
+        translate("suffix-restart-required")
     }
 }

@@ -1,8 +1,11 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::{
+    collections::{BTreeMap, HashMap, HashSet},
+    num::NonZeroUsize,
+};
 
 use crate::{
     lang::{Language, TRANSLATOR},
-    prelude::{app_dir, Error, StrictPath},
+    prelude::{app_dir, Error, StrictPath, AVAILABLE_PARALELLISM},
     resource::{
         manifest::{Manifest, Store},
         ResourceFile, SaveableResourceFile,
@@ -20,6 +23,8 @@ fn default_backup_dir() -> StrictPath {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Config {
+    #[serde(default)]
+    pub runtime: Runtime,
     pub manifest: ManifestConfig,
     #[serde(default)]
     pub language: Language,
@@ -34,6 +39,12 @@ pub struct Config {
     pub scan: Scan,
     #[serde(default, rename = "customGames")]
     pub custom_games: Vec<CustomGame>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct Runtime {
+    #[serde(default)]
+    pub threads: Option<NonZeroUsize>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -933,6 +944,18 @@ impl Config {
             && (self.scan.show_unchanged_games || changed || !scanned)
             && (self.scan.show_unscanned_games || scanned)
     }
+
+    pub fn override_threads(&mut self, overridden: bool) {
+        if overridden {
+            self.runtime.threads = *AVAILABLE_PARALELLISM;
+        } else {
+            self.runtime.threads = None;
+        }
+    }
+
+    pub fn set_threads(&mut self, threads: usize) {
+        self.runtime.threads = NonZeroUsize::new(threads);
+    }
 }
 
 impl ToggledPaths {
@@ -1220,6 +1243,7 @@ mod tests {
 
         assert_eq!(
             Config {
+                runtime: Default::default(),
                 manifest: ManifestConfig {
                     url: s("example.com"),
                     etag: None,
@@ -1310,6 +1334,7 @@ mod tests {
 
         assert_eq!(
             Config {
+                runtime: Default::default(),
                 manifest: ManifestConfig {
                     url: s("example.com"),
                     etag: Some(s("foo")),
@@ -1407,6 +1432,7 @@ mod tests {
 
         assert_eq!(
             Config {
+                runtime: Default::default(),
                 manifest: ManifestConfig {
                     url: s("example.com"),
                     etag: None,
@@ -1495,6 +1521,7 @@ mod tests {
 
         assert_eq!(
             Config {
+                runtime: Default::default(),
                 manifest: ManifestConfig {
                     url: s("example.com"),
                     etag: Some(s("foo")),
@@ -1570,6 +1597,8 @@ mod tests {
         assert_eq!(
             r#"
 ---
+runtime:
+  threads: ~
 manifest:
   url: example.com
   etag: foo
@@ -1643,6 +1672,7 @@ customGames:
 "#
             .trim(),
             serde_yaml::to_string(&Config {
+                runtime: Default::default(),
                 manifest: ManifestConfig {
                     url: s("example.com"),
                     etag: Some(s("foo")),

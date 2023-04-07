@@ -169,6 +169,8 @@ pub enum Message {
         restoring: bool,
         game: Option<String>,
     },
+    OverrideMaxThreads(bool),
+    EditedMaxThreads(usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

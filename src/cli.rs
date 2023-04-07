@@ -14,7 +14,7 @@ use crate::{
         report::Reporter,
     },
     lang::TRANSLATOR,
-    prelude::{app_dir, Error, StrictPath},
+    prelude::{app_dir, initialize_rayon, Error, StrictPath},
     resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile},
     scan::{
         heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId,
@@ -79,6 +79,7 @@ pub fn parse() -> Cli {
 
 pub fn run(sub: Subcommand) -> Result<(), Error> {
     let mut config = Config::load()?;
+    initialize_rayon(&config);
     TRANSLATOR.set_language(config.language);
     let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
     let mut failed = false;

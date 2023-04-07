@@ -10,6 +10,7 @@
     then it will be incorporated into the backup scan.
   * Option to sort games by status: new -> different -> same -> unscanned.
     This is now the default sort order for new installations of Ludusavi.
+  * Option to override the maximum threads used for scanning games in parallel.
   * GUI: On the backup/restore screen, you can click on the "duplicates" badge next to a game
     to filter the list down to just the games that conflict with it.
     You can click the badge again to reset the filter.

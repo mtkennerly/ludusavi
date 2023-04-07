@@ -14,7 +14,7 @@ use crate::{
         widget::{number_input, Button, Checkbox, Column, Container, Element, IcedParentExt, PickList, Row, Text},
     },
     lang::{Language, TRANSLATOR},
-    prelude::STEAM_DECK,
+    prelude::{AVAILABLE_PARALELLISM, STEAM_DECK},
     resource::{
         cache::Cache,
         config::{BackupFormat, Config, SortKey, Theme, ZipCompression},
@@ -351,6 +351,28 @@ pub fn other<'a>(updating_manifest: bool, config: &Config, cache: &Cache, histor
                     Column::new()
                         .spacing(10)
                         .push(Text::new(TRANSLATOR.scan_label()))
+                        .push_some(|| {
+                            AVAILABLE_PARALELLISM.map(|max_threads| {
+                                Column::new()
+                                    .spacing(5)
+                                    .push(Checkbox::new(
+                                        TRANSLATOR.override_max_threads(),
+                                        config.runtime.threads.is_some(),
+                                        Message::OverrideMaxThreads,
+                                    ))
+                                    .push_some(|| {
+                                        config.runtime.threads.map(|threads| {
+                                            Container::new(number_input(
+                                                threads.get() as i32,
+                                                TRANSLATOR.threads_label(),
+                                                1..=(max_threads.get() as i32),
+                                                |x| Message::EditedMaxThreads(x as usize),
+                                            ))
+                                            .padding([0, 0, 0, 35])
+                                        })
+                                    })
+                            })
+                        })
                         .push(
                             Checkbox::new(
                                 TRANSLATOR.explanation_for_exclude_store_screenshots(),

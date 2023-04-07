@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use iced::{executor, Alignment, Application, Command, Subscription};
+use iced::{Alignment, Application, Command, Subscription};
 
 use crate::{
     gui::{
@@ -14,7 +14,7 @@ use crate::{
         widget::{Column, Container, Element, IcedParentExt, ProgressBar, Row},
     },
     lang::TRANSLATOR,
-    prelude::{app_dir, Error, StrictPath},
+    prelude::{app_dir, initialize_rayon, Error, StrictPath},
     resource::{
         cache::Cache,
         config::{Config, CustomGame, RootsConfig},
@@ -26,6 +26,31 @@ use crate::{
         scan_game_for_backup, BackupId, InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
     },
 };
+
+pub struct Executor(tokio::runtime::Runtime);
+
+impl iced::Executor for Executor {
+    fn new() -> Result<Self, iced::futures::io::Error> {
+        let mut builder = tokio::runtime::Builder::new_multi_thread();
+        if let Ok(config) = Config::load() {
+            initialize_rayon(&config);
+            if let Some(threads) = config.runtime.threads {
+                builder.worker_threads(threads.get());
+            }
+        }
+        builder.build().map(Self)
+    }
+
+    #[allow(clippy::let_underscore_future)]
+    fn spawn(&self, future: impl std::future::Future<Output = ()> + Send + 'static) {
+        let _ = tokio::runtime::Runtime::spawn(&self.0, future);
+    }
+
+    fn enter<R>(&self, f: impl FnOnce() -> R) -> R {
+        let _guard = tokio::runtime::Runtime::enter(&self.0);
+        f()
+    }
+}
 
 #[derive(Default)]
 struct Progress {
@@ -505,7 +530,7 @@ impl App {
 }
 
 impl Application for App {
-    type Executor = executor::Default;
+    type Executor = Executor;
     type Message = Message;
     type Flags = ();
     type Theme = crate::gui::style::Theme;
@@ -520,6 +545,7 @@ impl Application for App {
                 Config::default()
             }
         };
+        initialize_rayon(&config);
         TRANSLATOR.set_language(config.language);
         let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
         let manifest = match Manifest::load() {
@@ -1533,6 +1559,16 @@ impl Application for App {
                     &mut self.backup_screen.log
                 };
                 log.filter_duplicates_of = game;
+                Command::none()
+            }
+            Message::OverrideMaxThreads(overridden) => {
+                self.config.override_threads(overridden);
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedMaxThreads(threads) => {
+                self.config.set_threads(threads);
+                self.config.save();
                 Command::none()
             }
         }
