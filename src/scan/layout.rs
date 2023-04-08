@@ -898,7 +898,7 @@ impl GameLayout {
         let mut registry = IndividualMappingRegistry::default();
 
         for file in scan.found_files.iter().filter(|x| !x.ignored) {
-            match file.effective_change() {
+            match file.change() {
                 ScanChange::New | ScanChange::Different | ScanChange::Same => {
                     files.insert(
                         file.effective().render(),
@@ -942,7 +942,7 @@ impl GameLayout {
         let mut registry = Some(IndividualMappingRegistry::default());
 
         for file in scan.found_files.iter() {
-            match file.effective_change() {
+            match file.change() {
                 ScanChange::New | ScanChange::Different | ScanChange::Same => {
                     files.insert(
                         file.effective().render(),
@@ -1443,7 +1443,7 @@ impl GameLayout {
             let original_path = some_or_continue!(&file.original_path);
             let target = file.effective();
 
-            if !file.is_changed() {
+            if !file.change().is_changed() {
                 log::info!(
                     "[{}] skipping file; change={:?}, ignored={}: {} -> {}",
                     self.mapping.name,
@@ -2156,15 +2156,15 @@ mod tests {
             // The removed value here only makes it into the plan because it actually does exist.
             let scan = ScanInfo {
                 found_registry_keys: hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change(ScanChange::New).ignored(),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::Different)
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New).ignored(),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::Different)
                         .with_value("binary", ScanChange::New, false)
                         .with_value("dword", ScanChange::Different, false)
                         .with_value("expandSz", ScanChange::Removed, false)
                         .with_value("multiSz", ScanChange::Same, false)
                         .with_value("qword", ScanChange::Same, true)
                         .with_value("sz", ScanChange::Unknown, false),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change(ScanChange::Removed)
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::Removed)
                 },
                 ..Default::default()
             };
@@ -2245,7 +2245,7 @@ mod tests {
 
             let scan = ScanInfo {
                 found_registry_keys: hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change(ScanChange::New)
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::New)
                 },
                 ..Default::default()
             };
@@ -2286,7 +2286,7 @@ mod tests {
 
             let scan = ScanInfo {
                 found_registry_keys: hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change(ScanChange::Different)
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::Different)
                         .with_value("removed", ScanChange::Removed, false)
                         // Fake registry values are ignored because `Hives` re-reads the actual registry.
                         .with_value("fake", ScanChange::New, false)
@@ -2332,7 +2332,7 @@ mod tests {
 
             let scan = ScanInfo {
                 found_registry_keys: hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change(ScanChange::Same)
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::Same)
                 },
                 ..Default::default()
             };
@@ -2371,7 +2371,7 @@ mod tests {
         fn can_plan_differential_backup_with_registry_removed() {
             let scan = ScanInfo {
                 found_registry_keys: hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change(ScanChange::Removed)
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::Removed)
                 },
                 ..Default::default()
             };
@@ -2783,7 +2783,7 @@ mod tests {
                     ScanInfo {
                         game_name: s("game3"),
                         found_registry_keys: hashset! {
-                            ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::Same)
+                            ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::Same)
                                 .with_value_same("binary")
                                 .with_value_same("dword")
                                 .with_value_same("expandSz")

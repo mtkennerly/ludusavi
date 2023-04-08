@@ -243,7 +243,7 @@ impl ScannedFile {
     }
 
     #[cfg(test)]
-    pub fn change(mut self, change: ScanChange) -> Self {
+    pub fn change_as(mut self, change: ScanChange) -> Self {
         self.change = change;
         self
     }
@@ -304,11 +304,7 @@ impl ScannedFile {
         !self.ignored && self.change.will_take_space()
     }
 
-    pub fn is_changed(&self) -> bool {
-        self.effective_change().is_changed()
-    }
-
-    pub fn effective_change(&self) -> ScanChange {
+    pub fn change(&self) -> ScanChange {
         self.change.normalize(self.ignored, self.restoring())
     }
 }
@@ -349,7 +345,7 @@ impl ScannedRegistry {
 
     #[cfg(test)]
     #[allow(dead_code)]
-    pub fn change(mut self, change: ScanChange) -> Self {
+    pub fn change_as(mut self, change: ScanChange) -> Self {
         self.change = change;
         self
     }
@@ -386,6 +382,16 @@ impl ScannedRegistry {
             },
         );
         self
+    }
+
+    pub fn change(&self, restoring: bool) -> ScanChange {
+        self.change.normalize(self.ignored, restoring)
+    }
+}
+
+impl ScannedRegistryValue {
+    pub fn change(&self, restoring: bool) -> ScanChange {
+        self.change.normalize(self.ignored, restoring)
     }
 }
 
@@ -2511,7 +2517,7 @@ mod tests {
                 game_name: s("game3"),
                 found_files: hashset! {},
                 found_registry_keys: hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New)
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
                         .with_value_new("binary")
                         .with_value_new("dword")
                         .with_value_new("expandSz")
@@ -2547,15 +2553,15 @@ mod tests {
                 game_name: s("game3-outer"),
                 found_files: hashset! {},
                 found_registry_keys: hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New)
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
                         .with_value_new("binary")
                         .with_value_new("dword")
                         .with_value_new("expandSz")
                         .with_value_new("multiSz")
                         .with_value_new("qword")
                         .with_value_new("sz"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::New),
                 },
                 ..Default::default()
             },
@@ -2588,8 +2594,8 @@ mod tests {
                 },
                 ToggledRegistry::default(),
                 hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New)
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
                         .with_value_new("binary")
                         .with_value_new("dword")
                         .with_value_new("expandSz")
@@ -2606,15 +2612,15 @@ mod tests {
                     }
                 }),
                 hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").ignored().change(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").ignored().change(ScanChange::New)
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").ignored().change_as(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").ignored().change_as(ScanChange::New)
                         .with_value("binary", ScanChange::New, true)
                         .with_value("dword", ScanChange::New, true)
                         .with_value("expandSz", ScanChange::New, true)
                         .with_value("multiSz", ScanChange::New, true)
                         .with_value("qword", ScanChange::New, true)
                         .with_value("sz", ScanChange::New, true),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change_as(ScanChange::New),
                 },
             ),
             (
@@ -2631,15 +2637,15 @@ mod tests {
                     }
                 }),
                 hashset! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change(ScanChange::New)
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
                         .with_value_new("binary")
                         .with_value_new("dword")
                         .with_value_new("expandSz")
                         .with_value_new("multiSz")
                         .with_value("qword", ScanChange::New, true)
                         .with_value_new("sz"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change(ScanChange::New),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change_as(ScanChange::New),
                 },
             ),
         ];
@@ -2711,8 +2717,8 @@ mod tests {
         fn overall_change_when_game_is_different_with_removed_file() {
             let scan = ScanInfo {
                 found_files: hashset! {
-                    ScannedFile::with_name("removed").change(ScanChange::Removed),
-                    ScannedFile::with_name("same").change(ScanChange::Same),
+                    ScannedFile::with_name("removed").change_as(ScanChange::Removed),
+                    ScannedFile::with_name("same").change_as(ScanChange::Same),
                 },
                 ..Default::default()
             };
@@ -2724,8 +2730,8 @@ mod tests {
         fn overall_change_when_game_is_different_but_inert() {
             let scan = ScanInfo {
                 found_files: hashset! {
-                    ScannedFile::with_name("removed").change(ScanChange::Removed),
-                    ScannedFile::with_name("same").change(ScanChange::Different).ignored(),
+                    ScannedFile::with_name("removed").change_as(ScanChange::Removed),
+                    ScannedFile::with_name("same").change_as(ScanChange::Different).ignored(),
                 },
                 ..Default::default()
             };
@@ -3025,7 +3031,7 @@ mod tests {
                     game_name: "base".into(),
                     found_files: hashset! {
                         ScannedFile::with_name("unique-base"),
-                        ScannedFile::with_name("file1").change(ScanChange::Removed),
+                        ScannedFile::with_name("file1").change_as(ScanChange::Removed),
                     },
                     ..Default::default()
                 },
@@ -3036,7 +3042,7 @@ mod tests {
                     game_name: "conflict".into(),
                     found_files: hashset! {
                         ScannedFile::with_name("unique-conflict"),
-                        ScannedFile::with_name("file1").change(ScanChange::Removed),
+                        ScannedFile::with_name("file1").change_as(ScanChange::Removed),
                     },
                     ..Default::default()
                 },
@@ -3059,7 +3065,7 @@ mod tests {
                     game_name: "base".into(),
                     found_files: hashset! {
                         ScannedFile::with_name("unique-base"),
-                        ScannedFile::with_name("file1").change(ScanChange::Different),
+                        ScannedFile::with_name("file1").change_as(ScanChange::Different),
                     },
                     ..Default::default()
                 },
@@ -3070,7 +3076,7 @@ mod tests {
                     game_name: "conflict".into(),
                     found_files: hashset! {
                         ScannedFile::with_name("unique-conflict"),
-                        ScannedFile::with_name("file1").change(ScanChange::Different).ignored(),
+                        ScannedFile::with_name("file1").change_as(ScanChange::Different).ignored(),
                     },
                     ..Default::default()
                 },

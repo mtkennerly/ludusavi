@@ -201,7 +201,7 @@ impl Reporter {
                         entry_successful,
                         entry.ignored,
                         !duplicate_detector.is_file_duplicated(entry).resolved(),
-                        entry.change,
+                        entry.change(),
                         false,
                     ));
 
@@ -223,7 +223,7 @@ impl Reporter {
                         entry_successful,
                         entry.ignored,
                         !duplicate_detector.is_registry_duplicated(&entry.path).resolved(),
-                        entry.change,
+                        entry.change(scan_info.restoring()),
                         false,
                     ));
                     for (value_name, value) in itertools::sorted(&entry.values) {
@@ -235,7 +235,7 @@ impl Reporter {
                                 !duplicate_detector
                                     .is_registry_value_duplicated(&entry.path, value_name)
                                     .resolved(),
-                                value.change,
+                                value.change(scan_info.restoring()),
                                 true,
                             ),
                         );
@@ -263,7 +263,7 @@ impl Reporter {
                         bytes: entry.size,
                         failed: backup_info.failed_files.contains(entry),
                         ignored: entry.ignored,
-                        change: entry.change,
+                        change: entry.change(),
                         ..Default::default()
                     };
                     if !duplicate_detector.is_file_duplicated(entry).resolved() {
@@ -289,7 +289,7 @@ impl Reporter {
                     let mut api_registry = ApiRegistry {
                         failed: backup_info.failed_registry.contains(&entry.path),
                         ignored: entry.ignored,
-                        change: entry.change,
+                        change: entry.change(scan_info.restoring()),
                         values: entry
                             .values
                             .iter()
@@ -297,7 +297,7 @@ impl Reporter {
                                 (
                                     k.clone(),
                                     ApiRegistryValue {
-                                        change: v.change,
+                                        change: v.change(scan_info.restoring()),
                                         ignored: v.ignored,
                                         duplicated_by: {
                                             if !duplicate_detector
@@ -696,10 +696,10 @@ Overall:
                 &ScanInfo {
                     game_name: s(name),
                     found_files: hashset! {
-                        ScannedFile::new("/file1", 102_400, "1").change(ScanChange::New),
+                        ScannedFile::new("/file1", 102_400, "1").change_as(ScanChange::New),
                     },
                     found_registry_keys: hashset! {
-                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1").change(ScanChange::New),
+                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1").change_as(ScanChange::New),
                     },
                     ..Default::default()
                 },
@@ -749,10 +749,10 @@ Overall:
             &ScanInfo {
                 game_name: s("foo"),
                 found_files: hashset! {
-                    ScannedFile::new(s("/new"), 1, "1".to_string()).change(ScanChange::New),
-                    ScannedFile::new(s("/different"), 1, "1".to_string()).change(ScanChange::Different),
-                    ScannedFile::new(s("/same"), 1, "1".to_string()).change(ScanChange::Same),
-                    ScannedFile::new(s("/unknown"), 1, "1".to_string()).change(ScanChange::Unknown),
+                    ScannedFile::new(s("/new"), 1, "1".to_string()).change_as(ScanChange::New),
+                    ScannedFile::new(s("/different"), 1, "1".to_string()).change_as(ScanChange::Different),
+                    ScannedFile::new(s("/same"), 1, "1".to_string()).change_as(ScanChange::Same),
+                    ScannedFile::new(s("/unknown"), 1, "1".to_string()).change_as(ScanChange::Unknown),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -769,7 +769,7 @@ Overall:
             &ScanInfo {
                 game_name: s("bar"),
                 found_files: hashset! {
-                    ScannedFile::new(s("/brand-new"), 1, "1".to_string()).change(ScanChange::New),
+                    ScannedFile::new(s("/brand-new"), 1, "1".to_string()).change_as(ScanChange::New),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()
@@ -1092,10 +1092,10 @@ Overall:
             &ScanInfo {
                 game_name: s("foo"),
                 found_files: hashset! {
-                    ScannedFile::new("/new", 1, "1").change(ScanChange::New),
-                    ScannedFile::new("/different", 1, "2").change(ScanChange::Different),
-                    ScannedFile::new("/same", 1, "2").change(ScanChange::Same),
-                    ScannedFile::new("/unknown", 1, "2").change(ScanChange::Unknown),
+                    ScannedFile::new("/new", 1, "1").change_as(ScanChange::New),
+                    ScannedFile::new("/different", 1, "2").change_as(ScanChange::Different),
+                    ScannedFile::new("/same", 1, "2").change_as(ScanChange::Same),
+                    ScannedFile::new("/unknown", 1, "2").change_as(ScanChange::Unknown),
                 },
                 found_registry_keys: hashset! {},
                 ..Default::default()

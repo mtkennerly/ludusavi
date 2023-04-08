@@ -312,7 +312,6 @@ impl FileTreeNode {
         node.duplicated = duplicated;
         node.change = change;
         node.scanned_file = scanned_file;
-        node.ignored = check_ignored(game, &node.path, config, restoring);
 
         if let Some(registry_values) = registry_values {
             let raw_key_path = inserted_keys.iter().map(|x| x.raw()).collect::<Vec<_>>().join("/");
@@ -338,8 +337,7 @@ impl FileTreeNode {
                 node.successful = true;
                 node.duplicated = duplicate_detector
                     .is_registry_value_duplicated(&RegistryItem::new(raw_key_path.clone()), value_name);
-                node.change = value.change;
-                node.ignored = value.ignored;
+                node.change = value.change(restoring);
             }
         }
 
@@ -475,7 +473,7 @@ impl FileTree {
                     &[components[0].clone()],
                     successful,
                     duplicate_detector.is_file_duplicated(item),
-                    item.change,
+                    item.change(),
                     Some(item.clone()),
                     None,
                     duplicate_detector,
@@ -516,7 +514,7 @@ impl FileTree {
                     &components[0..1],
                     successful,
                     duplicate_detector.is_registry_duplicated(&item.path),
-                    item.change,
+                    item.change(restoring),
                     None,
                     Some(&item.values),
                     duplicate_detector,
