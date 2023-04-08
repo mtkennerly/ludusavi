@@ -148,6 +148,21 @@ for each full backup, like so:
 When backup #7 is created, because the full retention is set to 2,
 Ludusavi will delete backups 1 through 3.
 
+### Cloud backup
+You can integrate Ludusavi with cloud backup tools of your choice,
+as long as they can make the storage available as what looks like a normal folder.
+For example:
+
+* If you use something like [Google Drive for Desktop](https://www.google.com/drive/download),
+  which creates a special drive (`G:`) to stream from/to the cloud,
+  then you can configure Ludusavi to use a folder in that drive.
+* If you use something like [Rclone](https://rclone.org),
+  which mounts cloud storage as a normal-looking folder,
+  then you can configure Ludusavi to use that mount folder.
+* If you use something like [Syncthing](https://syncthing.net),
+  which continuously synchronizes a local folder across systems,
+  then you can configure Ludusavi to use that local folder.
+
 ### Selective scanning
 Once you've done at least one full scan (via the preview/backup buttons),
 Ludusavi will remember the games it found and show them to you the next time you run the program.
