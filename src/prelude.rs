@@ -3,7 +3,7 @@ use std::{num::NonZeroUsize, path::PathBuf, sync::Mutex};
 use once_cell::sync::Lazy;
 
 pub use crate::path::StrictPath;
-use crate::resource::{config::Config, manifest::Os};
+use crate::resource::manifest::Os;
 
 pub static VERSION: Lazy<&'static str> =
     Lazy::new(|| option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")));
@@ -23,6 +23,9 @@ pub static AVAILABLE_PARALELLISM: Lazy<Option<NonZeroUsize>> = Lazy::new(|| std:
 
 // NOTE.2022-11-04 not very pretty singleton like global variable
 pub static CONFIG_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+pub const ENV_DEBUG: &str = "LUDUSAVI_DEBUG";
+const ENV_THREADS: &str = "LUDUSAVI_THREADS";
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
@@ -87,10 +90,26 @@ pub fn sha1(content: String) -> String {
     format!("{:x}", hasher.finalize())
 }
 
-pub fn initialize_rayon(config: &Config) {
-    if let Some(threads) = config.runtime.threads {
-        let _ = rayon::ThreadPoolBuilder::new()
-            .num_threads(threads.get())
-            .build_global();
+pub fn get_threads_from_env() -> Option<NonZeroUsize> {
+    if let Ok(raw) = std::env::var(ENV_THREADS) {
+        if let Ok(threads) = raw.parse::<NonZeroUsize>() {
+            log::debug!("Using threads '{}' from {} environment variable", raw, ENV_THREADS);
+            Some(threads)
+        } else {
+            log::warn!(
+                "Ignoring invalid threads '{}' from {} environment variable",
+                raw,
+                ENV_THREADS
+            );
+            None
+        }
+    } else {
+        None
     }
+}
+
+pub fn initialize_rayon(threads: NonZeroUsize) {
+    let _ = rayon::ThreadPoolBuilder::new()
+        .num_threads(threads.get())
+        .build_global();
 }

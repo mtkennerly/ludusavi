@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    prelude::StrictPath,
+    prelude::{StrictPath, ENV_DEBUG},
     resource::{
         config::RootsConfig,
         manifest::{Os, Store},
@@ -271,7 +271,7 @@ impl HeroicGames {
         } else {
             // Handling game name mismatches, e.g. GRIP vs. GRIP: Combat Racing
             let log_message = format!("Ignoring unrecognized Heroic game: '{}'", heroic_title);
-            if std::env::var("LUDUSAVI_DEBUG").is_ok() {
+            if std::env::var(ENV_DEBUG).is_ok() {
                 eprintln!("{}", &log_message);
             }
             log::info!("{}", &log_message);

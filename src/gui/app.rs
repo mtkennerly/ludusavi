@@ -14,7 +14,7 @@ use crate::{
         widget::{Column, Container, Element, IcedParentExt, ProgressBar, Row},
     },
     lang::TRANSLATOR,
-    prelude::{app_dir, initialize_rayon, Error, StrictPath},
+    prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, StrictPath},
     resource::{
         cache::Cache,
         config::{Config, CustomGame, RootsConfig},
@@ -32,12 +32,12 @@ pub struct Executor(tokio::runtime::Runtime);
 impl iced::Executor for Executor {
     fn new() -> Result<Self, iced::futures::io::Error> {
         let mut builder = tokio::runtime::Builder::new_multi_thread();
-        if let Ok(config) = Config::load() {
-            initialize_rayon(&config);
-            if let Some(threads) = config.runtime.threads {
-                builder.worker_threads(threads.get());
-            }
+
+        if let Some(threads) = get_threads_from_env().or_else(|| Config::load().ok().and_then(|x| x.runtime.threads)) {
+            initialize_rayon(threads);
+            builder.worker_threads(threads.get());
         }
+
         builder.build().map(Self)
     }
 
@@ -545,7 +545,6 @@ impl Application for App {
                 Config::default()
             }
         };
-        initialize_rayon(&config);
         TRANSLATOR.set_language(config.language);
         let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
         let manifest = match Manifest::load() {
