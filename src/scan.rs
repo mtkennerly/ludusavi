@@ -62,14 +62,6 @@ impl ScanChange {
         }
     }
 
-    pub fn normalize_at_game_level(&self, ignored: bool, all_ignored: bool, restoring: bool) -> Self {
-        if all_ignored {
-            Self::Same
-        } else {
-            self.normalize(ignored, restoring)
-        }
-    }
-
     pub fn is_changed(&self) -> bool {
         match self {
             Self::New => true,
@@ -385,7 +377,8 @@ impl ScannedRegistry {
     }
 
     pub fn change(&self, restoring: bool) -> ScanChange {
-        self.change.normalize(self.ignored, restoring)
+        self.change
+            .normalize(self.ignored && self.values.values().all(|x| x.ignored), restoring)
     }
 }
 
@@ -551,25 +544,25 @@ impl ScanInfo {
         let all_ignored = self.all_ignored();
 
         for entry in &self.found_files {
-            count.add(
-                entry
-                    .change
-                    .normalize_at_game_level(entry.ignored, all_ignored, self.restoring()),
-            );
+            if all_ignored {
+                count.add(ScanChange::Same);
+            } else {
+                count.add(entry.change());
+            }
         }
         for entry in &self.found_registry_keys {
-            count.add(
-                entry
-                    .change
-                    .normalize_at_game_level(entry.ignored, all_ignored, self.restoring()),
-            );
+            if all_ignored {
+                count.add(ScanChange::Same);
+            } else {
+                count.add(entry.change(self.restoring()));
+            }
 
             for entry in entry.values.values() {
-                count.add(
-                    entry
-                        .change
-                        .normalize_at_game_level(entry.ignored, all_ignored, self.restoring()),
-                );
+                if all_ignored {
+                    count.add(ScanChange::Same);
+                } else {
+                    count.add(entry.change(self.restoring()));
+                }
             }
         }
 
@@ -2799,6 +2792,33 @@ mod tests {
         }
 
         #[test]
+        fn count_changes_when_registry_key_ignored_but_value_is_not() {
+            let scan = ScanInfo {
+                found_registry_keys: hashset! {
+                    ScannedRegistry {
+                        path: RegistryItem::new("k".into()),
+                        change: ScanChange::Same,
+                        ignored: true,
+                        values: btreemap! {
+                            "a".to_string() => ScannedRegistryValue { ignored: false, change: ScanChange::Same },
+                        },
+                    },
+                },
+                ..Default::default()
+            };
+
+            assert_eq!(
+                ScanChangeCount {
+                    new: 0,
+                    different: 0,
+                    removed: 0,
+                    same: 2,
+                },
+                scan.count_changes(),
+            );
+        }
+
+        #[test]
         fn no_can_report_game_when_total_removal() {
             let scan = ScanInfo {
                 found_files: hashset! {
@@ -2854,6 +2874,51 @@ mod tests {
                 scan.count_changes(),
             );
             assert!(scan.can_report_game());
+        }
+    }
+
+    mod scanned_registry {
+        use pretty_assertions::assert_eq;
+
+        use super::*;
+
+        #[test]
+        fn ignored_key_normalizes_to_same_if_a_value_is_not_ignored() {
+            assert_eq!(
+                ScanChange::Removed,
+                ScannedRegistry {
+                    path: RegistryItem::new("key".to_string()),
+                    ignored: true,
+                    change: ScanChange::Same,
+                    values: Default::default(),
+                }
+                .change(false)
+            );
+            assert_eq!(
+                ScanChange::Removed,
+                ScannedRegistry {
+                    path: RegistryItem::new("key".to_string()),
+                    ignored: true,
+                    change: ScanChange::Same,
+                    values: btreemap! {
+                        "val1".to_string() => ScannedRegistryValue { ignored: true, change: ScanChange::New },
+                    },
+                }
+                .change(false)
+            );
+            assert_eq!(
+                ScanChange::Same,
+                ScannedRegistry {
+                    path: RegistryItem::new("key".to_string()),
+                    ignored: true,
+                    change: ScanChange::Same,
+                    values: btreemap! {
+                        "val1".to_string() => ScannedRegistryValue { ignored: true, change: ScanChange::New },
+                        "val2".to_string() => ScannedRegistryValue { ignored: false, change: ScanChange::Same },
+                    },
+                }
+                .change(false)
+            );
         }
     }
 
