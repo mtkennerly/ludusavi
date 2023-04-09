@@ -59,8 +59,9 @@ def clean(ctx):
 
 
 @task
-def prerelease(ctx):
+def prerelease(ctx, update_lang=True):
     clean(ctx)
     legal(ctx)
     flatpak(ctx)
-    lang(ctx)
+    if update_lang:
+        lang(ctx)

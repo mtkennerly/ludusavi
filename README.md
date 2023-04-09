@@ -195,12 +195,23 @@ You can also use keyboard shortcuts to swap the three-dot menu with some specifi
 
 During a restore, Ludusavi only considers folders with a `mapping.yaml` file.
 
-### Search
-You can click the search icon and enter some text to just see games with
-matching names. Note that this only affects which games you see in the list,
+### Filter
+You can click the filter icon at the top of the backup/restore screens to use some filters.
+Note that this only affects which games you see in the list,
 but Ludusavi will still back up the full set of games.
 
-Sorting options are also available while the search bar is open.
+You can apply filters for the following:
+
+* Whether the game title matches a search.
+* Whether multiple games have the same save files:
+  * `Unique` (no conflicts)
+  * `Duplicated` (conflicts exist)
+* Whether all save files for a game are enabled for processing:
+  * `Complete` (all saves enabled)
+  * `Partial` (some saves disabled)
+* Whether the game itself is enabled for processing:
+  * `Enabled` (checkbox next to game is checked)
+  * `Disabled` (checkbox next to game is unchecked)
 
 ### Duplicates
 You may see a "duplicates" badge next to some games. This means that some of
@@ -208,6 +219,10 @@ the same files were also backed up for another game. That could be intentional
 (e.g., an HD remaster may reuse the original save locations), but it could
 also be a sign of an issue in the manifest data. You can expand the game's
 file list to see which exact entries are duplicated.
+
+You can resolve conflicts by disabling certain save files from being backed up.
+Once a conflict is resolved, the badge will become faded.
+You can also click on the badge to view just the conflicting games.
 
 ### Redirects
 You can use redirects to back up or restore to a different location than the original file.
@@ -328,9 +343,11 @@ For the `backup`/`restore` commands:
         * `values` (optional, map): Any registry values inside of the registry key.
           * `change` (string): Same as game-level field, but for a specific backup item.
           * `ignored` (optional, boolean): Whether this entry was ignored.
+          * `duplicatedBy` (optional, array of strings): Any other games that
+            also have the same registry key+value.
 
 The `backups` command is similar, but without `overall`, and with each game containing
-`{"backups": [ {"name": <string>, "when": <string>} ]}`.
+`{"backups": [ {"name": <string>, "when": <string>, "comment": <string>} ]}`.
 The `find` command also does not have `overall`, and each game object is empty.
 
 Note that, in some error conditions, there may not be any JSON output,
@@ -386,6 +403,9 @@ Here are the available settings in `config.yaml` (all are required unless otherw
 <details>
 <summary>Click to expand</summary>
 
+* `runtime` (map):
+  * `threads` (integer): How many threads to use for parallel scanning.
+    Must be greater than 0.
 * `manifest` (map):
   * `url` (string): Where to download the primary manifest.
   * `etag` (string or null): This field is deprecated and has been superseded by cache.yaml.
@@ -450,7 +470,7 @@ Here are the available settings in `config.yaml` (all are required unless otherw
     to control individual registry values as well.
     Settings on child paths override settings on parent paths.
   * `sort` (map):
-    * `key` (string): One of `name`, `size`.
+    * `key` (string): One of `name`, `size`, `status`.
     * `reversed` (boolean): If true, sort reverse alphabetical or from the largest size.
   * `retention` (map):
     * `full` (integer): Full backups to keep. Range: 1-255.
@@ -475,6 +495,10 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   * `sort` (map):
     * `key` (string): One of `name`, `size`.
     * `reversed` (boolean): If true, sort reverse alphabetical or from the largest size.
+* `scan` (map):
+  * `showDeselectedGames` (boolean): In the GUI, show games that have been deselected.
+  * `showUnchangedGames` (boolean): In the GUI, show games that have been scanned, but do not have any changed saves.
+  * `showUnscannedGames` (boolean): In the GUI, show recent games that have not been scanned yet.
 * `customGames` (optional, list):
   * Each entry in the list should be a map with these fields:
     * `name` (string): Name of the game.
@@ -495,6 +519,23 @@ backup:
 restore:
   path: ~/ludusavi-backup
 ```
+
+</details>
+
+### Environment variables
+Environment variables can be used to tweak some additional behavior:
+
+<details>
+<summary>Click to expand</summary>
+
+* `RUST_LOG`: Configure logging.
+  Example: `RUST_LOG=ludusavi=debug`
+* `LUDUSAVI_DEBUG`: If this is set to any value,
+  then Ludusavi will not detach from the console on Windows in GUI mode.
+  It will also print some debug messages in certain cases.
+  Example: `LUDUSAVI_DEBUG=1`
+* `LUDUSAVI_THREADS`: Overrive the `runtime.threads` value from the config file.
+  Example: `LUDUSAVI_THREADS=8`
 
 </details>
 

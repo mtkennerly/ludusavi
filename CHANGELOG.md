@@ -1,4 +1,4 @@
-## Unreleased
+## v0.17.0 (2023-04-09)
 
 * Added:
   * A new "removed" status (icon: `x`) is now displayed for saves.
