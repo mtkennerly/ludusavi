@@ -171,7 +171,19 @@ impl ScanInfo {
             if all_ignored {
                 count.add(ScanChange::Same);
             } else {
-                count.add(entry.change(self.restoring()));
+                let change = entry.change(self.restoring());
+                if change == ScanChange::Removed
+                    && self
+                        .found_registry_keys
+                        .iter()
+                        .any(|x| entry.path.is_prefix_of(&x.path))
+                {
+                    // There's a child key, so we won't be removing this parent key,
+                    // even if we do remove some of its values.
+                    count.add(ScanChange::Same);
+                } else {
+                    count.add(change);
+                }
             }
 
             for entry in entry.values.values() {
@@ -356,6 +368,70 @@ mod tests {
             },
             scan.count_changes(),
         );
+    }
+
+    #[test]
+    fn registry_key_ignored_but_child_key_is_not() {
+        let scan = ScanInfo {
+            found_registry_keys: hashset! {
+                ScannedRegistry {
+                    path: RegistryItem::new("HKEY_CURRENT_USER/foo".into()),
+                    change: ScanChange::Same,
+                    ignored: true,
+                    values: Default::default(),
+                },
+                ScannedRegistry {
+                    path: RegistryItem::new("HKEY_CURRENT_USER/foo/bar".into()),
+                    change: ScanChange::Same,
+                    ignored: false,
+                    values: Default::default(),
+                },
+            },
+            ..Default::default()
+        };
+
+        assert_eq!(
+            ScanChangeCount {
+                new: 0,
+                different: 0,
+                removed: 0,
+                same: 2,
+            },
+            scan.count_changes(),
+        );
+        assert_eq!(ScanChange::Same, scan.overall_change());
+    }
+
+    #[test]
+    fn registry_key_ignored_but_sibling_key_is_not() {
+        let scan = ScanInfo {
+            found_registry_keys: hashset! {
+                ScannedRegistry {
+                    path: RegistryItem::new("HKEY_CURRENT_USER/foo".into()),
+                    change: ScanChange::Same,
+                    ignored: true,
+                    values: Default::default(),
+                },
+                ScannedRegistry {
+                    path: RegistryItem::new("HKEY_CURRENT_USER/bar".into()),
+                    change: ScanChange::Same,
+                    ignored: false,
+                    values: Default::default(),
+                },
+            },
+            ..Default::default()
+        };
+
+        assert_eq!(
+            ScanChangeCount {
+                new: 0,
+                different: 0,
+                removed: 1,
+                same: 1,
+            },
+            scan.count_changes(),
+        );
+        assert_eq!(ScanChange::Different, scan.overall_change());
     }
 
     #[test]
