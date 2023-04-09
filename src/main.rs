@@ -14,7 +14,7 @@ mod testing;
 
 use crate::{
     lang::TRANSLATOR,
-    prelude::{app_dir, CONFIG_DIR, ENV_DEBUG, VERSION},
+    prelude::{app_dir, CONFIG_DIR, VERSION},
 };
 
 /// The logger must be assigned to a variable because we're using async logging.
@@ -42,7 +42,7 @@ fn main() {
         None => {
             #[cfg(target_os = "windows")]
             {
-                if std::env::var(ENV_DEBUG).is_err() {
+                if std::env::var(crate::prelude::ENV_DEBUG).is_err() {
                     // The purpose of this unsafe block is to detach the process from the console
                     // that it starts with. Otherwise, the GUI would be accompanied by a console
                     // window. Unfortunately, it does not seem to be possible to go the other direction
