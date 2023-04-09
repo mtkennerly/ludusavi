@@ -55,6 +55,8 @@
     the key and value would not be backed up.
     Now, the key will be included along with just the selected values.
     The inverse (key toggled on and values toggled off) was working correctly.
+  * GUI: The window would lock up briefly at the start of a backup/restore.
+    This was more noticeable on slower systems.
   * GUI: On the backup screen, in the list of saves for each game,
     you can now toggle the file system root when it is on a line of its own.
     Previously, it did not have a checkbox in this case.

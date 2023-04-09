@@ -6,13 +6,14 @@ use crate::{
     prelude::{Error, StrictPath},
     resource::{
         config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
-        manifest::{ManifestUpdate, Store},
+        manifest::{Manifest, ManifestUpdate, Store},
     },
     scan::{
         game_filter,
-        layout::{Backup, GameLayout},
+        heroic::HeroicGames,
+        layout::{Backup, BackupLayout, GameLayout},
         registry_compat::RegistryItem,
-        BackupInfo, OperationStepDecision, ScanInfo,
+        BackupInfo, InstallDirRanking, OperationStepDecision, ScanInfo, SteamShortcuts,
     },
 };
 
@@ -28,20 +29,43 @@ pub enum Message {
     ConfirmBackupStart {
         games: Option<Vec<String>>,
     },
+    /// This phase is fallible and may need to show an error to the user.
     BackupPrep {
         preview: bool,
         games: Option<Vec<String>>,
     },
+    /// This phase can be slow, so we keep it separate so things run smoothly.
     BackupStart {
         preview: bool,
         games: Option<Vec<String>>,
     },
+    /// This phase is when we register a `Command` for each game.
+    BackupPerform {
+        preview: bool,
+        full: bool,
+        games: Option<Vec<String>>,
+        subjects: Vec<String>,
+        all_games: Manifest,
+        layout: BackupLayout,
+        ranking: InstallDirRanking,
+        steam: SteamShortcuts,
+        heroic: HeroicGames,
+    },
     ConfirmRestoreStart {
         games: Option<Vec<String>>,
     },
+    /// This phase can be slow, so we keep it separate so things run smoothly.
     RestoreStart {
         preview: bool,
         games: Option<Vec<String>>,
+    },
+    /// This phase is when we register a `Command` for each game.
+    RestorePerform {
+        preview: bool,
+        full: bool,
+        games: Option<Vec<String>>,
+        restorables: Vec<String>,
+        layout: BackupLayout,
     },
     BackupStep {
         scan_info: Option<ScanInfo>,

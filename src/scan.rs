@@ -952,7 +952,7 @@ pub fn parse_paths(
         .collect()
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct InstallDirRanking(HashMap<(RootsConfig, String), (i64, String)>);
 
 impl InstallDirRanking {
@@ -1054,10 +1054,10 @@ impl InstallDirRanking {
     }
 }
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct SteamShortcuts(HashMap<String, SteamShortcut>);
 
-#[derive(Clone, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct SteamShortcut {
     id: u32,
     start_dir: Option<StrictPath>,
