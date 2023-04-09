@@ -210,7 +210,7 @@ mod tests {
 
     use crate::{
         path::StrictPath,
-        scan::{RegistryItem, ScannedRegistryValue},
+        scan::{registry_compat::RegistryItem, ScannedRegistryValue},
     };
 
     use super::*;
