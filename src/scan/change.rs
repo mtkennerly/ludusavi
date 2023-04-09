@@ -46,12 +46,12 @@ impl ScanChange {
         }
     }
 
-    pub fn is_inert(&self, enabled: bool) -> bool {
+    pub fn is_inert(&self) -> bool {
         match self {
-            ScanChange::New => !enabled,
-            ScanChange::Different => !enabled,
+            ScanChange::New => false,
+            ScanChange::Different => false,
             ScanChange::Removed => true,
-            ScanChange::Same => !enabled,
+            ScanChange::Same => false,
             ScanChange::Unknown => true,
         }
     }

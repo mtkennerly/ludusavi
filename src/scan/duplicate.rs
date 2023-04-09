@@ -105,7 +105,7 @@ impl DuplicateDetector {
                 scan_info.game_name.clone(),
                 DuplicateDetectorEntry {
                     enabled: game_enabled && !item.ignored,
-                    change: item.change,
+                    change: item.change(),
                 },
             );
             self.game_files
@@ -128,7 +128,7 @@ impl DuplicateDetector {
                     scan_info.game_name.clone(),
                     DuplicateDetectorEntry {
                         enabled: game_enabled && !item.ignored,
-                        change: item.change,
+                        change: item.change(scan_info.restoring()),
                     },
                 );
             self.game_registry
@@ -146,7 +146,7 @@ impl DuplicateDetector {
                         scan_info.game_name.clone(),
                         DuplicateDetectorEntry {
                             enabled: game_enabled && !value.ignored,
-                            change: value.change,
+                            change: value.change(scan_info.restoring()),
                         },
                     );
                 self.game_registry_values
@@ -290,7 +290,7 @@ impl DuplicateDetector {
         for item in self.files.values() {
             if item.contains_key(game) && item.len() > 1 {
                 tally.non_unique += 1;
-                if item.values().filter(|x| !x.change.is_inert(x.enabled)).count() <= 1 {
+                if item.values().filter(|x| !x.change.is_inert()).count() <= 1 {
                     tally.resolved += 1;
                 }
             }
@@ -298,7 +298,7 @@ impl DuplicateDetector {
         for item in self.registry.values() {
             if item.contains_key(game) && item.len() > 1 {
                 tally.non_unique += 1;
-                if item.values().filter(|x| !x.change.is_inert(x.enabled)).count() <= 1 {
+                if item.values().filter(|x| !x.change.is_inert()).count() <= 1 {
                     tally.resolved += 1;
                 }
             }
@@ -307,7 +307,7 @@ impl DuplicateDetector {
             for item in item.values() {
                 if item.contains_key(game) && item.len() > 1 {
                     tally.non_unique += 1;
-                    if item.values().filter(|x| !x.change.is_inert(x.enabled)).count() <= 1 {
+                    if item.values().filter(|x| !x.change.is_inert()).count() <= 1 {
                         tally.resolved += 1;
                     }
                 }

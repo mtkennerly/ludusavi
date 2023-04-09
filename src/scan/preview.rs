@@ -105,18 +105,18 @@ impl ScanInfo {
     }
 
     fn all_inert(&self) -> bool {
-        if !self.found_anything() {
-            return false;
-        }
-
-        self.found_files.iter().all(|x| x.change.is_inert(!x.ignored))
-            && self
-                .found_registry_keys
-                .iter()
-                .all(|x| x.change.is_inert(!x.ignored) && x.values.values().all(|y| y.change.is_inert(!y.ignored)))
+        self.found_anything()
+            && self.found_files.iter().all(|x| x.change().is_inert())
+            && self.found_registry_keys.iter().all(|x| {
+                x.change(self.restoring()).is_inert()
+                    && x.values.values().all(|y| y.change(self.restoring()).is_inert())
+            })
     }
 
+    /// Total removal means that this game no longer has any saves on the system.
     fn is_total_removal(&self) -> bool {
+        // We check the saves' un-normalized `change` because
+        // extant ignored saves shouldn't count toward total removal.
         self.found_anything()
             && self.found_files.iter().all(|x| x.change == ScanChange::Removed)
             && self
@@ -148,6 +148,8 @@ impl ScanInfo {
     }
 
     fn is_brand_new(&self) -> bool {
+        // We check the saves' un-normalized `change` because
+        // ignored saves should still count toward being brand new.
         self.found_anything()
             && self.found_files.iter().all(|x| x.change == ScanChange::New)
             && self
@@ -226,6 +228,61 @@ mod tests {
     };
 
     use super::*;
+
+    #[test]
+    fn game_is_brand_new() {
+        let scan = ScanInfo {
+            found_files: hashset! {
+                ScannedFile::with_name("a").change_as(ScanChange::New),
+                ScannedFile::with_name("b").change_as(ScanChange::New),
+            },
+            ..Default::default()
+        };
+        assert_eq!(ScanChange::New, scan.overall_change());
+
+        let scan = ScanInfo {
+            found_files: hashset! {
+                ScannedFile::with_name("a").change_as(ScanChange::New),
+                ScannedFile::with_name("b").change_as(ScanChange::New).ignored(),
+            },
+            ..Default::default()
+        };
+        assert_eq!(ScanChange::New, scan.overall_change());
+    }
+
+    #[test]
+    fn game_is_total_removal() {
+        let scan = ScanInfo {
+            found_files: hashset! {
+                ScannedFile::with_name("a").change_as(ScanChange::Removed),
+                ScannedFile::with_name("b").change_as(ScanChange::Removed),
+            },
+            ..Default::default()
+        };
+        assert_eq!(ScanChange::Removed, scan.overall_change());
+        assert!(scan.all_inert());
+
+        let scan = ScanInfo {
+            found_files: hashset! {
+                ScannedFile::with_name("a").change_as(ScanChange::Removed),
+                ScannedFile::with_name("b").change_as(ScanChange::Removed).ignored(),
+            },
+            ..Default::default()
+        };
+        assert_eq!(ScanChange::Removed, scan.overall_change());
+        assert!(scan.all_inert());
+
+        // Ignored non-removed files don't count toward total removal.
+        let scan = ScanInfo {
+            found_files: hashset! {
+                ScannedFile::with_name("a").change_as(ScanChange::Removed),
+                ScannedFile::with_name("b").change_as(ScanChange::Same).ignored(),
+            },
+            ..Default::default()
+        };
+        assert_eq!(ScanChange::Same, scan.overall_change());
+        assert!(scan.all_inert());
+    }
 
     #[test]
     fn count_changes_when_all_files_ignored() {
@@ -457,6 +514,7 @@ mod tests {
             },
             scan.count_changes(),
         );
+        assert_eq!(ScanChange::Removed, scan.overall_change());
         assert!(!scan.can_report_game());
     }
 
@@ -489,6 +547,7 @@ mod tests {
             },
             scan.count_changes(),
         );
+        assert_eq!(ScanChange::Same, scan.overall_change());
         assert!(scan.can_report_game());
     }
 }
