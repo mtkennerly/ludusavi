@@ -25,8 +25,11 @@ use crate::{
         config::{BackupFilter, RedirectConfig, RedirectKind, RootsConfig, SortKey, ToggledPaths, ToggledRegistry},
         manifest::{Game, Os, Store},
     },
-    scan::{heroic::HeroicGames, layout::LatestBackup, registry_compat::RegistryItem},
+    scan::{heroic::HeroicGames, layout::LatestBackup},
 };
+
+#[cfg(target_os = "windows")]
+use crate::scan::registry_compat::RegistryItem;
 
 /// Returns the effective target, if different from the original
 pub fn game_file_target(
