@@ -7,7 +7,7 @@ use chrono::{Datelike, Timelike};
 
 use crate::{
     path::StrictPath,
-    prelude::AnyError,
+    prelude::{AnyError, INVALID_FILE_CHARS},
     resource::{
         config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
         manifest::Os,
@@ -48,7 +48,7 @@ fn escape_folder_name(name: &str) -> String {
         escaped.replace_range(escaped.len() - 1.., SAFE);
     }
 
-    escaped.replace(crate::scan::INVALID_FILE_CHARS, SAFE)
+    escaped.replace(INVALID_FILE_CHARS, SAFE)
 }
 
 pub struct LatestBackup {
