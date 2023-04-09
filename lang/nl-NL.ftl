@@ -6,6 +6,7 @@ total-games = Games
 file-size = Grootte
 file-location = Locatie
 overall = Totaal
+status = Status
 cli-unrecognized-games = Geen informatie voor deze games:
 cli-unable-to-request-confirmation = Er kan niet om bevestiging worden gevraagd.
     .winpty-workaround = Als je een Bash-emulator, zoals Git Bash, gebruikt, probeer dan winpty uit te voeren.
@@ -65,7 +66,6 @@ toggle-backup-merge = Merge
 field-restore-source = Restore from:
 field-custom-files = Paths:
 field-custom-registry = Registry:
-field-search = Search:
 field-sort = Sort:
 field-redirect-source =
     .placeholder = Source (original location)
@@ -90,7 +90,17 @@ label-checked = Checked
 # This shows the time when we found an update to the manifest.
 label-updated = Updated
 label-new = New
+label-removed = Removed
 label-comment = Comment
+label-scan = Scan
+label-filter = Filter
+label-unique = Unique
+label-complete = Complete
+label-partial = Partial
+label-enabled = Enabled
+label-disabled = Disabled
+# https://en.wikipedia.org/wiki/Thread_(computing)
+label-threads = Threads
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -103,7 +113,6 @@ store-uplay = Uplay
 store-other-home = Home folder
 store-other-wine = Wine prefix
 store-other = Other
-sort-reversed = Reversed
 backup-format-simple = Simple
 backup-format-zip = Zip
 compression-none = None
@@ -115,6 +124,10 @@ theme = Theme
 theme-light = Light
 theme-dark = Dark
 redirect-bidirectional = Bidirectional
+show-deselected-games = Show deselected games
+show-unchanged-games = Show unchanged games
+show-unscanned-games = Show unscanned games
+override-max-threads = Override max threads
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies
     to { store-steam } screenshots that you've taken. If a game has its own built-in
@@ -141,3 +154,5 @@ no-saves-found = No save data found.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = no confirmation
+# This is shown when a setting will only take effect after closing and reopening Ludusavi.
+suffix-restart-required = restart required

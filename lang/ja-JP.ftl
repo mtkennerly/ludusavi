@@ -6,6 +6,7 @@ total-games = ゲーム
 file-size = サイズ
 file-location = 場所
 overall = Overall
+status = Status
 cli-unrecognized-games = これらのゲームに関する情報はありません：
 cli-unable-to-request-confirmation = 確認を要求できません。
     .winpty-workaround = Bashエミュレータ(Git Bashなど)を使用している場合は、winptyを実行してみてください。
@@ -65,7 +66,6 @@ toggle-backup-merge = マージ
 field-restore-source = 復元元:
 field-custom-files = パス:
 field-custom-registry = レジストリ:
-field-search = 検索:
 field-sort = ソート:
 field-redirect-source =
     .placeholder = ソース (元の場所)
@@ -90,7 +90,17 @@ label-checked = チェック
 # This shows the time when we found an update to the manifest.
 label-updated = 更新日時
 label-new = New
+label-removed = Removed
 label-comment = Comment
+label-scan = Scan
+label-filter = Filter
+label-unique = Unique
+label-complete = Complete
+label-partial = Partial
+label-enabled = Enabled
+label-disabled = Disabled
+# https://en.wikipedia.org/wiki/Thread_(computing)
+label-threads = Threads
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -103,7 +113,6 @@ store-uplay = Uplay
 store-other-home = Home folder
 store-other-wine = Wine prefix
 store-other = Other
-sort-reversed = 反転
 backup-format-simple = 簡単
 backup-format-zip = Zip
 compression-none = なし
@@ -115,6 +124,10 @@ theme = テーマ
 theme-light = ライト
 theme-dark = ダーク
 redirect-bidirectional = Bidirectional
+show-deselected-games = Show deselected games
+show-unchanged-games = Show unchanged games
+show-unscanned-games = Show unscanned games
+override-max-threads = Override max threads
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies
     to { store-steam } screenshots that you've taken. If a game has its own built-in
@@ -139,3 +152,5 @@ no-saves-found = セーブデータが見つかりませんでした。
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = 確認なし
+# This is shown when a setting will only take effect after closing and reopening Ludusavi.
+suffix-restart-required = restart required

@@ -6,6 +6,7 @@ total-games = الألعاب
 file-size = الحجم
 file-location = الموقع
 overall = الكلي
+status = Status
 cli-unrecognized-games = لا توجد معلومات عن هذه الألعاب:
 cli-unable-to-request-confirmation = تعذر طلب التأكيد.
     .winpty-workaround = إذا كنت تستخدم محاكي Bash (مثل Git Bash)، فحاول تشغيل winpty.
@@ -65,7 +66,6 @@ toggle-backup-merge = دمج
 field-restore-source = استعادة من:
 field-custom-files = ‮المسار:
 field-custom-registry = السجل:
-field-search = بحث:
 field-sort = فرز:
 field-redirect-source =
     .placeholder = المصدر (الموقع الأصلي)
@@ -90,7 +90,17 @@ label-checked = متحقق
 # This shows the time when we found an update to the manifest.
 label-updated = محدث
 label-new = جديد
+label-removed = Removed
 label-comment = Comment
+label-scan = Scan
+label-filter = Filter
+label-unique = Unique
+label-complete = Complete
+label-partial = Partial
+label-enabled = Enabled
+label-disabled = Disabled
+# https://en.wikipedia.org/wiki/Thread_(computing)
+label-threads = Threads
 store-epic = متجر Epic
 store-gog = متجر GOG
 store-gog-galaxy = متجر GOG Galaxy
@@ -103,7 +113,6 @@ store-uplay = متجر Uplay
 store-other-home = المجلد الرئيس
 store-other-wine = Wine prefix
 store-other = أخرى
-sort-reversed = معكوس
 backup-format-simple = بسيط
 backup-format-zip = Zip
 compression-none = لا شيء
@@ -115,6 +124,10 @@ theme = السمة
 theme-light = فاتح
 theme-dark = مظلم
 redirect-bidirectional = ثنائي الاتجاه
+show-deselected-games = Show deselected games
+show-unchanged-games = Show unchanged games
+show-unscanned-games = Show unscanned games
+override-max-threads = Override max threads
 explanation-for-exclude-store-screenshots =
     في النسخ الاحتياطية، استبعاد لقطات الشاشة الخاصة بالمتجر. في الوقت الحالي، ينطبق هذا فقط
     على { store-steam }. إذا كانت اللعبة تحتوي على مِيزة لقطة الشاشة الخاصة بها، فإن هذا الإعداد لن يؤثر على ما إذا تم نسخ لقطات الشاشة.
@@ -139,3 +152,5 @@ no-saves-found = لا توجد بيانات محفوظة.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = لا تأكيد
+# This is shown when a setting will only take effect after closing and reopening Ludusavi.
+suffix-restart-required = restart required

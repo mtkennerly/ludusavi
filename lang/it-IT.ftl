@@ -6,6 +6,7 @@ total-games = Giochi
 file-size = Dimensione
 file-location = Posizione
 overall = Nel complesso
+status = Status
 cli-unrecognized-games = Nessuna informazione per questi giochi:
 cli-unable-to-request-confirmation = Impossibile richiedere conferma.
     .winpty-workaround = Se stai usando un emulatore Bash (come Git Bash), prova ad eseguire winpty.
@@ -65,7 +66,6 @@ toggle-backup-merge = Unisci
 field-restore-source = Ripristina da:
 field-custom-files = Percorsi:
 field-custom-registry = Registro:
-field-search = Cerca:
 field-sort = Ordina:
 field-redirect-source =
     .placeholder = Origine (posizione originale)
@@ -90,7 +90,17 @@ label-checked = Controllato
 # This shows the time when we found an update to the manifest.
 label-updated = Aggiornato
 label-new = Nuovo
+label-removed = Removed
 label-comment = Comment
+label-scan = Scan
+label-filter = Filter
+label-unique = Unique
+label-complete = Complete
+label-partial = Partial
+label-enabled = Enabled
+label-disabled = Disabled
+# https://en.wikipedia.org/wiki/Thread_(computing)
+label-threads = Threads
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -103,7 +113,6 @@ store-uplay = Uplay
 store-other-home = Cartella principale
 store-other-wine = Prefisso wine
 store-other = Altro
-sort-reversed = Invertita
 backup-format-simple = Semplice
 backup-format-zip = Comprimi in Zip
 compression-none = Nessuna
@@ -115,6 +124,10 @@ theme = Tema
 theme-light = Chiaro
 theme-dark = Scuro
 redirect-bidirectional = Bidirezionale
+show-deselected-games = Show deselected games
+show-unchanged-games = Show unchanged games
+show-unscanned-games = Show unscanned games
+override-max-threads = Override max threads
 explanation-for-exclude-store-screenshots =
     Nei backup, escludi screenshot specifici dello store. In questo momento, questo si applica solo
     agli screenshot { store-steam } che hai fatto. Se un gioco ha la propria funzionalità screenshot integrata, questa impostazione non influirà sul backup di questi
@@ -140,3 +153,5 @@ no-saves-found = Nessun dato di salvataggio trovato.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = senza conferma
+# This is shown when a setting will only take effect after closing and reopening Ludusavi.
+suffix-restart-required = restart required

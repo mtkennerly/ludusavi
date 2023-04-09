@@ -6,6 +6,7 @@ total-games = Jogos
 file-size = Tamanho
 file-location = Localização
 overall = Geral
+status = Status
 cli-unrecognized-games = Sem informações para estes jogos:
 cli-unable-to-request-confirmation = Não foi possível solicitar confirmação.
     .winpty-workaround = Se você estiver usando um emulador Bash (como Git Bash), tente executar a winpty.
@@ -38,7 +39,7 @@ button-enable-all = Ativar tudo
 button-disable-all = Desativar tudo
 button-customize = Personalizar
 button-exit = Sair
-button-comment = Comment
+button-comment = Comentário
 no-roots-are-configured = Adicione algumas raízes para armazenar ainda mais dados.
 config-is-invalid = Erro: O arquivo de configuração é inválido.
 manifest-is-invalid = Erro: O arquivo de manifesto é inválido.
@@ -65,13 +66,12 @@ toggle-backup-merge = Combinar
 field-restore-source = Restaurar de:
 field-custom-files = Caminhos:
 field-custom-registry = Registro:
-field-search = Pesquisar:
 field-sort = Organizar:
 field-redirect-source =
     .placeholder = Fonte (local original)
 field-redirect-target =
     .placeholder = Alvo (novo local)
-field-roots = Roots:
+field-roots = Raiz:
 field-backup-excluded-items = Exclusões do backup:
 field-redirects = Redirecionar:
 # This appears next to the number of full backups that you'd like to keep.
@@ -90,7 +90,17 @@ label-checked = Verificado
 # This shows the time when we found an update to the manifest.
 label-updated = Atualizado
 label-new = Novo
-label-comment = Comment
+label-removed = Removed
+label-comment = Comentário
+label-scan = Scan
+label-filter = Filter
+label-unique = Unique
+label-complete = Complete
+label-partial = Partial
+label-enabled = Enabled
+label-disabled = Disabled
+# https://en.wikipedia.org/wiki/Thread_(computing)
+label-threads = Threads
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -103,7 +113,6 @@ store-uplay = Uplay
 store-other-home = Pasta padrão
 store-other-wine = Prefixo Wine
 store-other = Outro
-sort-reversed = Invertido
 backup-format-simple = Simples
 backup-format-zip = Zip
 compression-none = Nenhum
@@ -115,6 +124,10 @@ theme = Tema
 theme-light = Claro
 theme-dark = Escuro
 redirect-bidirectional = Bidirecional
+show-deselected-games = Show deselected games
+show-unchanged-games = Show unchanged games
+show-unscanned-games = Show unscanned games
+override-max-threads = Override max threads
 explanation-for-exclude-store-screenshots =
     Nos backups, exclui capturas de tela específicas de armazenamento. No momento, isso só se aplica
     às capturas de tela de { store-steam } que você tirou. Se um jogo tem sua própria função de captura de tela
@@ -141,3 +154,5 @@ no-saves-found = Não foram encontrados dados salvos.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = sem confirmação
+# This is shown when a setting will only take effect after closing and reopening Ludusavi.
+suffix-restart-required = restart required
