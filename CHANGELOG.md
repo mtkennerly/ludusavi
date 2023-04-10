@@ -1,4 +1,4 @@
-## Unreleased
+## v0.17.1 (2023-04-10)
 
 * Fixed:
   * As part of the thread configuration feature in v0.17.0,
