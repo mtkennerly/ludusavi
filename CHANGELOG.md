@@ -1,11 +1,11 @@
 ## v0.17.1 (2023-04-10)
 
 * Fixed:
-  * As part of the thread configuration feature in v0.17.0,
+  * GUI: As part of the thread configuration feature in v0.17.0,
     Ludusavi started defining a custom Tokio runtime initialization.
     However, this did not enable Tokio's IO and time features,
     resulting in a crash when attempting to display timed notifications.
-  * When using the "customize" option from the scan list,
+  * GUI: When using the "customize" option from the scan list,
     the new custom game's fields were not filled in properly.
   * GUI: If a game was disabled,
     then the "back up" option in that game's "..." menu would not do anything.
