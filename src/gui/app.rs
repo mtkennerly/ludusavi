@@ -179,6 +179,7 @@ impl App {
             self.backup_screen.previewed_games.clear();
         }
 
+        let all_scanned = !self.backup_screen.log.contains_unscanned_games();
         if let Some(games) = &games {
             self.backup_screen.log.unscan_games(games);
         } else {
@@ -198,7 +199,6 @@ impl App {
         let mut all_games = self.manifest.clone();
         let config = self.config.clone();
         let previewed_games = self.backup_screen.previewed_games.clone();
-        let all_scanned = !self.backup_screen.log.contains_unscanned_games();
 
         Command::perform(
             async move {
