@@ -570,6 +570,7 @@ impl App {
             }
         };
 
+        self.text_histories.add_custom_game(&game);
         self.config.custom_games.push(game);
         self.config.save();
 

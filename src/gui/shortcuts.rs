@@ -13,7 +13,7 @@ use crate::{
     },
     lang::TRANSLATOR,
     prelude::StrictPath,
-    resource::config::Config,
+    resource::config::{Config, CustomGame},
     scan::registry_compat::RegistryItem,
 };
 
@@ -189,17 +189,7 @@ impl TextHistories {
         }
 
         for x in &config.custom_games {
-            let mut custom_history = CustomGameHistory {
-                name: TextHistory::raw(&x.name),
-                ..Default::default()
-            };
-            for y in &x.files {
-                custom_history.files.push(TextHistory::raw(y));
-            }
-            for y in &x.registry {
-                custom_history.registry.push(TextHistory::raw(y));
-            }
-            histories.custom_games.push(custom_history);
+            histories.add_custom_game(x);
         }
 
         for x in &config.backup.filter.ignored_paths {
@@ -212,6 +202,15 @@ impl TextHistories {
         }
 
         histories
+    }
+
+    pub fn add_custom_game(&mut self, game: &CustomGame) {
+        let history = CustomGameHistory {
+            name: TextHistory::raw(&game.name),
+            files: game.files.iter().map(|x| TextHistory::raw(x)).collect(),
+            registry: game.registry.iter().map(|x| TextHistory::raw(x)).collect(),
+        };
+        self.custom_games.push(history);
     }
 
     pub fn input<'a>(&self, subject: UndoSubject) -> Element<'a> {

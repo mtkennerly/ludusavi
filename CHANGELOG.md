@@ -5,6 +5,8 @@
     Ludusavi started defining a custom Tokio runtime initialization.
     However, this did not enable Tokio's IO and time features,
     resulting in a crash when attempting to display timed notifications.
+  * When using the "customize" option from the scan list,
+    the new custom game's fields were not filled in properly.
 
 ## v0.17.0 (2023-04-09)
 
