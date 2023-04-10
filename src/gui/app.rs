@@ -32,6 +32,7 @@ pub struct Executor(tokio::runtime::Runtime);
 impl iced::Executor for Executor {
     fn new() -> Result<Self, iced::futures::io::Error> {
         let mut builder = tokio::runtime::Builder::new_multi_thread();
+        builder.enable_all();
 
         if let Some(threads) = get_threads_from_env().or_else(|| Config::load().ok().and_then(|x| x.runtime.threads)) {
             initialize_rayon(threads);

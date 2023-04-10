@@ -1,3 +1,11 @@
+## Unreleased
+
+* Fixed:
+  * As part of the thread configuration feature in v0.17.0,
+    Ludusavi started defining a custom Tokio runtime initialization.
+    However, this did not enable Tokio's IO and time features,
+    resulting in a crash when attempting to display timed notifications.
+
 ## v0.17.0 (2023-04-09)
 
 * Added:
