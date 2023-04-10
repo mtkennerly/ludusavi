@@ -7,6 +7,9 @@
     resulting in a crash when attempting to display timed notifications.
   * When using the "customize" option from the scan list,
     the new custom game's fields were not filled in properly.
+  * GUI: If a game was disabled,
+    then the "back up" option in that game's "..." menu would not do anything.
+    Now, a single-game-specific backup will proceed even if the game is disabled in general.
 
 ## v0.17.0 (2023-04-09)
 

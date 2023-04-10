@@ -321,7 +321,7 @@ impl App {
                         &config.redirects,
                         &steam_shortcuts,
                     );
-                    if !config.is_game_enabled_for_backup(&key) {
+                    if !config.is_game_enabled_for_backup(&key) && full {
                         return (Some(scan_info), None, OperationStepDecision::Ignored);
                     }
 
@@ -461,7 +461,7 @@ impl App {
                     }
 
                     let scan_info = layout.scan_for_restoration(&name, &backup_id, &config.redirects);
-                    if !config.is_game_enabled_for_restore(&name) {
+                    if !config.is_game_enabled_for_restore(&name) && full {
                         return (Some(scan_info), None, OperationStepDecision::Ignored, layout);
                     }
 
