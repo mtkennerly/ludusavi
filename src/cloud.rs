@@ -1,7 +1,15 @@
 use crate::{
-    prelude::{run_command, CommandError, StrictPath},
+    prelude::{run_command, CommandError, Error, StrictPath},
     resource::config::App,
 };
+
+pub fn validate_cloud_path(path: &str) -> Result<(), Error> {
+    if path.is_empty() || path == "/" {
+        Err(Error::CloudPathInvalid)
+    } else {
+        Ok(())
+    }
+}
 
 #[derive(Debug)]
 pub struct RcloneProcess {
@@ -103,30 +111,77 @@ impl RcloneProcess {
 #[serde(rename = "camelCase")]
 pub enum RemoteChoice {
     None,
-    GoogleDrive,
     Custom,
+    Box,
+    Dropbox,
+    GoogleDrive,
+    OneDrive,
 }
 
 impl RemoteChoice {
-    pub const ALL: &[Self] = &[Self::None, Self::GoogleDrive, Self::Custom];
+    pub const ALL_GUI: &[Self] = &[
+        Self::None,
+        Self::Box,
+        Self::Dropbox,
+        Self::GoogleDrive,
+        Self::OneDrive,
+        Self::Custom,
+    ];
+
+    pub const ALL_CLI: &'static [&'static str] = &[
+        Self::NONE,
+        Self::CUSTOM,
+        Self::BOX,
+        Self::DROPBOX,
+        Self::GOOGLE_DRIVE,
+        Self::ONE_DRIVE,
+    ];
+    const NONE: &str = "none";
+    const CUSTOM: &str = "custom";
+    const BOX: &str = "box";
+    const DROPBOX: &str = "dropbox";
+    const GOOGLE_DRIVE: &str = "google-drive";
+    const ONE_DRIVE: &str = "onedrive";
 }
 
 impl ToString for RemoteChoice {
     fn to_string(&self) -> String {
         match self {
             Self::None => "None",
-            Self::GoogleDrive => "Google Drive",
             Self::Custom => "Custom",
+            Self::Box => "Box",
+            Self::Dropbox => "Dropbox",
+            Self::GoogleDrive => "Google Drive",
+            Self::OneDrive => "OneDrive",
         }
         .to_string()
+    }
+}
+
+impl std::str::FromStr for RemoteChoice {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            Self::NONE => Ok(Self::None),
+            Self::CUSTOM => Ok(Self::Custom),
+            Self::BOX => Ok(Self::Box),
+            Self::DROPBOX => Ok(Self::Dropbox),
+            Self::GOOGLE_DRIVE => Ok(Self::GoogleDrive),
+            Self::ONE_DRIVE => Ok(Self::OneDrive),
+            _ => Err(format!("invalid remote type: {}", s)),
+        }
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename = "camelCase")]
 pub enum Remote {
-    GoogleDrive,
     Custom { name: String },
+    Box,
+    Dropbox,
+    GoogleDrive,
+    OneDrive,
 }
 
 impl Remote {
@@ -139,22 +194,31 @@ impl Remote {
 
     pub fn slug(&self) -> &str {
         match self {
-            Self::GoogleDrive => "drive",
             Self::Custom { .. } => "",
+            Self::Box => "box",
+            Self::Dropbox => "dropbox",
+            Self::GoogleDrive => "drive",
+            Self::OneDrive => "onedrive",
         }
     }
 
-    pub fn scope(&self) -> &str {
+    pub fn config_args(&self) -> Option<Vec<&'static str>> {
         match self {
-            Self::GoogleDrive => "scope=drive.file",
-            Self::Custom { .. } => "",
+            Self::Custom { .. } => None,
+            Self::Box => None,
+            Self::Dropbox => None,
+            Self::GoogleDrive => Some(vec!["scope=drive"]),
+            Self::OneDrive => Some(vec![
+                "drive_type=personal",
+                "access_scopes=Files.ReadWrite,offline_access",
+            ]),
         }
     }
 
     pub fn needs_configuration(&self) -> bool {
         match self {
-            Self::GoogleDrive => true,
             Self::Custom { .. } => false,
+            Self::Box | Self::Dropbox | Self::GoogleDrive | Self::OneDrive => true,
         }
     }
 }
@@ -163,8 +227,11 @@ impl From<Option<&Remote>> for RemoteChoice {
     fn from(value: Option<&Remote>) -> Self {
         if let Some(value) = value {
             match value {
-                Remote::GoogleDrive => RemoteChoice::GoogleDrive,
                 Remote::Custom { .. } => RemoteChoice::Custom,
+                Remote::Box => RemoteChoice::Box,
+                Remote::Dropbox => RemoteChoice::Dropbox,
+                Remote::GoogleDrive => RemoteChoice::GoogleDrive,
+                Remote::OneDrive => RemoteChoice::OneDrive,
             }
         } else {
             RemoteChoice::None
@@ -178,10 +245,13 @@ impl TryFrom<RemoteChoice> for Remote {
     fn try_from(value: RemoteChoice) -> Result<Self, Self::Error> {
         match value {
             RemoteChoice::None => Err(()),
-            RemoteChoice::GoogleDrive => Ok(Remote::GoogleDrive),
             RemoteChoice::Custom => Ok(Remote::Custom {
                 name: "ludusavi".to_string(),
             }),
+            RemoteChoice::Box => Ok(Remote::Box),
+            RemoteChoice::Dropbox => Ok(Remote::Dropbox),
+            RemoteChoice::GoogleDrive => Ok(Remote::GoogleDrive),
+            RemoteChoice::OneDrive => Ok(Remote::OneDrive),
         }
     }
 }
@@ -221,16 +291,17 @@ impl Rclone {
     }
 
     pub fn configure_remote(&self) -> Result<(), CommandError> {
-        self.run(
-            &[
-                "config",
-                "create",
-                self.remote.name(),
-                self.remote.slug(),
-                self.remote.scope(),
-            ],
-            &[0],
-        )?;
+        if !self.remote.needs_configuration() {
+            return Ok(());
+        }
+
+        let mut args = vec!["config", "create", self.remote.name(), self.remote.slug()];
+
+        if let Some(config_args) = self.remote.config_args() {
+            args.extend(config_args);
+        }
+
+        self.run(&args, &[0])?;
         Ok(())
     }
 

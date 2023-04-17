@@ -1797,6 +1797,9 @@ impl Application for App {
             Message::EditedCloudRemote(choice) => {
                 if let Ok(remote) = Remote::try_from(choice) {
                     if !remote.needs_configuration() {
+                        if let Remote::Custom { name } = &remote {
+                            self.text_histories.cloud_remote_name.push(name);
+                        }
                         self.config.cloud.remote = Some(remote);
                         self.config.save();
                         Command::none()

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
+    cloud::RemoteChoice,
     prelude::StrictPath,
     resource::config::{BackupFormat, Sort, SortKey, ZipCompression},
 };
@@ -346,41 +347,13 @@ pub enum ManifestSubcommand {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename = "camelCase")]
-pub enum CliRemoteChoice {
-    None,
-    GoogleDrive,
-    Custom,
-}
-
-impl CliRemoteChoice {
-    pub const ALL: &'static [&'static str] = &[Self::NONE, Self::GOOGLE_DRIVE, Self::CUSTOM];
-    const NONE: &str = "none";
-    const GOOGLE_DRIVE: &str = "google-drive";
-    const CUSTOM: &str = "custom";
-}
-
-impl std::str::FromStr for CliRemoteChoice {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            Self::NONE => Ok(Self::None),
-            Self::GOOGLE_DRIVE => Ok(Self::GoogleDrive),
-            Self::CUSTOM => Ok(Self::Custom),
-            _ => Err(format!("invalid remote type: {}", s)),
-        }
-    }
-}
-
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
 pub enum CloudSubcommand {
     /// Configure the cloud system to use.
     Set {
         /// Which cloud system to use.
-        #[clap(index = 1, possible_values = CliRemoteChoice::ALL)]
-        remote: CliRemoteChoice,
+        #[clap(index = 1, possible_values = RemoteChoice::ALL_CLI)]
+        remote: RemoteChoice,
 
         /// Name of the Rclone remote.
         /// This is only used when you choose a custom remote.

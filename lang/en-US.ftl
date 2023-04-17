@@ -210,3 +210,4 @@ prefix-warning = Warning: {$message}
 
 rclone-unavailable = Cloud backups are disabled because Rclone is not available.
 cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
+cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.

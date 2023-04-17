@@ -284,6 +284,7 @@ impl Translator {
             Error::UnableToOpenUrl(url) => self.unable_to_open_url(url),
             Error::RcloneUnavailable => self.rclone_unavailable(),
             Error::CloudNotConfigured => self.cloud_not_configured(),
+            Error::CloudPathInvalid => self.cloud_path_invalid(),
             Error::UnableToConfigureCloud(error) => {
                 format!(
                     "{}\n\n{}",
@@ -356,6 +357,10 @@ impl Translator {
 
     pub fn cloud_not_configured(&self) -> String {
         translate("cloud-not-configured")
+    }
+
+    pub fn cloud_path_invalid(&self) -> String {
+        translate("cloud-path-invalid")
     }
 
     pub fn some_entries_failed(&self) -> String {

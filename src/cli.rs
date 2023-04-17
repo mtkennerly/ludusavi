@@ -13,7 +13,7 @@ use crate::{
         parse::{Cli, CompletionShell, ManifestSubcommand, Subcommand},
         report::Reporter,
     },
-    cloud::{Rclone, Remote},
+    cloud::{Rclone, Remote, RemoteChoice},
     lang::TRANSLATOR,
     prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, StrictPath},
     resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
@@ -523,15 +523,18 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
         Subcommand::Cloud { sub: cloud_sub } => match cloud_sub {
             parse::CloudSubcommand::Set { remote, name } => {
                 let remote = match remote {
-                    parse::CliRemoteChoice::None => {
+                    RemoteChoice::None => {
                         config.cloud.remote = None;
                         config.save();
                         return Ok(());
                     }
-                    parse::CliRemoteChoice::GoogleDrive => Remote::GoogleDrive,
-                    parse::CliRemoteChoice::Custom => Remote::Custom {
+                    RemoteChoice::Custom => Remote::Custom {
                         name: name.unwrap_or_else(|| "ludusavi".to_string()),
                     },
+                    RemoteChoice::Box => Remote::Box,
+                    RemoteChoice::Dropbox => Remote::Dropbox,
+                    RemoteChoice::GoogleDrive => Remote::GoogleDrive,
+                    RemoteChoice::OneDrive => Remote::OneDrive,
                 };
                 if remote.needs_configuration() {
                     let rclone = Rclone::new(config.apps.rclone.clone(), remote.clone());
@@ -576,6 +579,7 @@ fn sync_cloud(
         return Err(Error::RcloneUnavailable);
     }
     let Some(remote) = config.cloud.remote.clone() else { return Err(Error::CloudNotConfigured) };
+    crate::cloud::validate_cloud_path(&cloud)?;
 
     if !force {
         match dialoguer::Confirm::new()

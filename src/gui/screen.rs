@@ -314,6 +314,8 @@ pub fn other<'a>(
     histories: &'a TextHistories,
 ) -> Element<'a> {
     let is_rclone_valid = config.apps.rclone.is_valid();
+    let is_cloud_configured = config.cloud.remote.is_some();
+    let is_cloud_path_valid = crate::cloud::validate_cloud_path(&config.cloud.path).is_ok();
 
     let content = Column::new()
         .push_if(
@@ -491,7 +493,7 @@ pub fn other<'a>(
                                                     || operation.is_none(),
                                                     || {
                                                         PickList::new(
-                                                            RemoteChoice::ALL,
+                                                            RemoteChoice::ALL_GUI,
                                                             Some(choice),
                                                             Message::EditedCloudRemote,
                                                         )
@@ -514,14 +516,37 @@ pub fn other<'a>(
                                                     .align_items(Alignment::Center)
                                                     .push(Text::new(TRANSLATOR.folder_label()).width(70))
                                                     .push(histories.input(UndoSubject::CloudPath))
+                                                    .push_if(
+                                                        || !is_cloud_path_valid,
+                                                        || {
+                                                            Icon::Error
+                                                                .as_text()
+                                                                .width(Length::Shrink)
+                                                                .style(style::Text::Failure)
+                                                        },
+                                                    )
                                             },
                                         )
-                                        .push(
-                                            Row::new()
-                                                .spacing(20)
-                                                .align_items(Alignment::Center)
-                                                .push(button::upload(operation))
-                                                .push(button::download(operation)),
+                                        .push_if(
+                                            || is_cloud_configured && is_cloud_path_valid,
+                                            || {
+                                                Row::new()
+                                                    .spacing(20)
+                                                    .align_items(Alignment::Center)
+                                                    .push(button::upload(operation))
+                                                    .push(button::download(operation))
+                                            },
+                                        )
+                                        .push_if(
+                                            || !is_cloud_configured,
+                                            || Text::new(TRANSLATOR.cloud_not_configured()),
+                                        )
+                                        .push_if(
+                                            || !is_cloud_path_valid,
+                                            || {
+                                                Text::new(TRANSLATOR.prefix_warning(&TRANSLATOR.cloud_path_invalid()))
+                                                    .style(style::Text::Failure)
+                                            },
                                         );
                                 } else {
                                     column = column
