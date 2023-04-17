@@ -26,6 +26,8 @@ pub enum ModalTheme {
     ConfirmAddMissingRoots(Vec<RootsConfig>),
     PreparingBackupDir,
     UpdatingManifest,
+    ConfirmUploadToCloud { local: String, cloud: String },
+    ConfirmDownloadFromCloud { local: String, cloud: String },
 }
 
 impl ModalTheme {
@@ -33,9 +35,11 @@ impl ModalTheme {
         match self {
             Self::PreparingBackupDir | Self::UpdatingManifest => ModalVariant::Loading,
             Self::Error { .. } | Self::NoMissingRoots => ModalVariant::Info,
-            Self::ConfirmBackup { .. } | Self::ConfirmRestore { .. } | Self::ConfirmAddMissingRoots(..) => {
-                ModalVariant::Confirm
-            }
+            Self::ConfirmBackup { .. }
+            | Self::ConfirmRestore { .. }
+            | Self::ConfirmAddMissingRoots(..)
+            | Self::ConfirmUploadToCloud { .. }
+            | Self::ConfirmDownloadFromCloud { .. } => ModalVariant::Confirm,
         }
     }
 
@@ -53,6 +57,8 @@ impl ModalTheme {
             Self::ConfirmAddMissingRoots(missing) => TRANSLATOR.confirm_add_missing_roots(missing),
             Self::PreparingBackupDir => TRANSLATOR.preparing_backup_dir(),
             Self::UpdatingManifest => TRANSLATOR.updating_manifest(),
+            Self::ConfirmUploadToCloud { local, cloud } => TRANSLATOR.confirm_cloud_upload(local, cloud),
+            Self::ConfirmDownloadFromCloud { local, cloud } => TRANSLATOR.confirm_cloud_download(local, cloud),
         }
     }
 
@@ -69,6 +75,8 @@ impl ModalTheme {
             }),
             Self::ConfirmAddMissingRoots(missing) => Some(Message::ConfirmAddMissingRoots(missing.clone())),
             Self::PreparingBackupDir | Self::UpdatingManifest => None,
+            Self::ConfirmUploadToCloud { .. } => Some(Message::SynchronizeFromLocalToCloud),
+            Self::ConfirmDownloadFromCloud { .. } => Some(Message::SynchronizeFromCloudToLocal),
         }
     }
 }

@@ -1,9 +1,10 @@
 use iced::Length;
 
 use crate::{
+    cloud::{rclone_monitor, Remote, RemoteChoice},
     gui::icon::Icon,
     lang::{Language, TRANSLATOR},
-    prelude::{Error, StrictPath},
+    prelude::{CommandError, Error, StrictPath},
     resource::{
         config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
         manifest::{Manifest, ManifestUpdate, Store},
@@ -148,7 +149,9 @@ pub enum Message {
         value: bool,
     },
     BrowseDir(BrowseSubject),
+    BrowseFile(BrowseFileSubject),
     BrowseDirFailure,
+    SelectedFile(BrowseFileSubject, StrictPath),
     SelectAllGames,
     DeselectAllGames,
     OpenDir {
@@ -195,6 +198,20 @@ pub enum Message {
     },
     OverrideMaxThreads(bool),
     EditedMaxThreads(usize),
+    EditedRcloneExecutable(String),
+    EditedRcloneArguments(String),
+    EditedCloudRemoteName(String),
+    EditedCloudPath(String),
+    OpenUrl(String),
+    EditedCloudRemote(RemoteChoice),
+    ConfigureCloudSuccess(Remote),
+    ConfigureCloudFailure(CommandError),
+    ConfirmSynchronizeFromLocalToCloud,
+    ConfirmSynchronizeFromCloudToLocal,
+    SynchronizeFromLocalToCloud,
+    SynchronizeFromCloudToLocal,
+    RcloneMonitor(rclone_monitor::Event),
+    DriveRcloneMonitor,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -207,6 +224,10 @@ pub enum OngoingOperation {
     CancelRestore,
     PreviewRestore,
     CancelPreviewRestore,
+    CloudUpload,
+    CloudDownload,
+    CancelCloudUpload,
+    CancelCloudDownload,
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
@@ -268,6 +289,11 @@ pub enum BrowseSubject {
     BackupFilterIgnoredPath(usize),
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum BrowseFileSubject {
+    RcloneExecutable,
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum UndoSubject {
     BackupTarget,
@@ -282,6 +308,10 @@ pub enum UndoSubject {
     CustomGameRegistry(usize, usize),
     BackupFilterIgnoredPath(usize),
     BackupFilterIgnoredRegistry(usize),
+    RcloneExecutable,
+    RcloneArguments,
+    CloudRemoteName,
+    CloudPath,
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]

@@ -6,6 +6,7 @@ use std::collections::VecDeque;
 use iced::Length;
 
 use crate::{
+    cloud::Remote,
     gui::{
         common::{EditAction, Message, RedirectEditActionField, Screen, UndoSubject},
         style,
@@ -165,6 +166,10 @@ pub struct TextHistories {
     pub custom_games: Vec<CustomGameHistory>,
     pub backup_filter_ignored_paths: Vec<TextHistory>,
     pub backup_filter_ignored_registry: Vec<TextHistory>,
+    pub rclone_executable: TextHistory,
+    pub rclone_arguments: TextHistory,
+    pub cloud_remote_name: TextHistory,
+    pub cloud_path: TextHistory,
 }
 
 impl TextHistories {
@@ -174,6 +179,9 @@ impl TextHistories {
             restore_source: TextHistory::path(&config.restore.path),
             backup_search_game_name: TextHistory::raw(""),
             restore_search_game_name: TextHistory::raw(""),
+            rclone_executable: TextHistory::path(&config.apps.rclone.path),
+            rclone_arguments: TextHistory::raw(&config.apps.rclone.arguments),
+            cloud_path: TextHistory::raw(&config.cloud.path),
             ..Default::default()
         };
 
@@ -199,6 +207,10 @@ impl TextHistories {
             histories
                 .backup_filter_ignored_registry
                 .push(TextHistory::raw(&x.raw()));
+        }
+
+        if let Some(Remote::Custom { name }) = &config.cloud.remote {
+            histories.cloud_remote_name.push(name);
         }
 
         histories
@@ -243,6 +255,10 @@ impl TextHistories {
                 .get(i)
                 .map(|x| x.current())
                 .unwrap_or_default(),
+            UndoSubject::RcloneExecutable => self.rclone_executable.current(),
+            UndoSubject::RcloneArguments => self.rclone_arguments.current(),
+            UndoSubject::CloudRemoteName => self.cloud_remote_name.current(),
+            UndoSubject::CloudPath => self.cloud_path.current(),
         };
 
         let event: Box<dyn Fn(String) -> Message> = match subject {
@@ -278,6 +294,10 @@ impl TextHistories {
             UndoSubject::BackupFilterIgnoredRegistry(i) => {
                 Box::new(move |value| Message::EditedBackupFilterIgnoredRegistry(EditAction::Change(i, value)))
             }
+            UndoSubject::RcloneExecutable => Box::new(Message::EditedRcloneExecutable),
+            UndoSubject::RcloneArguments => Box::new(Message::EditedRcloneArguments),
+            UndoSubject::CloudRemoteName => Box::new(Message::EditedCloudRemoteName),
+            UndoSubject::CloudPath => Box::new(Message::EditedCloudPath),
         };
 
         let placeholder = match subject {
@@ -293,6 +313,10 @@ impl TextHistories {
             UndoSubject::CustomGameRegistry(_, _) => "".to_string(),
             UndoSubject::BackupFilterIgnoredPath(_) => "".to_string(),
             UndoSubject::BackupFilterIgnoredRegistry(_) => "".to_string(),
+            UndoSubject::RcloneExecutable => TRANSLATOR.executable_label(),
+            UndoSubject::RcloneArguments => TRANSLATOR.arguments_label(),
+            UndoSubject::CloudRemoteName => "".to_string(),
+            UndoSubject::CloudPath => "".to_string(),
         };
 
         Undoable::new(

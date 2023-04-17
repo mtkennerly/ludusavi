@@ -32,7 +32,7 @@ pub fn root<'a>(config: &Config, histories: &TextHistories) -> Container<'a> {
                         PickList::new(Store::ALL, Some(root.store), move |v| Message::SelectedRootStore(i, v))
                             .style(style::PickList::Primary),
                     )
-                    .push(button::open_folder(BrowseSubject::Root(i)))
+                    .push(button::choose_folder(BrowseSubject::Root(i)))
                     .push(button::remove(Message::EditedRoot, i)),
             )
         });
@@ -73,9 +73,9 @@ pub fn redirect<'a>(config: &Config, histories: &TextHistories) -> Container<'a>
                             .style(style::PickList::Primary),
                         )
                         .push(histories.input(UndoSubject::RedirectSource(i)))
-                        .push(button::open_folder(BrowseSubject::RedirectSource(i)))
+                        .push(button::choose_folder(BrowseSubject::RedirectSource(i)))
                         .push(histories.input(UndoSubject::RedirectTarget(i)))
-                        .push(button::open_folder(BrowseSubject::RedirectTarget(i)))
+                        .push(button::choose_folder(BrowseSubject::RedirectTarget(i)))
                         .push(button::remove(|x| Message::EditedRedirect(x, None), i)),
                 )
             })
@@ -165,7 +165,7 @@ pub fn custom_games<'a>(config: &Config, operating: bool, histories: &TextHistor
                                                         x.files.len(),
                                                     ))
                                                     .push(histories.input(UndoSubject::CustomGameFile(i, ii)))
-                                                    .push(button::open_folder(BrowseSubject::CustomGameFile(i, ii)))
+                                                    .push(button::choose_folder(BrowseSubject::CustomGameFile(i, ii)))
                                                     .push(button::remove_nested(Message::EditedCustomGameFile, i, ii)),
                                             )
                                         })
@@ -251,7 +251,7 @@ pub fn ignored_items<'a>(config: &Config, histories: &TextHistories) -> Containe
                                                     config.backup.filter.ignored_paths.len(),
                                                 ))
                                                 .push(histories.input(UndoSubject::BackupFilterIgnoredPath(ii)))
-                                                .push(button::open_folder(BrowseSubject::BackupFilterIgnoredPath(ii)))
+                                                .push(button::choose_folder(BrowseSubject::BackupFilterIgnoredPath(ii)))
                                                 .push(button::remove(Message::EditedBackupFilterIgnoredPath, ii)),
                                         )
                                     })

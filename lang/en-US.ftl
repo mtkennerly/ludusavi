@@ -46,6 +46,7 @@ button-disable-all = Disable all
 button-customize = Customize
 button-exit = Exit
 button-comment = Comment
+button-get-rclone = Get Rclone
 
 no-roots-are-configured = Add some roots to back up even more data.
 
@@ -58,6 +59,12 @@ registry-issue = Error: Some registry entries were skipped.
 unable-to-browse-file-system = Error: Unable to browse on your system.
 unable-to-open-directory = Error: Unable to open directory:
 unable-to-open-url = Error: Unable to open URL:
+unable-to-configure-cloud = Error: Unable to configure cloud.
+unable-to-synchronize-with-cloud = Error: Unable to synchronize with cloud.
+
+command-unlaunched = Command did not launch: {$command}
+command-terminated = Command terminated abruptly: {$command}
+command-failed = Command failed with code {$code}: {$command}
 
 processed-games = {$total-games} {$total-games ->
     [one] game
@@ -110,6 +117,15 @@ label-enabled = Enabled
 label-disabled = Disabled
 # https://en.wikipedia.org/wiki/Thread_(computing)
 label-threads = Threads
+label-cloud = Cloud
+# A "remote" is what Rclone calls cloud systems like Google Drive.
+label-remote = Remote
+label-remote-name = Remote name
+label-folder = Folder
+# An executable file
+label-executable = Executable
+# Options given to a command line program
+label-arguments = Arguments
 
 store-epic = Epic
 store-gog = GOG
@@ -165,6 +181,16 @@ confirm-restore =
     Are you sure you want to proceed with the restoration?
     This will overwrite any current files with the backups from here:
 
+confirm-cloud-upload =
+    Do you want to synchronize your local files to the cloud?
+    Your cloud files ({$cloud-path}) will become an exact copy of your local files ({$local-path}).
+    Files in the cloud will be updated or deleted as necessary.
+
+confirm-cloud-download =
+    Do you want to synchronize your cloud files to this system?
+    Your local files ({$local-path}) will become an exact copy of your cloud files ({$cloud-path}).
+    Local files will be updated or deleted as necessary.
+
 confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 preparing-backup-target = Preparing backup directory...
@@ -179,3 +205,8 @@ suffix-no-confirmation = no confirmation
 
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
 suffix-restart-required = restart required
+
+prefix-warning = Warning: {$message}
+
+rclone-unavailable = Cloud backups are disabled because Rclone is not available.
+cloud-not-configured = Cloud backups are disabled because no cloud system is configured.

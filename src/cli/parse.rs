@@ -312,6 +312,11 @@ pub enum Subcommand {
         #[clap(subcommand)]
         sub: Option<ManifestSubcommand>,
     },
+    /// Cloud sync.
+    Cloud {
+        #[clap(subcommand)]
+        sub: CloudSubcommand,
+    },
 }
 
 impl Subcommand {
@@ -326,6 +331,7 @@ impl Subcommand {
             } => *api,
             Self::Manifest { .. } => false,
             Self::Complete { .. } => false,
+            Self::Cloud { .. } => false,
         }
     }
 }
@@ -337,6 +343,82 @@ pub enum ManifestSubcommand {
         /// Print information to stdout in machine-readable JSON.
         #[clap(long)]
         api: bool,
+    },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename = "camelCase")]
+pub enum CliRemoteChoice {
+    None,
+    GoogleDrive,
+    Custom,
+}
+
+impl CliRemoteChoice {
+    pub const ALL: &'static [&'static str] = &[Self::NONE, Self::GOOGLE_DRIVE, Self::CUSTOM];
+    const NONE: &str = "none";
+    const GOOGLE_DRIVE: &str = "google-drive";
+    const CUSTOM: &str = "custom";
+}
+
+impl std::str::FromStr for CliRemoteChoice {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            Self::NONE => Ok(Self::None),
+            Self::GOOGLE_DRIVE => Ok(Self::GoogleDrive),
+            Self::CUSTOM => Ok(Self::Custom),
+            _ => Err(format!("invalid remote type: {}", s)),
+        }
+    }
+}
+
+#[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
+pub enum CloudSubcommand {
+    /// Configure the cloud system to use.
+    Set {
+        /// Which cloud system to use.
+        #[clap(index = 1, possible_values = CliRemoteChoice::ALL)]
+        remote: CliRemoteChoice,
+
+        /// Name of the Rclone remote.
+        /// This is only used when you choose a custom remote.
+        /// Default is "ludusavi".
+        #[clap(long)]
+        name: Option<String>,
+    },
+    /// Upload your local backups to the cloud, overwriting any existing cloud backups.
+    Upload {
+        /// Local folder path for backups.
+        /// When not specified, this defers to the config file.
+        #[clap(long, parse(from_str = parse_strict_path))]
+        local: Option<StrictPath>,
+
+        /// Cloud folder path for backups.
+        /// When not specified, this defers to the config file.
+        #[clap(long)]
+        cloud: Option<String>,
+
+        /// Don't ask for confirmation.
+        #[clap(long)]
+        force: bool,
+    },
+    /// Download your cloud backups, overwriting any existing local backups.
+    Download {
+        /// Local folder path for backups.
+        /// When not specified, this defers to the config file.
+        #[clap(long, parse(from_str = parse_strict_path))]
+        local: Option<StrictPath>,
+
+        /// Cloud folder path for backups.
+        /// When not specified, this defers to the config file.
+        #[clap(long)]
+        cloud: Option<String>,
+
+        /// Don't ask for confirmation.
+        #[clap(long)]
+        force: bool,
     },
 }
 

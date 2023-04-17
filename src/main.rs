@@ -1,6 +1,7 @@
 #![allow(clippy::too_many_arguments)]
 
 mod cli;
+mod cloud;
 mod gui;
 mod lang;
 mod path;

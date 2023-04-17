@@ -92,12 +92,21 @@ impl iced::application::StyleSheet for Theme {
 }
 
 #[derive(Clone, Copy, Debug, Default)]
-pub struct Text;
+pub enum Text {
+    #[default]
+    Default,
+    Failure,
+}
 impl iced::widget::text::StyleSheet for Theme {
     type Style = Text;
 
-    fn appearance(&self, _style: Self::Style) -> iced_style::text::Appearance {
-        iced_style::text::Appearance { color: None }
+    fn appearance(&self, style: Self::Style) -> iced_style::text::Appearance {
+        match style {
+            Text::Default => iced_style::text::Appearance { color: None },
+            Text::Failure => iced_style::text::Appearance {
+                color: Some(self.negative),
+            },
+        }
     }
 }
 
@@ -425,7 +434,7 @@ impl iced::widget::progress_bar::StyleSheet for Theme {
 
     fn appearance(&self, _style: &Self::Style) -> iced_style::progress_bar::Appearance {
         iced_style::progress_bar::Appearance {
-            background: self.disabled.into(),
+            background: self.field.into(),
             bar: self.added.into(),
             border_radius: 2.0,
         }

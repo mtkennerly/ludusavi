@@ -3,12 +3,14 @@ use std::collections::HashSet;
 use iced::{Alignment, Length};
 
 use crate::{
+    cloud::{Remote, RemoteChoice},
     gui::{
         badge::Badge,
         button,
-        common::{BrowseSubject, Message, OngoingOperation, Screen, ScrollSubject, UndoSubject},
+        common::{BrowseFileSubject, BrowseSubject, Message, OngoingOperation, Screen, ScrollSubject, UndoSubject},
         editor,
         game_list::GameList,
+        icon::Icon,
         shortcuts::TextHistories,
         style,
         widget::{number_input, Button, Checkbox, Column, Container, Element, IcedParentExt, PickList, Row, Text},
@@ -22,6 +24,8 @@ use crate::{
     },
     scan::{DuplicateDetector, Duplication, OperationStatus},
 };
+
+const RCLONE_URL: &str = "https://rclone.org/downloads";
 
 fn template(content: Column) -> Element {
     Container::new(content.spacing(20).align_items(Alignment::Center))
@@ -105,7 +109,7 @@ impl Backup {
                     .align_items(Alignment::Center)
                     .push(Text::new(TRANSLATOR.backup_target_label()))
                     .push(histories.input(UndoSubject::BackupTarget))
-                    .push(button::open_folder(BrowseSubject::BackupTarget))
+                    .push(button::choose_folder(BrowseSubject::BackupTarget))
                     .push("|")
                     .push(Text::new(TRANSLATOR.sort_label()))
                     .push(
@@ -266,7 +270,7 @@ impl Restore {
                     .align_items(Alignment::Center)
                     .push(Text::new(TRANSLATOR.restore_source_label()))
                     .push(histories.input(UndoSubject::RestoreSource))
-                    .push(button::open_folder(BrowseSubject::RestoreSource))
+                    .push(button::choose_folder(BrowseSubject::RestoreSource))
                     .push("|")
                     .push(Text::new(TRANSLATOR.sort_label()))
                     .push(
@@ -302,7 +306,15 @@ pub fn custom_games<'a>(config: &Config, operating: bool, histories: &TextHistor
     template(content)
 }
 
-pub fn other<'a>(updating_manifest: bool, config: &Config, cache: &Cache, histories: &TextHistories) -> Element<'a> {
+pub fn other<'a>(
+    updating_manifest: bool,
+    config: &'a Config,
+    cache: &'a Cache,
+    operation: &Option<OngoingOperation>,
+    histories: &'a TextHistories,
+) -> Element<'a> {
+    let is_rclone_valid = config.apps.rclone.is_valid();
+
     let content = Column::new()
         .push_if(
             || *STEAM_DECK,
@@ -441,6 +453,90 @@ pub fn other<'a>(updating_manifest: bool, config: &Config, cache: &Cache, histor
                                 .style(style::Container::GameListEntry),
                             )
                         }),
+                )
+                .push(
+                    Column::new()
+                        .spacing(5)
+                        .push(
+                            Row::new()
+                                .align_items(iced::Alignment::Center)
+                                .push(Text::new(TRANSLATOR.cloud_label()).width(100)),
+                        )
+                        .push(
+                            Container::new({
+                                let mut column = Column::new().spacing(5).push(
+                                    Row::new()
+                                        .spacing(20)
+                                        .align_items(Alignment::Center)
+                                        .push(Text::new(TRANSLATOR.rclone_label()).width(70))
+                                        .push(histories.input(UndoSubject::RcloneExecutable))
+                                        .push_if(
+                                            || !is_rclone_valid,
+                                            || Icon::Error.as_text().width(Length::Shrink).style(style::Text::Failure),
+                                        )
+                                        .push(button::choose_file(BrowseFileSubject::RcloneExecutable))
+                                        .push(histories.input(UndoSubject::RcloneArguments)),
+                                );
+
+                                if is_rclone_valid {
+                                    let choice: RemoteChoice = config.cloud.remote.as_ref().into();
+                                    column = column
+                                        .push({
+                                            let mut row = Row::new()
+                                                .spacing(20)
+                                                .align_items(Alignment::Center)
+                                                .push(Text::new(TRANSLATOR.remote_label()).width(70))
+                                                .push_if(|| operation.is_some(), || Text::new(choice.to_string()))
+                                                .push_if(
+                                                    || operation.is_none(),
+                                                    || {
+                                                        PickList::new(
+                                                            RemoteChoice::ALL,
+                                                            Some(choice),
+                                                            Message::EditedCloudRemote,
+                                                        )
+                                                    },
+                                                );
+
+                                            if let Some(Remote::Custom { .. }) = &config.cloud.remote {
+                                                row = row
+                                                    .push(Text::new(TRANSLATOR.remote_name_label()))
+                                                    .push(histories.input(UndoSubject::CloudRemoteName));
+                                            }
+
+                                            row
+                                        })
+                                        .push_if(
+                                            || choice != RemoteChoice::None,
+                                            || {
+                                                Row::new()
+                                                    .spacing(20)
+                                                    .align_items(Alignment::Center)
+                                                    .push(Text::new(TRANSLATOR.folder_label()).width(70))
+                                                    .push(histories.input(UndoSubject::CloudPath))
+                                            },
+                                        )
+                                        .push(
+                                            Row::new()
+                                                .spacing(20)
+                                                .align_items(Alignment::Center)
+                                                .push(button::upload(operation))
+                                                .push(button::download(operation)),
+                                        );
+                                } else {
+                                    column = column
+                                        .push(
+                                            Text::new(TRANSLATOR.prefix_warning(&TRANSLATOR.rclone_unavailable()))
+                                                .style(style::Text::Failure),
+                                        )
+                                        .push(button::open_url(TRANSLATOR.get_rclone_button(), RCLONE_URL.to_string()));
+                                }
+
+                                column
+                            })
+                            .padding(5)
+                            .style(style::Container::GameListEntry),
+                        ),
                 )
                 .push(
                     Column::new().spacing(5).push(Text::new(TRANSLATOR.roots_label())).push(

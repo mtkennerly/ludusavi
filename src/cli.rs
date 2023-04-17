@@ -2,7 +2,7 @@ mod parse;
 mod report;
 
 use clap::CommandFactory;
-use indicatif::ParallelProgressIterator;
+use indicatif::{ParallelProgressIterator, ProgressBar};
 use rayon::{
     iter::{IntoParallelRefIterator, ParallelIterator},
     prelude::IndexedParallelIterator,
@@ -13,9 +13,10 @@ use crate::{
         parse::{Cli, CompletionShell, ManifestSubcommand, Subcommand},
         report::Reporter,
     },
+    cloud::{Rclone, Remote},
     lang::TRANSLATOR,
     prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, StrictPath},
-    resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile},
+    resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
     scan::{
         heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId,
         DuplicateDetector, InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
@@ -519,11 +520,101 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 }
             }
         }
+        Subcommand::Cloud { sub: cloud_sub } => match cloud_sub {
+            parse::CloudSubcommand::Set { remote, name } => {
+                let remote = match remote {
+                    parse::CliRemoteChoice::None => {
+                        config.cloud.remote = None;
+                        config.save();
+                        return Ok(());
+                    }
+                    parse::CliRemoteChoice::GoogleDrive => Remote::GoogleDrive,
+                    parse::CliRemoteChoice::Custom => Remote::Custom {
+                        name: name.unwrap_or_else(|| "ludusavi".to_string()),
+                    },
+                };
+                if remote.needs_configuration() {
+                    let rclone = Rclone::new(config.apps.rclone.clone(), remote.clone());
+                    if let Err(e) = rclone.configure_remote() {
+                        return Err(Error::UnableToConfigureCloud(e));
+                    }
+                }
+                config.cloud.remote = Some(remote);
+                config.save();
+            }
+            parse::CloudSubcommand::Upload { local, cloud, force } => {
+                sync_cloud(&config, local, cloud, force, CloudSync::Upload)?;
+            }
+            parse::CloudSubcommand::Download { local, cloud, force } => {
+                sync_cloud(&config, local, cloud, force, CloudSync::Download)?;
+            }
+        },
     }
 
     if failed {
         Err(Error::SomeEntriesFailed)
     } else {
         Ok(())
+    }
+}
+
+enum CloudSync {
+    Upload,
+    Download,
+}
+
+fn sync_cloud(
+    config: &Config,
+    local: Option<StrictPath>,
+    cloud: Option<String>,
+    force: bool,
+    sync: CloudSync,
+) -> Result<(), Error> {
+    let local = local.unwrap_or(config.backup.path.clone());
+    let cloud = cloud.unwrap_or(config.cloud.path.clone());
+    if !config.apps.rclone.is_valid() {
+        return Err(Error::RcloneUnavailable);
+    }
+    let Some(remote) = config.cloud.remote.clone() else { return Err(Error::CloudNotConfigured) };
+
+    if !force {
+        match dialoguer::Confirm::new()
+            .with_prompt(match sync {
+                CloudSync::Upload => TRANSLATOR.confirm_cloud_upload(&local.render(), &cloud),
+                CloudSync::Download => TRANSLATOR.confirm_cloud_download(&local.render(), &cloud),
+            })
+            .interact()
+        {
+            Ok(true) => (),
+            Ok(false) => return Ok(()),
+            Err(_) => return Err(Error::CliUnableToRequestConfirmation),
+        }
+    }
+
+    let rclone = Rclone::new(config.apps.rclone.clone(), remote);
+    let process = match sync {
+        CloudSync::Upload => rclone.sync_from_local_to_remote(&local, &cloud),
+        CloudSync::Download => rclone.sync_from_remote_to_local(&local, &cloud),
+    };
+    let mut process = match process {
+        Ok(p) => p,
+        Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
+    };
+
+    let progress_bar = ProgressBar::new(100);
+    loop {
+        match process.succeeded() {
+            Some(Ok(_)) => return Ok(()),
+            Some(Err(e)) => {
+                progress_bar.finish_and_clear();
+                return Err(Error::UnableToSynchronizeCloud(e));
+            }
+            None => (),
+        }
+        if let Some((current, max)) = process.progress() {
+            progress_bar.set_length(max as u64);
+            progress_bar.set_position(current as u64);
+        }
+        std::thread::sleep(std::time::Duration::from_millis(250));
     }
 }

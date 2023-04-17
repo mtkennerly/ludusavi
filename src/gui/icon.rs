@@ -12,6 +12,7 @@ pub enum Icon {
     AddCircle,
     Edit,
     FolderOpen,
+    FileOpen,
     KeyboardArrowRight,
     KeyboardArrowDown,
     Language,
@@ -29,7 +30,13 @@ pub enum Icon {
     ArrowDownward,
     Comment,
     Close,
+    Search,
     Filter,
+    Error,
+    Upload,
+    Download,
+    CloudUpload,
+    CloudDownload,
 }
 
 impl Icon {
@@ -39,6 +46,7 @@ impl Icon {
             Self::AddCircle => '\u{E147}',
             Self::Edit => '\u{E150}',
             Self::FolderOpen => '\u{E2C8}',
+            Self::FileOpen => '\u{eaf3}',
             Self::KeyboardArrowRight => '\u{E315}',
             Self::KeyboardArrowDown => '\u{E313}',
             Self::Language => '\u{E894}',
@@ -56,7 +64,13 @@ impl Icon {
             Self::ArrowDownward => '\u{E5DB}',
             Self::Comment => '\u{E0B9}',
             Self::Close => '\u{E5CD}',
+            Self::Search => '\u{e8b6}',
             Self::Filter => '\u{ef4f}',
+            Self::Error => '\u{e000}',
+            Self::Upload => '\u{f09b}',
+            Self::Download => '\u{f090}',
+            Self::CloudUpload => '\u{e2c3}',
+            Self::CloudDownload => '\u{e2c0}',
         }
     }
 

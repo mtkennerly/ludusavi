@@ -4,6 +4,7 @@ use std::{
 };
 
 use crate::{
+    cloud::Remote,
     lang::{Language, TRANSLATOR},
     prelude::{app_dir, Error, StrictPath, AVAILABLE_PARALELLISM},
     resource::{
@@ -37,6 +38,10 @@ pub struct Config {
     pub restore: RestoreConfig,
     #[serde(default)]
     pub scan: Scan,
+    #[serde(default)]
+    pub cloud: Cloud,
+    #[serde(default)]
+    pub apps: Apps,
     #[serde(default, rename = "customGames")]
     pub custom_games: Vec<CustomGame>,
 }
@@ -603,6 +608,46 @@ impl Default for Scan {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Cloud {
+    #[serde(default)]
+    pub remote: Option<Remote>,
+    #[serde(default)]
+    pub path: String,
+}
+
+impl Default for Cloud {
+    fn default() -> Self {
+        Self {
+            remote: Default::default(),
+            path: "ludusavi-backup".to_string(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Apps {
+    #[serde(default)]
+    pub rclone: App,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct App {
+    #[serde(default)]
+    pub path: StrictPath,
+    #[serde(default)]
+    pub arguments: String,
+}
+
+impl App {
+    pub fn is_valid(&self) -> bool {
+        !self.path.raw().is_empty() && (self.path.is_file() || which::which(self.path.raw()).is_ok())
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct CustomGame {
     pub name: String,
     #[serde(default, skip_serializing_if = "crate::serialization::is_false")]
@@ -659,6 +704,12 @@ impl ResourceFile for Config {
 
     fn initialize(mut self) -> Self {
         self.add_common_roots();
+        if let Ok(path) = which::which("rclone") {
+            self.apps.rclone = App {
+                path: StrictPath::from(path),
+                arguments: "".to_string(),
+            };
+        }
         self
     }
 
@@ -683,6 +734,12 @@ impl ResourceFile for Config {
         }
         self.custom_games
             .retain(|x| !x.name.trim().is_empty() || !x.files.is_empty() || !x.registry.is_empty());
+
+        if self.apps.rclone.path.raw().is_empty() {
+            if let Ok(path) = which::which("rclone") {
+                self.apps.rclone.path = StrictPath::from(path);
+            }
+        }
 
         self
     }
@@ -1237,6 +1294,9 @@ mod tests {
               path: ~/backup
             restore:
               path: ~/restore
+            apps:
+              rclone:
+                path: "rclone"
             "#,
         )
         .unwrap();
@@ -1275,7 +1335,14 @@ mod tests {
                     sort: Default::default(),
                 },
                 scan: Default::default(),
+                apps: Apps {
+                    rclone: App {
+                        path: StrictPath::new("rclone".to_string()),
+                        ..Default::default()
+                    }
+                },
                 custom_games: vec![],
+                ..Default::default()
             },
             config,
         );
@@ -1317,6 +1384,13 @@ mod tests {
               showDeselectedGames: false
               showUnchangedGames: false
               showUnscannedGames: false
+            cloud:
+              remote: GoogleDrive
+              path: ludusavi-backup
+            apps:
+              rclone:
+                path: rclone.exe
+                arguments: ""
             customGames:
               - name: Custom Game 1
               - name: Custom Game 2
@@ -1389,6 +1463,16 @@ mod tests {
                     show_unchanged_games: false,
                     show_unscanned_games: false,
                 },
+                cloud: Cloud {
+                    remote: Some(Remote::GoogleDrive),
+                    path: "ludusavi-backup".to_string(),
+                },
+                apps: Apps {
+                    rclone: App {
+                        path: StrictPath::new("rclone.exe".to_string()),
+                        arguments: "".to_string(),
+                    },
+                },
                 custom_games: vec![
                     CustomGame {
                         name: s("Custom Game 1"),
@@ -1426,6 +1510,9 @@ mod tests {
               path: ~/backup
             restore:
               path: ~/restore
+            apps:
+              rclone:
+                path: "rclone"
             "#,
         )
         .unwrap();
@@ -1467,7 +1554,14 @@ mod tests {
                     sort: Default::default(),
                 },
                 scan: Default::default(),
+                apps: Apps {
+                    rclone: App {
+                        path: StrictPath::new("rclone".to_string()),
+                        ..Default::default()
+                    },
+                },
                 custom_games: vec![],
+                ..Default::default()
             },
             config,
         );
@@ -1504,6 +1598,9 @@ mod tests {
               redirects:
                 - source: ~/old
                   target: ~/new
+            apps:
+              rclone:
+                path: "rclone"
             customGames:
               - name: Custom Game 1
               - name: Custom Game 2
@@ -1572,6 +1669,12 @@ mod tests {
                     sort: Default::default(),
                 },
                 scan: Default::default(),
+                apps: Apps {
+                    rclone: App {
+                        path: StrictPath::new("rclone".to_string()),
+                        ..Default::default()
+                    },
+                },
                 custom_games: vec![
                     CustomGame {
                         name: s("Custom Game 1"),
@@ -1586,6 +1689,7 @@ mod tests {
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
                 ],
+                ..Default::default()
             },
             config,
         );
@@ -1656,6 +1760,13 @@ scan:
   showDeselectedGames: false
   showUnchangedGames: false
   showUnscannedGames: false
+cloud:
+  remote: GoogleDrive
+  path: ludusavi-backup
+apps:
+  rclone:
+    path: rclone.exe
+    arguments: ""
 customGames:
   - name: Custom Game 1
     files: []
@@ -1728,6 +1839,16 @@ customGames:
                     show_deselected_games: false,
                     show_unchanged_games: false,
                     show_unscanned_games: false,
+                },
+                cloud: Cloud {
+                    remote: Some(Remote::GoogleDrive),
+                    path: "ludusavi-backup".to_string(),
+                },
+                apps: Apps {
+                    rclone: App {
+                        path: StrictPath::new("rclone.exe".to_string()),
+                        arguments: "".to_string(),
+                    }
                 },
                 custom_games: vec![
                     CustomGame {

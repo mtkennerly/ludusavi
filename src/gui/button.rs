@@ -2,7 +2,7 @@ use iced::alignment;
 
 use crate::{
     gui::{
-        common::{BrowseSubject, EditAction, Message, OngoingOperation, Screen},
+        common::{BrowseFileSubject, BrowseSubject, EditAction, Message, OngoingOperation, Screen},
         icon::Icon,
         style,
         widget::{Button, Element, IcedButtonExt, Text},
@@ -57,8 +57,12 @@ pub fn close<'a>(action: Message) -> Element<'a> {
     )
 }
 
-pub fn open_folder<'a>(subject: BrowseSubject) -> Element<'a> {
+pub fn choose_folder<'a>(subject: BrowseSubject) -> Element<'a> {
     template(Icon::FolderOpen.as_text(), Some(Message::BrowseDir(subject)), None)
+}
+
+pub fn choose_file<'a>(subject: BrowseFileSubject) -> Element<'a> {
+    template(Icon::FileOpen.as_text(), Some(Message::BrowseFile(subject)), None)
 }
 
 pub fn filter<'a>(screen: Screen, open: bool) -> Element<'a> {
@@ -173,6 +177,10 @@ pub fn add_game<'a>() -> Element<'a> {
     )
 }
 
+pub fn open_url<'a>(label: String, url: String) -> Element<'a> {
+    template(Text::new(label).width(125), Some(Message::OpenUrl(url)), None)
+}
+
 pub fn nav<'a>(screen: Screen, current_screen: Screen) -> Button<'a> {
     let text = match screen {
         Screen::Backup => TRANSLATOR.nav_backup_button(),
@@ -193,6 +201,38 @@ pub fn nav<'a>(screen: Screen, current_screen: Screen) -> Button<'a> {
     } else {
         style::Button::NavButtonInactive
     })
+}
+
+pub fn upload<'a>(operation: &Option<OngoingOperation>) -> Element<'a> {
+    template(
+        Icon::Upload.as_text(),
+        match operation {
+            None => Some(Message::ConfirmSynchronizeFromLocalToCloud),
+            Some(OngoingOperation::CloudUpload) => Some(Message::CancelOperation),
+            _ => None,
+        },
+        match operation {
+            Some(OngoingOperation::CloudUpload | OngoingOperation::CancelCloudUpload) => Some(style::Button::Negative),
+            _ => None,
+        },
+    )
+}
+
+pub fn download<'a>(operation: &Option<OngoingOperation>) -> Element<'a> {
+    template(
+        Icon::Download.as_text(),
+        match operation {
+            None => Some(Message::ConfirmSynchronizeFromCloudToLocal),
+            Some(OngoingOperation::CloudDownload) => Some(Message::CancelOperation),
+            _ => None,
+        },
+        match operation {
+            Some(OngoingOperation::CloudDownload | OngoingOperation::CancelCloudDownload) => {
+                Some(style::Button::Negative)
+            }
+            _ => None,
+        },
+    )
 }
 
 pub fn operation<'a>(action: OngoingOperation, ongoing: Option<OngoingOperation>) -> Element<'a> {
@@ -221,6 +261,7 @@ pub fn operation<'a>(action: OngoingOperation, ongoing: Option<OngoingOperation>
                 _ => TRANSLATOR.preview_button(),
             },
             CancelBackup | CancelPreviewBackup | CancelRestore | CancelPreviewRestore => TRANSLATOR.cancel_button(),
+            CloudDownload | CloudUpload | CancelCloudDownload | CancelCloudUpload => "".to_string(),
         })
         .width(125)
         .horizontal_alignment(alignment::Horizontal::Center),

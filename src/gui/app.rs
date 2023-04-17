@@ -3,9 +3,11 @@ use std::collections::HashMap;
 use iced::{Alignment, Application, Command, Subscription};
 
 use crate::{
+    cloud::{rclone_monitor, Rclone, Remote},
     gui::{
         button,
         common::*,
+        icon::Icon,
         modal::{ModalComponent, ModalTheme},
         notification::Notification,
         screen,
@@ -59,6 +61,54 @@ struct Progress {
     pub current: f32,
 }
 
+impl Progress {
+    pub fn visible(&self) -> bool {
+        self.max > 1.0
+    }
+
+    pub fn reset(&mut self) {
+        self.max = 0.0;
+        self.current = 0.0;
+    }
+
+    /// Use this as a placeholder if we don't know the real max yet,
+    /// just to make the progress bar start showing up.
+    pub fn start(&mut self) {
+        self.max = 100.0;
+        self.current = 0.0;
+    }
+
+    pub fn view(&self, operation: &Option<OngoingOperation>) -> Element {
+        use OngoingOperation as Op;
+
+        let icon = operation.map(|op| {
+            match op {
+                Op::Backup
+                | Op::CancelBackup
+                | Op::PreviewBackup
+                | Op::CancelPreviewBackup
+                | Op::Restore
+                | Op::CancelRestore
+                | Op::PreviewRestore
+                | Op::CancelPreviewRestore => Icon::Search,
+                Op::CloudUpload | Op::CancelCloudUpload => Icon::CloudUpload,
+                Op::CloudDownload | Op::CancelCloudDownload => Icon::CloudDownload,
+            }
+            .into_text()
+            .size(15)
+        });
+
+        Container::new(
+            Row::new()
+                .spacing(5)
+                .push_some(|| icon)
+                .push(ProgressBar::new(0.0..=self.max, self.current).height(15)),
+        )
+        .style(style::Container::ModalBackground)
+        .into()
+    }
+}
+
 #[derive(Default)]
 pub struct App {
     config: Config,
@@ -80,6 +130,8 @@ pub struct App {
     timed_notification: Option<Notification>,
     scroll_offsets: HashMap<ScrollSubject, iced_native::widget::scrollable::RelativeOffset>,
     text_histories: TextHistories,
+    rclone_monitor_sender: Option<iced_native::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
+    rclone_monitor_tick: bool,
 }
 
 impl App {
@@ -88,8 +140,7 @@ impl App {
         self.operation_steps.clear();
         self.operation_steps_active = 0;
         self.modal_theme = None;
-        self.progress.current = 0.0;
-        self.progress.max = 0.0;
+        self.progress.reset();
         self.operation_should_cancel
             .swap(false, std::sync::atomic::Ordering::Relaxed);
         self.notify_on_single_game_scanned = None;
@@ -135,7 +186,11 @@ impl App {
                 OngoingOperation::Backup
                 | OngoingOperation::CancelBackup
                 | OngoingOperation::PreviewBackup
-                | OngoingOperation::CancelPreviewBackup,
+                | OngoingOperation::CancelPreviewBackup
+                | OngoingOperation::CloudUpload
+                | OngoingOperation::CloudDownload
+                | OngoingOperation::CancelCloudUpload
+                | OngoingOperation::CancelCloudDownload,
             ) => false,
         }
     }
@@ -187,7 +242,6 @@ impl App {
             self.backup_screen.duplicate_detector.clear();
         }
         self.modal_theme = None;
-        self.progress.current = 0.0;
         self.progress.max = games.as_ref().map(|x| x.len() as f32).unwrap_or(100.0);
 
         self.operation = Some(if preview {
@@ -377,7 +431,6 @@ impl App {
         } else {
             OngoingOperation::Restore
         });
-        self.progress.current = 0.0;
         self.progress.max = games.as_ref().map(|x| x.len() as f32).unwrap_or(100.0);
 
         Command::perform(
@@ -577,13 +630,17 @@ impl App {
         self.switch_screen(Screen::CustomGames)
     }
 
-    fn open_wiki(game: String) -> Command<Message> {
-        let url = format!("https://www.pcgamingwiki.com/wiki/{}", game.replace(' ', "_"));
+    fn open_url(url: String) -> Command<Message> {
         let url2 = url.clone();
         Command::perform(async { opener::open(url) }, move |res| match res {
             Ok(_) => Message::Ignore,
             Err(_) => Message::OpenUrlFailure { url: url2 },
         })
+    }
+
+    fn open_wiki(game: String) -> Command<Message> {
+        let url = format!("https://www.pcgamingwiki.com/wiki/{}", game.replace(' ', "_"));
+        Self::open_url(url)
     }
 
     fn toggle_backup_comment_editor(&mut self, name: String) -> Command<Message> {
@@ -938,6 +995,18 @@ impl Application for App {
                     }
                     Some(OngoingOperation::PreviewRestore) => {
                         self.operation = Some(OngoingOperation::CancelPreviewRestore);
+                    }
+                    Some(OngoingOperation::CloudUpload) => {
+                        self.operation = Some(OngoingOperation::CancelCloudUpload);
+                        if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                            let _ = sender.try_send(rclone_monitor::Input::Cancel);
+                        }
+                    }
+                    Some(OngoingOperation::CloudDownload) => {
+                        self.operation = Some(OngoingOperation::CancelCloudDownload);
+                        if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                            let _ = sender.try_send(rclone_monitor::Input::Cancel);
+                        }
                     }
                     _ => {}
                 };
@@ -1428,10 +1497,28 @@ impl Application for App {
                     Err(_) => Message::BrowseDirFailure,
                 },
             ),
+            Message::BrowseFile(subject) => Command::perform(
+                async move { native_dialog::FileDialog::new().show_open_single_file() },
+                move |choice| match choice {
+                    Ok(Some(path)) => Message::SelectedFile(subject, StrictPath::from(path)),
+                    Ok(None) => Message::Ignore,
+                    Err(_) => Message::BrowseDirFailure,
+                },
+            ),
             Message::BrowseDirFailure => {
                 self.modal_theme = Some(ModalTheme::Error {
                     variant: Error::UnableToBrowseFileSystem,
                 });
+                Command::none()
+            }
+            Message::SelectedFile(subject, path) => {
+                match subject {
+                    BrowseFileSubject::RcloneExecutable => {
+                        self.text_histories.rclone_executable.push(&path.raw());
+                        self.config.apps.rclone.path = path;
+                    }
+                }
+                self.config.save();
                 Command::none()
             }
             Message::SelectAllGames => {
@@ -1553,6 +1640,22 @@ impl Application for App {
                         &mut self.config.backup.filter.ignored_registry[i],
                         &mut self.text_histories.backup_filter_ignored_registry[i],
                     ),
+                    UndoSubject::RcloneExecutable => shortcut.apply_to_strict_path_field(
+                        &mut self.config.apps.rclone.path,
+                        &mut self.text_histories.rclone_executable,
+                    ),
+                    UndoSubject::RcloneArguments => shortcut.apply_to_string_field(
+                        &mut self.config.apps.rclone.arguments,
+                        &mut self.text_histories.rclone_arguments,
+                    ),
+                    UndoSubject::CloudRemoteName => {
+                        if let Some(Remote::Custom { name }) = &mut self.config.cloud.remote {
+                            shortcut.apply_to_string_field(name, &mut self.text_histories.cloud_remote_name)
+                        }
+                    }
+                    UndoSubject::CloudPath => {
+                        shortcut.apply_to_string_field(&mut self.config.cloud.path, &mut self.text_histories.cloud_path)
+                    }
                 }
                 self.config.save();
                 Command::none()
@@ -1664,6 +1767,152 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::EditedRcloneExecutable(text) => {
+                self.text_histories.rclone_executable.push(&text);
+                self.config.apps.rclone.path.reset(text);
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedRcloneArguments(text) => {
+                self.text_histories.rclone_arguments.push(&text);
+                self.config.apps.rclone.arguments = text;
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedCloudRemoteName(text) => {
+                self.text_histories.cloud_remote_name.push(&text);
+                if let Some(Remote::Custom { name }) = &mut self.config.cloud.remote {
+                    *name = text;
+                }
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedCloudPath(text) => {
+                self.text_histories.cloud_path.push(&text);
+                self.config.cloud.path = text;
+                self.config.save();
+                Command::none()
+            }
+            Message::OpenUrl(url) => Self::open_url(url),
+            Message::EditedCloudRemote(choice) => {
+                if let Ok(remote) = Remote::try_from(choice) {
+                    if !remote.needs_configuration() {
+                        self.config.cloud.remote = Some(remote);
+                        self.config.save();
+                        Command::none()
+                    } else {
+                        let rclone = self.config.apps.rclone.clone();
+                        let remote2 = remote.clone();
+                        Command::perform(
+                            async move { Rclone::new(rclone, remote2).configure_remote() },
+                            move |res| match res {
+                                Ok(_) => Message::ConfigureCloudSuccess(remote),
+                                Err(e) => Message::ConfigureCloudFailure(e),
+                            },
+                        )
+                    }
+                } else {
+                    self.config.cloud.remote = None;
+                    self.config.save();
+                    Command::none()
+                }
+            }
+            Message::ConfigureCloudSuccess(remote) => {
+                self.config.cloud.remote = Some(remote);
+                self.config.save();
+                Command::none()
+            }
+            Message::ConfigureCloudFailure(error) => {
+                self.show_error(Error::UnableToConfigureCloud(error));
+                self.config.cloud.remote = None;
+                self.config.save();
+                Command::none()
+            }
+            Message::ConfirmSynchronizeFromLocalToCloud => {
+                self.modal_theme = Some(ModalTheme::ConfirmUploadToCloud {
+                    local: self.config.backup.path.render(),
+                    cloud: self.config.cloud.path.clone(),
+                });
+                Command::none()
+            }
+            Message::ConfirmSynchronizeFromCloudToLocal => {
+                self.modal_theme = Some(ModalTheme::ConfirmDownloadFromCloud {
+                    local: self.config.backup.path.render(),
+                    cloud: self.config.cloud.path.clone(),
+                });
+                Command::none()
+            }
+            Message::SynchronizeFromLocalToCloud => {
+                self.operation = Some(OngoingOperation::CloudUpload);
+                self.modal_theme = None;
+                self.progress.start();
+
+                if let Some(remote) = self.config.cloud.remote.as_ref() {
+                    let rclone = Rclone::new(self.config.apps.rclone.clone(), remote.clone());
+                    match rclone.sync_from_local_to_remote(&self.config.backup.path, &self.config.cloud.path) {
+                        Ok(process) => {
+                            if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                                let _ = sender.try_send(rclone_monitor::Input::Process(process));
+                            }
+                        }
+                        Err(e) => self.show_error(Error::UnableToSynchronizeCloud(e)),
+                    }
+                }
+                Command::none()
+            }
+            Message::SynchronizeFromCloudToLocal => {
+                self.operation = Some(OngoingOperation::CloudDownload);
+                self.modal_theme = None;
+                self.progress.start();
+
+                if let Some(remote) = self.config.cloud.remote.as_ref() {
+                    let rclone = Rclone::new(self.config.apps.rclone.clone(), remote.clone());
+                    match rclone.sync_from_remote_to_local(&self.config.backup.path, &self.config.cloud.path) {
+                        Ok(process) => {
+                            if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                                let _ = sender.try_send(rclone_monitor::Input::Process(process));
+                            }
+                        }
+                        Err(e) => self.show_error(Error::UnableToSynchronizeCloud(e)),
+                    }
+                }
+                Command::none()
+            }
+            Message::RcloneMonitor(event) => {
+                match event {
+                    rclone_monitor::Event::Ready(sender) => {
+                        self.rclone_monitor_sender = Some(sender);
+                    }
+                    rclone_monitor::Event::Tick => {
+                        self.rclone_monitor_tick = true;
+                    }
+                    rclone_monitor::Event::Progress { current, max } => {
+                        self.progress.current = current;
+                        self.progress.max = max;
+                        self.rclone_monitor_tick = true;
+                    }
+                    rclone_monitor::Event::Succeeded => {
+                        self.go_idle();
+                    }
+                    rclone_monitor::Event::Failed(e) => {
+                        self.go_idle();
+                        self.show_error(Error::UnableToSynchronizeCloud(e));
+                    }
+                    rclone_monitor::Event::Cancelled => {
+                        self.go_idle();
+                    }
+                }
+                Command::none()
+            }
+            Message::DriveRcloneMonitor => {
+                if self.rclone_monitor_tick {
+                    self.rclone_monitor_tick = false;
+                    if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                        let _ = sender.try_send(rclone_monitor::Input::Tick);
+                    }
+                }
+                Command::none()
+            }
         }
     }
 
@@ -1679,6 +1928,13 @@ impl Application for App {
                     iced::time::every(std::time::Duration::from_millis(250)).map(|_| Message::PruneNotifications)
                 }
                 None => iced_native::subscription::Subscription::none(),
+            },
+            rclone_monitor::run().map(Message::RcloneMonitor),
+            match self.operation {
+                Some(OngoingOperation::CloudDownload | OngoingOperation::CloudUpload) => {
+                    iced::time::every(std::time::Duration::from_millis(250)).map(|_| Message::DriveRcloneMonitor)
+                }
+                _ => iced_native::subscription::Subscription::none(),
             },
         ])
     }
@@ -1711,17 +1967,20 @@ impl Application for App {
                 Screen::CustomGames => {
                     screen::custom_games(&self.config, self.operation.is_some(), &self.text_histories)
                 }
-                Screen::Other => screen::other(self.updating_manifest, &self.config, &self.cache, &self.text_histories),
+                Screen::Other => screen::other(
+                    self.updating_manifest,
+                    &self.config,
+                    &self.cache,
+                    &self.operation,
+                    &self.text_histories,
+                ),
             })
             .push_some(|| self.timed_notification.as_ref().map(|x| x.view()))
             .push_if(
                 || self.updating_manifest,
                 || Notification::new(TRANSLATOR.updating_manifest()).view(),
             )
-            .push_if(
-                || self.progress.max > 1.0,
-                || ProgressBar::new(0.0..=self.progress.max, self.progress.current).height(5),
-            );
+            .push_if(|| self.progress.visible(), || self.progress.view(&self.operation));
 
         Container::new(content).style(style::Container::Primary).into()
     }

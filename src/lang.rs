@@ -8,7 +8,7 @@ use regex::Regex;
 use unic_langid::LanguageIdentifier;
 
 use crate::{
-    prelude::{Error, StrictPath, VARIANT, VERSION},
+    prelude::{CommandError, Error, StrictPath, VARIANT, VERSION},
     resource::{
         config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
         manifest::Store,
@@ -17,11 +17,16 @@ use crate::{
 };
 
 const PATH: &str = "path";
+const LOCAL_PATH: &str = "local-path";
+const CLOUD_PATH: &str = "cloud-path";
 const PATH_ACTION: &str = "path-action";
 const PROCESSED_GAMES: &str = "processed-games";
 const PROCESSED_SIZE: &str = "processed-size";
 const TOTAL_GAMES: &str = "total-games";
 const TOTAL_SIZE: &str = "total-size";
+const COMMAND: &str = "command";
+const CODE: &str = "code";
+const MESSAGE: &str = "message";
 
 pub const TRANSLATOR: Translator = Translator {};
 pub const ADD_SYMBOL: &str = "+";
@@ -277,6 +282,51 @@ impl Translator {
             Error::UnableToBrowseFileSystem => self.unable_to_browse_file_system(),
             Error::UnableToOpenDir(path) => self.unable_to_open_dir(path),
             Error::UnableToOpenUrl(url) => self.unable_to_open_url(url),
+            Error::RcloneUnavailable => self.rclone_unavailable(),
+            Error::CloudNotConfigured => self.cloud_not_configured(),
+            Error::UnableToConfigureCloud(error) => {
+                format!(
+                    "{}\n\n{}",
+                    self.unable_to_configure_cloud(),
+                    self.handle_command_error(error)
+                )
+            }
+            Error::UnableToSynchronizeCloud(error) => {
+                format!(
+                    "{}\n\n{}",
+                    self.unable_to_synchronize_with_cloud(),
+                    self.handle_command_error(error)
+                )
+            }
+        }
+    }
+
+    fn handle_command_error(&self, error: &CommandError) -> String {
+        let mut args = FluentArgs::new();
+        args.set(COMMAND, error.command());
+        match error {
+            CommandError::Launched { raw, .. } => {
+                format!("{}\n\n{}", translate_args("command-unlaunched", &args), raw)
+            }
+            CommandError::Terminated { .. } => translate_args("command-terminated", &args),
+            CommandError::Exited {
+                code, stdout, stderr, ..
+            } => {
+                args.set(CODE, code);
+                let mut out = translate_args("command-failed", &args);
+
+                if let Some(stdout) = stdout {
+                    out.push_str("\n\n");
+                    out.push_str(stdout);
+                }
+
+                if let Some(stderr) = stderr {
+                    out.push_str("\n\n");
+                    out.push_str(stderr);
+                }
+
+                out
+            }
         }
     }
 
@@ -302,6 +352,10 @@ impl Translator {
 
     pub fn cli_invalid_backup_id(&self) -> String {
         translate("cli-invalid-backup-id")
+    }
+
+    pub fn cloud_not_configured(&self) -> String {
+        translate("cloud-not-configured")
     }
 
     pub fn some_entries_failed(&self) -> String {
@@ -591,6 +645,10 @@ impl Translator {
         translate("button-exit")
     }
 
+    pub fn get_rclone_button(&self) -> String {
+        translate("button-get-rclone")
+    }
+
     pub fn no_roots_are_configured(&self) -> String {
         translate("no-roots-are-configured")
     }
@@ -633,6 +691,14 @@ impl Translator {
 
     pub fn unable_to_open_url(&self, url: &str) -> String {
         format!("{}\n\n{}", translate("unable-to-open-url"), url)
+    }
+
+    pub fn unable_to_configure_cloud(&self) -> String {
+        translate("unable-to-configure-cloud")
+    }
+
+    pub fn unable_to_synchronize_with_cloud(&self) -> String {
+        translate("unable-to-synchronize-with-cloud")
     }
 
     pub fn adjusted_size(&self, bytes: u64) -> String {
@@ -872,6 +938,34 @@ impl Translator {
         self.field(&translate("label-threads"))
     }
 
+    pub fn cloud_label(&self) -> String {
+        self.field(&translate("label-cloud"))
+    }
+
+    pub fn rclone_label(&self) -> String {
+        self.field("Rclone")
+    }
+
+    pub fn remote_label(&self) -> String {
+        self.field(&translate("label-remote"))
+    }
+
+    pub fn remote_name_label(&self) -> String {
+        self.field(&translate("label-remote-name"))
+    }
+
+    pub fn folder_label(&self) -> String {
+        self.field(&translate("label-folder"))
+    }
+
+    pub fn executable_label(&self) -> String {
+        translate("label-executable")
+    }
+
+    pub fn arguments_label(&self) -> String {
+        translate("label-arguments")
+    }
+
     pub fn new_tooltip(&self) -> String {
         translate("label-new")
     }
@@ -927,6 +1021,20 @@ impl Translator {
         }
     }
 
+    pub fn confirm_cloud_upload(&self, local: &str, cloud: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(LOCAL_PATH, local);
+        args.set(CLOUD_PATH, cloud);
+        translate_args("confirm-cloud-upload", &args)
+    }
+
+    pub fn confirm_cloud_download(&self, local: &str, cloud: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(LOCAL_PATH, local);
+        args.set(CLOUD_PATH, cloud);
+        translate_args("confirm-cloud-download", &args)
+    }
+
     pub fn notify_single_game_status(&self, found: bool) -> String {
         if found {
             translate("saves-found")
@@ -941,5 +1049,15 @@ impl Translator {
 
     pub fn suffix_restart_required(&self) -> String {
         translate("suffix-restart-required")
+    }
+
+    pub fn prefix_warning(&self, message: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(MESSAGE, message);
+        translate_args("prefix-warning", &args)
+    }
+
+    pub fn rclone_unavailable(&self) -> String {
+        translate("rclone-unavailable")
     }
 }

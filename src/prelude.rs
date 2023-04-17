@@ -54,6 +54,40 @@ pub enum Error {
     UnableToBrowseFileSystem,
     UnableToOpenDir(StrictPath),
     UnableToOpenUrl(String),
+    RcloneUnavailable,
+    CloudNotConfigured,
+    UnableToConfigureCloud(CommandError),
+    UnableToSynchronizeCloud(CommandError),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum CommandError {
+    Launched {
+        program: String,
+        args: Vec<String>,
+        raw: String,
+    },
+    Terminated {
+        program: String,
+        args: Vec<String>,
+    },
+    Exited {
+        program: String,
+        args: Vec<String>,
+        code: i32,
+        stdout: Option<String>,
+        stderr: Option<String>,
+    },
+}
+
+impl CommandError {
+    pub fn command(&self) -> String {
+        match self {
+            Self::Launched { program, args, .. } => format!("{} {}", program, args.join(" ")),
+            Self::Terminated { program, args } => format!("{} {}", program, args.join(" ")),
+            Self::Exited { program, args, .. } => format!("{} {}", program, args.join(" ")),
+        }
+    }
 }
 
 pub fn app_dir() -> std::path::PathBuf {
@@ -112,4 +146,60 @@ pub fn initialize_rayon(threads: NonZeroUsize) {
     let _ = rayon::ThreadPoolBuilder::new()
         .num_threads(threads.get())
         .build_global();
+}
+
+pub fn run_command(executable: &str, args: &[&str], success: &[i32]) -> Result<i32, CommandError> {
+    let mut command = std::process::Command::new(executable);
+    command.stdout(std::process::Stdio::piped());
+    command.stderr(std::process::Stdio::piped());
+    command.args(args);
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(winapi::um::winbase::CREATE_NO_WINDOW);
+    }
+
+    let format_args = || args.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(" ");
+    log::debug!("Running command: {} {:?}", executable, args);
+
+    match command.output() {
+        Ok(output) => match output.status.code() {
+            Some(code) if success.contains(&code) => {
+                log::debug!("Command succeeded with {}: {} {}", code, executable, format_args());
+                Ok(code)
+            }
+            Some(code) => {
+                log::error!("Command failed with {}: {} {}", code, executable, format_args());
+
+                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
+                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                log::error!("Command stdout: {}", stdout);
+                log::error!("Command stderr: {}", stderr);
+
+                Err(CommandError::Exited {
+                    program: executable.to_string(),
+                    args: args.iter().map(|x| x.to_string()).collect(),
+                    code,
+                    stdout: (!stdout.is_empty()).then_some(stdout),
+                    stderr: (!stderr.is_empty()).then_some(stderr),
+                })
+            }
+            None => {
+                log::warn!("Command terminated: {} {}", executable, format_args());
+                Err(CommandError::Terminated {
+                    program: executable.to_string(),
+                    args: args.iter().map(|x| x.to_string()).collect(),
+                })
+            }
+        },
+        Err(error) => {
+            log::warn!("Command did not launch: {} {}", executable, format_args());
+            Err(CommandError::Launched {
+                program: executable.to_string(),
+                args: args.iter().map(|x| x.to_string()).collect(),
+                raw: error.to_string(),
+            })
+        }
+    }
 }
