@@ -971,6 +971,22 @@ impl Translator {
         translate("label-arguments")
     }
 
+    pub fn host_label(&self) -> String {
+        self.field(&translate("label-host"))
+    }
+
+    pub fn port_label(&self) -> String {
+        self.field(&translate("label-port"))
+    }
+
+    pub fn username_label(&self) -> String {
+        self.field(&translate("label-username"))
+    }
+
+    pub fn password_label(&self) -> String {
+        self.field(&translate("label-password"))
+    }
+
     pub fn new_tooltip(&self) -> String {
         translate("label-new")
     }

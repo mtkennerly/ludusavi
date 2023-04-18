@@ -1,5 +1,5 @@
 use crate::{
-    prelude::{run_command, CommandError, Error, StrictPath},
+    prelude::{run_command, CommandError, CommandOutput, Error, StrictPath},
     resource::config::App,
 };
 
@@ -114,34 +114,21 @@ pub enum RemoteChoice {
     Custom,
     Box,
     Dropbox,
+    Ftp,
     GoogleDrive,
     OneDrive,
 }
 
 impl RemoteChoice {
-    pub const ALL_GUI: &[Self] = &[
+    pub const ALL: &[Self] = &[
         Self::None,
         Self::Box,
         Self::Dropbox,
+        Self::Ftp,
         Self::GoogleDrive,
         Self::OneDrive,
         Self::Custom,
     ];
-
-    pub const ALL_CLI: &'static [&'static str] = &[
-        Self::NONE,
-        Self::CUSTOM,
-        Self::BOX,
-        Self::DROPBOX,
-        Self::GOOGLE_DRIVE,
-        Self::ONE_DRIVE,
-    ];
-    const NONE: &str = "none";
-    const CUSTOM: &str = "custom";
-    const BOX: &str = "box";
-    const DROPBOX: &str = "dropbox";
-    const GOOGLE_DRIVE: &str = "google-drive";
-    const ONE_DRIVE: &str = "onedrive";
 }
 
 impl ToString for RemoteChoice {
@@ -151,6 +138,7 @@ impl ToString for RemoteChoice {
             Self::Custom => "Custom",
             Self::Box => "Box",
             Self::Dropbox => "Dropbox",
+            Self::Ftp => "FTP",
             Self::GoogleDrive => "Google Drive",
             Self::OneDrive => "OneDrive",
         }
@@ -158,29 +146,22 @@ impl ToString for RemoteChoice {
     }
 }
 
-impl std::str::FromStr for RemoteChoice {
-    type Err = String;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            Self::NONE => Ok(Self::None),
-            Self::CUSTOM => Ok(Self::Custom),
-            Self::BOX => Ok(Self::Box),
-            Self::DROPBOX => Ok(Self::Dropbox),
-            Self::GOOGLE_DRIVE => Ok(Self::GoogleDrive),
-            Self::ONE_DRIVE => Ok(Self::OneDrive),
-            _ => Err(format!("invalid remote type: {}", s)),
-        }
-    }
-}
-
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename = "camelCase")]
 pub enum Remote {
-    Custom { name: String },
+    Custom {
+        name: String,
+    },
     Box,
     Dropbox,
     GoogleDrive,
+    Ftp {
+        host: String,
+        port: i32,
+        username: String,
+        #[serde(skip, default)]
+        password: String,
+    },
     OneDrive,
 }
 
@@ -197,20 +178,32 @@ impl Remote {
             Self::Custom { .. } => "",
             Self::Box => "box",
             Self::Dropbox => "dropbox",
+            Self::Ftp { .. } => "ftp",
             Self::GoogleDrive => "drive",
             Self::OneDrive => "onedrive",
         }
     }
 
-    pub fn config_args(&self) -> Option<Vec<&'static str>> {
+    pub fn config_args(&self) -> Option<Vec<String>> {
         match self {
             Self::Custom { .. } => None,
             Self::Box => None,
             Self::Dropbox => None,
-            Self::GoogleDrive => Some(vec!["scope=drive"]),
+            Self::GoogleDrive => Some(vec!["scope=drive".to_string()]),
+            Self::Ftp {
+                host,
+                port,
+                username,
+                password,
+            } => Some(vec![
+                format!("host={host}"),
+                format!("port={port}"),
+                format!("user={username}"),
+                format!("pass={password}"),
+            ]),
             Self::OneDrive => Some(vec![
-                "drive_type=personal",
-                "access_scopes=Files.ReadWrite,offline_access",
+                "drive_type=personal".to_string(),
+                "access_scopes=Files.ReadWrite,offline_access".to_string(),
             ]),
         }
     }
@@ -218,7 +211,7 @@ impl Remote {
     pub fn needs_configuration(&self) -> bool {
         match self {
             Self::Custom { .. } => false,
-            Self::Box | Self::Dropbox | Self::GoogleDrive | Self::OneDrive => true,
+            Self::Box | Self::Dropbox | Self::Ftp { .. } | Self::GoogleDrive | Self::OneDrive => true,
         }
     }
 }
@@ -230,6 +223,7 @@ impl From<Option<&Remote>> for RemoteChoice {
                 Remote::Custom { .. } => RemoteChoice::Custom,
                 Remote::Box => RemoteChoice::Box,
                 Remote::Dropbox => RemoteChoice::Dropbox,
+                Remote::Ftp { .. } => RemoteChoice::Ftp,
                 Remote::GoogleDrive => RemoteChoice::GoogleDrive,
                 Remote::OneDrive => RemoteChoice::OneDrive,
             }
@@ -250,6 +244,12 @@ impl TryFrom<RemoteChoice> for Remote {
             }),
             RemoteChoice::Box => Ok(Remote::Box),
             RemoteChoice::Dropbox => Ok(Remote::Dropbox),
+            RemoteChoice::Ftp => Ok(Remote::Ftp {
+                host: String::new(),
+                port: 21,
+                username: String::new(),
+                password: String::new(),
+            }),
             RemoteChoice::GoogleDrive => Ok(Remote::GoogleDrive),
             RemoteChoice::OneDrive => Ok(Remote::OneDrive),
         }
@@ -270,7 +270,7 @@ impl Rclone {
         format!("{}:{}", self.remote.name(), path)
     }
 
-    fn args(&self, args: &[&str]) -> Vec<String> {
+    fn args(&self, args: &[String]) -> Vec<String> {
         let mut collected = vec![];
         if !self.app.arguments.is_empty() {
             if let Some(parts) = shlex::split(&self.app.arguments) {
@@ -283,11 +283,15 @@ impl Rclone {
         collected
     }
 
-    fn run(&self, args: &[&str], success: &[i32]) -> Result<i32, CommandError> {
+    fn run(&self, args: &[String], success: &[i32], sensitive: bool) -> Result<CommandOutput, CommandError> {
         let args = self.args(args);
         let args: Vec<_> = args.iter().map(|x| x.as_str()).collect();
-        let code = run_command(&self.app.path.raw(), &args, success)?;
-        Ok(code)
+        run_command(&self.app.path.raw(), &args, success, sensitive)
+    }
+
+    fn obscure(&self, credential: &str) -> Result<String, CommandError> {
+        let out = self.run(&["obscure".to_string(), credential.to_string()], &[0], true)?;
+        Ok(out.stdout)
     }
 
     pub fn configure_remote(&self) -> Result<(), CommandError> {
@@ -295,13 +299,26 @@ impl Rclone {
             return Ok(());
         }
 
-        let mut args = vec!["config", "create", self.remote.name(), self.remote.slug()];
+        let mut sensitive = false;
 
-        if let Some(config_args) = self.remote.config_args() {
+        let mut remote = self.remote.clone();
+        if let Remote::Ftp { ref mut password, .. } = remote {
+            sensitive = true;
+            *password = self.obscure(password)?;
+        }
+
+        let mut args = vec![
+            "config".to_string(),
+            "create".to_string(),
+            remote.name().to_string(),
+            remote.slug().to_string(),
+        ];
+
+        if let Some(config_args) = remote.config_args() {
             args.extend(config_args);
         }
 
-        self.run(&args, &[0])?;
+        self.run(&args, &[0], sensitive)?;
         Ok(())
     }
 
@@ -323,12 +340,12 @@ impl Rclone {
         RcloneProcess::launch(
             self.app.path.raw(),
             self.args(&[
-                "sync",
-                "-v",
-                "--use-json-log",
-                "--stats=1s",
-                &local.render(),
-                &self.path(remote_path),
+                "sync".to_string(),
+                "-v".to_string(),
+                "--use-json-log".to_string(),
+                "--stats=1s".to_string(),
+                local.render(),
+                self.path(remote_path),
             ]),
         )
     }
@@ -341,12 +358,12 @@ impl Rclone {
         RcloneProcess::launch(
             self.app.path.raw(),
             self.args(&[
-                "sync",
-                "-v",
-                "--use-json-log",
-                "--stats=1s",
-                &self.path(remote_path),
-                &local.render(),
+                "sync".to_string(),
+                "-v".to_string(),
+                "--use-json-log".to_string(),
+                "--stats=1s".to_string(),
+                self.path(remote_path),
+                local.render(),
             ]),
         )
     }

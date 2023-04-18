@@ -13,7 +13,7 @@ use crate::{
         parse::{Cli, CompletionShell, ManifestSubcommand, Subcommand},
         report::Reporter,
     },
-    cloud::{Rclone, Remote, RemoteChoice},
+    cloud::{Rclone, Remote},
     lang::TRANSLATOR,
     prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, StrictPath},
     resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
@@ -521,30 +521,43 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             }
         }
         Subcommand::Cloud { sub: cloud_sub } => match cloud_sub {
-            parse::CloudSubcommand::Set { remote, name } => {
-                let remote = match remote {
-                    RemoteChoice::None => {
-                        config.cloud.remote = None;
-                        config.save();
-                        return Ok(());
-                    }
-                    RemoteChoice::Custom => Remote::Custom {
-                        name: name.unwrap_or_else(|| "ludusavi".to_string()),
-                    },
-                    RemoteChoice::Box => Remote::Box,
-                    RemoteChoice::Dropbox => Remote::Dropbox,
-                    RemoteChoice::GoogleDrive => Remote::GoogleDrive,
-                    RemoteChoice::OneDrive => Remote::OneDrive,
-                };
-                if remote.needs_configuration() {
-                    let rclone = Rclone::new(config.apps.rclone.clone(), remote.clone());
-                    if let Err(e) = rclone.configure_remote() {
-                        return Err(Error::UnableToConfigureCloud(e));
-                    }
+            parse::CloudSubcommand::Set { sub } => match sub {
+                parse::CloudSetSubcommand::None => {
+                    config.cloud.remote = None;
+                    config.save();
                 }
-                config.cloud.remote = Some(remote);
-                config.save();
-            }
+                parse::CloudSetSubcommand::Custom { name } => {
+                    configure_cloud(&mut config, Remote::Custom { name })?;
+                }
+                parse::CloudSetSubcommand::Box => {
+                    configure_cloud(&mut config, Remote::Box)?;
+                }
+                parse::CloudSetSubcommand::Dropbox => {
+                    configure_cloud(&mut config, Remote::Dropbox)?;
+                }
+                parse::CloudSetSubcommand::Ftp {
+                    host,
+                    port,
+                    username,
+                    password,
+                } => {
+                    configure_cloud(
+                        &mut config,
+                        Remote::Ftp {
+                            host,
+                            port,
+                            username,
+                            password,
+                        },
+                    )?;
+                }
+                parse::CloudSetSubcommand::GoogleDrive => {
+                    configure_cloud(&mut config, Remote::GoogleDrive)?;
+                }
+                parse::CloudSetSubcommand::OneDrive => {
+                    configure_cloud(&mut config, Remote::OneDrive)?;
+                }
+            },
             parse::CloudSubcommand::Upload { local, cloud, force } => {
                 sync_cloud(&config, local, cloud, force, CloudSync::Upload)?;
             }
@@ -564,6 +577,16 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
 enum CloudSync {
     Upload,
     Download,
+}
+
+fn configure_cloud(config: &mut Config, remote: Remote) -> Result<(), Error> {
+    if remote.needs_configuration() {
+        let rclone = Rclone::new(config.apps.rclone.clone(), remote.clone());
+        rclone.configure_remote().map_err(Error::UnableToConfigureCloud)?;
+    }
+    config.cloud.remote = Some(remote);
+    config.save();
+    Ok(())
 }
 
 fn sync_cloud(

@@ -2,7 +2,7 @@ use iced::Length;
 
 use crate::{
     cloud::{rclone_monitor, Remote, RemoteChoice},
-    gui::icon::Icon,
+    gui::{icon::Icon, modal::ModalField},
     lang::{Language, TRANSLATOR},
     prelude::{CommandError, Error, StrictPath},
     resource::{
@@ -212,6 +212,8 @@ pub enum Message {
     SynchronizeFromCloudToLocal,
     RcloneMonitor(rclone_monitor::Event),
     DriveRcloneMonitor,
+    FinalizeRemote(Remote),
+    EditedModalField(ModalField),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

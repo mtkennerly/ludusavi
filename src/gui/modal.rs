@@ -1,10 +1,11 @@
 use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
 
 use crate::{
+    cloud::{Remote, RemoteChoice},
     gui::{
         common::{Message, ScrollSubject},
         style,
-        widget::{Button, Column, Container, Row, Space, Text},
+        widget::{Button, Column, Container, Row, Space, Text, TextInput},
     },
     lang::TRANSLATOR,
     prelude::Error,
@@ -17,20 +18,46 @@ pub enum ModalVariant {
     Confirm,
 }
 
+#[derive(Debug, Clone)]
+pub enum ModalField {
+    Host(String),
+    Port(String),
+    Username(String),
+    Password(String),
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum ModalTheme {
-    Error { variant: Error },
-    ConfirmBackup { games: Option<Vec<String>> },
-    ConfirmRestore { games: Option<Vec<String>> },
+pub enum Modal {
+    Error {
+        variant: Error,
+    },
+    ConfirmBackup {
+        games: Option<Vec<String>>,
+    },
+    ConfirmRestore {
+        games: Option<Vec<String>>,
+    },
     NoMissingRoots,
     ConfirmAddMissingRoots(Vec<RootsConfig>),
     PreparingBackupDir,
     UpdatingManifest,
-    ConfirmUploadToCloud { local: String, cloud: String },
-    ConfirmDownloadFromCloud { local: String, cloud: String },
+    ConfirmUploadToCloud {
+        local: String,
+        cloud: String,
+    },
+    ConfirmDownloadFromCloud {
+        local: String,
+        cloud: String,
+    },
+    ConfigureFtpRemote {
+        host: String,
+        port: String,
+        username: String,
+        password: String,
+    },
 }
 
-impl ModalTheme {
+impl Modal {
     pub fn variant(&self) -> ModalVariant {
         match self {
             Self::PreparingBackupDir | Self::UpdatingManifest => ModalVariant::Loading,
@@ -39,7 +66,8 @@ impl ModalTheme {
             | Self::ConfirmRestore { .. }
             | Self::ConfirmAddMissingRoots(..)
             | Self::ConfirmUploadToCloud { .. }
-            | Self::ConfirmDownloadFromCloud { .. } => ModalVariant::Confirm,
+            | Self::ConfirmDownloadFromCloud { .. }
+            | Self::ConfigureFtpRemote { .. } => ModalVariant::Confirm,
         }
     }
 
@@ -59,6 +87,7 @@ impl ModalTheme {
             Self::UpdatingManifest => TRANSLATOR.updating_manifest(),
             Self::ConfirmUploadToCloud { local, cloud } => TRANSLATOR.confirm_cloud_upload(local, cloud),
             Self::ConfirmDownloadFromCloud { local, cloud } => TRANSLATOR.confirm_cloud_download(local, cloud),
+            Self::ConfigureFtpRemote { .. } => RemoteChoice::Ftp.to_string(),
         }
     }
 
@@ -77,17 +106,86 @@ impl ModalTheme {
             Self::PreparingBackupDir | Self::UpdatingManifest => None,
             Self::ConfirmUploadToCloud { .. } => Some(Message::SynchronizeFromLocalToCloud),
             Self::ConfirmDownloadFromCloud { .. } => Some(Message::SynchronizeFromCloudToLocal),
+            Self::ConfigureFtpRemote {
+                host,
+                port,
+                username,
+                password,
+            } => {
+                let Ok(port) = port.parse::<i32>() else { return None };
+                if host.is_empty() || username.is_empty() {
+                    None
+                } else {
+                    Some(Message::FinalizeRemote(Remote::Ftp {
+                        host: host.clone(),
+                        port,
+                        username: username.clone(),
+                        password: password.clone(),
+                    }))
+                }
+            }
         }
+    }
+
+    pub fn body(&self, config: &Config) -> Column {
+        let mut col = Column::new()
+            .width(Length::Fill)
+            .spacing(10)
+            .align_items(Alignment::Center)
+            .push(Text::new(self.text(config)));
+
+        if let Modal::ConfigureFtpRemote {
+            host,
+            port,
+            username,
+            password,
+        } = self
+        {
+            col = col
+                .width(500)
+                .push(
+                    Row::new()
+                        .align_items(Alignment::Center)
+                        .push(Text::new(TRANSLATOR.host_label()).width(150))
+                        .push(TextInput::new("", host, |x| {
+                            Message::EditedModalField(ModalField::Host(x))
+                        })),
+                )
+                .push(
+                    Row::new()
+                        .align_items(Alignment::Center)
+                        .push(Text::new(TRANSLATOR.port_label()).width(150))
+                        .push(TextInput::new("", port, |x| {
+                            Message::EditedModalField(ModalField::Port(x))
+                        })),
+                )
+                .push(
+                    Row::new()
+                        .align_items(Alignment::Center)
+                        .push(Text::new(TRANSLATOR.username_label()).width(150))
+                        .push(TextInput::new("", username, |x| {
+                            Message::EditedModalField(ModalField::Username(x))
+                        })),
+                )
+                .push(
+                    Row::new()
+                        .align_items(Alignment::Center)
+                        .push(Text::new(TRANSLATOR.password_label()).width(150))
+                        .push(
+                            TextInput::new("", password, |x| Message::EditedModalField(ModalField::Password(x)))
+                                .password(),
+                        ),
+                );
+        }
+
+        col
     }
 }
 
-#[derive(Default)]
-pub struct ModalComponent {}
-
-impl ModalComponent {
-    pub fn view(&self, theme: &ModalTheme, config: &Config) -> Container {
+impl Modal {
+    pub fn view(&self, config: &Config) -> Container {
         let mut positive_button = Button::new(
-            Text::new(match theme.variant() {
+            Text::new(match self.variant() {
                 ModalVariant::Loading => TRANSLATOR.okay_button(), // dummy
                 ModalVariant::Info => TRANSLATOR.okay_button(),
                 ModalVariant::Confirm => TRANSLATOR.continue_button(),
@@ -97,7 +195,7 @@ impl ModalComponent {
         .width(125)
         .style(style::Button::Primary);
 
-        if let Some(message) = theme.message() {
+        if let Some(message) = self.message() {
             positive_button = positive_button.on_press(message);
         }
 
@@ -125,18 +223,11 @@ impl ModalComponent {
                             Row::new()
                                 .padding([40, 40, 0, 40])
                                 .align_items(Alignment::Center)
-                                .push(
-                                    ScrollSubject::Modal.into_widget(
-                                        Column::new()
-                                            .width(Length::Fill)
-                                            .align_items(Alignment::Center)
-                                            .push(Text::new(theme.text(config))),
-                                    ),
-                                )
+                                .push(ScrollSubject::Modal.into_widget(self.body(config)))
                                 .height(Length::Fill),
                         )
                         .push(
-                            match theme.variant() {
+                            match self.variant() {
                                 ModalVariant::Loading => Row::new(),
                                 ModalVariant::Info => Row::new().push(positive_button),
                                 ModalVariant::Confirm => Row::new().push(positive_button).push(negative_button),

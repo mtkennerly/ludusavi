@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use crate::{
-    cloud::RemoteChoice,
     prelude::StrictPath,
     resource::config::{BackupFormat, Sort, SortKey, ZipCompression},
 };
@@ -351,15 +350,8 @@ pub enum ManifestSubcommand {
 pub enum CloudSubcommand {
     /// Configure the cloud system to use.
     Set {
-        /// Which cloud system to use.
-        #[clap(index = 1, possible_values = RemoteChoice::ALL_CLI)]
-        remote: RemoteChoice,
-
-        /// Name of the Rclone remote.
-        /// This is only used when you choose a custom remote.
-        /// Default is "ludusavi".
-        #[clap(long)]
-        name: Option<String>,
+        #[clap(subcommand)]
+        sub: CloudSetSubcommand,
     },
     /// Upload your local backups to the cloud, overwriting any existing cloud backups.
     Upload {
@@ -392,6 +384,42 @@ pub enum CloudSubcommand {
         /// Don't ask for confirmation.
         #[clap(long)]
         force: bool,
+    },
+}
+
+#[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
+pub enum CloudSetSubcommand {
+    /// Disable cloud backups.
+    None,
+    /// Use a pre-existing Rclone remote.
+    Custom {
+        #[clap(long)]
+        name: String,
+    },
+    /// Use Box.
+    Box,
+    /// Use Dropbox.
+    Dropbox,
+    /// Use Google Drive.
+    #[clap(name = "google-drive")]
+    GoogleDrive,
+    /// Use OneDrive.
+    #[clap(name = "onedrive")]
+    OneDrive,
+    /// Use an FTP server.
+    Ftp {
+        /// Host URL.
+        #[clap(long)]
+        host: String,
+        /// Port number.
+        #[clap(long, default_value_t = 21)]
+        port: i32,
+        /// Username for authentication.
+        #[clap(long)]
+        username: String,
+        /// Password for authentication.
+        #[clap(long, default_value = "")]
+        password: String,
     },
 }
 

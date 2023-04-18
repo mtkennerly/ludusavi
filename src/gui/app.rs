@@ -8,7 +8,7 @@ use crate::{
         button,
         common::*,
         icon::Icon,
-        modal::{ModalComponent, ModalTheme},
+        modal::{Modal, ModalField},
         notification::Notification,
         screen,
         shortcuts::{Shortcut, TextHistories, TextHistory},
@@ -116,8 +116,7 @@ pub struct App {
     cache: Cache,
     operation: Option<OngoingOperation>,
     screen: Screen,
-    modal_theme: Option<ModalTheme>,
-    modal: ModalComponent,
+    modal: Option<Modal>,
     backup_screen: screen::Backup,
     restore_screen: screen::Restore,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
@@ -139,7 +138,7 @@ impl App {
         self.operation = None;
         self.operation_steps.clear();
         self.operation_steps_active = 0;
-        self.modal_theme = None;
+        self.modal = None;
         self.progress.reset();
         self.operation_should_cancel
             .swap(false, std::sync::atomic::Ordering::Relaxed);
@@ -147,16 +146,16 @@ impl App {
     }
 
     fn show_error(&mut self, error: Error) {
-        self.modal_theme = Some(ModalTheme::Error { variant: error });
+        self.modal = Some(Modal::Error { variant: error });
     }
 
     fn confirm_backup_start(&mut self, games: Option<Vec<String>>) -> Command<Message> {
-        self.modal_theme = Some(ModalTheme::ConfirmBackup { games });
+        self.modal = Some(Modal::ConfirmBackup { games });
         Command::none()
     }
 
     fn confirm_restore_start(&mut self, games: Option<Vec<String>>) -> Command<Message> {
-        self.modal_theme = Some(ModalTheme::ConfirmRestore { games });
+        self.modal = Some(Modal::ConfirmRestore { games });
         Command::none()
     }
 
@@ -241,7 +240,7 @@ impl App {
             self.backup_screen.log.clear();
             self.backup_screen.duplicate_detector.clear();
         }
-        self.modal_theme = None;
+        self.modal = None;
         self.progress.max = games.as_ref().map(|x| x.len() as f32).unwrap_or(100.0);
 
         self.operation = Some(if preview {
@@ -416,7 +415,7 @@ impl App {
 
         let restore_path = self.config.restore.path.clone();
         if !restore_path.is_dir() {
-            self.modal_theme = Some(ModalTheme::Error {
+            self.modal = Some(Modal::Error {
                 variant: Error::RestorationSourceInvalid { path: restore_path },
             });
             return Command::none();
@@ -424,7 +423,7 @@ impl App {
 
         let config = std::sync::Arc::new(self.config.clone());
 
-        self.modal_theme = None;
+        self.modal = None;
 
         self.operation = Some(if preview {
             OngoingOperation::PreviewRestore
@@ -567,7 +566,7 @@ impl App {
         self.go_idle();
 
         if failed {
-            self.modal_theme = Some(ModalTheme::Error {
+            self.modal = Some(Modal::Error {
                 variant: Error::SomeEntriesFailed,
             });
         }
@@ -600,7 +599,7 @@ impl App {
         self.go_idle();
 
         if failed {
-            self.modal_theme = Some(ModalTheme::Error {
+            self.modal = Some(Modal::Error {
                 variant: Error::SomeEntriesFailed,
             });
         }
@@ -658,6 +657,18 @@ impl App {
             Command::none()
         }
     }
+
+    fn configure_remote(&self, remote: Remote) -> Command<Message> {
+        let rclone = self.config.apps.rclone.clone();
+        let remote2 = remote.clone();
+        Command::perform(
+            async move { Rclone::new(rclone, remote2).configure_remote() },
+            move |res| match res {
+                Ok(_) => Message::ConfigureCloudSuccess(remote),
+                Err(e) => Message::ConfigureCloudFailure(e),
+            },
+        )
+    }
 }
 
 impl Application for App {
@@ -667,11 +678,11 @@ impl Application for App {
     type Theme = crate::gui::style::Theme;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
-        let mut modal_theme: Option<ModalTheme> = None;
+        let mut modal_theme: Option<Modal> = None;
         let mut config = match Config::load() {
             Ok(x) => x,
             Err(x) => {
-                modal_theme = Some(ModalTheme::Error { variant: x });
+                modal_theme = Some(Modal::Error { variant: x });
                 let _ = Config::archive_invalid();
                 Config::default()
             }
@@ -681,7 +692,7 @@ impl Application for App {
         let manifest = match Manifest::load() {
             Ok(y) => y,
             Err(_) => {
-                modal_theme = Some(ModalTheme::UpdatingManifest);
+                modal_theme = Some(Modal::UpdatingManifest);
                 Manifest::default()
             }
         };
@@ -695,7 +706,7 @@ impl Application for App {
         if !missing.is_empty() {
             cache.add_roots(&missing);
             cache.save();
-            modal_theme = Some(ModalTheme::ConfirmAddMissingRoots(missing));
+            modal_theme = Some(Modal::ConfirmAddMissingRoots(missing));
         }
 
         let manifest_config = config.manifest.clone();
@@ -711,7 +722,7 @@ impl Application for App {
                 config,
                 manifest,
                 cache,
-                modal_theme,
+                modal: modal_theme,
                 updating_manifest: true,
                 text_histories,
                 ..Self::default()
@@ -744,7 +755,7 @@ impl Application for App {
                 Command::none()
             }
             Message::CloseModal => {
-                self.modal_theme = None;
+                self.modal = None;
                 Command::none()
             }
             Message::Exit => std::process::exit(0),
@@ -783,8 +794,8 @@ impl Application for App {
                     }
                 };
 
-                if self.modal_theme == Some(ModalTheme::UpdatingManifest) {
-                    self.modal_theme = None;
+                if self.modal == Some(Modal::UpdatingManifest) {
+                    self.modal = None;
                 }
 
                 self.cache.update_manifest(updated);
@@ -795,7 +806,7 @@ impl Application for App {
                         self.manifest = x;
                     }
                     Err(variant) => {
-                        self.modal_theme = Some(ModalTheme::Error { variant });
+                        self.modal = Some(Modal::Error { variant });
                     }
                 }
                 Command::none()
@@ -811,7 +822,7 @@ impl Application for App {
                     return self.start_backup(preview, games);
                 }
 
-                self.modal_theme = Some(ModalTheme::PreparingBackupDir);
+                self.modal = Some(Modal::PreparingBackupDir);
 
                 let backup_path = self.config.backup.path.clone();
                 let merge = if games.is_some() {
@@ -1032,11 +1043,11 @@ impl Application for App {
             Message::FindRoots => {
                 let missing = self.config.find_missing_roots();
                 if missing.is_empty() {
-                    self.modal_theme = Some(ModalTheme::NoMissingRoots);
+                    self.modal = Some(Modal::NoMissingRoots);
                 } else {
                     self.cache.add_roots(&missing);
                     self.cache.save();
-                    self.modal_theme = Some(ModalTheme::ConfirmAddMissingRoots(missing));
+                    self.modal = Some(Modal::ConfirmAddMissingRoots(missing));
                 }
                 Command::none()
             }
@@ -1506,7 +1517,7 @@ impl Application for App {
                 },
             ),
             Message::BrowseDirFailure => {
-                self.modal_theme = Some(ModalTheme::Error {
+                self.modal = Some(Modal::Error {
                     variant: Error::UnableToBrowseFileSystem,
                 });
                 Command::none()
@@ -1573,13 +1584,13 @@ impl Application for App {
                 })
             }
             Message::OpenDirFailure { path } => {
-                self.modal_theme = Some(ModalTheme::Error {
+                self.modal = Some(Modal::Error {
                     variant: Error::UnableToOpenDir(path),
                 });
                 Command::none()
             }
             Message::OpenUrlFailure { url } => {
-                self.modal_theme = Some(ModalTheme::Error {
+                self.modal = Some(Modal::Error {
                     variant: Error::UnableToOpenUrl(url),
                 });
                 Command::none()
@@ -1796,23 +1807,30 @@ impl Application for App {
             Message::OpenUrl(url) => Self::open_url(url),
             Message::EditedCloudRemote(choice) => {
                 if let Ok(remote) = Remote::try_from(choice) {
-                    if !remote.needs_configuration() {
-                        if let Remote::Custom { name } = &remote {
+                    match &remote {
+                        Remote::Custom { name } => {
                             self.text_histories.cloud_remote_name.push(name);
+                            self.config.cloud.remote = Some(remote);
+                            self.config.save();
+                            Command::none()
                         }
-                        self.config.cloud.remote = Some(remote);
-                        self.config.save();
-                        Command::none()
-                    } else {
-                        let rclone = self.config.apps.rclone.clone();
-                        let remote2 = remote.clone();
-                        Command::perform(
-                            async move { Rclone::new(rclone, remote2).configure_remote() },
-                            move |res| match res {
-                                Ok(_) => Message::ConfigureCloudSuccess(remote),
-                                Err(e) => Message::ConfigureCloudFailure(e),
-                            },
-                        )
+                        Remote::Ftp {
+                            host,
+                            port,
+                            username,
+                            password,
+                        } => {
+                            self.modal = Some(Modal::ConfigureFtpRemote {
+                                host: host.clone(),
+                                port: port.to_string(),
+                                username: username.clone(),
+                                password: password.clone(),
+                            });
+                            Command::none()
+                        }
+                        Remote::Box | Remote::Dropbox | Remote::GoogleDrive | Remote::OneDrive => {
+                            self.configure_remote(remote)
+                        }
                     }
                 } else {
                     self.config.cloud.remote = None;
@@ -1823,6 +1841,7 @@ impl Application for App {
             Message::ConfigureCloudSuccess(remote) => {
                 self.config.cloud.remote = Some(remote);
                 self.config.save();
+                self.modal = None;
                 Command::none()
             }
             Message::ConfigureCloudFailure(error) => {
@@ -1832,14 +1851,14 @@ impl Application for App {
                 Command::none()
             }
             Message::ConfirmSynchronizeFromLocalToCloud => {
-                self.modal_theme = Some(ModalTheme::ConfirmUploadToCloud {
+                self.modal = Some(Modal::ConfirmUploadToCloud {
                     local: self.config.backup.path.render(),
                     cloud: self.config.cloud.path.clone(),
                 });
                 Command::none()
             }
             Message::ConfirmSynchronizeFromCloudToLocal => {
-                self.modal_theme = Some(ModalTheme::ConfirmDownloadFromCloud {
+                self.modal = Some(Modal::ConfirmDownloadFromCloud {
                     local: self.config.backup.path.render(),
                     cloud: self.config.cloud.path.clone(),
                 });
@@ -1847,7 +1866,7 @@ impl Application for App {
             }
             Message::SynchronizeFromLocalToCloud => {
                 self.operation = Some(OngoingOperation::CloudUpload);
-                self.modal_theme = None;
+                self.modal = None;
                 self.progress.start();
 
                 if let Some(remote) = self.config.cloud.remote.as_ref() {
@@ -1865,7 +1884,7 @@ impl Application for App {
             }
             Message::SynchronizeFromCloudToLocal => {
                 self.operation = Some(OngoingOperation::CloudDownload);
-                self.modal_theme = None;
+                self.modal = None;
                 self.progress.start();
 
                 if let Some(remote) = self.config.cloud.remote.as_ref() {
@@ -1916,6 +1935,24 @@ impl Application for App {
                 }
                 Command::none()
             }
+            Message::EditedModalField(field) => {
+                if let Some(Modal::ConfigureFtpRemote {
+                    host,
+                    port,
+                    username,
+                    password,
+                }) = self.modal.as_mut()
+                {
+                    match field {
+                        ModalField::Host(new) => *host = new,
+                        ModalField::Port(new) => *port = new,
+                        ModalField::Username(new) => *username = new,
+                        ModalField::Password(new) => *password = new,
+                    }
+                }
+                Command::none()
+            }
+            Message::FinalizeRemote(remote) => self.configure_remote(remote),
         }
     }
 
@@ -1943,8 +1980,8 @@ impl Application for App {
     }
 
     fn view(&self) -> Element {
-        if let Some(m) = &self.modal_theme {
-            return self.modal.view(m, &self.config).style(style::Container::Primary).into();
+        if let Some(m) = &self.modal {
+            return m.view(&self.config).style(style::Container::Primary).into();
         }
 
         let content = Column::new()

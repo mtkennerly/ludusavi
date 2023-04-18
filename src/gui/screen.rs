@@ -493,7 +493,7 @@ pub fn other<'a>(
                                                     || operation.is_none(),
                                                     || {
                                                         PickList::new(
-                                                            RemoteChoice::ALL_GUI,
+                                                            RemoteChoice::ALL,
                                                             Some(choice),
                                                             Message::EditedCloudRemote,
                                                         )
@@ -504,6 +504,13 @@ pub fn other<'a>(
                                                 row = row
                                                     .push(Text::new(TRANSLATOR.remote_name_label()))
                                                     .push(histories.input(UndoSubject::CloudRemoteName));
+                                            }
+
+                                            if let Some(Remote::Ftp {
+                                                host, port, username, ..
+                                            }) = &config.cloud.remote
+                                            {
+                                                row = row.push(Text::new(format!("{}@{}:{}", username, host, port)))
                                             }
 
                                             row

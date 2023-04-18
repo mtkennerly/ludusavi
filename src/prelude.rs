@@ -149,7 +149,18 @@ pub fn initialize_rayon(threads: NonZeroUsize) {
         .build_global();
 }
 
-pub fn run_command(executable: &str, args: &[&str], success: &[i32]) -> Result<i32, CommandError> {
+pub struct CommandOutput {
+    pub code: i32,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+pub fn run_command(
+    executable: &str,
+    args: &[&str],
+    success: &[i32],
+    sensitive_args: bool,
+) -> Result<CommandOutput, CommandError> {
     let mut command = std::process::Command::new(executable);
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
@@ -161,26 +172,43 @@ pub fn run_command(executable: &str, args: &[&str], success: &[i32]) -> Result<i
         command.creation_flags(winapi::um::winbase::CREATE_NO_WINDOW);
     }
 
-    let format_args = || args.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(" ");
-    log::debug!("Running command: {} {:?}", executable, args);
+    let collect_args = || {
+        if sensitive_args {
+            vec![]
+        } else {
+            args.iter().map(|x| x.to_string()).collect()
+        }
+    };
+    let format_args = || {
+        if sensitive_args {
+            "".to_string()
+        } else {
+            args.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(" ")
+        }
+    };
+    log::debug!("Running command: {} {:?}", executable, collect_args());
 
     match command.output() {
         Ok(output) => match output.status.code() {
             Some(code) if success.contains(&code) => {
                 log::debug!("Command succeeded with {}: {} {}", code, executable, format_args());
-                Ok(code)
+
+                let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+
+                Ok(CommandOutput { code, stdout, stderr })
             }
             Some(code) => {
                 log::error!("Command failed with {}: {} {}", code, executable, format_args());
 
-                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
+                let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
                 log::error!("Command stdout: {}", stdout);
                 log::error!("Command stderr: {}", stderr);
 
                 Err(CommandError::Exited {
                     program: executable.to_string(),
-                    args: args.iter().map(|x| x.to_string()).collect(),
+                    args: collect_args(),
                     code,
                     stdout: (!stdout.is_empty()).then_some(stdout),
                     stderr: (!stderr.is_empty()).then_some(stderr),
@@ -190,7 +218,7 @@ pub fn run_command(executable: &str, args: &[&str], success: &[i32]) -> Result<i
                 log::warn!("Command terminated: {} {}", executable, format_args());
                 Err(CommandError::Terminated {
                     program: executable.to_string(),
-                    args: args.iter().map(|x| x.to_string()).collect(),
+                    args: collect_args(),
                 })
             }
         },
@@ -198,7 +226,7 @@ pub fn run_command(executable: &str, args: &[&str], success: &[i32]) -> Result<i
             log::warn!("Command did not launch: {} {}", executable, format_args());
             Err(CommandError::Launched {
                 program: executable.to_string(),
-                args: args.iter().map(|x| x.to_string()).collect(),
+                args: collect_args(),
                 raw: error.to_string(),
             })
         }
