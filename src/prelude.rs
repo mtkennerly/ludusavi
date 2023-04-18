@@ -27,6 +27,18 @@ pub static CONFIG_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
 pub const ENV_DEBUG: &str = "LUDUSAVI_DEBUG";
 const ENV_THREADS: &str = "LUDUSAVI_THREADS";
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Privacy {
+    Public,
+    Private,
+}
+
+impl Privacy {
+    pub fn sensitive(&self) -> bool {
+        *self == Self::Private
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Error {
     ManifestInvalid {
@@ -159,7 +171,7 @@ pub fn run_command(
     executable: &str,
     args: &[&str],
     success: &[i32],
-    sensitive_args: bool,
+    privacy: Privacy,
 ) -> Result<CommandOutput, CommandError> {
     let mut command = std::process::Command::new(executable);
     command.stdout(std::process::Stdio::piped());
@@ -173,15 +185,15 @@ pub fn run_command(
     }
 
     let collect_args = || {
-        if sensitive_args {
-            vec![]
+        if privacy.sensitive() {
+            vec!["**REDACTED**".to_string()]
         } else {
             args.iter().map(|x| x.to_string()).collect()
         }
     };
     let format_args = || {
-        if sensitive_args {
-            "".to_string()
+        if privacy.sensitive() {
+            "**REDACTED**".to_string()
         } else {
             args.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(" ")
         }

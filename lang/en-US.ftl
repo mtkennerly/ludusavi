@@ -126,12 +126,14 @@ label-folder = Folder
 label-executable = Executable
 # Options given to a command line program
 label-arguments = Arguments
+label-url = URL
 # https://en.wikipedia.org/wiki/Host_(network)
 label-host = Host
 # https://en.wikipedia.org/wiki/Port_(computer_networking)
 label-port = Port
 label-username = Username
 label-password = Password
+label-provider = Provider
 label-custom = Custom
 label-none = None
 

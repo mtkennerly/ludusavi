@@ -1,14 +1,14 @@
 use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
 
 use crate::{
-    cloud::{Remote, RemoteChoice},
+    cloud::{Remote, RemoteChoice, WebDavProvider},
     gui::{
         common::{Message, ScrollSubject},
         style,
-        widget::{Button, Column, Container, Row, Space, Text, TextInput},
+        widget::{Button, Column, Container, PickList, Row, Space, Text, TextInput},
     },
     lang::TRANSLATOR,
-    prelude::Error,
+    prelude::{Error, Privacy},
     resource::config::{Config, RootsConfig},
 };
 
@@ -20,10 +20,44 @@ pub enum ModalVariant {
 
 #[derive(Debug, Clone)]
 pub enum ModalField {
+    Url(String),
     Host(String),
     Port(String),
     Username(String),
     Password(String),
+    WebDavProvider(WebDavProvider),
+}
+
+impl ModalField {
+    pub fn view<'a>(label: String, value: &str, change: fn(String) -> Self, privacy: Privacy) -> Row<'a> {
+        Row::new()
+            .align_items(Alignment::Center)
+            .push(Text::new(label).width(150))
+            .push({
+                let input = TextInput::new("", value, move |x| Message::EditedModalField(change(x)));
+
+                if privacy.sensitive() {
+                    input.password()
+                } else {
+                    input
+                }
+            })
+    }
+
+    pub fn view_pick_list<'a, T>(label: String, value: &'a T, choices: &'a [T], change: fn(T) -> Self) -> Row<'a>
+    where
+        T: Copy + Eq + PartialEq + ToString + 'static,
+    {
+        Row::new()
+            .align_items(Alignment::Center)
+            .push(Text::new(label).width(150))
+            .push(
+                Container::new(PickList::new(choices, Some(*value), move |x| {
+                    Message::EditedModalField(change(x))
+                }))
+                .width(Length::Fill),
+            )
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -55,6 +89,12 @@ pub enum Modal {
         username: String,
         password: String,
     },
+    ConfigureWebDavRemote {
+        url: String,
+        username: String,
+        password: String,
+        provider: WebDavProvider,
+    },
 }
 
 impl Modal {
@@ -67,7 +107,8 @@ impl Modal {
             | Self::ConfirmAddMissingRoots(..)
             | Self::ConfirmUploadToCloud { .. }
             | Self::ConfirmDownloadFromCloud { .. }
-            | Self::ConfigureFtpRemote { .. } => ModalVariant::Confirm,
+            | Self::ConfigureFtpRemote { .. }
+            | Self::ConfigureWebDavRemote { .. } => ModalVariant::Confirm,
         }
     }
 
@@ -88,6 +129,7 @@ impl Modal {
             Self::ConfirmUploadToCloud { local, cloud } => TRANSLATOR.confirm_cloud_upload(local, cloud),
             Self::ConfirmDownloadFromCloud { local, cloud } => TRANSLATOR.confirm_cloud_download(local, cloud),
             Self::ConfigureFtpRemote { .. } => RemoteChoice::Ftp.to_string(),
+            Self::ConfigureWebDavRemote { .. } => RemoteChoice::WebDav.to_string(),
         }
     }
 
@@ -124,6 +166,23 @@ impl Modal {
                     }))
                 }
             }
+            Self::ConfigureWebDavRemote {
+                url,
+                username,
+                password,
+                provider,
+            } => {
+                if url.is_empty() || username.is_empty() {
+                    None
+                } else {
+                    Some(Message::FinalizeRemote(Remote::WebDav {
+                        url: url.clone(),
+                        username: username.clone(),
+                        password: password.clone(),
+                        provider: *provider,
+                    }))
+                }
+            }
         }
     }
 
@@ -143,39 +202,66 @@ impl Modal {
         {
             col = col
                 .width(500)
-                .push(
-                    Row::new()
-                        .align_items(Alignment::Center)
-                        .push(Text::new(TRANSLATOR.host_label()).width(150))
-                        .push(TextInput::new("", host, |x| {
-                            Message::EditedModalField(ModalField::Host(x))
-                        })),
-                )
-                .push(
-                    Row::new()
-                        .align_items(Alignment::Center)
-                        .push(Text::new(TRANSLATOR.port_label()).width(150))
-                        .push(TextInput::new("", port, |x| {
-                            Message::EditedModalField(ModalField::Port(x))
-                        })),
-                )
-                .push(
-                    Row::new()
-                        .align_items(Alignment::Center)
-                        .push(Text::new(TRANSLATOR.username_label()).width(150))
-                        .push(TextInput::new("", username, |x| {
-                            Message::EditedModalField(ModalField::Username(x))
-                        })),
-                )
-                .push(
-                    Row::new()
-                        .align_items(Alignment::Center)
-                        .push(Text::new(TRANSLATOR.password_label()).width(150))
-                        .push(
-                            TextInput::new("", password, |x| Message::EditedModalField(ModalField::Password(x)))
-                                .password(),
-                        ),
-                );
+                .push(ModalField::view(
+                    TRANSLATOR.host_label(),
+                    host,
+                    ModalField::Host,
+                    Privacy::Public,
+                ))
+                .push(ModalField::view(
+                    TRANSLATOR.port_label(),
+                    port,
+                    ModalField::Port,
+                    Privacy::Public,
+                ))
+                .push(ModalField::view(
+                    TRANSLATOR.username_label(),
+                    username,
+                    ModalField::Username,
+                    Privacy::Public,
+                ))
+                .push(ModalField::view(
+                    TRANSLATOR.password_label(),
+                    password,
+                    ModalField::Password,
+                    Privacy::Private,
+                ));
+        }
+
+        if let Modal::ConfigureWebDavRemote {
+            url,
+            username,
+            password,
+            provider,
+        } = self
+        {
+            col = col
+                .width(500)
+                .push(ModalField::view(
+                    TRANSLATOR.url_label(),
+                    url,
+                    ModalField::Url,
+                    Privacy::Public,
+                ))
+                .push(ModalField::view(
+                    TRANSLATOR.username_label(),
+                    username,
+                    ModalField::Username,
+                    Privacy::Public,
+                ))
+                .push(ModalField::view(
+                    TRANSLATOR.password_label(),
+                    password,
+                    ModalField::Password,
+                    Privacy::Private,
+                ))
+                .push(ModalField::view_pick_list(
+                    TRANSLATOR.provider_label(),
+                    provider,
+                    WebDavProvider::ALL,
+                    ModalField::WebDavProvider,
+                ));
+            // .push(PickList::new(WebDavProvider::ALL, Some(*provider), |x| Message::EditedModalField(ModalField::WebDavProvider(x))));
         }
 
         col

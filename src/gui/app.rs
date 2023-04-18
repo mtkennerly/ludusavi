@@ -1828,6 +1828,20 @@ impl Application for App {
                             });
                             Command::none()
                         }
+                        Remote::WebDav {
+                            url,
+                            username,
+                            password,
+                            provider,
+                        } => {
+                            self.modal = Some(Modal::ConfigureWebDavRemote {
+                                url: url.clone(),
+                                username: username.clone(),
+                                password: password.clone(),
+                                provider: *provider,
+                            });
+                            Command::none()
+                        }
                         Remote::Box | Remote::Dropbox | Remote::GoogleDrive | Remote::OneDrive => {
                             self.configure_remote(remote)
                         }
@@ -1936,19 +1950,34 @@ impl Application for App {
                 Command::none()
             }
             Message::EditedModalField(field) => {
-                if let Some(Modal::ConfigureFtpRemote {
-                    host,
-                    port,
-                    username,
-                    password,
-                }) = self.modal.as_mut()
-                {
-                    match field {
+                match self.modal.as_mut() {
+                    Some(Modal::ConfigureFtpRemote {
+                        host,
+                        port,
+                        username,
+                        password,
+                    }) => match field {
+                        ModalField::Url(_) => (),
                         ModalField::Host(new) => *host = new,
                         ModalField::Port(new) => *port = new,
                         ModalField::Username(new) => *username = new,
                         ModalField::Password(new) => *password = new,
-                    }
+                        ModalField::WebDavProvider(_) => (),
+                    },
+                    Some(Modal::ConfigureWebDavRemote {
+                        url,
+                        username,
+                        password,
+                        provider,
+                    }) => match field {
+                        ModalField::Url(new) => *url = new,
+                        ModalField::Host(_) => (),
+                        ModalField::Port(_) => (),
+                        ModalField::Username(new) => *username = new,
+                        ModalField::Password(new) => *password = new,
+                        ModalField::WebDavProvider(new) => *provider = new,
+                    },
+                    _ => (),
                 }
                 Command::none()
             }

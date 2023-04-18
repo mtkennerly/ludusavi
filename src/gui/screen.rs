@@ -506,11 +506,10 @@ pub fn other<'a>(
                                                     .push(histories.input(UndoSubject::CloudRemoteName));
                                             }
 
-                                            if let Some(Remote::Ftp {
-                                                host, port, username, ..
-                                            }) = &config.cloud.remote
+                                            if let Some(description) =
+                                                config.cloud.remote.as_ref().and_then(|x| x.description())
                                             {
-                                                row = row.push(Text::new(format!("{}@{}:{}", username, host, port)))
+                                                row = row.push(Text::new(description));
                                             }
 
                                             row

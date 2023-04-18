@@ -1,6 +1,6 @@
 use crate::{
     lang::TRANSLATOR,
-    prelude::{run_command, CommandError, CommandOutput, Error, StrictPath},
+    prelude::{run_command, CommandError, CommandOutput, Error, Privacy, StrictPath},
     resource::config::App,
 };
 
@@ -118,6 +118,7 @@ pub enum RemoteChoice {
     Ftp,
     GoogleDrive,
     OneDrive,
+    WebDav,
 }
 
 impl RemoteChoice {
@@ -125,9 +126,10 @@ impl RemoteChoice {
         Self::None,
         Self::Box,
         Self::Dropbox,
-        Self::Ftp,
         Self::GoogleDrive,
         Self::OneDrive,
+        Self::Ftp,
+        Self::WebDav,
         Self::Custom,
     ];
 }
@@ -142,6 +144,7 @@ impl ToString for RemoteChoice {
             Self::Ftp => "FTP".to_string(),
             Self::GoogleDrive => "Google Drive".to_string(),
             Self::OneDrive => "OneDrive".to_string(),
+            Self::WebDav => "WebDAV".to_string(),
         }
     }
 }
@@ -162,6 +165,13 @@ pub enum Remote {
         #[serde(skip, default)]
         password: String,
     },
+    WebDav {
+        url: String,
+        username: String,
+        #[serde(skip, default)]
+        password: String,
+        provider: WebDavProvider,
+    },
     OneDrive,
 }
 
@@ -181,6 +191,7 @@ impl Remote {
             Self::Ftp { .. } => "ftp",
             Self::GoogleDrive => "drive",
             Self::OneDrive => "onedrive",
+            Self::WebDav { .. } => "webdav",
         }
     }
 
@@ -205,13 +216,36 @@ impl Remote {
                 "drive_type=personal".to_string(),
                 "access_scopes=Files.ReadWrite,offline_access".to_string(),
             ]),
+            Self::WebDav {
+                url,
+                username,
+                password,
+                provider,
+            } => Some(vec![
+                format!("url={url}"),
+                format!("user={username}"),
+                format!("pass={password}"),
+                format!("vendor={}", provider.slug()),
+            ]),
         }
     }
 
     pub fn needs_configuration(&self) -> bool {
         match self {
             Self::Custom { .. } => false,
-            Self::Box | Self::Dropbox | Self::Ftp { .. } | Self::GoogleDrive | Self::OneDrive => true,
+            Self::Box | Self::Dropbox | Self::Ftp { .. } | Self::GoogleDrive | Self::OneDrive | Self::WebDav { .. } => {
+                true
+            }
+        }
+    }
+
+    pub fn description(&self) -> Option<String> {
+        match self {
+            Remote::WebDav { url, provider, .. } => Some(format!("{} - {}", provider.to_string(), url)),
+            Remote::Ftp {
+                host, port, username, ..
+            } => Some(format!("{}@{}:{}", username, host, port)),
+            _ => None,
         }
     }
 }
@@ -224,6 +258,7 @@ impl From<Option<&Remote>> for RemoteChoice {
                 Remote::Box => RemoteChoice::Box,
                 Remote::Dropbox => RemoteChoice::Dropbox,
                 Remote::Ftp { .. } => RemoteChoice::Ftp,
+                Remote::WebDav { .. } => RemoteChoice::WebDav,
                 Remote::GoogleDrive => RemoteChoice::GoogleDrive,
                 Remote::OneDrive => RemoteChoice::OneDrive,
             }
@@ -252,6 +287,84 @@ impl TryFrom<RemoteChoice> for Remote {
             }),
             RemoteChoice::GoogleDrive => Ok(Remote::GoogleDrive),
             RemoteChoice::OneDrive => Ok(Remote::OneDrive),
+            RemoteChoice::WebDav => Ok(Remote::WebDav {
+                url: String::new(),
+                username: String::new(),
+                password: String::new(),
+                provider: WebDavProvider::Other,
+            }),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum WebDavProvider {
+    #[default]
+    Other,
+    Nextcloud,
+    Owncloud,
+    Sharepoint,
+    SharepointNtlm,
+}
+
+impl WebDavProvider {
+    pub const ALL: &[Self] = &[
+        Self::Other,
+        Self::Nextcloud,
+        Self::Owncloud,
+        Self::Sharepoint,
+        Self::SharepointNtlm,
+    ];
+
+    pub const ALL_CLI: &[&'static str] = &[
+        Self::OTHER,
+        Self::NEXTCLOUD,
+        Self::OWNCLOUD,
+        Self::SHAREPOINT,
+        Self::SHAREPOINT_NTLM,
+    ];
+    pub const OTHER: &str = "other";
+    const NEXTCLOUD: &str = "nextcloud";
+    const OWNCLOUD: &str = "owncloud";
+    const SHAREPOINT: &str = "sharepoint";
+    const SHAREPOINT_NTLM: &str = "sharepoint-ntlm";
+}
+
+impl WebDavProvider {
+    pub fn slug(&self) -> &str {
+        match self {
+            WebDavProvider::Other => Self::OTHER,
+            WebDavProvider::Nextcloud => Self::NEXTCLOUD,
+            WebDavProvider::Owncloud => Self::OWNCLOUD,
+            WebDavProvider::Sharepoint => Self::SHAREPOINT,
+            WebDavProvider::SharepointNtlm => Self::SHAREPOINT_NTLM,
+        }
+    }
+}
+
+impl ToString for WebDavProvider {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Other => crate::resource::manifest::Store::Other.to_string(),
+            Self::Nextcloud => "Nextcloud".to_string(),
+            Self::Owncloud => "Owncloud".to_string(),
+            Self::Sharepoint => "Sharepoint".to_string(),
+            Self::SharepointNtlm => "Sharepoint (NTLM)".to_string(),
+        }
+    }
+}
+
+impl std::str::FromStr for WebDavProvider {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            Self::OTHER => Ok(Self::Other),
+            Self::NEXTCLOUD => Ok(Self::Nextcloud),
+            Self::OWNCLOUD => Ok(Self::Owncloud),
+            Self::SHAREPOINT => Ok(Self::Sharepoint),
+            Self::SHAREPOINT_NTLM => Ok(Self::SharepointNtlm),
+            _ => Err(format!("invalid provider: {}", s)),
         }
     }
 }
@@ -283,14 +396,14 @@ impl Rclone {
         collected
     }
 
-    fn run(&self, args: &[String], success: &[i32], sensitive: bool) -> Result<CommandOutput, CommandError> {
+    fn run(&self, args: &[String], success: &[i32], privacy: Privacy) -> Result<CommandOutput, CommandError> {
         let args = self.args(args);
         let args: Vec<_> = args.iter().map(|x| x.as_str()).collect();
-        run_command(&self.app.path.raw(), &args, success, sensitive)
+        run_command(&self.app.path.raw(), &args, success, privacy)
     }
 
     fn obscure(&self, credential: &str) -> Result<String, CommandError> {
-        let out = self.run(&["obscure".to_string(), credential.to_string()], &[0], true)?;
+        let out = self.run(&["obscure".to_string(), credential.to_string()], &[0], Privacy::Private)?;
         Ok(out.stdout)
     }
 
@@ -299,12 +412,19 @@ impl Rclone {
             return Ok(());
         }
 
-        let mut sensitive = false;
+        let mut privacy = Privacy::Public;
 
         let mut remote = self.remote.clone();
-        if let Remote::Ftp { ref mut password, .. } = remote {
-            sensitive = true;
-            *password = self.obscure(password)?;
+        match &mut remote {
+            Remote::Custom { .. } | Remote::Box | Remote::Dropbox | Remote::GoogleDrive | Remote::OneDrive => {}
+            Remote::Ftp { password, .. } => {
+                privacy = Privacy::Private;
+                *password = self.obscure(password)?;
+            }
+            Remote::WebDav { password, .. } => {
+                privacy = Privacy::Private;
+                *password = self.obscure(password)?;
+            }
         }
 
         let mut args = vec![
@@ -318,7 +438,7 @@ impl Rclone {
             args.extend(config_args);
         }
 
-        self.run(&args, &[0], sensitive)?;
+        self.run(&args, &[0], privacy)?;
         Ok(())
     }
 

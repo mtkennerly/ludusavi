@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use crate::{
+    cloud::WebDavProvider,
     prelude::StrictPath,
     resource::config::{BackupFormat, Sort, SortKey, ZipCompression},
 };
@@ -420,6 +421,22 @@ pub enum CloudSetSubcommand {
         /// Password for authentication.
         #[clap(long, default_value = "")]
         password: String,
+    },
+    /// Use an FTP server.
+    #[clap(name = "webdav")]
+    WebDav {
+        /// URL.
+        #[clap(long)]
+        url: String,
+        /// Username for authentication.
+        #[clap(long)]
+        username: String,
+        /// Password for authentication.
+        #[clap(long, default_value = "")]
+        password: String,
+        /// Service provider.
+        #[clap(long, default_value = WebDavProvider::OTHER, possible_values = WebDavProvider::ALL_CLI)]
+        provider: WebDavProvider,
     },
 }
 
