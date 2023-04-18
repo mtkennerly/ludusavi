@@ -987,6 +987,14 @@ impl Translator {
         self.field(&translate("label-password"))
     }
 
+    pub fn none_label(&self) -> String {
+        translate("label-none")
+    }
+
+    pub fn custom_label(&self) -> String {
+        translate("label-custom")
+    }
+
     pub fn new_tooltip(&self) -> String {
         translate("label-new")
     }

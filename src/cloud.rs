@@ -1,4 +1,5 @@
 use crate::{
+    lang::TRANSLATOR,
     prelude::{run_command, CommandError, CommandOutput, Error, StrictPath},
     resource::config::App,
 };
@@ -134,15 +135,14 @@ impl RemoteChoice {
 impl ToString for RemoteChoice {
     fn to_string(&self) -> String {
         match self {
-            Self::None => "None",
-            Self::Custom => "Custom",
-            Self::Box => "Box",
-            Self::Dropbox => "Dropbox",
-            Self::Ftp => "FTP",
-            Self::GoogleDrive => "Google Drive",
-            Self::OneDrive => "OneDrive",
+            Self::None => TRANSLATOR.none_label(),
+            Self::Custom => TRANSLATOR.custom_label(),
+            Self::Box => "Box".to_string(),
+            Self::Dropbox => "Dropbox".to_string(),
+            Self::Ftp => "FTP".to_string(),
+            Self::GoogleDrive => "Google Drive".to_string(),
+            Self::OneDrive => "OneDrive".to_string(),
         }
-        .to_string()
     }
 }
 

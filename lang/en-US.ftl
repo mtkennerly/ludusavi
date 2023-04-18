@@ -132,6 +132,8 @@ label-host = Host
 label-port = Port
 label-username = Username
 label-password = Password
+label-custom = Custom
+label-none = None
 
 store-epic = Epic
 store-gog = GOG
