@@ -8,7 +8,7 @@ use crate::{
         button,
         common::*,
         icon::Icon,
-        modal::{Modal, ModalField},
+        modal::Modal,
         notification::Notification,
         screen,
         shortcuts::{Shortcut, TextHistories, TextHistory},
@@ -1828,6 +1828,20 @@ impl Application for App {
                             });
                             Command::none()
                         }
+                        Remote::Smb {
+                            host,
+                            port,
+                            username,
+                            password,
+                        } => {
+                            self.modal = Some(Modal::ConfigureSmbRemote {
+                                host: host.clone(),
+                                port: port.to_string(),
+                                username: username.clone(),
+                                password: password.clone(),
+                            });
+                            Command::none()
+                        }
                         Remote::WebDav {
                             url,
                             username,
@@ -1950,34 +1964,8 @@ impl Application for App {
                 Command::none()
             }
             Message::EditedModalField(field) => {
-                match self.modal.as_mut() {
-                    Some(Modal::ConfigureFtpRemote {
-                        host,
-                        port,
-                        username,
-                        password,
-                    }) => match field {
-                        ModalField::Url(_) => (),
-                        ModalField::Host(new) => *host = new,
-                        ModalField::Port(new) => *port = new,
-                        ModalField::Username(new) => *username = new,
-                        ModalField::Password(new) => *password = new,
-                        ModalField::WebDavProvider(_) => (),
-                    },
-                    Some(Modal::ConfigureWebDavRemote {
-                        url,
-                        username,
-                        password,
-                        provider,
-                    }) => match field {
-                        ModalField::Url(new) => *url = new,
-                        ModalField::Host(_) => (),
-                        ModalField::Port(_) => (),
-                        ModalField::Username(new) => *username = new,
-                        ModalField::Password(new) => *password = new,
-                        ModalField::WebDavProvider(new) => *provider = new,
-                    },
-                    _ => (),
+                if let Some(modal) = self.modal.as_mut() {
+                    modal.edit(field);
                 }
                 Command::none()
             }

@@ -89,6 +89,12 @@ pub enum Modal {
         username: String,
         password: String,
     },
+    ConfigureSmbRemote {
+        host: String,
+        port: String,
+        username: String,
+        password: String,
+    },
     ConfigureWebDavRemote {
         url: String,
         username: String,
@@ -108,6 +114,7 @@ impl Modal {
             | Self::ConfirmUploadToCloud { .. }
             | Self::ConfirmDownloadFromCloud { .. }
             | Self::ConfigureFtpRemote { .. }
+            | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. } => ModalVariant::Confirm,
         }
     }
@@ -129,6 +136,7 @@ impl Modal {
             Self::ConfirmUploadToCloud { local, cloud } => TRANSLATOR.confirm_cloud_upload(local, cloud),
             Self::ConfirmDownloadFromCloud { local, cloud } => TRANSLATOR.confirm_cloud_download(local, cloud),
             Self::ConfigureFtpRemote { .. } => RemoteChoice::Ftp.to_string(),
+            Self::ConfigureSmbRemote { .. } => RemoteChoice::Smb.to_string(),
             Self::ConfigureWebDavRemote { .. } => RemoteChoice::WebDav.to_string(),
         }
     }
@@ -166,6 +174,24 @@ impl Modal {
                     }))
                 }
             }
+            Self::ConfigureSmbRemote {
+                host,
+                port,
+                username,
+                password,
+            } => {
+                let Ok(port) = port.parse::<i32>() else { return None };
+                if host.is_empty() || username.is_empty() {
+                    None
+                } else {
+                    Some(Message::FinalizeRemote(Remote::Smb {
+                        host: host.clone(),
+                        port,
+                        username: username.clone(),
+                        password: password.clone(),
+                    }))
+                }
+            }
             Self::ConfigureWebDavRemote {
                 url,
                 username,
@@ -193,78 +219,137 @@ impl Modal {
             .align_items(Alignment::Center)
             .push(Text::new(self.text(config)));
 
-        if let Modal::ConfigureFtpRemote {
-            host,
-            port,
-            username,
-            password,
-        } = self
-        {
-            col = col
-                .width(500)
-                .push(ModalField::view(
-                    TRANSLATOR.host_label(),
-                    host,
-                    ModalField::Host,
-                    Privacy::Public,
-                ))
-                .push(ModalField::view(
-                    TRANSLATOR.port_label(),
-                    port,
-                    ModalField::Port,
-                    Privacy::Public,
-                ))
-                .push(ModalField::view(
-                    TRANSLATOR.username_label(),
-                    username,
-                    ModalField::Username,
-                    Privacy::Public,
-                ))
-                .push(ModalField::view(
-                    TRANSLATOR.password_label(),
-                    password,
-                    ModalField::Password,
-                    Privacy::Private,
-                ));
-        }
-
-        if let Modal::ConfigureWebDavRemote {
-            url,
-            username,
-            password,
-            provider,
-        } = self
-        {
-            col = col
-                .width(500)
-                .push(ModalField::view(
-                    TRANSLATOR.url_label(),
-                    url,
-                    ModalField::Url,
-                    Privacy::Public,
-                ))
-                .push(ModalField::view(
-                    TRANSLATOR.username_label(),
-                    username,
-                    ModalField::Username,
-                    Privacy::Public,
-                ))
-                .push(ModalField::view(
-                    TRANSLATOR.password_label(),
-                    password,
-                    ModalField::Password,
-                    Privacy::Private,
-                ))
-                .push(ModalField::view_pick_list(
-                    TRANSLATOR.provider_label(),
-                    provider,
-                    WebDavProvider::ALL,
-                    ModalField::WebDavProvider,
-                ));
-            // .push(PickList::new(WebDavProvider::ALL, Some(*provider), |x| Message::EditedModalField(ModalField::WebDavProvider(x))));
+        match self {
+            Self::Error { .. }
+            | Self::ConfirmBackup { .. }
+            | Self::ConfirmRestore { .. }
+            | Self::NoMissingRoots
+            | Self::ConfirmAddMissingRoots(_)
+            | Self::PreparingBackupDir
+            | Self::UpdatingManifest
+            | Self::ConfirmUploadToCloud { .. }
+            | Self::ConfirmDownloadFromCloud { .. } => (),
+            Self::ConfigureFtpRemote {
+                host,
+                port,
+                username,
+                password,
+            }
+            | Self::ConfigureSmbRemote {
+                host,
+                port,
+                username,
+                password,
+            } => {
+                col = col
+                    .width(500)
+                    .push(ModalField::view(
+                        TRANSLATOR.host_label(),
+                        host,
+                        ModalField::Host,
+                        Privacy::Public,
+                    ))
+                    .push(ModalField::view(
+                        TRANSLATOR.port_label(),
+                        port,
+                        ModalField::Port,
+                        Privacy::Public,
+                    ))
+                    .push(ModalField::view(
+                        TRANSLATOR.username_label(),
+                        username,
+                        ModalField::Username,
+                        Privacy::Public,
+                    ))
+                    .push(ModalField::view(
+                        TRANSLATOR.password_label(),
+                        password,
+                        ModalField::Password,
+                        Privacy::Private,
+                    ));
+            }
+            Self::ConfigureWebDavRemote {
+                url,
+                username,
+                password,
+                provider,
+            } => {
+                col = col
+                    .width(500)
+                    .push(ModalField::view(
+                        TRANSLATOR.url_label(),
+                        url,
+                        ModalField::Url,
+                        Privacy::Public,
+                    ))
+                    .push(ModalField::view(
+                        TRANSLATOR.username_label(),
+                        username,
+                        ModalField::Username,
+                        Privacy::Public,
+                    ))
+                    .push(ModalField::view(
+                        TRANSLATOR.password_label(),
+                        password,
+                        ModalField::Password,
+                        Privacy::Private,
+                    ))
+                    .push(ModalField::view_pick_list(
+                        TRANSLATOR.provider_label(),
+                        provider,
+                        WebDavProvider::ALL,
+                        ModalField::WebDavProvider,
+                    ));
+            }
         }
 
         col
+    }
+
+    pub fn edit(&mut self, field: ModalField) {
+        match self {
+            Modal::ConfigureFtpRemote {
+                host,
+                port,
+                username,
+                password,
+            }
+            | Modal::ConfigureSmbRemote {
+                host,
+                port,
+                username,
+                password,
+            } => match field {
+                ModalField::Url(_) => (),
+                ModalField::Host(new) => *host = new,
+                ModalField::Port(new) => *port = new,
+                ModalField::Username(new) => *username = new,
+                ModalField::Password(new) => *password = new,
+                ModalField::WebDavProvider(_) => (),
+            },
+            Self::ConfigureWebDavRemote {
+                url,
+                username,
+                password,
+                provider,
+            } => match field {
+                ModalField::Url(new) => *url = new,
+                ModalField::Host(_) => (),
+                ModalField::Port(_) => (),
+                ModalField::Username(new) => *username = new,
+                ModalField::Password(new) => *password = new,
+                ModalField::WebDavProvider(new) => *provider = new,
+            },
+            Self::Error { .. }
+            | Self::ConfirmBackup { .. }
+            | Self::ConfirmRestore { .. }
+            | Self::NoMissingRoots
+            | Self::ConfirmAddMissingRoots(_)
+            | Self::PreparingBackupDir
+            | Self::UpdatingManifest
+            | Self::ConfirmUploadToCloud { .. }
+            | Self::ConfirmDownloadFromCloud { .. } => (),
+        }
     }
 }
 

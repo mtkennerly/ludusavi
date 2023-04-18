@@ -557,6 +557,22 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 parse::CloudSetSubcommand::OneDrive => {
                     configure_cloud(&mut config, Remote::OneDrive)?;
                 }
+                parse::CloudSetSubcommand::Smb {
+                    host,
+                    port,
+                    username,
+                    password,
+                } => {
+                    configure_cloud(
+                        &mut config,
+                        Remote::Smb {
+                            host,
+                            port,
+                            username,
+                            password,
+                        },
+                    )?;
+                }
                 parse::CloudSetSubcommand::WebDav {
                     url,
                     username,

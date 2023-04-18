@@ -118,6 +118,7 @@ pub enum RemoteChoice {
     Ftp,
     GoogleDrive,
     OneDrive,
+    Smb,
     WebDav,
 }
 
@@ -129,6 +130,7 @@ impl RemoteChoice {
         Self::GoogleDrive,
         Self::OneDrive,
         Self::Ftp,
+        Self::Smb,
         Self::WebDav,
         Self::Custom,
     ];
@@ -144,6 +146,7 @@ impl ToString for RemoteChoice {
             Self::Ftp => "FTP".to_string(),
             Self::GoogleDrive => "Google Drive".to_string(),
             Self::OneDrive => "OneDrive".to_string(),
+            Self::Smb => "SMB".to_string(),
             Self::WebDav => "WebDAV".to_string(),
         }
     }
@@ -158,7 +161,15 @@ pub enum Remote {
     Box,
     Dropbox,
     GoogleDrive,
+    OneDrive,
     Ftp {
+        host: String,
+        port: i32,
+        username: String,
+        #[serde(skip, default)]
+        password: String,
+    },
+    Smb {
         host: String,
         port: i32,
         username: String,
@@ -172,7 +183,6 @@ pub enum Remote {
         password: String,
         provider: WebDavProvider,
     },
-    OneDrive,
 }
 
 impl Remote {
@@ -191,6 +201,7 @@ impl Remote {
             Self::Ftp { .. } => "ftp",
             Self::GoogleDrive => "drive",
             Self::OneDrive => "onedrive",
+            Self::Smb { .. } => "smb",
             Self::WebDav { .. } => "webdav",
         }
     }
@@ -216,6 +227,17 @@ impl Remote {
                 "drive_type=personal".to_string(),
                 "access_scopes=Files.ReadWrite,offline_access".to_string(),
             ]),
+            Self::Smb {
+                host,
+                port,
+                username,
+                password,
+            } => Some(vec![
+                format!("host={host}"),
+                format!("port={port}"),
+                format!("user={username}"),
+                format!("pass={password}"),
+            ]),
             Self::WebDav {
                 url,
                 username,
@@ -233,18 +255,25 @@ impl Remote {
     pub fn needs_configuration(&self) -> bool {
         match self {
             Self::Custom { .. } => false,
-            Self::Box | Self::Dropbox | Self::Ftp { .. } | Self::GoogleDrive | Self::OneDrive | Self::WebDav { .. } => {
-                true
-            }
+            Self::Box
+            | Self::Dropbox
+            | Self::Ftp { .. }
+            | Self::GoogleDrive
+            | Self::OneDrive
+            | Self::Smb { .. }
+            | Self::WebDav { .. } => true,
         }
     }
 
     pub fn description(&self) -> Option<String> {
         match self {
-            Remote::WebDav { url, provider, .. } => Some(format!("{} - {}", provider.to_string(), url)),
             Remote::Ftp {
                 host, port, username, ..
             } => Some(format!("{}@{}:{}", username, host, port)),
+            Remote::Smb {
+                host, port, username, ..
+            } => Some(format!("{}@{}:{}", username, host, port)),
+            Remote::WebDav { url, provider, .. } => Some(format!("{} - {}", provider.to_string(), url)),
             _ => None,
         }
     }
@@ -258,9 +287,10 @@ impl From<Option<&Remote>> for RemoteChoice {
                 Remote::Box => RemoteChoice::Box,
                 Remote::Dropbox => RemoteChoice::Dropbox,
                 Remote::Ftp { .. } => RemoteChoice::Ftp,
-                Remote::WebDav { .. } => RemoteChoice::WebDav,
                 Remote::GoogleDrive => RemoteChoice::GoogleDrive,
                 Remote::OneDrive => RemoteChoice::OneDrive,
+                Remote::Smb { .. } => RemoteChoice::Smb,
+                Remote::WebDav { .. } => RemoteChoice::WebDav,
             }
         } else {
             RemoteChoice::None
@@ -287,6 +317,12 @@ impl TryFrom<RemoteChoice> for Remote {
             }),
             RemoteChoice::GoogleDrive => Ok(Remote::GoogleDrive),
             RemoteChoice::OneDrive => Ok(Remote::OneDrive),
+            RemoteChoice::Smb => Ok(Remote::Smb {
+                host: String::new(),
+                port: 445,
+                username: String::new(),
+                password: String::new(),
+            }),
             RemoteChoice::WebDav => Ok(Remote::WebDav {
                 url: String::new(),
                 username: String::new(),
@@ -418,6 +454,10 @@ impl Rclone {
         match &mut remote {
             Remote::Custom { .. } | Remote::Box | Remote::Dropbox | Remote::GoogleDrive | Remote::OneDrive => {}
             Remote::Ftp { password, .. } => {
+                privacy = Privacy::Private;
+                *password = self.obscure(password)?;
+            }
+            Remote::Smb { password, .. } => {
                 privacy = Privacy::Private;
                 *password = self.obscure(password)?;
             }

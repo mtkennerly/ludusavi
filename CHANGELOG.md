@@ -4,7 +4,7 @@
   * You can now upload backups to the cloud.
     This integrates with [Rclone](https://rclone.org), so you can use any cloud system that it supports,
     and Ludusavi can help you configure some of the more common ones:
-    Google Drive, OneDrive, Dropbox, Box, FTP servers, and WebDAV servers.
+    Google Drive, OneDrive, Dropbox, Box, FTP servers, SMB servers, and WebDAV servers.
 
     For the GUI, refer to the "cloud" section on the `other` screen.
     For the CLI, use the `cloud` command group (e.g., `ludusavi cloud upload`).

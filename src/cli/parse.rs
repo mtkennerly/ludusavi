@@ -422,7 +422,22 @@ pub enum CloudSetSubcommand {
         #[clap(long, default_value = "")]
         password: String,
     },
-    /// Use an FTP server.
+    /// Use an SMB server.
+    Smb {
+        /// Host URL.
+        #[clap(long)]
+        host: String,
+        /// Port number.
+        #[clap(long, default_value_t = 445)]
+        port: i32,
+        /// Username for authentication.
+        #[clap(long)]
+        username: String,
+        /// Password for authentication.
+        #[clap(long, default_value = "")]
+        password: String,
+    },
+    /// Use a WebDAV server.
     #[clap(name = "webdav")]
     WebDav {
         /// URL.
