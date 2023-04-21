@@ -1,4 +1,7 @@
-use crate::prelude::StrictPath;
+use crate::{
+    lang::{ADD_SYMBOL, CHANGE_SYMBOL, REMOVAL_SYMBOL},
+    prelude::StrictPath,
+};
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize)]
 pub enum ScanChange {
@@ -11,6 +14,16 @@ pub enum ScanChange {
 }
 
 impl ScanChange {
+    pub fn symbol(&self) -> &'static str {
+        match self {
+            ScanChange::New => ADD_SYMBOL,
+            ScanChange::Different => CHANGE_SYMBOL,
+            ScanChange::Removed => REMOVAL_SYMBOL,
+            ScanChange::Same => "=",
+            ScanChange::Unknown => "?",
+        }
+    }
+
     pub fn normalize(&self, ignored: bool, restoring: bool) -> Self {
         match self {
             ScanChange::New if ignored => Self::Same,

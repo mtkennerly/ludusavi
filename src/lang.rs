@@ -22,6 +22,7 @@ const CLOUD_PATH: &str = "cloud-path";
 const PATH_ACTION: &str = "path-action";
 const PROCESSED_GAMES: &str = "processed-games";
 const PROCESSED_SIZE: &str = "processed-size";
+const TOTAL: &str = "total";
 const TOTAL_GAMES: &str = "total-games";
 const TOTAL_SIZE: &str = "total-size";
 const COMMAND: &str = "command";
@@ -1003,6 +1004,12 @@ impl Translator {
         translate("label-custom")
     }
 
+    pub fn change_count_label(&self, total: usize) -> String {
+        let mut args = FluentArgs::new();
+        args.set(TOTAL, total);
+        translate_args("label-change-count", &args)
+    }
+
     pub fn new_tooltip(&self) -> String {
         translate("label-new")
     }
@@ -1070,6 +1077,10 @@ impl Translator {
         args.set(LOCAL_PATH, local);
         args.set(CLOUD_PATH, cloud);
         translate_args("confirm-cloud-download", &args)
+    }
+
+    pub fn no_cloud_changes(&self) -> String {
+        translate("no-cloud-changes")
     }
 
     pub fn notify_single_game_status(&self, found: bool) -> String {

@@ -1,16 +1,20 @@
 use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
 
 use crate::{
-    cloud::{Remote, RemoteChoice, WebDavProvider},
+    cloud::{CloudChange, Remote, RemoteChoice, WebDavProvider},
     gui::{
+        badge::Badge,
+        button,
         common::{Message, ScrollSubject},
         style,
         widget::{Button, Column, Container, PickList, Row, Space, Text, TextInput},
     },
     lang::TRANSLATOR,
-    prelude::{Error, Privacy},
+    prelude::{Error, Privacy, SyncDirection},
     resource::config::{Config, RootsConfig},
 };
+
+const CHANGES_PER_PAGE: usize = 500;
 
 pub enum ModalVariant {
     Loading,
@@ -75,13 +79,13 @@ pub enum Modal {
     ConfirmAddMissingRoots(Vec<RootsConfig>),
     PreparingBackupDir,
     UpdatingManifest,
-    ConfirmUploadToCloud {
+    ConfirmCloudSync {
         local: String,
         cloud: String,
-    },
-    ConfirmDownloadFromCloud {
-        local: String,
-        cloud: String,
+        direction: SyncDirection,
+        changes: Vec<CloudChange>,
+        done: bool,
+        page: usize,
     },
     ConfigureFtpRemote {
         host: String,
@@ -111,11 +115,16 @@ impl Modal {
             Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
             | Self::ConfirmAddMissingRoots(..)
-            | Self::ConfirmUploadToCloud { .. }
-            | Self::ConfirmDownloadFromCloud { .. }
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. } => ModalVariant::Confirm,
+            modal @ Self::ConfirmCloudSync { .. } => {
+                if modal.any_cloud_changes() {
+                    ModalVariant::Confirm
+                } else {
+                    ModalVariant::Info
+                }
+            }
         }
     }
 
@@ -133,8 +142,21 @@ impl Modal {
             Self::ConfirmAddMissingRoots(missing) => TRANSLATOR.confirm_add_missing_roots(missing),
             Self::PreparingBackupDir => TRANSLATOR.preparing_backup_dir(),
             Self::UpdatingManifest => TRANSLATOR.updating_manifest(),
-            Self::ConfirmUploadToCloud { local, cloud } => TRANSLATOR.confirm_cloud_upload(local, cloud),
-            Self::ConfirmDownloadFromCloud { local, cloud } => TRANSLATOR.confirm_cloud_download(local, cloud),
+            modal @ Self::ConfirmCloudSync {
+                local,
+                cloud,
+                direction,
+                ..
+            } => {
+                if !modal.any_cloud_changes() {
+                    TRANSLATOR.no_cloud_changes()
+                } else {
+                    match direction {
+                        SyncDirection::Upload => TRANSLATOR.confirm_cloud_upload(local, cloud),
+                        SyncDirection::Download => TRANSLATOR.confirm_cloud_download(local, cloud),
+                    }
+                }
+            }
             Self::ConfigureFtpRemote { .. } => RemoteChoice::Ftp.to_string(),
             Self::ConfigureSmbRemote { .. } => RemoteChoice::Smb.to_string(),
             Self::ConfigureWebDavRemote { .. } => RemoteChoice::WebDav.to_string(),
@@ -154,8 +176,13 @@ impl Modal {
             }),
             Self::ConfirmAddMissingRoots(missing) => Some(Message::ConfirmAddMissingRoots(missing.clone())),
             Self::PreparingBackupDir | Self::UpdatingManifest => None,
-            Self::ConfirmUploadToCloud { .. } => Some(Message::SynchronizeFromLocalToCloud),
-            Self::ConfirmDownloadFromCloud { .. } => Some(Message::SynchronizeFromCloudToLocal),
+            modal @ Self::ConfirmCloudSync { direction, .. } => {
+                if modal.any_cloud_changes() {
+                    Some(Message::SynchronizeCloud { direction: *direction })
+                } else {
+                    Some(Message::CloseModal)
+                }
+            }
             Self::ConfigureFtpRemote {
                 host,
                 port,
@@ -226,9 +253,43 @@ impl Modal {
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
             | Self::PreparingBackupDir
-            | Self::UpdatingManifest
-            | Self::ConfirmUploadToCloud { .. }
-            | Self::ConfirmDownloadFromCloud { .. } => (),
+            | Self::UpdatingManifest => (),
+            modal @ Self::ConfirmCloudSync { changes, page, .. } => {
+                if modal.any_cloud_changes() {
+                    col = col
+                        .push(
+                            Row::new()
+                                .padding([0, 20, 0, 0])
+                                .spacing(20)
+                                .push(Text::new(TRANSLATOR.change_count_label(changes.len())))
+                                .push(Space::new(Length::Fill, Length::Shrink))
+                                .push(button::next_page(
+                                    Message::ModalChangePage,
+                                    *page,
+                                    changes.len() / CHANGES_PER_PAGE,
+                                ))
+                                .push(button::previous_page(Message::ModalChangePage, *page)),
+                        )
+                        .push(
+                            changes
+                                .iter()
+                                .skip(page * CHANGES_PER_PAGE)
+                                .take(CHANGES_PER_PAGE)
+                                .fold(
+                                    Column::new().width(Length::Fill).align_items(Alignment::Start),
+                                    |parent, CloudChange { change, path }| {
+                                        parent.push(
+                                            Row::new()
+                                                .spacing(20)
+                                                .align_items(Alignment::Center)
+                                                .push(Badge::scan_change(*change).view())
+                                                .push(Text::new(path)),
+                                        )
+                                    },
+                                ),
+                        );
+                }
+            }
             Self::ConfigureFtpRemote {
                 host,
                 port,
@@ -347,8 +408,78 @@ impl Modal {
             | Self::ConfirmAddMissingRoots(_)
             | Self::PreparingBackupDir
             | Self::UpdatingManifest
-            | Self::ConfirmUploadToCloud { .. }
-            | Self::ConfirmDownloadFromCloud { .. } => (),
+            | Self::ConfirmCloudSync { .. } => (),
+        }
+    }
+
+    pub fn add_cloud_change(&mut self, change: CloudChange) {
+        match self {
+            Self::ConfirmCloudSync { changes, .. } => {
+                changes.push(change);
+                changes.sort();
+            }
+            Self::Error { .. }
+            | Self::ConfirmBackup { .. }
+            | Self::ConfirmRestore { .. }
+            | Self::NoMissingRoots
+            | Self::ConfirmAddMissingRoots(_)
+            | Self::PreparingBackupDir
+            | Self::UpdatingManifest
+            | Self::ConfigureFtpRemote { .. }
+            | Self::ConfigureSmbRemote { .. }
+            | Self::ConfigureWebDavRemote { .. } => (),
+        }
+    }
+
+    pub fn finish_cloud_scan(&mut self) {
+        match self {
+            Self::ConfirmCloudSync { done, .. } => {
+                *done = true;
+            }
+            Self::Error { .. }
+            | Self::ConfirmBackup { .. }
+            | Self::ConfirmRestore { .. }
+            | Self::NoMissingRoots
+            | Self::ConfirmAddMissingRoots(_)
+            | Self::PreparingBackupDir
+            | Self::UpdatingManifest
+            | Self::ConfigureFtpRemote { .. }
+            | Self::ConfigureSmbRemote { .. }
+            | Self::ConfigureWebDavRemote { .. } => (),
+        }
+    }
+
+    pub fn set_page(&mut self, new_page: usize) {
+        match self {
+            Self::ConfirmCloudSync { page, .. } => {
+                *page = new_page;
+            }
+            Self::Error { .. }
+            | Self::ConfirmBackup { .. }
+            | Self::ConfirmRestore { .. }
+            | Self::NoMissingRoots
+            | Self::ConfirmAddMissingRoots(_)
+            | Self::PreparingBackupDir
+            | Self::UpdatingManifest
+            | Self::ConfigureFtpRemote { .. }
+            | Self::ConfigureSmbRemote { .. }
+            | Self::ConfigureWebDavRemote { .. } => (),
+        }
+    }
+
+    pub fn any_cloud_changes(&self) -> bool {
+        match self {
+            Self::ConfirmCloudSync { done, changes, .. } => !changes.is_empty() || !done,
+            Self::Error { .. }
+            | Self::ConfirmBackup { .. }
+            | Self::ConfirmRestore { .. }
+            | Self::NoMissingRoots
+            | Self::ConfirmAddMissingRoots(_)
+            | Self::PreparingBackupDir
+            | Self::UpdatingManifest
+            | Self::ConfigureFtpRemote { .. }
+            | Self::ConfigureSmbRemote { .. }
+            | Self::ConfigureWebDavRemote { .. } => false,
         }
     }
 }

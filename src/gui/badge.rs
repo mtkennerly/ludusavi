@@ -32,6 +32,21 @@ impl Badge {
         }
     }
 
+    pub fn scan_change(change: ScanChange) -> Self {
+        Self {
+            text: change.symbol().to_string(),
+            change: Some(change),
+            tooltip: match change {
+                ScanChange::New => Some(TRANSLATOR.new_tooltip()),
+                ScanChange::Different => Some(TRANSLATOR.updated_tooltip()),
+                ScanChange::Removed => Some(TRANSLATOR.removed_tooltip()),
+                ScanChange::Same => None,
+                ScanChange::Unknown => None,
+            },
+            ..Default::default()
+        }
+    }
+
     pub fn new_entry() -> Self {
         Self {
             text: crate::lang::ADD_SYMBOL.to_string(),

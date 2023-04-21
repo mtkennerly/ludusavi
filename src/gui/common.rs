@@ -4,7 +4,7 @@ use crate::{
     cloud::{rclone_monitor, Remote, RemoteChoice},
     gui::{icon::Icon, modal::ModalField},
     lang::{Language, TRANSLATOR},
-    prelude::{CommandError, Error, StrictPath},
+    prelude::{CommandError, Error, Finality, StrictPath, SyncDirection},
     resource::{
         config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
         manifest::{Manifest, ManifestUpdate, Store},
@@ -206,14 +206,16 @@ pub enum Message {
     EditedCloudRemote(RemoteChoice),
     ConfigureCloudSuccess(Remote),
     ConfigureCloudFailure(CommandError),
-    ConfirmSynchronizeFromLocalToCloud,
-    ConfirmSynchronizeFromCloudToLocal,
-    SynchronizeFromLocalToCloud,
-    SynchronizeFromCloudToLocal,
+    ConfirmSynchronizeCloud {
+        direction: SyncDirection,
+    },
+    SynchronizeCloud {
+        direction: SyncDirection,
+    },
     RcloneMonitor(rclone_monitor::Event),
-    DriveRcloneMonitor,
     FinalizeRemote(Remote),
     EditedModalField(ModalField),
+    ModalChangePage(usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -226,10 +228,13 @@ pub enum OngoingOperation {
     CancelRestore,
     PreviewRestore,
     CancelPreviewRestore,
-    CloudUpload,
-    CloudDownload,
-    CancelCloudUpload,
-    CancelCloudDownload,
+    CloudSync {
+        direction: SyncDirection,
+        finality: Finality,
+    },
+    CancelCloudSync {
+        direction: SyncDirection,
+    },
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

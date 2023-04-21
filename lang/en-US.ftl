@@ -136,6 +136,7 @@ label-password = Password
 label-provider = Provider
 label-custom = Custom
 label-none = None
+label-change-count = Changes: {$total}
 
 store-epic = Epic
 store-gog = GOG
@@ -205,6 +206,7 @@ confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 preparing-backup-target = Preparing backup directory...
 updating-manifest = Updating manifest...
+no-cloud-changes = No changes to synchronize
 
 saves-found = Save data found.
 no-saves-found = No save data found.

@@ -16,7 +16,7 @@ use crate::{
         widget::{Column, Container, Element, IcedParentExt, ProgressBar, Row},
     },
     lang::TRANSLATOR,
-    prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, StrictPath},
+    prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
     resource::{
         cache::Cache,
         config::{Config, CustomGame, RootsConfig},
@@ -91,8 +91,20 @@ impl Progress {
                 | Op::CancelRestore
                 | Op::PreviewRestore
                 | Op::CancelPreviewRestore => Icon::Search,
-                Op::CloudUpload | Op::CancelCloudUpload => Icon::CloudUpload,
-                Op::CloudDownload | Op::CancelCloudDownload => Icon::CloudDownload,
+                Op::CloudSync { direction, finality } => {
+                    if finality.preview() {
+                        Icon::CloudSync
+                    } else {
+                        match direction {
+                            SyncDirection::Upload => Icon::CloudUpload,
+                            SyncDirection::Download => Icon::CloudDownload,
+                        }
+                    }
+                }
+                Op::CancelCloudSync { direction } => match direction {
+                    SyncDirection::Upload => Icon::CloudUpload,
+                    SyncDirection::Download => Icon::CloudDownload,
+                },
             }
             .into_text()
             .size(15)
@@ -130,7 +142,6 @@ pub struct App {
     scroll_offsets: HashMap<ScrollSubject, iced_native::widget::scrollable::RelativeOffset>,
     text_histories: TextHistories,
     rclone_monitor_sender: Option<iced_native::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
-    rclone_monitor_tick: bool,
 }
 
 impl App {
@@ -186,10 +197,8 @@ impl App {
                 | OngoingOperation::CancelBackup
                 | OngoingOperation::PreviewBackup
                 | OngoingOperation::CancelPreviewBackup
-                | OngoingOperation::CloudUpload
-                | OngoingOperation::CloudDownload
-                | OngoingOperation::CancelCloudUpload
-                | OngoingOperation::CancelCloudDownload,
+                | OngoingOperation::CloudSync { .. }
+                | OngoingOperation::CancelCloudSync { .. },
             ) => false,
         }
     }
@@ -755,6 +764,11 @@ impl Application for App {
                 Command::none()
             }
             Message::CloseModal => {
+                if matches!(self.modal, Some(Modal::ConfirmCloudSync { .. })) {
+                    if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                        let _ = sender.try_send(rclone_monitor::Input::Cancel);
+                    }
+                }
                 self.modal = None;
                 Command::none()
             }
@@ -1007,14 +1021,8 @@ impl Application for App {
                     Some(OngoingOperation::PreviewRestore) => {
                         self.operation = Some(OngoingOperation::CancelPreviewRestore);
                     }
-                    Some(OngoingOperation::CloudUpload) => {
-                        self.operation = Some(OngoingOperation::CancelCloudUpload);
-                        if let Some(sender) = self.rclone_monitor_sender.as_mut() {
-                            let _ = sender.try_send(rclone_monitor::Input::Cancel);
-                        }
-                    }
-                    Some(OngoingOperation::CloudDownload) => {
-                        self.operation = Some(OngoingOperation::CancelCloudDownload);
+                    Some(OngoingOperation::CloudSync { direction, .. }) => {
+                        self.operation = Some(OngoingOperation::CancelCloudSync { direction });
                         if let Some(sender) = self.rclone_monitor_sender.as_mut() {
                             let _ = sender.try_send(rclone_monitor::Input::Cancel);
                         }
@@ -1878,48 +1886,58 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
-            Message::ConfirmSynchronizeFromLocalToCloud => {
-                self.modal = Some(Modal::ConfirmUploadToCloud {
+            Message::ConfirmSynchronizeCloud { direction } => {
+                self.modal = Some(Modal::ConfirmCloudSync {
                     local: self.config.backup.path.render(),
                     cloud: self.config.cloud.path.clone(),
+                    direction,
+                    changes: vec![],
+                    done: false,
+                    page: 0,
                 });
-                Command::none()
-            }
-            Message::ConfirmSynchronizeFromCloudToLocal => {
-                self.modal = Some(Modal::ConfirmDownloadFromCloud {
-                    local: self.config.backup.path.render(),
-                    cloud: self.config.cloud.path.clone(),
-                });
-                Command::none()
-            }
-            Message::SynchronizeFromLocalToCloud => {
-                self.operation = Some(OngoingOperation::CloudUpload);
-                self.modal = None;
-                self.progress.start();
 
                 if let Some(remote) = self.config.cloud.remote.as_ref() {
                     let rclone = Rclone::new(self.config.apps.rclone.clone(), remote.clone());
-                    match rclone.sync_from_local_to_remote(&self.config.backup.path, &self.config.cloud.path) {
+                    match rclone.sync(
+                        &self.config.backup.path,
+                        &self.config.cloud.path,
+                        direction,
+                        Finality::Preview,
+                    ) {
                         Ok(process) => {
                             if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                                self.operation = Some(OngoingOperation::CloudSync {
+                                    direction,
+                                    finality: Finality::Preview,
+                                });
+                                self.progress.start();
                                 let _ = sender.try_send(rclone_monitor::Input::Process(process));
                             }
                         }
                         Err(e) => self.show_error(Error::UnableToSynchronizeCloud(e)),
                     }
                 }
+
                 Command::none()
             }
-            Message::SynchronizeFromCloudToLocal => {
-                self.operation = Some(OngoingOperation::CloudDownload);
+            Message::SynchronizeCloud { direction } => {
                 self.modal = None;
-                self.progress.start();
 
                 if let Some(remote) = self.config.cloud.remote.as_ref() {
                     let rclone = Rclone::new(self.config.apps.rclone.clone(), remote.clone());
-                    match rclone.sync_from_remote_to_local(&self.config.backup.path, &self.config.cloud.path) {
+                    match rclone.sync(
+                        &self.config.backup.path,
+                        &self.config.cloud.path,
+                        direction,
+                        Finality::Final,
+                    ) {
                         Ok(process) => {
                             if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                                self.operation = Some(OngoingOperation::CloudSync {
+                                    direction,
+                                    finality: Finality::Final,
+                                });
+                                self.progress.start();
                                 let _ = sender.try_send(rclone_monitor::Input::Process(process));
                             }
                         }
@@ -1933,16 +1951,29 @@ impl Application for App {
                     rclone_monitor::Event::Ready(sender) => {
                         self.rclone_monitor_sender = Some(sender);
                     }
-                    rclone_monitor::Event::Tick => {
-                        self.rclone_monitor_tick = true;
-                    }
-                    rclone_monitor::Event::Progress { current, max } => {
-                        self.progress.current = current;
-                        self.progress.max = max;
-                        self.rclone_monitor_tick = true;
+                    rclone_monitor::Event::Data(events) => {
+                        for event in events {
+                            match event {
+                                crate::cloud::RcloneProcessEvent::Progress { current, max } => {
+                                    self.progress.current = current;
+                                    self.progress.max = max;
+                                }
+                                crate::cloud::RcloneProcessEvent::Change(change) => {
+                                    if let Some(modal) = self.modal.as_mut() {
+                                        modal.add_cloud_change(change);
+                                    }
+                                }
+                            }
+                        }
                     }
                     rclone_monitor::Event::Succeeded => {
-                        self.go_idle();
+                        if let Some(modal) = self.modal.as_mut() {
+                            self.operation = None;
+                            self.progress.reset();
+                            modal.finish_cloud_scan();
+                        } else {
+                            self.go_idle();
+                        }
                     }
                     rclone_monitor::Event::Failed(e) => {
                         self.go_idle();
@@ -1954,15 +1985,6 @@ impl Application for App {
                 }
                 Command::none()
             }
-            Message::DriveRcloneMonitor => {
-                if self.rclone_monitor_tick {
-                    self.rclone_monitor_tick = false;
-                    if let Some(sender) = self.rclone_monitor_sender.as_mut() {
-                        let _ = sender.try_send(rclone_monitor::Input::Tick);
-                    }
-                }
-                Command::none()
-            }
             Message::EditedModalField(field) => {
                 if let Some(modal) = self.modal.as_mut() {
                     modal.edit(field);
@@ -1970,6 +1992,12 @@ impl Application for App {
                 Command::none()
             }
             Message::FinalizeRemote(remote) => self.configure_remote(remote),
+            Message::ModalChangePage(page) => {
+                if let Some(modal) = self.modal.as_mut() {
+                    modal.set_page(page);
+                }
+                Command::none()
+            }
         }
     }
 
@@ -1987,18 +2015,15 @@ impl Application for App {
                 None => iced_native::subscription::Subscription::none(),
             },
             rclone_monitor::run().map(Message::RcloneMonitor),
-            match self.operation {
-                Some(OngoingOperation::CloudDownload | OngoingOperation::CloudUpload) => {
-                    iced::time::every(std::time::Duration::from_millis(250)).map(|_| Message::DriveRcloneMonitor)
-                }
-                _ => iced_native::subscription::Subscription::none(),
-            },
         ])
     }
 
     fn view(&self) -> Element {
         if let Some(m) = &self.modal {
-            return m.view(&self.config).style(style::Container::Primary).into();
+            return Column::new()
+                .push(m.view(&self.config).style(style::Container::Primary))
+                .push_if(|| self.progress.visible(), || self.progress.view(&self.operation))
+                .into();
         }
 
         let content = Column::new()

@@ -41,7 +41,7 @@ serde_yaml = "0.8.25"
 sha1 = "0.10.1"
 shlex = "1.1.0"
 steamlocate = "2.0.0-alpha.0"
-tokio = "1.21.2"
+tokio = { version = "1.21.2", features = ["macros", "time"] }
 unic-langid = "0.9.0"
 walkdir = "2.3.2"
 which = "4.4.0"

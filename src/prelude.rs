@@ -28,6 +28,18 @@ pub const ENV_DEBUG: &str = "LUDUSAVI_DEBUG";
 const ENV_THREADS: &str = "LUDUSAVI_THREADS";
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Finality {
+    Preview,
+    Final,
+}
+
+impl Finality {
+    pub fn preview(&self) -> bool {
+        *self == Self::Preview
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Privacy {
     Public,
     Private,
@@ -37,6 +49,12 @@ impl Privacy {
     pub fn sensitive(&self) -> bool {
         *self == Self::Private
     }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SyncDirection {
+    Upload,
+    Download,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

@@ -1,6 +1,9 @@
 use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
 
+use itertools::Itertools;
+
 use crate::{
+    cloud::CloudChange,
     lang::TRANSLATOR,
     prelude::StrictPath,
     scan::{
@@ -441,6 +444,16 @@ impl Reporter {
 
     pub fn print(&self, path: &StrictPath) {
         println!("{}", self.render(path));
+    }
+}
+
+pub fn report_cloud_changes(changes: &[CloudChange]) {
+    if changes.is_empty() {
+        eprintln!("{}", TRANSLATOR.no_cloud_changes());
+    } else {
+        for CloudChange { path, change } in changes.iter().sorted() {
+            println!("[{}] {}", change.symbol(), path);
+        }
     }
 }
 

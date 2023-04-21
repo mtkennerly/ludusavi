@@ -28,6 +28,8 @@ pub enum Icon {
     FastForward,
     ArrowUpward,
     ArrowDownward,
+    ArrowForward,
+    ArrowBack,
     Comment,
     Close,
     Search,
@@ -35,6 +37,7 @@ pub enum Icon {
     Error,
     Upload,
     Download,
+    CloudSync,
     CloudUpload,
     CloudDownload,
 }
@@ -62,6 +65,8 @@ impl Icon {
             Self::FastForward => '\u{E01F}',
             Self::ArrowUpward => '\u{E5D8}',
             Self::ArrowDownward => '\u{E5DB}',
+            Self::ArrowForward => '\u{e5c8}',
+            Self::ArrowBack => '\u{e5c4}',
             Self::Comment => '\u{E0B9}',
             Self::Close => '\u{E5CD}',
             Self::Search => '\u{e8b6}',
@@ -69,6 +74,7 @@ impl Icon {
             Self::Error => '\u{e000}',
             Self::Upload => '\u{f09b}',
             Self::Download => '\u{f090}',
+            Self::CloudSync => '\u{eb5a}',
             Self::CloudUpload => '\u{e2c3}',
             Self::CloudDownload => '\u{e2c0}',
         }

@@ -8,6 +8,7 @@ use crate::{
         widget::{Button, Element, IcedButtonExt, Text},
     },
     lang::TRANSLATOR,
+    prelude::SyncDirection,
 };
 
 fn template(content: Text, action: Option<Message>, style: Option<style::Button>) -> Element {
@@ -137,6 +138,18 @@ pub fn move_down_nested<'a>(
     )
 }
 
+pub fn next_page<'a>(action: fn(usize) -> Message, page: usize, pages: usize) -> Element<'a> {
+    template(
+        Icon::ArrowForward.as_text(),
+        (page < pages).then(|| action(page + 1)),
+        None,
+    )
+}
+
+pub fn previous_page<'a>(action: fn(usize) -> Message, page: usize) -> Element<'a> {
+    template(Icon::ArrowBack.as_text(), (page > 0).then(|| action(page - 1)), None)
+}
+
 pub fn toggle_all_scanned_games<'a>(all_enabled: bool) -> Element<'a> {
     if all_enabled {
         template(
@@ -207,12 +220,25 @@ pub fn upload<'a>(operation: &Option<OngoingOperation>) -> Element<'a> {
     template(
         Icon::Upload.as_text(),
         match operation {
-            None => Some(Message::ConfirmSynchronizeFromLocalToCloud),
-            Some(OngoingOperation::CloudUpload) => Some(Message::CancelOperation),
+            None => Some(Message::ConfirmSynchronizeCloud {
+                direction: SyncDirection::Upload,
+            }),
+            Some(OngoingOperation::CloudSync {
+                direction: SyncDirection::Upload,
+                ..
+            }) => Some(Message::CancelOperation),
             _ => None,
         },
         match operation {
-            Some(OngoingOperation::CloudUpload | OngoingOperation::CancelCloudUpload) => Some(style::Button::Negative),
+            Some(
+                OngoingOperation::CloudSync {
+                    direction: SyncDirection::Upload,
+                    ..
+                }
+                | OngoingOperation::CancelCloudSync {
+                    direction: SyncDirection::Upload,
+                },
+            ) => Some(style::Button::Negative),
             _ => None,
         },
     )
@@ -222,14 +248,25 @@ pub fn download<'a>(operation: &Option<OngoingOperation>) -> Element<'a> {
     template(
         Icon::Download.as_text(),
         match operation {
-            None => Some(Message::ConfirmSynchronizeFromCloudToLocal),
-            Some(OngoingOperation::CloudDownload) => Some(Message::CancelOperation),
+            None => Some(Message::ConfirmSynchronizeCloud {
+                direction: SyncDirection::Download,
+            }),
+            Some(OngoingOperation::CloudSync {
+                direction: SyncDirection::Download,
+                ..
+            }) => Some(Message::CancelOperation),
             _ => None,
         },
         match operation {
-            Some(OngoingOperation::CloudDownload | OngoingOperation::CancelCloudDownload) => {
-                Some(style::Button::Negative)
-            }
+            Some(
+                OngoingOperation::CloudSync {
+                    direction: SyncDirection::Download,
+                    ..
+                }
+                | OngoingOperation::CancelCloudSync {
+                    direction: SyncDirection::Download,
+                },
+            ) => Some(style::Button::Negative),
             _ => None,
         },
     )
@@ -261,7 +298,7 @@ pub fn operation<'a>(action: OngoingOperation, ongoing: Option<OngoingOperation>
                 _ => TRANSLATOR.preview_button(),
             },
             CancelBackup | CancelPreviewBackup | CancelRestore | CancelPreviewRestore => TRANSLATOR.cancel_button(),
-            CloudDownload | CloudUpload | CancelCloudDownload | CancelCloudUpload => "".to_string(),
+            CloudSync { .. } | CancelCloudSync { .. } => "".to_string(),
         })
         .width(125)
         .horizontal_alignment(alignment::Horizontal::Center),

@@ -1,7 +1,10 @@
+use std::io::{BufRead, BufReader};
+
 use crate::{
     lang::TRANSLATOR,
-    prelude::{run_command, CommandError, CommandOutput, Error, Privacy, StrictPath},
+    prelude::{run_command, CommandError, CommandOutput, Error, Finality, Privacy, StrictPath, SyncDirection},
     resource::config::App,
+    scan::ScanChange,
 };
 
 pub fn validate_cloud_path(path: &str) -> Result<(), Error> {
@@ -12,11 +15,24 @@ pub fn validate_cloud_path(path: &str) -> Result<(), Error> {
     }
 }
 
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd)]
+pub struct CloudChange {
+    pub path: String,
+    pub change: ScanChange,
+}
+
+#[derive(Clone, Debug)]
+pub enum RcloneProcessEvent {
+    Progress { current: f32, max: f32 },
+    Change(CloudChange),
+}
+
 #[derive(Debug)]
 pub struct RcloneProcess {
     program: String,
     args: Vec<String>,
     child: std::process::Child,
+    stderr: Option<BufReader<std::process::ChildStderr>>,
 }
 
 impl RcloneProcess {
@@ -33,22 +49,32 @@ impl RcloneProcess {
             command.creation_flags(winapi::um::winbase::CREATE_NO_WINDOW);
         }
 
-        let child = command.spawn().map_err(|e| CommandError::Launched {
+        log::debug!("Running command: {} {:?}", &program, &args);
+
+        let mut child = command.spawn().map_err(|e| CommandError::Launched {
             program: program.clone(),
             args: args.clone(),
             raw: e.to_string(),
         })?;
 
-        Ok(Self { program, args, child })
+        let stderr = child.stderr.take().map(BufReader::new);
+        Ok(Self {
+            program,
+            args,
+            child,
+            stderr,
+        })
     }
 
-    pub fn progress(&mut self) -> Option<(f32, f32)> {
-        use std::io::{BufRead, BufReader};
+    pub fn events(&mut self) -> Vec<RcloneProcessEvent> {
+        let mut events = vec![];
 
         #[derive(Debug, serde::Deserialize)]
-        #[serde(rename_all = "camelCase")]
-        struct Log {
-            stats: Stats,
+        #[serde(rename_all = "camelCase", untagged)]
+        enum Log {
+            Skip { skipped: String, object: String },
+            Change { msg: String, object: String },
+            Stats { stats: Stats },
         }
 
         #[derive(Debug, serde::Deserialize)]
@@ -58,42 +84,80 @@ impl RcloneProcess {
             total_bytes: f32,
         }
 
-        if let Some(stderr) = self.child.stderr.as_mut() {
-            for line in BufReader::new(stderr).lines().filter_map(|x| x.ok()) {
-                if let Ok(parsed) = serde_json::from_str::<Log>(&line) {
-                    return Some((parsed.stats.bytes, parsed.stats.total_bytes));
+        if let Some(stderr) = self.stderr.as_mut() {
+            for line in stderr.lines().take(10).filter_map(|x| x.ok()) {
+                match serde_json::from_str::<Log>(&line) {
+                    Ok(Log::Skip { skipped, object }) => match skipped.as_str() {
+                        "copy" => events.push(RcloneProcessEvent::Change(CloudChange {
+                            path: object,
+                            change: ScanChange::Different,
+                        })),
+                        "delete" => events.push(RcloneProcessEvent::Change(CloudChange {
+                            path: object,
+                            change: ScanChange::Removed,
+                        })),
+                        raw => {
+                            log::trace!("Unhandled Rclone 'skipped': {raw}");
+                        }
+                    },
+                    Ok(Log::Change { msg, object }) => match msg.as_str() {
+                        "Copied (new)" => events.push(RcloneProcessEvent::Change(CloudChange {
+                            path: object,
+                            change: ScanChange::New,
+                        })),
+                        "Copied (replaced existing)" => events.push(RcloneProcessEvent::Change(CloudChange {
+                            path: object,
+                            change: ScanChange::Different,
+                        })),
+                        "Deleted" => events.push(RcloneProcessEvent::Change(CloudChange {
+                            path: object,
+                            change: ScanChange::Removed,
+                        })),
+                        raw => {
+                            log::trace!("Unhandled Rclone 'msg': {raw}");
+                        }
+                    },
+                    Ok(Log::Stats {
+                        stats: Stats { bytes, total_bytes },
+                    }) => {
+                        events.push(RcloneProcessEvent::Progress {
+                            current: bytes,
+                            max: total_bytes,
+                        });
+                    }
+                    Err(_) => {
+                        log::trace!("Unhandled Rclone message: {line}");
+                    }
                 }
             }
         }
 
-        None
+        log::trace!("New Rclone events: {events:?}");
+        events
     }
 
     pub fn succeeded(&mut self) -> Option<Result<(), CommandError>> {
-        match self.child.try_wait() {
+        let res = match self.child.try_wait() {
             Ok(Some(status)) => match status.code() {
-                Some(code) => Some(if code == 0 {
-                    Ok(())
-                } else {
-                    use std::io::{BufRead, BufReader};
-
+                Some(code) if code == 0 => Some(Ok(())),
+                Some(code) => {
                     let stdout = self.child.stdout.as_mut().and_then(|x| {
                         let lines = BufReader::new(x).lines().filter_map(|x| x.ok()).collect::<Vec<_>>();
                         (!lines.is_empty()).then_some(lines.join("\n"))
                     });
-                    let stderr = self.child.stderr.as_mut().and_then(|x| {
-                        let lines = BufReader::new(x).lines().filter_map(|x| x.ok()).collect::<Vec<_>>();
+                    let stderr = self.stderr.as_mut().and_then(|x| {
+                        let lines = x.lines().filter_map(|x| x.ok()).collect::<Vec<_>>();
                         (!lines.is_empty()).then_some(lines.join("\n"))
                     });
 
-                    Err(CommandError::Exited {
+                    Some(Err(CommandError::Exited {
                         program: self.program.clone(),
                         args: self.args.clone(),
                         code,
                         stdout,
                         stderr,
-                    })
-                }),
+                    }))
+                }
                 None => Some(Err(CommandError::Terminated {
                     program: self.program.clone(),
                     args: self.args.clone(),
@@ -104,7 +168,16 @@ impl RcloneProcess {
                 program: self.program.clone(),
                 args: self.args.clone(),
             })),
+        };
+
+        if let Some(Ok(_)) = &res {
+            log::debug!("Rclone succeeded");
         }
+        if let Some(Err(e)) = &res {
+            log::error!("Rclone failed: {:?}", e);
+        }
+
+        res
     }
 }
 
@@ -492,40 +565,36 @@ impl Rclone {
     //     Ok(code == 0)
     // }
 
-    pub fn sync_from_local_to_remote(
+    pub fn sync(
         &self,
         local: &StrictPath,
         remote_path: &str,
+        direction: SyncDirection,
+        finality: Finality,
     ) -> Result<RcloneProcess, CommandError> {
-        RcloneProcess::launch(
-            self.app.path.raw(),
-            self.args(&[
-                "sync".to_string(),
-                "-v".to_string(),
-                "--use-json-log".to_string(),
-                "--stats=1s".to_string(),
-                local.render(),
-                self.path(remote_path),
-            ]),
-        )
-    }
+        let mut args = vec![
+            "sync".to_string(),
+            "-v".to_string(),
+            "--use-json-log".to_string(),
+            "--stats=100ms".to_string(),
+        ];
 
-    pub fn sync_from_remote_to_local(
-        &self,
-        local: &StrictPath,
-        remote_path: &str,
-    ) -> Result<RcloneProcess, CommandError> {
-        RcloneProcess::launch(
-            self.app.path.raw(),
-            self.args(&[
-                "sync".to_string(),
-                "-v".to_string(),
-                "--use-json-log".to_string(),
-                "--stats=1s".to_string(),
-                self.path(remote_path),
-                local.render(),
-            ]),
-        )
+        if finality.preview() {
+            args.push("--dry-run".to_string());
+        }
+
+        match direction {
+            SyncDirection::Upload => {
+                args.push(local.render());
+                args.push(self.path(remote_path));
+            }
+            SyncDirection::Download => {
+                args.push(self.path(remote_path));
+                args.push(local.render());
+            }
+        }
+
+        RcloneProcess::launch(self.app.path.raw(), self.args(&args))
     }
 }
 
@@ -535,13 +604,15 @@ pub mod rclone_monitor {
         subscription::{self, Subscription},
     };
 
-    use crate::{cloud::RcloneProcess, prelude::CommandError};
+    use crate::{
+        cloud::{RcloneProcess, RcloneProcessEvent},
+        prelude::CommandError,
+    };
 
     #[derive(Debug, Clone)]
     pub enum Event {
         Ready(mpsc::Sender<Input>),
-        Tick,
-        Progress { current: f32, max: f32 },
+        Data(Vec<RcloneProcessEvent>),
         Succeeded,
         Failed(CommandError),
         Cancelled,
@@ -559,6 +630,7 @@ pub mod rclone_monitor {
         Ready {
             receiver: mpsc::Receiver<Input>,
             process: Option<RcloneProcess>,
+            interval: tokio::time::Interval,
         },
     }
 
@@ -568,29 +640,59 @@ pub mod rclone_monitor {
         subscription::unfold(std::any::TypeId::of::<Runner>(), State::Starting, |state| async move {
             match state {
                 State::Starting => {
-                    let (sender, receiver) = mpsc::channel(100);
+                    let (sender, receiver) = mpsc::channel(10_000);
 
                     (
                         Some(Event::Ready(sender)),
                         State::Ready {
                             receiver,
                             process: None,
+                            interval: tokio::time::interval(std::time::Duration::from_millis(1)),
                         },
                     )
                 }
                 State::Ready {
                     mut receiver,
                     mut process,
+                    mut interval,
                 } => {
-                    let input = receiver.select_next_some().await;
+                    let input = tokio::select!(
+                        input = receiver.select_next_some() => {
+                            input
+                        }
+                        _ = interval.tick() => {
+                            Input::Tick
+                        }
+                    );
 
                     match input {
                         Input::Process(new_process) => {
+                            if let Some(proc) = process.as_mut() {
+                                let _ = proc.child.kill();
+                            }
                             process = Some(new_process);
-                            (Some(Event::Tick), State::Ready { receiver, process })
+                            (
+                                None,
+                                State::Ready {
+                                    receiver,
+                                    process,
+                                    interval,
+                                },
+                            )
                         }
                         Input::Tick => {
                             if let Some(proc) = process.as_mut() {
+                                let events = proc.events();
+                                if !events.is_empty() {
+                                    return (
+                                        Some(Event::Data(events)),
+                                        State::Ready {
+                                            receiver,
+                                            process,
+                                            interval,
+                                        },
+                                    );
+                                }
                                 if let Some(outcome) = proc.succeeded() {
                                     match outcome {
                                         Ok(_) => {
@@ -599,6 +701,7 @@ pub mod rclone_monitor {
                                                 State::Ready {
                                                     receiver,
                                                     process: None,
+                                                    interval,
                                                 },
                                             );
                                         }
@@ -608,19 +711,21 @@ pub mod rclone_monitor {
                                                 State::Ready {
                                                     receiver,
                                                     process: None,
+                                                    interval,
                                                 },
                                             );
                                         }
                                     }
                                 }
-                                if let Some((current, max)) = proc.progress() {
-                                    return (
-                                        Some(Event::Progress { current, max }),
-                                        State::Ready { receiver, process },
-                                    );
-                                }
                             }
-                            (Some(Event::Tick), State::Ready { receiver, process })
+                            (
+                                None,
+                                State::Ready {
+                                    receiver,
+                                    process,
+                                    interval,
+                                },
+                            )
                         }
                         Input::Cancel => {
                             if let Some(proc) = process.as_mut() {
@@ -631,6 +736,7 @@ pub mod rclone_monitor {
                                 State::Ready {
                                     receiver,
                                     process: None,
+                                    interval,
                                 },
                             )
                         }

@@ -11,11 +11,11 @@ use rayon::{
 use crate::{
     cli::{
         parse::{Cli, CompletionShell, ManifestSubcommand, Subcommand},
-        report::Reporter,
+        report::{report_cloud_changes, Reporter},
     },
-    cloud::{Rclone, Remote},
+    cloud::{CloudChange, Rclone, Remote},
     lang::TRANSLATOR,
-    prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, StrictPath},
+    prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
     resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
     scan::{
         heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId,
@@ -591,10 +591,34 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 }
             },
             parse::CloudSubcommand::Upload { local, cloud, force } => {
-                sync_cloud(&config, local, cloud, force, CloudSync::Upload)?;
+                let direction = SyncDirection::Upload;
+                let changes = sync_cloud(
+                    &config,
+                    local.clone(),
+                    cloud.clone(),
+                    force,
+                    direction,
+                    Finality::Preview,
+                )?;
+                report_cloud_changes(&changes);
+                if !changes.is_empty() {
+                    sync_cloud(&config, local, cloud, force, direction, Finality::Final)?;
+                }
             }
             parse::CloudSubcommand::Download { local, cloud, force } => {
-                sync_cloud(&config, local, cloud, force, CloudSync::Download)?;
+                let direction = SyncDirection::Download;
+                let changes = sync_cloud(
+                    &config,
+                    local.clone(),
+                    cloud.clone(),
+                    force,
+                    direction,
+                    Finality::Preview,
+                )?;
+                report_cloud_changes(&changes);
+                if !changes.is_empty() {
+                    sync_cloud(&config, local, cloud, force, direction, Finality::Final)?;
+                }
             }
         },
     }
@@ -604,11 +628,6 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
     } else {
         Ok(())
     }
-}
-
-enum CloudSync {
-    Upload,
-    Download,
 }
 
 fn configure_cloud(config: &mut Config, remote: Remote) -> Result<(), Error> {
@@ -626,54 +645,60 @@ fn sync_cloud(
     local: Option<StrictPath>,
     cloud: Option<String>,
     force: bool,
-    sync: CloudSync,
-) -> Result<(), Error> {
+    sync: SyncDirection,
+    finality: Finality,
+) -> Result<Vec<CloudChange>, Error> {
     let local = local.unwrap_or(config.backup.path.clone());
     let cloud = cloud.unwrap_or(config.cloud.path.clone());
+
     if !config.apps.rclone.is_valid() {
         return Err(Error::RcloneUnavailable);
     }
     let Some(remote) = config.cloud.remote.clone() else { return Err(Error::CloudNotConfigured) };
     crate::cloud::validate_cloud_path(&cloud)?;
 
-    if !force {
+    if !finality.preview() && !force {
         match dialoguer::Confirm::new()
             .with_prompt(match sync {
-                CloudSync::Upload => TRANSLATOR.confirm_cloud_upload(&local.render(), &cloud),
-                CloudSync::Download => TRANSLATOR.confirm_cloud_download(&local.render(), &cloud),
+                SyncDirection::Upload => TRANSLATOR.confirm_cloud_upload(&local.render(), &cloud),
+                SyncDirection::Download => TRANSLATOR.confirm_cloud_download(&local.render(), &cloud),
             })
             .interact()
         {
             Ok(true) => (),
-            Ok(false) => return Ok(()),
+            Ok(false) => return Ok(vec![]),
             Err(_) => return Err(Error::CliUnableToRequestConfirmation),
         }
     }
 
     let rclone = Rclone::new(config.apps.rclone.clone(), remote);
-    let process = match sync {
-        CloudSync::Upload => rclone.sync_from_local_to_remote(&local, &cloud),
-        CloudSync::Download => rclone.sync_from_remote_to_local(&local, &cloud),
-    };
-    let mut process = match process {
+    let mut process = match rclone.sync(&local, &cloud, sync, finality) {
         Ok(p) => p,
         Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
     };
 
     let progress_bar = ProgressBar::new(100);
+    let mut changes = vec![];
     loop {
+        let events = process.events();
+        for event in events {
+            match event {
+                crate::cloud::RcloneProcessEvent::Progress { current, max } => {
+                    progress_bar.set_length(max as u64);
+                    progress_bar.set_position(current as u64);
+                }
+                crate::cloud::RcloneProcessEvent::Change(change) => {
+                    changes.push(change);
+                }
+            }
+        }
         match process.succeeded() {
-            Some(Ok(_)) => return Ok(()),
+            Some(Ok(_)) => return Ok(changes),
             Some(Err(e)) => {
                 progress_bar.finish_and_clear();
                 return Err(Error::UnableToSynchronizeCloud(e));
             }
             None => (),
         }
-        if let Some((current, max)) = process.progress() {
-            progress_bar.set_length(max as u64);
-            progress_bar.set_position(current as u64);
-        }
-        std::thread::sleep(std::time::Duration::from_millis(250));
     }
 }
