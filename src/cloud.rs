@@ -132,7 +132,9 @@ impl RcloneProcess {
             }
         }
 
-        log::trace!("New Rclone events: {events:?}");
+        if !events.is_empty() {
+            log::trace!("New Rclone events: {events:?}");
+        }
         events
     }
 
@@ -571,6 +573,7 @@ impl Rclone {
         remote_path: &str,
         direction: SyncDirection,
         finality: Finality,
+        game_dirs: &[String],
     ) -> Result<RcloneProcess, CommandError> {
         let mut args = vec![
             "sync".to_string(),
@@ -581,6 +584,11 @@ impl Rclone {
 
         if finality.preview() {
             args.push("--dry-run".to_string());
+        }
+
+        for game_dir in game_dirs {
+            // Inclusion rules are file-based, so we have to add `**`.
+            args.push(format!("--include=/{game_dir}/**"));
         }
 
         match direction {

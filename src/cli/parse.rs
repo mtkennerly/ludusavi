@@ -376,6 +376,10 @@ pub enum CloudSubcommand {
         /// Don't ask for confirmation.
         #[clap(long)]
         force: bool,
+
+        /// Only sync these specific games.
+        #[clap()]
+        games: Vec<String>,
     },
     /// Download your cloud backups, overwriting any existing local backups.
     Download {
@@ -392,6 +396,10 @@ pub enum CloudSubcommand {
         /// Don't ask for confirmation.
         #[clap(long)]
         force: bool,
+
+        /// Only sync these specific games.
+        #[clap()]
+        games: Vec<String>,
     },
 }
 

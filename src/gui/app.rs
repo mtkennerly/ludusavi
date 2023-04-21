@@ -1903,6 +1903,7 @@ impl Application for App {
                         &self.config.cloud.path,
                         direction,
                         Finality::Preview,
+                        &[],
                     ) {
                         Ok(process) => {
                             if let Some(sender) = self.rclone_monitor_sender.as_mut() {
@@ -1930,6 +1931,7 @@ impl Application for App {
                         &self.config.cloud.path,
                         direction,
                         Finality::Final,
+                        &[],
                     ) {
                         Ok(process) => {
                             if let Some(sender) = self.rclone_monitor_sender.as_mut() {

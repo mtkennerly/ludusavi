@@ -590,7 +590,12 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                     )?;
                 }
             },
-            parse::CloudSubcommand::Upload { local, cloud, force } => {
+            parse::CloudSubcommand::Upload {
+                local,
+                cloud,
+                force,
+                games,
+            } => {
                 let direction = SyncDirection::Upload;
                 let changes = sync_cloud(
                     &config,
@@ -599,13 +604,19 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                     force,
                     direction,
                     Finality::Preview,
+                    &games,
                 )?;
                 report_cloud_changes(&changes);
                 if !changes.is_empty() {
-                    sync_cloud(&config, local, cloud, force, direction, Finality::Final)?;
+                    sync_cloud(&config, local, cloud, force, direction, Finality::Final, &games)?;
                 }
             }
-            parse::CloudSubcommand::Download { local, cloud, force } => {
+            parse::CloudSubcommand::Download {
+                local,
+                cloud,
+                force,
+                games,
+            } => {
                 let direction = SyncDirection::Download;
                 let changes = sync_cloud(
                     &config,
@@ -614,10 +625,11 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                     force,
                     direction,
                     Finality::Preview,
+                    &games,
                 )?;
                 report_cloud_changes(&changes);
                 if !changes.is_empty() {
-                    sync_cloud(&config, local, cloud, force, direction, Finality::Final)?;
+                    sync_cloud(&config, local, cloud, force, direction, Finality::Final, &games)?;
                 }
             }
         },
@@ -647,6 +659,7 @@ fn sync_cloud(
     force: bool,
     sync: SyncDirection,
     finality: Finality,
+    games: &[String],
 ) -> Result<Vec<CloudChange>, Error> {
     let local = local.unwrap_or(config.backup.path.clone());
     let cloud = cloud.unwrap_or(config.cloud.path.clone());
@@ -671,8 +684,11 @@ fn sync_cloud(
         }
     }
 
+    let layout = BackupLayout::new(local.clone(), config.backup.retention.clone());
+    let games: Vec<_> = games.iter().filter_map(|x| layout.game_folder(x).leaf()).collect();
+
     let rclone = Rclone::new(config.apps.rclone.clone(), remote);
-    let mut process = match rclone.sync(&local, &cloud, sync, finality) {
+    let mut process = match rclone.sync(&local, &cloud, sync, finality, &games) {
         Ok(p) => p,
         Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
     };
