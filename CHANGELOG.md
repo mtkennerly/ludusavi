@@ -10,6 +10,7 @@
     For the CLI, use the `cloud` command group (e.g., `ludusavi cloud upload`).
 * Changed:
   * GUI: The progress bar is a bit taller and is now accompanied by an icon to indicate the current operation.
+  * GUI: Modal content is slightly less padded.
 
 ## v0.17.1 (2023-04-10)
 

@@ -1,6 +1,6 @@
 use iced::{
     widget::{button, checkbox, container, pick_list, scrollable, text_input},
-    Background, Color, Vector,
+    Color, Vector,
 };
 use iced_style::menu;
 
@@ -309,7 +309,7 @@ impl scrollable::StyleSheet for Theme {
 
     fn active(&self, _style: &Self::Style) -> scrollable::Scrollbar {
         scrollable::Scrollbar {
-            background: Some(Background::Color(Color::TRANSPARENT)),
+            background: Color::TRANSPARENT.into(),
             border_radius: 5.0,
             border_width: 0.0,
             border_color: Color::TRANSPARENT,
@@ -326,7 +326,7 @@ impl scrollable::StyleSheet for Theme {
         let active = self.active(style);
 
         scrollable::Scrollbar {
-            background: (self.text.alpha(0.4).into()),
+            background: self.text.alpha(0.4).into(),
             scroller: scrollable::Scroller {
                 color: self.text.alpha(0.8),
                 ..active.scroller

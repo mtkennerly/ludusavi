@@ -242,7 +242,8 @@ impl Modal {
     pub fn body(&self, config: &Config) -> Column {
         let mut col = Column::new()
             .width(Length::Fill)
-            .spacing(10)
+            .spacing(15)
+            .padding([0, 10, 0, 0])
             .align_items(Alignment::Center)
             .push(Text::new(self.text(config)));
 
@@ -261,6 +262,7 @@ impl Modal {
                             Row::new()
                                 .padding([0, 20, 0, 0])
                                 .spacing(20)
+                                .align_items(Alignment::Center)
                                 .push(Text::new(TRANSLATOR.change_count_label(changes.len())))
                                 .push(Space::new(Length::Fill, Length::Shrink))
                                 .push(button::next_page(
@@ -281,7 +283,7 @@ impl Modal {
                                         parent.push(
                                             Row::new()
                                                 .spacing(20)
-                                                .align_items(Alignment::Center)
+                                                .align_items(Alignment::Start)
                                                 .push(Badge::scan_change(*change).view())
                                                 .push(Text::new(path)),
                                         )
@@ -482,9 +484,23 @@ impl Modal {
             | Self::ConfigureWebDavRemote { .. } => false,
         }
     }
-}
 
-impl Modal {
+    pub fn body_height_portion(&self) -> u16 {
+        match self {
+            Self::ConfirmCloudSync { .. } => 4,
+            Self::Error { .. }
+            | Self::ConfirmBackup { .. }
+            | Self::ConfirmRestore { .. }
+            | Self::NoMissingRoots
+            | Self::ConfirmAddMissingRoots(_)
+            | Self::PreparingBackupDir
+            | Self::UpdatingManifest
+            | Self::ConfigureFtpRemote { .. }
+            | Self::ConfigureSmbRemote { .. }
+            | Self::ConfigureWebDavRemote { .. } => 2,
+        }
+    }
+
     pub fn view(&self, config: &Config) -> Container {
         let mut positive_button = Button::new(
             Text::new(match self.variant() {
@@ -519,13 +535,11 @@ impl Modal {
                 )
                 .push(
                     Column::new()
-                        .height(Length::FillPortion(2))
+                        .height(Length::FillPortion(self.body_height_portion()))
                         .align_items(Alignment::Center)
                         .push(
-                            Row::new()
-                                .padding([40, 40, 0, 40])
-                                .align_items(Alignment::Center)
-                                .push(ScrollSubject::Modal.into_widget(self.body(config)))
+                            Container::new(ScrollSubject::Modal.into_widget(self.body(config)))
+                                .padding([30, 20, 0, 30])
                                 .height(Length::Fill),
                         )
                         .push(
@@ -534,7 +548,7 @@ impl Modal {
                                 ModalVariant::Info => Row::new().push(positive_button),
                                 ModalVariant::Confirm => Row::new().push(positive_button).push(negative_button),
                             }
-                            .padding(40)
+                            .padding(30)
                             .spacing(20)
                             .height(Length::Shrink)
                             .align_items(Alignment::Center),
