@@ -6,8 +6,15 @@ use crate::{
     resource::config::{BackupFormat, Sort, SortKey, ZipCompression},
 };
 
-fn parse_strict_path(path: &str) -> StrictPath {
-    StrictPath::new(path.to_owned())
+macro_rules! possible_values {
+    ($t: ty, $options: ident) => {{
+        use clap::builder::{PossibleValuesParser, TypedValueParser};
+        PossibleValuesParser::new(<$t>::$options).map(|s| s.parse::<$t>().unwrap())
+    }};
+}
+
+fn parse_strict_path(path: &str) -> Result<StrictPath, std::io::Error> {
+    Ok(StrictPath::new(path.to_owned()))
 }
 
 fn parse_existing_strict_path(path: &str) -> Result<StrictPath, std::io::Error> {
@@ -103,7 +110,7 @@ pub enum Subcommand {
         /// Directory in which to store the backup.
         /// It will be created if it does not already exist.
         /// When not specified, this defers to the config file.
-        #[clap(long, parse(from_str = parse_strict_path))]
+        #[clap(long, value_parser = parse_strict_path)]
         path: Option<StrictPath>,
 
         /// Don't ask for confirmation.
@@ -144,7 +151,7 @@ pub enum Subcommand {
 
         /// Extra Wine/Proton prefix to check for saves. This should be a folder
         /// with an immediate child folder named "drive_c" (or another letter).
-        #[clap(long, parse(from_str = parse_strict_path))]
+        #[clap(long, value_parser = parse_strict_path)]
         wine_prefix: Option<StrictPath>,
 
         /// Print information to stdout in machine-readable JSON.
@@ -154,17 +161,17 @@ pub enum Subcommand {
 
         /// Sort the game list by different criteria.
         /// When not specified, this defers to the config file.
-        #[clap(long, possible_values = CliSort::ALL)]
+        #[clap(long, value_parser = possible_values!(CliSort, ALL))]
         sort: Option<CliSort>,
 
         /// Format in which to store new backups.
         /// When not specified, this defers to the config file.
-        #[clap(long, possible_values = BackupFormat::ALL_NAMES)]
+        #[clap(long, value_parser = possible_values!(BackupFormat, ALL_NAMES))]
         format: Option<BackupFormat>,
 
         /// Compression method to use for new zip backups.
         /// When not specified, this defers to the config file.
-        #[clap(long, possible_values = ZipCompression::ALL_NAMES)]
+        #[clap(long, value_parser = possible_values!(ZipCompression, ALL_NAMES))]
         compression: Option<ZipCompression>,
 
         /// Compression level to use for new zip backups.
@@ -197,7 +204,7 @@ pub enum Subcommand {
 
         /// Directory containing a Ludusavi backup.
         /// When not specified, this defers to the config file.
-        #[clap(long, parse(try_from_str = parse_existing_strict_path))]
+        #[clap(long, value_parser = parse_existing_strict_path)]
         path: Option<StrictPath>,
 
         /// Don't ask for confirmation.
@@ -220,7 +227,7 @@ pub enum Subcommand {
 
         /// Sort the game list by different criteria.
         /// When not specified, this defers to Ludusavi's config file.
-        #[clap(long, possible_values = CliSort::ALL)]
+        #[clap(long, value_parser = possible_values!(CliSort, ALL))]
         sort: Option<CliSort>,
 
         /// Restore a specific backup, using an ID returned by the `backups` command.
@@ -241,7 +248,7 @@ pub enum Subcommand {
     Backups {
         /// Directory in which to find backups.
         /// When unset, this defaults to the restore path from the config file.
-        #[clap(long, parse(from_str = parse_strict_path))]
+        #[clap(long, value_parser = parse_strict_path)]
         path: Option<StrictPath>,
 
         /// DEPRECATED: Use the `find` command instead.
@@ -278,7 +285,7 @@ pub enum Subcommand {
 
         /// Directory in which to find backups.
         /// When unset, this defaults to the restore path from the config file.
-        #[clap(long, parse(from_str = parse_strict_path))]
+        #[clap(long, value_parser = parse_strict_path)]
         path: Option<StrictPath>,
 
         /// Ensure the game is recognized in a backup context.
@@ -358,7 +365,7 @@ pub enum CloudSubcommand {
     Upload {
         /// Local folder path for backups.
         /// When not specified, this defers to the config file.
-        #[clap(long, parse(from_str = parse_strict_path))]
+        #[clap(long, value_parser = parse_strict_path)]
         local: Option<StrictPath>,
 
         /// Cloud folder path for backups.
@@ -374,7 +381,7 @@ pub enum CloudSubcommand {
     Download {
         /// Local folder path for backups.
         /// When not specified, this defers to the config file.
-        #[clap(long, parse(from_str = parse_strict_path))]
+        #[clap(long, value_parser = parse_strict_path)]
         local: Option<StrictPath>,
 
         /// Cloud folder path for backups.
@@ -450,18 +457,14 @@ pub enum CloudSetSubcommand {
         #[clap(long, default_value = "")]
         password: String,
         /// Service provider.
-        #[clap(long, default_value = WebDavProvider::OTHER, possible_values = WebDavProvider::ALL_CLI)]
+        #[clap(long, default_value = WebDavProvider::OTHER, value_parser = possible_values!(WebDavProvider, ALL_CLI))]
         provider: WebDavProvider,
     },
 }
 
+/// Back up and restore PC game saves
 #[derive(clap::Parser, Clone, Debug, PartialEq, Eq)]
-#[clap(
-    name = "ludusavi",
-    version,
-    about = "Back up and restore PC game saves",
-    set_term_width = 79
-)]
+#[clap(name = "ludusavi", version, term_width = 79)]
 pub struct Cli {
     /// Use configuration found in DIRECTORY
     #[clap(long, value_name = "DIRECTORY")]

@@ -75,7 +75,7 @@ fn warn_deprecations(by_steam_id: bool) {
 
 pub fn parse() -> Cli {
     use clap::Parser;
-    Cli::from_args()
+    Cli::parse()
 }
 
 pub fn run(sub: Subcommand) -> Result<(), Error> {
@@ -409,7 +409,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             };
             clap_complete::generate(
                 clap_shell,
-                &mut Cli::into_app(),
+                &mut Cli::command(),
                 env!("CARGO_PKG_NAME"),
                 &mut std::io::stdout(),
             )

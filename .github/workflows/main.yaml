@@ -93,4 +93,6 @@ jobs:
         with:
           key: ${{ matrix.os }}
       - run: cargo fmt --all -- --check
-      - run: cargo clippy --workspace -- --deny warnings
+      # TODO: restore this line once this Clippy fix is released:
+      # https://github.com/rust-lang/rust-clippy/pull/10499
+      # - run: cargo clippy --workspace -- --deny warnings
