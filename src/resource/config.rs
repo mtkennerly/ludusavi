@@ -614,6 +614,8 @@ pub struct Cloud {
     pub remote: Option<Remote>,
     #[serde(default)]
     pub path: String,
+    #[serde(default = "crate::serialization::default_true")]
+    pub synchronize: bool,
 }
 
 impl Default for Cloud {
@@ -621,6 +623,7 @@ impl Default for Cloud {
         Self {
             remote: Default::default(),
             path: "ludusavi-backup".to_string(),
+            synchronize: true,
         }
     }
 }
@@ -1387,6 +1390,7 @@ mod tests {
             cloud:
               remote: GoogleDrive
               path: ludusavi-backup
+              synchronize: false
             apps:
               rclone:
                 path: rclone.exe
@@ -1466,6 +1470,7 @@ mod tests {
                 cloud: Cloud {
                     remote: Some(Remote::GoogleDrive),
                     path: "ludusavi-backup".to_string(),
+                    synchronize: false,
                 },
                 apps: Apps {
                     rclone: App {
@@ -1763,6 +1768,7 @@ scan:
 cloud:
   remote: GoogleDrive
   path: ludusavi-backup
+  synchronize: true
 apps:
   rclone:
     path: rclone.exe
@@ -1843,6 +1849,7 @@ customGames:
                 cloud: Cloud {
                     remote: Some(Remote::GoogleDrive),
                     path: "ludusavi-backup".to_string(),
+                    synchronize: true,
                 },
                 apps: Apps {
                     rclone: App {

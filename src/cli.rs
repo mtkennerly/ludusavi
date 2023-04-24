@@ -73,6 +73,16 @@ fn warn_deprecations(by_steam_id: bool) {
     }
 }
 
+fn negatable_flag(on: bool, off: bool, default: bool) -> bool {
+    if on {
+        true
+    } else if off {
+        false
+    } else {
+        default
+    }
+}
+
 pub fn parse() -> Cli {
     use clap::Parser;
     Cli::parse()
@@ -109,6 +119,8 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             compression_level,
             full_limit,
             differential_limit,
+            cloud_sync,
+            no_cloud_sync,
             games,
         } => {
             warn_deprecations(by_steam_id);
@@ -131,13 +143,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             };
             let roots = config.expanded_roots();
 
-            let merge = if merge {
-                true
-            } else if no_merge {
-                false
-            } else {
-                config.backup.merge
-            };
+            let merge = negatable_flag(merge, no_merge, config.backup.merge);
 
             if !preview && !force {
                 match dialoguer::Confirm::new()
@@ -167,8 +173,6 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 });
             }
 
-            log::info!("beginning backup with {} steps", subjects.valid.len());
-
             let mut retention = config.backup.retention.clone();
             if let Some(full_limit) = full_limit {
                 retention.full = full_limit;
@@ -186,11 +190,46 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             let toggled_registry = config.backup.toggled_registry.clone();
             let steam_shortcuts = SteamShortcuts::scan();
 
+            let cloud_sync = negatable_flag(
+                cloud_sync,
+                no_cloud_sync,
+                config.cloud.synchronize && crate::cloud::validate_cloud_config(&config, &config.cloud.path).is_ok(),
+            );
+            let mut should_sync_cloud_after = cloud_sync;
+            if cloud_sync {
+                let changes = sync_cloud(
+                    &config,
+                    &backup_dir,
+                    &config.cloud.path,
+                    SyncDirection::Download,
+                    Finality::Preview,
+                    if games_specified { &subjects.valid } else { &[] },
+                );
+                match changes {
+                    Ok(changes) => {
+                        if !changes.is_empty() {
+                            should_sync_cloud_after = false;
+                            reporter.trip_cloud_conflict();
+                        }
+                    }
+                    Err(_) => {
+                        should_sync_cloud_after = false;
+                        reporter.trip_cloud_sync_failed();
+                    }
+                }
+            }
+
+            log::info!("beginning backup with {} steps", subjects.valid.len());
+
             let mut info: Vec<_> = subjects
                 .valid
                 .par_iter()
                 .enumerate()
-                .progress_count(subjects.valid.len() as u64)
+                .progress_with(progress_bar(
+                    TRANSLATOR.scan_label(),
+                    TRANSLATOR.games_unit(),
+                    Some(subjects.valid.len() as u64),
+                ))
                 .map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let game = &all_games.0[name];
@@ -244,6 +283,20 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 .collect();
             log::info!("completed backup");
 
+            if should_sync_cloud_after {
+                let sync_result = sync_cloud(
+                    &config,
+                    &backup_dir,
+                    &config.cloud.path,
+                    SyncDirection::Upload,
+                    Finality::Final,
+                    if games_specified { &subjects.valid } else { &[] },
+                );
+                if sync_result.is_err() {
+                    reporter.trip_cloud_sync_failed();
+                }
+            }
+
             for (_, scan_info, _, _) in info.iter() {
                 if !scan_info.can_report_game() {
                     continue;
@@ -277,6 +330,8 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             api,
             sort,
             backup,
+            cloud_sync,
+            no_cloud_sync,
             games,
         } => {
             warn_deprecations(by_steam_id);
@@ -323,13 +378,43 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 });
             }
 
+            let cloud_sync = negatable_flag(
+                cloud_sync,
+                no_cloud_sync,
+                config.cloud.synchronize && crate::cloud::validate_cloud_config(&config, &config.cloud.path).is_ok(),
+            );
+            if cloud_sync {
+                let changes = sync_cloud(
+                    &config,
+                    &restore_dir,
+                    &config.cloud.path,
+                    SyncDirection::Download,
+                    Finality::Preview,
+                    if games_specified { &subjects.valid } else { &[] },
+                );
+                match changes {
+                    Ok(changes) => {
+                        if !changes.is_empty() {
+                            reporter.trip_cloud_conflict();
+                        }
+                    }
+                    Err(_) => {
+                        reporter.trip_cloud_sync_failed();
+                    }
+                }
+            }
+
             log::info!("beginning restore with {} steps", subjects.valid.len());
 
             let mut info: Vec<_> = subjects
                 .valid
                 .par_iter()
                 .enumerate()
-                .progress_count(subjects.valid.len() as u64)
+                .progress_with(progress_bar(
+                    TRANSLATOR.scan_label(),
+                    TRANSLATOR.games_unit(),
+                    Some(subjects.valid.len() as u64),
+                ))
                 .map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let mut layout = layout.game_layout(name);
@@ -594,43 +679,49 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 local,
                 cloud,
                 force,
+                preview,
                 games,
             } => {
+                let local = local.unwrap_or(config.backup.path.clone());
+                let cloud = cloud.unwrap_or(config.cloud.path.clone());
+
+                let finality = if preview { Finality::Preview } else { Finality::Final };
                 let direction = SyncDirection::Upload;
-                let changes = sync_cloud(
-                    &config,
-                    local.clone(),
-                    cloud.clone(),
+
+                if !ask(
+                    TRANSLATOR.confirm_cloud_upload(&local.render(), &cloud),
+                    finality,
                     force,
-                    direction,
-                    Finality::Preview,
-                    &games,
-                )?;
-                report_cloud_changes(&changes);
-                if !changes.is_empty() {
-                    sync_cloud(&config, local, cloud, force, direction, Finality::Final, &games)?;
+                )? {
+                    return Ok(());
                 }
+
+                let changes = sync_cloud(&config, &local, &cloud, direction, finality, &games)?;
+                report_cloud_changes(&changes);
             }
             parse::CloudSubcommand::Download {
                 local,
                 cloud,
                 force,
+                preview,
                 games,
             } => {
+                let local = local.unwrap_or(config.backup.path.clone());
+                let cloud = cloud.unwrap_or(config.cloud.path.clone());
+
+                let finality = if preview { Finality::Preview } else { Finality::Final };
                 let direction = SyncDirection::Download;
-                let changes = sync_cloud(
-                    &config,
-                    local.clone(),
-                    cloud.clone(),
+
+                if !ask(
+                    TRANSLATOR.confirm_cloud_download(&local.render(), &cloud),
+                    finality,
                     force,
-                    direction,
-                    Finality::Preview,
-                    &games,
-                )?;
-                report_cloud_changes(&changes);
-                if !changes.is_empty() {
-                    sync_cloud(&config, local, cloud, force, direction, Finality::Final, &games)?;
+                )? {
+                    return Ok(());
                 }
+
+                let changes = sync_cloud(&config, &local, &cloud, direction, finality, &games)?;
+                report_cloud_changes(&changes);
             }
         },
     }
@@ -652,48 +743,48 @@ fn configure_cloud(config: &mut Config, remote: Remote) -> Result<(), Error> {
     Ok(())
 }
 
+fn ask(question: String, finality: Finality, force: bool) -> Result<bool, Error> {
+    if finality.preview() || force {
+        Ok(true)
+    } else {
+        dialoguer::Confirm::new()
+            .with_prompt(question)
+            .interact()
+            .map_err(|_| Error::CliUnableToRequestConfirmation)
+    }
+}
+
+fn progress_bar(message: String, unit: String, length: Option<u64>) -> ProgressBar {
+    let template = format!("{message} ({{elapsed}}) {{wide_bar}} {{pos}}/{{len}} {unit}");
+    let style = indicatif::ProgressStyle::default_bar().template(&template);
+    ProgressBar::new(length.unwrap_or(100)).with_style(style)
+}
+
 fn sync_cloud(
     config: &Config,
-    local: Option<StrictPath>,
-    cloud: Option<String>,
-    force: bool,
+    local: &StrictPath,
+    cloud: &str,
     sync: SyncDirection,
     finality: Finality,
     games: &[String],
 ) -> Result<Vec<CloudChange>, Error> {
-    let local = local.unwrap_or(config.backup.path.clone());
-    let cloud = cloud.unwrap_or(config.cloud.path.clone());
-
-    if !config.apps.rclone.is_valid() {
-        return Err(Error::RcloneUnavailable);
+    match finality {
+        Finality::Preview => log::info!("checking cloud sync"),
+        Finality::Final => log::info!("performing cloud sync"),
     }
-    let Some(remote) = config.cloud.remote.clone() else { return Err(Error::CloudNotConfigured) };
-    crate::cloud::validate_cloud_path(&cloud)?;
 
-    if !finality.preview() && !force {
-        match dialoguer::Confirm::new()
-            .with_prompt(match sync {
-                SyncDirection::Upload => TRANSLATOR.confirm_cloud_upload(&local.render(), &cloud),
-                SyncDirection::Download => TRANSLATOR.confirm_cloud_download(&local.render(), &cloud),
-            })
-            .interact()
-        {
-            Ok(true) => (),
-            Ok(false) => return Ok(vec![]),
-            Err(_) => return Err(Error::CliUnableToRequestConfirmation),
-        }
-    }
+    let remote = crate::cloud::validate_cloud_config(config, cloud)?;
 
     let layout = BackupLayout::new(local.clone(), config.backup.retention.clone());
     let games: Vec<_> = games.iter().filter_map(|x| layout.game_folder(x).leaf()).collect();
 
     let rclone = Rclone::new(config.apps.rclone.clone(), remote);
-    let mut process = match rclone.sync(&local, &cloud, sync, finality, &games) {
+    let mut process = match rclone.sync(local, cloud, sync, finality, &games) {
         Ok(p) => p,
         Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
     };
 
-    let progress_bar = ProgressBar::new(100);
+    let progress_bar = progress_bar(TRANSLATOR.cloud_label(), TRANSLATOR.bytes_unit(), Some(100));
     let mut changes = vec![];
     loop {
         let events = process.events();

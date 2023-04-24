@@ -192,6 +192,18 @@ pub enum Subcommand {
         #[clap(long)]
         differential_limit: Option<u8>,
 
+        /// Upload any changes to the cloud when the backup is complete.
+        /// If the local and cloud backups are not in sync to begin with,
+        /// then nothing will be uploaded.
+        /// When not specified, this defers to the config file.
+        #[clap(long)]
+        cloud_sync: bool,
+
+        /// Don't perform any cloud checks or synchronization.
+        /// When not specified, this defers to the config file.
+        #[clap(long, conflicts_with("cloud-sync"))]
+        no_cloud_sync: bool,
+
         /// Only back up these specific games.
         #[clap()]
         games: Vec<String>,
@@ -234,6 +246,17 @@ pub enum Subcommand {
         /// This is only valid when restoring a single game.
         #[clap(long)]
         backup: Option<String>,
+
+        /// Warn if the local and cloud backups are out of sync.
+        /// The restore will still proceed regardless.
+        /// When not specified, this defers to the config file.
+        #[clap(long)]
+        cloud_sync: bool,
+
+        /// Don't perform any cloud checks or synchronization.
+        /// When not specified, this defers to the config file.
+        #[clap(long, conflicts_with("cloud-sync"))]
+        no_cloud_sync: bool,
 
         /// Only restore these specific games.
         #[clap()]
@@ -377,6 +400,10 @@ pub enum CloudSubcommand {
         #[clap(long)]
         force: bool,
 
+        /// Check what would change, but don't actually apply the changes.
+        #[clap(long)]
+        preview: bool,
+
         /// Only sync these specific games.
         #[clap()]
         games: Vec<String>,
@@ -396,6 +423,10 @@ pub enum CloudSubcommand {
         /// Don't ask for confirmation.
         #[clap(long)]
         force: bool,
+
+        /// Check what would change, but don't actually apply the changes.
+        #[clap(long)]
+        preview: bool,
 
         /// Only sync these specific games.
         #[clap()]
@@ -533,6 +564,8 @@ mod tests {
                     compression_level: None,
                     full_limit: None,
                     differential_limit: None,
+                    cloud_sync: false,
+                    no_cloud_sync: false,
                     games: vec![],
                 }),
             },
@@ -567,6 +600,7 @@ mod tests {
                 "1",
                 "--differential-limit",
                 "2",
+                "--cloud-sync",
                 "game1",
                 "game2",
             ],
@@ -589,6 +623,8 @@ mod tests {
                     compression_level: Some(5),
                     full_limit: Some(1),
                     differential_limit: Some(2),
+                    cloud_sync: true,
+                    no_cloud_sync: false,
                     games: vec![s("game1"), s("game2")],
                 }),
             },
@@ -618,6 +654,8 @@ mod tests {
                     compression_level: None,
                     full_limit: None,
                     differential_limit: None,
+                    cloud_sync: false,
+                    no_cloud_sync: false,
                     games: vec![],
                 }),
             },
@@ -647,6 +685,8 @@ mod tests {
                     compression_level: None,
                     full_limit: None,
                     differential_limit: None,
+                    cloud_sync: false,
+                    no_cloud_sync: false,
                     games: vec![],
                 }),
             },
@@ -676,6 +716,8 @@ mod tests {
                     compression_level: None,
                     full_limit: None,
                     differential_limit: None,
+                    cloud_sync: false,
+                    no_cloud_sync: false,
                     games: vec![],
                 }),
             },
@@ -721,6 +763,8 @@ mod tests {
                         compression_level: None,
                         full_limit: None,
                         differential_limit: None,
+                        cloud_sync: false,
+                        no_cloud_sync: false,
                         games: vec![],
                     }),
                 },
@@ -751,6 +795,8 @@ mod tests {
                     compression_level: Some(-7),
                     full_limit: None,
                     differential_limit: None,
+                    cloud_sync: false,
+                    no_cloud_sync: false,
                     games: vec![],
                 }),
             },
@@ -771,6 +817,8 @@ mod tests {
                     api: false,
                     sort: None,
                     backup: None,
+                    cloud_sync: false,
+                    no_cloud_sync: false,
                     games: vec![],
                 }),
             },
@@ -793,6 +841,7 @@ mod tests {
                 "name",
                 "--backup",
                 ".",
+                "--cloud-sync",
                 "game1",
                 "game2",
             ],
@@ -806,6 +855,8 @@ mod tests {
                     api: true,
                     sort: Some(CliSort::Name),
                     backup: Some(s(".")),
+                    cloud_sync: true,
+                    no_cloud_sync: false,
                     games: vec![s("game1"), s("game2")],
                 }),
             },
@@ -842,6 +893,8 @@ mod tests {
                         api: false,
                         sort: Some(sort),
                         backup: None,
+                        cloud_sync: false,
+                        no_cloud_sync: false,
                         games: vec![],
                     }),
                 },

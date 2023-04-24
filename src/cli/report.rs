@@ -12,11 +12,41 @@ use crate::{
 };
 
 #[derive(Debug, Default, serde::Serialize)]
-struct ApiErrors {
-    #[serde(rename = "someGamesFailed", skip_serializing_if = "Option::is_none")]
+#[serde(rename_all = "camelCase")]
+pub struct ApiErrors {
+    #[serde(skip_serializing_if = "Option::is_none")]
     some_games_failed: Option<bool>,
-    #[serde(rename = "unknownGames", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     unknown_games: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cloud_conflict: Option<concern::CloudConflict>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    cloud_sync_failed: Option<concern::CloudSyncFailed>,
+}
+
+impl ApiErrors {
+    /// This is used by the standard reporter.
+    pub fn messages(&self) -> Vec<String> {
+        let mut out = vec![];
+
+        if self.cloud_conflict.is_some() {
+            out.push(TRANSLATOR.prefix_warning(&TRANSLATOR.cloud_synchronize_conflict()));
+        }
+
+        if self.cloud_sync_failed.is_some() {
+            out.push(TRANSLATOR.prefix_warning(&TRANSLATOR.unable_to_synchronize_with_cloud()));
+        }
+
+        out
+    }
+}
+
+pub mod concern {
+    #[derive(Debug, Default, serde::Serialize)]
+    pub struct CloudConflict {}
+
+    #[derive(Debug, Default, serde::Serialize)]
+    pub struct CloudSyncFailed {}
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -109,6 +139,7 @@ pub enum Reporter {
     Standard {
         parts: Vec<String>,
         status: Option<OperationStatus>,
+        errors: ApiErrors,
     },
     Json {
         output: JsonOutput,
@@ -120,6 +151,7 @@ impl Reporter {
         Self::Standard {
             parts: vec![],
             status: Some(Default::default()),
+            errors: Default::default(),
         }
     }
 
@@ -133,30 +165,43 @@ impl Reporter {
         }
     }
 
-    fn trip_some_games_failed(&mut self) {
-        if let Reporter::Json { output, .. } = self {
-            if let Some(errors) = &mut output.errors {
-                errors.some_games_failed = Some(true);
-            } else {
-                output.errors = Some(ApiErrors {
-                    some_games_failed: Some(true),
-                    ..Default::default()
-                });
+    fn set_errors(&mut self, f: impl FnOnce(&mut ApiErrors)) {
+        match self {
+            Reporter::Standard { errors, .. } => f(errors),
+            Reporter::Json { output } => {
+                if let Some(errors) = &mut output.errors.as_mut() {
+                    f(errors)
+                } else {
+                    let mut errors = ApiErrors::default();
+                    f(&mut errors);
+                    output.errors = Some(errors);
+                }
             }
         }
     }
 
+    fn trip_some_games_failed(&mut self) {
+        self.set_errors(|e| {
+            e.some_games_failed = Some(true);
+        });
+    }
+
     pub fn trip_unknown_games(&mut self, games: Vec<String>) {
-        if let Reporter::Json { output, .. } = self {
-            if let Some(errors) = &mut output.errors {
-                errors.unknown_games = Some(games);
-            } else {
-                output.errors = Some(ApiErrors {
-                    unknown_games: Some(games),
-                    ..Default::default()
-                });
-            }
-        }
+        self.set_errors(|e| {
+            e.unknown_games = Some(games);
+        });
+    }
+
+    pub fn trip_cloud_conflict(&mut self) {
+        self.set_errors(|e| {
+            e.cloud_conflict = Some(concern::CloudConflict {});
+        });
+    }
+
+    pub fn trip_cloud_sync_failed(&mut self) {
+        self.set_errors(|e| {
+            e.cloud_sync_failed = Some(concern::CloudSyncFailed {});
+        });
     }
 
     pub fn suppress_overall(&mut self) {
@@ -186,7 +231,7 @@ impl Reporter {
         let restoring = scan_info.restoring();
 
         match self {
-            Self::Standard { parts, status } => {
+            Self::Standard { parts, status, .. } => {
                 parts.push(TRANSLATOR.cli_game_header(
                     name,
                     scan_info.sum_bytes(Some(backup_info)),
@@ -426,8 +471,14 @@ impl Reporter {
 
     fn render(&self, path: &StrictPath) -> String {
         match self {
-            Self::Standard { parts, status } => match status {
-                Some(status) => parts.join("\n") + "\n" + &TRANSLATOR.cli_summary(status, path),
+            Self::Standard { parts, status, errors } => match status {
+                Some(status) => {
+                    let mut out = parts.join("\n") + "\n" + &TRANSLATOR.cli_summary(status, path);
+                    for message in errors.messages() {
+                        out += &format!("\n\n{message}");
+                    }
+                    out
+                }
                 None => parts.join("\n"),
             },
             Self::Json { output } => serde_json::to_string_pretty(&output).unwrap(),

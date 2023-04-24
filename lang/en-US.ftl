@@ -59,8 +59,9 @@ registry-issue = Error: Some registry entries were skipped.
 unable-to-browse-file-system = Error: Unable to browse on your system.
 unable-to-open-directory = Error: Unable to open directory:
 unable-to-open-url = Error: Unable to open URL:
-unable-to-configure-cloud = Error: Unable to configure cloud.
-unable-to-synchronize-with-cloud = Error: Unable to synchronize with cloud.
+unable-to-configure-cloud = Unable to configure cloud.
+unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
+cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
 
 command-unlaunched = Command did not launch: {$command}
 command-terminated = Command terminated abruptly: {$command}
@@ -137,6 +138,7 @@ label-provider = Provider
 label-custom = Custom
 label-none = None
 label-change-count = Changes: {$total}
+label-bytes = Bytes
 
 store-epic = Epic
 store-gog = GOG
@@ -218,6 +220,7 @@ suffix-no-confirmation = no confirmation
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
 suffix-restart-required = restart required
 
+prefix-error = Error: {$message}
 prefix-warning = Warning: {$message}
 
 rclone-unavailable = Cloud backups are disabled because Rclone is not available.

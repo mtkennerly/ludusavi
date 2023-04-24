@@ -289,14 +289,14 @@ impl Translator {
             Error::UnableToConfigureCloud(error) => {
                 format!(
                     "{}\n\n{}",
-                    self.unable_to_configure_cloud(),
+                    self.prefix_error(&self.unable_to_configure_cloud()),
                     self.handle_command_error(error)
                 )
             }
             Error::UnableToSynchronizeCloud(error) => {
                 format!(
                     "{}\n\n{}",
-                    self.unable_to_synchronize_with_cloud(),
+                    self.prefix_error(&self.unable_to_synchronize_with_cloud()),
                     self.handle_command_error(error)
                 )
             }
@@ -707,6 +707,10 @@ impl Translator {
         translate("unable-to-synchronize-with-cloud")
     }
 
+    pub fn cloud_synchronize_conflict(&self) -> String {
+        translate("cloud-synchronize-conflict")
+    }
+
     pub fn adjusted_size(&self, bytes: u64) -> String {
         let byte = Byte::from_bytes(bytes.into());
         let adjusted_byte = byte.get_appropriate_unit(true);
@@ -933,7 +937,11 @@ impl Translator {
     }
 
     pub fn scan_label(&self) -> String {
-        self.field(&translate("label-scan"))
+        translate("label-scan")
+    }
+
+    pub fn scan_field(&self) -> String {
+        self.field(&self.scan_label())
     }
 
     pub fn filter_label(&self) -> String {
@@ -945,7 +953,11 @@ impl Translator {
     }
 
     pub fn cloud_label(&self) -> String {
-        self.field(&translate("label-cloud"))
+        translate("label-cloud")
+    }
+
+    pub fn cloud_field(&self) -> String {
+        self.field(&self.cloud_label())
     }
 
     pub fn rclone_label(&self) -> String {
@@ -1008,6 +1020,14 @@ impl Translator {
         let mut args = FluentArgs::new();
         args.set(TOTAL, total);
         translate_args("label-change-count", &args)
+    }
+
+    pub fn games_unit(&self) -> String {
+        translate("total-games").to_lowercase()
+    }
+
+    pub fn bytes_unit(&self) -> String {
+        translate("label-bytes").to_lowercase()
     }
 
     pub fn new_tooltip(&self) -> String {
@@ -1097,6 +1117,12 @@ impl Translator {
 
     pub fn suffix_restart_required(&self) -> String {
         translate("suffix-restart-required")
+    }
+
+    pub fn prefix_error(&self, message: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(MESSAGE, message);
+        translate_args("prefix-error", &args)
     }
 
     pub fn prefix_warning(&self, message: &str) -> String {

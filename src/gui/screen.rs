@@ -364,7 +364,7 @@ pub fn other<'a>(
                 .push(
                     Column::new()
                         .spacing(10)
-                        .push(Text::new(TRANSLATOR.scan_label()))
+                        .push(Text::new(TRANSLATOR.scan_field()))
                         .push_some(|| {
                             AVAILABLE_PARALELLISM.map(|max_threads| {
                                 Column::new()
@@ -462,7 +462,7 @@ pub fn other<'a>(
                         .push(
                             Row::new()
                                 .align_items(iced::Alignment::Center)
-                                .push(Text::new(TRANSLATOR.cloud_label()).width(100)),
+                                .push(Text::new(TRANSLATOR.cloud_field()).width(100)),
                         )
                         .push(
                             Container::new({

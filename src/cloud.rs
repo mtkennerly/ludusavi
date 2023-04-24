@@ -3,9 +3,18 @@ use std::io::{BufRead, BufReader};
 use crate::{
     lang::TRANSLATOR,
     prelude::{run_command, CommandError, CommandOutput, Error, Finality, Privacy, StrictPath, SyncDirection},
-    resource::config::App,
+    resource::config::{App, Config},
     scan::ScanChange,
 };
+
+pub fn validate_cloud_config(config: &Config, cloud_path: &str) -> Result<Remote, Error> {
+    if !config.apps.rclone.is_valid() {
+        return Err(Error::RcloneUnavailable);
+    }
+    let Some(remote) = config.cloud.remote.clone() else { return Err(Error::CloudNotConfigured) };
+    validate_cloud_path(cloud_path)?;
+    Ok(remote)
+}
 
 pub fn validate_cloud_path(path: &str) -> Result<(), Error> {
     if path.is_empty() || path == "/" {
@@ -51,10 +60,14 @@ impl RcloneProcess {
 
         log::debug!("Running command: {} {:?}", &program, &args);
 
-        let mut child = command.spawn().map_err(|e| CommandError::Launched {
-            program: program.clone(),
-            args: args.clone(),
-            raw: e.to_string(),
+        let mut child = command.spawn().map_err(|e| {
+            let e = CommandError::Launched {
+                program: program.clone(),
+                args: args.clone(),
+                raw: e.to_string(),
+            };
+            log::error!("Rclone failed: {e:?}");
+            e
         })?;
 
         let stderr = child.stderr.take().map(BufReader::new);
@@ -176,7 +189,7 @@ impl RcloneProcess {
             log::debug!("Rclone succeeded");
         }
         if let Some(Err(e)) = &res {
-            log::error!("Rclone failed: {:?}", e);
+            log::error!("Rclone failed: {e:?}");
         }
 
         res
@@ -556,16 +569,6 @@ impl Rclone {
         self.run(&args, &[0], privacy)?;
         Ok(())
     }
-
-    // pub fn exists(&self, remote_path: &str) -> Result<bool, CommandError> {
-    //     let code = self.run(&["lsjson", "--stat", "--no-mimetype", "--no-modtime", &self.path(remote_path)], &[0, 3])?;
-    //     Ok(code == 0)
-    // }
-
-    // pub fn is_synced(&self, local: &StrictPath, remote_path: &str) -> Result<bool, CommandError> {
-    //     let code = self.run(&["check", &local.interpret(), &self.path(remote_path)], &[0, 1])?;
-    //     Ok(code == 0)
-    // }
 
     pub fn sync(
         &self,
