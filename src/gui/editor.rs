@@ -4,7 +4,7 @@ use iced_native::widget::tooltip;
 use crate::{
     gui::{
         button,
-        common::{BrowseSubject, Message, ScrollSubject, UndoSubject},
+        common::{BackupPhase, BrowseSubject, Message, ScrollSubject, UndoSubject},
         shortcuts::TextHistories,
         style,
         widget::{Checkbox, Column, Container, PickList, Row, Text, Tooltip},
@@ -126,10 +126,10 @@ pub fn custom_games<'a>(config: &Config, operating: bool, histories: &TextHistor
                                 .push(
                                     Tooltip::new(
                                         button::refresh(
-                                            Message::BackupStart {
+                                            Message::Backup(BackupPhase::Start {
                                                 games: Some(vec![config.custom_games[i].name.clone()]),
                                                 preview: true,
-                                            },
+                                            }),
                                             operating,
                                         ),
                                         TRANSLATOR.preview_button_in_custom_mode(),

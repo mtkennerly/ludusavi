@@ -6,7 +6,7 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{GameAction, Message, OngoingOperation, Screen, ScrollSubject},
+        common::{BackupPhase, GameAction, Message, OngoingOperation, RestorePhase, Screen, ScrollSubject},
         file_tree::FileTree,
         icon::Icon,
         search::FilterComponent,
@@ -97,15 +97,15 @@ impl GameListEntry {
                                 })
                             } else if !operating {
                                 if restoring {
-                                    Some(Message::RestoreStart {
+                                    Some(Message::Restore(RestorePhase::Start {
                                         preview: true,
                                         games: Some(vec![self.scan_info.game_name.clone()]),
-                                    })
+                                    }))
                                 } else {
-                                    Some(Message::BackupStart {
+                                    Some(Message::Backup(BackupPhase::Start {
                                         preview: true,
                                         games: Some(vec![self.scan_info.game_name.clone()]),
-                                    })
+                                    }))
                                 }
                             } else {
                                 None

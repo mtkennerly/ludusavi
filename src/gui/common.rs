@@ -19,6 +19,75 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
+pub enum BackupPhase {
+    Confirm {
+        games: Option<Vec<String>>,
+    },
+    Start {
+        preview: bool,
+        games: Option<Vec<String>>,
+    },
+    PrepareDirectory {
+        preview: bool,
+        games: Option<Vec<String>>,
+    },
+    Load {
+        preview: bool,
+        games: Option<Vec<String>>,
+    },
+    RegisterCommands {
+        preview: bool,
+        full: bool,
+        games: Option<Vec<String>>,
+        subjects: Vec<String>,
+        all_games: Manifest,
+        layout: Box<BackupLayout>,
+        ranking: InstallDirRanking,
+        steam: SteamShortcuts,
+        heroic: HeroicGames,
+    },
+    GameScanned {
+        scan_info: Option<ScanInfo>,
+        backup_info: Option<BackupInfo>,
+        decision: OperationStepDecision,
+        preview: bool,
+        full: bool,
+    },
+    Done {
+        preview: bool,
+        full: bool,
+    },
+}
+
+#[derive(Debug, Clone)]
+pub enum RestorePhase {
+    Confirm {
+        games: Option<Vec<String>>,
+    },
+    Start {
+        preview: bool,
+        games: Option<Vec<String>>,
+    },
+    RegisterCommands {
+        preview: bool,
+        full: bool,
+        games: Option<Vec<String>>,
+        restorables: Vec<String>,
+        layout: BackupLayout,
+    },
+    GameScanned {
+        scan_info: Option<ScanInfo>,
+        backup_info: Option<BackupInfo>,
+        decision: OperationStepDecision,
+        full: bool,
+        game_layout: Box<GameLayout>,
+    },
+    Done {
+        full: bool,
+    },
+}
+
+#[derive(Debug, Clone)]
 pub enum Message {
     Ignore,
     Error(Error),
@@ -27,61 +96,8 @@ pub enum Message {
     PruneNotifications,
     UpdateManifest,
     ManifestUpdated(Result<Option<ManifestUpdate>, Error>),
-    ConfirmBackupStart {
-        games: Option<Vec<String>>,
-    },
-    /// This phase is fallible and may need to show an error to the user.
-    BackupPrep {
-        preview: bool,
-        games: Option<Vec<String>>,
-    },
-    /// This phase can be slow, so we keep it separate so things run smoothly.
-    BackupStart {
-        preview: bool,
-        games: Option<Vec<String>>,
-    },
-    /// This phase is when we register a `Command` for each game.
-    BackupPerform {
-        preview: bool,
-        full: bool,
-        games: Option<Vec<String>>,
-        subjects: Vec<String>,
-        all_games: Manifest,
-        layout: BackupLayout,
-        ranking: InstallDirRanking,
-        steam: SteamShortcuts,
-        heroic: HeroicGames,
-    },
-    ConfirmRestoreStart {
-        games: Option<Vec<String>>,
-    },
-    /// This phase can be slow, so we keep it separate so things run smoothly.
-    RestoreStart {
-        preview: bool,
-        games: Option<Vec<String>>,
-    },
-    /// This phase is when we register a `Command` for each game.
-    RestorePerform {
-        preview: bool,
-        full: bool,
-        games: Option<Vec<String>>,
-        restorables: Vec<String>,
-        layout: BackupLayout,
-    },
-    BackupStep {
-        scan_info: Option<ScanInfo>,
-        backup_info: Option<BackupInfo>,
-        decision: OperationStepDecision,
-        preview: bool,
-        full: bool,
-    },
-    RestoreStep {
-        scan_info: Option<ScanInfo>,
-        backup_info: Option<BackupInfo>,
-        decision: OperationStepDecision,
-        full: bool,
-        game_layout: GameLayout,
-    },
+    Backup(BackupPhase),
+    Restore(RestorePhase),
     CancelOperation,
     EditedBackupTarget(String),
     EditedBackupMerge(bool),

@@ -2,7 +2,9 @@ use iced::alignment;
 
 use crate::{
     gui::{
-        common::{BrowseFileSubject, BrowseSubject, EditAction, Message, OngoingOperation, Screen},
+        common::{
+            BackupPhase, BrowseFileSubject, BrowseSubject, EditAction, Message, OngoingOperation, RestorePhase, Screen,
+        },
         icon::Icon,
         style,
         widget::{Button, Element, IcedButtonExt, Text},
@@ -305,16 +307,16 @@ pub fn operation<'a>(action: OngoingOperation, ongoing: Option<OngoingOperation>
         match ongoing {
             Some(ongoing) => (action == ongoing).then_some(Message::CancelOperation),
             None => match action {
-                Backup => Some(Message::ConfirmBackupStart { games: None }),
-                PreviewBackup => Some(Message::BackupPrep {
+                Backup => Some(Message::Backup(BackupPhase::Confirm { games: None })),
+                PreviewBackup => Some(Message::Backup(BackupPhase::Start {
                     preview: true,
                     games: None,
-                }),
-                Restore => Some(Message::ConfirmRestoreStart { games: None }),
-                PreviewRestore => Some(Message::RestoreStart {
+                })),
+                Restore => Some(Message::Restore(RestorePhase::Confirm { games: None })),
+                PreviewRestore => Some(Message::Restore(RestorePhase::Start {
                     preview: true,
                     games: None,
-                }),
+                })),
                 _ => None,
             },
         },

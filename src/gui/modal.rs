@@ -5,7 +5,7 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{Message, ScrollSubject},
+        common::{BackupPhase, Message, RestorePhase, ScrollSubject},
         style,
         widget::{Button, Column, Container, PickList, Row, Space, Text, TextInput},
     },
@@ -166,14 +166,14 @@ impl Modal {
     pub fn message(&self) -> Option<Message> {
         match self {
             Self::Error { .. } | Self::NoMissingRoots => Some(Message::CloseModal),
-            Self::ConfirmBackup { games } => Some(Message::BackupPrep {
+            Self::ConfirmBackup { games } => Some(Message::Backup(BackupPhase::Start {
                 preview: false,
                 games: games.clone(),
-            }),
-            Self::ConfirmRestore { games } => Some(Message::RestoreStart {
+            })),
+            Self::ConfirmRestore { games } => Some(Message::Restore(RestorePhase::Start {
                 preview: false,
                 games: games.clone(),
-            }),
+            })),
             Self::ConfirmAddMissingRoots(missing) => Some(Message::ConfirmAddMissingRoots(missing.clone())),
             Self::PreparingBackupDir | Self::UpdatingManifest => None,
             modal @ Self::ConfirmCloudSync { direction, .. } => {
