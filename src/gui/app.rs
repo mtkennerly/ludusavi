@@ -7,16 +7,15 @@ use crate::{
     gui::{
         button,
         common::*,
-        icon::Icon,
         modal::Modal,
         notification::Notification,
         screen,
         shortcuts::{Shortcut, TextHistories, TextHistory},
         style,
-        widget::{Column, Container, Element, IcedParentExt, ProgressBar, Row},
+        widget::{Column, Container, Element, IcedParentExt, ProgressBar, Row, Text},
     },
     lang::TRANSLATOR,
-    prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
+    prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath},
     resource::{
         cache::Cache,
         config::{Config, CustomGame, RootsConfig},
@@ -59,6 +58,8 @@ impl iced::Executor for Executor {
 struct Progress {
     pub max: f32,
     pub current: f32,
+    prepared: bool,
+    start_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl Progress {
@@ -69,20 +70,62 @@ impl Progress {
     pub fn reset(&mut self) {
         self.max = 0.0;
         self.current = 0.0;
+        self.prepared = false;
+        self.start_time = None;
     }
 
-    /// Use this as a placeholder if we don't know the real max yet,
-    /// just to make the progress bar start showing up.
     pub fn start(&mut self) {
         self.max = 100.0;
         self.current = 0.0;
+        self.prepared = false;
+        self.start_time = Some(chrono::Utc::now());
+    }
+
+    pub fn step(&mut self) {
+        self.current += 1.0;
+        self.prepared = true;
+    }
+
+    pub fn set(&mut self, current: f32, max: f32) {
+        self.current = current;
+        self.max = max;
+        self.prepared = true;
+    }
+
+    pub fn set_max(&mut self, max: f32) {
+        self.max = max;
+        self.prepared = true;
     }
 
     pub fn view(&self, operation: &Option<OngoingOperation>) -> Element {
         use OngoingOperation as Op;
 
-        let icon = operation.map(|op| {
-            match op {
+        let label = operation.map(|op| match op {
+            Op::Backup
+            | Op::CancelBackup
+            | Op::PreviewBackup
+            | Op::CancelPreviewBackup
+            | Op::Restore
+            | Op::CancelRestore
+            | Op::PreviewRestore
+            | Op::CancelPreviewRestore => TRANSLATOR.scan_label(),
+            Op::CloudSync { .. } | Op::CancelCloudSync { .. } => TRANSLATOR.cloud_label(),
+        });
+
+        let elapsed = self.start_time.as_ref().map(|start| {
+            let elapsed = chrono::Utc::now().time() - start.time();
+            format!(
+                "({:0>2}:{:0>2}:{:0>2})",
+                elapsed.num_hours(),
+                elapsed.num_minutes(),
+                elapsed.num_seconds()
+            )
+        });
+
+        let count = if !self.prepared {
+            None
+        } else {
+            operation.map(|op| match op {
                 Op::Backup
                 | Op::CancelBackup
                 | Op::PreviewBackup
@@ -90,31 +133,22 @@ impl Progress {
                 | Op::Restore
                 | Op::CancelRestore
                 | Op::PreviewRestore
-                | Op::CancelPreviewRestore => Icon::Search,
-                Op::CloudSync { direction, finality } => {
-                    if finality.preview() {
-                        Icon::CloudSync
-                    } else {
-                        match direction {
-                            SyncDirection::Upload => Icon::CloudUpload,
-                            SyncDirection::Download => Icon::CloudDownload,
-                        }
-                    }
+                | Op::CancelPreviewRestore => format!("{} / {} {}", self.current, self.max, TRANSLATOR.games_unit()),
+                Op::CloudSync { .. } | Op::CancelCloudSync { .. } => {
+                    TRANSLATOR.cloud_progress(self.current as u64, self.max as u64)
                 }
-                Op::CancelCloudSync { direction } => match direction {
-                    SyncDirection::Upload => Icon::CloudUpload,
-                    SyncDirection::Download => Icon::CloudDownload,
-                },
-            }
-            .into_text()
-            .size(15)
-        });
+            })
+        };
 
         Container::new(
             Row::new()
                 .spacing(5)
-                .push_some(|| icon)
-                .push(ProgressBar::new(0.0..=self.max, self.current).height(15)),
+                .padding([0, 5, 0, 5])
+                .align_items(Alignment::Center)
+                .push_some(|| label.map(|x| Text::new(x).size(15)))
+                .push_some(|| elapsed.map(|x| Text::new(x).size(15)))
+                .push(ProgressBar::new(0.0..=self.max, self.current).height(15))
+                .push_some(|| count.map(|x| Text::new(x).size(15))),
         )
         .style(style::Container::ModalBackground)
         .into()
@@ -250,7 +284,7 @@ impl App {
             self.backup_screen.duplicate_detector.clear();
         }
         self.modal = None;
-        self.progress.max = games.as_ref().map(|x| x.len() as f32).unwrap_or(100.0);
+        self.progress.start();
 
         self.operation = Some(if preview {
             OngoingOperation::PreviewBackup
@@ -333,7 +367,7 @@ impl App {
             return Command::none();
         }
 
-        self.progress.max = all_games.0.len() as f32;
+        self.progress.set_max(all_games.0.len() as f32);
         self.register_notify_on_single_game_scanned(&games);
 
         let config = std::sync::Arc::new(self.config.clone());
@@ -439,7 +473,7 @@ impl App {
         } else {
             OngoingOperation::Restore
         });
-        self.progress.max = games.as_ref().map(|x| x.len() as f32).unwrap_or(100.0);
+        self.progress.start();
 
         Command::perform(
             async move {
@@ -499,7 +533,7 @@ impl App {
             return Command::none();
         }
 
-        self.progress.max = restorables.len() as f32;
+        self.progress.set_max(restorables.len() as f32);
 
         self.register_notify_on_single_game_scanned(&games);
 
@@ -882,7 +916,7 @@ impl Application for App {
                 preview,
                 full,
             } => {
-                self.progress.current += 1.0;
+                self.progress.step();
                 let restoring = false;
 
                 if let Some(scan_info) = scan_info {
@@ -947,7 +981,7 @@ impl Application for App {
                 full,
                 game_layout,
             } => {
-                self.progress.current += 1.0;
+                self.progress.step();
                 let restoring = true;
 
                 if let Some(scan_info) = scan_info {
@@ -1957,8 +1991,7 @@ impl Application for App {
                         for event in events {
                             match event {
                                 crate::cloud::RcloneProcessEvent::Progress { current, max } => {
-                                    self.progress.current = current;
-                                    self.progress.max = max;
+                                    self.progress.set(current, max);
                                 }
                                 crate::cloud::RcloneProcessEvent::Change(change) => {
                                     if let Some(modal) = self.modal.as_mut() {

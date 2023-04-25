@@ -32,14 +32,10 @@ pub enum Icon {
     ArrowBack,
     Comment,
     Close,
-    Search,
     Filter,
     Error,
     Upload,
     Download,
-    CloudSync,
-    CloudUpload,
-    CloudDownload,
 }
 
 impl Icon {
@@ -69,14 +65,10 @@ impl Icon {
             Self::ArrowBack => '\u{e5c4}',
             Self::Comment => '\u{E0B9}',
             Self::Close => '\u{E5CD}',
-            Self::Search => '\u{e8b6}',
             Self::Filter => '\u{ef4f}',
             Self::Error => '\u{e000}',
             Self::Upload => '\u{f09b}',
             Self::Download => '\u{f090}',
-            Self::CloudSync => '\u{eb5a}',
-            Self::CloudUpload => '\u{e2c3}',
-            Self::CloudDownload => '\u{e2c0}',
         }
     }
 

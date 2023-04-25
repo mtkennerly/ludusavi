@@ -8,9 +8,8 @@
 
     For the GUI, refer to the "cloud" section on the `other` screen.
     For the CLI, use the `cloud` command group (e.g., `ludusavi cloud upload`).
+  * Progress bars now show additional information (operation label, elapsed time, exact progress count).
 * Changed:
-  * CLI: The progress bar now indicates the current operation and the count unit.
-  * GUI: The progress bar is a bit taller and is now accompanied by an icon to indicate the current operation.
   * GUI: Modal content is slightly less padded.
 
 ## v0.17.1 (2023-04-10)

@@ -138,7 +138,6 @@ label-provider = Provider
 label-custom = Custom
 label-none = None
 label-change-count = Changes: {$total}
-label-bytes = Bytes
 
 store-epic = Epic
 store-gog = GOG

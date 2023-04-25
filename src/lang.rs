@@ -1026,10 +1026,6 @@ impl Translator {
         translate("total-games").to_lowercase()
     }
 
-    pub fn bytes_unit(&self) -> String {
-        translate("label-bytes").to_lowercase()
-    }
-
     pub fn new_tooltip(&self) -> String {
         translate("label-new")
     }
@@ -1133,5 +1129,13 @@ impl Translator {
 
     pub fn rclone_unavailable(&self) -> String {
         translate("rclone-unavailable")
+    }
+
+    pub fn cloud_progress(&self, processed_bytes: u64, total_bytes: u64) -> String {
+        format!(
+            "{} / {}",
+            self.adjusted_size(processed_bytes),
+            self.adjusted_size(total_bytes)
+        )
     }
 }

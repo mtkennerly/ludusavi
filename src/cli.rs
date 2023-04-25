@@ -225,11 +225,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 .valid
                 .par_iter()
                 .enumerate()
-                .progress_with(progress_bar(
-                    TRANSLATOR.scan_label(),
-                    TRANSLATOR.games_unit(),
-                    Some(subjects.valid.len() as u64),
-                ))
+                .progress_with(scan_progress_bar(subjects.valid.len() as u64))
                 .map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let game = &all_games.0[name];
@@ -410,11 +406,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 .valid
                 .par_iter()
                 .enumerate()
-                .progress_with(progress_bar(
-                    TRANSLATOR.scan_label(),
-                    TRANSLATOR.games_unit(),
-                    Some(subjects.valid.len() as u64),
-                ))
+                .progress_with(scan_progress_bar(subjects.valid.len() as u64))
                 .map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let mut layout = layout.game_layout(name);
@@ -754,10 +746,23 @@ fn ask(question: String, finality: Finality, force: bool) -> Result<bool, Error>
     }
 }
 
-fn progress_bar(message: String, unit: String, length: Option<u64>) -> ProgressBar {
-    let template = format!("{message} ({{elapsed}}) {{wide_bar}} {{pos}}/{{len}} {unit}");
+fn scan_progress_bar(length: u64) -> ProgressBar {
+    let template = format!(
+        "{} ({{elapsed_precise}}) {{wide_bar}} {{pos}} / {{len}} {}",
+        TRANSLATOR.scan_label(),
+        TRANSLATOR.games_unit()
+    );
     let style = indicatif::ProgressStyle::default_bar().template(&template);
-    ProgressBar::new(length.unwrap_or(100)).with_style(style)
+    ProgressBar::new(length).with_style(style)
+}
+
+fn cloud_progress_bar() -> ProgressBar {
+    let template = format!(
+        "{} ({{elapsed_precise}}) {{wide_bar}} {{msg}}",
+        TRANSLATOR.cloud_label()
+    );
+    let style = indicatif::ProgressStyle::default_bar().template(&template);
+    ProgressBar::new(100).with_style(style)
 }
 
 fn sync_cloud(
@@ -784,7 +789,7 @@ fn sync_cloud(
         Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
     };
 
-    let progress_bar = progress_bar(TRANSLATOR.cloud_label(), TRANSLATOR.bytes_unit(), Some(100));
+    let progress_bar = cloud_progress_bar();
     let mut changes = vec![];
     loop {
         let events = process.events();
@@ -793,6 +798,7 @@ fn sync_cloud(
                 crate::cloud::RcloneProcessEvent::Progress { current, max } => {
                     progress_bar.set_length(max as u64);
                     progress_bar.set_position(current as u64);
+                    progress_bar.set_message(TRANSLATOR.cloud_progress(current as u64, max as u64))
                 }
                 crate::cloud::RcloneProcessEvent::Change(change) => {
                     changes.push(change);
