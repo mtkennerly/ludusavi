@@ -69,6 +69,9 @@ pub enum Modal {
     Error {
         variant: Error,
     },
+    Errors {
+        errors: Vec<Error>,
+    },
     ConfirmBackup {
         games: Option<Vec<String>>,
     },
@@ -111,7 +114,7 @@ impl Modal {
     pub fn variant(&self) -> ModalVariant {
         match self {
             Self::PreparingBackupDir | Self::UpdatingManifest => ModalVariant::Loading,
-            Self::Error { .. } | Self::NoMissingRoots => ModalVariant::Info,
+            Self::Error { .. } | Self::Errors { .. } | Self::NoMissingRoots => ModalVariant::Info,
             Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
             | Self::ConfirmAddMissingRoots(..)
@@ -131,6 +134,10 @@ impl Modal {
     pub fn text(&self, config: &Config) -> String {
         match self {
             Self::Error { variant } => TRANSLATOR.handle_error(variant),
+            Self::Errors { errors } => {
+                let messages: Vec<_> = errors.iter().map(|x| TRANSLATOR.handle_error(x)).collect();
+                messages.join("\n\n")
+            }
             Self::ConfirmBackup { .. } => TRANSLATOR.confirm_backup(
                 &config.backup.path,
                 config.backup.path.exists(),
@@ -165,7 +172,7 @@ impl Modal {
 
     pub fn message(&self) -> Option<Message> {
         match self {
-            Self::Error { .. } | Self::NoMissingRoots => Some(Message::CloseModal),
+            Self::Error { .. } | Self::Errors { .. } | Self::NoMissingRoots => Some(Message::CloseModal),
             Self::ConfirmBackup { games } => Some(Message::Backup(BackupPhase::Start {
                 preview: false,
                 games: games.clone(),
@@ -249,6 +256,7 @@ impl Modal {
 
         match self {
             Self::Error { .. }
+            | Self::Errors { .. }
             | Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
@@ -404,6 +412,7 @@ impl Modal {
                 ModalField::WebDavProvider(new) => *provider = new,
             },
             Self::Error { .. }
+            | Self::Errors { .. }
             | Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
@@ -421,6 +430,7 @@ impl Modal {
                 changes.sort();
             }
             Self::Error { .. }
+            | Self::Errors { .. }
             | Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
@@ -439,6 +449,7 @@ impl Modal {
                 *done = true;
             }
             Self::Error { .. }
+            | Self::Errors { .. }
             | Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
@@ -457,6 +468,7 @@ impl Modal {
                 *page = new_page;
             }
             Self::Error { .. }
+            | Self::Errors { .. }
             | Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
@@ -473,6 +485,7 @@ impl Modal {
         match self {
             Self::ConfirmCloudSync { done, changes, .. } => !changes.is_empty() || !done,
             Self::Error { .. }
+            | Self::Errors { .. }
             | Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
@@ -489,6 +502,7 @@ impl Modal {
         match self {
             Self::ConfirmCloudSync { .. } => 4,
             Self::Error { .. }
+            | Self::Errors { .. }
             | Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots

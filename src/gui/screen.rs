@@ -541,6 +541,11 @@ pub fn other<'a>(
                                                     .align_items(Alignment::Center)
                                                     .push(button::upload(operation))
                                                     .push(button::download(operation))
+                                                    .push(Checkbox::new(
+                                                        TRANSLATOR.synchronize_automatically(),
+                                                        config.cloud.synchronize,
+                                                        |_| Message::ToggleCloudSynchronize,
+                                                    ))
                                             },
                                         )
                                         .push_if(

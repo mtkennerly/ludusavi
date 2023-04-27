@@ -171,6 +171,7 @@ show-deselected-games = Show deselected games
 show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
+synchronize-automatically = Synchronize automatically
 
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies

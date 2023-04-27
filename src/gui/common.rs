@@ -27,18 +27,10 @@ pub enum BackupPhase {
         preview: bool,
         games: Option<Vec<String>>,
     },
-    PrepareDirectory {
-        preview: bool,
-        games: Option<Vec<String>>,
-    },
-    Load {
-        preview: bool,
-        games: Option<Vec<String>>,
-    },
+    PrepareDirectory,
+    CloudCheck,
+    Load,
     RegisterCommands {
-        preview: bool,
-        full: bool,
-        games: Option<Vec<String>>,
         subjects: Vec<String>,
         all_games: Manifest,
         layout: Box<BackupLayout>,
@@ -50,13 +42,9 @@ pub enum BackupPhase {
         scan_info: Option<ScanInfo>,
         backup_info: Option<BackupInfo>,
         decision: OperationStepDecision,
-        preview: bool,
-        full: bool,
     },
-    Done {
-        preview: bool,
-        full: bool,
-    },
+    CloudSync,
+    Done,
 }
 
 #[derive(Debug, Clone)]
@@ -68,10 +56,9 @@ pub enum RestorePhase {
         preview: bool,
         games: Option<Vec<String>>,
     },
+    CloudCheck,
+    Load,
     RegisterCommands {
-        preview: bool,
-        full: bool,
-        games: Option<Vec<String>>,
         restorables: Vec<String>,
         layout: BackupLayout,
     },
@@ -79,12 +66,9 @@ pub enum RestorePhase {
         scan_info: Option<ScanInfo>,
         backup_info: Option<BackupInfo>,
         decision: OperationStepDecision,
-        full: bool,
         game_layout: Box<GameLayout>,
     },
-    Done {
-        full: bool,
-    },
+    Done,
 }
 
 #[derive(Debug, Clone)]
@@ -192,6 +176,7 @@ pub enum Message {
     SelectedBackupCompression(ZipCompression),
     EditedCompressionLevel(i32),
     ToggleBackupSettings,
+    ToggleCloudSynchronize,
     GameAction {
         action: GameAction,
         game: String,
@@ -235,6 +220,12 @@ pub enum Message {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OperationCategory {
+    Backup,
+    Restore,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OngoingOperation {
     Backup,
     CancelBackup,
@@ -251,6 +242,29 @@ pub enum OngoingOperation {
     CancelCloudSync {
         direction: SyncDirection,
     },
+}
+
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
+pub struct OperationParameters {
+    pub category: Option<OperationCategory>,
+    pub finality: Finality,
+    pub games: Option<Vec<String>>,
+    pub in_cloud_check: bool,
+    pub in_cloud_sync: bool,
+    pub should_sync_cloud_after: bool,
+    pub errors: Vec<Error>,
+    pub path: StrictPath,
+    pub cloud_changes: i64,
+}
+
+impl OperationParameters {
+    pub fn preview(&self) -> bool {
+        self.finality.preview()
+    }
+
+    pub fn full(&self) -> bool {
+        self.games.is_none()
+    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]

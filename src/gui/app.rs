@@ -15,7 +15,7 @@ use crate::{
         widget::{Column, Container, Element, IcedParentExt, ProgressBar, Row, Text},
     },
     lang::TRANSLATOR,
-    prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath},
+    prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
     resource::{
         cache::Cache,
         config::{Config, CustomGame, RootsConfig},
@@ -83,7 +83,6 @@ impl Progress {
 
     pub fn step(&mut self) {
         self.current += 1.0;
-        self.prepared = true;
     }
 
     pub fn set(&mut self, current: f32, max: f32) {
@@ -133,7 +132,7 @@ impl Progress {
                 | Op::Restore
                 | Op::CancelRestore
                 | Op::PreviewRestore
-                | Op::CancelPreviewRestore => format!("{} / {} {}", self.current, self.max, TRANSLATOR.games_unit()),
+                | Op::CancelPreviewRestore => format!("{}: {} / {}", TRANSLATOR.total_games(), self.current, self.max),
                 Op::CloudSync { .. } | Op::CancelCloudSync { .. } => {
                     TRANSLATOR.cloud_progress(self.current as u64, self.max as u64)
                 }
@@ -161,6 +160,7 @@ pub struct App {
     manifest: Manifest,
     cache: Cache,
     operation: Option<OngoingOperation>,
+    operation_params: OperationParameters,
     screen: Screen,
     modal: Option<Modal>,
     backup_screen: screen::Backup,
@@ -188,6 +188,7 @@ impl App {
         self.operation_should_cancel
             .swap(false, std::sync::atomic::Ordering::Relaxed);
         self.notify_on_single_game_scanned = None;
+        self.operation_params = Default::default();
     }
 
     fn show_error(&mut self, error: Error) {
@@ -207,28 +208,8 @@ impl App {
         self.config.backup.toggled_paths.invalidate_path_caches();
     }
 
-    fn restoring(&self) -> bool {
-        match self.operation {
-            Some(
-                OngoingOperation::Restore
-                | OngoingOperation::CancelRestore
-                | OngoingOperation::PreviewRestore
-                | OngoingOperation::CancelPreviewRestore,
-            ) => true,
-            None
-            | Some(
-                OngoingOperation::Backup
-                | OngoingOperation::CancelBackup
-                | OngoingOperation::PreviewBackup
-                | OngoingOperation::CancelPreviewBackup
-                | OngoingOperation::CloudSync { .. }
-                | OngoingOperation::CancelCloudSync { .. },
-            ) => false,
-        }
-    }
-
-    fn register_notify_on_single_game_scanned(&mut self, games: &Option<Vec<String>>) {
-        if let Some(games) = &games {
+    fn register_notify_on_single_game_scanned(&mut self) {
+        if let Some(games) = &self.operation_params.games {
             if games.len() == 1 {
                 self.notify_on_single_game_scanned = Some((games[0].clone(), self.screen));
             }
@@ -237,10 +218,10 @@ impl App {
 
     fn handle_notify_on_single_game_scanned(&mut self) {
         if let Some((name, screen)) = self.notify_on_single_game_scanned.as_ref() {
-            let log = if self.restoring() {
-                &self.restore_screen.log
-            } else {
-                &self.backup_screen.log
+            let log = match self.operation_params.category {
+                Some(OperationCategory::Backup) => &self.backup_screen.log,
+                Some(OperationCategory::Restore) => &self.restore_screen.log,
+                None => return,
             };
             let found = log.entries.iter().any(|x| &x.scan_info.game_name == name);
 
@@ -251,6 +232,51 @@ impl App {
             let msg = TRANSLATOR.notify_single_game_status(found);
             self.timed_notification = Some(Notification::new(msg).expires(3));
         }
+    }
+
+    fn start_sync_cloud(
+        &mut self,
+        local: &StrictPath,
+        direction: SyncDirection,
+        finality: Finality,
+        games: Option<&Vec<String>>,
+        standalone: bool,
+    ) -> Result<(), Error> {
+        let remote = crate::cloud::validate_cloud_config(&self.config, &self.config.cloud.path)?;
+
+        let games = match games {
+            Some(games) => {
+                let layout = BackupLayout::new(local.clone(), self.config.backup.retention.clone());
+                let games: Vec<_> = games.iter().filter_map(|x| layout.game_folder(x).leaf()).collect();
+                games
+            }
+            None => vec![],
+        };
+
+        let rclone = Rclone::new(self.config.apps.rclone.clone(), remote);
+        match rclone.sync(local, &self.config.cloud.path, direction, Finality::Preview, &games) {
+            Ok(process) => {
+                if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                    if !standalone {
+                        match finality {
+                            Finality::Preview => self.operation_params.in_cloud_check = true,
+                            Finality::Final => self.operation_params.in_cloud_sync = true,
+                        }
+                    }
+                    self.operation = Some(OngoingOperation::CloudSync { direction, finality });
+                    self.progress.start();
+                    let _ = sender.try_send(rclone_monitor::Input::Process(process));
+                }
+            }
+            Err(e) => {
+                if standalone {
+                    self.show_error(Error::UnableToSynchronizeCloud(e.clone()));
+                }
+                return Err(Error::UnableToSynchronizeCloud(e));
+            }
+        }
+
+        Ok(())
     }
 
     fn handle_backup(&mut self, phase: BackupPhase) -> Command<Message> {
@@ -264,17 +290,22 @@ impl App {
                     return Command::none();
                 }
 
-                if preview {
-                    self.handle_backup(BackupPhase::Load { preview, games })
-                } else {
-                    self.handle_backup(BackupPhase::PrepareDirectory { preview, games })
-                }
+                self.operation_params.category = Some(OperationCategory::Backup);
+                self.operation_params.path = self.config.backup.path.clone();
+                self.operation_params.finality = if preview { Finality::Preview } else { Finality::Final };
+                self.operation_params.games = games;
+
+                self.handle_backup(BackupPhase::PrepareDirectory)
             }
-            BackupPhase::PrepareDirectory { preview, games } => {
+            BackupPhase::PrepareDirectory => {
+                if self.operation_params.finality.preview() {
+                    return self.handle_backup(BackupPhase::CloudCheck);
+                }
+
                 self.modal = Some(Modal::PreparingBackupDir);
 
                 let backup_path = self.config.backup.path.clone();
-                let merge = if games.is_some() {
+                let merge = if !self.operation_params.full() {
                     true
                 } else {
                     self.config.backup.merge
@@ -283,19 +314,48 @@ impl App {
                 Command::perform(
                     async move { prepare_backup_target(&backup_path, merge) },
                     move |result| match result {
-                        Ok(_) => Message::Backup(BackupPhase::Load { preview, games }),
+                        Ok(_) => Message::Backup(BackupPhase::CloudCheck),
                         Err(e) => Message::Error(e),
                     },
                 )
             }
-            BackupPhase::Load { preview, games } => {
+            BackupPhase::CloudCheck => {
+                if !self.config.cloud.synchronize
+                    || crate::cloud::validate_cloud_config(&self.config, &self.config.cloud.path).is_err()
+                {
+                    return self.handle_backup(BackupPhase::Load);
+                }
+
+                let local = self.operation_params.path.clone();
+                let games = self.operation_params.games.clone();
+
+                match self.start_sync_cloud(
+                    &local,
+                    SyncDirection::Download,
+                    Finality::Preview,
+                    games.as_ref(),
+                    false,
+                ) {
+                    Ok(_) => {
+                        // deferring to `transition_from_cloud_step`
+                        Command::none()
+                    }
+                    Err(e) => {
+                        self.operation_params.errors.push(e);
+                        self.handle_backup(BackupPhase::Load)
+                    }
+                }
+            }
+            BackupPhase::Load => {
                 if self.operation.is_some() {
                     return Command::none();
                 }
                 self.invalidate_path_caches();
                 self.timed_notification = None;
 
-                let full = games.is_none();
+                let preview = self.operation_params.preview();
+                let full = self.operation_params.full();
+                let games = self.operation_params.games.clone();
 
                 if preview && full {
                     self.backup_screen.previewed_games.clear();
@@ -338,13 +398,10 @@ impl App {
                         let steam = SteamShortcuts::scan();
                         let heroic = HeroicGames::scan(&roots, &title_finder, None);
 
-                        (games, subjects, all_games, layout, ranking, steam, heroic)
+                        (subjects, all_games, layout, ranking, steam, heroic)
                     },
-                    move |(games, subjects, all_games, layout, ranking, steam, heroic)| {
+                    move |(subjects, all_games, layout, ranking, steam, heroic)| {
                         Message::Backup(BackupPhase::RegisterCommands {
-                            preview,
-                            full,
-                            games,
                             subjects,
                             all_games,
                             layout: Box::new(layout),
@@ -356,9 +413,6 @@ impl App {
                 )
             }
             BackupPhase::RegisterCommands {
-                preview,
-                full,
-                games,
                 subjects,
                 all_games,
                 layout,
@@ -367,6 +421,8 @@ impl App {
                 heroic,
             } => {
                 log::info!("beginning backup with {} steps", self.progress.max);
+                let preview = self.operation_params.preview();
+                let full = self.operation_params.full();
 
                 if self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed) {
                     self.go_idle();
@@ -374,7 +430,7 @@ impl App {
                 }
 
                 if subjects.is_empty() {
-                    if let Some(games) = &games {
+                    if let Some(games) = &self.operation_params.games {
                         for game in games {
                             let duplicates = self.backup_screen.duplicate_detector.remove_game(game);
                             self.backup_screen.log.remove_game(
@@ -393,7 +449,7 @@ impl App {
                 }
 
                 self.progress.set_max(all_games.0.len() as f32);
-                self.register_notify_on_single_game_scanned(&games);
+                self.register_notify_on_single_game_scanned();
 
                 let config = std::sync::Arc::new(self.config.clone());
                 let roots = std::sync::Arc::new(config.expanded_roots());
@@ -463,8 +519,6 @@ impl App {
                                 scan_info,
                                 backup_info,
                                 decision,
-                                preview,
-                                full,
                             })
                         },
                     ));
@@ -477,11 +531,10 @@ impl App {
                 scan_info,
                 backup_info,
                 decision: _,
-                preview,
-                full,
             } => {
                 self.progress.step();
                 let restoring = false;
+                let full = self.operation_params.full();
 
                 if let Some(scan_info) = scan_info {
                     log::trace!(
@@ -532,16 +585,37 @@ impl App {
                     None => {
                         self.operation_steps_active -= 1;
                         if self.operation_steps_active == 0 {
-                            self.handle_backup(BackupPhase::Done { preview, full })
+                            self.handle_backup(BackupPhase::CloudSync)
                         } else {
                             Command::none()
                         }
                     }
                 }
             }
-            BackupPhase::Done { preview, full } => {
+            BackupPhase::CloudSync => {
+                if !self.operation_params.should_sync_cloud_after {
+                    return self.handle_backup(BackupPhase::Done);
+                }
+
+                let local = self.operation_params.path.clone();
+                let games = self.operation_params.games.clone();
+
+                match self.start_sync_cloud(&local, SyncDirection::Upload, Finality::Final, games.as_ref(), false) {
+                    Ok(_) => {
+                        // deferring to `transition_from_cloud_step`
+                        Command::none()
+                    }
+                    Err(e) => {
+                        self.operation_params.errors.push(e);
+                        self.handle_backup(BackupPhase::Done)
+                    }
+                }
+            }
+            BackupPhase::Done => {
                 log::info!("completed backup");
                 let mut failed = false;
+                let preview = self.operation_params.finality.preview();
+                let full = self.operation_params.full();
 
                 self.handle_notify_on_single_game_scanned();
 
@@ -564,12 +638,15 @@ impl App {
 
                 self.cache.save();
 
+                if failed {
+                    self.operation_params.errors.push(Error::SomeEntriesFailed);
+                }
+
+                let errors = self.operation_params.errors.clone();
                 self.go_idle();
 
-                if failed {
-                    self.modal = Some(Modal::Error {
-                        variant: Error::SomeEntriesFailed,
-                    });
+                if !errors.is_empty() {
+                    self.modal = Some(Modal::Errors { errors });
                 }
 
                 Command::none()
@@ -588,22 +665,58 @@ impl App {
                     return Command::none();
                 }
 
+                self.operation_params.category = Some(OperationCategory::Restore);
+                self.operation_params.path = self.config.restore.path.clone();
+                self.operation_params.finality = if preview { Finality::Preview } else { Finality::Final };
+                self.operation_params.games = games;
+
                 self.invalidate_path_caches();
                 self.timed_notification = None;
+                self.modal = None;
 
-                let full = games.is_none();
-
-                let restore_path = self.config.restore.path.clone();
-                if !restore_path.is_dir() {
+                if !self.operation_params.path.is_dir() {
                     self.modal = Some(Modal::Error {
-                        variant: Error::RestorationSourceInvalid { path: restore_path },
+                        variant: Error::RestorationSourceInvalid {
+                            path: self.operation_params.path.clone(),
+                        },
                     });
                     return Command::none();
                 }
 
-                let config = std::sync::Arc::new(self.config.clone());
+                self.handle_restore(RestorePhase::CloudCheck)
+            }
+            RestorePhase::CloudCheck => {
+                if !self.config.cloud.synchronize
+                    || crate::cloud::validate_cloud_config(&self.config, &self.config.cloud.path).is_err()
+                {
+                    return self.handle_restore(RestorePhase::Load);
+                }
 
-                self.modal = None;
+                let local = self.operation_params.path.clone();
+                let games = self.operation_params.games.clone();
+
+                match self.start_sync_cloud(
+                    &local,
+                    SyncDirection::Download,
+                    Finality::Preview,
+                    games.as_ref(),
+                    false,
+                ) {
+                    Ok(_) => {
+                        // waiting for background thread
+                        Command::none()
+                    }
+                    Err(e) => {
+                        self.operation_params.errors.push(e);
+                        self.handle_restore(RestorePhase::Load)
+                    }
+                }
+            }
+            RestorePhase::Load => {
+                let restore_path = self.operation_params.path.clone();
+                let preview = self.operation_params.preview();
+
+                let config = std::sync::Arc::new(self.config.clone());
 
                 self.operation = Some(if preview {
                     OngoingOperation::PreviewRestore
@@ -619,24 +732,18 @@ impl App {
                         (layout, restorables)
                     },
                     move |(layout, restorables)| {
-                        Message::Restore(RestorePhase::RegisterCommands {
-                            preview,
-                            full,
-                            games,
-                            layout,
-                            restorables,
-                        })
+                        Message::Restore(RestorePhase::RegisterCommands { layout, restorables })
                     },
                 )
             }
             RestorePhase::RegisterCommands {
-                preview,
-                full,
-                games,
                 mut restorables,
                 layout,
             } => {
                 log::info!("beginning restore with {} steps", self.progress.max);
+                let preview = self.operation_params.preview();
+                let full = self.operation_params.full();
+                let games = self.operation_params.games.clone();
 
                 if self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed) {
                     self.go_idle();
@@ -672,7 +779,7 @@ impl App {
 
                 self.progress.set_max(restorables.len() as f32);
 
-                self.register_notify_on_single_game_scanned(&games);
+                self.register_notify_on_single_game_scanned();
 
                 let config = std::sync::Arc::new(self.config.clone());
                 let layout = std::sync::Arc::new(layout);
@@ -709,7 +816,6 @@ impl App {
                                 scan_info,
                                 backup_info,
                                 decision,
-                                full,
                                 game_layout: Box::new(game_layout),
                             })
                         },
@@ -723,11 +829,11 @@ impl App {
                 scan_info,
                 backup_info,
                 decision: _,
-                full,
                 game_layout,
             } => {
                 self.progress.step();
                 let restoring = true;
+                let full = self.operation_params.full();
 
                 if let Some(scan_info) = scan_info {
                     log::trace!(
@@ -777,16 +883,17 @@ impl App {
                     None => {
                         self.operation_steps_active -= 1;
                         if self.operation_steps_active == 0 {
-                            self.handle_restore(RestorePhase::Done { full })
+                            self.handle_restore(RestorePhase::Done)
                         } else {
                             Command::none()
                         }
                     }
                 }
             }
-            RestorePhase::Done { full } => {
+            RestorePhase::Done => {
                 log::info!("completed restore");
                 let mut failed = false;
+                let full = self.operation_params.full();
 
                 self.handle_notify_on_single_game_scanned();
 
@@ -808,16 +915,45 @@ impl App {
 
                 self.cache.save();
 
+                if failed {
+                    self.operation_params.errors.push(Error::SomeEntriesFailed);
+                }
+
+                let errors = self.operation_params.errors.clone();
                 self.go_idle();
 
-                if failed {
-                    self.modal = Some(Modal::Error {
-                        variant: Error::SomeEntriesFailed,
-                    });
+                if !errors.is_empty() {
+                    self.modal = Some(Modal::Errors { errors });
                 }
 
                 Command::none()
             }
+        }
+    }
+
+    fn transition_from_cloud_step(&mut self) -> Option<Command<Message>> {
+        let synced = self.operation_params.cloud_changes == 0;
+
+        if self.operation_params.in_cloud_check {
+            if !synced {
+                self.operation_params.errors.push(Error::CloudConflict);
+            }
+
+            match self.operation_params.category {
+                Some(OperationCategory::Backup) => {
+                    self.operation_params.should_sync_cloud_after = synced && !self.operation_params.preview();
+                    Some(self.handle_backup(BackupPhase::Load))
+                }
+                Some(OperationCategory::Restore) => Some(self.handle_restore(RestorePhase::Load)),
+                None => None,
+            }
+        } else if self.operation_params.in_cloud_sync {
+            match self.operation_params.category {
+                Some(OperationCategory::Backup) => Some(self.handle_backup(BackupPhase::Done)),
+                None | Some(OperationCategory::Restore) => None,
+            }
+        } else {
+            None
         }
     }
 
@@ -1756,6 +1892,11 @@ impl Application for App {
                 self.backup_screen.show_settings = !self.backup_screen.show_settings;
                 Command::none()
             }
+            Message::ToggleCloudSynchronize => {
+                self.config.cloud.synchronize = !self.config.cloud.synchronize;
+                self.config.save();
+                Command::none()
+            }
             Message::GameAction { action, game } => match action {
                 GameAction::PreviewBackup => self.handle_backup(BackupPhase::Start {
                     preview: true,
@@ -1936,8 +2077,10 @@ impl Application for App {
                 Command::none()
             }
             Message::ConfirmSynchronizeCloud { direction } => {
+                let local = self.config.backup.path.clone();
+
                 self.modal = Some(Modal::ConfirmCloudSync {
-                    local: self.config.backup.path.render(),
+                    local: local.render(),
                     cloud: self.config.cloud.path.clone(),
                     direction,
                     changes: vec![],
@@ -1945,56 +2088,14 @@ impl Application for App {
                     page: 0,
                 });
 
-                if let Some(remote) = self.config.cloud.remote.as_ref() {
-                    let rclone = Rclone::new(self.config.apps.rclone.clone(), remote.clone());
-                    match rclone.sync(
-                        &self.config.backup.path,
-                        &self.config.cloud.path,
-                        direction,
-                        Finality::Preview,
-                        &[],
-                    ) {
-                        Ok(process) => {
-                            if let Some(sender) = self.rclone_monitor_sender.as_mut() {
-                                self.operation = Some(OngoingOperation::CloudSync {
-                                    direction,
-                                    finality: Finality::Preview,
-                                });
-                                self.progress.start();
-                                let _ = sender.try_send(rclone_monitor::Input::Process(process));
-                            }
-                        }
-                        Err(e) => self.show_error(Error::UnableToSynchronizeCloud(e)),
-                    }
-                }
-
+                _ = self.start_sync_cloud(&local, direction, Finality::Preview, None, true);
                 Command::none()
             }
             Message::SynchronizeCloud { direction } => {
                 self.modal = None;
+                let local = self.config.backup.path.clone();
 
-                if let Some(remote) = self.config.cloud.remote.as_ref() {
-                    let rclone = Rclone::new(self.config.apps.rclone.clone(), remote.clone());
-                    match rclone.sync(
-                        &self.config.backup.path,
-                        &self.config.cloud.path,
-                        direction,
-                        Finality::Final,
-                        &[],
-                    ) {
-                        Ok(process) => {
-                            if let Some(sender) = self.rclone_monitor_sender.as_mut() {
-                                self.operation = Some(OngoingOperation::CloudSync {
-                                    direction,
-                                    finality: Finality::Final,
-                                });
-                                self.progress.start();
-                                let _ = sender.try_send(rclone_monitor::Input::Process(process));
-                            }
-                        }
-                        Err(e) => self.show_error(Error::UnableToSynchronizeCloud(e)),
-                    }
-                }
+                _ = self.start_sync_cloud(&local, direction, Finality::Final, None, true);
                 Command::none()
             }
             Message::RcloneMonitor(event) => {
@@ -2009,6 +2110,7 @@ impl Application for App {
                                     self.progress.set(current, max);
                                 }
                                 crate::cloud::RcloneProcessEvent::Change(change) => {
+                                    self.operation_params.cloud_changes += 1;
                                     if let Some(modal) = self.modal.as_mut() {
                                         modal.add_cloud_change(change);
                                     }
@@ -2017,8 +2119,13 @@ impl Application for App {
                         }
                     }
                     rclone_monitor::Event::Succeeded => {
+                        self.operation = None;
+
+                        if let Some(cmd) = self.transition_from_cloud_step() {
+                            return cmd;
+                        }
+
                         if let Some(modal) = self.modal.as_mut() {
-                            self.operation = None;
                             self.progress.reset();
                             modal.finish_cloud_scan();
                         } else {
@@ -2026,6 +2133,15 @@ impl Application for App {
                         }
                     }
                     rclone_monitor::Event::Failed(e) => {
+                        self.operation = None;
+
+                        self.operation_params
+                            .errors
+                            .push(Error::UnableToSynchronizeCloud(e.clone()));
+                        if let Some(cmd) = self.transition_from_cloud_step() {
+                            return cmd;
+                        }
+
                         self.go_idle();
                         self.show_error(Error::UnableToSynchronizeCloud(e));
                     }

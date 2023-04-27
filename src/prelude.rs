@@ -27,8 +27,9 @@ pub static CONFIG_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
 pub const ENV_DEBUG: &str = "LUDUSAVI_DEBUG";
 const ENV_THREADS: &str = "LUDUSAVI_THREADS";
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Finality {
+    #[default]
     Preview,
     Final,
 }
@@ -89,6 +90,7 @@ pub enum Error {
     CloudPathInvalid,
     UnableToConfigureCloud(CommandError),
     UnableToSynchronizeCloud(CommandError),
+    CloudConflict,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

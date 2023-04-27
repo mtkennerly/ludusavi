@@ -195,7 +195,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 no_cloud_sync,
                 config.cloud.synchronize && crate::cloud::validate_cloud_config(&config, &config.cloud.path).is_ok(),
             );
-            let mut should_sync_cloud_after = cloud_sync;
+            let mut should_sync_cloud_after = cloud_sync && !preview;
             if cloud_sync {
                 let changes = sync_cloud(
                     &config,
@@ -748,9 +748,9 @@ fn ask(question: String, finality: Finality, force: bool) -> Result<bool, Error>
 
 fn scan_progress_bar(length: u64) -> ProgressBar {
     let template = format!(
-        "{} ({{elapsed_precise}}) {{wide_bar}} {{pos}} / {{len}} {}",
+        "{} ({{elapsed_precise}}) {{wide_bar}} {}: {{pos}} / {{len}}",
         TRANSLATOR.scan_label(),
-        TRANSLATOR.games_unit()
+        TRANSLATOR.total_games()
     );
     let style = indicatif::ProgressStyle::default_bar().template(&template);
     ProgressBar::new(length).with_style(style)
@@ -780,8 +780,13 @@ fn sync_cloud(
 
     let remote = crate::cloud::validate_cloud_config(config, cloud)?;
 
-    let layout = BackupLayout::new(local.clone(), config.backup.retention.clone());
-    let games: Vec<_> = games.iter().filter_map(|x| layout.game_folder(x).leaf()).collect();
+    let games = if !games.is_empty() {
+        let layout = BackupLayout::new(local.clone(), config.backup.retention.clone());
+        let games: Vec<_> = games.iter().filter_map(|x| layout.game_folder(x).leaf()).collect();
+        games
+    } else {
+        vec![]
+    };
 
     let rclone = Rclone::new(config.apps.rclone.clone(), remote);
     let mut process = match rclone.sync(local, cloud, sync, finality, &games) {

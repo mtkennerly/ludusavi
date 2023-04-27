@@ -300,6 +300,7 @@ impl Translator {
                     self.handle_command_error(error)
                 )
             }
+            Error::CloudConflict => TRANSLATOR.prefix_error(&TRANSLATOR.cloud_synchronize_conflict()),
         }
     }
 
@@ -1022,8 +1023,12 @@ impl Translator {
         translate_args("label-change-count", &args)
     }
 
-    pub fn games_unit(&self) -> String {
-        translate("total-games").to_lowercase()
+    pub fn synchronize_automatically(&self) -> String {
+        translate("synchronize-automatically")
+    }
+
+    pub fn total_games(&self) -> String {
+        translate("total-games")
     }
 
     pub fn new_tooltip(&self) -> String {
