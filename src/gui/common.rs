@@ -77,6 +77,7 @@ pub enum Message {
     Error(Error),
     Exit,
     CloseModal,
+    UpdateTime,
     PruneNotifications,
     UpdateManifest,
     ManifestUpdated(Result<Option<ManifestUpdate>, Error>),

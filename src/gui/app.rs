@@ -60,6 +60,7 @@ struct Progress {
     pub current: f32,
     prepared: bool,
     start_time: Option<chrono::DateTime<chrono::Utc>>,
+    current_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 impl Progress {
@@ -72,6 +73,7 @@ impl Progress {
         self.current = 0.0;
         self.prepared = false;
         self.start_time = None;
+        self.current_time = None;
     }
 
     pub fn start(&mut self) {
@@ -96,6 +98,10 @@ impl Progress {
         self.prepared = true;
     }
 
+    pub fn update_time(&mut self) {
+        self.current_time = Some(chrono::Utc::now());
+    }
+
     pub fn view(&self, operation: &Option<OngoingOperation>) -> Element {
         use OngoingOperation as Op;
 
@@ -112,7 +118,8 @@ impl Progress {
         });
 
         let elapsed = self.start_time.as_ref().map(|start| {
-            let elapsed = chrono::Utc::now().time() - start.time();
+            let current = self.current_time.as_ref().unwrap_or(start);
+            let elapsed = current.time() - start.time();
             format!(
                 "({:0>2}:{:0>2}:{:0>2})",
                 elapsed.num_hours(),
@@ -1116,6 +1123,10 @@ impl Application for App {
                 Command::none()
             }
             Message::Exit => std::process::exit(0),
+            Message::UpdateTime => {
+                self.progress.update_time();
+                Command::none()
+            }
             Message::PruneNotifications => {
                 if let Some(notification) = &self.timed_notification {
                     if notification.expired() {
@@ -2168,20 +2179,25 @@ impl Application for App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        iced_native::subscription::Subscription::batch(vec![
+        let mut subscriptions = vec![
             iced_native::subscription::events_with(|event, _| match event {
                 iced_native::Event::Keyboard(event) => Some(event),
                 _ => None,
             })
             .map(Message::KeyboardEvent),
-            match self.timed_notification {
-                Some(_) => {
-                    iced::time::every(std::time::Duration::from_millis(250)).map(|_| Message::PruneNotifications)
-                }
-                None => iced_native::subscription::Subscription::none(),
-            },
             rclone_monitor::run().map(Message::RcloneMonitor),
-        ])
+        ];
+
+        if self.timed_notification.is_some() {
+            subscriptions
+                .push(iced::time::every(std::time::Duration::from_millis(250)).map(|_| Message::PruneNotifications));
+        }
+
+        if self.progress.visible() {
+            subscriptions.push(iced::time::every(std::time::Duration::from_millis(100)).map(|_| Message::UpdateTime));
+        }
+
+        iced_native::subscription::Subscription::batch(subscriptions)
     }
 
     fn view(&self) -> Element {
