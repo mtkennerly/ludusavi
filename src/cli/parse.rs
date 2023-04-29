@@ -195,6 +195,7 @@ pub enum Subcommand {
         /// Upload any changes to the cloud when the backup is complete.
         /// If the local and cloud backups are not in sync to begin with,
         /// then nothing will be uploaded.
+        /// This has no effect on previews.
         /// When not specified, this defers to the config file.
         #[clap(long)]
         cloud_sync: bool,
@@ -249,6 +250,7 @@ pub enum Subcommand {
 
         /// Warn if the local and cloud backups are out of sync.
         /// The restore will still proceed regardless.
+        /// This has no effect on previews.
         /// When not specified, this defers to the config file.
         #[clap(long)]
         cloud_sync: bool,

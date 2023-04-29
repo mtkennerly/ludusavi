@@ -593,6 +593,10 @@ impl Translator {
         translate("no-missing-roots")
     }
 
+    pub fn loading(&self) -> String {
+        translate("loading")
+    }
+
     pub fn preparing_backup_dir(&self) -> String {
         translate("preparing-backup-target")
     }

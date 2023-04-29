@@ -123,8 +123,8 @@ impl Progress {
             format!(
                 "({:0>2}:{:0>2}:{:0>2})",
                 elapsed.num_hours(),
-                elapsed.num_minutes(),
-                elapsed.num_seconds()
+                elapsed.num_minutes() % 60,
+                elapsed.num_seconds() % 60,
             )
         });
 
@@ -261,7 +261,7 @@ impl App {
         };
 
         let rclone = Rclone::new(self.config.apps.rclone.clone(), remote);
-        match rclone.sync(local, &self.config.cloud.path, direction, Finality::Preview, &games) {
+        match rclone.sync(local, &self.config.cloud.path, direction, finality, &games) {
             Ok(process) => {
                 if let Some(sender) = self.rclone_monitor_sender.as_mut() {
                     if !standalone {
@@ -327,7 +327,8 @@ impl App {
                 )
             }
             BackupPhase::CloudCheck => {
-                if !self.config.cloud.synchronize
+                if self.operation_params.preview()
+                    || !self.config.cloud.synchronize
                     || crate::cloud::validate_cloud_config(&self.config, &self.config.cloud.path).is_err()
                 {
                     return self.handle_backup(BackupPhase::Load);
@@ -336,13 +337,7 @@ impl App {
                 let local = self.operation_params.path.clone();
                 let games = self.operation_params.games.clone();
 
-                match self.start_sync_cloud(
-                    &local,
-                    SyncDirection::Download,
-                    Finality::Preview,
-                    games.as_ref(),
-                    false,
-                ) {
+                match self.start_sync_cloud(&local, SyncDirection::Upload, Finality::Preview, games.as_ref(), false) {
                     Ok(_) => {
                         // deferring to `transition_from_cloud_step`
                         Command::none()
@@ -693,7 +688,8 @@ impl App {
                 self.handle_restore(RestorePhase::CloudCheck)
             }
             RestorePhase::CloudCheck => {
-                if !self.config.cloud.synchronize
+                if self.operation_params.preview()
+                    || !self.config.cloud.synchronize
                     || crate::cloud::validate_cloud_config(&self.config, &self.config.cloud.path).is_err()
                 {
                     return self.handle_restore(RestorePhase::Load);
@@ -702,13 +698,7 @@ impl App {
                 let local = self.operation_params.path.clone();
                 let games = self.operation_params.games.clone();
 
-                match self.start_sync_cloud(
-                    &local,
-                    SyncDirection::Download,
-                    Finality::Preview,
-                    games.as_ref(),
-                    false,
-                ) {
+                match self.start_sync_cloud(&local, SyncDirection::Upload, Finality::Preview, games.as_ref(), false) {
                     Ok(_) => {
                         // waiting for background thread
                         Command::none()
@@ -942,6 +932,7 @@ impl App {
         let synced = self.operation_params.cloud_changes == 0;
 
         if self.operation_params.in_cloud_check {
+            self.operation_params.in_cloud_check = false;
             if !synced {
                 self.operation_params.errors.push(Error::CloudConflict);
             }
@@ -955,6 +946,7 @@ impl App {
                 None => None,
             }
         } else if self.operation_params.in_cloud_sync {
+            self.operation_params.in_cloud_sync = false;
             match self.operation_params.category {
                 Some(OperationCategory::Backup) => Some(self.handle_backup(BackupPhase::Done)),
                 None | Some(OperationCategory::Restore) => None,

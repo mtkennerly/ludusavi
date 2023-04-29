@@ -367,6 +367,11 @@ impl StrictPath {
         Self::new(format!("{}{}{}", self.interpret(), TYPICAL_SEPARATOR, other))
     }
 
+    pub fn create_dirs(&self) -> std::io::Result<()> {
+        std::fs::create_dir_all(self.as_std_path_buf())?;
+        Ok(())
+    }
+
     pub fn create_parent_dir(&self) -> std::io::Result<()> {
         let mut pb = self.as_std_path_buf();
         pb.pop();

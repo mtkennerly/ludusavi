@@ -578,6 +578,11 @@ impl Rclone {
         finality: Finality,
         game_dirs: &[String],
     ) -> Result<RcloneProcess, CommandError> {
+        if direction == SyncDirection::Upload && !local.exists() {
+            // Rclone will fail with exit code 3 if the local folder does not exist.
+            _ = local.create_dirs();
+        }
+
         let mut args = vec![
             "sync".to_string(),
             "-v".to_string(),

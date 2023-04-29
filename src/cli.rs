@@ -191,9 +191,11 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             let steam_shortcuts = SteamShortcuts::scan();
 
             let cloud_sync = negatable_flag(
-                cloud_sync,
+                cloud_sync && !preview,
                 no_cloud_sync,
-                config.cloud.synchronize && crate::cloud::validate_cloud_config(&config, &config.cloud.path).is_ok(),
+                config.cloud.synchronize
+                    && !preview
+                    && crate::cloud::validate_cloud_config(&config, &config.cloud.path).is_ok(),
             );
             let mut should_sync_cloud_after = cloud_sync && !preview;
             if cloud_sync {
@@ -201,7 +203,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                     &config,
                     &backup_dir,
                     &config.cloud.path,
-                    SyncDirection::Download,
+                    SyncDirection::Upload,
                     Finality::Preview,
                     if games_specified { &subjects.valid } else { &[] },
                 );
@@ -375,16 +377,18 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             }
 
             let cloud_sync = negatable_flag(
-                cloud_sync,
+                cloud_sync && !preview,
                 no_cloud_sync,
-                config.cloud.synchronize && crate::cloud::validate_cloud_config(&config, &config.cloud.path).is_ok(),
+                config.cloud.synchronize
+                    && !preview
+                    && crate::cloud::validate_cloud_config(&config, &config.cloud.path).is_ok(),
             );
             if cloud_sync {
                 let changes = sync_cloud(
                     &config,
                     &restore_dir,
                     &config.cloud.path,
-                    SyncDirection::Download,
+                    SyncDirection::Upload,
                     Finality::Preview,
                     if games_specified { &subjects.valid } else { &[] },
                 );

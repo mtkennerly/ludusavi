@@ -7,7 +7,7 @@ use crate::{
         button,
         common::{BackupPhase, Message, RestorePhase, ScrollSubject},
         style,
-        widget::{Button, Column, Container, PickList, Row, Space, Text, TextInput},
+        widget::{Button, Column, Container, IcedParentExt, PickList, Row, Space, Text, TextInput},
     },
     lang::TRANSLATOR,
     prelude::{Error, Privacy, SyncDirection},
@@ -263,7 +263,9 @@ impl Modal {
             | Self::ConfirmAddMissingRoots(_)
             | Self::PreparingBackupDir
             | Self::UpdatingManifest => (),
-            modal @ Self::ConfirmCloudSync { changes, page, .. } => {
+            modal @ Self::ConfirmCloudSync {
+                changes, page, done, ..
+            } => {
                 if modal.any_cloud_changes() {
                     col = col
                         .push(
@@ -272,6 +274,7 @@ impl Modal {
                                 .spacing(20)
                                 .align_items(Alignment::Center)
                                 .push(Text::new(TRANSLATOR.change_count_label(changes.len())))
+                                .push_if(|| changes.is_empty() && !done, || Text::new(TRANSLATOR.loading()))
                                 .push(Space::new(Length::Fill, Length::Shrink))
                                 .push(button::next_page(
                                     Message::ModalChangePage,
