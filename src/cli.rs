@@ -30,27 +30,11 @@ struct GameSubjects {
 }
 
 impl GameSubjects {
-    pub fn new(known: Vec<String>, requested: Vec<String>, by_steam_id: bool, manifest: &Manifest) -> Self {
+    pub fn new(known: Vec<String>, requested: Vec<String>) -> Self {
         let mut subjects = Self::default();
 
         if requested.is_empty() {
             subjects.valid = known;
-        } else if by_steam_id {
-            let steam_ids_to_names = &manifest.map_steam_ids_to_names();
-            for game in requested {
-                match game.parse::<u32>() {
-                    Ok(id) => {
-                        if steam_ids_to_names.contains_key(&id) && known.contains(&steam_ids_to_names[&id]) {
-                            subjects.valid.push(steam_ids_to_names[&id].clone());
-                        } else {
-                            subjects.invalid.push(game);
-                        }
-                    }
-                    Err(_) => {
-                        subjects.invalid.push(game);
-                    }
-                }
-            }
         } else {
             for game in requested {
                 if known.contains(&game) {
@@ -67,10 +51,7 @@ impl GameSubjects {
     }
 }
 
-fn warn_deprecations(by_steam_id: bool, merge: bool, no_merge: bool) {
-    if by_steam_id {
-        eprintln!("WARNING: `--by-steam-id` is deprecated. Use the `find` command instead.");
-    }
+fn warn_deprecations(merge: bool, no_merge: bool) {
     if merge {
         eprintln!("WARNING: `--merge` is deprecated. Merging is now always enforced.");
     }
@@ -116,7 +97,6 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             no_merge,
             update,
             try_update,
-            by_steam_id,
             wine_prefix,
             api,
             sort,
@@ -129,7 +109,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             no_cloud_sync,
             games,
         } => {
-            warn_deprecations(by_steam_id, merge, no_merge);
+            warn_deprecations(merge, no_merge);
 
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
@@ -168,7 +148,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             all_games.incorporate_extensions(&config.roots, &config.custom_games);
 
             let games_specified = !games.is_empty();
-            let subjects = GameSubjects::new(all_games.0.keys().cloned().collect(), games, by_steam_id, &all_games);
+            let subjects = GameSubjects::new(all_games.0.keys().cloned().collect(), games);
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
@@ -328,7 +308,6 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             preview,
             path,
             force,
-            by_steam_id,
             api,
             sort,
             backup,
@@ -336,14 +315,11 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             no_cloud_sync,
             games,
         } => {
-            warn_deprecations(by_steam_id, false, false);
-
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
             if !Manifest::path().exists() {
                 Manifest::update_mut(&config, &mut cache, true)?;
             }
-            let manifest = Manifest::load()?;
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),
@@ -371,7 +347,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             let backup_id = backup.as_ref().map(|x| BackupId::Named(x.clone()));
 
             let games_specified = !games.is_empty();
-            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, &manifest);
+            let subjects = GameSubjects::new(restorable_names, games);
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
@@ -499,21 +475,13 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 &mut std::io::stdout(),
             )
         }
-        Subcommand::Backups {
-            path,
-            by_steam_id,
-            api,
-            games,
-        } => {
-            warn_deprecations(by_steam_id, false, false);
-
+        Subcommand::Backups { path, api, games } => {
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
             reporter.suppress_overall();
 
             if !Manifest::path().exists() {
                 Manifest::update_mut(&config, &mut cache, true)?;
             }
-            let manifest = Manifest::load()?;
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),
@@ -524,7 +492,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
 
             let restorable_names = layout.restorable_games();
 
-            let subjects = GameSubjects::new(restorable_names, games, by_steam_id, &manifest);
+            let subjects = GameSubjects::new(restorable_names, games);
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();

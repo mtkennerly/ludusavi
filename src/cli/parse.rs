@@ -139,15 +139,6 @@ pub enum Subcommand {
         #[clap(long, conflicts_with("update"))]
         try_update: bool,
 
-        /// DEPRECATED: Use the `find` command instead.
-        /// This option will be removed in a future version.
-        ///
-        /// When naming specific games to process, this means that you'll
-        /// provide the Steam IDs instead of the manifest names, and Ludusavi will
-        /// look up those IDs in the manifest to find the corresponding names.
-        #[clap(long)]
-        by_steam_id: bool,
-
         /// Extra Wine/Proton prefix to check for saves. This should be a folder
         /// with an immediate child folder named "drive_c" (or another letter).
         #[clap(long, value_parser = parse_strict_path)]
@@ -223,15 +214,6 @@ pub enum Subcommand {
         #[clap(long)]
         force: bool,
 
-        /// DEPRECATED: Use the `find` command instead.
-        /// This option will be removed in a future version.
-        ///
-        /// When naming specific games to process, this means that you'll
-        /// provide the Steam IDs instead of the manifest names, and Ludusavi will
-        /// look up those IDs in the manifest to find the corresponding names.
-        #[clap(long)]
-        by_steam_id: bool,
-
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
         #[clap(long)]
@@ -274,15 +256,6 @@ pub enum Subcommand {
         /// When unset, this defaults to the restore path from the config file.
         #[clap(long, value_parser = parse_strict_path)]
         path: Option<StrictPath>,
-
-        /// DEPRECATED: Use the `find` command instead.
-        /// This option will be removed in a future version.
-        ///
-        /// When naming specific games to process, this means that you'll
-        /// provide the Steam IDs instead of the manifest names, and Ludusavi will
-        /// look up those IDs in the manifest to find the corresponding names.
-        #[clap(long)]
-        by_steam_id: bool,
 
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
@@ -556,7 +529,6 @@ mod tests {
                     no_merge: false,
                     update: false,
                     try_update: false,
-                    by_steam_id: false,
                     wine_prefix: None,
                     api: false,
                     sort: None,
@@ -585,7 +557,6 @@ mod tests {
                 "--force",
                 "--merge",
                 "--update",
-                "--by-steam-id",
                 "--wine-prefix",
                 "tests/wine-prefix",
                 "--api",
@@ -615,7 +586,6 @@ mod tests {
                     no_merge: false,
                     update: true,
                     try_update: false,
-                    by_steam_id: true,
                     wine_prefix: Some(StrictPath::new(s("tests/wine-prefix"))),
                     api: true,
                     sort: Some(CliSort::Name),
@@ -646,7 +616,6 @@ mod tests {
                     no_merge: false,
                     update: false,
                     try_update: false,
-                    by_steam_id: false,
                     wine_prefix: None,
                     api: false,
                     sort: None,
@@ -677,7 +646,6 @@ mod tests {
                     no_merge: true,
                     update: false,
                     try_update: false,
-                    by_steam_id: false,
                     wine_prefix: None,
                     api: false,
                     sort: None,
@@ -708,7 +676,6 @@ mod tests {
                     no_merge: false,
                     update: false,
                     try_update: true,
-                    by_steam_id: false,
                     wine_prefix: None,
                     api: false,
                     sort: None,
@@ -755,7 +722,6 @@ mod tests {
                         no_merge: false,
                         update: false,
                         try_update: false,
-                        by_steam_id: false,
                         wine_prefix: None,
                         api: false,
                         sort: Some(sort),
@@ -787,7 +753,6 @@ mod tests {
                     no_merge: false,
                     update: false,
                     try_update: false,
-                    by_steam_id: false,
                     wine_prefix: None,
                     api: false,
                     sort: None,
@@ -814,7 +779,6 @@ mod tests {
                     preview: false,
                     path: None,
                     force: false,
-                    by_steam_id: false,
                     api: false,
                     sort: None,
                     backup: None,
@@ -836,7 +800,6 @@ mod tests {
                 "--path",
                 "tests/backup",
                 "--force",
-                "--by-steam-id",
                 "--api",
                 "--sort",
                 "name",
@@ -852,7 +815,6 @@ mod tests {
                     preview: true,
                     path: Some(StrictPath::new(s("tests/backup"))),
                     force: true,
-                    by_steam_id: true,
                     api: true,
                     sort: Some(CliSort::Name),
                     backup: Some(s(".")),
@@ -890,7 +852,6 @@ mod tests {
                         preview: false,
                         path: None,
                         force: false,
-                        by_steam_id: false,
                         api: false,
                         sort: Some(sort),
                         backup: None,
@@ -976,7 +937,6 @@ mod tests {
                 config: None,
                 sub: Some(Subcommand::Backups {
                     path: None,
-                    by_steam_id: false,
                     api: false,
                     games: vec![],
                 }),
@@ -992,7 +952,6 @@ mod tests {
                 "backups",
                 "--path",
                 "tests/backup",
-                "--by-steam-id",
                 "--api",
                 "game1",
                 "game2",
@@ -1001,7 +960,6 @@ mod tests {
                 config: None,
                 sub: Some(Subcommand::Backups {
                     path: Some(StrictPath::new(s("tests/backup"))),
-                    by_steam_id: true,
                     api: true,
                     games: vec![s("game1"), s("game2")],
                 }),

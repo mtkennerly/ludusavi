@@ -15,6 +15,8 @@
     but there was not much reason to turn off merging anymore.
 
     The CLI `backup` command's `--merge`/`--no-merge` flags are now ignored and will be removed in a future release.
+  * CLI: The deprecated `--by-steam-id` option has been removed from the `backup`, `backups`, and `restore` commands.
+    You can use the `find` command to replicate this functionality.
   * GUI: Modal content is slightly less padded.
 
 ## v0.17.1 (2023-04-10)
