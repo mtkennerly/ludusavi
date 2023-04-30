@@ -312,14 +312,9 @@ impl App {
                 self.modal = Some(Modal::PreparingBackupDir);
 
                 let backup_path = self.config.backup.path.clone();
-                let merge = if !self.operation_params.full() {
-                    true
-                } else {
-                    self.config.backup.merge
-                };
 
                 Command::perform(
-                    async move { prepare_backup_target(&backup_path, merge) },
+                    async move { prepare_backup_target(&backup_path) },
                     move |result| match result {
                         Ok(_) => Message::Backup(BackupPhase::CloudCheck),
                         Err(e) => Message::Error(e),
@@ -471,7 +466,6 @@ impl App {
                     let ranking = ranking.clone();
                     let steam_shortcuts = steam_shortcuts.clone();
                     let cancel_flag = self.operation_should_cancel.clone();
-                    let merge = self.config.backup.merge;
                     self.operation_steps.push(Command::perform(
                         async move {
                             if key.trim().is_empty() {
@@ -507,7 +501,6 @@ impl App {
                             let backup_info = if !preview {
                                 Some(layout.game_layout(&key).back_up(
                                     &scan_info,
-                                    merge,
                                     &chrono::Utc::now(),
                                     &config.backup.format,
                                 ))
@@ -1203,11 +1196,6 @@ impl Application for App {
             Message::EditedBackupTarget(text) => {
                 self.text_histories.backup_target.push(&text);
                 self.config.backup.path.reset(text);
-                self.config.save();
-                Command::none()
-            }
-            Message::EditedBackupMerge(enabled) => {
-                self.config.backup.merge = enabled;
                 self.config.save();
                 Command::none()
             }

@@ -542,8 +542,6 @@ pub struct BackupConfig {
     #[serde(default, rename = "recentGames", skip_serializing)]
     #[deprecated(note = "use cache")]
     pub recent_games: Vec<String>,
-    #[serde(default = "crate::serialization::default_true")]
-    pub merge: bool,
     #[serde(default)]
     pub filter: BackupFilter,
     #[serde(default, rename = "toggledPaths")]
@@ -678,7 +676,6 @@ impl Default for BackupConfig {
             path: default_backup_dir(),
             ignored_games: HashSet::new(),
             recent_games: vec![],
-            merge: true,
             filter: BackupFilter::default(),
             toggled_paths: Default::default(),
             toggled_registry: Default::default(),
@@ -1319,7 +1316,6 @@ mod tests {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: HashSet::new(),
                     recent_games: Default::default(),
-                    merge: true,
                     filter: BackupFilter {
                         exclude_store_screenshots: false,
                         ..Default::default()
@@ -1374,7 +1370,6 @@ mod tests {
                 - Backup Game 1
                 - Backup Game 2
                 - Backup Game 2
-              merge: true
               filter:
                 excludeStoreScreenshots: true
             restore:
@@ -1441,7 +1436,6 @@ mod tests {
                         s("Backup Game 2"),
                     },
                     recent_games: Default::default(),
-                    merge: true,
                     filter: BackupFilter {
                         exclude_store_screenshots: true,
                         ..Default::default()
@@ -1540,7 +1534,6 @@ mod tests {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: HashSet::new(),
                     recent_games: Default::default(),
-                    merge: true,
                     filter: BackupFilter {
                         exclude_store_screenshots: false,
                         ..Default::default()
@@ -1591,7 +1584,6 @@ mod tests {
                 - Backup Game 1
                 - Backup Game 2
                 - Backup Game 2
-              merge: true
               filter:
                 excludeStoreScreenshots: true
             restore:
@@ -1652,7 +1644,6 @@ mod tests {
                         s("Backup Game 2"),
                     },
                     recent_games: Default::default(),
-                    merge: true,
                     filter: BackupFilter {
                         exclude_store_screenshots: true,
                         ..Default::default()
@@ -1728,7 +1719,6 @@ backup:
     - Backup Game 1
     - Backup Game 2
     - Backup Game 3
-  merge: true
   filter:
     excludeStoreScreenshots: true
     ignoredPaths: []
@@ -1819,7 +1809,6 @@ customGames:
                         s("Backup Game 2"),
                     },
                     recent_games: Default::default(),
-                    merge: true,
                     filter: BackupFilter {
                         exclude_store_screenshots: true,
                         ..Default::default()

@@ -85,7 +85,6 @@ pub enum Message {
     Restore(RestorePhase),
     CancelOperation,
     EditedBackupTarget(String),
-    EditedBackupMerge(bool),
     EditedRestoreSource(String),
     FindRoots,
     ConfirmAddMissingRoots(Vec<RootsConfig>),

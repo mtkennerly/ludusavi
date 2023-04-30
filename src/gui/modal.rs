@@ -138,12 +138,9 @@ impl Modal {
                 let messages: Vec<_> = errors.iter().map(|x| TRANSLATOR.handle_error(x)).collect();
                 messages.join("\n\n")
             }
-            Self::ConfirmBackup { .. } => TRANSLATOR.confirm_backup(
-                &config.backup.path,
-                config.backup.path.exists(),
-                config.backup.merge,
-                true,
-            ),
+            Self::ConfirmBackup { .. } => {
+                TRANSLATOR.confirm_backup(&config.backup.path, config.backup.path.exists(), true)
+            }
             Self::ConfirmRestore { .. } => TRANSLATOR.confirm_restore(&config.restore.path, true),
             Self::NoMissingRoots => TRANSLATOR.no_missing_roots(),
             Self::ConfirmAddMissingRoots(missing) => TRANSLATOR.confirm_add_missing_roots(missing),

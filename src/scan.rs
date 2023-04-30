@@ -663,17 +663,17 @@ fn scan_game_for_backup_add_prefix(
     }
 }
 
-pub fn prepare_backup_target(target: &StrictPath, merge: bool) -> Result<(), Error> {
-    if !merge {
-        target
-            .remove()
-            .map_err(|_| Error::CannotPrepareBackupTarget { path: target.clone() })?;
-    } else if target.exists() && !target.is_dir() {
+pub fn prepare_backup_target(target: &StrictPath) -> Result<(), Error> {
+    if target.exists() && !target.is_dir() {
+        log::error!("Backup target exists, but is not a directory: {target:?}");
         return Err(Error::CannotPrepareBackupTarget { path: target.clone() });
     }
 
     let p = target.as_std_path_buf();
-    std::fs::create_dir_all(p).map_err(|_| Error::CannotPrepareBackupTarget { path: target.clone() })?;
+    std::fs::create_dir_all(p).map_err(|e| {
+        log::error!("Failed to prepare backup target: {target:?} | {e:?}");
+        Error::CannotPrepareBackupTarget { path: target.clone() }
+    })?;
 
     Ok(())
 }

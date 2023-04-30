@@ -7,12 +7,15 @@ use chrono::{Datelike, Timelike};
 
 use crate::{
     path::StrictPath,
-    prelude::{AnyError, INVALID_FILE_CHARS},
+    prelude::INVALID_FILE_CHARS,
     resource::{
         config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
         manifest::Os,
     },
-    scan::{game_file_target, BackupId, BackupInfo, ScanChange, ScanInfo, ScannedFile, ScannedRegistry},
+    scan::{
+        game_file_target, prepare_backup_target, BackupId, BackupInfo, ScanChange, ScanInfo, ScannedFile,
+        ScannedRegistry,
+    },
 };
 
 const SAFE: &str = "_";
@@ -1243,18 +1246,6 @@ impl GameLayout {
         }
     }
 
-    fn prepare_backup_target(&self, merge: bool) -> Result<(), AnyError> {
-        if !merge {
-            self.path.unset_readonly()?;
-            self.path.remove()?;
-        } else if self.path.exists() && !self.path.is_dir() {
-            return Err("must merge into existing target, but target is not a directory".into());
-        }
-
-        std::fs::create_dir_all(self.path.interpret())?;
-        Ok(())
-    }
-
     /// Handle legacy backups from before multi-backup support.
     /// In this case, a default backup with name "." has already been inserted.
     pub fn migrate_legacy_backup(&mut self) {
@@ -1302,7 +1293,6 @@ impl GameLayout {
     pub fn back_up(
         &mut self,
         scan: &ScanInfo,
-        merge: bool,
         now: &chrono::DateTime<chrono::Utc>,
         format: &BackupFormats,
     ) -> BackupInfo {
@@ -1312,9 +1302,9 @@ impl GameLayout {
         }
 
         log::trace!("[{}] preparing for backup", &scan.game_name);
-        if let Err(e) = self.prepare_backup_target(merge) {
+        if let Err(e) = prepare_backup_target(&self.path) {
             log::error!(
-                "[{}] failed to prepare backup target: {} | {e}",
+                "[{}] failed to prepare backup target: {} | {e:?}",
                 scan.game_name,
                 self.path.raw()
             );

@@ -10,6 +10,11 @@
     For the CLI, use the `cloud` command group (e.g., `ludusavi cloud upload`).
   * Progress bars now show additional information (operation label, elapsed time, exact progress count).
 * Changed:
+  * The "merge" option has been removed, and merging is now always enforced.
+    This option made sense before Ludusavi supported differential and cloud backups,
+    but there was not much reason to turn off merging anymore.
+
+    The CLI `backup` command's `--merge`/`--no-merge` flags are now ignored and will be removed in a future release.
   * GUI: Modal content is slightly less padded.
 
 ## v0.17.1 (2023-04-10)

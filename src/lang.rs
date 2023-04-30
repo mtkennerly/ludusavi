@@ -756,10 +756,6 @@ impl Translator {
         translate("field-backup-target")
     }
 
-    pub fn backup_merge_label(&self) -> String {
-        translate("toggle-backup-merge")
-    }
-
     pub fn restore_source_label(&self) -> String {
         translate("field-restore-source")
     }
@@ -1051,16 +1047,9 @@ impl Translator {
         translate("consider-doing-a-preview")
     }
 
-    pub fn confirm_backup(&self, target: &StrictPath, target_exists: bool, merge: bool, suggest: bool) -> String {
+    pub fn confirm_backup(&self, target: &StrictPath, target_exists: bool, suggest: bool) -> String {
         let mut args = FluentArgs::new();
-        args.set(
-            PATH_ACTION,
-            match (target_exists, merge) {
-                (false, _) => "create",
-                (true, false) => "recreate",
-                (true, true) => "merge",
-            },
-        );
+        args.set(PATH_ACTION, if !target_exists { "create" } else { "merge" });
         let primary = translate_args("confirm-backup", &args);
 
         if suggest {

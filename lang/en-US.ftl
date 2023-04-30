@@ -78,7 +78,6 @@ processed-games-subset = {$processed-games} of {$total-games} {$total-games ->
 processed-size-subset = {$processed-size} of {$total-size}
 
 field-backup-target = Back up to:
-toggle-backup-merge = Merge
 field-restore-source = Restore from:
 field-custom-files = Paths:
 field-custom-registry = Registry:
@@ -186,7 +185,6 @@ consider-doing-a-preview =
 confirm-backup =
     Are you sure you want to proceed with the backup? {$path-action ->
         [merge] New save data will be merged into the target folder:
-        [recreate] The target folder will be deleted and recreated from scratch:
         *[create] The target folder will be created:
     }
 

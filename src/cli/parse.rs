@@ -117,14 +117,13 @@ pub enum Subcommand {
         #[clap(long)]
         force: bool,
 
-        /// Merge into existing directory instead of deleting/recreating it.
-        /// When not specified, this defers to the config file.
+        /// DEPRECATED: New backups are now always merged into the target folder.
+        /// This option will be removed in a future version.
         #[clap(long)]
         merge: bool,
 
-        /// Don't merge; delete and recreate the target directory.
-        /// This will delete any existing backups and preempt multi-backup retention.
-        /// When not specified, this defers to the config file.
+        /// DEPRECATED: New backups are now always merged into the target folder.
+        /// This option will be removed in a future version.
         #[clap(long, conflicts_with("merge"))]
         no_merge: bool,
 

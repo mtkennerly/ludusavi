@@ -129,36 +129,22 @@ impl Backup {
                         .spacing(20)
                         .height(30)
                         .align_items(Alignment::Center)
-                        .push(
-                            Checkbox::new(
-                                TRANSLATOR.backup_merge_label(),
-                                config.backup.merge,
-                                Message::EditedBackupMerge,
+                        .push({
+                            number_input(
+                                config.backup.retention.full as i32,
+                                TRANSLATOR.full_retention(),
+                                1..=255,
+                                |x| Message::EditedFullRetention(x as u8),
                             )
-                            .style(style::Checkbox),
-                        )
-                        .push_if(
-                            || config.backup.merge,
-                            || {
-                                number_input(
-                                    config.backup.retention.full as i32,
-                                    TRANSLATOR.full_retention(),
-                                    1..=255,
-                                    |x| Message::EditedFullRetention(x as u8),
-                                )
-                            },
-                        )
-                        .push_if(
-                            || config.backup.merge,
-                            || {
-                                number_input(
-                                    config.backup.retention.differential as i32,
-                                    TRANSLATOR.differential_retention(),
-                                    0..=255,
-                                    |x| Message::EditedDiffRetention(x as u8),
-                                )
-                            },
-                        )
+                        })
+                        .push({
+                            number_input(
+                                config.backup.retention.differential as i32,
+                                TRANSLATOR.differential_retention(),
+                                0..=255,
+                                |x| Message::EditedDiffRetention(x as u8),
+                            )
+                        })
                 },
             )
             .push_if(

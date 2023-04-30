@@ -67,9 +67,15 @@ impl GameSubjects {
     }
 }
 
-fn warn_deprecations(by_steam_id: bool) {
+fn warn_deprecations(by_steam_id: bool, merge: bool, no_merge: bool) {
     if by_steam_id {
         eprintln!("WARNING: `--by-steam-id` is deprecated. Use the `find` command instead.");
+    }
+    if merge {
+        eprintln!("WARNING: `--merge` is deprecated. Merging is now always enforced.");
+    }
+    if no_merge {
+        eprintln!("WARNING: `--no-merge` is deprecated. Merging is now always enforced.");
     }
 }
 
@@ -123,7 +129,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             no_cloud_sync,
             games,
         } => {
-            warn_deprecations(by_steam_id);
+            warn_deprecations(by_steam_id, merge, no_merge);
 
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
@@ -143,11 +149,9 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             };
             let roots = config.expanded_roots();
 
-            let merge = negatable_flag(merge, no_merge, config.backup.merge);
-
             if !preview && !force {
                 match dialoguer::Confirm::new()
-                    .with_prompt(TRANSLATOR.confirm_backup(&backup_dir, backup_dir.exists(), merge, false))
+                    .with_prompt(TRANSLATOR.confirm_backup(&backup_dir, backup_dir.exists(), false))
                     .interact()
                 {
                     Ok(true) => (),
@@ -157,7 +161,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             }
 
             if !preview {
-                prepare_backup_target(&backup_dir, merge)?;
+                prepare_backup_target(&backup_dir)?;
             }
 
             let mut all_games = manifest;
@@ -273,7 +277,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
 
                         layout
                             .game_layout(name)
-                            .back_up(&scan_info, merge, &chrono::Utc::now(), &backup_format)
+                            .back_up(&scan_info, &chrono::Utc::now(), &backup_format)
                     };
                     log::trace!("step {i} completed");
                     (name, scan_info, backup_info, decision)
@@ -332,7 +336,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             no_cloud_sync,
             games,
         } => {
-            warn_deprecations(by_steam_id);
+            warn_deprecations(by_steam_id, false, false);
 
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
@@ -501,7 +505,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             api,
             games,
         } => {
-            warn_deprecations(by_steam_id);
+            warn_deprecations(by_steam_id, false, false);
 
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
             reporter.suppress_overall();
