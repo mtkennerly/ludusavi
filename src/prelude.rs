@@ -1,4 +1,8 @@
-use std::{num::NonZeroUsize, path::PathBuf, sync::Mutex};
+use std::{
+    num::NonZeroUsize,
+    path::PathBuf,
+    sync::{atomic::AtomicBool, Arc, Mutex},
+};
 
 use once_cell::sync::Lazy;
 
@@ -23,6 +27,7 @@ pub static AVAILABLE_PARALELLISM: Lazy<Option<NonZeroUsize>> = Lazy::new(|| std:
 
 // NOTE.2022-11-04 not very pretty singleton like global variable
 pub static CONFIG_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
+static HANDLER_SIGINT: Mutex<Option<signal_hook::SigId>> = Mutex::new(None);
 
 pub const ENV_DEBUG: &str = "LUDUSAVI_DEBUG";
 const ENV_THREADS: &str = "LUDUSAVI_THREADS";
@@ -261,6 +266,43 @@ pub fn run_command(
                 args: collect_args(),
                 raw: error.to_string(),
             })
+        }
+    }
+}
+
+pub fn register_sigint() -> Arc<AtomicBool> {
+    let flag = Arc::new(AtomicBool::new(false));
+
+    let guard = HANDLER_SIGINT.lock();
+    if let Ok(mut guard) = guard {
+        if let Some(id) = guard.as_ref() {
+            signal_hook::low_level::unregister(*id);
+            *guard = None;
+        }
+
+        let res = signal_hook::flag::register(signal_hook::consts::SIGINT, flag.clone());
+        if let Ok(id) = res {
+            *guard = Some(id);
+        }
+    }
+
+    flag
+}
+
+pub fn unregister_sigint() {
+    let guard = HANDLER_SIGINT.lock();
+    if let Ok(mut guard) = guard {
+        if let Some(id) = guard.as_ref() {
+            signal_hook::low_level::unregister(*id);
+            *guard = None;
+        }
+
+        let res = signal_hook::flag::register_conditional_default(
+            signal_hook::consts::SIGINT,
+            std::sync::Arc::new(std::sync::atomic::AtomicBool::new(true)),
+        );
+        if let Ok(id) = res {
+            *guard = Some(id);
         }
     }
 }

@@ -15,7 +15,10 @@ use crate::{
     },
     cloud::{CloudChange, Rclone, Remote},
     lang::TRANSLATOR,
-    prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
+    prelude::{
+        app_dir, get_threads_from_env, initialize_rayon, register_sigint, unregister_sigint, Error, Finality,
+        StrictPath, SyncDirection,
+    },
     resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
     scan::{
         heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId,
@@ -797,9 +800,18 @@ fn sync_cloud(
         Err(e) => return Err(Error::UnableToSynchronizeCloud(e)),
     };
 
+    let interrupted = register_sigint();
+
     let progress_bar = cloud_progress_bar();
     let mut changes = vec![];
     loop {
+        if interrupted.load(std::sync::atomic::Ordering::Relaxed) {
+            if let Err(e) = process.kill() {
+                eprintln!("Unable to stop Rclone: {e:?}");
+            }
+            std::process::exit(1);
+        }
+
         let events = process.events();
         for event in events {
             match event {
@@ -814,8 +826,12 @@ fn sync_cloud(
             }
         }
         match process.succeeded() {
-            Some(Ok(_)) => return Ok(changes),
+            Some(Ok(_)) => {
+                unregister_sigint();
+                return Ok(changes);
+            }
             Some(Err(e)) => {
+                unregister_sigint();
                 progress_bar.finish_and_clear();
                 return Err(Error::UnableToSynchronizeCloud(e));
             }

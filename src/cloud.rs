@@ -194,6 +194,14 @@ impl RcloneProcess {
 
         res
     }
+
+    pub fn kill(&mut self) -> Result<(), std::io::Error> {
+        let res = self.child.kill();
+        if let Err(e) = &res {
+            log::error!("Unable to kill child process for Rclone: {e:?}");
+        }
+        res
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
