@@ -168,7 +168,7 @@ pub struct TextHistories {
     pub backup_filter_ignored_registry: Vec<TextHistory>,
     pub rclone_executable: TextHistory,
     pub rclone_arguments: TextHistory,
-    pub cloud_remote_name: TextHistory,
+    pub cloud_remote_id: TextHistory,
     pub cloud_path: TextHistory,
 }
 
@@ -209,8 +209,8 @@ impl TextHistories {
                 .push(TextHistory::raw(&x.raw()));
         }
 
-        if let Some(Remote::Custom { name }) = &config.cloud.remote {
-            histories.cloud_remote_name.push(name);
+        if let Some(Remote::Custom { id }) = &config.cloud.remote {
+            histories.cloud_remote_id.push(id);
         }
 
         histories
@@ -257,7 +257,7 @@ impl TextHistories {
                 .unwrap_or_default(),
             UndoSubject::RcloneExecutable => self.rclone_executable.current(),
             UndoSubject::RcloneArguments => self.rclone_arguments.current(),
-            UndoSubject::CloudRemoteName => self.cloud_remote_name.current(),
+            UndoSubject::CloudRemoteId => self.cloud_remote_id.current(),
             UndoSubject::CloudPath => self.cloud_path.current(),
         };
 
@@ -296,7 +296,7 @@ impl TextHistories {
             }
             UndoSubject::RcloneExecutable => Box::new(Message::EditedRcloneExecutable),
             UndoSubject::RcloneArguments => Box::new(Message::EditedRcloneArguments),
-            UndoSubject::CloudRemoteName => Box::new(Message::EditedCloudRemoteName),
+            UndoSubject::CloudRemoteId => Box::new(Message::EditedCloudRemoteId),
             UndoSubject::CloudPath => Box::new(Message::EditedCloudPath),
         };
 
@@ -315,7 +315,7 @@ impl TextHistories {
             UndoSubject::BackupFilterIgnoredRegistry(_) => "".to_string(),
             UndoSubject::RcloneExecutable => TRANSLATOR.executable_label(),
             UndoSubject::RcloneArguments => TRANSLATOR.arguments_label(),
-            UndoSubject::CloudRemoteName => "".to_string(),
+            UndoSubject::CloudRemoteId => "".to_string(),
             UndoSubject::CloudPath => "".to_string(),
         };
 

@@ -244,13 +244,22 @@ impl ToString for RemoteChoice {
 #[serde(rename = "camelCase")]
 pub enum Remote {
     Custom {
-        name: String,
+        id: String,
     },
-    Box,
-    Dropbox,
-    GoogleDrive,
-    OneDrive,
+    Box {
+        id: String,
+    },
+    Dropbox {
+        id: String,
+    },
+    GoogleDrive {
+        id: String,
+    },
+    OneDrive {
+        id: String,
+    },
     Ftp {
+        id: String,
         host: String,
         port: i32,
         username: String,
@@ -258,6 +267,7 @@ pub enum Remote {
         password: String,
     },
     Smb {
+        id: String,
         host: String,
         port: i32,
         username: String,
@@ -265,6 +275,7 @@ pub enum Remote {
         password: String,
     },
     WebDav {
+        id: String,
         url: String,
         username: String,
         #[serde(skip, default)]
@@ -274,21 +285,27 @@ pub enum Remote {
 }
 
 impl Remote {
-    pub fn name(&self) -> &str {
+    pub fn id(&self) -> &str {
         match self {
-            Self::Custom { name } => name,
-            _ => "ludusavi",
+            Remote::Box { id } => id,
+            Remote::Custom { id } => id,
+            Remote::Dropbox { id } => id,
+            Remote::GoogleDrive { id } => id,
+            Remote::OneDrive { id } => id,
+            Remote::Ftp { id, .. } => id,
+            Remote::Smb { id, .. } => id,
+            Remote::WebDav { id, .. } => id,
         }
     }
 
     pub fn slug(&self) -> &str {
         match self {
             Self::Custom { .. } => "",
-            Self::Box => "box",
-            Self::Dropbox => "dropbox",
+            Self::Box { .. } => "box",
+            Self::Dropbox { .. } => "dropbox",
             Self::Ftp { .. } => "ftp",
-            Self::GoogleDrive => "drive",
-            Self::OneDrive => "onedrive",
+            Self::GoogleDrive { .. } => "drive",
+            Self::OneDrive { .. } => "onedrive",
             Self::Smb { .. } => "smb",
             Self::WebDav { .. } => "webdav",
         }
@@ -297,10 +314,11 @@ impl Remote {
     pub fn config_args(&self) -> Option<Vec<String>> {
         match self {
             Self::Custom { .. } => None,
-            Self::Box => None,
-            Self::Dropbox => None,
-            Self::GoogleDrive => Some(vec!["scope=drive".to_string()]),
+            Self::Box { .. } => None,
+            Self::Dropbox { .. } => None,
+            Self::GoogleDrive { .. } => Some(vec!["scope=drive".to_string()]),
             Self::Ftp {
+                id: _,
                 host,
                 port,
                 username,
@@ -311,15 +329,17 @@ impl Remote {
                 format!("user={username}"),
                 format!("pass={password}"),
             ]),
-            Self::OneDrive => Some(vec![
+            Self::OneDrive { .. } => Some(vec![
                 "drive_type=personal".to_string(),
                 "access_scopes=Files.ReadWrite,offline_access".to_string(),
             ]),
             Self::Smb {
+                id: _,
                 host,
                 port,
                 username,
                 password,
+                ..
             } => Some(vec![
                 format!("host={host}"),
                 format!("port={port}"),
@@ -327,6 +347,7 @@ impl Remote {
                 format!("pass={password}"),
             ]),
             Self::WebDav {
+                id: _,
                 url,
                 username,
                 password,
@@ -343,11 +364,11 @@ impl Remote {
     pub fn needs_configuration(&self) -> bool {
         match self {
             Self::Custom { .. } => false,
-            Self::Box
-            | Self::Dropbox
+            Self::Box { .. }
+            | Self::Dropbox { .. }
             | Self::Ftp { .. }
-            | Self::GoogleDrive
-            | Self::OneDrive
+            | Self::GoogleDrive { .. }
+            | Self::OneDrive { .. }
             | Self::Smb { .. }
             | Self::WebDav { .. } => true,
         }
@@ -365,6 +386,10 @@ impl Remote {
             _ => None,
         }
     }
+
+    pub fn generate_id() -> String {
+        format!("ludusavi-{}", chrono::Utc::now().timestamp())
+    }
 }
 
 impl From<Option<&Remote>> for RemoteChoice {
@@ -372,11 +397,11 @@ impl From<Option<&Remote>> for RemoteChoice {
         if let Some(value) = value {
             match value {
                 Remote::Custom { .. } => RemoteChoice::Custom,
-                Remote::Box => RemoteChoice::Box,
-                Remote::Dropbox => RemoteChoice::Dropbox,
+                Remote::Box { .. } => RemoteChoice::Box,
+                Remote::Dropbox { .. } => RemoteChoice::Dropbox,
                 Remote::Ftp { .. } => RemoteChoice::Ftp,
-                Remote::GoogleDrive => RemoteChoice::GoogleDrive,
-                Remote::OneDrive => RemoteChoice::OneDrive,
+                Remote::GoogleDrive { .. } => RemoteChoice::GoogleDrive,
+                Remote::OneDrive { .. } => RemoteChoice::OneDrive,
                 Remote::Smb { .. } => RemoteChoice::Smb,
                 Remote::WebDav { .. } => RemoteChoice::WebDav,
             }
@@ -393,25 +418,36 @@ impl TryFrom<RemoteChoice> for Remote {
         match value {
             RemoteChoice::None => Err(()),
             RemoteChoice::Custom => Ok(Remote::Custom {
-                name: "ludusavi".to_string(),
+                id: "ludusavi".to_string(),
             }),
-            RemoteChoice::Box => Ok(Remote::Box),
-            RemoteChoice::Dropbox => Ok(Remote::Dropbox),
+            RemoteChoice::Box => Ok(Remote::Box {
+                id: Remote::generate_id(),
+            }),
+            RemoteChoice::Dropbox => Ok(Remote::Dropbox {
+                id: Remote::generate_id(),
+            }),
             RemoteChoice::Ftp => Ok(Remote::Ftp {
+                id: Remote::generate_id(),
                 host: String::new(),
                 port: 21,
                 username: String::new(),
                 password: String::new(),
             }),
-            RemoteChoice::GoogleDrive => Ok(Remote::GoogleDrive),
-            RemoteChoice::OneDrive => Ok(Remote::OneDrive),
+            RemoteChoice::GoogleDrive => Ok(Remote::GoogleDrive {
+                id: Remote::generate_id(),
+            }),
+            RemoteChoice::OneDrive => Ok(Remote::OneDrive {
+                id: Remote::generate_id(),
+            }),
             RemoteChoice::Smb => Ok(Remote::Smb {
+                id: Remote::generate_id(),
                 host: String::new(),
                 port: 445,
                 username: String::new(),
                 password: String::new(),
             }),
             RemoteChoice::WebDav => Ok(Remote::WebDav {
+                id: Remote::generate_id(),
                 url: String::new(),
                 username: String::new(),
                 password: String::new(),
@@ -504,7 +540,7 @@ impl Rclone {
     }
 
     fn path(&self, path: &str) -> String {
-        format!("{}:{}", self.remote.name(), path)
+        format!("{}:{}", self.remote.id(), path)
     }
 
     fn args(&self, args: &[String]) -> Vec<String> {
@@ -540,7 +576,11 @@ impl Rclone {
 
         let mut remote = self.remote.clone();
         match &mut remote {
-            Remote::Custom { .. } | Remote::Box | Remote::Dropbox | Remote::GoogleDrive | Remote::OneDrive => {}
+            Remote::Custom { .. }
+            | Remote::Box { .. }
+            | Remote::Dropbox { .. }
+            | Remote::GoogleDrive { .. }
+            | Remote::OneDrive { .. } => {}
             Remote::Ftp { password, .. } => {
                 privacy = Privacy::Private;
                 *password = self.obscure(password)?;
@@ -558,7 +598,7 @@ impl Rclone {
         let mut args = vec![
             "config".to_string(),
             "create".to_string(),
-            remote.name().to_string(),
+            remote.id().to_string(),
             remote.slug().to_string(),
         ];
 
@@ -567,6 +607,17 @@ impl Rclone {
         }
 
         self.run(&args, &[0], privacy)?;
+        Ok(())
+    }
+
+    pub fn unconfigure_remote(&self) -> Result<(), CommandError> {
+        if !self.remote.needs_configuration() {
+            return Ok(());
+        }
+
+        let args = vec!["config".to_string(), "delete".to_string(), self.remote.id().to_string()];
+
+        self.run(&args, &[0], Privacy::Public)?;
         Ok(())
     }
 

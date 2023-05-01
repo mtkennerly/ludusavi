@@ -198,6 +198,7 @@ impl Modal {
                     None
                 } else {
                     Some(Message::FinalizeRemote(Remote::Ftp {
+                        id: Remote::generate_id(),
                         host: host.clone(),
                         port,
                         username: username.clone(),
@@ -216,6 +217,7 @@ impl Modal {
                     None
                 } else {
                     Some(Message::FinalizeRemote(Remote::Smb {
+                        id: Remote::generate_id(),
                         host: host.clone(),
                         port,
                         username: username.clone(),
@@ -233,6 +235,7 @@ impl Modal {
                     None
                 } else {
                     Some(Message::FinalizeRemote(Remote::WebDav {
+                        id: Remote::generate_id(),
                         url: url.clone(),
                         username: username.clone(),
                         password: password.clone(),

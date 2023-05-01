@@ -415,7 +415,7 @@ pub enum CloudSetSubcommand {
     /// Use a pre-existing Rclone remote.
     Custom {
         #[clap(long)]
-        name: String,
+        id: String,
     },
     /// Use Box.
     Box,

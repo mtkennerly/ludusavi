@@ -579,14 +579,24 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                     config.cloud.remote = None;
                     config.save();
                 }
-                parse::CloudSetSubcommand::Custom { name } => {
-                    configure_cloud(&mut config, Remote::Custom { name })?;
+                parse::CloudSetSubcommand::Custom { id } => {
+                    configure_cloud(&mut config, Remote::Custom { id })?;
                 }
                 parse::CloudSetSubcommand::Box => {
-                    configure_cloud(&mut config, Remote::Box)?;
+                    configure_cloud(
+                        &mut config,
+                        Remote::Box {
+                            id: Remote::generate_id(),
+                        },
+                    )?;
                 }
                 parse::CloudSetSubcommand::Dropbox => {
-                    configure_cloud(&mut config, Remote::Dropbox)?;
+                    configure_cloud(
+                        &mut config,
+                        Remote::Dropbox {
+                            id: Remote::generate_id(),
+                        },
+                    )?;
                 }
                 parse::CloudSetSubcommand::Ftp {
                     host,
@@ -597,6 +607,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                     configure_cloud(
                         &mut config,
                         Remote::Ftp {
+                            id: Remote::generate_id(),
                             host,
                             port,
                             username,
@@ -605,10 +616,20 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                     )?;
                 }
                 parse::CloudSetSubcommand::GoogleDrive => {
-                    configure_cloud(&mut config, Remote::GoogleDrive)?;
+                    configure_cloud(
+                        &mut config,
+                        Remote::GoogleDrive {
+                            id: Remote::generate_id(),
+                        },
+                    )?;
                 }
                 parse::CloudSetSubcommand::OneDrive => {
-                    configure_cloud(&mut config, Remote::OneDrive)?;
+                    configure_cloud(
+                        &mut config,
+                        Remote::OneDrive {
+                            id: Remote::generate_id(),
+                        },
+                    )?;
                 }
                 parse::CloudSetSubcommand::Smb {
                     host,
@@ -619,6 +640,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                     configure_cloud(
                         &mut config,
                         Remote::Smb {
+                            id: Remote::generate_id(),
                             host,
                             port,
                             username,
@@ -635,6 +657,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                     configure_cloud(
                         &mut config,
                         Remote::WebDav {
+                            id: Remote::generate_id(),
                             url,
                             username,
                             password,
@@ -702,10 +725,14 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
 }
 
 fn configure_cloud(config: &mut Config, remote: Remote) -> Result<(), Error> {
-    if remote.needs_configuration() {
-        let rclone = Rclone::new(config.apps.rclone.clone(), remote.clone());
-        rclone.configure_remote().map_err(Error::UnableToConfigureCloud)?;
+    if let Some(old_remote) = config.cloud.remote.as_ref() {
+        _ = Rclone::new(config.apps.rclone.clone(), old_remote.clone()).unconfigure_remote();
     }
+
+    Rclone::new(config.apps.rclone.clone(), remote.clone())
+        .configure_remote()
+        .map_err(Error::UnableToConfigureCloud)?;
+
     config.cloud.remote = Some(remote);
     config.save();
     Ok(())

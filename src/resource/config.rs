@@ -1383,7 +1383,9 @@ mod tests {
               showUnchangedGames: false
               showUnscannedGames: false
             cloud:
-              remote: GoogleDrive
+              remote:
+                GoogleDrive:
+                  id: remote-id
               path: ludusavi-backup
               synchronize: false
             apps:
@@ -1462,7 +1464,9 @@ mod tests {
                     show_unscanned_games: false,
                 },
                 cloud: Cloud {
-                    remote: Some(Remote::GoogleDrive),
+                    remote: Some(Remote::GoogleDrive {
+                        id: "remote-id".to_string()
+                    }),
                     path: "ludusavi-backup".to_string(),
                     synchronize: false,
                 },
@@ -1756,7 +1760,9 @@ scan:
   showUnchangedGames: false
   showUnscannedGames: false
 cloud:
-  remote: GoogleDrive
+  remote:
+    GoogleDrive:
+      id: remote-id
   path: ludusavi-backup
   synchronize: true
 apps:
@@ -1836,7 +1842,9 @@ customGames:
                     show_unscanned_games: false,
                 },
                 cloud: Cloud {
-                    remote: Some(Remote::GoogleDrive),
+                    remote: Some(Remote::GoogleDrive {
+                        id: "remote-id".to_string()
+                    }),
                     path: "ludusavi-backup".to_string(),
                     synchronize: true,
                 },

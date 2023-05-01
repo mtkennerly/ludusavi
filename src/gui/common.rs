@@ -201,7 +201,7 @@ pub enum Message {
     EditedMaxThreads(usize),
     EditedRcloneExecutable(String),
     EditedRcloneArguments(String),
-    EditedCloudRemoteName(String),
+    EditedCloudRemoteId(String),
     EditedCloudPath(String),
     OpenUrl(String),
     EditedCloudRemote(RemoteChoice),
@@ -347,7 +347,7 @@ pub enum UndoSubject {
     BackupFilterIgnoredRegistry(usize),
     RcloneExecutable,
     RcloneArguments,
-    CloudRemoteName,
+    CloudRemoteId,
     CloudPath,
 }
 

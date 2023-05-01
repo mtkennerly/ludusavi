@@ -1004,9 +1004,15 @@ impl App {
 
     fn configure_remote(&self, remote: Remote) -> Command<Message> {
         let rclone = self.config.apps.rclone.clone();
-        let remote2 = remote.clone();
+        let old_remote = self.config.cloud.remote.clone();
+        let new_remote = remote.clone();
         Command::perform(
-            async move { Rclone::new(rclone, remote2).configure_remote() },
+            async move {
+                if let Some(old_remote) = old_remote {
+                    _ = Rclone::new(rclone.clone(), old_remote).unconfigure_remote();
+                }
+                Rclone::new(rclone, new_remote).configure_remote()
+            },
             move |res| match res {
                 Ok(_) => Message::ConfigureCloudSuccess(remote),
                 Err(e) => Message::ConfigureCloudFailure(e),
@@ -1824,9 +1830,9 @@ impl Application for App {
                         &mut self.config.apps.rclone.arguments,
                         &mut self.text_histories.rclone_arguments,
                     ),
-                    UndoSubject::CloudRemoteName => {
-                        if let Some(Remote::Custom { name }) = &mut self.config.cloud.remote {
-                            shortcut.apply_to_string_field(name, &mut self.text_histories.cloud_remote_name)
+                    UndoSubject::CloudRemoteId => {
+                        if let Some(Remote::Custom { id }) = &mut self.config.cloud.remote {
+                            shortcut.apply_to_string_field(id, &mut self.text_histories.cloud_remote_id)
                         }
                     }
                     UndoSubject::CloudPath => {
@@ -1979,10 +1985,10 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
-            Message::EditedCloudRemoteName(text) => {
-                self.text_histories.cloud_remote_name.push(&text);
-                if let Some(Remote::Custom { name }) = &mut self.config.cloud.remote {
-                    *name = text;
+            Message::EditedCloudRemoteId(text) => {
+                self.text_histories.cloud_remote_id.push(&text);
+                if let Some(Remote::Custom { id }) = &mut self.config.cloud.remote {
+                    *id = text;
                 }
                 self.config.save();
                 Command::none()
@@ -1997,13 +2003,14 @@ impl Application for App {
             Message::EditedCloudRemote(choice) => {
                 if let Ok(remote) = Remote::try_from(choice) {
                     match &remote {
-                        Remote::Custom { name } => {
-                            self.text_histories.cloud_remote_name.push(name);
+                        Remote::Custom { id } => {
+                            self.text_histories.cloud_remote_id.push(id);
                             self.config.cloud.remote = Some(remote);
                             self.config.save();
                             Command::none()
                         }
                         Remote::Ftp {
+                            id: _,
                             host,
                             port,
                             username,
@@ -2018,6 +2025,7 @@ impl Application for App {
                             Command::none()
                         }
                         Remote::Smb {
+                            id: _,
                             host,
                             port,
                             username,
@@ -2032,6 +2040,7 @@ impl Application for App {
                             Command::none()
                         }
                         Remote::WebDav {
+                            id: _,
                             url,
                             username,
                             password,
@@ -2045,9 +2054,10 @@ impl Application for App {
                             });
                             Command::none()
                         }
-                        Remote::Box | Remote::Dropbox | Remote::GoogleDrive | Remote::OneDrive => {
-                            self.configure_remote(remote)
-                        }
+                        Remote::Box { .. }
+                        | Remote::Dropbox { .. }
+                        | Remote::GoogleDrive { .. }
+                        | Remote::OneDrive { .. } => self.configure_remote(remote),
                     }
                 } else {
                     self.config.cloud.remote = None;

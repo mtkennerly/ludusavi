@@ -489,7 +489,7 @@ pub fn other<'a>(
                                             if let Some(Remote::Custom { .. }) = &config.cloud.remote {
                                                 row = row
                                                     .push(Text::new(TRANSLATOR.remote_name_label()))
-                                                    .push(histories.input(UndoSubject::CloudRemoteName));
+                                                    .push(histories.input(UndoSubject::CloudRemoteId));
                                             }
 
                                             if let Some(description) =
