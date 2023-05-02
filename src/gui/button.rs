@@ -20,6 +20,22 @@ fn template(content: Text, action: Option<Message>, style: Option<style::Button>
         .into()
 }
 
+pub fn primary<'a>(content: String, action: Option<Message>) -> Element<'a> {
+    Button::new(Text::new(content).horizontal_alignment(alignment::Horizontal::Center))
+        .on_press_some(action)
+        .style(style::Button::Primary)
+        .width(125)
+        .into()
+}
+
+pub fn negative<'a>(content: String, action: Option<Message>) -> Element<'a> {
+    Button::new(Text::new(content).horizontal_alignment(alignment::Horizontal::Center))
+        .on_press_some(action)
+        .style(style::Button::Negative)
+        .width(125)
+        .into()
+}
+
 pub fn add<'a>(action: fn(EditAction) -> Message) -> Element<'a> {
     template(Icon::AddCircle.as_text(), Some(action(EditAction::Add)), None)
 }

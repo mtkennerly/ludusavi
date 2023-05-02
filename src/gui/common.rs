@@ -214,6 +214,7 @@ pub enum Message {
     },
     SynchronizeCloud {
         direction: SyncDirection,
+        finality: Finality,
     },
     RcloneMonitor(rclone_monitor::Event),
     FinalizeRemote(Remote),

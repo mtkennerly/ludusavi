@@ -361,7 +361,7 @@ pub enum CloudSubcommand {
     /// Upload your local backups to the cloud, overwriting any existing cloud backups.
     Upload {
         /// Local folder path for backups.
-        /// When not specified, this defers to the config file.
+        /// When not specified, this defers to the backup path from the config file.
         #[clap(long, value_parser = parse_strict_path)]
         local: Option<StrictPath>,
 
@@ -385,7 +385,7 @@ pub enum CloudSubcommand {
     /// Download your cloud backups, overwriting any existing local backups.
     Download {
         /// Local folder path for backups.
-        /// When not specified, this defers to the config file.
+        /// When not specified, this defers to the backup path from the config file.
         #[clap(long, value_parser = parse_strict_path)]
         local: Option<StrictPath>,
 

@@ -1,4 +1,4 @@
-use iced::{alignment::Horizontal as HorizontalAlignment, Alignment, Length};
+use iced::{Alignment, Length};
 
 use crate::{
     cloud::{CloudChange, Remote, RemoteChoice, WebDavProvider},
@@ -7,10 +7,10 @@ use crate::{
         button,
         common::{BackupPhase, Message, RestorePhase, ScrollSubject},
         style,
-        widget::{Button, Column, Container, IcedParentExt, PickList, Row, Space, Text, TextInput},
+        widget::{Column, Container, Element, IcedParentExt, PickList, Row, Space, Text, TextInput},
     },
     lang::TRANSLATOR,
-    prelude::{Error, Privacy, SyncDirection},
+    prelude::{Error, Finality, Privacy, SyncDirection},
     resource::config::{Config, RootsConfig},
 };
 
@@ -90,6 +90,7 @@ pub enum Modal {
         changes: Vec<CloudChange>,
         done: bool,
         page: usize,
+        previewing: bool,
     },
     ConfigureFtpRemote {
         host: String,
@@ -185,7 +186,10 @@ impl Modal {
             Self::PreparingBackupDir | Self::UpdatingManifest => None,
             modal @ Self::ConfirmCloudSync { direction, .. } => {
                 if modal.any_cloud_changes() {
-                    Some(Message::SynchronizeCloud { direction: *direction })
+                    Some(Message::SynchronizeCloud {
+                        direction: *direction,
+                        finality: Finality::Final,
+                    })
                 } else {
                     Some(Message::CloseModal)
                 }
@@ -249,6 +253,34 @@ impl Modal {
         }
     }
 
+    fn extra_controls(&self) -> Vec<Element> {
+        match self {
+            Self::ConfirmCloudSync {
+                direction, previewing, ..
+            } => {
+                vec![button::primary(
+                    TRANSLATOR.preview_button(),
+                    (!previewing).then_some(Message::SynchronizeCloud {
+                        direction: *direction,
+                        finality: Finality::Preview,
+                    }),
+                )]
+            }
+            Self::Error { .. }
+            | Self::Errors { .. }
+            | Self::Exiting
+            | Self::ConfirmBackup { .. }
+            | Self::ConfirmRestore { .. }
+            | Self::NoMissingRoots
+            | Self::ConfirmAddMissingRoots(_)
+            | Self::PreparingBackupDir
+            | Self::UpdatingManifest
+            | Self::ConfigureFtpRemote { .. }
+            | Self::ConfigureSmbRemote { .. }
+            | Self::ConfigureWebDavRemote { .. } => vec![],
+        }
+    }
+
     pub fn body(&self, config: &Config) -> Column {
         let mut col = Column::new()
             .width(Length::Fill)
@@ -268,24 +300,31 @@ impl Modal {
             | Self::PreparingBackupDir
             | Self::UpdatingManifest => (),
             modal @ Self::ConfirmCloudSync {
-                changes, page, done, ..
+                changes,
+                page,
+                done,
+                previewing,
+                ..
             } => {
                 if modal.any_cloud_changes() {
                     col = col
-                        .push(
-                            Row::new()
-                                .padding([0, 20, 0, 0])
-                                .spacing(20)
-                                .align_items(Alignment::Center)
-                                .push(Text::new(TRANSLATOR.change_count_label(changes.len())))
-                                .push_if(|| changes.is_empty() && !done, || Text::new(TRANSLATOR.loading()))
-                                .push(Space::new(Length::Fill, Length::Shrink))
-                                .push(button::next_page(
-                                    Message::ModalChangePage,
-                                    *page,
-                                    changes.len() / CHANGES_PER_PAGE,
-                                ))
-                                .push(button::previous_page(Message::ModalChangePage, *page)),
+                        .push_if(
+                            || *previewing,
+                            || {
+                                Row::new()
+                                    .padding([0, 20, 0, 0])
+                                    .spacing(20)
+                                    .align_items(Alignment::Center)
+                                    .push(Text::new(TRANSLATOR.change_count_label(changes.len())))
+                                    .push_if(|| changes.is_empty() && !done, || Text::new(TRANSLATOR.loading()))
+                                    .push(Space::new(Length::Fill, Length::Shrink))
+                                    .push(button::previous_page(Message::ModalChangePage, *page))
+                                    .push(button::next_page(
+                                        Message::ModalChangePage,
+                                        *page,
+                                        changes.len() / CHANGES_PER_PAGE,
+                                    ))
+                            },
                         )
                         .push(
                             changes
@@ -529,26 +568,16 @@ impl Modal {
     }
 
     pub fn view(&self, config: &Config) -> Container {
-        let mut positive_button = Button::new(
-            Text::new(match self.variant() {
+        let positive_button = button::primary(
+            match self.variant() {
                 ModalVariant::Loading => TRANSLATOR.okay_button(), // dummy
                 ModalVariant::Info => TRANSLATOR.okay_button(),
                 ModalVariant::Confirm => TRANSLATOR.continue_button(),
-            })
-            .horizontal_alignment(HorizontalAlignment::Center),
-        )
-        .width(125)
-        .style(style::Button::Primary);
+            },
+            self.message(),
+        );
 
-        if let Some(message) = self.message() {
-            positive_button = positive_button.on_press(message);
-        }
-
-        let negative_button =
-            Button::new(Text::new(TRANSLATOR.cancel_button()).horizontal_alignment(HorizontalAlignment::Center))
-                .on_press(Message::CloseModal)
-                .width(125)
-                .style(style::Button::Negative);
+        let negative_button = button::negative(TRANSLATOR.cancel_button(), Some(Message::CloseModal));
 
         Container::new(
             Column::new()
@@ -572,8 +601,10 @@ impl Modal {
                         .push(
                             match self.variant() {
                                 ModalVariant::Loading => Row::new(),
-                                ModalVariant::Info => Row::new().push(positive_button),
-                                ModalVariant::Confirm => Row::new().push(positive_button).push(negative_button),
+                                ModalVariant::Info => Row::with_children(self.extra_controls()).push(positive_button),
+                                ModalVariant::Confirm => Row::with_children(self.extra_controls())
+                                    .push(positive_button)
+                                    .push(negative_button),
                             }
                             .padding(30)
                             .spacing(20)

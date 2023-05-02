@@ -804,7 +804,7 @@ pub mod rclone_monitor {
                         }
                         Input::Cancel => {
                             if let Some(proc) = process.as_mut() {
-                                let _ = proc.child.kill();
+                                let _ = proc.kill();
                             }
                             (
                                 Some(Event::Cancelled),

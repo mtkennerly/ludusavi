@@ -2102,16 +2102,22 @@ impl Application for App {
                     changes: vec![],
                     done: false,
                     page: 0,
+                    previewing: false,
                 });
 
-                _ = self.start_sync_cloud(&local, direction, Finality::Preview, None, true);
                 Command::none()
             }
-            Message::SynchronizeCloud { direction } => {
-                self.modal = None;
+            Message::SynchronizeCloud { direction, finality } => {
+                if finality.preview() {
+                    if let Some(Modal::ConfirmCloudSync { previewing, .. }) = self.modal.as_mut() {
+                        *previewing = true;
+                    }
+                } else {
+                    self.modal = None;
+                }
                 let local = self.config.backup.path.clone();
 
-                _ = self.start_sync_cloud(&local, direction, Finality::Final, None, true);
+                _ = self.start_sync_cloud(&local, direction, finality, None, true);
                 Command::none()
             }
             Message::RcloneMonitor(event) => {
