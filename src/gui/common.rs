@@ -75,7 +75,9 @@ pub enum RestorePhase {
 pub enum Message {
     Ignore,
     Error(Error),
-    Exit,
+    Exit {
+        user: bool,
+    },
     CloseModal,
     UpdateTime,
     PruneNotifications,

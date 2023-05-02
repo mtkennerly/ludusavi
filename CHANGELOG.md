@@ -17,6 +17,10 @@
     The CLI `backup` command's `--merge`/`--no-merge` flags are now ignored and will be removed in a future release.
   * CLI: The deprecated `--by-steam-id` option has been removed from the `backup`, `backups`, and `restore` commands.
     You can use the `find` command to replicate this functionality.
+  * GUI: If you try to close the program while an operation is ongoing,
+    Ludusavi will cancel the operation cleanly first before closing.
+    To skip the cleanup and force an immediate close (like in previous versions),
+    you can simply try to quit a second time, but this isn't recommended if you can help it.
   * GUI: Modal content is slightly less padded.
 
 ## v0.17.1 (2023-04-10)

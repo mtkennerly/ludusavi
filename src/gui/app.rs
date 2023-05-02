@@ -183,10 +183,15 @@ pub struct App {
     scroll_offsets: HashMap<ScrollSubject, iced_native::widget::scrollable::RelativeOffset>,
     text_histories: TextHistories,
     rclone_monitor_sender: Option<iced_native::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
+    exiting: bool,
 }
 
 impl App {
     fn go_idle(&mut self) {
+        if self.exiting {
+            std::process::exit(0);
+        }
+
         self.operation = None;
         self.operation_steps.clear();
         self.operation_steps_active = 0;
@@ -949,6 +954,34 @@ impl App {
         }
     }
 
+    fn cancel_operation(&mut self) -> Command<Message> {
+        self.operation_should_cancel
+            .swap(true, std::sync::atomic::Ordering::Relaxed);
+        self.operation_steps.clear();
+        match self.operation {
+            Some(OngoingOperation::Backup) => {
+                self.operation = Some(OngoingOperation::CancelBackup);
+            }
+            Some(OngoingOperation::PreviewBackup) => {
+                self.operation = Some(OngoingOperation::CancelPreviewBackup);
+            }
+            Some(OngoingOperation::Restore) => {
+                self.operation = Some(OngoingOperation::CancelRestore);
+            }
+            Some(OngoingOperation::PreviewRestore) => {
+                self.operation = Some(OngoingOperation::CancelPreviewRestore);
+            }
+            Some(OngoingOperation::CloudSync { direction, .. }) => {
+                self.operation = Some(OngoingOperation::CancelCloudSync { direction });
+                if let Some(sender) = self.rclone_monitor_sender.as_mut() {
+                    let _ = sender.try_send(rclone_monitor::Input::Cancel);
+                }
+            }
+            _ => {}
+        };
+        Command::none()
+    }
+
     fn customize_game(&mut self, name: String) -> Command<Message> {
         let game = if let Some(standard) = self.manifest.0.get(&name) {
             CustomGame {
@@ -1028,11 +1061,11 @@ impl Application for App {
     type Theme = crate::gui::style::Theme;
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
-        let mut modal_theme: Option<Modal> = None;
+        let mut modal: Option<Modal> = None;
         let mut config = match Config::load() {
             Ok(x) => x,
             Err(x) => {
-                modal_theme = Some(Modal::Error { variant: x });
+                modal = Some(Modal::Error { variant: x });
                 let _ = Config::archive_invalid();
                 Config::default()
             }
@@ -1042,7 +1075,7 @@ impl Application for App {
         let manifest = match Manifest::load() {
             Ok(y) => y,
             Err(_) => {
-                modal_theme = Some(Modal::UpdatingManifest);
+                modal = Some(Modal::UpdatingManifest);
                 Manifest::default()
             }
         };
@@ -1056,7 +1089,7 @@ impl Application for App {
         if !missing.is_empty() {
             cache.add_roots(&missing);
             cache.save();
-            modal_theme = Some(Modal::ConfirmAddMissingRoots(missing));
+            modal = Some(Modal::ConfirmAddMissingRoots(missing));
         }
 
         let manifest_config = config.manifest.clone();
@@ -1072,7 +1105,7 @@ impl Application for App {
                 config,
                 manifest,
                 cache,
-                modal: modal_theme,
+                modal,
                 updating_manifest: true,
                 text_histories,
                 ..Self::default()
@@ -1113,7 +1146,15 @@ impl Application for App {
                 self.modal = None;
                 Command::none()
             }
-            Message::Exit => std::process::exit(0),
+            Message::Exit { user } => {
+                if self.operation.is_none() || (user && self.exiting) {
+                    std::process::exit(0)
+                } else {
+                    self.exiting = true;
+                    self.modal = Some(Modal::Exiting);
+                    self.cancel_operation()
+                }
+            }
             Message::UpdateTime => {
                 self.progress.update_time();
                 Command::none()
@@ -1172,33 +1213,7 @@ impl Application for App {
             }
             Message::Backup(phase) => self.handle_backup(phase),
             Message::Restore(phase) => self.handle_restore(phase),
-            Message::CancelOperation => {
-                self.operation_should_cancel
-                    .swap(true, std::sync::atomic::Ordering::Relaxed);
-                self.operation_steps.clear();
-                match self.operation {
-                    Some(OngoingOperation::Backup) => {
-                        self.operation = Some(OngoingOperation::CancelBackup);
-                    }
-                    Some(OngoingOperation::PreviewBackup) => {
-                        self.operation = Some(OngoingOperation::CancelPreviewBackup);
-                    }
-                    Some(OngoingOperation::Restore) => {
-                        self.operation = Some(OngoingOperation::CancelRestore);
-                    }
-                    Some(OngoingOperation::PreviewRestore) => {
-                        self.operation = Some(OngoingOperation::CancelPreviewRestore);
-                    }
-                    Some(OngoingOperation::CloudSync { direction, .. }) => {
-                        self.operation = Some(OngoingOperation::CancelCloudSync { direction });
-                        if let Some(sender) = self.rclone_monitor_sender.as_mut() {
-                            let _ = sender.try_send(rclone_monitor::Input::Cancel);
-                        }
-                    }
-                    _ => {}
-                };
-                Command::none()
-            }
+            Message::CancelOperation => self.cancel_operation(),
             Message::EditedBackupTarget(text) => {
                 self.text_histories.backup_target.push(&text);
                 self.config.backup.path.reset(text);
@@ -2171,10 +2186,12 @@ impl Application for App {
     fn subscription(&self) -> Subscription<Message> {
         let mut subscriptions = vec![
             iced_native::subscription::events_with(|event, _| match event {
-                iced_native::Event::Keyboard(event) => Some(event),
+                iced_native::Event::Keyboard(event) => Some(Message::KeyboardEvent(event)),
+                iced_native::Event::Window(iced_native::window::Event::CloseRequested) => {
+                    Some(Message::Exit { user: true })
+                }
                 _ => None,
-            })
-            .map(Message::KeyboardEvent),
+            }),
             rclone_monitor::run().map(Message::RcloneMonitor),
         ];
 
@@ -2185,6 +2202,11 @@ impl Application for App {
 
         if self.progress.visible() {
             subscriptions.push(iced::time::every(std::time::Duration::from_millis(100)).map(|_| Message::UpdateTime));
+        }
+
+        if self.exiting {
+            subscriptions
+                .push(iced::time::every(std::time::Duration::from_millis(50)).map(|_| Message::Exit { user: false }));
         }
 
         iced_native::subscription::Subscription::batch(subscriptions)

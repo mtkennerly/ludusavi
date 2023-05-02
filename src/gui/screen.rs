@@ -316,7 +316,7 @@ pub fn other<'a>(
                             Text::new(TRANSLATOR.exit_button())
                                 .horizontal_alignment(iced::alignment::Horizontal::Center),
                         )
-                        .on_press(Message::Exit)
+                        .on_press(Message::Exit { user: true })
                         .width(125)
                         .style(style::Button::Negative),
                     )
