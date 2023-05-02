@@ -84,6 +84,13 @@ impl Backup {
         chrono::DateTime::<chrono::Local>::from(*self.when())
     }
 
+    pub fn os(&self) -> Option<Os> {
+        match self {
+            Self::Full(x) => x.os,
+            Self::Differential(x) => x.os,
+        }
+    }
+
     pub fn comment(&self) -> &Option<String> {
         match self {
             Self::Full(x) => &x.comment,
@@ -207,6 +214,8 @@ pub struct FullBackup {
     pub name: String,
     pub when: chrono::DateTime<chrono::Utc>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub os: Option<Os>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     #[serde(default)]
     pub files: BTreeMap<String, IndividualMappingFile>,
@@ -242,6 +251,8 @@ pub enum BackupInclusion {
 pub struct DifferentialBackup {
     pub name: String,
     pub when: chrono::DateTime<chrono::Utc>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub os: Option<Os>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     #[serde(default)]
@@ -927,6 +938,7 @@ impl GameLayout {
         FullBackup {
             name: self.generate_backup_name(&BackupKind::Full, now, format),
             when: *now,
+            os: Some(Os::HOST),
             comment: None,
             files,
             registry,
@@ -996,6 +1008,7 @@ impl GameLayout {
         DifferentialBackup {
             name: self.generate_backup_name(&BackupKind::Differential, now, format),
             when: *now,
+            os: Some(Os::HOST),
             comment: None,
             files,
             registry,
@@ -2125,6 +2138,7 @@ mod tests {
                 FullBackup {
                     name: ".".to_string(),
                     when: now(),
+                    os: Some(Os::HOST),
                     files: btreemap! {
                         StrictPath::new(repo_file("new")).render() => IndividualMappingFile { hash: "n".into(), size: 1 },
                         StrictPath::new(repo_file("different")).render() => IndividualMappingFile { hash: "d".into(), size: 2 },
@@ -2174,6 +2188,7 @@ mod tests {
                 FullBackup {
                     name: ".".to_string(),
                     when: now(),
+                    os: Some(Os::HOST),
                     registry: IndividualMappingRegistry {
                         hash: Some(crate::prelude::sha1(hives.serialize()))
                     },
@@ -2216,6 +2231,7 @@ mod tests {
                 DifferentialBackup {
                     name: format!("backup-{}", now_str()),
                     when: now(),
+                    os: Some(Os::HOST),
                     files: btreemap! {
                         StrictPath::new(repo_file("new")).render() => Some(IndividualMappingFile { hash: "n".into(), size: 1 }),
                         StrictPath::new(repo_file("different")).render() => Some(IndividualMappingFile { hash: "d+".into(), size: 2 }),
@@ -2260,6 +2276,7 @@ mod tests {
                 DifferentialBackup {
                     name: format!("backup-{}", now_str()),
                     when: now(),
+                    os: Some(Os::HOST),
                     registry: Some(IndividualMappingRegistry {
                         hash: Some(crate::prelude::sha1(hives.serialize()))
                     }),
@@ -2306,6 +2323,7 @@ mod tests {
                 DifferentialBackup {
                     name: format!("backup-{}", now_str()),
                     when: now(),
+                    os: Some(Os::HOST),
                     registry: Some(IndividualMappingRegistry {
                         hash: Some(crate::prelude::sha1(hives.serialize()))
                     }),
@@ -2349,6 +2367,7 @@ mod tests {
                 DifferentialBackup {
                     name: format!("backup-{}", now_str()),
                     when: now(),
+                    os: Some(Os::HOST),
                     registry: None,
                     ..Default::default()
                 },
@@ -2383,6 +2402,7 @@ mod tests {
                 DifferentialBackup {
                     name: format!("backup-{}", now_str()),
                     when: now(),
+                    os: Some(Os::HOST),
                     registry: Some(IndividualMappingRegistry { hash: None }),
                     ..Default::default()
                 },

@@ -9,6 +9,9 @@
     For the GUI, refer to the "cloud" section on the `other` screen.
     For the CLI, use the `cloud` command group (e.g., `ludusavi cloud upload`).
   * Progress bars now show additional information (operation label, elapsed time, exact progress count).
+  * Backups now record the operating system on which they were created.
+    For the GUI, this is shown as a badge on the restore screen if you select a non-native backup.
+    For the CLI, this is included in the output of the `backups` command.
 * Changed:
   * The "merge" option has been removed, and merging is now always enforced.
     This option made sense before Ludusavi supported differential and cloud backups,

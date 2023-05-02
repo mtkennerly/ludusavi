@@ -6,6 +6,7 @@ use crate::{
     cloud::CloudChange,
     lang::TRANSLATOR,
     prelude::StrictPath,
+    resource::manifest::Os,
     scan::{
         layout::Backup, BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision, ScanChange, ScanInfo,
     },
@@ -120,6 +121,8 @@ enum ApiGame {
 struct ApiBackup {
     name: String,
     when: chrono::DateTime<chrono::Utc>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    os: Option<Os>,
     #[serde(skip_serializing_if = "Option::is_none")]
     comment: Option<String>,
 }
@@ -416,20 +419,18 @@ impl Reporter {
 
                 parts.push(format!("{}:", name));
                 for backup in available_backups {
-                    if let Some(comment) = backup.comment() {
-                        parts.push(format!(
-                            "  - \"{}\" ({}) - {}",
-                            backup.name(),
-                            backup.when_local().format("%Y-%m-%dT%H:%M:%S"),
-                            comment,
-                        ));
-                    } else {
-                        parts.push(format!(
-                            "  - \"{}\" ({})",
-                            backup.name(),
-                            backup.when_local().format("%Y-%m-%dT%H:%M:%S"),
-                        ));
+                    let mut line = format!(
+                        "  - \"{}\" ({})",
+                        backup.name(),
+                        backup.when_local().format("%Y-%m-%dT%H:%M:%S"),
+                    );
+                    if let Some(os) = backup.os() {
+                        line += &format!(" [{os:?}]");
                     }
+                    if let Some(comment) = backup.comment() {
+                        line += &format!(" - {comment}");
+                    }
+                    parts.push(line);
                 }
 
                 // Blank line between games.
@@ -445,6 +446,7 @@ impl Reporter {
                     backups.push(ApiBackup {
                         name: backup.name().to_string(),
                         when: *backup.when(),
+                        os: backup.os(),
                         comment: backup.comment().to_owned(),
                     });
                 }

@@ -20,7 +20,7 @@ use crate::{
     resource::{
         cache::Cache,
         config::{Config, Sort},
-        manifest::Manifest,
+        manifest::{Manifest, Os},
     },
     scan::{layout::GameLayout, BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo},
 };
@@ -166,6 +166,15 @@ impl GameListEntry {
                                     .size(16)
                                     .gap(5)
                                     .style(style::Container::Tooltip)
+                                })
+                        })
+                        .push_some(|| {
+                            self.scan_info
+                                .backup
+                                .as_ref()
+                                .and_then(|backup| backup.os())
+                                .and_then(|os| {
+                                    (os != Os::HOST && os != Os::Other).then(|| Badge::new(&format!("{os:?}")).view())
                                 })
                         })
                         .push(
