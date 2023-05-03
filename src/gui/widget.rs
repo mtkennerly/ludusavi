@@ -2,10 +2,13 @@ use std::ops::RangeInclusive;
 
 use iced::{widget as w, Alignment, Length};
 
-use crate::gui::{
-    common::Message,
-    icon::Icon,
-    style::{self, Theme},
+use crate::{
+    gui::{
+        common::{Message, Operation},
+        icon::Icon,
+        style::{self, Theme},
+    },
+    lang::TRANSLATOR,
 };
 
 pub type Renderer = iced::Renderer<Theme>;
@@ -82,6 +85,100 @@ pub fn number_input<'a>(
             }),
     )
     .into()
+}
+
+#[derive(Default)]
+pub struct Progress {
+    pub max: f32,
+    pub current: f32,
+    prepared: bool,
+    start_time: Option<chrono::DateTime<chrono::Utc>>,
+    current_time: Option<chrono::DateTime<chrono::Utc>>,
+}
+
+impl Progress {
+    pub fn visible(&self) -> bool {
+        self.max > 1.0
+    }
+
+    pub fn reset(&mut self) {
+        self.max = 0.0;
+        self.current = 0.0;
+        self.prepared = false;
+        self.start_time = None;
+        self.current_time = None;
+    }
+
+    pub fn start(&mut self) {
+        self.max = 100.0;
+        self.current = 0.0;
+        self.prepared = false;
+        self.start_time = Some(chrono::Utc::now());
+    }
+
+    pub fn step(&mut self) {
+        self.current += 1.0;
+    }
+
+    pub fn set(&mut self, current: f32, max: f32) {
+        self.current = current;
+        self.max = max;
+        self.prepared = true;
+    }
+
+    pub fn set_max(&mut self, max: f32) {
+        self.max = max;
+        self.prepared = true;
+    }
+
+    pub fn update_time(&mut self) {
+        self.current_time = Some(chrono::Utc::now());
+    }
+
+    pub fn view(&self, operation: &Operation) -> Element {
+        let label = match operation {
+            Operation::Idle => None,
+            Operation::Backup { .. } | Operation::Restore { .. } => Some(TRANSLATOR.scan_label()),
+            Operation::Cloud { .. } => Some(TRANSLATOR.cloud_label()),
+        };
+
+        let elapsed = self.start_time.as_ref().map(|start| {
+            let current = self.current_time.as_ref().unwrap_or(start);
+            let elapsed = current.time() - start.time();
+            format!(
+                "({:0>2}:{:0>2}:{:0>2})",
+                elapsed.num_hours(),
+                elapsed.num_minutes() % 60,
+                elapsed.num_seconds() % 60,
+            )
+        });
+
+        let count = if !self.prepared {
+            None
+        } else {
+            match operation {
+                Operation::Idle => None,
+                Operation::Backup { .. } | Operation::Restore { .. } => {
+                    Some(format!("{}: {} / {}", TRANSLATOR.total_games(), self.current, self.max))
+                }
+                Operation::Cloud { .. } => Some(TRANSLATOR.cloud_progress(self.current as u64, self.max as u64)),
+            }
+        };
+
+        Container::new(
+            Row::new()
+                .width(Length::Fill)
+                .spacing(5)
+                .padding([0, 5, 0, 5])
+                .align_items(Alignment::Center)
+                .push_some(|| label.map(|x| Text::new(x).size(15)))
+                .push_some(|| elapsed.map(|x| Text::new(x).size(15)))
+                .push(ProgressBar::new(0.0..=self.max, self.current).height(15))
+                .push_some(|| count.map(|x| Text::new(x).size(15))),
+        )
+        .style(style::Container::Secondary)
+        .into()
+    }
 }
 
 pub trait IcedParentExt<'a> {
