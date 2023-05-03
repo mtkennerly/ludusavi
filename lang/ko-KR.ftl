@@ -1,6 +1,5 @@
 ludusavi = Ludusavi
 language = 언어
-font = 글꼴
 game-name = 이름
 total-games = 게임
 file-size = 크기

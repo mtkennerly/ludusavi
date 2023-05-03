@@ -1,6 +1,5 @@
 ludusavi = Ludusavi
 language = Wika
-font = Font
 game-name = Pamagat
 total-games = Games
 file-size = Sukat

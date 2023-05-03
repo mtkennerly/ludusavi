@@ -1,6 +1,5 @@
 ludusavi = لودوسافي
 language = اللغة
-font = الخط
 game-name = الاسم
 total-games = الألعاب
 file-size = الحجم

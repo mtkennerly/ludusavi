@@ -1,6 +1,5 @@
 ludusavi = Ludusavi
 language = Lingua
-font = Font
 game-name = Nome
 total-games = Giochi
 file-size = Dimensione

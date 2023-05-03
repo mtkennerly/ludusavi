@@ -1,6 +1,5 @@
 ludusavi = Ludusavi
 language = Langue
-font = Police
 game-name = Nom
 total-games = Jeux
 file-size = Taille

@@ -1,6 +1,5 @@
 ludusavi = Ludusavi
 language = Lingvo
-font = Tiparo
 game-name = Nomo
 total-games = Ludoj
 file-size = Grandeco
