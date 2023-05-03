@@ -233,6 +233,7 @@ pub enum Container {
     #[default]
     Wrapper,
     Primary,
+    Secondary,
     ModalBackground,
     GameListEntry,
     Badge,
@@ -250,6 +251,7 @@ impl container::StyleSheet for Theme {
         container::Appearance {
             background: match style {
                 Self::Style::Wrapper => Color::TRANSPARENT.into(),
+                Self::Style::Secondary | Self::Style::GameListEntry => self.field.alpha(0.15).into(),
                 Self::Style::ModalBackground | Self::Style::Notification | Self::Style::Tooltip => self.field.into(),
                 Self::Style::DisabledBackup => self.disabled.into(),
                 Self::Style::BadgeActivated => self.negative.into(),
@@ -400,7 +402,7 @@ impl text_input::StyleSheet for Theme {
 
     fn active(&self, _style: &Self::Style) -> text_input::Appearance {
         text_input::Appearance {
-            background: self.background.into(),
+            background: Color::TRANSPARENT.into(),
             border_radius: 5.0,
             border_width: 1.0,
             border_color: self.text.alpha(0.8),
@@ -434,7 +436,7 @@ impl iced::widget::progress_bar::StyleSheet for Theme {
 
     fn appearance(&self, _style: &Self::Style) -> iced_style::progress_bar::Appearance {
         iced_style::progress_bar::Appearance {
-            background: self.field.into(),
+            background: self.field.alpha(0.15).into(),
             bar: self.added.into(),
             border_radius: 2.0,
         }

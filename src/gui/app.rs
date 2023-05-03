@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use iced::{Alignment, Application, Command, Subscription};
+use iced::{Alignment, Application, Command, Length, Subscription};
 
 use crate::{
     cloud::{rclone_monitor, Rclone, Remote},
@@ -134,6 +134,7 @@ impl Progress {
 
         Container::new(
             Row::new()
+                .width(Length::Fill)
                 .spacing(5)
                 .padding([0, 5, 0, 5])
                 .align_items(Alignment::Center)
@@ -142,7 +143,7 @@ impl Progress {
                 .push(ProgressBar::new(0.0..=self.max, self.current).height(15))
                 .push_some(|| count.map(|x| Text::new(x).size(15))),
         )
-        .style(style::Container::ModalBackground)
+        .style(style::Container::Secondary)
         .into()
     }
 }

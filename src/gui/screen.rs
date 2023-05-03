@@ -345,54 +345,59 @@ pub fn other<'a>(
                         ),
                 )
                 .push(
-                    Column::new()
-                        .spacing(10)
-                        .push(Text::new(TRANSLATOR.scan_field()))
-                        .push_some(|| {
-                            AVAILABLE_PARALELLISM.map(|max_threads| {
-                                Column::new()
-                                    .spacing(5)
-                                    .push(Checkbox::new(
-                                        TRANSLATOR.override_max_threads(),
-                                        config.runtime.threads.is_some(),
-                                        Message::OverrideMaxThreads,
-                                    ))
-                                    .push_some(|| {
-                                        config.runtime.threads.map(|threads| {
-                                            Container::new(number_input(
-                                                threads.get() as i32,
-                                                TRANSLATOR.threads_label(),
-                                                1..=(max_threads.get() as i32),
-                                                |x| Message::EditedMaxThreads(x as usize),
+                    Column::new().spacing(5).push(Text::new(TRANSLATOR.scan_field())).push(
+                        Container::new(
+                            Column::new()
+                                .padding(5)
+                                .spacing(10)
+                                .push_some(|| {
+                                    AVAILABLE_PARALELLISM.map(|max_threads| {
+                                        Column::new()
+                                            .spacing(5)
+                                            .push(Checkbox::new(
+                                                TRANSLATOR.override_max_threads(),
+                                                config.runtime.threads.is_some(),
+                                                Message::OverrideMaxThreads,
                                             ))
-                                            .padding([0, 0, 0, 35])
-                                        })
+                                            .push_some(|| {
+                                                config.runtime.threads.map(|threads| {
+                                                    Container::new(number_input(
+                                                        threads.get() as i32,
+                                                        TRANSLATOR.threads_label(),
+                                                        1..=(max_threads.get() as i32),
+                                                        |x| Message::EditedMaxThreads(x as usize),
+                                                    ))
+                                                    .padding([0, 0, 0, 35])
+                                                })
+                                            })
                                     })
-                            })
-                        })
-                        .push(
-                            Checkbox::new(
-                                TRANSLATOR.explanation_for_exclude_store_screenshots(),
-                                config.backup.filter.exclude_store_screenshots,
-                                Message::EditedExcludeStoreScreenshots,
-                            )
-                            .style(style::Checkbox),
+                                })
+                                .push(
+                                    Checkbox::new(
+                                        TRANSLATOR.explanation_for_exclude_store_screenshots(),
+                                        config.backup.filter.exclude_store_screenshots,
+                                        Message::EditedExcludeStoreScreenshots,
+                                    )
+                                    .style(style::Checkbox),
+                                )
+                                .push(Checkbox::new(
+                                    TRANSLATOR.show_deselected_games(),
+                                    config.scan.show_deselected_games,
+                                    Message::SetShowDeselectedGames,
+                                ))
+                                .push(Checkbox::new(
+                                    TRANSLATOR.show_unchanged_games(),
+                                    config.scan.show_unchanged_games,
+                                    Message::SetShowUnchangedGames,
+                                ))
+                                .push(Checkbox::new(
+                                    TRANSLATOR.show_unscanned_games(),
+                                    config.scan.show_unscanned_games,
+                                    Message::SetShowUnscannedGames,
+                                )),
                         )
-                        .push(Checkbox::new(
-                            TRANSLATOR.show_deselected_games(),
-                            config.scan.show_deselected_games,
-                            Message::SetShowDeselectedGames,
-                        ))
-                        .push(Checkbox::new(
-                            TRANSLATOR.show_unchanged_games(),
-                            config.scan.show_unchanged_games,
-                            Message::SetShowUnchangedGames,
-                        ))
-                        .push(Checkbox::new(
-                            TRANSLATOR.show_unscanned_games(),
-                            config.scan.show_unscanned_games,
-                            Message::SetShowUnscannedGames,
-                        )),
+                        .style(style::Container::GameListEntry),
+                    ),
                 )
                 .push(
                     Column::new()
