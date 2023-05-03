@@ -28,6 +28,7 @@ const TOTAL_SIZE: &str = "total-size";
 const COMMAND: &str = "command";
 const CODE: &str = "code";
 const MESSAGE: &str = "message";
+const APP: &str = "app";
 
 pub const TRANSLATOR: Translator = Translator {};
 pub const ADD_SYMBOL: &str = "+";
@@ -657,7 +658,9 @@ impl Translator {
     }
 
     pub fn get_rclone_button(&self) -> String {
-        translate("button-get-rclone")
+        let mut args = FluentArgs::new();
+        args.set(APP, "Rclone");
+        translate_args("button-get-app", &args)
     }
 
     pub fn no_roots_are_configured(&self) -> String {
@@ -1126,7 +1129,9 @@ impl Translator {
     }
 
     pub fn rclone_unavailable(&self) -> String {
-        translate("rclone-unavailable")
+        let mut args = FluentArgs::new();
+        args.set(APP, "Rclone");
+        translate_args("cloud-app-unavailable", &args)
     }
 
     pub fn cloud_progress(&self, processed_bytes: u64, total_bytes: u64) -> String {

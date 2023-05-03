@@ -46,7 +46,8 @@ button-disable-all = Disable all
 button-customize = Customize
 button-exit = Exit
 button-comment = Comment
-button-get-rclone = Get Rclone
+# This opens a download page.
+button-get-app = Get {$app}
 
 no-roots-are-configured = Add some roots to back up even more data.
 
@@ -222,6 +223,6 @@ suffix-restart-required = restart required
 prefix-error = Error: {$message}
 prefix-warning = Warning: {$message}
 
-rclone-unavailable = Cloud backups are disabled because Rclone is not available.
+cloud-app-unavailable = Cloud backups are disabled because {$app} is not available.
 cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
 cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.
