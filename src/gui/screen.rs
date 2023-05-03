@@ -7,7 +7,7 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{BrowseFileSubject, BrowseSubject, Message, OngoingOperation, Screen, ScrollSubject, UndoSubject},
+        common::{BrowseFileSubject, BrowseSubject, Message, Operation, Screen, ScrollSubject, UndoSubject},
         editor,
         game_list::GameList,
         icon::Icon,
@@ -78,7 +78,7 @@ impl Backup {
         &self,
         config: &Config,
         manifest: &Manifest,
-        operation: &Option<OngoingOperation>,
+        operation: &Operation,
         histories: &TextHistories,
     ) -> Element {
         let screen = Screen::Backup;
@@ -90,8 +90,8 @@ impl Backup {
                     .padding([0, 20, 0, 20])
                     .spacing(20)
                     .align_items(Alignment::Center)
-                    .push(button::operation(OngoingOperation::PreviewBackup, operation.to_owned()))
-                    .push(button::operation(OngoingOperation::Backup, operation.to_owned()))
+                    .push(button::backup_preview(operation))
+                    .push(button::backup(operation))
                     .push(button::toggle_all_scanned_games(
                         self.log.all_entries_selected(config, false),
                     ))
@@ -223,7 +223,7 @@ impl Restore {
         &self,
         config: &Config,
         manifest: &Manifest,
-        operation: &Option<OngoingOperation>,
+        operation: &Operation,
         histories: &TextHistories,
     ) -> Element {
         let screen = Screen::Restore;
@@ -235,11 +235,8 @@ impl Restore {
                     .padding([0, 20, 0, 20])
                     .spacing(20)
                     .align_items(Alignment::Center)
-                    .push(button::operation(
-                        OngoingOperation::PreviewRestore,
-                        operation.to_owned(),
-                    ))
-                    .push(button::operation(OngoingOperation::Restore, operation.to_owned()))
+                    .push(button::restore_preview(operation))
+                    .push(button::restore(operation))
                     .push(button::toggle_all_scanned_games(
                         self.log.all_entries_selected(config, true),
                     ))
@@ -296,7 +293,7 @@ pub fn other<'a>(
     updating_manifest: bool,
     config: &'a Config,
     cache: &'a Cache,
-    operation: &Option<OngoingOperation>,
+    operation: &Operation,
     histories: &'a TextHistories,
 ) -> Element<'a> {
     let is_rclone_valid = config.apps.rclone.is_valid();
@@ -474,9 +471,16 @@ pub fn other<'a>(
                                                 .spacing(20)
                                                 .align_items(Alignment::Center)
                                                 .push(Text::new(TRANSLATOR.remote_label()).width(70))
-                                                .push_if(|| operation.is_some(), || Text::new(choice.to_string()))
                                                 .push_if(
-                                                    || operation.is_none(),
+                                                    || !operation.idle(),
+                                                    || {
+                                                        Text::new(choice.to_string())
+                                                            .height(30)
+                                                            .vertical_alignment(iced::alignment::Vertical::Center)
+                                                    },
+                                                )
+                                                .push_if(
+                                                    || operation.idle(),
                                                     || {
                                                         PickList::new(
                                                             RemoteChoice::ALL,

@@ -222,51 +222,238 @@ pub enum Message {
     ModalChangePage(usize),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OperationCategory {
-    Backup,
-    Restore,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OngoingOperation {
-    Backup,
-    CancelBackup,
-    PreviewBackup,
-    CancelPreviewBackup,
-    Restore,
-    CancelRestore,
-    PreviewRestore,
-    CancelPreviewRestore,
-    CloudSync {
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum Operation {
+    #[default]
+    Idle,
+    Backup {
+        finality: Finality,
+        cancelling: bool,
+        checking_cloud: bool,
+        syncing_cloud: bool,
+        should_sync_cloud_after: bool,
+        games: Option<Vec<String>>,
+        errors: Vec<Error>,
+        cloud_changes: i64,
+    },
+    Restore {
+        finality: Finality,
+        cancelling: bool,
+        checking_cloud: bool,
+        games: Option<Vec<String>>,
+        errors: Vec<Error>,
+        cloud_changes: i64,
+    },
+    Cloud {
         direction: SyncDirection,
         finality: Finality,
-    },
-    CancelCloudSync {
-        direction: SyncDirection,
+        cancelling: bool,
+        errors: Vec<Error>,
+        cloud_changes: i64,
     },
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub struct OperationParameters {
-    pub category: Option<OperationCategory>,
-    pub finality: Finality,
-    pub games: Option<Vec<String>>,
-    pub in_cloud_check: bool,
-    pub in_cloud_sync: bool,
-    pub should_sync_cloud_after: bool,
-    pub errors: Vec<Error>,
-    pub path: StrictPath,
-    pub cloud_changes: i64,
-}
+impl Operation {
+    pub fn idle(&self) -> bool {
+        matches!(self, Self::Idle)
+    }
 
-impl OperationParameters {
+    pub fn new_backup(finality: Finality, games: Option<Vec<String>>) -> Self {
+        Self::Backup {
+            finality,
+            cancelling: false,
+            checking_cloud: false,
+            syncing_cloud: false,
+            should_sync_cloud_after: false,
+            games,
+            errors: vec![],
+            cloud_changes: 0,
+        }
+    }
+
+    pub fn new_restore(finality: Finality, games: Option<Vec<String>>) -> Self {
+        Self::Restore {
+            finality,
+            cancelling: false,
+            checking_cloud: false,
+            games,
+            errors: vec![],
+            cloud_changes: 0,
+        }
+    }
+
+    pub fn new_cloud(direction: SyncDirection, finality: Finality) -> Self {
+        Self::Cloud {
+            direction,
+            finality,
+            cancelling: false,
+            errors: vec![],
+            cloud_changes: 0,
+        }
+    }
+
     pub fn preview(&self) -> bool {
-        self.finality.preview()
+        match self {
+            Operation::Idle => true,
+            Operation::Backup { finality, .. } => finality.preview(),
+            Operation::Restore { finality, .. } => finality.preview(),
+            Operation::Cloud { finality, .. } => finality.preview(),
+        }
     }
 
     pub fn full(&self) -> bool {
-        self.games.is_none()
+        match self {
+            Operation::Idle => false,
+            Operation::Backup { games, .. } => games.is_none(),
+            Operation::Restore { games, .. } => games.is_none(),
+            Operation::Cloud { .. } => true,
+        }
+    }
+
+    pub fn games(&self) -> Option<Vec<String>> {
+        match self {
+            Operation::Idle => None,
+            Operation::Backup { games, .. } => games.clone(),
+            Operation::Restore { games, .. } => games.clone(),
+            Operation::Cloud { .. } => None,
+        }
+    }
+
+    pub fn flag_cancel(&mut self) {
+        match self {
+            Operation::Idle => (),
+            Operation::Backup { cancelling, .. } => *cancelling = true,
+            Operation::Restore { cancelling, .. } => *cancelling = true,
+            Operation::Cloud { cancelling, .. } => *cancelling = true,
+        }
+    }
+
+    pub fn errors(&self) -> Option<&Vec<Error>> {
+        match self {
+            Operation::Idle => None,
+            Operation::Backup { errors, .. } => Some(errors),
+            Operation::Restore { errors, .. } => Some(errors),
+            Operation::Cloud { errors, .. } => Some(errors),
+        }
+    }
+
+    pub fn push_error(&mut self, error: Error) {
+        match self {
+            Operation::Idle => (),
+            Operation::Backup { errors, .. } => errors.push(error),
+            Operation::Restore { errors, .. } => errors.push(error),
+            Operation::Cloud { errors, .. } => errors.push(error),
+        }
+    }
+
+    pub fn update_integrated_cloud(&mut self, finality: Finality) {
+        match self {
+            Operation::Idle => (),
+            Operation::Backup {
+                checking_cloud,
+                syncing_cloud,
+                ..
+            } => match finality {
+                Finality::Preview => *checking_cloud = true,
+                Finality::Final => *syncing_cloud = true,
+            },
+            Operation::Restore { checking_cloud, .. } => match finality {
+                Finality::Preview => *checking_cloud = true,
+                Finality::Final => (),
+            },
+            Operation::Cloud { .. } => (),
+        }
+    }
+
+    pub fn transition_from_cloud_step(&mut self, synced: bool) {
+        let preview = self.preview();
+
+        match self {
+            Operation::Idle => (),
+            Operation::Backup {
+                checking_cloud,
+                syncing_cloud,
+                should_sync_cloud_after,
+                ..
+            } => {
+                if *checking_cloud {
+                    *checking_cloud = false;
+                    *should_sync_cloud_after = synced && !preview;
+                    if !synced {
+                        self.push_error(Error::CloudConflict);
+                    }
+                } else if *syncing_cloud {
+                    *syncing_cloud = false;
+                }
+            }
+            Operation::Restore { checking_cloud, .. } => {
+                if *checking_cloud {
+                    *checking_cloud = false;
+                }
+            }
+            Operation::Cloud { .. } => (),
+        }
+    }
+
+    pub fn is_cloud_active(&self) -> bool {
+        match self {
+            Operation::Idle => false,
+            Operation::Backup {
+                checking_cloud,
+                syncing_cloud,
+                ..
+            } => *checking_cloud || *syncing_cloud,
+            Operation::Restore { checking_cloud, .. } => *checking_cloud,
+            Operation::Cloud { .. } => true,
+        }
+    }
+
+    pub fn integrated_checking_cloud(&self) -> bool {
+        match self {
+            Operation::Idle => false,
+            Operation::Backup { checking_cloud, .. } => *checking_cloud,
+            Operation::Restore { checking_cloud, .. } => *checking_cloud,
+            Operation::Cloud { .. } => false,
+        }
+    }
+
+    pub fn integrated_syncing_cloud(&self) -> bool {
+        match self {
+            Operation::Idle => false,
+            Operation::Backup { syncing_cloud, .. } => *syncing_cloud,
+            Operation::Restore { .. } => false,
+            Operation::Cloud { .. } => false,
+        }
+    }
+
+    pub fn should_sync_cloud_after(&self) -> bool {
+        match self {
+            Operation::Idle => false,
+            Operation::Backup {
+                should_sync_cloud_after,
+                ..
+            } => *should_sync_cloud_after,
+            Operation::Restore { .. } => false,
+            Operation::Cloud { .. } => false,
+        }
+    }
+
+    pub fn cloud_changes(&self) -> i64 {
+        match self {
+            Operation::Idle => 0,
+            Operation::Backup { cloud_changes, .. } => *cloud_changes,
+            Operation::Restore { cloud_changes, .. } => *cloud_changes,
+            Operation::Cloud { cloud_changes, .. } => *cloud_changes,
+        }
+    }
+
+    pub fn add_cloud_change(&mut self) {
+        match self {
+            Operation::Idle => (),
+            Operation::Backup { cloud_changes, .. } => *cloud_changes += 1,
+            Operation::Restore { cloud_changes, .. } => *cloud_changes += 1,
+            Operation::Cloud { cloud_changes, .. } => *cloud_changes += 1,
+        }
     }
 }
 

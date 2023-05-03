@@ -255,16 +255,20 @@ impl Modal {
 
     fn extra_controls(&self) -> Vec<Element> {
         match self {
-            Self::ConfirmCloudSync {
+            modal @ Self::ConfirmCloudSync {
                 direction, previewing, ..
             } => {
-                vec![button::primary(
-                    TRANSLATOR.preview_button(),
-                    (!previewing).then_some(Message::SynchronizeCloud {
-                        direction: *direction,
-                        finality: Finality::Preview,
-                    }),
-                )]
+                if modal.any_cloud_changes() {
+                    vec![button::primary(
+                        TRANSLATOR.preview_button(),
+                        (!previewing).then_some(Message::SynchronizeCloud {
+                            direction: *direction,
+                            finality: Finality::Preview,
+                        }),
+                    )]
+                } else {
+                    vec![]
+                }
             }
             Self::Error { .. }
             | Self::Errors { .. }

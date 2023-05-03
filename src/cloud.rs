@@ -133,10 +133,12 @@ impl RcloneProcess {
                     Ok(Log::Stats {
                         stats: Stats { bytes, total_bytes },
                     }) => {
-                        events.push(RcloneProcessEvent::Progress {
-                            current: bytes,
-                            max: total_bytes,
-                        });
+                        if total_bytes > 0.0 {
+                            events.push(RcloneProcessEvent::Progress {
+                                current: bytes,
+                                max: total_bytes,
+                            });
+                        }
                     }
                     Err(_) => {
                         log::trace!("Unhandled Rclone message: {line}");

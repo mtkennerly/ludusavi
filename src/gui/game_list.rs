@@ -6,7 +6,7 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{BackupPhase, GameAction, Message, OngoingOperation, RestorePhase, Screen, ScrollSubject},
+        common::{BackupPhase, GameAction, Message, Operation, RestorePhase, Screen, ScrollSubject},
         file_tree::FileTree,
         icon::Icon,
         search::FilterComponent,
@@ -46,7 +46,7 @@ impl GameListEntry {
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
-        operation: &Option<OngoingOperation>,
+        operation: &Operation,
         expanded: bool,
         modifiers: &Modifiers,
         filtering_duplicates: bool,
@@ -64,7 +64,7 @@ impl GameListEntry {
         let name_for_comment = self.scan_info.game_name.clone();
         let name_for_comment2 = self.scan_info.game_name.clone();
         let name_for_duplicate_toggle = self.scan_info.game_name.clone();
-        let operating = operation.is_some();
+        let operating = !operation.idle();
         let changes = self.scan_info.overall_change();
         let duplication = duplicate_detector.is_game_duplicated(&self.scan_info.game_name);
 
@@ -377,7 +377,7 @@ impl GameList {
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
-        operation: &Option<OngoingOperation>,
+        operation: &Operation,
         histories: &TextHistories,
     ) -> Container {
         let duplicatees = self.filter_duplicates_of.as_ref().and_then(|game| {

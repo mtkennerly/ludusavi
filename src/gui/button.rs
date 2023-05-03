@@ -2,15 +2,13 @@ use iced::alignment;
 
 use crate::{
     gui::{
-        common::{
-            BackupPhase, BrowseFileSubject, BrowseSubject, EditAction, Message, OngoingOperation, RestorePhase, Screen,
-        },
+        common::{BackupPhase, BrowseFileSubject, BrowseSubject, EditAction, Message, Operation, RestorePhase, Screen},
         icon::Icon,
         style,
         widget::{Button, Element, IcedButtonExt, Text},
     },
     lang::TRANSLATOR,
-    prelude::SyncDirection,
+    prelude::{Finality, SyncDirection},
 };
 
 fn template(content: Text, action: Option<Message>, style: Option<style::Button>) -> Element {
@@ -234,114 +232,204 @@ pub fn nav<'a>(screen: Screen, current_screen: Screen) -> Button<'a> {
     })
 }
 
-pub fn upload<'a>(operation: &Option<OngoingOperation>) -> Element<'a> {
+pub fn upload<'a>(operation: &Operation) -> Element<'a> {
     template(
         Icon::Upload.as_text(),
         match operation {
-            None => Some(Message::ConfirmSynchronizeCloud {
+            Operation::Idle => Some(Message::ConfirmSynchronizeCloud {
                 direction: SyncDirection::Upload,
             }),
-            Some(OngoingOperation::CloudSync {
+            Operation::Cloud {
                 direction: SyncDirection::Upload,
+                cancelling: false,
                 ..
-            }) => Some(Message::CancelOperation),
+            } => Some(Message::CancelOperation),
             _ => None,
         },
         match operation {
-            Some(
-                OngoingOperation::CloudSync {
-                    direction: SyncDirection::Upload,
-                    ..
-                }
-                | OngoingOperation::CancelCloudSync {
-                    direction: SyncDirection::Upload,
-                },
-            ) => Some(style::Button::Negative),
+            Operation::Cloud {
+                direction: SyncDirection::Upload,
+                ..
+            } => Some(style::Button::Negative),
             _ => None,
         },
     )
 }
 
-pub fn download<'a>(operation: &Option<OngoingOperation>) -> Element<'a> {
+pub fn download<'a>(operation: &Operation) -> Element<'a> {
     template(
         Icon::Download.as_text(),
         match operation {
-            None => Some(Message::ConfirmSynchronizeCloud {
+            Operation::Idle => Some(Message::ConfirmSynchronizeCloud {
                 direction: SyncDirection::Download,
             }),
-            Some(OngoingOperation::CloudSync {
+            Operation::Cloud {
                 direction: SyncDirection::Download,
+                cancelling: false,
                 ..
-            }) => Some(Message::CancelOperation),
+            } => Some(Message::CancelOperation),
             _ => None,
         },
         match operation {
-            Some(
-                OngoingOperation::CloudSync {
-                    direction: SyncDirection::Download,
-                    ..
-                }
-                | OngoingOperation::CancelCloudSync {
-                    direction: SyncDirection::Download,
-                },
-            ) => Some(style::Button::Negative),
+            Operation::Cloud {
+                direction: SyncDirection::Download,
+                ..
+            } => Some(style::Button::Negative),
             _ => None,
         },
     )
 }
 
-pub fn operation<'a>(action: OngoingOperation, ongoing: Option<OngoingOperation>) -> Element<'a> {
-    use OngoingOperation::*;
-
+pub fn backup<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        Text::new(match action {
-            Backup => match ongoing {
-                Some(Backup) => TRANSLATOR.cancel_button(),
-                Some(CancelBackup) => TRANSLATOR.cancelling_button(),
-                _ => TRANSLATOR.backup_button(),
-            },
-            PreviewBackup => match ongoing {
-                Some(PreviewBackup) => TRANSLATOR.cancel_button(),
-                Some(CancelPreviewBackup) => TRANSLATOR.cancelling_button(),
-                _ => TRANSLATOR.preview_button(),
-            },
-            Restore => match ongoing {
-                Some(Restore) => TRANSLATOR.cancel_button(),
-                Some(CancelRestore) => TRANSLATOR.cancelling_button(),
-                _ => TRANSLATOR.restore_button(),
-            },
-            PreviewRestore => match ongoing {
-                Some(PreviewRestore) => TRANSLATOR.cancel_button(),
-                Some(CancelPreviewRestore) => TRANSLATOR.cancelling_button(),
-                _ => TRANSLATOR.preview_button(),
-            },
-            CancelBackup | CancelPreviewBackup | CancelRestore | CancelPreviewRestore => TRANSLATOR.cancel_button(),
-            CloudSync { .. } | CancelCloudSync { .. } => "".to_string(),
+        Text::new(match ongoing {
+            Operation::Backup {
+                finality: Finality::Final,
+                cancelling: false,
+                ..
+            } => TRANSLATOR.cancel_button(),
+            Operation::Backup {
+                finality: Finality::Final,
+                cancelling: true,
+                ..
+            } => TRANSLATOR.cancelling_button(),
+            _ => TRANSLATOR.backup_button(),
         })
         .width(125)
         .horizontal_alignment(alignment::Horizontal::Center),
         match ongoing {
-            Some(ongoing) => (action == ongoing).then_some(Message::CancelOperation),
-            None => match action {
-                Backup => Some(Message::Backup(BackupPhase::Confirm { games: None })),
-                PreviewBackup => Some(Message::Backup(BackupPhase::Start {
-                    preview: true,
-                    games: None,
-                })),
-                Restore => Some(Message::Restore(RestorePhase::Confirm { games: None })),
-                PreviewRestore => Some(Message::Restore(RestorePhase::Start {
-                    preview: true,
-                    games: None,
-                })),
-                _ => None,
-            },
-        },
-        match (action, ongoing) {
-            (Backup, Some(Backup | CancelBackup)) => Some(style::Button::Negative),
-            (PreviewBackup, Some(PreviewBackup | CancelPreviewBackup)) => Some(style::Button::Negative),
-            (Restore, Some(Restore | CancelRestore)) => Some(style::Button::Negative),
-            (PreviewRestore, Some(PreviewRestore | CancelPreviewRestore)) => Some(style::Button::Negative),
+            Operation::Idle => Some(Message::Backup(BackupPhase::Confirm { games: None })),
+            Operation::Backup {
+                finality: Finality::Final,
+                cancelling: false,
+                ..
+            } => Some(Message::CancelOperation),
             _ => None,
         },
+        matches!(
+            ongoing,
+            Operation::Backup {
+                finality: Finality::Final,
+                ..
+            }
+        )
+        .then_some(style::Button::Negative),
+    )
+}
+
+pub fn backup_preview<'a>(ongoing: &Operation) -> Element<'a> {
+    template(
+        Text::new(match ongoing {
+            Operation::Backup {
+                finality: Finality::Preview,
+                cancelling: false,
+                ..
+            } => TRANSLATOR.cancel_button(),
+            Operation::Backup {
+                finality: Finality::Preview,
+                cancelling: true,
+                ..
+            } => TRANSLATOR.cancelling_button(),
+            _ => TRANSLATOR.preview_button(),
+        })
+        .width(125)
+        .horizontal_alignment(alignment::Horizontal::Center),
+        match ongoing {
+            Operation::Idle => Some(Message::Backup(BackupPhase::Start {
+                preview: true,
+                games: None,
+            })),
+            Operation::Backup {
+                finality: Finality::Preview,
+                cancelling: false,
+                ..
+            } => Some(Message::CancelOperation),
+            _ => None,
+        },
+        matches!(
+            ongoing,
+            Operation::Backup {
+                finality: Finality::Preview,
+                ..
+            }
+        )
+        .then_some(style::Button::Negative),
+    )
+}
+
+pub fn restore<'a>(ongoing: &Operation) -> Element<'a> {
+    template(
+        Text::new(match ongoing {
+            Operation::Restore {
+                finality: Finality::Final,
+                cancelling: false,
+                ..
+            } => TRANSLATOR.cancel_button(),
+            Operation::Restore {
+                finality: Finality::Final,
+                cancelling: true,
+                ..
+            } => TRANSLATOR.cancelling_button(),
+            _ => TRANSLATOR.restore_button(),
+        })
+        .width(125)
+        .horizontal_alignment(alignment::Horizontal::Center),
+        match ongoing {
+            Operation::Idle => Some(Message::Restore(RestorePhase::Confirm { games: None })),
+            Operation::Restore {
+                finality: Finality::Final,
+                cancelling: false,
+                ..
+            } => Some(Message::CancelOperation),
+            _ => None,
+        },
+        matches!(
+            ongoing,
+            Operation::Restore {
+                finality: Finality::Final,
+                ..
+            }
+        )
+        .then_some(style::Button::Negative),
+    )
+}
+
+pub fn restore_preview<'a>(ongoing: &Operation) -> Element<'a> {
+    template(
+        Text::new(match ongoing {
+            Operation::Restore {
+                finality: Finality::Preview,
+                cancelling: false,
+                ..
+            } => TRANSLATOR.cancel_button(),
+            Operation::Restore {
+                finality: Finality::Preview,
+                cancelling: true,
+                ..
+            } => TRANSLATOR.cancelling_button(),
+            _ => TRANSLATOR.preview_button(),
+        })
+        .width(125)
+        .horizontal_alignment(alignment::Horizontal::Center),
+        match ongoing {
+            Operation::Idle => Some(Message::Restore(RestorePhase::Start {
+                preview: true,
+                games: None,
+            })),
+            Operation::Restore {
+                finality: Finality::Preview,
+                cancelling: false,
+                ..
+            } => Some(Message::CancelOperation),
+            _ => None,
+        },
+        matches!(
+            ongoing,
+            Operation::Restore {
+                finality: Finality::Preview,
+                ..
+            }
+        )
+        .then_some(style::Button::Negative),
     )
 }
