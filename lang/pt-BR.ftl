@@ -156,10 +156,7 @@ show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
 explanation-for-exclude-store-screenshots =
-    Nos backups, exclui capturas de tela específicas de armazenamento. No momento, isso só se aplica
-    às capturas de tela de { store-steam } que você tirou. Se um jogo tem sua própria função de captura de tela
-    embutida, essa configuração não afetará se essas
-    capturas de tela são armazenadas em backup.
+    Nos backups, exclui capturas de tela específicas de armazenamento
 consider-doing-a-preview =
     Se você ainda não fez, considere fazer uma pré-visualização primeiro, então
     não há surpresas.

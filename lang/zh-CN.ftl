@@ -147,7 +147,7 @@ show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
-explanation-for-exclude-store-screenshots = 在备份中，排除特定商店的屏幕截图。现在，这只适用于你的 { store-steam } 屏幕截图。如果一个游戏有自己内置的屏幕截图功能，则此设置不会影响是否备份这些截图。
+explanation-for-exclude-store-screenshots = 在备份中，排除特定商店的屏幕截图
 consider-doing-a-preview = 如果您还没有预览，请考虑先进行预览，防止发生任何意料之外的结果。
 confirm-backup =
     确定要继续备份吗？ {$path-action ->

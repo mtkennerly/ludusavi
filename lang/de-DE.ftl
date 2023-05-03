@@ -155,7 +155,7 @@ show-unchanged-games = Unveränderte Spiele anzeigen
 show-unscanned-games = Ungescannte Spiele anzeigen
 override-max-threads = Max. Threads übergehen
 synchronize-automatically = Synchronize automatically
-explanation-for-exclude-store-screenshots = Storespezifische Bildschirmfotos aus Datensicherungen ausschießen. Derzeit gilt dies nur für aufgenommene { store-steam }-Bildschirmfotos. Falls ein Spiel seine eigene Funktionalität für Bildschirmfotos besitzt, hat diese Einstellung keinen Einfluss auf deren Datensicherungsverhalten.
+explanation-for-exclude-store-screenshots = Storespezifische Bildschirmfotos aus Datensicherungen ausschießen
 consider-doing-a-preview =
     Falls du es noch nicht getan hast, erwäge zuerst eine Vorschau zu machen, damit
     keine Überraschungen gibt.

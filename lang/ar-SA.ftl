@@ -156,8 +156,7 @@ show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
 explanation-for-exclude-store-screenshots =
-    في النسخ الاحتياطية، استبعاد لقطات الشاشة الخاصة بالمتجر. في الوقت الحالي، ينطبق هذا فقط
-    على { store-steam }. إذا كانت اللعبة تحتوي على مِيزة لقطة الشاشة الخاصة بها، فإن هذا الإعداد لن يؤثر على ما إذا تم نسخ لقطات الشاشة.
+    في النسخ الاحتياطية، استبعاد لقطات الشاشة الخاصة بالمتجر
 consider-doing-a-preview =
     إذا لم تكن قد قمت بالفعل ، فكر في إجراء معاينة أولاً حتى لا يكون هناك
     مفاجآت.

@@ -156,10 +156,7 @@ show-unscanned-games = スキャンされていないゲームを表示
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
 explanation-for-exclude-store-screenshots =
-    In backups, exclude store-specific screenshots. Right now, this only applies
-    to { store-steam } screenshots that you've taken. If a game has its own built-in
-    screenshot functionality, this setting will not affect whether those
-    screenshots are backed up.
+    In backups, exclude store-specific screenshots
 consider-doing-a-preview = まだ行っていない場合は、予期しない結果を防ぐためにプレビューを行うことをおすすめします。
 confirm-backup =
     Are you sure you want to proceed with the backup? { $path-action ->

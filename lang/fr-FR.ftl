@@ -155,7 +155,7 @@ show-unchanged-games = Afficher les jeux non modifiés
 show-unscanned-games = Afficher les jeux non scannés
 override-max-threads = Outrepasser les threads max
 synchronize-automatically = Synchronize automatically
-explanation-for-exclude-store-screenshots = Dans les sauvegardes, excluez les captures d'écran spécifiques à la boutique. Pour le moment, cela s'applique seulement pour les captures d'écran { store-steam } que vous avez prises. Si un jeu possède sa propre fonctionnalité de capture d'écran intégrée, ce paramètre n'affectera pas ces captures d'écran.
+explanation-for-exclude-store-screenshots = Dans les sauvegardes, excluez les captures d'écran spécifiques à la boutique
 consider-doing-a-preview = Si vous ne l'avez pas déjà fait, pensez d'abord à faire un aperçu afin qu'il n'y ait pas de surprises.
 confirm-backup =
     Êtes-vous sûr de vouloir procéder à la sauvegarde ? { $path-action ->
