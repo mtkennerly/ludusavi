@@ -133,6 +133,8 @@ label-host = Host
 label-port = Port
 label-username = Username
 label-password = Password
+# This is a specific website or service that provides some cloud functionality.
+# For example, Nextcloud and Owncloud are providers of WebDAV services.
 label-provider = Provider
 label-custom = Custom
 label-none = None

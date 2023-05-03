@@ -20,25 +20,25 @@ badge-redirecting-to = В: { $path }
 some-entries-failed = Some entries failed to process; look for { badge-failed } in the output for details. Double check whether you can access those files or whether their paths are very long.
 cli-game-line-item-redirected = Redirected from: { $path }
 cli-game-line-item-redirecting = Redirecting to: { $path }
-button-backup = Back up
-button-preview = Preview
-button-restore = Restore
-button-nav-backup = BACKUP MODE
-button-nav-restore = RESTORE MODE
-button-nav-custom-games = CUSTOM GAMES
+button-backup = Резервирование
+button-preview = Предпросмотр
+button-restore = Восстановить
+button-nav-backup = РЕЗЕРВИРОВАНИЕ
+button-nav-restore = ВОССТАНОВЛЕНИЕ
+button-nav-custom-games = СВОЯ ИГРА
 button-nav-other = OTHER
-button-add-game = Add game
-button-continue = Continue
-button-cancel = Cancel
-button-cancelling = Cancelling...
-button-okay = Okay
-button-select-all = Select all
-button-deselect-all = Deselect all
-button-enable-all = Enable all
-button-disable-all = Disable all
-button-customize = Customize
-button-exit = Exit
-button-comment = Comment
+button-add-game = Добавить игру
+button-continue = Продолжить
+button-cancel = Отменить
+button-cancelling = Отменяю...
+button-okay = Хорошо
+button-select-all = Выбрать все
+button-deselect-all = Снять все
+button-enable-all = Включить все
+button-disable-all = Отключить все
+button-customize = Настроить
+button-exit = Выйти
+button-comment = Комментарий
 # This opens a download page.
 button-get-app = Get { $app }
 no-roots-are-configured = Add some roots to back up even more data.
@@ -123,6 +123,8 @@ label-host = Host
 label-port = Port
 label-username = Username
 label-password = Password
+# This is a specific website or service that provides some cloud functionality.
+# For example, Nextcloud and Owncloud are providers of WebDAV services.
 label-provider = Provider
 label-custom = Custom
 label-none = None
@@ -155,8 +157,7 @@ show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
-explanation-for-exclude-store-screenshots =
-    In backups, exclude store-specific screenshots
+explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
 consider-doing-a-preview =
     If you haven't already, consider doing a preview first so that there
     are no surprises.

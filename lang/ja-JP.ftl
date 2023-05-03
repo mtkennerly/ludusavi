@@ -123,6 +123,8 @@ label-host = Host
 label-port = Port
 label-username = Username
 label-password = Password
+# This is a specific website or service that provides some cloud functionality.
+# For example, Nextcloud and Owncloud are providers of WebDAV services.
 label-provider = Provider
 label-custom = Custom
 label-none = None
@@ -155,8 +157,7 @@ show-unchanged-games = 変更されていないゲームを表示
 show-unscanned-games = スキャンされていないゲームを表示
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
-explanation-for-exclude-store-screenshots =
-    In backups, exclude store-specific screenshots
+explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
 consider-doing-a-preview = まだ行っていない場合は、予期しない結果を防ぐためにプレビューを行うことをおすすめします。
 confirm-backup =
     Are you sure you want to proceed with the backup? { $path-action ->

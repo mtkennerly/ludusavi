@@ -123,6 +123,8 @@ label-host = Host
 label-port = Port
 label-username = Username
 label-password = Password
+# This is a specific website or service that provides some cloud functionality.
+# For example, Nextcloud and Owncloud are providers of WebDAV services.
 label-provider = Provider
 label-custom = Custom
 label-none = None
@@ -155,8 +157,7 @@ show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
-explanation-for-exclude-store-screenshots =
-    En las copias de seguridad, excluye las capturas de pantalla específicas de la tienda
+explanation-for-exclude-store-screenshots = En las copias de seguridad, excluye las capturas de pantalla específicas de la tienda
 consider-doing-a-preview =
     Si aún no lo has hecho, considera hacer una vista previa primero para que
     no haya sorpresas.

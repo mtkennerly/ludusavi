@@ -115,6 +115,8 @@ label-host = Host
 label-port = Port
 label-username = Username
 label-password = Password
+# This is a specific website or service that provides some cloud functionality.
+# For example, Nextcloud and Owncloud are providers of WebDAV services.
 label-provider = Provider
 label-custom = Custom
 label-none = None
@@ -150,7 +152,7 @@ synchronize-automatically = Synchronize automatically
 explanation-for-exclude-store-screenshots = 在备份中，排除特定商店的屏幕截图
 consider-doing-a-preview = 如果您还没有预览，请考虑先进行预览，防止发生任何意料之外的结果。
 confirm-backup =
-    确定要继续备份吗？ {$path-action ->
+    确定要继续备份吗？ { $path-action ->
         [merge] 新保存的数据将被合并到目标文件夹中：
        *[create] 目标文件夹将被创建：
     }
