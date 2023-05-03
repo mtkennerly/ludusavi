@@ -40,6 +40,8 @@ button-disable-all = Alle deaktivieren
 button-customize = Anpassen
 button-exit = Verlassen
 button-comment = Kommentieren
+# This opens a download page.
+button-get-app = Get { $app }
 no-roots-are-configured = Füge einige Wurzelverzeichnisse hinzu, um weitere Daten zu sichern.
 config-is-invalid = Fehler: Die Konfigurationsdatei ist ungültig.
 manifest-is-invalid = Fehler: Die Manifest-Datei ist ungültig.
@@ -50,6 +52,12 @@ registry-issue = Fehler: Einige Registrierungseinträge wurden übersprungen.
 unable-to-browse-file-system = Fehler: Dateisystem kann nicht durchsucht werden.
 unable-to-open-directory = Fehler: Verzeichnis konnte nicht geöffnet werden:
 unable-to-open-url = Fehler: Kann URL nicht öffnen:
+unable-to-configure-cloud = Unable to configure cloud.
+unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
+cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
+command-unlaunched = Command did not launch: { $command }
+command-terminated = Command terminated abruptly: { $command }
+command-failed = Command failed with code { $code }: { $command }
 processed-games =
     { $total-games } { $total-games ->
         [one] Spiel
@@ -62,7 +70,6 @@ processed-games-subset =
     }
 processed-size-subset = { $processed-size } von { $total-size }
 field-backup-target = Sichern nach:
-toggle-backup-merge = Vereinen
 field-restore-source = Wiederherstellen von:
 field-custom-files = Pfade:
 field-custom-registry = Registry:
@@ -90,17 +97,37 @@ label-checked = Überprüft
 # This shows the time when we found an update to the manifest.
 label-updated = Aktualisiert
 label-new = Neu
-label-removed = Removed
+label-removed = Entfernt
 label-comment = Kommentar
 label-scan = Scan
 label-filter = Filter
-label-unique = Unique
-label-complete = Complete
-label-partial = Partial
-label-enabled = Enabled
-label-disabled = Disabled
+label-unique = Einzigartig
+label-complete = Vollständig
+label-partial = Teilweise
+label-enabled = Aktiviert
+label-disabled = Deaktiviert
 # https://en.wikipedia.org/wiki/Thread_(computing)
 label-threads = Threads
+label-cloud = Cloud
+# A "remote" is what Rclone calls cloud systems like Google Drive.
+label-remote = Remote
+label-remote-name = Remote name
+label-folder = Folder
+# An executable file
+label-executable = Executable
+# Options given to a command line program
+label-arguments = Arguments
+label-url = URL
+# https://en.wikipedia.org/wiki/Host_(network)
+label-host = Host
+# https://en.wikipedia.org/wiki/Port_(computer_networking)
+label-port = Port
+label-username = Username
+label-password = Password
+label-provider = Provider
+label-custom = Custom
+label-none = None
+label-change-count = Changes: { $total }
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -111,7 +138,7 @@ store-prime = Prime Gaming
 store-steam = Steam
 store-uplay = Uplay
 store-other-home = Home-Ordner
-store-other-wine = Wine prefix
+store-other-wine = Wine-Präfix
 store-other = Sonstiges
 backup-format-simple = Einfach
 backup-format-zip = Zip
@@ -124,31 +151,46 @@ theme = Aussehen
 theme-light = Hell
 theme-dark = Dunkel
 redirect-bidirectional = Bidirektional
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
-override-max-threads = Override max threads
-explanation-for-exclude-store-screenshots = Schließe Starterspezifische Bildschirmfotos in Sicherungen aus. Dies gilt momentan nur für { store-steam }-Bildschirmfotos. Wenn ein Spiel eine eigene Bildschirmfotofunktion hat, werden Bildschirmfotos unabhängig dieser Einstellung gesichert.
+show-deselected-games = Nicht ausgewählte Spiele anzeigen
+show-unchanged-games = Unveränderte Spiele anzeigen
+show-unscanned-games = Ungescannte Spiele anzeigen
+override-max-threads = Max. Threads übergehen
+synchronize-automatically = Synchronize automatically
+explanation-for-exclude-store-screenshots = Storespezifische Bildschirmfotos aus Datensicherungen ausschießen. Derzeit gilt dies nur für aufgenommene { store-steam }-Bildschirmfotos. Falls ein Spiel seine eigene Funktionalität für Bildschirmfotos besitzt, hat diese Einstellung keinen Einfluss auf deren Datensicherungsverhalten.
 consider-doing-a-preview =
     Falls du es noch nicht getan hast, erwäge zuerst eine Vorschau zu machen, damit
     keine Überraschungen gibt.
 confirm-backup =
     Bist du sicher, dass du mit der Sicherung fortfahren möchtest? { $path-action ->
         [merge] Neue Speicherdaten werden mit dem Zielordner zusammengeführt:
-        [recreate] Der Zielordner wird gelöscht und von Grund auf neu erstellt:
        *[create] Der Zielordner wird erstellt:
     }
 confirm-restore =
     Bist du sicher, dass du mit der Wiederherstellung fortfahren möchtest?
     Dies überschreibt alle aktuellen Dateien mit den Sicherungen von hier:
+confirm-cloud-upload =
+    Do you want to synchronize your local files to the cloud?
+    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
+    Files in the cloud will be updated or deleted as necessary.
+confirm-cloud-download =
+    Do you want to synchronize your cloud files to this system?
+    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
+    Local files will be updated or deleted as necessary.
 confirm-add-missing-roots = Diese Wurzelverzeichnisse hinzufügen?
 no-missing-roots = Keine weiteren Wurzelverzeichnisse gefunden.
+loading = Loading...
 preparing-backup-target = Sicherungsverzeichnis wird vorbereitet...
 updating-manifest = Manifest wird aktualisiert...
+no-cloud-changes = No changes to synchronize
 saves-found = Spielstanddaten gefunden.
 no-saves-found = Keine Spielstanddaten gefunden.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = ohne Bestätigung
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
-suffix-restart-required = restart required
+suffix-restart-required = Neustart erforderlich
+prefix-error = Error: { $message }
+prefix-warning = Warning: { $message }
+cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
+cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
+cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.

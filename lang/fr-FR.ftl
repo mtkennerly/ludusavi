@@ -6,102 +6,129 @@ total-games = Jeux
 file-size = Taille
 file-location = Emplacement
 overall = Général
-status = Status
+status = Statut
 cli-unrecognized-games = Pas d'informations pour ces jeux :
-cli-unable-to-request-confirmation = Unable to request confirmation.
-    .winpty-workaround = If you are using a Bash emulator (like Git Bash), try running winpty.
-cli-backup-id-with-multiple-games = Cannot specify backup ID when restoring multiple games.
-cli-invalid-backup-id = Invalid backup ID.
-badge-failed = FAILED
+cli-unable-to-request-confirmation = Demande de confirmation impossible.
+    .winpty-workaround = Si vous utilisez un émulateur Bash (comme Git Bash), essayez de lancer winpty.
+cli-backup-id-with-multiple-games = Impossible de spécifier l'ID de sauvegarde lors de la restauration de plusieurs jeux.
+cli-invalid-backup-id = ID de sauvegarde invalide.
+badge-failed = ÉCHEC
 badge-duplicates = DOUBLONS
 badge-duplicated = DOUBLON
 badge-ignored = IGNORÉ
-badge-redirected-from = FROM: { $path }
-badge-redirecting-to = TO: { $path }
-some-entries-failed = Some entries failed to process; look for { badge-failed } in the output for details. Double check whether you can access those files or whether their paths are very long.
-cli-game-line-item-redirected = Redirected from: { $path }
-cli-game-line-item-redirecting = Redirecting to: { $path }
+badge-redirected-from = DE : { $path }
+badge-redirecting-to = VERS : { $path }
+some-entries-failed = Certaines entrées n'ont pas pu être traitées, recherchez { badge-failed } dans la sortie pour plus de détails. Vérifiez si vous pouvez accéder à ces fichiers ou si leurs chemins sont très longs.
+cli-game-line-item-redirected = Redirigé depuis : { $path }
+cli-game-line-item-redirecting = Redirigé vers : { $path }
 button-backup = Sauvegarder
 button-preview = Aperçu
 button-restore = Restaurer
-button-nav-backup = BACKUP MODE
-button-nav-restore = RESTORE MODE
-button-nav-custom-games = CUSTOM GAMES
-button-nav-other = OTHER
+button-nav-backup = MODE DE SAUVEGARDE
+button-nav-restore = MODE DE RESTAURATION
+button-nav-custom-games = JEUX PERSONNALISÉS
+button-nav-other = AUTRE
 button-add-game = Ajouter un jeu
 button-continue = Continuer
 button-cancel = Annuler
 button-cancelling = Annulation...
-button-okay = Okay
-button-select-all = Select all
-button-deselect-all = Deselect all
-button-enable-all = Enable all
-button-disable-all = Disable all
-button-customize = Customize
+button-okay = Ok
+button-select-all = Sélectionner tout
+button-deselect-all = Désélectionner tout
+button-enable-all = Activer tout
+button-disable-all = Désactiver tout
+button-customize = Personnaliser
 button-exit = Quitter
-button-comment = Comment
-no-roots-are-configured = Add some roots to back up even more data.
-config-is-invalid = Error: The config file is invalid.
-manifest-is-invalid = Error: The manifest file is invalid.
-manifest-cannot-be-updated = Error: Unable to check for an update to the manifest file. Is your Internet connection down?
-cannot-prepare-backup-target = Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: { $path }
-restoration-source-is-invalid = Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: { $path }
-registry-issue = Error: Some registry entries were skipped.
-unable-to-browse-file-system = Error: Unable to browse on your system.
-unable-to-open-directory = Error: Unable to open directory:
-unable-to-open-url = Error: Unable to open URL:
+button-comment = Commentaire
+# This opens a download page.
+button-get-app = Get { $app }
+no-roots-are-configured = Ajoutez quelques dossiers pour sauvegarder encore plus de données.
+config-is-invalid = Erreur : Le fichier de configuration est invalide.
+manifest-is-invalid = Erreur : Le manifeste est invalide.
+manifest-cannot-be-updated = Erreur : Impossible de vérifier la mise à jour du manifeste. Votre connexion Internet est-elle interrompue ?
+cannot-prepare-backup-target = Erreur : Impossible de préparer la cible de sauvegarde (création ou vidage du dossier). Si vous avez le dossier ouvert dans votre explorateur de fichiers, essayez de le fermer : { $path }
+restoration-source-is-invalid = Erreur : La source de restauration est invalide (soit elle n'existe pas, soit ce n'est pas un répertoire). Veuillez vérifier l'emplacement : { $path }
+registry-issue = Erreur : Certaines entrées du registre ont été ignorées.
+unable-to-browse-file-system = Erreur : Impossible de naviguer dans votre système.
+unable-to-open-directory = Erreur : Impossible d'ouvrir le répertoire :
+unable-to-open-url = Erreur : Impossible d’ouvrir l'URL :
+unable-to-configure-cloud = Unable to configure cloud.
+unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
+cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
+command-unlaunched = Command did not launch: { $command }
+command-terminated = Command terminated abruptly: { $command }
+command-failed = Command failed with code { $code }: { $command }
 processed-games =
     { $total-games } { $total-games ->
-        [one] game
-       *[other] games
+        [one] jeu
+       *[other] jeux
     }
 processed-games-subset =
-    { $processed-games } of { $total-games } { $total-games ->
-        [one] game
-       *[other] games
+    { $processed-games } sur { $total-games } { $total-games ->
+        [one] jeu
+       *[other] jeux
     }
-processed-size-subset = { $processed-size } of { $total-size }
-field-backup-target = Back up to:
-toggle-backup-merge = Merge
-field-restore-source = Restore from:
-field-custom-files = Paths:
-field-custom-registry = Registry:
-field-sort = Sort:
+processed-size-subset = { $processed-size } sur { $total-size }
+field-backup-target = Sauvegarder vers :
+field-restore-source = Restaurer depuis :
+field-custom-files = Chemins :
+field-custom-registry = Registre :
+field-sort = Trier :
 field-redirect-source =
-    .placeholder = Source (original location)
+    .placeholder = Source (Localisation d'origine)
 field-redirect-target =
-    .placeholder = Target (new location)
-field-roots = Roots:
-field-backup-excluded-items = Backup exclusions:
-field-redirects = Redirects:
+    .placeholder = Destination (Nouvelle localisation)
+field-roots = Dossiers :
+field-backup-excluded-items = Exclusions de sauvegarde :
+field-redirects = Redirections :
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
-field-retention-full = Full:
+field-retention-full = Plein :
 # This appears next to the number of differential backups that you'd like to keep.
 # A differential backup includes only the files that have changed since the last full backup.
-field-retention-differential = Differential:
-field-backup-format = Format:
-field-backup-compression = Compression:
+field-retention-differential = Différentielle :
+field-backup-format = Format :
+field-backup-compression = Compression :
 # The compression level determines how much compresison we perform.
-field-backup-compression-level = Level:
-label-manifest = Manifest
+field-backup-compression-level = Niveau :
+label-manifest = Manifeste
 # This shows the time when we checked for an update to the manifest.
-label-checked = Checked
+label-checked = Vérifier
 # This shows the time when we found an update to the manifest.
-label-updated = Updated
-label-new = New
-label-removed = Removed
-label-comment = Comment
-label-scan = Scan
-label-filter = Filter
+label-updated = Mis à jour
+label-new = Nouveau
+label-removed = Retiré
+label-comment = Commentaire
+label-scan = Analyse
+label-filter = Filtre
 label-unique = Unique
-label-complete = Complete
-label-partial = Partial
-label-enabled = Enabled
-label-disabled = Disabled
+label-complete = Terminé
+label-partial = Partiel
+label-enabled = Activé
+label-disabled = Désactivé
 # https://en.wikipedia.org/wiki/Thread_(computing)
 label-threads = Threads
-store-epic = Epic
+label-cloud = Cloud
+# A "remote" is what Rclone calls cloud systems like Google Drive.
+label-remote = Remote
+label-remote-name = Remote name
+label-folder = Folder
+# An executable file
+label-executable = Executable
+# Options given to a command line program
+label-arguments = Arguments
+label-url = URL
+# https://en.wikipedia.org/wiki/Host_(network)
+label-host = Host
+# https://en.wikipedia.org/wiki/Port_(computer_networking)
+label-port = Port
+label-username = Username
+label-password = Password
+label-provider = Provider
+label-custom = Custom
+label-none = None
+label-change-count = Changes: { $total }
+store-epic = Epic Games
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
 store-heroic = Heroic
@@ -110,49 +137,58 @@ store-origin = Origin
 store-prime = Prime Gaming
 store-steam = Steam
 store-uplay = Uplay
-store-other-home = Home folder
-store-other-wine = Wine prefix
-store-other = Other
+store-other-home = Dossier personnel
+store-other-wine = Préfixe Wine
+store-other = Autres
 backup-format-simple = Simple
 backup-format-zip = Zip
-compression-none = None
+compression-none = Aucun
 # "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
-theme = Theme
-theme-light = Light
-theme-dark = Dark
-redirect-bidirectional = Bidirectional
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
-override-max-threads = Override max threads
-explanation-for-exclude-store-screenshots =
-    In backups, exclude store-specific screenshots. Right now, this only applies
-    to { store-steam } screenshots that you've taken. If a game has its own built-in
-    screenshot functionality, this setting will not affect whether those
-    screenshots are backed up.
-consider-doing-a-preview =
-    If you haven't already, consider doing a preview first so that there
-    are no surprises.
+theme = Thème
+theme-light = Clair
+theme-dark = Sombre
+redirect-bidirectional = Mode bidirectionnel
+show-deselected-games = Afficher les jeux désélectionnés
+show-unchanged-games = Afficher les jeux non modifiés
+show-unscanned-games = Afficher les jeux non scannés
+override-max-threads = Outrepasser les threads max
+synchronize-automatically = Synchronize automatically
+explanation-for-exclude-store-screenshots = Dans les sauvegardes, excluez les captures d'écran spécifiques à la boutique. Pour le moment, cela s'applique seulement pour les captures d'écran { store-steam } que vous avez prises. Si un jeu possède sa propre fonctionnalité de capture d'écran intégrée, ce paramètre n'affectera pas ces captures d'écran.
+consider-doing-a-preview = Si vous ne l'avez pas déjà fait, pensez d'abord à faire un aperçu afin qu'il n'y ait pas de surprises.
 confirm-backup =
-    Are you sure you want to proceed with the backup? { $path-action ->
-        [merge] New save data will be merged into the target folder:
-        [recreate] The target folder will be deleted and recreated from scratch:
-       *[create] The target folder will be created:
+    Êtes-vous sûr de vouloir procéder à la sauvegarde ? { $path-action ->
+        [merge] Les nouvelles données de sauvegarde seront fusionnées dans le dossier cible :
+       *[create] Le dossier cible sera créé :
     }
 confirm-restore =
-    Are you sure you want to proceed with the restoration?
-    This will overwrite any current files with the backups from here:
-confirm-add-missing-roots = Add these roots?
-no-missing-roots = No additional roots found.
-preparing-backup-target = Preparing backup directory...
-updating-manifest = Updating manifest...
-saves-found = Save data found.
-no-saves-found = No save data found.
+    Êtes-vous sûr de vouloir procéder à la restauration ?
+    Cela écrasera tous les fichiers actuels avec les sauvegardes ici :
+confirm-cloud-upload =
+    Do you want to synchronize your local files to the cloud?
+    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
+    Files in the cloud will be updated or deleted as necessary.
+confirm-cloud-download =
+    Do you want to synchronize your cloud files to this system?
+    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
+    Local files will be updated or deleted as necessary.
+confirm-add-missing-roots = Ajouter ces dossiers ?
+no-missing-roots = Aucun dossier supplémentaire trouvé.
+loading = Loading...
+preparing-backup-target = Préparation du répertoire de sauvegarde...
+updating-manifest = Mise à jour du manifeste...
+no-cloud-changes = No changes to synchronize
+saves-found = Données de sauvegarde trouvée.
+no-saves-found = Aucune donnée de sauvegarde trouvée.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
-suffix-no-confirmation = no confirmation
+suffix-no-confirmation = sans confirmation
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
-suffix-restart-required = restart required
+suffix-restart-required = Redémarrage nécessaire
+prefix-error = Error: { $message }
+prefix-warning = Warning: { $message }
+cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
+cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
+cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.

@@ -1,4 +1,4 @@
-ludusavi = 录读加一
+ludusavi = Ludusavi
 language = 语言
 font = 字体
 game-name = 名称
@@ -40,6 +40,8 @@ button-disable-all = 全部禁用
 button-customize = 自定义
 button-exit = 退出
 button-comment = Comment
+# This opens a download page.
+button-get-app = Get { $app }
 no-roots-are-configured = 添加一些根，以备份甚至更多的数据。
 config-is-invalid = 错误：配置文件无效。
 manifest-is-invalid = 错误：manifest 文件无效。
@@ -50,11 +52,16 @@ registry-issue = 错误：一些注册表条目被跳过。
 unable-to-browse-file-system = 错误：无法浏览您的系统。
 unable-to-open-directory = 错误：无法打开目录：
 unable-to-open-url = 错误：无法打开链接：
+unable-to-configure-cloud = Unable to configure cloud.
+unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
+cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
+command-unlaunched = Command did not launch: { $command }
+command-terminated = Command terminated abruptly: { $command }
+command-failed = Command failed with code { $code }: { $command }
 processed-games = { $total-games } 游戏
 processed-games-subset = { $processed-games }，共 { $total-games } 游戏
 processed-size-subset = { $total-size }中的{ $processed-size }
 field-backup-target = 备份到:
-toggle-backup-merge = 合并
 field-restore-source = 还原自
 field-custom-files = 路径：
 field-custom-registry = 注册表
@@ -93,6 +100,26 @@ label-enabled = Enabled
 label-disabled = Disabled
 # https://en.wikipedia.org/wiki/Thread_(computing)
 label-threads = Threads
+label-cloud = Cloud
+# A "remote" is what Rclone calls cloud systems like Google Drive.
+label-remote = Remote
+label-remote-name = Remote name
+label-folder = Folder
+# An executable file
+label-executable = Executable
+# Options given to a command line program
+label-arguments = Arguments
+label-url = URL
+# https://en.wikipedia.org/wiki/Host_(network)
+label-host = Host
+# https://en.wikipedia.org/wiki/Port_(computer_networking)
+label-port = Port
+label-username = Username
+label-password = Password
+label-provider = Provider
+label-custom = Custom
+label-none = None
+label-change-count = Changes: { $total }
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -120,21 +147,31 @@ show-deselected-games = Show deselected games
 show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
+synchronize-automatically = Synchronize automatically
 explanation-for-exclude-store-screenshots = 在备份中，排除特定商店的屏幕截图。现在，这只适用于你的 { store-steam } 屏幕截图。如果一个游戏有自己内置的屏幕截图功能，则此设置不会影响是否备份这些截图。
 consider-doing-a-preview = 如果您还没有预览，请考虑先进行预览，防止发生任何意料之外的结果。
 confirm-backup =
     确定要继续备份吗？ {$path-action ->
         [merge] 新保存的数据将被合并到目标文件夹中：
-        [recreate] 目标文件夹将被删除并从零开始重新创建：
        *[create] 目标文件夹将被创建：
     }
 confirm-restore =
     您确定要继续恢复吗？
     这将会覆盖当前备份的所有文件：
+confirm-cloud-upload =
+    Do you want to synchronize your local files to the cloud?
+    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
+    Files in the cloud will be updated or deleted as necessary.
+confirm-cloud-download =
+    Do you want to synchronize your cloud files to this system?
+    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
+    Local files will be updated or deleted as necessary.
 confirm-add-missing-roots = 添加这些根目录吗？
 no-missing-roots = 未找到其他根目录。
+loading = Loading...
 preparing-backup-target = 正在准备备份文件夹...
 updating-manifest = 正在更新 Manifest 文件...
+no-cloud-changes = No changes to synchronize
 saves-found = 发现已有的存档。
 no-saves-found = 未找到存档。
 # This is tacked on to form something like "Back up (no confirmation)",
@@ -142,3 +179,8 @@ no-saves-found = 未找到存档。
 suffix-no-confirmation = 不进行确认
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
 suffix-restart-required = restart required
+prefix-error = Error: { $message }
+prefix-warning = Warning: { $message }
+cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
+cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
+cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.

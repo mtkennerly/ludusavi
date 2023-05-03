@@ -40,6 +40,8 @@ button-disable-all = 全て無効
 button-customize = カスタマイズ
 button-exit = 終了
 button-comment = Comment
+# This opens a download page.
+button-get-app = Get { $app }
 no-roots-are-configured = いくつかのルートを追加して、さらに多くのデータをバックアップします。
 config-is-invalid = エラー：設定ファイルが無効です。
 manifest-is-invalid = エラー: マニフェストファイルが無効です。
@@ -50,6 +52,12 @@ registry-issue = エラー: 一部のレジストリエントリがスキップ�
 unable-to-browse-file-system = エラー: システム上で参照できません。
 unable-to-open-directory = エラー: ディレクトリを開くことができません:
 unable-to-open-url = エラー: URLを開くことができません:
+unable-to-configure-cloud = Unable to configure cloud.
+unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
+cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
+command-unlaunched = Command did not launch: { $command }
+command-terminated = Command terminated abruptly: { $command }
+command-failed = Command failed with code { $code }: { $command }
 processed-games =
     { $total-games } { $total-games ->
         [one] game
@@ -62,7 +70,6 @@ processed-games-subset =
     }
 processed-size-subset = { $processed-size } of { $total-size }
 field-backup-target = バックアップ先:
-toggle-backup-merge = マージ
 field-restore-source = 復元元:
 field-custom-files = パス:
 field-custom-registry = レジストリ:
@@ -71,9 +78,9 @@ field-redirect-source =
     .placeholder = ソース (元の場所)
 field-redirect-target =
     .placeholder = ターゲット (新しい場所)
-field-roots = Roots:
+field-roots = ルート:
 field-backup-excluded-items = バックアップから除外:
-field-redirects = Redirects:
+field-redirects = リダイレクト:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
 field-retention-full = フルバックアップ:
@@ -101,6 +108,26 @@ label-enabled = Enabled
 label-disabled = Disabled
 # https://en.wikipedia.org/wiki/Thread_(computing)
 label-threads = Threads
+label-cloud = Cloud
+# A "remote" is what Rclone calls cloud systems like Google Drive.
+label-remote = Remote
+label-remote-name = Remote name
+label-folder = Folder
+# An executable file
+label-executable = Executable
+# Options given to a command line program
+label-arguments = Arguments
+label-url = URL
+# https://en.wikipedia.org/wiki/Host_(network)
+label-host = Host
+# https://en.wikipedia.org/wiki/Port_(computer_networking)
+label-port = Port
+label-username = Username
+label-password = Password
+label-provider = Provider
+label-custom = Custom
+label-none = None
+label-change-count = Changes: { $total }
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -124,10 +151,11 @@ theme = テーマ
 theme-light = ライト
 theme-dark = ダーク
 redirect-bidirectional = Bidirectional
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
+show-deselected-games = 選択されていないゲームを表示
+show-unchanged-games = 変更されていないゲームを表示
+show-unscanned-games = スキャンされていないゲームを表示
 override-max-threads = Override max threads
+synchronize-automatically = Synchronize automatically
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots. Right now, this only applies
     to { store-steam } screenshots that you've taken. If a game has its own built-in
@@ -137,16 +165,25 @@ consider-doing-a-preview = まだ行っていない場合は、予期しない�
 confirm-backup =
     Are you sure you want to proceed with the backup? { $path-action ->
         [merge] New save data will be merged into the target folder:
-        [recreate] The target folder will be deleted and recreated from scratch:
        *[create] The target folder will be created:
     }
 confirm-restore =
     復元を続行してもよろしいですか？
     現在のファイルはここから上書きされます:
+confirm-cloud-upload =
+    Do you want to synchronize your local files to the cloud?
+    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
+    Files in the cloud will be updated or deleted as necessary.
+confirm-cloud-download =
+    Do you want to synchronize your cloud files to this system?
+    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
+    Local files will be updated or deleted as necessary.
 confirm-add-missing-roots = このルートを追加しますか?
 no-missing-roots = 追加するルートが見つかりませんでした。
+loading = Loading...
 preparing-backup-target = バックアップディレクトリを準備中...
 updating-manifest = マニフェストを更新中...
+no-cloud-changes = No changes to synchronize
 saves-found = セーブデータが見つかりました。
 no-saves-found = セーブデータが見つかりませんでした。
 # This is tacked on to form something like "Back up (no confirmation)",
@@ -154,3 +191,8 @@ no-saves-found = セーブデータが見つかりませんでした。
 suffix-no-confirmation = 確認なし
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
 suffix-restart-required = restart required
+prefix-error = Error: { $message }
+prefix-warning = Warning: { $message }
+cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
+cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
+cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.

@@ -40,6 +40,8 @@ button-disable-all = Disattiva tutto
 button-customize = Personalizza
 button-exit = Esci
 button-comment = Comment
+# This opens a download page.
+button-get-app = Get { $app }
 no-roots-are-configured = Aggiungi alcune radici per eseguire il backup di ulteriori dati.
 config-is-invalid = Errore: File di configurazione non valido.
 manifest-is-invalid = Errore: File manifest non valido.
@@ -50,6 +52,12 @@ registry-issue = Errore: Alcune voci del registro sono state saltate.
 unable-to-browse-file-system = Errore: Impossibile navigare sul tuo sistema.
 unable-to-open-directory = Errore: impossibile aprire la directory:
 unable-to-open-url = Errore: Impossibile aprire l'URL:
+unable-to-configure-cloud = Unable to configure cloud.
+unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
+cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
+command-unlaunched = Command did not launch: { $command }
+command-terminated = Command terminated abruptly: { $command }
+command-failed = Command failed with code { $code }: { $command }
 processed-games =
     { $total-games } { $total-games ->
         [one] gioco
@@ -62,7 +70,6 @@ processed-games-subset =
     }
 processed-size-subset = { $processed-size } di { $total-size }
 field-backup-target = Backup su:
-toggle-backup-merge = Unisci
 field-restore-source = Ripristina da:
 field-custom-files = Percorsi:
 field-custom-registry = Registro:
@@ -101,6 +108,26 @@ label-enabled = Enabled
 label-disabled = Disabled
 # https://en.wikipedia.org/wiki/Thread_(computing)
 label-threads = Threads
+label-cloud = Cloud
+# A "remote" is what Rclone calls cloud systems like Google Drive.
+label-remote = Remote
+label-remote-name = Remote name
+label-folder = Folder
+# An executable file
+label-executable = Executable
+# Options given to a command line program
+label-arguments = Arguments
+label-url = URL
+# https://en.wikipedia.org/wiki/Host_(network)
+label-host = Host
+# https://en.wikipedia.org/wiki/Port_(computer_networking)
+label-port = Port
+label-username = Username
+label-password = Password
+label-provider = Provider
+label-custom = Custom
+label-none = None
+label-change-count = Changes: { $total }
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
@@ -128,6 +155,7 @@ show-deselected-games = Show deselected games
 show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
+synchronize-automatically = Synchronize automatically
 explanation-for-exclude-store-screenshots =
     Nei backup, escludi screenshot specifici dello store. In questo momento, questo si applica solo
     agli screenshot { store-steam } che hai fatto. Se un gioco ha la propria funzionalità screenshot integrata, questa impostazione non influirà sul backup di questi
@@ -138,16 +166,25 @@ consider-doing-a-preview =
 confirm-backup =
     Sei sicuro di voler procedere con il backup? { $path-action ->
         [merge] Nuovi dati di salvataggio verranno uniti nella cartella di destinazione:
-        [recreate] La cartella di destinazione verrà eliminata e ricreata da zero:
        *[create] La cartella di destinazione verrà creata:
     }
 confirm-restore =
     Sei sicuro di voler procedere con il ripristino?
     Questo sovrascriverà tutti i file attuali con i backup da qui:
+confirm-cloud-upload =
+    Do you want to synchronize your local files to the cloud?
+    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
+    Files in the cloud will be updated or deleted as necessary.
+confirm-cloud-download =
+    Do you want to synchronize your cloud files to this system?
+    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
+    Local files will be updated or deleted as necessary.
 confirm-add-missing-roots = Aggiungere queste radici?
 no-missing-roots = Nessuna radice aggiuntiva trovata.
+loading = Loading...
 preparing-backup-target = Preparazione directory di backup...
 updating-manifest = Aggiornamento manifest...
+no-cloud-changes = No changes to synchronize
 saves-found = Dati di salvataggio trovati.
 no-saves-found = Nessun dato di salvataggio trovato.
 # This is tacked on to form something like "Back up (no confirmation)",
@@ -155,3 +192,8 @@ no-saves-found = Nessun dato di salvataggio trovato.
 suffix-no-confirmation = senza conferma
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
 suffix-restart-required = restart required
+prefix-error = Error: { $message }
+prefix-warning = Warning: { $message }
+cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
+cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
+cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.
