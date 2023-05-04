@@ -1,4 +1,4 @@
-use iced::widget::tooltip;
+use iced::{alignment, widget::tooltip, Length};
 
 use crate::{
     gui::{
@@ -10,6 +10,8 @@ use crate::{
     scan::ScanChange,
 };
 
+const CHANGE_BADGE_WIDTH: f32 = 10.0;
+
 #[derive(Default)]
 pub struct Badge {
     text: String,
@@ -18,6 +20,7 @@ pub struct Badge {
     tooltip: Option<String>,
     on_press: Option<Message>,
     faded: bool,
+    width: Option<Length>,
 }
 
 impl Badge {
@@ -29,6 +32,7 @@ impl Badge {
             tooltip: None,
             on_press: None,
             faded: false,
+            width: None,
         }
     }
 
@@ -43,17 +47,13 @@ impl Badge {
                 ScanChange::Same => None,
                 ScanChange::Unknown => None,
             },
+            width: Some(Length::Fixed(CHANGE_BADGE_WIDTH)),
             ..Default::default()
         }
     }
 
     pub fn new_entry() -> Self {
-        Self {
-            text: crate::lang::ADD_SYMBOL.to_string(),
-            change: Some(ScanChange::New),
-            tooltip: Some(TRANSLATOR.new_tooltip()),
-            ..Default::default()
-        }
+        Self::scan_change(ScanChange::New)
     }
 
     pub fn new_entry_with_count(count: usize) -> Self {
@@ -66,21 +66,11 @@ impl Badge {
     }
 
     pub fn changed_entry() -> Self {
-        Self {
-            text: crate::lang::CHANGE_SYMBOL.to_string(),
-            change: Some(ScanChange::Different),
-            tooltip: Some(TRANSLATOR.updated_tooltip()),
-            ..Default::default()
-        }
+        Self::scan_change(ScanChange::Different)
     }
 
     pub fn removed_entry() -> Self {
-        Self {
-            text: crate::lang::REMOVAL_SYMBOL.to_string(),
-            change: Some(ScanChange::Removed),
-            tooltip: Some(TRANSLATOR.removed_tooltip()),
-            ..Default::default()
-        }
+        Self::scan_change(ScanChange::Removed)
     }
 
     pub fn changed_entry_with_count(count: usize) -> Self {
@@ -104,16 +94,21 @@ impl Badge {
 
     pub fn view(self) -> Container<'static> {
         Container::new({
-            let content = Container::new(Text::new(self.text).size(14))
-                .padding([2, 12, 2, 12])
-                .style(match self.change {
-                    None => match self.on_press.as_ref() {
-                        Some(Message::FilterDuplicates { game: None, .. }) => style::Container::BadgeActivated,
-                        _ if self.faded => style::Container::BadgeFaded,
-                        _ => style::Container::Badge,
-                    },
-                    Some(change) => style::Container::ChangeBadge(change),
-                });
+            let content = Container::new(
+                Text::new(self.text)
+                    .size(14)
+                    .horizontal_alignment(alignment::Horizontal::Center)
+                    .width(self.width.unwrap_or(Length::Shrink)),
+            )
+            .padding([2, 12, 2, 12])
+            .style(match self.change {
+                None => match self.on_press.as_ref() {
+                    Some(Message::FilterDuplicates { game: None, .. }) => style::Container::BadgeActivated,
+                    _ if self.faded => style::Container::BadgeFaded,
+                    _ => style::Container::Badge,
+                },
+                Some(change) => style::Container::ChangeBadge(change),
+            });
 
             let content = match self.tooltip {
                 None => content,
