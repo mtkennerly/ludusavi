@@ -25,7 +25,7 @@
     To skip the cleanup and force an immediate close (like in previous versions),
     you can simply try to quit a second time, but this isn't recommended if you can help it.
   * GUI: Subsections now have a slightly distinct background color to help tell them apart.
-  * GUI: Modal content is slightly less padded.
+  * GUI: Adjusted some spacing/padding. A few more scanned games can fit on screen now.
 
 ## v0.17.1 (2023-04-10)
 

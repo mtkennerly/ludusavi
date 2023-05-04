@@ -427,7 +427,7 @@ impl GameList {
                                 .unwrap_or(true)
                         })
                         .fold(
-                            Column::new().width(Length::Fill).padding([0, 15, 5, 15]).spacing(10),
+                            Column::new().width(Length::Fill).padding([0, 15, 5, 15]).spacing(5),
                             |parent, x| {
                                 parent.push(x.view(
                                     restoring,

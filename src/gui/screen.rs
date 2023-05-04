@@ -28,7 +28,7 @@ use crate::{
 const RCLONE_URL: &str = "https://rclone.org/downloads";
 
 fn template(content: Column) -> Element {
-    Container::new(content.spacing(20).align_items(Alignment::Center))
+    Container::new(content.spacing(15).align_items(Alignment::Center))
         .height(Length::Fill)
         .width(Length::Fill)
         .padding([0, 5, 5, 5])

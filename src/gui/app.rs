@@ -2077,7 +2077,7 @@ impl Application for App {
             .align_items(Alignment::Center)
             .push(
                 Row::new()
-                    .padding([2, 20, 25, 20])
+                    .padding([10, 20, 15, 20])
                     .spacing(20)
                     .push(button::nav(Screen::Backup, self.screen))
                     .push(button::nav(Screen::Restore, self.screen))
