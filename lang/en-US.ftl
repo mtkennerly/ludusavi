@@ -192,12 +192,12 @@ confirm-restore =
     This will overwrite any current files with the backups from here:
 
 confirm-cloud-upload =
-    Do you want to synchronize your local files to the cloud?
+    Do you want to replace your cloud files with your local files?
     Your cloud files ({$cloud-path}) will become an exact copy of your local files ({$local-path}).
     Files in the cloud will be updated or deleted as necessary.
 
 confirm-cloud-download =
-    Do you want to synchronize your cloud files to this system?
+    Do you want to replace your local files with your cloud files?
     Your local files ({$local-path}) will become an exact copy of your cloud files ({$cloud-path}).
     Local files will be updated or deleted as necessary.
 
