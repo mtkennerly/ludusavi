@@ -327,7 +327,6 @@ impl Modal {
                             || *previewing || *syncing,
                             || {
                                 Row::new()
-                                    .padding([0, 20, 0, 0])
                                     .spacing(20)
                                     .align_items(Alignment::Center)
                                     .push(Text::new(TRANSLATOR.change_count_label(changes.len())))
@@ -609,8 +608,8 @@ impl Modal {
                         .height(Length::FillPortion(self.body_height_portion()))
                         .align_items(Alignment::Center)
                         .push(
-                            Container::new(ScrollSubject::Modal.into_widget(self.body(config)))
-                                .padding([30, 20, 0, 30])
+                            Container::new(ScrollSubject::Modal.into_widget(self.body(config).padding([0, 30, 0, 30])))
+                                .padding([30, 5, 0, 0])
                                 .height(Length::Fill),
                         )
                         .push(
@@ -621,7 +620,7 @@ impl Modal {
                                     .push(positive_button)
                                     .push(negative_button),
                             }
-                            .padding(30)
+                            .padding([30, 0, 30, 0])
                             .spacing(20)
                             .height(Length::Shrink)
                             .align_items(Alignment::Center),
