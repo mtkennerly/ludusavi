@@ -31,6 +31,16 @@ fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLo
             flexi_logger::Cleanup::KeepLogFiles(4),
         )
         .use_utc()
+        .format_for_files(|w, now, record| {
+            write!(
+                w,
+                "[{}] {} [{}] {}",
+                now.format("%Y-%m-%dT%H:%M:%S%.3fZ"),
+                record.level(),
+                record.module_path().unwrap_or("<unnamed>"),
+                &record.args(),
+            )
+        })
         .start()
 }
 
