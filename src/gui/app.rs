@@ -990,9 +990,15 @@ impl Application for App {
                 Command::none()
             }
             Message::CloseModal => {
-                let cloud_preview = matches!(self.modal, Some(Modal::ConfirmCloudSync { previewing: true, .. }));
+                let need_cancel_cloud = matches!(
+                    self.modal,
+                    Some(
+                        Modal::ConfirmCloudSync { previewing: true, .. }
+                            | Modal::ConfirmCloudSync { syncing: true, .. }
+                    )
+                );
                 self.modal = None;
-                if cloud_preview {
+                if need_cancel_cloud {
                     self.cancel_operation()
                 } else {
                     Command::none()
@@ -1955,19 +1961,24 @@ impl Application for App {
                     done: false,
                     page: 0,
                     previewing: false,
+                    syncing: false,
                 });
 
                 Command::none()
             }
             Message::SynchronizeCloud { direction, finality } => {
-                if finality.preview() {
-                    if let Some(Modal::ConfirmCloudSync { previewing, .. }) = self.modal.as_mut() {
-                        *previewing = true;
-                    }
-                } else {
-                    self.modal = None;
-                }
                 let local = self.config.backup.path.clone();
+
+                self.modal = Some(Modal::ConfirmCloudSync {
+                    local: local.render(),
+                    cloud: self.config.cloud.path.clone(),
+                    direction,
+                    changes: vec![],
+                    done: false,
+                    page: 0,
+                    previewing: finality == Finality::Preview,
+                    syncing: finality == Finality::Final,
+                });
 
                 _ = self.start_sync_cloud(&local, direction, finality, None, true);
                 Command::none()

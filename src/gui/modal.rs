@@ -91,6 +91,7 @@ pub enum Modal {
         done: bool,
         page: usize,
         previewing: bool,
+        syncing: bool,
     },
     ConfigureFtpRemote {
         host: String,
@@ -123,11 +124,11 @@ impl Modal {
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. } => ModalVariant::Confirm,
-            modal @ Self::ConfirmCloudSync { .. } => {
-                if modal.any_cloud_changes() {
-                    ModalVariant::Confirm
-                } else {
+            modal @ Self::ConfirmCloudSync { done, syncing, .. } => {
+                if (*done && *syncing) || !modal.any_cloud_changes() {
                     ModalVariant::Info
+                } else {
+                    ModalVariant::Confirm
                 }
             }
         }
@@ -184,14 +185,19 @@ impl Modal {
             })),
             Self::ConfirmAddMissingRoots(missing) => Some(Message::ConfirmAddMissingRoots(missing.clone())),
             Self::PreparingBackupDir | Self::UpdatingManifest => None,
-            modal @ Self::ConfirmCloudSync { direction, .. } => {
-                if modal.any_cloud_changes() {
-                    Some(Message::SynchronizeCloud {
+            modal @ Self::ConfirmCloudSync {
+                direction,
+                syncing,
+                done,
+                ..
+            } => {
+                if (*done && *syncing) || !modal.any_cloud_changes() {
+                    Some(Message::CloseModal)
+                } else {
+                    (!syncing).then_some(Message::SynchronizeCloud {
                         direction: *direction,
                         finality: Finality::Final,
                     })
-                } else {
-                    Some(Message::CloseModal)
                 }
             }
             Self::ConfigureFtpRemote {
@@ -256,18 +262,22 @@ impl Modal {
     fn extra_controls(&self) -> Vec<Element> {
         match self {
             modal @ Self::ConfirmCloudSync {
-                direction, previewing, ..
+                direction,
+                previewing,
+                syncing,
+                done,
+                ..
             } => {
-                if modal.any_cloud_changes() {
+                if (*done && *syncing) || !modal.any_cloud_changes() {
+                    vec![]
+                } else {
                     vec![button::primary(
                         TRANSLATOR.preview_button(),
-                        (!previewing).then_some(Message::SynchronizeCloud {
+                        (!previewing && !syncing).then_some(Message::SynchronizeCloud {
                             direction: *direction,
                             finality: Finality::Preview,
                         }),
                     )]
-                } else {
-                    vec![]
                 }
             }
             Self::Error { .. }
@@ -308,12 +318,13 @@ impl Modal {
                 page,
                 done,
                 previewing,
+                syncing,
                 ..
             } => {
                 if modal.any_cloud_changes() {
                     col = col
                         .push_if(
-                            || *previewing,
+                            || *previewing || *syncing,
                             || {
                                 Row::new()
                                     .padding([0, 20, 0, 0])
