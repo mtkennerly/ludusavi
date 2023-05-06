@@ -151,6 +151,7 @@ pub struct Game {
     pub steam: Option<SteamMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gog: Option<GogMetadata>,
+    pub id: Option<IdMetadata>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -198,6 +199,12 @@ pub struct GogMetadata {
     pub id: Option<u64>,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub struct IdMetadata {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flatpak: Option<String>,
+}
+
 impl From<CustomGame> for Game {
     fn from(item: CustomGame) -> Self {
         let file_tuples = item.files.iter().map(|x| (x.to_string(), GameFileEntry::default()));
@@ -215,6 +222,7 @@ impl From<CustomGame> for Game {
             registry: Some(registry),
             steam: None,
             gog: None,
+            id: None,
         }
     }
 }
@@ -393,6 +401,16 @@ impl Manifest {
                 if let (None, Some(secondary)) = (standard.gog.as_ref(), game.gog) {
                     standard.gog = Some(secondary);
                 }
+
+                if let Some(secondary_id) = game.id {
+                    if let Some(standard_id) = &mut standard.id {
+                        if standard_id.flatpak.is_none() {
+                            standard_id.flatpak = secondary_id.flatpak;
+                        }
+                    } else {
+                        standard.id = Some(secondary_id);
+                    }
+                }
             } else {
                 log::debug!("adding game from secondary manifest: {name}");
 
@@ -440,6 +458,7 @@ mod tests {
                 registry: None,
                 steam: None,
                 gog: None,
+                id: None,
             },
             manifest.0["game"],
         );
@@ -469,6 +488,8 @@ mod tests {
                 id: 101
               gog:
                 id: 102
+              id:
+                flatpak: com.example.Game
             "#,
         )
         .unwrap();
@@ -501,6 +522,9 @@ mod tests {
                 }),
                 steam: Some(SteamMetadata { id: Some(101) }),
                 gog: Some(GogMetadata { id: Some(102) }),
+                id: Some(IdMetadata {
+                    flatpak: Some("com.example.Game".to_string())
+                }),
             },
             manifest.0["game"],
         );

@@ -12,6 +12,10 @@
   * Backups now record the operating system on which they were created.
     For the GUI, this is shown as a badge on the restore screen if you select a non-native backup.
     For the CLI, this is included in the output of the `backups` command.
+  * Ludusavi now supports Flatpak IDs (if present in the manifest)
+    in order to infer the correct `XDG_DATA_HOME` and `XDG_CONFIG_HOME`.
+    At this time, the primary manifest does not specify Flatpak IDs for any games,
+    but any such additions can be supported transparently in the future.
 * Changed:
   * The "merge" option has been removed, and merging is now always enforced.
     This option made sense before Ludusavi supported differential and cloud backups,

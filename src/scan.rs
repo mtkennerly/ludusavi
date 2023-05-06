@@ -23,7 +23,7 @@ use crate::{
     prelude::{filter_map_walkdir, Error, SKIP},
     resource::{
         config::{BackupFilter, RedirectConfig, RedirectKind, RootsConfig, SortKey, ToggledPaths, ToggledRegistry},
-        manifest::{Game, Os, Store},
+        manifest::{Game, IdMetadata, Os, Store},
     },
     scan::{heroic::HeroicGames, layout::LatestBackup},
 };
@@ -112,6 +112,7 @@ pub fn parse_paths(
     install_dir: &Option<String>,
     full_install_dir: &Option<&StrictPath>,
     steam_id: &Option<u32>,
+    ids: Option<&IdMetadata>,
     manifest_dir: &StrictPath,
     steam_shortcut: Option<&SteamShortcut>,
     platform: Os,
@@ -129,6 +130,7 @@ pub fn parse_paths(
     let data_dir = check_path(dirs::data_dir());
     let data_local_dir = check_path(dirs::data_local_dir());
     let config_dir = check_path(dirs::config_dir());
+    let home = check_path(dirs::home_dir());
 
     paths.insert((
         path.replace(ROOT, &root_interpreted)
@@ -143,7 +145,7 @@ pub fn parse_paths(
                     _ => format!("{}/{}", &root_interpreted, install_dir),
                 },
             )
-            .replace(HOME, &dirs::home_dir().unwrap_or_else(|| SKIP.into()).to_string_lossy())
+            .replace(HOME, &home)
             .replace(STORE_USER_ID, "*")
             .replace(OS_USER_NAME, &whoami::username())
             .replace(WIN_APP_DATA, check_windows_path_str(&data_dir))
@@ -303,6 +305,31 @@ pub fn parse_paths(
         ));
     }
 
+    if Os::HOST != Os::Windows {
+        if let Some(flatpak_id) = ids.and_then(|x| x.flatpak.as_ref()) {
+            paths.insert((
+                path.replace(HOME, &home)
+                    .replace(STORE_USER_ID, "*")
+                    .replace(OS_USER_NAME, "*")
+                    .replace(XDG_DATA, &format!("{home}/.var/app/{flatpak_id}/data"))
+                    .replace(XDG_CONFIG, &format!("{home}/.var/app/{flatpak_id}/config")),
+                platform.is_case_sensitive(),
+            ));
+
+            if root.store == Store::OtherHome {
+                let home = &root_interpreted;
+                paths.insert((
+                    path.replace(HOME, home)
+                        .replace(STORE_USER_ID, "*")
+                        .replace(OS_USER_NAME, "*")
+                        .replace(XDG_DATA, &format!("{home}/.var/app/{flatpak_id}/data"))
+                        .replace(XDG_CONFIG, &format!("{home}/.var/app/{flatpak_id}/config")),
+                    platform.is_case_sensitive(),
+                ));
+            }
+        }
+    }
+
     paths
         .iter()
         .map(|(x, y)| (StrictPath::relative(x.to_string(), Some(manifest_dir.interpret())), *y))
@@ -398,6 +425,7 @@ pub fn scan_game_for_backup(
                     &install_dir,
                     &full_install_dir,
                     &steam_id,
+                    game.id.as_ref(),
                     manifest_dir,
                     steam_shortcuts.get(name),
                     platform,
