@@ -27,7 +27,6 @@ pub enum BackupPhase {
         preview: bool,
         games: Option<Vec<String>>,
     },
-    PrepareDirectory,
     CloudCheck,
     Load,
     RegisterCommands {
@@ -74,7 +73,6 @@ pub enum RestorePhase {
 #[derive(Debug, Clone)]
 pub enum Message {
     Ignore,
-    Error(Error),
     Exit {
         user: bool,
     },

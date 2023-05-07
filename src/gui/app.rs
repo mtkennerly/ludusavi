@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use iced::{Alignment, Application, Command, Subscription};
+use iced::{widget::scrollable, Alignment, Application, Command, Subscription};
 
 use crate::{
     cloud::{rclone_monitor, Rclone, Remote},
@@ -72,7 +72,7 @@ pub struct App {
     updating_manifest: bool,
     notify_on_single_game_scanned: Option<(String, Screen)>,
     timed_notification: Option<Notification>,
-    scroll_offsets: HashMap<ScrollSubject, iced_native::widget::scrollable::RelativeOffset>,
+    scroll_offsets: HashMap<ScrollSubject, scrollable::RelativeOffset>,
     text_histories: TextHistories,
     rclone_monitor_sender: Option<iced_native::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
     exiting: bool,
@@ -191,27 +191,26 @@ impl App {
                     return Command::none();
                 }
 
+                if games.is_none() {
+                    self.backup_screen.log.clear();
+                    self.backup_screen.duplicate_detector.clear();
+                    self.reset_scroll_position();
+                }
+
                 self.operation =
                     Operation::new_backup(if preview { Finality::Preview } else { Finality::Final }, games);
 
-                self.handle_backup(BackupPhase::PrepareDirectory)
-            }
-            BackupPhase::PrepareDirectory => {
-                if self.operation.preview() {
-                    return self.handle_backup(BackupPhase::CloudCheck);
+                if !preview {
+                    if let Err(e) = prepare_backup_target(&self.config.backup.path) {
+                        self.show_error(e);
+                        return Command::none();
+                    }
                 }
 
-                self.modal = Some(Modal::PreparingBackupDir);
-
-                let backup_path = self.config.backup.path.clone();
-
-                Command::perform(
-                    async move { prepare_backup_target(&backup_path) },
-                    move |result| match result {
-                        Ok(_) => Message::Backup(BackupPhase::CloudCheck),
-                        Err(e) => Message::Error(e),
-                    },
-                )
+                Command::batch([
+                    self.refresh_scroll_position(),
+                    self.handle_backup(BackupPhase::CloudCheck),
+                ])
             }
             BackupPhase::CloudCheck => {
                 if self.operation.preview()
@@ -250,9 +249,6 @@ impl App {
                 let all_scanned = !self.backup_screen.log.contains_unscanned_games();
                 if let Some(games) = &games {
                     self.backup_screen.log.unscan_games(games);
-                } else {
-                    self.backup_screen.log.clear();
-                    self.backup_screen.duplicate_detector.clear();
                 }
                 self.modal = None;
                 self.progress.start();
@@ -553,6 +549,12 @@ impl App {
                     return Command::none();
                 }
 
+                if games.is_none() {
+                    self.restore_screen.log.clear();
+                    self.restore_screen.duplicate_detector.clear();
+                    self.reset_scroll_position();
+                }
+
                 self.operation =
                     Operation::new_restore(if preview { Finality::Preview } else { Finality::Final }, games);
 
@@ -560,7 +562,10 @@ impl App {
                 self.timed_notification = None;
                 self.modal = None;
 
-                self.handle_restore(RestorePhase::CloudCheck)
+                Command::batch([
+                    self.refresh_scroll_position(),
+                    self.handle_restore(RestorePhase::CloudCheck),
+                ])
             }
             RestorePhase::CloudCheck => {
                 if self.operation.preview()
@@ -619,9 +624,6 @@ impl App {
                 if let Some(games) = &games {
                     restorables.retain(|v| games.contains(v));
                     self.restore_screen.log.unscan_games(games);
-                } else {
-                    self.restore_screen.log.clear();
-                    self.restore_screen.duplicate_detector.clear();
                 }
 
                 if restorables.is_empty() {
@@ -878,13 +880,22 @@ impl App {
 
     fn switch_screen(&mut self, screen: Screen) -> Command<Message> {
         self.screen = screen;
-        let subject = ScrollSubject::from(screen);
+        self.refresh_scroll_position()
+    }
 
-        if let Some(offset) = self.scroll_offsets.get(&subject) {
-            iced::widget::scrollable::snap_to(subject.id(), *offset)
-        } else {
-            Command::none()
-        }
+    fn refresh_scroll_position(&mut self) -> Command<Message> {
+        let subject = ScrollSubject::from(self.screen);
+        let offset = self
+            .scroll_offsets
+            .get(&subject)
+            .copied()
+            .unwrap_or(scrollable::RelativeOffset::START);
+        scrollable::snap_to(subject.id(), offset)
+    }
+
+    fn reset_scroll_position(&mut self) {
+        let subject = ScrollSubject::from(self.screen);
+        self.scroll_offsets.insert(subject, scrollable::RelativeOffset::START);
     }
 
     fn configure_remote(&self, remote: Remote) -> Command<Message> {
@@ -985,10 +996,6 @@ impl Application for App {
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Ignore => Command::none(),
-            Message::Error(error) => {
-                self.show_error(error);
-                Command::none()
-            }
             Message::CloseModal => {
                 let need_cancel_cloud = matches!(
                     self.modal,
@@ -998,11 +1005,14 @@ impl Application for App {
                     )
                 );
                 self.modal = None;
-                if need_cancel_cloud {
-                    self.cancel_operation()
-                } else {
-                    Command::none()
-                }
+                Command::batch([
+                    self.refresh_scroll_position(),
+                    if need_cancel_cloud {
+                        self.cancel_operation()
+                    } else {
+                        Command::none()
+                    },
+                ])
             }
             Message::Exit { user } => {
                 if self.operation.idle() || (user && self.exiting) {
@@ -1194,14 +1204,9 @@ impl Application for App {
                 }
                 self.config.save();
                 if snap {
-                    self.scroll_offsets.insert(
-                        ScrollSubject::CustomGames,
-                        iced_native::widget::scrollable::RelativeOffset::END,
-                    );
-                    iced::widget::scrollable::snap_to(
-                        crate::gui::widget::id::custom_games_scroll(),
-                        iced::widget::scrollable::RelativeOffset::END,
-                    )
+                    self.scroll_offsets
+                        .insert(ScrollSubject::CustomGames, scrollable::RelativeOffset::END);
+                    self.refresh_scroll_position()
                 } else {
                     Command::none()
                 }
@@ -1942,7 +1947,7 @@ impl Application for App {
                 self.config.cloud.remote = Some(remote);
                 self.config.save();
                 self.modal = None;
-                Command::none()
+                self.refresh_scroll_position()
             }
             Message::ConfigureCloudFailure(error) => {
                 self.show_error(Error::UnableToConfigureCloud(error));

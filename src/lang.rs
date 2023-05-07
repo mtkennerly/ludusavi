@@ -598,10 +598,6 @@ impl Translator {
         translate("loading")
     }
 
-    pub fn preparing_backup_dir(&self) -> String {
-        translate("preparing-backup-target")
-    }
-
     pub fn updating_manifest(&self) -> String {
         translate("updating-manifest")
     }

@@ -81,7 +81,6 @@ pub enum Modal {
     },
     NoMissingRoots,
     ConfirmAddMissingRoots(Vec<RootsConfig>),
-    PreparingBackupDir,
     UpdatingManifest,
     ConfirmCloudSync {
         local: String,
@@ -116,7 +115,7 @@ pub enum Modal {
 impl Modal {
     pub fn variant(&self) -> ModalVariant {
         match self {
-            Self::Exiting | Self::PreparingBackupDir | Self::UpdatingManifest => ModalVariant::Loading,
+            Self::Exiting | Self::UpdatingManifest => ModalVariant::Loading,
             Self::Error { .. } | Self::Errors { .. } | Self::NoMissingRoots => ModalVariant::Info,
             Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
@@ -148,7 +147,6 @@ impl Modal {
             Self::ConfirmRestore { .. } => TRANSLATOR.confirm_restore(&config.restore.path, true),
             Self::NoMissingRoots => TRANSLATOR.no_missing_roots(),
             Self::ConfirmAddMissingRoots(missing) => TRANSLATOR.confirm_add_missing_roots(missing),
-            Self::PreparingBackupDir => TRANSLATOR.preparing_backup_dir(),
             Self::UpdatingManifest => TRANSLATOR.updating_manifest(),
             modal @ Self::ConfirmCloudSync {
                 local,
@@ -184,7 +182,7 @@ impl Modal {
                 games: games.clone(),
             })),
             Self::ConfirmAddMissingRoots(missing) => Some(Message::ConfirmAddMissingRoots(missing.clone())),
-            Self::PreparingBackupDir | Self::UpdatingManifest => None,
+            Self::UpdatingManifest => None,
             modal @ Self::ConfirmCloudSync {
                 direction,
                 syncing,
@@ -287,7 +285,6 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
-            | Self::PreparingBackupDir
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -311,7 +308,6 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
-            | Self::PreparingBackupDir
             | Self::UpdatingManifest => (),
             modal @ Self::ConfirmCloudSync {
                 changes,
@@ -478,7 +474,6 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
-            | Self::PreparingBackupDir
             | Self::UpdatingManifest
             | Self::ConfirmCloudSync { .. } => (),
         }
@@ -497,7 +492,6 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
-            | Self::PreparingBackupDir
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -517,7 +511,6 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
-            | Self::PreparingBackupDir
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -537,7 +530,6 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
-            | Self::PreparingBackupDir
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -555,7 +547,6 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
-            | Self::PreparingBackupDir
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -573,7 +564,6 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
-            | Self::PreparingBackupDir
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
