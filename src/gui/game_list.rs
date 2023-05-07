@@ -307,12 +307,14 @@ impl GameListEntry {
                             .padding([0, 20])
                             .spacing(20)
                             .push(Text::new(TRANSLATOR.comment_label()))
-                            .push(TextInput::new(&TRANSLATOR.comment_label(), comment, move |value| {
-                                Message::EditedBackupComment {
-                                    game: name_for_comment.clone(),
-                                    comment: value,
-                                }
-                            }))
+                            .push(
+                                TextInput::new(&TRANSLATOR.comment_label(), comment).on_input(move |value| {
+                                    Message::EditedBackupComment {
+                                        game: name_for_comment.clone(),
+                                        comment: value,
+                                    }
+                                }),
+                            )
                             .push(button::close(Message::GameAction {
                                 action: GameAction::Comment,
                                 game: name_for_comment2,

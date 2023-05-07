@@ -38,7 +38,7 @@ impl ModalField {
             .align_items(Alignment::Center)
             .push(Text::new(label).width(150))
             .push({
-                let input = TextInput::new("", value, move |x| Message::EditedModalField(change(x)));
+                let input = TextInput::new("", value).on_input(move |x| Message::EditedModalField(change(x)));
 
                 if privacy.sensitive() {
                     input.password()

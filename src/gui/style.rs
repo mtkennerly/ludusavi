@@ -328,7 +328,7 @@ impl scrollable::StyleSheet for Theme {
         }
     }
 
-    fn hovered(&self, style: &Self::Style) -> scrollable::Scrollbar {
+    fn hovered(&self, style: &Self::Style, _is_mouse_over_scrollbar: bool) -> scrollable::Scrollbar {
         let active = self.active(style);
 
         scrollable::Scrollbar {
@@ -410,6 +410,7 @@ impl text_input::StyleSheet for Theme {
             border_radius: 5.0,
             border_width: 1.0,
             border_color: self.text.alpha(0.8),
+            icon_color: self.text,
         }
     }
 
@@ -428,8 +429,19 @@ impl text_input::StyleSheet for Theme {
         self.text
     }
 
+    fn disabled_color(&self, _style: &Self::Style) -> Color {
+        self.text.alpha(0.5)
+    }
+
     fn selection_color(&self, _style: &Self::Style) -> Color {
         self.text_selection
+    }
+
+    fn disabled(&self, style: &Self::Style) -> text_input::Appearance {
+        text_input::Appearance {
+            background: self.disabled.into(),
+            ..self.active(style)
+        }
     }
 }
 

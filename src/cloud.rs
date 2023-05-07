@@ -720,7 +720,7 @@ pub mod rclone_monitor {
                     let (sender, receiver) = mpsc::channel(10_000);
 
                     (
-                        Some(Event::Ready(sender)),
+                        Event::Ready(sender),
                         State::Ready {
                             receiver,
                             process: None,
@@ -732,7 +732,7 @@ pub mod rclone_monitor {
                     mut receiver,
                     mut process,
                     mut interval,
-                } => {
+                } => loop {
                     let input = tokio::select!(
                         input = receiver.select_next_some() => {
                             input
@@ -748,21 +748,13 @@ pub mod rclone_monitor {
                                 let _ = proc.child.kill();
                             }
                             process = Some(new_process);
-                            (
-                                None,
-                                State::Ready {
-                                    receiver,
-                                    process,
-                                    interval,
-                                },
-                            )
                         }
                         Input::Tick => {
                             if let Some(proc) = process.as_mut() {
                                 let events = proc.events();
                                 if !events.is_empty() {
                                     return (
-                                        Some(Event::Data(events)),
+                                        Event::Data(events),
                                         State::Ready {
                                             receiver,
                                             process,
@@ -774,7 +766,7 @@ pub mod rclone_monitor {
                                     match outcome {
                                         Ok(_) => {
                                             return (
-                                                Some(Event::Succeeded),
+                                                Event::Succeeded,
                                                 State::Ready {
                                                     receiver,
                                                     process: None,
@@ -784,7 +776,7 @@ pub mod rclone_monitor {
                                         }
                                         Err(e) => {
                                             return (
-                                                Some(Event::Failed(e)),
+                                                Event::Failed(e),
                                                 State::Ready {
                                                     receiver,
                                                     process: None,
@@ -795,30 +787,22 @@ pub mod rclone_monitor {
                                     }
                                 }
                             }
-                            (
-                                None,
-                                State::Ready {
-                                    receiver,
-                                    process,
-                                    interval,
-                                },
-                            )
                         }
                         Input::Cancel => {
                             if let Some(proc) = process.as_mut() {
                                 let _ = proc.kill();
                             }
-                            (
-                                Some(Event::Cancelled),
+                            return (
+                                Event::Cancelled,
                                 State::Ready {
                                     receiver,
                                     process: None,
                                     interval,
                                 },
-                            )
+                            );
                         }
                     }
-                }
+                },
             }
         })
     }

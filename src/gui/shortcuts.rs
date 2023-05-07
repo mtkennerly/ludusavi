@@ -320,7 +320,8 @@ impl TextHistories {
         };
 
         Undoable::new(
-            TextInput::new(&placeholder, &current, event)
+            TextInput::new(&placeholder, &current)
+                .on_input(event)
                 .style(style::TextInput)
                 .width(Length::Fill)
                 .padding(5),
