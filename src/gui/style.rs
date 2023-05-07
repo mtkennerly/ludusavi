@@ -25,7 +25,6 @@ impl ColorExt for Color {
 
 pub struct Theme {
     background: Color,
-    background_secondary: Color,
     field: Color,
     text: Color,
     text_inverted: Color,
@@ -53,7 +52,6 @@ impl From<config::Theme> for Theme {
         match source {
             config::Theme::Light => Self {
                 background: Color::WHITE,
-                background_secondary: rgb8!(210, 210, 210),
                 field: rgb8!(230, 230, 230),
                 text: Color::BLACK,
                 text_inverted: Color::WHITE,
@@ -71,7 +69,6 @@ impl From<config::Theme> for Theme {
             },
             config::Theme::Dark => Self {
                 background: rgb8!(41, 41, 41),
-                background_secondary: rgb8!(100, 100, 100),
                 field: rgb8!(74, 74, 74),
                 text: Color::WHITE,
                 text_inverted: Color::BLACK,
@@ -236,7 +233,6 @@ pub enum Container {
     #[default]
     Wrapper,
     Primary,
-    Secondary,
     ModalBackground,
     GameListEntry,
     Badge,
@@ -254,7 +250,6 @@ impl container::StyleSheet for Theme {
         container::Appearance {
             background: match style {
                 Self::Style::Wrapper => Color::TRANSPARENT.into(),
-                Self::Style::Secondary => self.background_secondary.into(),
                 Self::Style::GameListEntry => self.field.alpha(0.15).into(),
                 Self::Style::ModalBackground | Self::Style::Notification | Self::Style::Tooltip => self.field.into(),
                 Self::Style::DisabledBackup => self.disabled.into(),
@@ -452,9 +447,9 @@ impl iced::widget::progress_bar::StyleSheet for Theme {
 
     fn appearance(&self, _style: &Self::Style) -> iced_style::progress_bar::Appearance {
         iced_style::progress_bar::Appearance {
-            background: self.field.alpha(0.15).into(),
+            background: self.disabled.into(),
             bar: self.added.into(),
-            border_radius: 2.0,
+            border_radius: 4.0,
         }
     }
 }

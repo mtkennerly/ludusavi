@@ -173,10 +173,11 @@ impl Progress {
                 .align_items(Alignment::Center)
                 .push_some(|| label.map(|x| Text::new(x).size(15)))
                 .push_some(|| elapsed.map(|x| Text::new(x).size(15)))
-                .push(ProgressBar::new(0.0..=self.max, self.current).height(15))
+                .push(ProgressBar::new(0.0..=self.max, self.current).height(8))
                 .push_some(|| count.map(|x| Text::new(x).size(15))),
         )
-        .style(style::Container::Secondary)
+        .height(15)
+        .style(style::Container::ModalBackground)
         .into()
     }
 }
