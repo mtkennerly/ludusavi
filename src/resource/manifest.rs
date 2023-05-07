@@ -154,6 +154,32 @@ pub struct Game {
     pub id: Option<IdMetadata>,
 }
 
+impl Game {
+    /// This is intended for secondary manifests.
+    fn normalize_relative_paths(&mut self) {
+        use placeholder::BASE;
+        if let Some(files) = self.files.as_mut() {
+            *files = files
+                .iter_mut()
+                .map(|(k, v)| {
+                    let v = v.clone();
+                    if let Some(k) = k.strip_prefix("./") {
+                        (format!("{BASE}/{k}"), v)
+                    } else if let Some(k) = k.strip_prefix(".\\") {
+                        (format!("{BASE}/{k}"), v)
+                    } else if let Some(k) = k.strip_prefix("../") {
+                        (format!("{BASE}/../{k}"), v)
+                    } else if let Some(k) = k.strip_prefix("..\\") {
+                        (format!("{BASE}/../{k}"), v)
+                    } else {
+                        (k.clone(), v)
+                    }
+                })
+                .collect();
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GameFileEntry {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -363,6 +389,8 @@ impl Manifest {
 
     fn incorporate_secondary_manifest(&mut self, path: StrictPath, secondary: Manifest) {
         for (name, mut game) in secondary.0 {
+            game.normalize_relative_paths();
+
             if let Some(standard) = self.0.get_mut(&name) {
                 log::debug!("overriding game from secondary manifest: {name}");
 
