@@ -323,8 +323,12 @@ impl scrollable::StyleSheet for Theme {
         }
     }
 
-    fn hovered(&self, style: &Self::Style, _is_mouse_over_scrollbar: bool) -> scrollable::Scrollbar {
+    fn hovered(&self, style: &Self::Style, is_mouse_over_scrollbar: bool) -> scrollable::Scrollbar {
         let active = self.active(style);
+
+        if !is_mouse_over_scrollbar {
+            return active;
+        }
 
         scrollable::Scrollbar {
             background: self.text.alpha(0.4).into(),
