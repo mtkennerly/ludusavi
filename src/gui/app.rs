@@ -1649,7 +1649,19 @@ impl Application for App {
                     self.backup_screen.log.modifiers = modifiers;
                     self.restore_screen.log.modifiers = modifiers;
                 }
-                Command::none()
+                match event {
+                    iced::keyboard::Event::KeyPressed {
+                        key_code: iced::keyboard::KeyCode::Tab,
+                        modifiers,
+                    } => {
+                        if modifiers.shift() {
+                            iced::widget::focus_previous()
+                        } else {
+                            iced::widget::focus_next()
+                        }
+                    }
+                    _ => Command::none(),
+                }
             }
             Message::UndoRedo(action, subject) => {
                 let shortcut = Shortcut::from(action);
