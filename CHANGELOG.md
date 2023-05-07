@@ -18,6 +18,8 @@
     in order to infer the correct `XDG_DATA_HOME` and `XDG_CONFIG_HOME`.
     At this time, the primary manifest does not specify Flatpak IDs for any games,
     but any such additions can be supported transparently in the future.
+  * GUI: Input fields now show an error icon for paths like `http://` and `ssh://`
+    since these are not supported and will be mangled into a local path.
 * Changed:
   * The "merge" option has been removed, and merging is now always enforced.
     This option made sense before Ludusavi supported differential and cloud backups,

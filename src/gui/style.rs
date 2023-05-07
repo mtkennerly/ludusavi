@@ -409,7 +409,7 @@ impl text_input::StyleSheet for Theme {
             border_radius: 5.0,
             border_width: 1.0,
             border_color: self.text.alpha(0.8),
-            icon_color: self.text,
+            icon_color: self.negative,
         }
     }
 

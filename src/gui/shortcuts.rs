@@ -3,7 +3,7 @@
 
 use std::collections::VecDeque;
 
-use iced::Length;
+use iced::{widget::text_input, Length};
 
 use crate::{
     cloud::Remote,
@@ -17,6 +17,10 @@ use crate::{
     resource::config::{Config, CustomGame},
     scan::registry_compat::RegistryItem,
 };
+
+fn path_appears_valid(path: &str) -> bool {
+    !path.contains("://")
+}
 
 pub enum Shortcut {
     Undo,
@@ -319,12 +323,45 @@ impl TextHistories {
             UndoSubject::CloudPath => "".to_string(),
         };
 
+        let icon = match subject {
+            UndoSubject::BackupTarget
+            | UndoSubject::RestoreSource
+            | UndoSubject::Root(_)
+            | UndoSubject::RedirectSource(_)
+            | UndoSubject::RedirectTarget(_)
+            | UndoSubject::CustomGameFile(_, _)
+            | UndoSubject::BackupFilterIgnoredPath(_)
+            | UndoSubject::RcloneExecutable => (!path_appears_valid(&current)).then_some(text_input::Icon {
+                font: crate::gui::icon::ICONS,
+                code_point: crate::gui::icon::Icon::Error.as_char(),
+                size: None,
+                spacing: 5.0,
+                side: text_input::Side::Right,
+            }),
+            UndoSubject::BackupSearchGameName
+            | UndoSubject::RestoreSearchGameName
+            | UndoSubject::CustomGameName(_)
+            | UndoSubject::CustomGameRegistry(_, _)
+            | UndoSubject::BackupFilterIgnoredRegistry(_)
+            | UndoSubject::RcloneArguments
+            | UndoSubject::CloudRemoteId
+            | UndoSubject::CloudPath => None,
+        };
+
         Undoable::new(
-            TextInput::new(&placeholder, &current)
-                .on_input(event)
-                .style(style::TextInput)
-                .width(Length::Fill)
-                .padding(5),
+            {
+                let mut input = TextInput::new(&placeholder, &current)
+                    .on_input(event)
+                    .style(style::TextInput)
+                    .width(Length::Fill)
+                    .padding(5);
+
+                if let Some(icon) = icon {
+                    input = input.icon(icon);
+                }
+
+                input
+            },
             move |action| Message::UndoRedo(action, subject),
         )
         .into()
