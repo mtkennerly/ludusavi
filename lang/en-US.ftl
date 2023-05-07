@@ -140,6 +140,7 @@ label-custom = Custom
 label-none = None
 label-change-count = Changes: {$total}
 
+store-ea = EA
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy

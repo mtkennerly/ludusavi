@@ -75,6 +75,8 @@ impl From<&str> for Os {
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Store {
+    #[serde(rename = "ea")]
+    Ea,
     #[serde(rename = "epic")]
     Epic,
     #[serde(rename = "gog")]
@@ -104,6 +106,7 @@ pub enum Store {
 
 impl Store {
     pub const ALL: &'static [Self] = &[
+        Store::Ea,
         Store::Epic,
         Store::Gog,
         Store::GogGalaxy,

@@ -811,6 +811,9 @@ impl Config {
             (format!("{}/WindowsApps", pf64), Store::Microsoft),
             // Prime Gaming:
             ("C:/Amazon Games/Library".to_string(), Store::Prime),
+            // EA app:
+            (format!("{}/EA Games", pf32), Store::Ea),
+            (format!("{}/EA Games", pf64), Store::Ea),
         ];
 
         if let Some(data_dir) = dirs::data_dir() {

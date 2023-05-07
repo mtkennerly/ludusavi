@@ -777,6 +777,7 @@ impl Translator {
 
     pub fn store(&self, store: &Store) -> String {
         translate(match store {
+            Store::Ea => "store-ea",
             Store::Epic => "store-epic",
             Store::Gog => "store-gog",
             Store::GogGalaxy => "store-gog-galaxy",
