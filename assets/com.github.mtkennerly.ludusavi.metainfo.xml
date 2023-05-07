@@ -5,8 +5,8 @@
     <project_license>MIT</project_license>
     <name>ludusavi</name>
     <developer_name>mtkennerly</developer_name>
-    <url type="homepage">https://github.com/mtkennerly/ludusavi/</url>
     <summary>Ludusavi is a tool for backing up your PC video game save data.</summary>
+    <url type="homepage">https://github.com/mtkennerly/ludusavi/</url>
     <url type="bugtracker">https://github.com/mtkennerly/ludusavi/issues</url>
     <url type="translate">https://crowdin.com/project/ludusavi</url>
     <description>
@@ -21,6 +21,34 @@
             <li>Support for saves that are stored as files and in the Windows registry, Proton saves with Steam, and Steam screenshots.</li>
         </ul>
     </description>
+    <categories>
+        <category>Utility</category>
+        <category>Archiving</category>
+        <category>Compression</category>
+    </categories>
+    <keywords>
+        <keyword>archive</keyword>
+        <keyword>backup</keyword>
+        <keyword>backups</keyword>
+        <keyword>cloud</keyword>
+        <keyword>saves</keyword>
+
+        <keyword>game</keyword>
+        <keyword>games</keyword>
+        <keyword>gaming</keyword>
+        <keyword>videogame</keyword>
+        <keyword>videogames</keyword>
+
+        <keyword>CLI</keyword>
+        <keyword>GUI</keyword>
+        <keyword translate="no">zip</keyword>
+
+        <keyword translate="no">Epic</keyword>
+        <keyword translate="no">GOG</keyword>
+        <keyword translate="no">Heroic</keyword>
+        <keyword translate="no">Proton</keyword>
+        <keyword translate="no">Steam</keyword>
+    </keywords>
     <screenshots>
         <screenshot type="default">
             <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.17.1/docs/sample-gui-linux.png</image>
