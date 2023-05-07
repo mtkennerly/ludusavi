@@ -567,6 +567,15 @@ cross-platform and cross-store solution:
   * Database is not actively updated (as of 2022-11-16, the last update was 2018-06-05).
   * No command line interface.
 
+## Troubleshooting
+* The file/folder picker doesn't work.
+  * **Linux:** Make sure that you have Zenity or kdialog installed and available on the `PATH`.
+    The `DISPLAY` environment variable must also be set.
+  * **Steam Deck:** Use desktop mode instead of game mode.
+  * **Flatpak:** The `DISPLAY` environment variable may not be getting passed through to the container.
+    This has been observed on GNOME systems.
+    Try running `flatpak run --nosocket=fallback-x11 --socket=x11 com.github.mtkennerly.ludusavi`.
+
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
 
