@@ -7,7 +7,7 @@ use crate::{
     gui::{
         button,
         common::*,
-        modal::Modal,
+        modal::{Modal, ModalField, ModalInputKind},
         notification::Notification,
         screen,
         shortcuts::{Shortcut, TextHistories, TextHistory},
@@ -1728,6 +1728,16 @@ impl Application for App {
                     UndoSubject::CloudPath => {
                         shortcut.apply_to_string_field(&mut self.config.cloud.path, &mut self.text_histories.cloud_path)
                     }
+                    UndoSubject::ModalField(field) => {
+                        match field {
+                            ModalInputKind::Url => self.text_histories.modal.url.apply(shortcut),
+                            ModalInputKind::Host => self.text_histories.modal.host.apply(shortcut),
+                            ModalInputKind::Port => self.text_histories.modal.port.apply(shortcut),
+                            ModalInputKind::Username => self.text_histories.modal.username.apply(shortcut),
+                            ModalInputKind::Password => self.text_histories.modal.password.apply(shortcut),
+                        }
+                        return Command::none();
+                    }
                 }
                 self.config.save();
                 Command::none()
@@ -1906,12 +1916,12 @@ impl Application for App {
                             username,
                             password,
                         } => {
-                            self.modal = Some(Modal::ConfigureFtpRemote {
-                                host: host.clone(),
-                                port: port.to_string(),
-                                username: username.clone(),
-                                password: password.clone(),
-                            });
+                            self.text_histories.modal.host.initialize(host.clone());
+                            self.text_histories.modal.port.initialize(port.to_string());
+                            self.text_histories.modal.username.initialize(username.clone());
+                            self.text_histories.modal.password.initialize(password.clone());
+
+                            self.modal = Some(Modal::ConfigureFtpRemote);
                             Command::none()
                         }
                         Remote::Smb {
@@ -1921,12 +1931,12 @@ impl Application for App {
                             username,
                             password,
                         } => {
-                            self.modal = Some(Modal::ConfigureSmbRemote {
-                                host: host.clone(),
-                                port: port.to_string(),
-                                username: username.clone(),
-                                password: password.clone(),
-                            });
+                            self.text_histories.modal.host.initialize(host.clone());
+                            self.text_histories.modal.port.initialize(port.to_string());
+                            self.text_histories.modal.username.initialize(username.clone());
+                            self.text_histories.modal.password.initialize(password.clone());
+
+                            self.modal = Some(Modal::ConfigureSmbRemote);
                             Command::none()
                         }
                         Remote::WebDav {
@@ -1936,12 +1946,11 @@ impl Application for App {
                             password,
                             provider,
                         } => {
-                            self.modal = Some(Modal::ConfigureWebDavRemote {
-                                url: url.clone(),
-                                username: username.clone(),
-                                password: password.clone(),
-                                provider: *provider,
-                            });
+                            self.text_histories.modal.url.initialize(url.clone());
+                            self.text_histories.modal.username.initialize(username.clone());
+                            self.text_histories.modal.password.initialize(password.clone());
+
+                            self.modal = Some(Modal::ConfigureWebDavRemote { provider: *provider });
                             Command::none()
                         }
                         Remote::Box { .. }
@@ -1956,12 +1965,16 @@ impl Application for App {
                 }
             }
             Message::ConfigureCloudSuccess(remote) => {
+                self.text_histories.clear_modal_fields();
+
                 self.config.cloud.remote = Some(remote);
                 self.config.save();
                 self.modal = None;
                 self.refresh_scroll_position()
             }
             Message::ConfigureCloudFailure(error) => {
+                self.text_histories.clear_modal_fields();
+
                 self.show_error(Error::UnableToConfigureCloud(error));
                 self.config.cloud.remote = None;
                 self.config.save();
@@ -2049,8 +2062,27 @@ impl Application for App {
                 Command::none()
             }
             Message::EditedModalField(field) => {
-                if let Some(modal) = self.modal.as_mut() {
-                    modal.edit(field);
+                match field {
+                    ModalField::Url(new) => {
+                        self.text_histories.modal.url.push(&new);
+                    }
+                    ModalField::Host(new) => {
+                        self.text_histories.modal.host.push(&new);
+                    }
+                    ModalField::Port(new) => {
+                        self.text_histories.modal.port.push(&new);
+                    }
+                    ModalField::Username(new) => {
+                        self.text_histories.modal.username.push(&new);
+                    }
+                    ModalField::Password(new) => {
+                        self.text_histories.modal.password.push(&new);
+                    }
+                    ModalField::WebDavProvider(new) => {
+                        if let Some(Modal::ConfigureWebDavRemote { provider }) = self.modal.as_mut() {
+                            *provider = new;
+                        }
+                    }
                 }
                 Command::none()
             }
@@ -2096,7 +2128,10 @@ impl Application for App {
     fn view(&self) -> Element {
         if let Some(m) = &self.modal {
             return Column::new()
-                .push(m.view(&self.config).style(style::Container::Primary))
+                .push(
+                    m.view(&self.config, &self.text_histories)
+                        .style(style::Container::Primary),
+                )
                 .push_if(|| self.progress.visible(), || self.progress.view(&self.operation))
                 .into();
         }

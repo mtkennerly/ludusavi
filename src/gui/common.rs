@@ -2,9 +2,12 @@ use iced::Length;
 
 use crate::{
     cloud::{rclone_monitor, Remote, RemoteChoice},
-    gui::{icon::Icon, modal::ModalField},
+    gui::{
+        icon::Icon,
+        modal::{ModalField, ModalInputKind},
+    },
     lang::{Language, TRANSLATOR},
-    prelude::{CommandError, Error, Finality, StrictPath, SyncDirection},
+    prelude::{CommandError, Error, Finality, Privacy, StrictPath, SyncDirection},
     resource::{
         config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
         manifest::{Manifest, ManifestUpdate, Store},
@@ -537,6 +540,36 @@ pub enum UndoSubject {
     RcloneArguments,
     CloudRemoteId,
     CloudPath,
+    ModalField(ModalInputKind),
+}
+
+impl UndoSubject {
+    pub fn privacy(&self) -> Privacy {
+        match self {
+            UndoSubject::BackupTarget
+            | UndoSubject::RestoreSource
+            | UndoSubject::BackupSearchGameName
+            | UndoSubject::RestoreSearchGameName
+            | UndoSubject::Root(_)
+            | UndoSubject::RedirectSource(_)
+            | UndoSubject::RedirectTarget(_)
+            | UndoSubject::CustomGameName(_)
+            | UndoSubject::CustomGameFile(_, _)
+            | UndoSubject::CustomGameRegistry(_, _)
+            | UndoSubject::BackupFilterIgnoredPath(_)
+            | UndoSubject::BackupFilterIgnoredRegistry(_)
+            | UndoSubject::RcloneExecutable
+            | UndoSubject::RcloneArguments
+            | UndoSubject::CloudRemoteId
+            | UndoSubject::CloudPath => Privacy::Public,
+            UndoSubject::ModalField(field) => match field {
+                ModalInputKind::Url | ModalInputKind::Host | ModalInputKind::Port | ModalInputKind::Username => {
+                    Privacy::Public
+                }
+                ModalInputKind::Password => Privacy::Private,
+            },
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]

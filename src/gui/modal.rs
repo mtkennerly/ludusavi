@@ -5,12 +5,13 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{BackupPhase, Message, RestorePhase, ScrollSubject},
+        common::{BackupPhase, Message, RestorePhase, ScrollSubject, UndoSubject},
+        shortcuts::TextHistories,
         style,
-        widget::{Column, Container, Element, IcedParentExt, PickList, Row, Space, Text, TextInput},
+        widget::{Column, Container, Element, IcedParentExt, PickList, Row, Space, Text},
     },
     lang::TRANSLATOR,
-    prelude::{Error, Finality, Privacy, SyncDirection},
+    prelude::{Error, Finality, SyncDirection},
     resource::config::{Config, RootsConfig},
 };
 
@@ -20,6 +21,15 @@ pub enum ModalVariant {
     Loading,
     Info,
     Confirm,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ModalInputKind {
+    Url,
+    Host,
+    Port,
+    Username,
+    Password,
 }
 
 #[derive(Debug, Clone)]
@@ -33,19 +43,19 @@ pub enum ModalField {
 }
 
 impl ModalField {
-    pub fn view<'a>(label: String, value: &str, change: fn(String) -> Self, privacy: Privacy) -> Row<'a> {
+    pub fn view<'a>(kind: ModalInputKind, histories: &TextHistories) -> Row<'a> {
+        let label = match kind {
+            ModalInputKind::Url => TRANSLATOR.url_label(),
+            ModalInputKind::Host => TRANSLATOR.host_label(),
+            ModalInputKind::Port => TRANSLATOR.port_label(),
+            ModalInputKind::Username => TRANSLATOR.username_label(),
+            ModalInputKind::Password => TRANSLATOR.password_label(),
+        };
+
         Row::new()
             .align_items(Alignment::Center)
             .push(Text::new(label).width(150))
-            .push({
-                let input = TextInput::new("", value).on_input(move |x| Message::EditedModalField(change(x)));
-
-                if privacy.sensitive() {
-                    input.password()
-                } else {
-                    input
-                }
-            })
+            .push(histories.input(UndoSubject::ModalField(kind)))
     }
 
     pub fn view_pick_list<'a, T>(label: String, value: &'a T, choices: &'a [T], change: fn(T) -> Self) -> Row<'a>
@@ -92,22 +102,9 @@ pub enum Modal {
         previewing: bool,
         syncing: bool,
     },
-    ConfigureFtpRemote {
-        host: String,
-        port: String,
-        username: String,
-        password: String,
-    },
-    ConfigureSmbRemote {
-        host: String,
-        port: String,
-        username: String,
-        password: String,
-    },
+    ConfigureFtpRemote,
+    ConfigureSmbRemote,
     ConfigureWebDavRemote {
-        url: String,
-        username: String,
-        password: String,
         provider: WebDavProvider,
     },
 }
@@ -169,7 +166,7 @@ impl Modal {
         }
     }
 
-    pub fn message(&self) -> Option<Message> {
+    pub fn message(&self, histories: &TextHistories) -> Option<Message> {
         match self {
             Self::Error { .. } | Self::Errors { .. } | Self::NoMissingRoots => Some(Message::CloseModal),
             Self::Exiting => None,
@@ -198,58 +195,57 @@ impl Modal {
                     })
                 }
             }
-            Self::ConfigureFtpRemote {
-                host,
-                port,
-                username,
-                password,
-            } => {
+            Self::ConfigureFtpRemote => {
+                let host = histories.modal.host.current();
+                let port = histories.modal.port.current();
+                let username = histories.modal.username.current();
+                let password = histories.modal.password.current();
+
                 let Ok(port) = port.parse::<i32>() else { return None };
                 if host.is_empty() || username.is_empty() {
                     None
                 } else {
                     Some(Message::FinalizeRemote(Remote::Ftp {
                         id: Remote::generate_id(),
-                        host: host.clone(),
+                        host,
                         port,
-                        username: username.clone(),
-                        password: password.clone(),
+                        username,
+                        password,
                     }))
                 }
             }
-            Self::ConfigureSmbRemote {
-                host,
-                port,
-                username,
-                password,
-            } => {
+            Self::ConfigureSmbRemote => {
+                let host = histories.modal.host.current();
+                let port = histories.modal.port.current();
+                let username = histories.modal.username.current();
+                let password = histories.modal.password.current();
+
                 let Ok(port) = port.parse::<i32>() else { return None };
                 if host.is_empty() || username.is_empty() {
                     None
                 } else {
                     Some(Message::FinalizeRemote(Remote::Smb {
                         id: Remote::generate_id(),
-                        host: host.clone(),
+                        host,
                         port,
-                        username: username.clone(),
-                        password: password.clone(),
+                        username,
+                        password,
                     }))
                 }
             }
-            Self::ConfigureWebDavRemote {
-                url,
-                username,
-                password,
-                provider,
-            } => {
+            Self::ConfigureWebDavRemote { provider } => {
+                let url = histories.modal.url.current();
+                let username = histories.modal.username.current();
+                let password = histories.modal.password.current();
+
                 if url.is_empty() || username.is_empty() {
                     None
                 } else {
                     Some(Message::FinalizeRemote(Remote::WebDav {
                         id: Remote::generate_id(),
-                        url: url.clone(),
-                        username: username.clone(),
-                        password: password.clone(),
+                        url,
+                        username,
+                        password,
                         provider: *provider,
                     }))
                 }
@@ -292,7 +288,7 @@ impl Modal {
         }
     }
 
-    pub fn body(&self, config: &Config) -> Column {
+    pub fn body(&self, config: &Config, histories: &TextHistories) -> Column {
         let mut col = Column::new()
             .width(Length::Fill)
             .spacing(15)
@@ -356,71 +352,20 @@ impl Modal {
                         );
                 }
             }
-            Self::ConfigureFtpRemote {
-                host,
-                port,
-                username,
-                password,
-            }
-            | Self::ConfigureSmbRemote {
-                host,
-                port,
-                username,
-                password,
-            } => {
+            Self::ConfigureFtpRemote { .. } | Self::ConfigureSmbRemote { .. } => {
                 col = col
                     .width(500)
-                    .push(ModalField::view(
-                        TRANSLATOR.host_label(),
-                        host,
-                        ModalField::Host,
-                        Privacy::Public,
-                    ))
-                    .push(ModalField::view(
-                        TRANSLATOR.port_label(),
-                        port,
-                        ModalField::Port,
-                        Privacy::Public,
-                    ))
-                    .push(ModalField::view(
-                        TRANSLATOR.username_label(),
-                        username,
-                        ModalField::Username,
-                        Privacy::Public,
-                    ))
-                    .push(ModalField::view(
-                        TRANSLATOR.password_label(),
-                        password,
-                        ModalField::Password,
-                        Privacy::Private,
-                    ));
+                    .push(ModalField::view(ModalInputKind::Host, histories))
+                    .push(ModalField::view(ModalInputKind::Port, histories))
+                    .push(ModalField::view(ModalInputKind::Username, histories))
+                    .push(ModalField::view(ModalInputKind::Password, histories));
             }
-            Self::ConfigureWebDavRemote {
-                url,
-                username,
-                password,
-                provider,
-            } => {
+            Self::ConfigureWebDavRemote { provider, .. } => {
                 col = col
                     .width(500)
-                    .push(ModalField::view(
-                        TRANSLATOR.url_label(),
-                        url,
-                        ModalField::Url,
-                        Privacy::Public,
-                    ))
-                    .push(ModalField::view(
-                        TRANSLATOR.username_label(),
-                        username,
-                        ModalField::Username,
-                        Privacy::Public,
-                    ))
-                    .push(ModalField::view(
-                        TRANSLATOR.password_label(),
-                        password,
-                        ModalField::Password,
-                        Privacy::Private,
-                    ))
+                    .push(ModalField::view(ModalInputKind::Url, histories))
+                    .push(ModalField::view(ModalInputKind::Username, histories))
+                    .push(ModalField::view(ModalInputKind::Password, histories))
                     .push(ModalField::view_pick_list(
                         TRANSLATOR.provider_label(),
                         provider,
@@ -431,52 +376,6 @@ impl Modal {
         }
 
         col
-    }
-
-    pub fn edit(&mut self, field: ModalField) {
-        match self {
-            Modal::ConfigureFtpRemote {
-                host,
-                port,
-                username,
-                password,
-            }
-            | Modal::ConfigureSmbRemote {
-                host,
-                port,
-                username,
-                password,
-            } => match field {
-                ModalField::Url(_) => (),
-                ModalField::Host(new) => *host = new,
-                ModalField::Port(new) => *port = new,
-                ModalField::Username(new) => *username = new,
-                ModalField::Password(new) => *password = new,
-                ModalField::WebDavProvider(_) => (),
-            },
-            Self::ConfigureWebDavRemote {
-                url,
-                username,
-                password,
-                provider,
-            } => match field {
-                ModalField::Url(new) => *url = new,
-                ModalField::Host(_) => (),
-                ModalField::Port(_) => (),
-                ModalField::Username(new) => *username = new,
-                ModalField::Password(new) => *password = new,
-                ModalField::WebDavProvider(new) => *provider = new,
-            },
-            Self::Error { .. }
-            | Self::Errors { .. }
-            | Self::Exiting
-            | Self::ConfirmBackup { .. }
-            | Self::ConfirmRestore { .. }
-            | Self::NoMissingRoots
-            | Self::ConfirmAddMissingRoots(_)
-            | Self::UpdatingManifest
-            | Self::ConfirmCloudSync { .. } => (),
-        }
     }
 
     pub fn add_cloud_change(&mut self, change: CloudChange) {
@@ -571,14 +470,14 @@ impl Modal {
         }
     }
 
-    pub fn view(&self, config: &Config) -> Container {
+    pub fn view(&self, config: &Config, histories: &TextHistories) -> Container {
         let positive_button = button::primary(
             match self.variant() {
                 ModalVariant::Loading => TRANSLATOR.okay_button(), // dummy
                 ModalVariant::Info => TRANSLATOR.okay_button(),
                 ModalVariant::Confirm => TRANSLATOR.continue_button(),
             },
-            self.message(),
+            self.message(histories),
         );
 
         let negative_button = button::negative(TRANSLATOR.cancel_button(), Some(Message::CloseModal));
@@ -598,9 +497,11 @@ impl Modal {
                         .height(Length::FillPortion(self.body_height_portion()))
                         .align_items(Alignment::Center)
                         .push(
-                            Container::new(ScrollSubject::Modal.into_widget(self.body(config).padding([0, 30, 0, 30])))
-                                .padding([30, 5, 0, 0])
-                                .height(Length::Fill),
+                            Container::new(
+                                ScrollSubject::Modal.into_widget(self.body(config, histories).padding([0, 30, 0, 30])),
+                            )
+                            .padding([30, 5, 0, 0])
+                            .height(Length::Fill),
                         )
                         .push(
                             match self.variant() {

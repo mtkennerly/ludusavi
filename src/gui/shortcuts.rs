@@ -9,6 +9,7 @@ use crate::{
     cloud::Remote,
     gui::{
         common::{EditAction, Message, RedirectEditActionField, Screen, UndoSubject},
+        modal::{ModalField, ModalInputKind},
         style,
         widget::{Element, TextInput, Undoable},
     },
@@ -135,6 +136,16 @@ impl TextHistory {
         }
     }
 
+    pub fn clear(&mut self) {
+        self.initialize("".to_string());
+    }
+
+    pub fn initialize(&mut self, value: String) {
+        self.history.clear();
+        self.history.push_back(value);
+        self.position = 0;
+    }
+
     pub fn undo(&mut self) -> String {
         self.position = if self.position == 0 { 0 } else { self.position - 1 };
         self.current()
@@ -143,6 +154,17 @@ impl TextHistory {
     pub fn redo(&mut self) -> String {
         self.position = std::cmp::min(self.position + 1, self.history.len() - 1);
         self.current()
+    }
+
+    pub fn apply(&mut self, shortcut: Shortcut) {
+        match shortcut {
+            Shortcut::Undo => {
+                self.undo();
+            }
+            Shortcut::Redo => {
+                self.redo();
+            }
+        }
     }
 }
 
@@ -160,6 +182,15 @@ pub struct CustomGameHistory {
 }
 
 #[derive(Default)]
+pub struct ModalHistory {
+    pub url: TextHistory,
+    pub host: TextHistory,
+    pub port: TextHistory,
+    pub username: TextHistory,
+    pub password: TextHistory,
+}
+
+#[derive(Default)]
 pub struct TextHistories {
     pub backup_target: TextHistory,
     pub restore_source: TextHistory,
@@ -174,6 +205,7 @@ pub struct TextHistories {
     pub rclone_arguments: TextHistory,
     pub cloud_remote_id: TextHistory,
     pub cloud_path: TextHistory,
+    pub modal: ModalHistory,
 }
 
 impl TextHistories {
@@ -229,6 +261,14 @@ impl TextHistories {
         self.custom_games.push(history);
     }
 
+    pub fn clear_modal_fields(&mut self) {
+        self.modal.url.clear();
+        self.modal.host.clear();
+        self.modal.port.clear();
+        self.modal.username.clear();
+        self.modal.password.clear();
+    }
+
     pub fn input<'a>(&self, subject: UndoSubject) -> Element<'a> {
         let current = match subject {
             UndoSubject::BackupTarget => self.backup_target.current(),
@@ -263,6 +303,13 @@ impl TextHistories {
             UndoSubject::RcloneArguments => self.rclone_arguments.current(),
             UndoSubject::CloudRemoteId => self.cloud_remote_id.current(),
             UndoSubject::CloudPath => self.cloud_path.current(),
+            UndoSubject::ModalField(field) => match field {
+                ModalInputKind::Url => self.modal.url.current(),
+                ModalInputKind::Host => self.modal.host.current(),
+                ModalInputKind::Port => self.modal.port.current(),
+                ModalInputKind::Username => self.modal.username.current(),
+                ModalInputKind::Password => self.modal.password.current(),
+            },
         };
 
         let event: Box<dyn Fn(String) -> Message> = match subject {
@@ -302,6 +349,15 @@ impl TextHistories {
             UndoSubject::RcloneArguments => Box::new(Message::EditedRcloneArguments),
             UndoSubject::CloudRemoteId => Box::new(Message::EditedCloudRemoteId),
             UndoSubject::CloudPath => Box::new(Message::EditedCloudPath),
+            UndoSubject::ModalField(field) => Box::new(move |value| {
+                Message::EditedModalField(match field {
+                    ModalInputKind::Url => ModalField::Url(value),
+                    ModalInputKind::Host => ModalField::Host(value),
+                    ModalInputKind::Port => ModalField::Port(value),
+                    ModalInputKind::Username => ModalField::Username(value),
+                    ModalInputKind::Password => ModalField::Password(value),
+                })
+            }),
         };
 
         let placeholder = match subject {
@@ -321,6 +377,7 @@ impl TextHistories {
             UndoSubject::RcloneArguments => TRANSLATOR.arguments_label(),
             UndoSubject::CloudRemoteId => "".to_string(),
             UndoSubject::CloudPath => "".to_string(),
+            UndoSubject::ModalField(_) => "".to_string(),
         };
 
         let icon = match subject {
@@ -345,7 +402,8 @@ impl TextHistories {
             | UndoSubject::BackupFilterIgnoredRegistry(_)
             | UndoSubject::RcloneArguments
             | UndoSubject::CloudRemoteId
-            | UndoSubject::CloudPath => None,
+            | UndoSubject::CloudPath
+            | UndoSubject::ModalField(_) => None,
         };
 
         Undoable::new(
@@ -358,6 +416,10 @@ impl TextHistories {
 
                 if let Some(icon) = icon {
                     input = input.icon(icon);
+                }
+
+                if subject.privacy().sensitive() {
+                    input = input.password();
                 }
 
                 input
