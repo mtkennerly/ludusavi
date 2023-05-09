@@ -191,10 +191,12 @@ impl App {
                     return Command::none();
                 }
 
+                let mut cleared_log = false;
                 if games.is_none() {
                     self.backup_screen.log.clear();
                     self.backup_screen.duplicate_detector.clear();
                     self.reset_scroll_position();
+                    cleared_log = true;
                 }
 
                 self.operation =
@@ -208,7 +210,7 @@ impl App {
                 }
 
                 Command::batch([
-                    self.refresh_scroll_position(),
+                    self.refresh_scroll_position_on_log(cleared_log),
                     self.handle_backup(BackupPhase::CloudCheck),
                 ])
             }
@@ -549,10 +551,12 @@ impl App {
                     return Command::none();
                 }
 
+                let mut cleared_log = false;
                 if games.is_none() {
                     self.restore_screen.log.clear();
                     self.restore_screen.duplicate_detector.clear();
                     self.reset_scroll_position();
+                    cleared_log = true;
                 }
 
                 self.operation =
@@ -563,7 +567,7 @@ impl App {
                 self.modal = None;
 
                 Command::batch([
-                    self.refresh_scroll_position(),
+                    self.refresh_scroll_position_on_log(cleared_log),
                     self.handle_restore(RestorePhase::CloudCheck),
                 ])
             }
@@ -890,7 +894,18 @@ impl App {
             .get(&subject)
             .copied()
             .unwrap_or(scrollable::RelativeOffset::START);
+
+        // TODO: use `scroll_to` once it's released.
+        // https://github.com/iced-rs/iced/pull/1796
         scrollable::snap_to(subject.id(), offset)
+    }
+
+    fn refresh_scroll_position_on_log(&mut self, cleared: bool) -> Command<Message> {
+        if cleared {
+            self.refresh_scroll_position()
+        } else {
+            Command::none()
+        }
     }
 
     fn reset_scroll_position(&mut self) {
