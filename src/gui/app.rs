@@ -23,8 +23,8 @@ use crate::{
         ResourceFile, SaveableResourceFile,
     },
     scan::{
-        heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, registry_compat::RegistryItem,
-        scan_game_for_backup, BackupId, InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
+        layout::BackupLayout, prepare_backup_target, registry_compat::RegistryItem, scan_game_for_backup, BackupId,
+        Launchers, OperationStepDecision, SteamShortcuts, TitleFinder,
     },
 };
 
@@ -272,20 +272,19 @@ impl App {
                         let roots = config.expanded_roots();
                         let layout = BackupLayout::new(config.backup.path.clone(), config.backup.retention.clone());
                         let title_finder = TitleFinder::new(&all_games, &layout);
-                        let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects);
+                        // let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects);
                         let steam = SteamShortcuts::scan();
-                        let heroic = HeroicGames::scan(&roots, &title_finder, None);
+                        let launchers = Launchers::scan(&roots, &all_games, &subjects, &title_finder, None);
 
-                        (subjects, all_games, layout, ranking, steam, heroic)
+                        (subjects, all_games, layout, steam, launchers)
                     },
-                    move |(subjects, all_games, layout, ranking, steam, heroic)| {
+                    move |(subjects, all_games, layout, steam, heroic)| {
                         Message::Backup(BackupPhase::RegisterCommands {
                             subjects,
                             all_games,
                             layout: Box::new(layout),
-                            ranking,
                             steam,
-                            heroic,
+                            launchers: heroic,
                         })
                     },
                 )
@@ -294,9 +293,8 @@ impl App {
                 subjects,
                 all_games,
                 layout,
-                ranking,
                 steam,
-                heroic,
+                launchers,
             } => {
                 log::info!("beginning backup with {} steps", self.progress.max);
                 let preview = self.operation.preview();
@@ -332,19 +330,19 @@ impl App {
                 let config = std::sync::Arc::new(self.config.clone());
                 let roots = std::sync::Arc::new(config.expanded_roots());
                 let layout = std::sync::Arc::new(*layout);
-                let heroic_games = std::sync::Arc::new(heroic);
+                let launchers = std::sync::Arc::new(launchers);
                 let filter = std::sync::Arc::new(self.config.backup.filter.clone());
-                let ranking = std::sync::Arc::new(ranking);
+                // let ranking = std::sync::Arc::new(ranking);
                 let steam_shortcuts = std::sync::Arc::new(steam);
 
                 for key in subjects {
                     let game = all_games.0[&key].clone();
                     let config = config.clone();
                     let roots = roots.clone();
-                    let heroic_games = heroic_games.clone();
+                    let launchers = launchers.clone();
                     let layout = layout.clone();
                     let filter = filter.clone();
-                    let ranking = ranking.clone();
+                    // let ranking = ranking.clone();
                     let steam_shortcuts = steam_shortcuts.clone();
                     let cancel_flag = self.operation_should_cancel.clone();
                     self.operation_steps.push(Command::perform(
@@ -365,10 +363,10 @@ impl App {
                                 &key,
                                 &roots,
                                 &StrictPath::from_std_path_buf(&app_dir()),
-                                &heroic_games,
+                                &launchers,
                                 &filter,
                                 &None,
-                                &ranking,
+                                // &ranking,
                                 &config.backup.toggled_paths,
                                 &config.backup.toggled_registry,
                                 previous,

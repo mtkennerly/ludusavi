@@ -21,8 +21,8 @@ use crate::{
     },
     resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
     scan::{
-        heroic::HeroicGames, layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId,
-        DuplicateDetector, InstallDirRanking, OperationStepDecision, SteamShortcuts, TitleFinder,
+        layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
+        OperationStepDecision, SteamShortcuts, TitleFinder,
     },
 };
 
@@ -170,9 +170,9 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
 
             let layout = BackupLayout::new(backup_dir.clone(), retention);
             let title_finder = TitleFinder::new(&all_games, &layout);
-            let heroic_games = HeroicGames::scan(&roots, &title_finder, None);
+            let launchers = Launchers::scan(&roots, &all_games, &subjects.valid, &title_finder, None);
             let filter = config.backup.filter.clone();
-            let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects.valid);
+            // let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects.valid);
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
             let steam_shortcuts = SteamShortcuts::scan();
@@ -226,10 +226,9 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                         name,
                         &roots,
                         &StrictPath::from_std_path_buf(&app_dir()),
-                        &heroic_games,
+                        &launchers,
                         &filter,
                         &wine_prefix,
-                        &ranking,
                         &toggled_paths,
                         &toggled_registry,
                         previous,

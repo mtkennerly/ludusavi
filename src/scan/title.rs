@@ -27,6 +27,7 @@ pub fn normalize_title(title: &str) -> String {
     normalized.trim().to_string()
 }
 
+#[derive(Default)]
 pub struct TitleFinder {
     all_games: HashSet<String>,
     can_backup: HashSet<String>,

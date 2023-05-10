@@ -2,8 +2,7 @@ mod backup;
 mod change;
 mod duplicate;
 pub mod game_filter;
-pub mod heroic;
-mod install_dir;
+mod launchers;
 pub mod layout;
 mod preview;
 pub mod registry_compat;
@@ -16,7 +15,7 @@ pub mod registry;
 
 use std::collections::{HashMap, HashSet};
 
-pub use self::{backup::*, change::*, duplicate::*, install_dir::*, preview::*, saves::*, steam::*, title::*};
+pub use self::{backup::*, change::*, duplicate::*, launchers::*, preview::*, saves::*, steam::*, title::*};
 
 use crate::{
     path::StrictPath,
@@ -25,7 +24,7 @@ use crate::{
         config::{BackupFilter, RedirectConfig, RedirectKind, RootsConfig, SortKey, ToggledPaths, ToggledRegistry},
         manifest::{Game, IdMetadata, Os, Store},
     },
-    scan::{heroic::HeroicGames, layout::LatestBackup},
+    scan::layout::LatestBackup,
 };
 
 #[cfg(target_os = "windows")]
@@ -341,10 +340,9 @@ pub fn scan_game_for_backup(
     name: &str,
     roots: &[RootsConfig],
     manifest_dir: &StrictPath,
-    heroic_games: &HeroicGames,
+    launchers: &Launchers,
     filter: &BackupFilter,
     wine_prefix: &Option<StrictPath>,
-    ranking: &InstallDirRanking,
     ignored_paths: &ToggledPaths,
     #[allow(unused_variables)] ignored_registry: &ToggledRegistry,
     previous: Option<LatestBackup>,
@@ -385,7 +383,7 @@ pub fn scan_game_for_backup(
 
     // handle what was found for heroic
     for root in roots {
-        if let Some(wp) = heroic_games.get_prefix(root, name) {
+        if let Some(wp) = launchers.get_prefix(root, name) {
             let with_pfx = wp.joined("pfx");
             scan_game_for_backup_add_prefix(
                 &mut roots_to_check,
@@ -408,11 +406,11 @@ pub fn scan_game_for_backup(
         }
         let root_interpreted = root.path.interpret();
 
-        let platform = heroic_games.get_platform(&root, name).unwrap_or(Os::HOST);
+        let platform = launchers.get_platform(&root, name).unwrap_or(Os::HOST);
 
         if let Some(files) = &game.files {
-            let install_dir = ranking.get(&root, name);
-            let full_install_dir = heroic_games.get_install_dir(&root, name);
+            let install_dir = launchers.get_install_dir_leaf(&root, name);
+            let full_install_dir = launchers.get_install_dir(&root, name);
 
             for raw_path in files.keys() {
                 log::trace!("[{name}] parsing candidates from: {}", raw_path);
@@ -832,10 +830,9 @@ mod tests {
                 "game1",
                 &config().roots,
                 &StrictPath::new(repo()),
-                &HeroicGames::default(),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
                 &BackupFilter::default(),
                 &None,
-                &InstallDirRanking::scan(&config().roots, &manifest(), &["game1".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
@@ -858,10 +855,9 @@ mod tests {
                 "game 2",
                 &config().roots,
                 &StrictPath::new(repo()),
-                &HeroicGames::default(),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["game 2".to_string()]),
                 &BackupFilter::default(),
                 &None,
-                &InstallDirRanking::scan(&config().roots, &manifest(), &["game 2".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
@@ -891,10 +887,9 @@ mod tests {
                 "game5",
                 roots,
                 &StrictPath::new(repo()),
-                &HeroicGames::default(),
+                &Launchers::scan_dirs(roots, &manifest(), &["game5".to_string()]),
                 &BackupFilter::default(),
                 &None,
-                &InstallDirRanking::scan(roots, &manifest(), &["game5".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
@@ -924,10 +919,9 @@ mod tests {
                 "game 2",
                 roots,
                 &StrictPath::new(repo()),
-                &HeroicGames::default(),
+                &Launchers::scan_dirs(roots, &manifest(), &["game 2".to_string()]),
                 &BackupFilter::default(),
                 &None,
-                &InstallDirRanking::scan(roots, &manifest(), &["game 2".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
@@ -961,10 +955,9 @@ mod tests {
                 "game4",
                 roots,
                 &StrictPath::new(repo()),
-                &HeroicGames::default(),
+                &Launchers::scan_dirs(roots, &manifest(), &["game4".to_string()]),
                 &BackupFilter::default(),
                 &None,
-                &InstallDirRanking::scan(roots, &manifest(), &["game4".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
@@ -997,10 +990,9 @@ mod tests {
                 "game4",
                 roots,
                 &StrictPath::new(repo()),
-                &HeroicGames::default(),
+                &Launchers::scan_dirs(roots, &manifest(), &["game4".to_string()]),
                 &BackupFilter::default(),
                 &None,
-                &InstallDirRanking::scan(roots, &manifest(), &["game4".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
@@ -1026,10 +1018,9 @@ mod tests {
                 "game4",
                 &config().roots,
                 &StrictPath::new(repo()),
-                &HeroicGames::default(),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["game4".to_string()]),
                 &BackupFilter::default(),
                 &Some(StrictPath::new(format!("{}/tests/wine-prefix", repo()))),
-                &InstallDirRanking::scan(&config().roots, &manifest(), &["game4".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
@@ -1055,10 +1046,9 @@ mod tests {
                 "fake-registry",
                 &config().roots,
                 &StrictPath::new(repo()),
-                &HeroicGames::default(),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["fake-registry".to_string()]),
                 &BackupFilter::default(),
                 &Some(StrictPath::new(format!("{}/tests/wine-prefix", repo()))),
-                &InstallDirRanking::scan(&config().roots, &manifest(), &["fake-registry".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
@@ -1120,10 +1110,9 @@ mod tests {
                     "game1",
                     &config().roots,
                     &StrictPath::new(repo()),
-                    &HeroicGames::default(),
+                    &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
                     &filter,
                     &None,
-                    &InstallDirRanking::scan(&config().roots, &manifest(), &["game1".to_string()]),
                     &ignored,
                     &ToggledRegistry::default(),
                     None,
@@ -1157,10 +1146,9 @@ mod tests {
                 "game3",
                 &config().roots,
                 &StrictPath::new(repo()),
-                &HeroicGames::default(),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["game3".to_string()]),
                 &BackupFilter::default(),
                 &None,
-                &InstallDirRanking::scan(&config().roots, &manifest(), &["game3".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
@@ -1195,10 +1183,9 @@ mod tests {
                 "game3-outer",
                 &config().roots,
                 &StrictPath::new(repo()),
-                &HeroicGames::default(),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["game3-outer".to_string()]),
                 &BackupFilter::default(),
                 &None,
-                &InstallDirRanking::scan(&config().roots, &manifest(), &["game3-outer".to_string()]),
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),
                 None,
@@ -1288,10 +1275,9 @@ mod tests {
                     "game3-outer",
                     &config().roots,
                     &StrictPath::new(repo()),
-                    &HeroicGames::default(),
+                    &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
                     &filter,
                     &None,
-                    &InstallDirRanking::scan(&config().roots, &manifest(), &["game1".to_string()]),
                     &ToggledPaths::default(),
                     &ignored,
                     None,

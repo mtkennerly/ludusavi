@@ -14,10 +14,9 @@ use crate::{
     },
     scan::{
         game_filter,
-        heroic::HeroicGames,
         layout::{Backup, BackupLayout, GameLayout},
         registry_compat::RegistryItem,
-        BackupInfo, InstallDirRanking, OperationStepDecision, ScanInfo, SteamShortcuts,
+        BackupInfo, Launchers, OperationStepDecision, ScanInfo, SteamShortcuts,
     },
 };
 
@@ -36,9 +35,8 @@ pub enum BackupPhase {
         subjects: Vec<String>,
         all_games: Manifest,
         layout: Box<BackupLayout>,
-        ranking: InstallDirRanking,
         steam: SteamShortcuts,
-        heroic: HeroicGames,
+        launchers: Launchers,
     },
     GameScanned {
         scan_info: Option<ScanInfo>,
