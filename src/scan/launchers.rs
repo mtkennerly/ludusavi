@@ -1,5 +1,6 @@
 mod generic;
 mod heroic;
+mod lutris;
 
 use std::collections::HashMap;
 
@@ -55,10 +56,10 @@ impl Launchers {
         let mut instance = Self::default();
 
         for root in roots {
-            let found = if root.store == Store::Heroic {
-                heroic::scan(root, title_finder, legendary.as_ref())
-            } else {
-                generic::scan(root, manifest, subjects)
+            let found = match root.store {
+                Store::Heroic => heroic::scan(root, title_finder, legendary.as_ref()),
+                Store::Lutris => lutris::scan(root, title_finder),
+                _ => generic::scan(root, manifest, subjects),
             };
             log::trace!(
                 "launcher games found ({:?} - {}): {:#?}",

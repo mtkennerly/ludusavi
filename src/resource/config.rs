@@ -814,6 +814,8 @@ impl Config {
             // EA app:
             (format!("{}/EA Games", pf32), Store::Ea),
             (format!("{}/EA Games", pf64), Store::Ea),
+            // Lutris:
+            ("~/.var/app/net.lutris.Lutris/config/lutris".to_string(), Store::Lutris),
         ];
 
         if let Some(data_dir) = dirs::data_dir() {

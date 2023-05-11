@@ -778,6 +778,7 @@ impl Translator {
             Store::Gog => "store-gog",
             Store::GogGalaxy => "store-gog-galaxy",
             Store::Heroic => "store-heroic",
+            Store::Lutris => "store-lutris",
             Store::Microsoft => "store-microsoft",
             Store::Origin => "store-origin",
             Store::Prime => "store-prime",

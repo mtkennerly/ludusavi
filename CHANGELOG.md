@@ -8,8 +8,9 @@
 
     For the GUI, refer to the "cloud" section on the `other` screen.
     For the CLI, use the `cloud` command group (e.g., `ludusavi cloud upload`).
-  * You can now choose the EA app as a type for roots.
-    On Windows, `C:/Program Files/EA Games` is now auto-detected as a root.
+  * The Lutris launcher is now supported as a root type.
+    Ludusavi can find saves from Wine prefixes configured in Lutris.
+  * The EA app is now supported as a root type.
   * Progress bars now show additional information (operation label, elapsed time, exact progress count).
   * Backups now record the operating system on which they were created.
     For the GUI, this is shown as a badge on the restore screen if you select a non-native backup.

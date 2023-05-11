@@ -85,6 +85,8 @@ pub enum Store {
     GogGalaxy,
     #[serde(rename = "heroic")]
     Heroic,
+    #[serde(rename = "lutris")]
+    Lutris,
     #[serde(rename = "microsoft")]
     Microsoft,
     #[serde(rename = "origin")]
@@ -111,6 +113,7 @@ impl Store {
         Store::Gog,
         Store::GogGalaxy,
         Store::Heroic,
+        Store::Lutris,
         Store::Microsoft,
         Store::Origin,
         Store::Prime,

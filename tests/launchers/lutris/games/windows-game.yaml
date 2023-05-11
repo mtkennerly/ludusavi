@@ -1,0 +1,34 @@
+game:
+  args: ''
+  exe: /home/deck/Games/service/windows-game/drive_c/game/YookaLaylee64.exe
+  prefix: /home/deck/Games/service/windows-game
+  working_dir: /home/deck/Games/service/windows-game/drive_c/game
+game_slug: windows-game
+name: Windows Game
+requires: null
+script:
+  files: []  # omitted
+  game:
+    args: ''
+    exe: $GAMEDIR/drive_c/game/YookaLaylee64.exe
+    prefix: $GAMEDIR
+    working_dir: $GAMEDIR/drive_c/game
+  installer:
+  - task:
+      arch: win64
+      prefix: /home/deck/Games/service/windows-game
+      wine_path: /home/deck/.var/app/net.lutris.Lutris/data/lutris/runners/wine/lutris-7.2-2-x86_64/bin/wine
+  - mkdir: $GAMEDIR/drive_c/game
+  - move: ~  # omitted
+  system: {}
+  wine:
+    version: lutris-7.2-2-x86_64
+service: service
+service_id: ...
+slug: windows-game
+system: {}
+variables: {}
+version: Service Name
+wine:
+  version: lutris-7.2-2-x86_64
+year: null
