@@ -33,7 +33,7 @@ pub enum BackupPhase {
     Load,
     RegisterCommands {
         subjects: Vec<String>,
-        all_games: Manifest,
+        manifest: Manifest,
         layout: Box<BackupLayout>,
         steam: SteamShortcuts,
         launchers: Launchers,

@@ -41,6 +41,7 @@
   * In secondary manifests, relative paths (beginning with `./` and `../`) were not correctly resolved.
   * GUI: In some cases, the scroll position would be set incorrectly
     when changing screens or when closing a modal.
+  * The log message "ignoring unrecognized Heroic game" could be recorded incorrectly when doing partial scans.
 
 ## v0.17.1 (2023-04-10)
 

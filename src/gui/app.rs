@@ -255,33 +255,38 @@ impl App {
                 self.modal = None;
                 self.progress.start();
 
-                let mut all_games = self.manifest.clone();
+                let mut manifest = self.manifest.clone();
                 let config = self.config.clone();
                 let previewed_games = self.backup_screen.previewed_games.clone();
 
                 Command::perform(
                     async move {
-                        all_games.incorporate_extensions(&config.roots, &config.custom_games);
-                        if let Some(games) = &games {
-                            all_games.0.retain(|k, _| games.contains(k));
+                        manifest.incorporate_extensions(&config.roots, &config.custom_games);
+                        let subjects: Vec<_> = if let Some(games) = &games {
+                            manifest.0.keys().filter(|k| games.contains(k)).cloned().collect()
                         } else if !previewed_games.is_empty() && all_scanned {
-                            all_games.0.retain(|k, _| previewed_games.contains(k));
-                        }
-                        let subjects: Vec<_> = all_games.0.keys().cloned().collect();
+                            manifest
+                                .0
+                                .keys()
+                                .filter(|k| previewed_games.contains(*k))
+                                .cloned()
+                                .collect()
+                        } else {
+                            manifest.0.keys().cloned().collect()
+                        };
 
                         let roots = config.expanded_roots();
                         let layout = BackupLayout::new(config.backup.path.clone(), config.backup.retention.clone());
-                        let title_finder = TitleFinder::new(&all_games, &layout);
-                        // let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects);
+                        let title_finder = TitleFinder::new(&manifest, &layout);
                         let steam = SteamShortcuts::scan();
-                        let launchers = Launchers::scan(&roots, &all_games, &subjects, &title_finder, None);
+                        let launchers = Launchers::scan(&roots, &manifest, &subjects, &title_finder, None);
 
-                        (subjects, all_games, layout, steam, launchers)
+                        (subjects, manifest, layout, steam, launchers)
                     },
-                    move |(subjects, all_games, layout, steam, heroic)| {
+                    move |(subjects, manifest, layout, steam, heroic)| {
                         Message::Backup(BackupPhase::RegisterCommands {
                             subjects,
-                            all_games,
+                            manifest,
                             layout: Box::new(layout),
                             steam,
                             launchers: heroic,
@@ -291,7 +296,7 @@ impl App {
             }
             BackupPhase::RegisterCommands {
                 subjects,
-                all_games,
+                manifest,
                 layout,
                 steam,
                 launchers,
@@ -324,7 +329,7 @@ impl App {
                     return Command::none();
                 }
 
-                self.progress.set_max(all_games.0.len() as f32);
+                self.progress.set_max(subjects.len() as f32);
                 self.register_notify_on_single_game_scanned();
 
                 let config = std::sync::Arc::new(self.config.clone());
@@ -332,17 +337,15 @@ impl App {
                 let layout = std::sync::Arc::new(*layout);
                 let launchers = std::sync::Arc::new(launchers);
                 let filter = std::sync::Arc::new(self.config.backup.filter.clone());
-                // let ranking = std::sync::Arc::new(ranking);
                 let steam_shortcuts = std::sync::Arc::new(steam);
 
                 for key in subjects {
-                    let game = all_games.0[&key].clone();
+                    let game = manifest.0[&key].clone();
                     let config = config.clone();
                     let roots = roots.clone();
                     let launchers = launchers.clone();
                     let layout = layout.clone();
                     let filter = filter.clone();
-                    // let ranking = ranking.clone();
                     let steam_shortcuts = steam_shortcuts.clone();
                     let cancel_flag = self.operation_should_cancel.clone();
                     self.operation_steps.push(Command::perform(

@@ -116,7 +116,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
 
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
-            let manifest = if try_update {
+            let mut manifest = if try_update {
                 if let Err(e) = Manifest::update_mut(&config, &mut cache, true) {
                     eprintln!("{}", TRANSLATOR.handle_error(&e));
                 }
@@ -147,11 +147,10 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 prepare_backup_target(&backup_dir)?;
             }
 
-            let mut all_games = manifest;
-            all_games.incorporate_extensions(&config.roots, &config.custom_games);
+            manifest.incorporate_extensions(&config.roots, &config.custom_games);
 
             let games_specified = !games.is_empty();
-            let subjects = GameSubjects::new(all_games.0.keys().cloned().collect(), games);
+            let subjects = GameSubjects::new(manifest.0.keys().cloned().collect(), games);
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
@@ -169,10 +168,9 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             }
 
             let layout = BackupLayout::new(backup_dir.clone(), retention);
-            let title_finder = TitleFinder::new(&all_games, &layout);
-            let launchers = Launchers::scan(&roots, &all_games, &subjects.valid, &title_finder, None);
+            let title_finder = TitleFinder::new(&manifest, &layout);
+            let launchers = Launchers::scan(&roots, &manifest, &subjects.valid, &title_finder, None);
             let filter = config.backup.filter.clone();
-            // let ranking = InstallDirRanking::scan(&roots, &all_games, &subjects.valid);
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
             let steam_shortcuts = SteamShortcuts::scan();
@@ -217,7 +215,7 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                 .progress_with(scan_progress_bar(subjects.valid.len() as u64))
                 .map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
-                    let game = &all_games.0[name];
+                    let game = &manifest.0[name];
 
                     let previous = layout.latest_backup(name, false, &config.redirects);
 
