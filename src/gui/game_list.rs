@@ -177,6 +177,11 @@ impl GameListEntry {
                                     (os != Os::HOST && os != Os::Other).then(|| Badge::new(&format!("{os:?}")).view())
                                 })
                         })
+                        .push_some(|| {
+                            self.scan_info.backup.as_ref().and_then(|backup| {
+                                backup.locked().then_some(Icon::Lock.into_text().width(Length::Shrink))
+                            })
+                        })
                         .push(
                             Row::new()
                                 .push_some(|| {
@@ -263,6 +268,11 @@ impl GameListEntry {
                                             customized,
                                             customized_pure,
                                             self.scan_info.backup.is_some(),
+                                            self.scan_info
+                                                .backup
+                                                .as_ref()
+                                                .map(|backup| backup.locked())
+                                                .unwrap_or_default(),
                                         );
                                         let game_name = self.scan_info.game_name.clone();
 
@@ -692,6 +702,19 @@ impl GameList {
 
         layout.set_backup_comment(backup.name(), &comment);
         backup.set_comment(comment);
+        layout.save();
+    }
+
+    pub fn toggle_locked(&mut self, game: &str) {
+        let Some(index) = self.find_game(game) else { return };
+        let entry = &mut self.entries[index];
+        let Some(backup) = &mut entry.scan_info.backup else { return };
+        let Some(layout) = &mut entry.game_layout else { return };
+
+        let new = !backup.locked();
+
+        layout.set_backup_locked(backup.name(), new);
+        backup.set_locked(new);
         layout.save();
     }
 }

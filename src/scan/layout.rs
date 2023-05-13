@@ -107,6 +107,20 @@ impl Backup {
         }
     }
 
+    pub fn locked(&self) -> bool {
+        match self {
+            Self::Full(x) => x.locked,
+            Self::Differential(x) => x.locked,
+        }
+    }
+
+    pub fn set_locked(&mut self, locked: bool) {
+        match self {
+            Self::Full(x) => x.locked = locked,
+            Self::Differential(x) => x.locked = locked,
+        }
+    }
+
     pub fn label(&self) -> String {
         match self {
             Self::Full(x) => x.label(),
@@ -217,6 +231,9 @@ pub struct FullBackup {
     pub os: Option<Os>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
+    /// Locked backups do not count toward retention limits and are never deleted.
+    #[serde(default, skip_serializing_if = "crate::serialization::is_false")]
+    pub locked: bool,
     #[serde(default)]
     pub files: BTreeMap<String, IndividualMappingFile>,
     #[serde(default)]
@@ -255,6 +272,9 @@ pub struct DifferentialBackup {
     pub os: Option<Os>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
+    /// Locked backups do not count toward retention limits and are never deleted.
+    #[serde(default, skip_serializing_if = "crate::serialization::is_false")]
+    pub locked: bool,
     #[serde(default)]
     pub files: BTreeMap<String, Option<IndividualMappingFile>>,
     #[serde(default)]
@@ -940,6 +960,7 @@ impl GameLayout {
             when: *now,
             os: Some(Os::HOST),
             comment: None,
+            locked: false,
             files,
             registry,
             children: VecDeque::new(),
@@ -1010,6 +1031,7 @@ impl GameLayout {
             when: *now,
             os: Some(Os::HOST),
             comment: None,
+            locked: false,
             files,
             registry,
         }
@@ -1231,14 +1253,44 @@ impl GameLayout {
                 }
             }
         }
+    }
 
-        while self.mapping.backups.len() as u8 > self.retention.full {
-            self.mapping.backups.pop_front();
-        }
+    fn forget_excess_backups(&mut self) {
+        let mut delete = vec![];
+
+        let unlocked_fulls = self
+            .mapping
+            .backups
+            .iter()
+            .filter(|full| !full.locked && full.children.iter().all(|diff| !diff.locked))
+            .count();
+        let mut excess_fulls = unlocked_fulls.saturating_sub(self.retention.full as usize);
+
         for full in &mut self.mapping.backups {
-            while full.children.len() as u8 > self.retention.differential {
-                full.children.pop_front();
+            let locked = full.locked || full.children.iter().any(|diff| diff.locked);
+            if !locked && excess_fulls > 0 {
+                delete.push((full.name.clone(), None));
+                excess_fulls -= 1;
             }
+
+            let unlocked_diffs = full.children.iter().filter(|diff| !diff.locked).count();
+            let mut excess_diffs = unlocked_diffs.saturating_sub(self.retention.differential as usize);
+
+            for diff in &mut full.children {
+                let locked = diff.locked;
+                if !locked && excess_diffs > 0 {
+                    delete.push((full.name.clone(), Some(diff.name.clone())));
+                    excess_diffs -= 1;
+                }
+            }
+        }
+
+        self.mapping
+            .backups
+            .retain(|full| !delete.contains(&(full.name.clone(), None)));
+        for full in &mut self.mapping.backups {
+            full.children
+                .retain(|diff| !delete.contains(&(full.name.clone(), Some(diff.name.clone()))));
         }
     }
 
@@ -1341,6 +1393,7 @@ impl GameLayout {
                 backup.prune_failures(&backup_info);
                 if backup.needed() {
                     self.insert_backup(backup.clone());
+                    self.forget_excess_backups();
                     self.save();
                 }
                 self.prune_irrelevant_parents();
@@ -1665,6 +1718,21 @@ impl GameLayout {
             for child in &mut backup.children {
                 if child.name == backup_name {
                     child.comment = comment;
+                    break 'outer;
+                }
+            }
+        }
+    }
+
+    pub fn set_backup_locked(&mut self, backup_name: &str, locked: bool) {
+        'outer: for backup in &mut self.mapping.backups {
+            if backup.name == backup_name {
+                backup.locked = locked;
+                break 'outer;
+            }
+            for child in &mut backup.children {
+                if child.name == backup_name {
+                    child.locked = locked;
                     break 'outer;
                 }
             }
@@ -2407,6 +2475,150 @@ mod tests {
                     ..Default::default()
                 },
                 layout.plan_differential_backup(&scan, &now(), &BackupFormats::default()),
+            );
+        }
+
+        #[test]
+        fn can_forget_excess_backups_without_locks() {
+            let mut layout = GameLayout {
+                mapping: IndividualMapping {
+                    backups: VecDeque::from_iter(vec![
+                        FullBackup {
+                            name: "1".to_string(),
+                            children: VecDeque::from_iter(vec![DifferentialBackup {
+                                name: "1-a".to_string(),
+                                ..Default::default()
+                            }]),
+                            ..Default::default()
+                        },
+                        FullBackup {
+                            name: "2".to_string(),
+                            children: VecDeque::from_iter(vec![
+                                DifferentialBackup {
+                                    name: "2-a".to_string(),
+                                    ..Default::default()
+                                },
+                                DifferentialBackup {
+                                    name: "2-b".to_string(),
+                                    ..Default::default()
+                                },
+                            ]),
+                            ..Default::default()
+                        },
+                    ]),
+                    ..Default::default()
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 1,
+                },
+                ..Default::default()
+            };
+
+            layout.forget_excess_backups();
+            assert_eq!(
+                VecDeque::from_iter(vec![FullBackup {
+                    name: "2".to_string(),
+                    children: VecDeque::from_iter(vec![DifferentialBackup {
+                        name: "2-b".to_string(),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },]),
+                layout.mapping.backups,
+            );
+        }
+
+        #[test]
+        fn can_forget_excess_backups_with_locks() {
+            let mut layout = GameLayout {
+                mapping: IndividualMapping {
+                    backups: VecDeque::from_iter(vec![
+                        FullBackup {
+                            name: "1".to_string(),
+                            locked: true,
+                            children: VecDeque::from_iter(vec![
+                                DifferentialBackup {
+                                    name: "1-a".to_string(),
+                                    ..Default::default()
+                                },
+                                DifferentialBackup {
+                                    name: "1-b".to_string(),
+                                    ..Default::default()
+                                },
+                            ]),
+                            ..Default::default()
+                        },
+                        FullBackup {
+                            name: "2".to_string(),
+                            children: VecDeque::from_iter(vec![
+                                DifferentialBackup {
+                                    name: "2-a".to_string(),
+                                    ..Default::default()
+                                },
+                                DifferentialBackup {
+                                    name: "2-b".to_string(),
+                                    locked: true,
+                                    ..Default::default()
+                                },
+                                DifferentialBackup {
+                                    name: "2-c".to_string(),
+                                    ..Default::default()
+                                },
+                            ]),
+                            ..Default::default()
+                        },
+                        FullBackup {
+                            name: "3".to_string(),
+                            ..Default::default()
+                        },
+                        FullBackup {
+                            name: "4".to_string(),
+                            ..Default::default()
+                        },
+                    ]),
+                    ..Default::default()
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 1,
+                },
+                ..Default::default()
+            };
+
+            layout.forget_excess_backups();
+            assert_eq!(
+                VecDeque::from_iter(vec![
+                    FullBackup {
+                        name: "1".to_string(),
+                        locked: true,
+                        children: VecDeque::from_iter(vec![DifferentialBackup {
+                            name: "1-b".to_string(),
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    },
+                    FullBackup {
+                        name: "2".to_string(),
+                        children: VecDeque::from_iter(vec![
+                            DifferentialBackup {
+                                name: "2-b".to_string(),
+                                locked: true,
+                                ..Default::default()
+                            },
+                            DifferentialBackup {
+                                name: "2-c".to_string(),
+                                ..Default::default()
+                            }
+                        ]),
+                        ..Default::default()
+                    },
+                    FullBackup {
+                        name: "4".to_string(),
+                        ..Default::default()
+                    },
+                ]),
+                layout.mapping.backups,
             );
         }
 

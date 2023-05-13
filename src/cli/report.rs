@@ -125,6 +125,7 @@ struct ApiBackup {
     os: Option<Os>,
     #[serde(skip_serializing_if = "Option::is_none")]
     comment: Option<String>,
+    pub locked: bool,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
@@ -427,6 +428,9 @@ impl Reporter {
                     if let Some(os) = backup.os() {
                         line += &format!(" [{os:?}]");
                     }
+                    if backup.locked() {
+                        line += " [🔒]";
+                    }
                     if let Some(comment) = backup.comment() {
                         line += &format!(" - {comment}");
                     }
@@ -448,6 +452,7 @@ impl Reporter {
                         when: *backup.when(),
                         os: backup.os(),
                         comment: backup.comment().to_owned(),
+                        locked: backup.locked(),
                     });
                 }
 

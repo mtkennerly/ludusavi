@@ -1846,6 +1846,10 @@ impl Application for App {
                 GameAction::Customize => self.customize_game(game),
                 GameAction::Wiki => Self::open_wiki(game),
                 GameAction::Comment => self.toggle_backup_comment_editor(game),
+                GameAction::Lock | GameAction::Unlock => {
+                    self.restore_screen.log.toggle_locked(&game);
+                    Command::none()
+                }
             },
             Message::Scroll { subject, position } => {
                 self.scroll_offsets.insert(subject, position);

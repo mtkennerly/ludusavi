@@ -633,10 +633,19 @@ pub enum GameAction {
     Restore { confirm: bool },
     Wiki,
     Comment,
+    Lock,
+    Unlock,
 }
 
 impl GameAction {
-    pub fn options(restoring: bool, operating: bool, customized: bool, invented: bool, has_backups: bool) -> Vec<Self> {
+    pub fn options(
+        restoring: bool,
+        operating: bool,
+        customized: bool,
+        invented: bool,
+        has_backups: bool,
+        locked: bool,
+    ) -> Vec<Self> {
         let mut options = vec![];
 
         if !operating {
@@ -655,6 +664,12 @@ impl GameAction {
 
         if restoring && has_backups {
             options.push(Self::Comment);
+
+            if locked {
+                options.push(Self::Unlock);
+            } else {
+                options.push(Self::Lock);
+            }
         }
 
         if !invented {
@@ -677,6 +692,8 @@ impl GameAction {
             GameAction::Customize => Icon::Edit,
             GameAction::Wiki => Icon::Language,
             GameAction::Comment => Icon::Comment,
+            GameAction::Lock => Icon::Lock,
+            GameAction::Unlock => Icon::LockOpen,
         }
     }
 }
@@ -702,6 +719,8 @@ impl ToString for GameAction {
             Self::Customize => TRANSLATOR.customize_button(),
             Self::Wiki => TRANSLATOR.pcgamingwiki(),
             Self::Comment => TRANSLATOR.comment_button(),
+            Self::Lock => TRANSLATOR.lock_button(),
+            Self::Unlock => TRANSLATOR.unlock_button(),
         }
     }
 }

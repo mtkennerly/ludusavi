@@ -45,6 +45,8 @@ button-disable-all = Disable all
 button-customize = Customize
 button-exit = Exit
 button-comment = Comment
+button-lock = Lock
+button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get {$app}
 

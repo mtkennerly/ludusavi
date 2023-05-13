@@ -11,6 +11,8 @@
   * The Lutris launcher is now supported as a root type.
     Ludusavi can find saves from Wine prefixes configured in Lutris.
   * The EA app is now supported as a root type.
+  * On the restore screen, you can lock a backup
+    so that it is kept indefinitely regardless of your retention settings.
   * Progress bars now show additional information (operation label, elapsed time, exact progress count).
   * Backups now record the operating system on which they were created.
     For the GUI, this is shown as a badge on the restore screen if you select a non-native backup.

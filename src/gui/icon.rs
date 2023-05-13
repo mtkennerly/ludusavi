@@ -36,6 +36,8 @@ pub enum Icon {
     Error,
     Upload,
     Download,
+    Lock,
+    LockOpen,
 }
 
 impl Icon {
@@ -69,6 +71,8 @@ impl Icon {
             Self::Error => '\u{e000}',
             Self::Upload => '\u{f09b}',
             Self::Download => '\u{f090}',
+            Self::Lock => '\u{e897}',
+            Self::LockOpen => '\u{e898}',
         }
     }
 

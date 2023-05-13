@@ -268,6 +268,14 @@ impl Translator {
         translate("button-comment")
     }
 
+    pub fn lock_button(&self) -> String {
+        translate("button-lock")
+    }
+
+    pub fn unlock_button(&self) -> String {
+        translate("button-unlock")
+    }
+
     pub fn handle_error(&self, error: &Error) -> String {
         match error {
             Error::ConfigInvalid { why } => self.config_is_invalid(why),
