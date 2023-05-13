@@ -855,12 +855,6 @@ impl GameLayout {
         self.path.joined(backup).joined("registry.yaml")
     }
 
-    fn count_backups(&self) -> (u8, u8) {
-        let full = self.mapping.backups.len();
-        let differential = self.mapping.backups.back().map(|x| x.children.len()).unwrap_or(0);
-        (full as u8, differential as u8)
-    }
-
     fn generate_file_friendly_timestamp(now: &chrono::DateTime<chrono::Utc>) -> String {
         format!(
             "{}{:02}{:02}T{:02}{:02}{:02}Z",
@@ -879,7 +873,11 @@ impl GameLayout {
         now: &chrono::DateTime<chrono::Utc>,
         format: &BackupFormats,
     ) -> String {
-        if *kind == BackupKind::Full && self.retention.full == 1 && format.chosen == BackupFormat::Simple {
+        if *kind == BackupKind::Full
+            && self.retention.full == 1
+            && format.chosen == BackupFormat::Simple
+            && self.mapping.backups.iter().all(|x| !x.locked)
+        {
             ".".to_string()
         } else {
             let name = format!("backup-{}", Self::generate_file_friendly_timestamp(now));
@@ -911,7 +909,14 @@ impl GameLayout {
     }
 
     fn plan_backup_kind(&self) -> BackupKind {
-        let (fulls, diffs) = self.count_backups();
+        let fulls = self.mapping.backups.iter().filter(|full| !full.locked).count() as u8;
+        let diffs = self
+            .mapping
+            .backups
+            .back()
+            .map(|x| x.children.iter().filter(|diff| !diff.locked).count())
+            .unwrap_or(0) as u8;
+
         if fulls > 0
             && (diffs < self.retention.differential || (self.retention.full == 1 && self.retention.differential > 0))
         {
@@ -2080,6 +2085,25 @@ mod tests {
         }
 
         #[test]
+        fn can_plan_backup_kind_when_locked_single_full() {
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    backups: VecDeque::from_iter(vec![FullBackup {
+                        locked: true,
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 0,
+                },
+                ..Default::default()
+            };
+            assert_eq!(BackupKind::Full, layout.plan_backup_kind());
+        }
+
+        #[test]
         fn can_plan_backup_kind_when_multiple_full() {
             let layout = GameLayout {
                 mapping: IndividualMapping {
@@ -2187,6 +2211,31 @@ mod tests {
                 ..Default::default()
             };
             assert_eq!(BackupKind::Full, layout.plan_backup_kind());
+        }
+
+        #[test]
+        fn can_plan_backup_kind_when_single_full_with_differential_at_limit_but_locked() {
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    backups: VecDeque::from_iter(vec![FullBackup {
+                        children: VecDeque::from(vec![
+                            DifferentialBackup::default(),
+                            DifferentialBackup {
+                                locked: true,
+                                ..Default::default()
+                            },
+                        ]),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 2,
+                },
+                ..Default::default()
+            };
+            assert_eq!(BackupKind::Differential, layout.plan_backup_kind());
         }
 
         #[test]
