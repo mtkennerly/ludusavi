@@ -72,6 +72,7 @@ pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> Has
                 .collect()
         })
         .unwrap_or_default();
+    log::debug!("actual install folders: {}", actual_dirs.join(" | "));
 
     let scores: Vec<_> = subjects
         .into_par_iter()
@@ -101,7 +102,7 @@ pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> Has
                             best = Some((score, actual_dir));
                         }
                     } else {
-                        log::trace!("[{name}] irrelevant: {actual_dir}");
+                        // irrelevant
                     }
                     if score == Some(i64::MAX) {
                         break 'dirs;
@@ -115,31 +116,57 @@ pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> Has
         })
         .collect();
 
-    let mut ranking = HashMap::<String, (i64, String)>::new();
-    for (score, name, subdir) in scores {
-        ranking
-            .entry(subdir.to_owned())
-            .and_modify(|(stored_score, stored_name)| {
-                if score > *stored_score {
-                    *stored_name = name.to_owned();
+    let mut by_title = HashMap::<String, (i64, String)>::new();
+    for (score, name, subdir) in &scores {
+        by_title
+            .entry(name.to_string())
+            .and_modify(|(stored_score, stored_subdir)| {
+                if score > stored_score {
+                    *stored_score = *score;
+                    *stored_subdir = subdir.to_string();
                 }
             })
-            .or_insert((score, name.to_owned()));
+            .or_insert((*score, subdir.to_string()));
     }
 
-    ranking
-        .into_iter()
-        .map(|(subdir, (_score, name))| {
-            (
-                name,
+    let mut by_subdir = HashMap::<String, Vec<String>>::new();
+    for (_score, name, subdir) in &scores {
+        by_subdir
+            .entry(subdir.to_string())
+            .and_modify(|names| {
+                names.push(name.to_string());
+            })
+            .or_insert(vec![name.to_string()]);
+    }
+
+    subjects
+        .iter()
+        .filter_map(|name| {
+            let Some((score, subdir)) = by_title.get(name) else { return None };
+
+            if *score < i64::MAX {
+                if let Some(competitors) = by_subdir.get(subdir) {
+                    for competitor in competitors {
+                        if let Some((competitor_score, _)) = by_title.get(competitor) {
+                            if competitor_score > score {
+                                log::debug!("[{name}] outranked by '{competitor}' for subdir '{subdir}'");
+                                return None;
+                            }
+                        }
+                    }
+                }
+            }
+
+            Some((
+                name.clone(),
                 LauncherGame {
-                    install_dir: install_parent.joined(&subdir),
+                    install_dir: install_parent.joined(subdir),
                     prefix: None,
                     platform: None,
                 },
-            )
+            ))
         })
-        .collect::<HashMap<_, _>>()
+        .collect()
 }
 
 #[cfg(test)]
