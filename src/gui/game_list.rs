@@ -195,14 +195,13 @@ impl GameListEntry {
                                     } else if !self.scan_info.available_backups.is_empty() {
                                         if operating {
                                             return self.scan_info.backup.as_ref().map(|backup| {
-                                                Container::new(
-                                                    Container::new(Text::new(backup.label()).size(15))
-                                                        .padding(2)
-                                                        .width(165)
-                                                        .align_x(HorizontalAlignment::Center)
-                                                        .style(style::Container::DisabledBackup),
-                                                )
-                                                .padding([2, 0, 0, 0])
+                                                Container::new(Text::new(backup.label()).size(15))
+                                                    .padding(2)
+                                                    .width(165)
+                                                    .height(25)
+                                                    .center_x()
+                                                    .center_y()
+                                                    .style(style::Container::DisabledBackup)
                                             });
                                         }
 
