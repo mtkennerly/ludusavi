@@ -94,8 +94,32 @@ impl App {
         self.notify_on_single_game_scanned = None;
     }
 
-    fn show_error(&mut self, error: Error) {
-        self.modal = Some(Modal::Error { variant: error });
+    fn show_modal(&mut self, modal: Modal) -> Command<Message> {
+        self.modal = Some(modal);
+        self.reset_scroll_position(ScrollSubject::Modal);
+        self.refresh_scroll_position()
+    }
+
+    fn close_modal(&mut self) -> Command<Message> {
+        if self.modal.is_some() {
+            self.reset_scroll_position(ScrollSubject::Modal);
+            let need_cancel_cloud = self.modal.as_ref().map(|x| x.is_cloud_active()).unwrap_or_default();
+            self.modal = None;
+            Command::batch([
+                self.refresh_scroll_position(),
+                if need_cancel_cloud {
+                    self.cancel_operation()
+                } else {
+                    Command::none()
+                },
+            ])
+        } else {
+            Command::none()
+        }
+    }
+
+    fn show_error(&mut self, error: Error) -> Command<Message> {
+        self.show_modal(Modal::Error { variant: error })
     }
 
     fn invalidate_path_caches(&self) {
@@ -170,9 +194,6 @@ impl App {
                 }
             }
             Err(e) => {
-                if standalone {
-                    self.show_error(Error::UnableToSynchronizeCloud(e.clone()));
-                }
                 return Err(Error::UnableToSynchronizeCloud(e));
             }
         }
@@ -182,10 +203,7 @@ impl App {
 
     fn handle_backup(&mut self, phase: BackupPhase) -> Command<Message> {
         match phase {
-            BackupPhase::Confirm { games } => {
-                self.modal = Some(Modal::ConfirmBackup { games });
-                Command::none()
-            }
+            BackupPhase::Confirm { games } => self.show_modal(Modal::ConfirmBackup { games }),
             BackupPhase::Start { preview, games } => {
                 if !self.operation.idle() {
                     return Command::none();
@@ -195,7 +213,7 @@ impl App {
                 if games.is_none() {
                     self.backup_screen.log.clear();
                     self.backup_screen.duplicate_detector.clear();
-                    self.reset_scroll_position();
+                    self.reset_scroll_position(ScrollSubject::Backup);
                     cleared_log = true;
                 }
 
@@ -204,12 +222,12 @@ impl App {
 
                 if !preview {
                     if let Err(e) = prepare_backup_target(&self.config.backup.path) {
-                        self.show_error(e);
-                        return Command::none();
+                        return self.show_error(e);
                     }
                 }
 
                 Command::batch([
+                    self.close_modal(),
                     self.refresh_scroll_position_on_log(cleared_log),
                     self.handle_backup(BackupPhase::CloudCheck),
                 ])
@@ -252,7 +270,6 @@ impl App {
                 if let Some(games) = &games {
                     self.backup_screen.log.unscan_games(games);
                 }
-                self.modal = None;
                 self.progress.start();
 
                 let mut manifest = self.manifest.clone();
@@ -524,7 +541,7 @@ impl App {
 
                 if let Some(errors) = errors {
                     if !errors.is_empty() {
-                        self.modal = Some(Modal::Errors { errors });
+                        return self.show_modal(Modal::Errors { errors });
                     }
                 }
 
@@ -535,10 +552,7 @@ impl App {
 
     fn handle_restore(&mut self, phase: RestorePhase) -> Command<Message> {
         match phase {
-            RestorePhase::Confirm { games } => {
-                self.modal = Some(Modal::ConfirmRestore { games });
-                Command::none()
-            }
+            RestorePhase::Confirm { games } => self.show_modal(Modal::ConfirmRestore { games }),
             RestorePhase::Start { preview, games } => {
                 if !self.operation.idle() {
                     return Command::none();
@@ -546,17 +560,16 @@ impl App {
 
                 let path = self.config.restore.path.clone();
                 if !path.is_dir() {
-                    self.modal = Some(Modal::Error {
+                    return self.show_modal(Modal::Error {
                         variant: Error::RestorationSourceInvalid { path },
                     });
-                    return Command::none();
                 }
 
                 let mut cleared_log = false;
                 if games.is_none() {
                     self.restore_screen.log.clear();
                     self.restore_screen.duplicate_detector.clear();
-                    self.reset_scroll_position();
+                    self.reset_scroll_position(ScrollSubject::Restore);
                     cleared_log = true;
                 }
 
@@ -565,9 +578,9 @@ impl App {
 
                 self.invalidate_path_caches();
                 self.timed_notification = None;
-                self.modal = None;
 
                 Command::batch([
+                    self.close_modal(),
                     self.refresh_scroll_position_on_log(cleared_log),
                     self.handle_restore(RestorePhase::CloudCheck),
                 ])
@@ -797,7 +810,7 @@ impl App {
 
                 if let Some(errors) = errors {
                     if !errors.is_empty() {
-                        self.modal = Some(Modal::Errors { errors });
+                        return self.show_modal(Modal::Errors { errors });
                     }
                 }
 
@@ -888,8 +901,16 @@ impl App {
         self.refresh_scroll_position()
     }
 
+    fn scroll_subject(&self) -> ScrollSubject {
+        if self.modal.is_some() {
+            ScrollSubject::Modal
+        } else {
+            ScrollSubject::from(self.screen)
+        }
+    }
+
     fn refresh_scroll_position(&mut self) -> Command<Message> {
-        let subject = ScrollSubject::from(self.screen);
+        let subject = self.scroll_subject();
         let offset = self
             .scroll_offsets
             .get(&subject)
@@ -909,8 +930,7 @@ impl App {
         }
     }
 
-    fn reset_scroll_position(&mut self) {
-        let subject = ScrollSubject::from(self.screen);
+    fn reset_scroll_position(&mut self, subject: ScrollSubject) {
         self.scroll_offsets.insert(subject, scrollable::RelativeOffset::START);
     }
 
@@ -1012,31 +1032,13 @@ impl Application for App {
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Ignore => Command::none(),
-            Message::CloseModal => {
-                let need_cancel_cloud = matches!(
-                    self.modal,
-                    Some(
-                        Modal::ConfirmCloudSync { previewing: true, .. }
-                            | Modal::ConfirmCloudSync { syncing: true, .. }
-                    )
-                );
-                self.modal = None;
-                Command::batch([
-                    self.refresh_scroll_position(),
-                    if need_cancel_cloud {
-                        self.cancel_operation()
-                    } else {
-                        Command::none()
-                    },
-                ])
-            }
+            Message::CloseModal => self.close_modal(),
             Message::Exit { user } => {
                 if self.operation.idle() || (user && self.exiting) {
                     std::process::exit(0)
                 } else {
                     self.exiting = true;
-                    self.modal = Some(Modal::Exiting);
-                    self.cancel_operation()
+                    Command::batch([self.show_modal(Modal::Exiting), self.cancel_operation()])
                 }
             }
             Message::UpdateTime => {
@@ -1073,14 +1075,9 @@ impl Application for App {
                     Ok(Some(updated)) => updated,
                     Ok(None) => return Command::none(),
                     Err(e) => {
-                        self.show_error(e);
-                        return Command::none();
+                        return self.show_error(e);
                     }
                 };
-
-                if self.modal == Some(Modal::UpdatingManifest) {
-                    self.modal = None;
-                }
 
                 self.cache.update_manifest(updated);
                 self.cache.save();
@@ -1088,12 +1085,14 @@ impl Application for App {
                 match Manifest::load() {
                     Ok(x) => {
                         self.manifest = x;
+                        if self.modal == Some(Modal::UpdatingManifest) {
+                            self.close_modal()
+                        } else {
+                            Command::none()
+                        }
                     }
-                    Err(variant) => {
-                        self.modal = Some(Modal::Error { variant });
-                    }
+                    Err(variant) => self.show_modal(Modal::Error { variant }),
                 }
-                Command::none()
             }
             Message::Backup(phase) => self.handle_backup(phase),
             Message::Restore(phase) => self.handle_restore(phase),
@@ -1113,13 +1112,12 @@ impl Application for App {
             Message::FindRoots => {
                 let missing = self.config.find_missing_roots();
                 if missing.is_empty() {
-                    self.modal = Some(Modal::NoMissingRoots);
+                    self.show_modal(Modal::NoMissingRoots)
                 } else {
                     self.cache.add_roots(&missing);
                     self.cache.save();
-                    self.modal = Some(Modal::ConfirmAddMissingRoots(missing));
+                    self.show_modal(Modal::ConfirmAddMissingRoots(missing))
                 }
-                Command::none()
             }
             Message::ConfirmAddMissingRoots(missing) => {
                 for root in missing {
@@ -1581,12 +1579,9 @@ impl Application for App {
                     Err(_) => Message::BrowseDirFailure,
                 },
             ),
-            Message::BrowseDirFailure => {
-                self.modal = Some(Modal::Error {
-                    variant: Error::UnableToBrowseFileSystem,
-                });
-                Command::none()
-            }
+            Message::BrowseDirFailure => self.show_modal(Modal::Error {
+                variant: Error::UnableToBrowseFileSystem,
+            }),
             Message::SelectedFile(subject, path) => {
                 match subject {
                     BrowseFileSubject::RcloneExecutable => {
@@ -1648,18 +1643,12 @@ impl Application for App {
                     Err(_) => Message::OpenDirFailure { path: path2 },
                 })
             }
-            Message::OpenDirFailure { path } => {
-                self.modal = Some(Modal::Error {
-                    variant: Error::UnableToOpenDir(path),
-                });
-                Command::none()
-            }
-            Message::OpenUrlFailure { url } => {
-                self.modal = Some(Modal::Error {
-                    variant: Error::UnableToOpenUrl(url),
-                });
-                Command::none()
-            }
+            Message::OpenDirFailure { path } => self.show_modal(Modal::Error {
+                variant: Error::UnableToOpenDir(path),
+            }),
+            Message::OpenUrlFailure { url } => self.show_modal(Modal::Error {
+                variant: Error::UnableToOpenUrl(url),
+            }),
             Message::KeyboardEvent(event) => {
                 if let iced::keyboard::Event::ModifiersChanged(modifiers) = event {
                     self.backup_screen.log.modifiers = modifiers;
@@ -1941,8 +1930,7 @@ impl Application for App {
                             self.text_histories.modal.username.initialize(username.clone());
                             self.text_histories.modal.password.initialize(password.clone());
 
-                            self.modal = Some(Modal::ConfigureFtpRemote);
-                            Command::none()
+                            self.show_modal(Modal::ConfigureFtpRemote)
                         }
                         Remote::Smb {
                             id: _,
@@ -1956,8 +1944,7 @@ impl Application for App {
                             self.text_histories.modal.username.initialize(username.clone());
                             self.text_histories.modal.password.initialize(password.clone());
 
-                            self.modal = Some(Modal::ConfigureSmbRemote);
-                            Command::none()
+                            self.show_modal(Modal::ConfigureSmbRemote)
                         }
                         Remote::WebDav {
                             id: _,
@@ -1970,8 +1957,7 @@ impl Application for App {
                             self.text_histories.modal.username.initialize(username.clone());
                             self.text_histories.modal.password.initialize(password.clone());
 
-                            self.modal = Some(Modal::ConfigureWebDavRemote { provider: *provider });
-                            Command::none()
+                            self.show_modal(Modal::ConfigureWebDavRemote { provider: *provider })
                         }
                         Remote::Box { .. }
                         | Remote::Dropbox { .. }
@@ -1989,21 +1975,19 @@ impl Application for App {
 
                 self.config.cloud.remote = Some(remote);
                 self.config.save();
-                self.modal = None;
-                self.refresh_scroll_position()
+                self.close_modal()
             }
             Message::ConfigureCloudFailure(error) => {
                 self.text_histories.clear_modal_fields();
 
-                self.show_error(Error::UnableToConfigureCloud(error));
                 self.config.cloud.remote = None;
                 self.config.save();
-                Command::none()
+                self.show_error(Error::UnableToConfigureCloud(error))
             }
             Message::ConfirmSynchronizeCloud { direction } => {
                 let local = self.config.backup.path.clone();
 
-                self.modal = Some(Modal::ConfirmCloudSync {
+                self.show_modal(Modal::ConfirmCloudSync {
                     local: local.render(),
                     cloud: self.config.cloud.path.clone(),
                     direction,
@@ -2012,14 +1996,16 @@ impl Application for App {
                     page: 0,
                     previewing: false,
                     syncing: false,
-                });
-
-                Command::none()
+                })
             }
             Message::SynchronizeCloud { direction, finality } => {
                 let local = self.config.backup.path.clone();
 
-                self.modal = Some(Modal::ConfirmCloudSync {
+                if let Err(e) = self.start_sync_cloud(&local, direction, finality, None, true) {
+                    return self.show_error(e);
+                }
+
+                self.show_modal(Modal::ConfirmCloudSync {
                     local: local.render(),
                     cloud: self.config.cloud.path.clone(),
                     direction,
@@ -2028,10 +2014,7 @@ impl Application for App {
                     page: 0,
                     previewing: finality == Finality::Preview,
                     syncing: finality == Finality::Final,
-                });
-
-                _ = self.start_sync_cloud(&local, direction, finality, None, true);
-                Command::none()
+                })
             }
             Message::RcloneMonitor(event) => {
                 match event {
@@ -2073,7 +2056,7 @@ impl Application for App {
                         }
 
                         self.go_idle();
-                        self.show_error(Error::UnableToSynchronizeCloud(e));
+                        return self.show_error(Error::UnableToSynchronizeCloud(e));
                     }
                     rclone_monitor::Event::Cancelled => {
                         self.go_idle();

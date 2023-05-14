@@ -453,6 +453,25 @@ impl Modal {
         }
     }
 
+    pub fn is_cloud_active(&self) -> bool {
+        match self {
+            Self::ConfirmCloudSync {
+                previewing, syncing, ..
+            } => *previewing || *syncing,
+            Self::Error { .. }
+            | Self::Errors { .. }
+            | Self::Exiting
+            | Self::ConfirmBackup { .. }
+            | Self::ConfirmRestore { .. }
+            | Self::NoMissingRoots
+            | Self::ConfirmAddMissingRoots(_)
+            | Self::UpdatingManifest
+            | Self::ConfigureFtpRemote { .. }
+            | Self::ConfigureSmbRemote { .. }
+            | Self::ConfigureWebDavRemote { .. } => false,
+        }
+    }
+
     pub fn body_height_portion(&self) -> u16 {
         match self {
             Self::ConfirmCloudSync { .. } => 4,
