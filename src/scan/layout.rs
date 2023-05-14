@@ -1261,7 +1261,10 @@ impl GameLayout {
     }
 
     fn forget_excess_backups(&mut self) {
-        let mut delete = vec![];
+        // We need to track by index rather than by ID.
+        // If we're merging into a single existing backup (like the special ID `.`),
+        // then we may have two of them before pruning the older one.
+        let mut excess = vec![];
 
         let unlocked_fulls = self
             .mapping
@@ -1271,31 +1274,39 @@ impl GameLayout {
             .count();
         let mut excess_fulls = unlocked_fulls.saturating_sub(self.retention.full as usize);
 
-        for full in &mut self.mapping.backups {
+        for (i, full) in self.mapping.backups.iter_mut().enumerate() {
             let locked = full.locked || full.children.iter().any(|diff| diff.locked);
             if !locked && excess_fulls > 0 {
-                delete.push((full.name.clone(), None));
+                excess.push((i, None));
                 excess_fulls -= 1;
             }
 
             let unlocked_diffs = full.children.iter().filter(|diff| !diff.locked).count();
             let mut excess_diffs = unlocked_diffs.saturating_sub(self.retention.differential as usize);
 
-            for diff in &mut full.children {
+            for (j, diff) in full.children.iter_mut().enumerate() {
                 let locked = diff.locked;
                 if !locked && excess_diffs > 0 {
-                    delete.push((full.name.clone(), Some(diff.name.clone())));
+                    excess.push((i, Some(j)));
                     excess_diffs -= 1;
                 }
             }
         }
 
-        self.mapping
-            .backups
-            .retain(|full| !delete.contains(&(full.name.clone(), None)));
-        for full in &mut self.mapping.backups {
-            full.children
-                .retain(|diff| !delete.contains(&(full.name.clone(), Some(diff.name.clone()))));
+        log::debug!("[{}] Excess backups: {:?}", &self.mapping.name, excess);
+
+        if !excess.is_empty() {
+            // Remove indices from biggest to smallest so that the order is stable.
+            excess.sort();
+            excess.reverse();
+
+            for (full, diff) in excess {
+                if let Some(diff) = diff {
+                    self.mapping.backups[full].children.remove(diff);
+                } else {
+                    self.mapping.backups.remove(full);
+                }
+            }
         }
     }
 
@@ -1312,6 +1323,11 @@ impl GameLayout {
 
     fn prune_irrelevant_parents(&self) {
         for irrelevant_parent in self.mapping.irrelevant_parents(&self.path) {
+            log::debug!(
+                "[{}] Removing irrelevant parent: {}",
+                &self.mapping.name,
+                irrelevant_parent.interpret()
+            );
             let _ = irrelevant_parent.remove();
         }
     }
@@ -2572,6 +2588,42 @@ mod tests {
                         name: "2-b".to_string(),
                         ..Default::default()
                     }]),
+                    ..Default::default()
+                },]),
+                layout.mapping.backups,
+            );
+        }
+
+        #[test]
+        fn can_forget_excess_backups_without_locks_using_duplicate_name() {
+            let mut layout = GameLayout {
+                mapping: IndividualMapping {
+                    backups: VecDeque::from_iter(vec![
+                        FullBackup {
+                            name: ".".to_string(),
+                            comment: Some("old".to_string()),
+                            ..Default::default()
+                        },
+                        FullBackup {
+                            name: ".".to_string(),
+                            comment: Some("new".to_string()),
+                            ..Default::default()
+                        },
+                    ]),
+                    ..Default::default()
+                },
+                retention: Retention {
+                    full: 1,
+                    differential: 0,
+                },
+                ..Default::default()
+            };
+
+            layout.forget_excess_backups();
+            assert_eq!(
+                VecDeque::from_iter(vec![FullBackup {
+                    name: ".".to_string(),
+                    comment: Some("new".to_string()),
                     ..Default::default()
                 },]),
                 layout.mapping.backups,
