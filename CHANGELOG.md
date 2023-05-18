@@ -40,6 +40,7 @@
   * GUI: Adjusted some spacing/padding. A few more scanned games can fit on screen now.
   * Log files now include timestamps.
 * Fixed:
+  * Significantly improved performance of zip file extraction.
   * In secondary manifests, relative paths (beginning with `./` and `../`) were not correctly resolved.
   * GUI: In some cases, the scroll position would be set incorrectly
     when changing screens or when closing a modal.

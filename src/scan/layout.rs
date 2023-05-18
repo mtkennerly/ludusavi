@@ -1516,6 +1516,9 @@ impl GameLayout {
         let mut failed_files = HashSet::new();
         let failed_registry = HashSet::new();
 
+        let mut containers: HashMap<StrictPath, zip::ZipArchive<std::fs::File>> = HashMap::new();
+        let mut failed_containers: HashSet<StrictPath> = HashSet::new();
+
         for file in &scan.found_files {
             let original_path = some_or_continue!(&file.original_path);
             let target = file.effective();
@@ -1532,9 +1535,58 @@ impl GameLayout {
                 continue;
             }
 
+            if let Some(container) = file.container.as_ref() {
+                if failed_containers.contains(container) {
+                    log::warn!(
+                        "[{}] skipping file because container had failed to load: {} -> {} -> {}",
+                        self.mapping.name,
+                        container.raw(),
+                        original_path.raw(),
+                        target.raw(),
+                    );
+                    failed_files.insert(file.clone());
+                    continue;
+                }
+
+                if !containers.contains_key(container) {
+                    log::debug!("[{}] loading zip archive: {}", &self.mapping.name, container.raw());
+                    let handle = match std::fs::File::open(container.interpret()) {
+                        Ok(handle) => handle,
+                        Err(e) => {
+                            log::error!(
+                                "[{}] failed to open zip archive: {} | {e:?}",
+                                &self.mapping.name,
+                                container.raw()
+                            );
+                            failed_containers.insert(container.clone());
+                            failed_files.insert(file.clone());
+                            continue;
+                        }
+                    };
+                    let archive = match zip::ZipArchive::new(handle) {
+                        Ok(archive) => archive,
+                        Err(e) => {
+                            log::error!(
+                                "[{}] failed to parse zip archive: {} | {e:?}",
+                                &self.mapping.name,
+                                container.raw()
+                            );
+                            failed_containers.insert(container.clone());
+                            failed_files.insert(file.clone());
+                            continue;
+                        }
+                    };
+                    log::debug!("[{}] loaded zip archive: {:?}", &self.mapping.name, container.raw());
+                    containers.insert(container.clone(), archive);
+                }
+            }
+
             if let Err(e) = match &file.container {
                 None => self.restore_file_from_simple(target, file),
-                Some(container) => self.restore_file_from_zip(target, file, container),
+                Some(container) => {
+                    let Some(archive) = containers.get_mut(container) else { continue };
+                    self.restore_file_from_zip(target, file, archive)
+                }
             } {
                 log::error!(
                     "[{}] failed to restore: {} -> {} | {e}",
@@ -1603,7 +1655,7 @@ impl GameLayout {
         &self,
         target: &StrictPath,
         file: &ScannedFile,
-        container: &StrictPath,
+        archive: &mut zip::ZipArchive<std::fs::File>,
     ) -> Result<(), Box<dyn std::error::Error>> {
         log::debug!(
             "[{}] about to restore (zip): {} -> {}",
@@ -1611,9 +1663,6 @@ impl GameLayout {
             file.path.raw(),
             target.raw()
         );
-
-        let handle = std::fs::File::open(container.interpret())?;
-        let mut archive = zip::ZipArchive::new(handle)?;
 
         target.create_parent_dir()?;
         for i in 0..99 {
