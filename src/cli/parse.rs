@@ -326,23 +326,6 @@ pub enum Subcommand {
     },
 }
 
-impl Subcommand {
-    pub fn api(&self) -> bool {
-        match self {
-            Self::Backup { api, .. } => *api,
-            Self::Restore { api, .. } => *api,
-            Self::Backups { api, .. } => *api,
-            Self::Find { api, .. } => *api,
-            Self::Manifest { sub } => match sub {
-                ManifestSubcommand::Show { api } => *api,
-                ManifestSubcommand::Update { .. } => false,
-            },
-            Self::Complete { .. } => false,
-            Self::Cloud { .. } => false,
-        }
-    }
-}
-
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
 pub enum ManifestSubcommand {
     /// Print the content of the manifest, including any custom entries.

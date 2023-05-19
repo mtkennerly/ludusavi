@@ -85,11 +85,8 @@ fn main() {
 
             log::debug!("Version: {}", *VERSION);
 
-            let api = sub.api();
             if let Err(e) = cli::run(sub, args.no_manifest_update, args.try_manifest_update) {
-                if !api {
-                    eprintln!("{}", TRANSLATOR.handle_error(&e));
-                }
+                eprintln!("{}", TRANSLATOR.handle_error(&e));
                 std::process::exit(1);
             }
         }

@@ -40,6 +40,10 @@
     To ignore errors in the update, use the new `--try-manifest-update` global flag.
   * CLI: The deprecated `--by-steam-id` option has been removed from the `backup`, `backups`, and `restore` commands.
     You can use the `find` command to replicate this functionality.
+  * CLI: Using `--api` mode would silence some human-readable errors that would otherwise go on stderr.
+    Since the API output itself goes on stdout, there's no harm leaving the other messages on stderr,
+    so they are now allowed to print.
+    In the future, these messages may be integrated into the API output directly.
   * GUI: If you try to close the program while an operation is ongoing,
     Ludusavi will cancel the operation cleanly first before closing.
     To skip the cleanup and force an immediate close (like in previous versions),
