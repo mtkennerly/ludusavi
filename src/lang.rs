@@ -154,6 +154,8 @@ impl ToString for Language {
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Translator {}
 
+static LANGUAGE: Mutex<Language> = Mutex::new(Language::English);
+
 static BUNDLE: Lazy<Mutex<FluentBundle<FluentResource, IntlLangMemoizer>>> = Lazy::new(|| {
     let ftl = include_str!("../lang/en-US.ftl").to_owned();
     let res = FluentResource::try_new(ftl).expect("Failed to parse Fluent file content.");
@@ -195,6 +197,9 @@ fn set_language(language: Language) {
     bundle.locales = vec![language.id()];
 
     bundle.add_resource_overriding(res);
+
+    let mut last_language = LANGUAGE.lock().unwrap();
+    *last_language = language;
 }
 
 static RE_EXTRA_SPACES: Lazy<Regex> = Lazy::new(|| Regex::new(r#"([^\r\n ]) {2,}"#).unwrap());
@@ -399,7 +404,11 @@ impl Translator {
     }
 
     fn field(&self, text: &str) -> String {
-        format!("{}:", text)
+        let language = LANGUAGE.lock().unwrap();
+        match *language {
+            Language::French => format!("{} :", text),
+            _ => format!("{}:", text),
+        }
     }
 
     pub fn field_language(&self) -> String {
