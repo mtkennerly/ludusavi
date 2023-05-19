@@ -98,7 +98,7 @@ pub struct Progress {
 
 impl Progress {
     pub fn visible(&self) -> bool {
-        self.max > 1.0
+        self.max > 0.0
     }
 
     pub fn reset(&mut self) {
