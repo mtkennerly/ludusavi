@@ -54,12 +54,18 @@ impl GameSubjects {
     }
 }
 
-fn warn_deprecations(merge: bool, no_merge: bool) {
+fn warn_backup_deprecations(merge: bool, no_merge: bool, update: bool, try_update: bool) {
     if merge {
         eprintln!("WARNING: `--merge` is deprecated. Merging is now always enforced.");
     }
     if no_merge {
         eprintln!("WARNING: `--no-merge` is deprecated. Merging is now always enforced.");
+    }
+    if update {
+        eprintln!("WARNING: `--update` is deprecated. Updates are enabled by default, or you can use the `manifest update` command.");
+    }
+    if try_update {
+        eprintln!("WARNING: `--try-update` is deprecated. Use the `--try-manifest-update` global flag.");
     }
 }
 
@@ -73,12 +79,31 @@ fn negatable_flag(on: bool, off: bool, default: bool) -> bool {
     }
 }
 
+fn load_manifest(
+    config: &Config,
+    cache: &mut Cache,
+    no_manifest_update: bool,
+    try_manifest_update: bool,
+) -> Result<Manifest, Error> {
+    if no_manifest_update {
+        Ok(Manifest::load().unwrap_or_default())
+    } else if try_manifest_update {
+        if let Err(e) = Manifest::update_mut(config, cache, false) {
+            eprintln!("{}", TRANSLATOR.handle_error(&e));
+        }
+        Ok(Manifest::load().unwrap_or_default())
+    } else {
+        Manifest::update_mut(config, cache, false)?;
+        Manifest::load()
+    }
+}
+
 pub fn parse() -> Cli {
     use clap::Parser;
     Cli::parse()
 }
 
-pub fn run(sub: Subcommand) -> Result<(), Error> {
+pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool) -> Result<(), Error> {
     let mut config = Config::load()?;
     if let Some(threads) = get_threads_from_env().or(config.runtime.threads) {
         initialize_rayon(threads);
@@ -96,10 +121,10 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             preview,
             path,
             force,
-            merge,
-            no_merge,
-            update,
-            try_update,
+            merge: x_merge,
+            no_merge: x_no_merge,
+            update: x_update,
+            try_update: x_try_update,
             wine_prefix,
             api,
             sort,
@@ -112,19 +137,11 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             no_cloud_sync,
             games,
         } => {
-            warn_deprecations(merge, no_merge);
+            warn_backup_deprecations(x_merge, x_no_merge, x_update, x_try_update);
 
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
-            let mut manifest = if try_update {
-                if let Err(e) = Manifest::update_mut(&config, &mut cache, true) {
-                    eprintln!("{}", TRANSLATOR.handle_error(&e));
-                }
-                Manifest::load().unwrap_or_default()
-            } else {
-                Manifest::update_mut(&config, &mut cache, update)?;
-                Manifest::load()?
-            };
+            let mut manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
 
             let backup_dir = match path {
                 None => config.backup.path.clone(),
@@ -317,10 +334,6 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
         } => {
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
-            if !Manifest::path().exists() {
-                Manifest::update_mut(&config, &mut cache, true)?;
-            }
-
             let restore_dir = match path {
                 None => config.restore.path.clone(),
                 Some(p) => p,
@@ -479,10 +492,6 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
             reporter.suppress_overall();
 
-            if !Manifest::path().exists() {
-                Manifest::update_mut(&config, &mut cache, true)?;
-            }
-
             let restore_dir = match path {
                 None => config.restore.path.clone(),
                 Some(p) => p,
@@ -530,10 +539,8 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
             reporter.suppress_overall();
 
-            if let Err(e) = Manifest::update_mut(&config, &mut cache, false) {
-                eprintln!("{}", TRANSLATOR.handle_error(&e));
-            }
-            let mut manifest = Manifest::load().unwrap_or_default();
+            let mut manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
+
             manifest.incorporate_extensions(&config.roots, &config.custom_games);
 
             let restore_dir = match path {

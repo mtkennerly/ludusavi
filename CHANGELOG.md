@@ -31,6 +31,13 @@
     but there was not much reason to turn off merging anymore.
 
     The CLI `backup` command's `--merge`/`--no-merge` flags are now ignored and will be removed in a future release.
+  * CLI: The `backup` command's `--update`/`--try-update` flags are deprecated and will be removed in a future release.
+    It was confusing because Ludusavi could still update the manifest without either flag,
+    and other commands would also update the manifest but without equivalent flags to adjust the behavior.
+
+    To simplify this and for consistency with the GUI, now the CLI will update the manifest automatically by default.
+    To disable this, use the new `--no-manifest-update` global flag, which works across commands.
+    To ignore errors in the update, use the new `--try-manifest-update` global flag.
   * CLI: The deprecated `--by-steam-id` option has been removed from the `backup`, `backups`, and `restore` commands.
     You can use the `find` command to replicate this functionality.
   * GUI: If you try to close the program while an operation is ongoing,

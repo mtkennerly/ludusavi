@@ -14,6 +14,7 @@ mod serialization;
 mod testing;
 
 use crate::{
+    gui::Flags,
     lang::TRANSLATOR,
     prelude::{app_dir, CONFIG_DIR, VERSION},
 };
@@ -73,7 +74,10 @@ fn main() {
 
             log::debug!("Version: {}", *VERSION);
 
-            gui::run();
+            let flags = Flags {
+                update_manifest: !args.no_manifest_update,
+            };
+            gui::run(flags);
         }
         Some(sub) => {
             #[allow(unused)]
@@ -82,7 +86,7 @@ fn main() {
             log::debug!("Version: {}", *VERSION);
 
             let api = sub.api();
-            if let Err(e) = cli::run(sub) {
+            if let Err(e) = cli::run(sub, args.no_manifest_update, args.try_manifest_update) {
                 if !api {
                     eprintln!("{}", TRANSLATOR.handle_error(&e));
                 }

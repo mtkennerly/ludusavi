@@ -102,6 +102,8 @@ impl From<CliSort> for Sort {
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
 pub enum Subcommand {
     /// Back up data
+    ///
+    /// This command automatically updates the manifest if necessary.
     Backup {
         /// List out what would be included, but don't actually perform the operation.
         #[clap(long)]
@@ -127,15 +129,13 @@ pub enum Subcommand {
         #[clap(long, conflicts_with("merge"))]
         no_merge: bool,
 
-        /// Check for any manifest updates and download if available.
-        /// If the check fails, report an error.
-        /// Does nothing if the most recent check was within the last 24 hours.
+        /// DEPRECATED: Manifest updates are now enabled by default.
+        /// This option will be removed in a future version.
         #[clap(long)]
         update: bool,
 
-        /// Check for any manifest updates and download if available.
-        /// If the check fails, continue anyway.
-        /// Does nothing if the most recent check was within the last 24 hours.
+        /// DEPRECATED: Manifest updates are now enabled by default.
+        /// This option will be removed in a future version.
         #[clap(long, conflicts_with("update"))]
         try_update: bool,
 
@@ -274,6 +274,8 @@ pub enum Subcommand {
     ///
     /// If there are no matches, Ludusavi will exit with an error.
     /// Depending on the options chosen, there may be multiple matches, but the default is a single match.
+    ///
+    /// This command automatically updates the manifest if necessary.
     Find {
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
@@ -490,6 +492,14 @@ pub struct Cli {
     #[clap(long, value_name = "DIRECTORY")]
     pub config: Option<PathBuf>,
 
+    /// Disable automatic/implicit manifest update checks.
+    #[clap(long)]
+    pub no_manifest_update: bool,
+
+    /// Ignore any errors during automatic/implicit manifest update checks.
+    #[clap(long)]
+    pub try_manifest_update: bool,
+
     #[clap(subcommand)]
     pub sub: Option<Subcommand>,
 }
@@ -517,6 +527,8 @@ mod tests {
             &["ludusavi"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: None,
             },
         );
@@ -528,6 +540,8 @@ mod tests {
             &["ludusavi", "backup"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Backup {
                     preview: false,
                     path: None,
@@ -585,6 +599,8 @@ mod tests {
             ],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Backup {
                     preview: true,
                     path: Some(StrictPath::new(s("tests/backup"))),
@@ -615,6 +631,8 @@ mod tests {
             &["ludusavi", "backup", "--path", "tests/fake"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Backup {
                     preview: false,
                     path: Some(StrictPath::new(s("tests/fake"))),
@@ -645,6 +663,8 @@ mod tests {
             &["ludusavi", "backup", "--no-merge"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Backup {
                     preview: false,
                     path: None,
@@ -675,6 +695,8 @@ mod tests {
             &["ludusavi", "backup", "--try-update"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Backup {
                     preview: false,
                     path: None,
@@ -721,6 +743,8 @@ mod tests {
                 &["ludusavi", "backup", "--sort", value],
                 Cli {
                     config: None,
+                    no_manifest_update: false,
+                    try_manifest_update: false,
                     sub: Some(Subcommand::Backup {
                         preview: false,
                         path: None,
@@ -752,6 +776,8 @@ mod tests {
             &["ludusavi", "backup", "--compression-level", "-7"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Backup {
                     preview: false,
                     path: None,
@@ -782,6 +808,8 @@ mod tests {
             &["ludusavi", "restore"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Restore {
                     preview: false,
                     path: None,
@@ -818,6 +846,8 @@ mod tests {
             ],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Restore {
                     preview: true,
                     path: Some(StrictPath::new(s("tests/backup"))),
@@ -855,6 +885,8 @@ mod tests {
                 &["ludusavi", "restore", "--sort", value],
                 Cli {
                     config: None,
+                    no_manifest_update: false,
+                    try_manifest_update: false,
                     sub: Some(Subcommand::Restore {
                         preview: false,
                         path: None,
@@ -877,6 +909,8 @@ mod tests {
             &["ludusavi", "complete", "bash"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Complete {
                     shell: CompletionShell::Bash,
                 }),
@@ -890,6 +924,8 @@ mod tests {
             &["ludusavi", "complete", "fish"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Complete {
                     shell: CompletionShell::Fish,
                 }),
@@ -903,6 +939,8 @@ mod tests {
             &["ludusavi", "complete", "zsh"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Complete {
                     shell: CompletionShell::Zsh,
                 }),
@@ -916,6 +954,8 @@ mod tests {
             &["ludusavi", "complete", "powershell"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Complete {
                     shell: CompletionShell::PowerShell,
                 }),
@@ -929,6 +969,8 @@ mod tests {
             &["ludusavi", "complete", "elvish"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Complete {
                     shell: CompletionShell::Elvish,
                 }),
@@ -942,6 +984,8 @@ mod tests {
             &["ludusavi", "backups"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Backups {
                     path: None,
                     api: false,
@@ -965,6 +1009,8 @@ mod tests {
             ],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Backups {
                     path: Some(StrictPath::new(s("tests/backup"))),
                     api: true,
@@ -980,6 +1026,8 @@ mod tests {
             &["ludusavi", "find"],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Find {
                     api: false,
                     path: None,
@@ -1015,6 +1063,8 @@ mod tests {
             ],
             Cli {
                 config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
                 sub: Some(Subcommand::Find {
                     api: true,
                     path: Some(StrictPath::new(s("tests/backup"))),

@@ -18,8 +18,13 @@ mod widget;
 
 use iced::Application;
 
-pub fn run() {
-    let mut settings = iced::Settings::default();
+pub use crate::gui::common::Flags;
+
+pub fn run(flags: Flags) {
+    let mut settings = iced::Settings {
+        flags,
+        ..Default::default()
+    };
 
     settings.window.min_size = Some((800, 600));
     settings.exit_on_close_request = false;

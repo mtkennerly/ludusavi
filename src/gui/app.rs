@@ -956,10 +956,10 @@ impl App {
 impl Application for App {
     type Executor = Executor;
     type Message = Message;
-    type Flags = ();
+    type Flags = Flags;
     type Theme = crate::gui::style::Theme;
 
-    fn new(_flags: ()) -> (Self, Command<Message>) {
+    fn new(flags: Flags) -> (Self, Command<Message>) {
         let mut modal: Option<Modal> = None;
         let mut config = match Config::load() {
             Ok(x) => x,
@@ -974,7 +974,9 @@ impl Application for App {
         let manifest = match Manifest::load() {
             Ok(y) => y,
             Err(_) => {
-                modal = Some(Modal::UpdatingManifest);
+                if flags.update_manifest {
+                    modal = Some(Modal::UpdatingManifest);
+                }
                 Manifest::default()
             }
         };
@@ -997,18 +999,7 @@ impl Application for App {
 
         log::debug!("Config on startup: {config:?}");
 
-        (
-            Self {
-                backup_screen: screen::Backup::new(&config, &cache),
-                restore_screen: screen::Restore::new(&config, &cache),
-                config,
-                manifest,
-                cache,
-                modal,
-                updating_manifest: true,
-                text_histories,
-                ..Self::default()
-            },
+        let command = if flags.update_manifest {
             Command::perform(
                 async move {
                     tokio::task::spawn_blocking(move || Manifest::update(manifest_config, manifest_cache, false)).await
@@ -1017,7 +1008,24 @@ impl Application for App {
                     Ok(x) => Message::ManifestUpdated(x),
                     Err(_) => Message::Ignore,
                 },
-            ),
+            )
+        } else {
+            Command::none()
+        };
+
+        (
+            Self {
+                backup_screen: screen::Backup::new(&config, &cache),
+                restore_screen: screen::Restore::new(&config, &cache),
+                config,
+                manifest,
+                cache,
+                modal,
+                updating_manifest: flags.update_manifest,
+                text_histories,
+                ..Self::default()
+            },
+            command,
         )
     }
 

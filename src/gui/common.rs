@@ -20,6 +20,11 @@ use crate::{
     },
 };
 
+#[derive(Clone, Debug, Default)]
+pub struct Flags {
+    pub update_manifest: bool,
+}
+
 #[derive(Debug, Clone)]
 pub enum BackupPhase {
     Confirm {
