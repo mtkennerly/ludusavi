@@ -18,64 +18,22 @@ pub struct Keys(#[serde(serialize_with = "crate::serialization::ordered_map")] p
 pub struct Entries(#[serde(serialize_with = "crate::serialization::ordered_map")] pub HashMap<String, Entry>);
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Entry {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    sz: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", rename = "expandSz")]
-    expand_sz: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none", rename = "multiSz")]
-    multi_sz: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    dword: Option<u32>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    qword: Option<u64>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    binary: Option<Vec<u8>>,
-}
-
-#[cfg(test)]
-impl Entry {
-    pub fn sz(value: String) -> Self {
-        Self {
-            sz: Some(value),
-            ..Default::default()
-        }
-    }
-
-    pub fn expand_sz(value: String) -> Self {
-        Self {
-            expand_sz: Some(value),
-            ..Default::default()
-        }
-    }
-
-    pub fn multi_sz(value: String) -> Self {
-        Self {
-            multi_sz: Some(value),
-            ..Default::default()
-        }
-    }
-
-    pub fn dword(value: u32) -> Self {
-        Self {
-            dword: Some(value),
-            ..Default::default()
-        }
-    }
-
-    pub fn qword(value: u64) -> Self {
-        Self {
-            qword: Some(value),
-            ..Default::default()
-        }
-    }
-
-    pub fn binary(value: Vec<u8>) -> Self {
-        Self {
-            binary: Some(value),
-            ..Default::default()
-        }
-    }
+pub enum Entry {
+    #[serde(rename = "sz")]
+    Sz(String),
+    #[serde(rename = "expandSz")]
+    ExpandSz(String),
+    #[serde(rename = "multiSz")]
+    MultiSz(String),
+    #[serde(rename = "dword")]
+    Dword(u32),
+    #[serde(rename = "qword")]
+    Qword(u64),
+    #[serde(rename = "binary")]
+    Binary(Vec<u8>),
+    #[default]
+    #[serde(other)]
+    Unknown,
 }
 
 pub fn scan_registry(
@@ -370,42 +328,19 @@ impl Hives {
 
 impl Entry {
     fn is_set(&self) -> bool {
-        self.sz.is_some()
-            || self.expand_sz.is_some()
-            || self.multi_sz.is_some()
-            || self.dword.is_some()
-            || self.qword.is_some()
-            || self.binary.is_some()
+        *self != Self::Unknown
     }
 }
 
 impl From<winreg::RegValue> for Entry {
     fn from(item: winreg::RegValue) -> Self {
         match item.vtype {
-            winreg::enums::RegType::REG_SZ => Self {
-                sz: Some(String::from_reg_value(&item).unwrap_or_default()),
-                ..Default::default()
-            },
-            winreg::enums::RegType::REG_EXPAND_SZ => Self {
-                expand_sz: Some(String::from_reg_value(&item).unwrap_or_default()),
-                ..Default::default()
-            },
-            winreg::enums::RegType::REG_MULTI_SZ => Self {
-                multi_sz: Some(String::from_reg_value(&item).unwrap_or_default()),
-                ..Default::default()
-            },
-            winreg::enums::RegType::REG_DWORD => Self {
-                dword: Some(u32::from_reg_value(&item).unwrap_or_default()),
-                ..Default::default()
-            },
-            winreg::enums::RegType::REG_QWORD => Self {
-                qword: Some(u64::from_reg_value(&item).unwrap_or_default()),
-                ..Default::default()
-            },
-            winreg::enums::RegType::REG_BINARY => Self {
-                binary: Some(item.bytes),
-                ..Default::default()
-            },
+            winreg::enums::RegType::REG_SZ => Self::Sz(String::from_reg_value(&item).unwrap_or_default()),
+            winreg::enums::RegType::REG_EXPAND_SZ => Self::ExpandSz(String::from_reg_value(&item).unwrap_or_default()),
+            winreg::enums::RegType::REG_MULTI_SZ => Self::MultiSz(String::from_reg_value(&item).unwrap_or_default()),
+            winreg::enums::RegType::REG_DWORD => Self::Dword(u32::from_reg_value(&item).unwrap_or_default()),
+            winreg::enums::RegType::REG_QWORD => Self::Qword(u64::from_reg_value(&item).unwrap_or_default()),
+            winreg::enums::RegType::REG_BINARY => Self::Binary(item.bytes),
             _ => Default::default(),
         }
     }
@@ -413,30 +348,23 @@ impl From<winreg::RegValue> for Entry {
 
 impl From<&Entry> for Option<winreg::RegValue> {
     fn from(item: &Entry) -> Option<winreg::RegValue> {
-        #[allow(clippy::manual_map)]
-        if let Some(x) = &item.sz {
-            Some(x.to_reg_value())
-        } else if let Some(x) = &item.multi_sz {
-            Some(winreg::RegValue {
+        match item {
+            Entry::Sz(x) => Some(x.to_reg_value()),
+            Entry::ExpandSz(x) => Some(winreg::RegValue {
                 bytes: x.to_reg_value().bytes,
                 vtype: winreg::enums::RegType::REG_MULTI_SZ,
-            })
-        } else if let Some(x) = &item.expand_sz {
-            Some(winreg::RegValue {
+            }),
+            Entry::MultiSz(x) => Some(winreg::RegValue {
                 bytes: x.to_reg_value().bytes,
                 vtype: winreg::enums::RegType::REG_EXPAND_SZ,
-            })
-        } else if let Some(x) = &item.dword {
-            Some(x.to_reg_value())
-        } else if let Some(x) = &item.qword {
-            Some(x.to_reg_value())
-        } else if let Some(x) = &item.binary {
-            Some(winreg::RegValue {
+            }),
+            Entry::Dword(x) => Some(x.to_reg_value()),
+            Entry::Qword(x) => Some(x.to_reg_value()),
+            Entry::Binary(x) => Some(winreg::RegValue {
                 bytes: x.clone(),
                 vtype: winreg::enums::RegType::REG_BINARY,
-            })
-        } else {
-            None
+            }),
+            Entry::Unknown => None,
         }
     }
 }
@@ -467,30 +395,12 @@ mod tests {
             Hives(hashmap! {
                 s("HKEY_CURRENT_USER") => Keys(hashmap! {
                     s("Software\\Ludusavi\\game3") => Entries(hashmap! {
-                        s("sz") => Entry {
-                            sz: Some(s("foo")),
-                            ..Default::default()
-                        },
-                        s("multiSz") => Entry {
-                            multi_sz: Some(s("bar")),
-                            ..Default::default()
-                        },
-                        s("expandSz") => Entry {
-                            expand_sz: Some(s("baz")),
-                            ..Default::default()
-                        },
-                        s("dword") => Entry {
-                            dword: Some(1),
-                            ..Default::default()
-                        },
-                        s("qword") => Entry {
-                            qword: Some(2),
-                            ..Default::default()
-                        },
-                        s("binary") => Entry {
-                            binary: Some(vec![65]),
-                            ..Default::default()
-                        },
+                        s("sz") => Entry::Sz(s("foo")),
+                        s("multiSz") => Entry::MultiSz(s("bar")),
+                        s("expandSz") => Entry::ExpandSz(s("baz")),
+                        s("dword") => Entry::Dword(1),
+                        s("qword") => Entry::Qword(2),
+                        s("binary") => Entry::Binary(vec![65]),
                     })
                 })
             }),
@@ -560,30 +470,12 @@ HKEY_CURRENT_USER:
                 s("HKEY_CURRENT_USER") => Keys(hashmap! {
                     s("Software\\Ludusavi") => Entries::default(),
                     s("Software\\Ludusavi\\game3") => Entries(hashmap! {
-                        s("sz") => Entry {
-                            sz: Some(s("foo")),
-                            ..Default::default()
-                        },
-                        s("multiSz") => Entry {
-                            multi_sz: Some(s("bar")),
-                            ..Default::default()
-                        },
-                        s("expandSz") => Entry {
-                            expand_sz: Some(s("baz")),
-                            ..Default::default()
-                        },
-                        s("dword") => Entry {
-                            dword: Some(1),
-                            ..Default::default()
-                        },
-                        s("qword") => Entry {
-                            qword: Some(2),
-                            ..Default::default()
-                        },
-                        s("binary") => Entry {
-                            binary: Some(vec![1, 2, 3]),
-                            ..Default::default()
-                        },
+                        s("sz") => Entry::Sz(s("foo")),
+                        s("multiSz") => Entry::MultiSz(s("bar")),
+                        s("expandSz") => Entry::ExpandSz(s("baz")),
+                        s("dword") => Entry::Dword(1),
+                        s("qword") => Entry::Qword(2),
+                        s("binary") => Entry::Binary(vec![1, 2, 3]),
                     }),
                     s("Software\\Ludusavi\\other") => Entries::default(),
                 })

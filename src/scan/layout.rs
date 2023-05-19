@@ -2358,11 +2358,11 @@ mod tests {
             let hives = Hives(hashmap! {
                 s("HKEY_CURRENT_USER") => Keys(hashmap! {
                     s("Software\\Ludusavi\\game3") => Entries(hashmap! {
-                        s("sz") => Entry::sz("foo".into()),
-                        s("multiSz") => Entry::multi_sz("bar".into()),
-                        s("expandSz") => Entry::expand_sz("baz".into()),
-                        s("dword") => Entry::dword(1),
-                        s("binary") => Entry::binary(vec![65]),
+                        s("sz") => Entry::Sz("foo".into()),
+                        s("multiSz") => Entry::MultiSz("bar".into()),
+                        s("expandSz") => Entry::ExpandSz("baz".into()),
+                        s("dword") => Entry::Dword(1),
+                        s("binary") => Entry::Binary(vec![65]),
                     }),
                 })
             });
