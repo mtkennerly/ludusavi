@@ -39,6 +39,8 @@ button-disable-all = Desativar tudo
 button-customize = Personalizar
 button-exit = Sair
 button-comment = Comentário
+button-lock = Lock
+button-unlock = Unlock
 # This opens a download page.
 button-get-app = Obter { $app }
 no-roots-are-configured = Adicione algumas raízes para armazenar ainda mais dados.
@@ -129,10 +131,12 @@ label-provider = Provedor
 label-custom = Personalizado
 label-none = Nenhum
 label-change-count = Mudanças: { $total }
+store-ea = EA
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
 store-heroic = Heroic
+store-lutris = Lutris
 store-microsoft = Microsoft
 store-origin = Origin
 store-prime = Prime Gaming
@@ -170,11 +174,11 @@ confirm-restore =
     Tem certeza que deseja prosseguir com a restauração?
     Isto irá sobrescrever qualquer arquivo atual com os backups aqui:
 confirm-cloud-upload =
-    Você quer sincronizar seus arquivos locais para a nuvem?
+    Você quer substituir seus arquivos na nuvem por seus arquivos locais?
     Seus arquivos da nuvem ({ $cloud-path }) se tornarão uma cópia exata de seus arquivos locais ({ $local-path }).
     Arquivos na nuvem serão atualizados ou excluídos conforme necessário.
 confirm-cloud-download =
-    Deseja sincronizar seus arquivos na nuvem para este sistema?
+    Deseja substituir seus arquivos locais por seus arquivos na nuvem?
     Seus arquivos locais ({ $local-path }) se tornará uma cópia exata dos seus arquivos de nuvem ({ $cloud-path }).
     Os arquivos locais serão atualizados ou excluídos conforme necessário.
 confirm-add-missing-roots = Adicionar estas origens?

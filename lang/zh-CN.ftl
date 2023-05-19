@@ -39,6 +39,8 @@ button-disable-all = 全部禁用
 button-customize = 自定义
 button-exit = 退出
 button-comment = Comment
+button-lock = Lock
+button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get { $app }
 no-roots-are-configured = 添加一些根，以备份甚至更多的数据。
@@ -121,10 +123,12 @@ label-provider = Provider
 label-custom = Custom
 label-none = None
 label-change-count = Changes: { $total }
+store-ea = EA
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
 store-heroic = Heroic
+store-lutris = Lutris
 store-microsoft = 微软商店
 store-origin = Origin
 store-prime = 亚马逊 Prime Gaming
@@ -160,11 +164,11 @@ confirm-restore =
     您确定要继续恢复吗？
     这将会覆盖当前备份的所有文件：
 confirm-cloud-upload =
-    Do you want to synchronize your local files to the cloud?
+    Do you want to replace your cloud files with your local files?
     Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
     Files in the cloud will be updated or deleted as necessary.
 confirm-cloud-download =
-    Do you want to synchronize your cloud files to this system?
+    Do you want to replace your local files with your cloud files?
     Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
     Local files will be updated or deleted as necessary.
 confirm-add-missing-roots = 添加这些根目录吗？

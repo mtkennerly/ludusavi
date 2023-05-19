@@ -26,7 +26,7 @@ button-restore = Восстановить
 button-nav-backup = РЕЗЕРВИРОВАНИЕ
 button-nav-restore = ВОССТАНОВЛЕНИЕ
 button-nav-custom-games = СВОЯ ИГРА
-button-nav-other = OTHER
+button-nav-other = ДРУГИЕ
 button-add-game = Добавить игру
 button-continue = Продолжить
 button-cancel = Отменить
@@ -39,10 +39,12 @@ button-disable-all = Отключить все
 button-customize = Настроить
 button-exit = Выйти
 button-comment = Комментарий
+button-lock = Lock
+button-unlock = Unlock
 # This opens a download page.
-button-get-app = Get { $app }
+button-get-app = Получить { $app }
 no-roots-are-configured = Add some roots to back up even more data.
-config-is-invalid = Error: The config file is invalid.
+config-is-invalid = Ошибка: неверный файл конфигурации.
 manifest-is-invalid = Error: The manifest file is invalid.
 manifest-cannot-be-updated = Error: Unable to check for an update to the manifest file. Is your Internet connection down?
 cannot-prepare-backup-target = Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: { $path }
@@ -68,17 +70,17 @@ processed-games-subset =
        *[other] games
     }
 processed-size-subset = { $processed-size } of { $total-size }
-field-backup-target = Back up to:
-field-restore-source = Restore from:
-field-custom-files = Paths:
-field-custom-registry = Registry:
-field-sort = Sort:
+field-backup-target = Резервировать в:
+field-restore-source = Восстановить из:
+field-custom-files = Пути:
+field-custom-registry = Реестр:
+field-sort = Сортировать:
 field-redirect-source =
-    .placeholder = Source (original location)
+    .placeholder = Источник (исходное место)
 field-redirect-target =
-    .placeholder = Target (new location)
+    .placeholder = Целевой (новое место)
 field-roots = Roots:
-field-backup-excluded-items = Backup exclusions:
+field-backup-excluded-items = Исключения из резервной копии:
 field-redirects = Redirects:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
@@ -87,24 +89,24 @@ field-retention-full = Full:
 # A differential backup includes only the files that have changed since the last full backup.
 field-retention-differential = Differential:
 field-backup-format = Format:
-field-backup-compression = Compression:
+field-backup-compression = Сжатие:
 # The compression level determines how much compresison we perform.
-field-backup-compression-level = Level:
-label-manifest = Manifest
+field-backup-compression-level = Степень:
+label-manifest = Манифест
 # This shows the time when we checked for an update to the manifest.
 label-checked = Checked
 # This shows the time when we found an update to the manifest.
-label-updated = Updated
+label-updated = Обновлено
 label-new = New
-label-removed = Removed
-label-comment = Comment
-label-scan = Scan
-label-filter = Filter
-label-unique = Unique
-label-complete = Complete
-label-partial = Partial
-label-enabled = Enabled
-label-disabled = Disabled
+label-removed = Удалено
+label-comment = Комментарий
+label-scan = Сканирование
+label-filter = Фильтр
+label-unique = Уникальный
+label-complete = Полный
+label-partial = Частичный
+label-enabled = Включено
+label-disabled = Отключено
 # https://en.wikipedia.org/wiki/Thread_(computing)
 label-threads = Threads
 label-cloud = Cloud
@@ -129,10 +131,12 @@ label-provider = Provider
 label-custom = Custom
 label-none = None
 label-change-count = Changes: { $total }
+store-ea = EA
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
 store-heroic = Heroic
+store-lutris = Lutris
 store-microsoft = Microsoft
 store-origin = Origin
 store-prime = Prime Gaming
@@ -170,11 +174,11 @@ confirm-restore =
     Are you sure you want to proceed with the restoration?
     This will overwrite any current files with the backups from here:
 confirm-cloud-upload =
-    Do you want to synchronize your local files to the cloud?
+    Do you want to replace your cloud files with your local files?
     Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
     Files in the cloud will be updated or deleted as necessary.
 confirm-cloud-download =
-    Do you want to synchronize your cloud files to this system?
+    Do you want to replace your local files with your cloud files?
     Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
     Local files will be updated or deleted as necessary.
 confirm-add-missing-roots = Add these roots?
@@ -187,11 +191,11 @@ saves-found = Save data found.
 no-saves-found = No save data found.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
-suffix-no-confirmation = no confirmation
+suffix-no-confirmation = без подтверждения
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
 suffix-restart-required = restart required
-prefix-error = Error: { $message }
-prefix-warning = Warning: { $message }
+prefix-error = Ошибка: { $message }
+prefix-warning = Внимание: { $message }
 cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
 cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
 cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.

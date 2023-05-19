@@ -39,6 +39,8 @@ button-disable-all = 모두 비활성화
 button-customize = Customize
 button-exit = Exit
 button-comment = Comment
+button-lock = Lock
+button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get { $app }
 no-roots-are-configured = 최상위 디렉토리를 추가해서 더 많은 데이터를 백업하세요.
@@ -129,10 +131,12 @@ label-provider = Provider
 label-custom = Custom
 label-none = None
 label-change-count = Changes: { $total }
+store-ea = EA
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
 store-heroic = Heroic
+store-lutris = Lutris
 store-microsoft = Microsoft
 store-origin = Origin
 store-prime = Prime Gaming
@@ -170,11 +174,11 @@ confirm-restore =
     Are you sure you want to proceed with the restoration?
     This will overwrite any current files with the backups from here:
 confirm-cloud-upload =
-    Do you want to synchronize your local files to the cloud?
+    Do you want to replace your cloud files with your local files?
     Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
     Files in the cloud will be updated or deleted as necessary.
 confirm-cloud-download =
-    Do you want to synchronize your cloud files to this system?
+    Do you want to replace your local files with your cloud files?
     Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
     Local files will be updated or deleted as necessary.
 confirm-add-missing-roots = Add these roots?

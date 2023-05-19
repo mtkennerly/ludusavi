@@ -39,6 +39,8 @@ button-disable-all = Désactiver tout
 button-customize = Personnaliser
 button-exit = Quitter
 button-comment = Commentaire
+button-lock = Verrouiller
+button-unlock = Déverrouiller
 # This opens a download page.
 button-get-app = Obtenir { $app }
 no-roots-are-configured = Ajoutez quelques dossiers pour sauvegarder encore plus de données.
@@ -129,10 +131,12 @@ label-provider = Fournisseur
 label-custom = Personnalisé
 label-none = Aucun
 label-change-count = Modifications : { $total }
+store-ea = EA
 store-epic = Epic Games
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
 store-heroic = Heroic
+store-lutris = Lutris
 store-microsoft = Microsoft
 store-origin = Origin
 store-prime = Prime Gaming
@@ -168,11 +172,11 @@ confirm-restore =
     Êtes-vous sûr de vouloir procéder à la restauration ?
     Cela écrasera tous les fichiers actuels avec les sauvegardes ici :
 confirm-cloud-upload =
-    Voulez-vous synchroniser vos fichiers locaux sur le cloud ?
+    Voulez-vous remplacer vos fichiers cloud par vos fichiers locaux ?
     Vos fichiers cloud ({ $cloud-path }) deviendront une copie exacte de vos fichiers locaux ({ $local-path }).
     Les fichiers dans le cloud seront mis à jour ou supprimés si nécessaire.
 confirm-cloud-download =
-    Voulez-vous synchroniser vos fichiers cloud avec ce système ?
+    Voulez-vous remplacer vos fichiers locaux par vos fichiers cloud ?
     Vos fichiers locaux ({ $local-path }) deviendront une copie exacte de vos fichiers cloud ({ $cloud-path }).
     Les fichiers locaux seront mis à jour ou supprimés si nécessaire.
 confirm-add-missing-roots = Ajouter ces dossiers ?

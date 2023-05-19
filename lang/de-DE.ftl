@@ -39,8 +39,10 @@ button-disable-all = Alle deaktivieren
 button-customize = Anpassen
 button-exit = Verlassen
 button-comment = Kommentieren
+button-lock = Sperren
+button-unlock = Entsperren
 # This opens a download page.
-button-get-app = Get { $app }
+button-get-app = { $app } holen
 no-roots-are-configured = Füge einige Wurzelverzeichnisse hinzu, um weitere Daten zu sichern.
 config-is-invalid = Fehler: Die Konfigurationsdatei ist ungültig.
 manifest-is-invalid = Fehler: Die Manifest-Datei ist ungültig.
@@ -51,12 +53,12 @@ registry-issue = Fehler: Einige Registrierungseinträge wurden übersprungen.
 unable-to-browse-file-system = Fehler: Dateisystem kann nicht durchsucht werden.
 unable-to-open-directory = Fehler: Verzeichnis konnte nicht geöffnet werden:
 unable-to-open-url = Fehler: Kann URL nicht öffnen:
-unable-to-configure-cloud = Unable to configure cloud.
-unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
-cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
-command-unlaunched = Command did not launch: { $command }
-command-terminated = Command terminated abruptly: { $command }
-command-failed = Command failed with code { $code }: { $command }
+unable-to-configure-cloud = Cloud konnte nicht konfiguriert werden.
+unable-to-synchronize-with-cloud = Cloud konnte nicht synchronisiert werden.
+cloud-synchronize-conflict = Deine lokalen und Cloud-Backups stehen im Konflikt. Führe einen Upload oder Download durch, um das Problem zu lösen.
+command-unlaunched = Befehl wurde nicht gestartet: { $command }
+command-terminated = Befehl wurde abrupt beendet: { $command }
+command-failed = Befehl fehlgeschlagen mit Code { $code }: { $command }
 processed-games =
     { $total-games } { $total-games ->
         [one] Spiel
@@ -110,29 +112,31 @@ label-threads = Threads
 label-cloud = Cloud
 # A "remote" is what Rclone calls cloud systems like Google Drive.
 label-remote = Remote
-label-remote-name = Remote name
-label-folder = Folder
+label-remote-name = Remote-Name
+label-folder = Ordner
 # An executable file
-label-executable = Executable
+label-executable = Ausführbare Datei
 # Options given to a command line program
-label-arguments = Arguments
+label-arguments = Argumente
 label-url = URL
 # https://en.wikipedia.org/wiki/Host_(network)
 label-host = Host
 # https://en.wikipedia.org/wiki/Port_(computer_networking)
 label-port = Port
-label-username = Username
-label-password = Password
+label-username = Nutzername
+label-password = Passwort
 # This is a specific website or service that provides some cloud functionality.
 # For example, Nextcloud and Owncloud are providers of WebDAV services.
 label-provider = Provider
-label-custom = Custom
-label-none = None
-label-change-count = Changes: { $total }
+label-custom = Benutzerdefiniert
+label-none = Keiner
+label-change-count = Änderungen: { $total }
+store-ea = EA
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
 store-heroic = Heroic
+store-lutris = Lutris
 store-microsoft = Microsoft
 store-origin = Origin
 store-prime = Prime Gaming
@@ -156,7 +160,7 @@ show-deselected-games = Nicht ausgewählte Spiele anzeigen
 show-unchanged-games = Unveränderte Spiele anzeigen
 show-unscanned-games = Ungescannte Spiele anzeigen
 override-max-threads = Max. Threads übergehen
-synchronize-automatically = Synchronize automatically
+synchronize-automatically = Automatisch synchronisieren
 explanation-for-exclude-store-screenshots = Storespezifische Bildschirmfotos aus Datensicherungen ausschießen
 consider-doing-a-preview =
     Falls du es noch nicht getan hast, erwäge zuerst eine Vorschau zu machen, damit
@@ -170,19 +174,19 @@ confirm-restore =
     Bist du sicher, dass du mit der Wiederherstellung fortfahren möchtest?
     Dies überschreibt alle aktuellen Dateien mit den Sicherungen von hier:
 confirm-cloud-upload =
-    Do you want to synchronize your local files to the cloud?
-    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
-    Files in the cloud will be updated or deleted as necessary.
+    Möchtest du deine Cloud-Dateien mit deinen lokalen Dateien ersetzen?
+    Deine Cloud-Dateien ({ $cloud-path }) werden zu einer exakten Kopie deiner lokalen Dateien ({ $local-path }).
+    Dateien in der Cloud werden bei Bedarf aktualisiert oder gelöscht.
 confirm-cloud-download =
-    Do you want to synchronize your cloud files to this system?
-    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
-    Local files will be updated or deleted as necessary.
+    Möchtest du deine lokalen Dateien mit deinen Cloud-Dateien ersetzen?
+    Deine lokalen Dateien ({ $local-path }) werden zu einer exakten Kopie deiner Cloud-Dateien ({ $cloud-path }).
+    Lokale Dateien werden bei Bedarf aktualisiert oder gelöscht.
 confirm-add-missing-roots = Diese Wurzelverzeichnisse hinzufügen?
 no-missing-roots = Keine weiteren Wurzelverzeichnisse gefunden.
-loading = Loading...
+loading = Lädt …
 preparing-backup-target = Sicherungsverzeichnis wird vorbereitet...
 updating-manifest = Manifest wird aktualisiert...
-no-cloud-changes = No changes to synchronize
+no-cloud-changes = Keine zu sychronisierenden Änderungen
 saves-found = Spielstanddaten gefunden.
 no-saves-found = Keine Spielstanddaten gefunden.
 # This is tacked on to form something like "Back up (no confirmation)",
@@ -190,8 +194,8 @@ no-saves-found = Keine Spielstanddaten gefunden.
 suffix-no-confirmation = ohne Bestätigung
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
 suffix-restart-required = Neustart erforderlich
-prefix-error = Error: { $message }
-prefix-warning = Warning: { $message }
-cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
-cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
-cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.
+prefix-error = Fehler: { $message }
+prefix-warning = Warnung: { $message }
+cloud-app-unavailable = Cloud-Backups sind deaktiviert, da { $app } nicht verfügbar ist.
+cloud-not-configured = Cloud-Backups sind deaktiviert, da kein Cloudsystem konfiguriert ist.
+cloud-path-invalid = Cloud-Backups sind deaktiviert, da der Backup-Pfad ungültig ist.

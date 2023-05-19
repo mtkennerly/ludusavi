@@ -5,7 +5,7 @@ total-games = Ludoj
 file-size = Grandeco
 file-location = Loko
 overall = Entute
-status = Status
+status = Stato
 cli-unrecognized-games = Neniuj informoj pri ĉi tiuj ludoj:
 cli-unable-to-request-confirmation = Ne eblas peti konfirmon.
     .winpty-workaround = Se vi uzas Bash-emulilon (kiel Git Bash), provu ruli winpty.
@@ -16,10 +16,10 @@ badge-duplicates = DUPLIKAĴOJ
 badge-duplicated = DUPLIKITA
 badge-ignored = IGNORITAS
 badge-redirected-from = DE: { $path }
-badge-redirecting-to = TO: { $path }
+badge-redirecting-to = AL: { $path }
 some-entries-failed = Kelkaj enskriboj malsukcesis procesi; serĉu { badge-failed } en la eligo por detaloj. Duoble kontrolu ĉu vi povas aliri tiujn dosierojn aŭ ĉu iliaj vojoj estas tre longaj.
 cli-game-line-item-redirected = Alidirektita de: { $path }
-cli-game-line-item-redirecting = Redirecting to: { $path }
+cli-game-line-item-redirecting = Alidirektante al: { $path }
 button-backup = Rezervo
 button-preview = Antaŭrigardo
 button-restore = Restaŭri
@@ -27,20 +27,22 @@ button-nav-backup = BACKUP MODE
 button-nav-restore = RESTORE MODE
 button-nav-custom-games = PERSONAJ LUDOJ
 button-nav-other = OTHER
-button-add-game = Add game
+button-add-game = Aldoni ludon
 button-continue = Continue
-button-cancel = Cancel
-button-cancelling = Cancelling...
-button-okay = Okay
-button-select-all = Select all
-button-deselect-all = Deselect all
+button-cancel = Nuligi
+button-cancelling = Nuligante...
+button-okay = Enorde
+button-select-all = Elekti ĉiujn
+button-deselect-all = Malelekti ĉiujn
 button-enable-all = Enable all
 button-disable-all = Disable all
-button-customize = Customize
-button-exit = Exit
-button-comment = Comment
+button-customize = Adapti
+button-exit = Eliri
+button-comment = Komenti
+button-lock = Ŝlosi
+button-unlock = Malŝlosi
 # This opens a download page.
-button-get-app = Get { $app }
+button-get-app = Elŝuti { $app }
 no-roots-are-configured = Add some roots to back up even more data.
 config-is-invalid = Error: The config file is invalid.
 manifest-is-invalid = Error: The manifest file is invalid.
@@ -129,10 +131,12 @@ label-provider = Provider
 label-custom = Custom
 label-none = None
 label-change-count = Changes: { $total }
+store-ea = EA
 store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
 store-heroic = Heroic
+store-lutris = Lutris
 store-microsoft = Microsoft
 store-origin = Origin
 store-prime = Prime Gaming
@@ -140,7 +144,7 @@ store-steam = Steam
 store-uplay = Uplay
 store-other-home = Hejma dosierujo
 store-other-wine = Wine prefix
-store-other = Other
+store-other = Aliaj
 backup-format-simple = Simple
 backup-format-zip = Zip
 compression-none = Neniu
@@ -148,15 +152,15 @@ compression-none = Neniu
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
-theme = Theme
-theme-light = Light
-theme-dark = Dark
-redirect-bidirectional = Bidirectional
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
+theme = Etoso
+theme-light = Hela
+theme-dark = Malhela
+redirect-bidirectional = Ambaŭdirekta
+show-deselected-games = Montri malelektitajn ludojn
+show-unchanged-games = Montri neŝanĝitajn ludojn
+show-unscanned-games = Montri neskanitajn ludojn
 override-max-threads = Override max threads
-synchronize-automatically = Synchronize automatically
+synchronize-automatically = Samhavigi aŭtomate
 explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
 consider-doing-a-preview =
     If you haven't already, consider doing a preview first so that there
@@ -170,11 +174,11 @@ confirm-restore =
     Are you sure you want to proceed with the restoration?
     This will overwrite any current files with the backups from here:
 confirm-cloud-upload =
-    Do you want to synchronize your local files to the cloud?
+    Do you want to replace your cloud files with your local files?
     Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
     Files in the cloud will be updated or deleted as necessary.
 confirm-cloud-download =
-    Do you want to synchronize your cloud files to this system?
+    Do you want to replace your local files with your cloud files?
     Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
     Local files will be updated or deleted as necessary.
 confirm-add-missing-roots = Add these roots?
