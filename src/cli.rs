@@ -681,6 +681,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 cloud,
                 force,
                 preview,
+                api,
                 games,
             } => {
                 let local = local.unwrap_or(config.backup.path.clone());
@@ -698,13 +699,14 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
 
                 let changes = sync_cloud(&config, &local, &cloud, direction, finality, &games)?;
-                report_cloud_changes(&changes);
+                report_cloud_changes(&changes, api);
             }
             parse::CloudSubcommand::Download {
                 local,
                 cloud,
                 force,
                 preview,
+                api,
                 games,
             } => {
                 let local = local.unwrap_or(config.backup.path.clone());
@@ -722,7 +724,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
 
                 let changes = sync_cloud(&config, &local, &cloud, direction, finality, &games)?;
-                report_cloud_changes(&changes);
+                report_cloud_changes(&changes, api);
             }
         },
     }

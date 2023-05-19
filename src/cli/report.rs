@@ -505,7 +505,28 @@ impl Reporter {
     }
 }
 
-pub fn report_cloud_changes(changes: &[CloudChange]) {
+pub fn report_cloud_changes(changes: &[CloudChange], api: bool) {
+    if api {
+        #[derive(serde::Serialize)]
+        struct Output {
+            cloud: BTreeMap<String, Entry>,
+        }
+
+        #[derive(serde::Serialize)]
+        struct Entry {
+            change: ScanChange,
+        }
+
+        let changes = Output {
+            cloud: changes
+                .iter()
+                .map(|x| (x.path.clone(), Entry { change: x.change }))
+                .collect(),
+        };
+        eprintln!("{}", serde_json::to_string_pretty(&changes).unwrap());
+        return;
+    }
+
     if changes.is_empty() {
         eprintln!("{}", TRANSLATOR.no_cloud_changes());
     } else {

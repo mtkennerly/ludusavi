@@ -387,6 +387,11 @@ pub enum CloudSubcommand {
         #[clap(long)]
         preview: bool,
 
+        /// Print information to stdout in machine-readable JSON.
+        /// This replaces the default, human-readable output.
+        #[clap(long)]
+        api: bool,
+
         /// Only sync these specific games.
         #[clap()]
         games: Vec<String>,
@@ -410,6 +415,11 @@ pub enum CloudSubcommand {
         /// Check what would change, but don't actually apply the changes.
         #[clap(long)]
         preview: bool,
+
+        /// Print information to stdout in machine-readable JSON.
+        /// This replaces the default, human-readable output.
+        #[clap(long)]
+        api: bool,
 
         /// Only sync these specific games.
         #[clap()]
