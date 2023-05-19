@@ -24,6 +24,7 @@
   * GUI: You can use (shift+)tab to cycle through text fields.
   * GUI: Input fields show an error icon for paths like `http://` and `ssh://`
     since these are not supported and will be mangled into a local path.
+  * CLI: A standalone `manifest update` command.
 * Changed:
   * The "merge" option has been removed, and merging is now always enforced.
     This option made sense before Ludusavi supported differential and cloud backups,
@@ -44,6 +45,8 @@
   * In secondary manifests, relative paths (beginning with `./` and `../`) were not correctly resolved.
   * GUI: In some cases, the scroll position would be set incorrectly
     when changing screens or when closing a modal.
+  * CLI: A bare `manifest` command was allowed, even though it did nothing.
+    You can still use `manifest --help` for subcommand info.
   * The log message "ignoring unrecognized Heroic game" could be recorded incorrectly when doing partial scans.
 
 ## v0.17.1 (2023-04-10)

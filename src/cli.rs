@@ -561,8 +561,8 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
 
             reporter.print(&restore_dir);
         }
-        Subcommand::Manifest { sub: manifest_sub } => {
-            if let Some(ManifestSubcommand::Show { api }) = manifest_sub {
+        Subcommand::Manifest { sub: manifest_sub } => match manifest_sub {
+            ManifestSubcommand::Show { api } => {
                 let mut manifest = Manifest::load().unwrap_or_default();
                 manifest.incorporate_extensions(&config.roots, &config.custom_games);
 
@@ -572,7 +572,10 @@ pub fn run(sub: Subcommand) -> Result<(), Error> {
                     println!("{}", serde_yaml::to_string(&manifest).unwrap());
                 }
             }
-        }
+            ManifestSubcommand::Update { force } => {
+                Manifest::update_mut(&config, &mut cache, force)?;
+            }
+        },
         Subcommand::Cloud { sub: cloud_sub } => match cloud_sub {
             parse::CloudSubcommand::Set { sub } => match sub {
                 parse::CloudSetSubcommand::None => {

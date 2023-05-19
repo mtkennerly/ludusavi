@@ -315,7 +315,7 @@ pub enum Subcommand {
     /// Options for Ludusavi's data set.
     Manifest {
         #[clap(subcommand)]
-        sub: Option<ManifestSubcommand>,
+        sub: ManifestSubcommand,
     },
     /// Cloud sync.
     Cloud {
@@ -331,10 +331,10 @@ impl Subcommand {
             Self::Restore { api, .. } => *api,
             Self::Backups { api, .. } => *api,
             Self::Find { api, .. } => *api,
-            Self::Manifest {
-                sub: Some(ManifestSubcommand::Show { api }),
-            } => *api,
-            Self::Manifest { .. } => false,
+            Self::Manifest { sub } => match sub {
+                ManifestSubcommand::Show { api } => *api,
+                ManifestSubcommand::Update { .. } => false,
+            },
             Self::Complete { .. } => false,
             Self::Cloud { .. } => false,
         }
@@ -348,6 +348,13 @@ pub enum ManifestSubcommand {
         /// Print information to stdout in machine-readable JSON.
         #[clap(long)]
         api: bool,
+    },
+    /// Check for any manifest updates and download if available.
+    /// By default, does nothing if the most recent check was within the last 24 hours.
+    Update {
+        /// Check again even if the most recent check was within the last 24 hours.
+        #[clap(long)]
+        force: bool,
     },
 }
 
