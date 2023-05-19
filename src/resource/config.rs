@@ -149,11 +149,7 @@ impl ToString for RedirectKind {
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct BackupFilter {
-    #[serde(
-        default,
-        skip_serializing_if = "crate::serialization::is_false",
-        rename = "excludeStoreScreenshots"
-    )]
+    #[serde(default, rename = "excludeStoreScreenshots")]
     pub exclude_store_screenshots: bool,
     #[serde(default, rename = "ignoredPaths")]
     pub ignored_paths: Vec<StrictPath>,
@@ -566,20 +562,11 @@ pub struct RestoreConfig {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Scan {
-    #[serde(
-        default = "crate::serialization::default_true",
-        skip_serializing_if = "crate::serialization::is_true"
-    )]
+    #[serde(default = "crate::serialization::default_true")]
     pub show_deselected_games: bool,
-    #[serde(
-        default = "crate::serialization::default_true",
-        skip_serializing_if = "crate::serialization::is_true"
-    )]
+    #[serde(default = "crate::serialization::default_true")]
     pub show_unchanged_games: bool,
-    #[serde(
-        default = "crate::serialization::default_true",
-        skip_serializing_if = "crate::serialization::is_true"
-    )]
+    #[serde(default = "crate::serialization::default_true")]
     pub show_unscanned_games: bool,
 }
 

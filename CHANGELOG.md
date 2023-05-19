@@ -50,13 +50,20 @@
   * Some obsolete fields were removed from the config file.
     This won't have any effect on you unless you were using a version older than v0.14.0.
     If so, then just update to v0.17.1 first so that Ludusavi can migrate the affected settings.
-
-    Removed fields from config.yaml:
+    Fields:
 
     * `manifest.etag`
     * `backup.recentGames`
     * `restore.recentGames`
     * `restore.redirects`
+  * Some config fields weren't serialized if they matched the default value.
+    Now they're serialized anyway in case the default value were to ever change.
+    Fields:
+
+    * `backup.filter.excludeStoreScreenshots`
+    * `scan.showDeselectedGames`
+    * `scan.showUnchangedGames`
+    * `scan.showUnscannedGames`
 * Fixed:
   * Significantly improved performance of zip file extraction.
   * In secondary manifests, relative paths (beginning with `./` and `../`) were not correctly resolved.

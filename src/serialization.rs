@@ -21,10 +21,6 @@ where
     ordered.serialize(serializer)
 }
 
-pub fn is_true(v: &bool) -> bool {
-    *v
-}
-
 pub fn is_false(v: &bool) -> bool {
     !v
 }
