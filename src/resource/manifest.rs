@@ -460,12 +460,6 @@ impl Manifest {
             }
         }
     }
-
-    pub fn modified() -> Option<chrono::DateTime<chrono::Utc>> {
-        let path = StrictPath::from(Self::path());
-        let modified = path.get_mtime().ok()?;
-        Some(chrono::DateTime::<chrono::Utc>::from(modified))
-    }
 }
 
 #[cfg(test)]

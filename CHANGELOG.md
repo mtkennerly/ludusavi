@@ -47,6 +47,16 @@
   * GUI: Subsections now have a slightly distinct background color to help tell them apart.
   * GUI: Adjusted some spacing/padding. A few more scanned games can fit on screen now.
   * Log files now include timestamps.
+  * Some obsolete fields were removed from the config file.
+    This won't have any effect on you unless you were using a version older than v0.14.0.
+    If so, then just update to v0.17.1 first so that Ludusavi can migrate the affected settings.
+
+    Removed fields from config.yaml:
+
+    * `manifest.etag`
+    * `backup.recentGames`
+    * `restore.recentGames`
+    * `restore.redirects`
 * Fixed:
   * Significantly improved performance of zip file extraction.
   * In secondary manifests, relative paths (beginning with `./` and `../`) were not correctly resolved.

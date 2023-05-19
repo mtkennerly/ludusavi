@@ -55,9 +55,6 @@ pub struct Runtime {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ManifestConfig {
     pub url: String,
-    #[serde(default)]
-    #[deprecated(note = "use cache")]
-    pub etag: Option<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -539,9 +536,6 @@ pub struct BackupConfig {
         serialize_with = "crate::serialization::ordered_set"
     )]
     pub ignored_games: HashSet<String>,
-    #[serde(default, rename = "recentGames", skip_serializing)]
-    #[deprecated(note = "use cache")]
-    pub recent_games: Vec<String>,
     #[serde(default)]
     pub filter: BackupFilter,
     #[serde(default, rename = "toggledPaths")]
@@ -565,12 +559,6 @@ pub struct RestoreConfig {
         serialize_with = "crate::serialization::ordered_set"
     )]
     pub ignored_games: HashSet<String>,
-    #[serde(default, rename = "recentGames", skip_serializing)]
-    #[deprecated(note = "use cache")]
-    pub recent_games: Vec<String>,
-    #[serde(default, skip_serializing)]
-    #[deprecated(note = "use global redirect list instead")]
-    pub redirects: Vec<RedirectConfig>,
     #[serde(default)]
     pub sort: Sort,
 }
@@ -661,21 +649,17 @@ pub struct CustomGame {
 
 impl Default for ManifestConfig {
     fn default() -> Self {
-        #[allow(deprecated)]
         Self {
             url: MANIFEST_URL.to_string(),
-            etag: None,
         }
     }
 }
 
 impl Default for BackupConfig {
     fn default() -> Self {
-        #[allow(deprecated)]
         Self {
             path: default_backup_dir(),
             ignored_games: HashSet::new(),
-            recent_games: vec![],
             filter: BackupFilter::default(),
             toggled_paths: Default::default(),
             toggled_registry: Default::default(),
@@ -688,12 +672,9 @@ impl Default for BackupConfig {
 
 impl Default for RestoreConfig {
     fn default() -> Self {
-        #[allow(deprecated)]
         Self {
             path: default_backup_dir(),
             ignored_games: HashSet::new(),
-            recent_games: vec![],
-            redirects: vec![],
             sort: Default::default(),
         }
     }
@@ -713,13 +694,7 @@ impl ResourceFile for Config {
         self
     }
 
-    #[allow(deprecated)]
     fn migrate(mut self) -> Self {
-        if self.redirects.is_empty() && !self.restore.redirects.is_empty() {
-            self.redirects = self.restore.redirects.clone();
-            self.restore.redirects.clear();
-        }
-
         self.roots.retain(|x| !x.path.raw().trim().is_empty());
         self.redirects
             .retain(|x| !x.source.raw().trim().is_empty() && !x.target.raw().trim().is_empty());
@@ -1287,7 +1262,6 @@ mod tests {
     use crate::testing::s;
 
     #[test]
-    #[allow(deprecated)]
     fn can_parse_minimal_config() {
         let config = Config::load_from_string(
             r#"
@@ -1309,10 +1283,7 @@ mod tests {
         assert_eq!(
             Config {
                 runtime: Default::default(),
-                manifest: ManifestConfig {
-                    url: s("example.com"),
-                    etag: None,
-                },
+                manifest: ManifestConfig { url: s("example.com") },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![],
@@ -1320,7 +1291,6 @@ mod tests {
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: HashSet::new(),
-                    recent_games: Default::default(),
                     filter: BackupFilter {
                         exclude_store_screenshots: false,
                         ..Default::default()
@@ -1334,8 +1304,6 @@ mod tests {
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
                     ignored_games: HashSet::new(),
-                    recent_games: Default::default(),
-                    redirects: vec![],
                     sort: Default::default(),
                 },
                 scan: Default::default(),
@@ -1353,7 +1321,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
     fn can_parse_optional_fields_when_present_in_config() {
         let config = Config::load_from_string(
             r#"
@@ -1415,10 +1382,7 @@ mod tests {
         assert_eq!(
             Config {
                 runtime: Default::default(),
-                manifest: ManifestConfig {
-                    url: s("example.com"),
-                    etag: Some(s("foo")),
-                },
+                manifest: ManifestConfig { url: s("example.com") },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![
@@ -1442,7 +1406,6 @@ mod tests {
                         s("Backup Game 1"),
                         s("Backup Game 2"),
                     },
-                    recent_games: Default::default(),
                     filter: BackupFilter {
                         exclude_store_screenshots: true,
                         ..Default::default()
@@ -1459,8 +1422,6 @@ mod tests {
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
-                    recent_games: Default::default(),
-                    redirects: vec![],
                     sort: Default::default(),
                 },
                 scan: Scan {
@@ -1504,7 +1465,6 @@ mod tests {
     /// as `store: Other` (capitalized). This test ensures that old config files
     /// with that issue will still be accepted.
     #[test]
-    #[allow(deprecated)]
     fn can_parse_legacy_capitalized_other_store_type() {
         let config = Config::load_from_string(
             r#"
@@ -1528,10 +1488,7 @@ mod tests {
         assert_eq!(
             Config {
                 runtime: Default::default(),
-                manifest: ManifestConfig {
-                    url: s("example.com"),
-                    etag: None,
-                },
+                manifest: ManifestConfig { url: s("example.com") },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![RootsConfig {
@@ -1542,7 +1499,6 @@ mod tests {
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
                     ignored_games: HashSet::new(),
-                    recent_games: Default::default(),
                     filter: BackupFilter {
                         exclude_store_screenshots: false,
                         ..Default::default()
@@ -1556,8 +1512,6 @@ mod tests {
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
                     ignored_games: HashSet::new(),
-                    recent_games: Default::default(),
-                    redirects: vec![],
                     sort: Default::default(),
                 },
                 scan: Default::default(),
@@ -1575,133 +1529,6 @@ mod tests {
     }
 
     #[test]
-    #[allow(deprecated)]
-    fn can_migrate_legacy_redirect_config() {
-        let config = Config::load_from_string(
-            r#"
-            manifest:
-              url: example.com
-              etag: "foo"
-            roots:
-              - path: ~/steam
-                store: steam
-              - path: ~/other
-                store: other
-            backup:
-              path: ~/backup
-              ignoredGames:
-                - Backup Game 1
-                - Backup Game 2
-                - Backup Game 2
-              filter:
-                excludeStoreScreenshots: true
-            restore:
-              path: ~/restore
-              ignoredGames:
-                - Restore Game 1
-                - Restore Game 2
-                - Restore Game 2
-              redirects:
-                - source: ~/old
-                  target: ~/new
-            apps:
-              rclone:
-                path: "rclone"
-            customGames:
-              - name: Custom Game 1
-              - name: Custom Game 2
-                files:
-                  - Custom File 1
-                  - Custom File 2
-                  - Custom File 2
-                registry:
-                  - Custom Registry 1
-                  - Custom Registry 2
-                  - Custom Registry 2
-            "#,
-        )
-        .unwrap();
-
-        assert_eq!(
-            Config {
-                runtime: Default::default(),
-                manifest: ManifestConfig {
-                    url: s("example.com"),
-                    etag: Some(s("foo")),
-                },
-                language: Language::English,
-                theme: Theme::Light,
-                roots: vec![
-                    RootsConfig {
-                        path: StrictPath::new(s("~/steam")),
-                        store: Store::Steam,
-                    },
-                    RootsConfig {
-                        path: StrictPath::new(s("~/other")),
-                        store: Store::Other,
-                    },
-                ],
-                redirects: vec![RedirectConfig {
-                    kind: RedirectKind::Restore,
-                    source: StrictPath::new(s("~/old")),
-                    target: StrictPath::new(s("~/new")),
-                }],
-                backup: BackupConfig {
-                    path: StrictPath::new(s("~/backup")),
-                    ignored_games: hashset! {
-                        s("Backup Game 1"),
-                        s("Backup Game 2"),
-                    },
-                    recent_games: Default::default(),
-                    filter: BackupFilter {
-                        exclude_store_screenshots: true,
-                        ..Default::default()
-                    },
-                    toggled_paths: Default::default(),
-                    toggled_registry: Default::default(),
-                    sort: Default::default(),
-                    retention: Retention::default(),
-                    format: Default::default(),
-                },
-                restore: RestoreConfig {
-                    path: StrictPath::new(s("~/restore")),
-                    ignored_games: hashset! {
-                        s("Restore Game 1"),
-                        s("Restore Game 2"),
-                    },
-                    recent_games: Default::default(),
-                    redirects: vec![],
-                    sort: Default::default(),
-                },
-                scan: Default::default(),
-                apps: Apps {
-                    rclone: App {
-                        path: StrictPath::new("rclone".to_string()),
-                        ..Default::default()
-                    },
-                },
-                custom_games: vec![
-                    CustomGame {
-                        name: s("Custom Game 1"),
-                        ignore: false,
-                        files: vec![],
-                        registry: vec![],
-                    },
-                    CustomGame {
-                        name: s("Custom Game 2"),
-                        ignore: false,
-                        files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
-                        registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
-                    },
-                ],
-                ..Default::default()
-            },
-            config,
-        );
-    }
-
-    #[test]
-    #[allow(deprecated)]
     fn can_be_serialized() {
         assert_eq!(
             r#"
@@ -1710,7 +1537,6 @@ runtime:
   threads: ~
 manifest:
   url: example.com
-  etag: foo
 language: en-US
 theme: light
 roots:
@@ -1791,10 +1617,7 @@ customGames:
             .trim(),
             serde_yaml::to_string(&Config {
                 runtime: Default::default(),
-                manifest: ManifestConfig {
-                    url: s("example.com"),
-                    etag: Some(s("foo")),
-                },
+                manifest: ManifestConfig { url: s("example.com") },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![
@@ -1819,7 +1642,6 @@ customGames:
                         s("Backup Game 1"),
                         s("Backup Game 2"),
                     },
-                    recent_games: Default::default(),
                     filter: BackupFilter {
                         exclude_store_screenshots: true,
                         ..Default::default()
@@ -1837,8 +1659,6 @@ customGames:
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
-                    recent_games: Default::default(),
-                    redirects: vec![],
                     sort: Default::default(),
                 },
                 scan: Scan {

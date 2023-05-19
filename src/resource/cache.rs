@@ -4,7 +4,7 @@ use crate::{
     prelude::{app_dir, StrictPath},
     resource::{
         config::{Config, RootsConfig},
-        manifest::{self, ManifestUpdate},
+        manifest::ManifestUpdate,
         ResourceFile, SaveableResourceFile,
     },
 };
@@ -60,26 +60,10 @@ impl ResourceFile for Cache {
 impl SaveableResourceFile for Cache {}
 
 impl Cache {
-    #[allow(deprecated)]
     pub fn migrate_config(mut self, config: &mut Config) -> Self {
         let mut updated = false;
 
-        if let Some(etag) = config.manifest.etag.take() {
-            let mut manifest = self
-                .manifests
-                .entry(config.manifest.url.clone())
-                .or_insert_with(Default::default);
-            manifest.etag = Some(etag);
-            if let Some(modified) = manifest::Manifest::modified() {
-                manifest.checked = Some(modified);
-                manifest.updated = Some(modified);
-            }
-            updated = true;
-        }
-
         if !self.migrations.adopted_cache {
-            self.backup.recent_games.extend(config.backup.recent_games.drain(..));
-            self.restore.recent_games.extend(config.restore.recent_games.drain(..));
             let _ = StrictPath::from(app_dir())
                 .joined(".flag_migrated_legacy_config")
                 .remove();
