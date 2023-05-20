@@ -15,7 +15,6 @@ It is cross-platform and supports multiple game stores.
 * Available as a [Playnite](https://playnite.link) extension:
   https://github.com/mtkennerly/ludusavi-playnite
 * Works on the Steam Deck.
-  * For desktop mode, set the `WINIT_X11_SCALE_FACTOR` environment variable to `1`.
 
 This tool uses the [Ludusavi Manifest](https://github.com/mtkennerly/ludusavi-manifest)
 for info on what to back up, and it will automatically download the latest version of
@@ -112,6 +111,7 @@ along with the root's type:
 
   When using Wine prefixes with Heroic, Ludusavi will back up the `*.reg` files
   if the game is known to have registry-based saves.
+* For a Lutris root, this should be the folder containing the `games` subdirectory.
 * For the "other" root type and the remaining store-specific roots,
   this should be a folder whose direct children are individual games.
   For example, in the Epic Games store, this would be what you choose as the
@@ -131,12 +131,14 @@ you can escape it by wrapping it in brackets (e.g., `[` becomes `[[]`).
 
 ### Backup retention
 You can configure how many backups to keep by pressing the gear icon on the backup screen.
+A full backup contains all save data for a game,
+while a differential backup contains just the data that has changed since the last full backup.
 
-A differential backup contains just the changed files since the last full backup,
-and differential backup retention is tied to the associated full backup as well.
+When Ludusavi makes a new backup for a game, it will also remove any excess backups for that specific game.
+When a full backup is deleted, its associated differential backups are deleted as well.
 
-If you configure 2 full and 2 differential, then Ludusavi will create 2 differential backups
-for each full backup, like so:
+For example, if you configure a retention limit of 2 full and 2 differential,
+then Ludusavi will create 2 differential backups for each full backup, like so:
 
 * Backup #1: full
   * Backup #2: differential
@@ -148,20 +150,45 @@ for each full backup, like so:
 When backup #7 is created, because the full retention is set to 2,
 Ludusavi will delete backups 1 through 3.
 
+If your full retention is only 1 and your differential retention is 1+,
+then Ludusavi will keep the full backup and just delete the oldest differential as needed.
+
+On the restore screen, you can use the three-dot menu next to a game to lock any of its backups.
+Locked backups do not count toward the retention limits and are retained indefinitely.
+
 ### Cloud backup
-You can integrate Ludusavi with cloud backup tools of your choice,
+Ludusavi integrates with [Rclone](https://rclone.org) to provide cloud backups.
+You can configure this on the "other" screen.
+Any Rclone remote is supported, but Ludusavi can help you configure some of the more common ones:
+Google Drive, OneDrive, Dropbox, Box, FTP servers, SMB servers, and WebDAV servers.
+Support is verified for Rclone 1.62.2, but other versions should work as well.
+
+If you turn on automtic synchronization,
+then Ludusavi will check if your local and cloud saves are already in sync at the start of a backup.
+If so, then any changes will be uploaded once the backup is done.
+If they weren't in sync to begin with, then Ludusavi will warn you about the conflict and leave the cloud data alone.
+You can perform an upload or download at any time on the "other" screen to resolve such a conflict.
+
+Bear in mind that many factors can affect cloud sync performance,
+including network speed, outages on the cloud side, and any limitations of Rclone itself.
+You can try setting custom Rclone arguments if you find that it is too slow.
+For example, `--fast-list` and/or `--ignore-checksum` can speed things up,
+while `--transfers=1` can help to avoid rate-limiting but may slow things down.
+The "other" screen has a field to configure custom arguments,
+and you can find documentation for them here: https://rclone.org/flags
+
+You can also use other cloud backup tools of your choice,
 as long as they can make the storage available as what looks like a normal folder.
 For example:
 
 * If you use something like [Google Drive for Desktop](https://www.google.com/drive/download),
   which creates a special drive (`G:`) to stream from/to the cloud,
   then you can configure Ludusavi to use a folder in that drive.
-* If you use something like [Rclone](https://rclone.org),
-  which mounts cloud storage as a normal-looking folder,
-  then you can configure Ludusavi to use that mount folder.
 * If you use something like [Syncthing](https://syncthing.net),
   which continuously synchronizes a local folder across systems,
   then you can configure Ludusavi to use that local folder.
+* If you use Rclone's mounting functionality,
+  then you can configure Ludusavi to use the mount folder.
 
 ### Selective scanning
 Once you've done at least one full scan (via the preview/backup buttons),
@@ -253,10 +280,11 @@ you can escape it by wrapping it in brackets (e.g., `[` becomes `[[]`).
 Backup exclusions let you set paths and registry keys to completely ignore
 from all games. They will not be shown at all during backup scans.
 
-Configure exclusions on the `other` screen.
+Configure exclusions on the "other" screen.
 
 ### Command line
-Run `ludusavi --help` for the full CLI usage information.
+Run `ludusavi --help` for the CLI usage information.
+You can also view info for specific subcommands, such as `ludusavi manifest update --help`.
 
 ### Configuration
 Ludusavi stores its configuration in the following locations:
@@ -299,6 +327,10 @@ For the `backup`/`restore` commands:
 * `errors` (optional, map):
   * `someGamesFailed` (optional, boolean): Whether any games failed.
   * `unknownGames` (optional, list of strings): Names of unknown games, if any.
+  * `cloudConflict` (optional, empty map): When this field is present,
+    Ludusavi could not automatically synchronize with the cloud because of conflicting data.
+  * `cloudSyncFailed` (optional, empty map): When this field is present,
+    Ludusavi tried and failed to automatically synchronize with the cloud.
 * `overall` (map):
   * `totalGames` (number): How many games were found.
   * `totalBytes` (number): How many bytes are used by files associated with
@@ -350,10 +382,21 @@ The `backups` command is similar, but without `overall`, and with each game cont
 `{"backups": [ {"name": <string>, "when": <string>, "comment": <string>} ]}`.
 The `find` command also does not have `overall`, and each game object is empty.
 
+For the `cloud upload` and `cloud download` commands:
+
+* `cloud` (map):
+  * Each key is the path of a file relative to the cloud folder,
+    and the value is a map with these fields:
+    * `change` (string): Same as the `change` fields for the `backup` command.
+
 Note that, in some error conditions, there may not be any JSON output,
 so you should check if stdout was blank before trying to parse it.
 If the command line input cannot be parsed, then the output will not be
 in a stable format.
+
+API output goes on stdout, but stderr may still be used for human-readable warnings/errors.
+If stderr is not empty, you may want to log it,
+since not all human-readable warnings have an API equivalent.
 
 Example:
 
@@ -408,7 +451,6 @@ Here are the available settings in `config.yaml` (all are required unless otherw
     Must be greater than 0.
 * `manifest` (map):
   * `url` (string): Where to download the primary manifest.
-  * `etag` (string or null): This field is deprecated and has been superseded by cache.yaml.
 * `language` (string, optional): Display language. Valid options:
   `en-US` (English, default),
   `de-DE` (German),
@@ -434,7 +476,7 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   * Each entry in the list should be a map with these fields:
     * `path` (string): Where the root is located on your system.
     * `store` (string): Game store associated with the root. Valid options:
-      `epic`, `gog`, `gogGalaxy`, `heroic`, `microsoft`, `origin`, `prime`,
+      `ea`, `epic`, `gog`, `gogGalaxy`, `heroic`, `lutris`, `microsoft`, `origin`, `prime`,
       `steam`, `uplay`, `otherHome`, `otherWine`, `other`
 * `redirects` (optional, list):
   * Each entry in the list should be a map with these fields:
@@ -451,8 +493,6 @@ Here are the available settings in `config.yaml` (all are required unless otherw
     This can be overridden in the CLI with `--path`.
   * `ignoredGames` (optional, array of strings): Names of games to skip when backing up.
     This can be overridden in the CLI by passing a list of games.
-  * `merge` (optional, boolean): Whether to merge save data into the target
-    directory rather than deleting the directory first. Default: true.
   * `filter` (optional, map):
     * `excludeStoreScreenshots` (optional, boolean): If true, then the backup
       should exclude screenshots from stores like Steam. Default: false.
@@ -499,6 +539,17 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   * `showDeselectedGames` (boolean): In the GUI, show games that have been deselected.
   * `showUnchangedGames` (boolean): In the GUI, show games that have been scanned, but do not have any changed saves.
   * `showUnscannedGames` (boolean): In the GUI, show recent games that have not been scanned yet.
+* `cloud` (map):
+  * `remote`: Rclone remote.
+    You should use the GUI or the `cloud set` command to modify this,
+    since any changes need to be synchronized with Rclone to take effect.
+  * `path` (string): Cloud folder to use for backups.
+  * `synchronize` (boolean): If true, upload changes automatically after backing up,
+    as long as there aren't any conflicts.
+* `apps` (map):
+  * `rclone` (map):
+    * `path` (string): Path to `rclone.exe`.
+    * `arguments` (string): Any global flags (space-separated) to include in Rclone commands.
 * `customGames` (optional, list):
   * Each entry in the list should be a map with these fields:
     * `name` (string): Name of the game.
@@ -554,20 +605,24 @@ cross-platform and cross-store solution:
     For example, when clicking "select all / de-select all", each checkbox has to individually toggle itself.
     With 257 games, this means you end up having to wait around 42 seconds.
   * Minimal command line interface.
-  * Can create symlinks for games and game data (not currently supported by Ludusavi).
+  * Can create symlinks for games and game data.
+    Ludusavi does not support this.
 * [Game Backup Monitor](https://mikemaximus.github.io/gbm-web) (as of v1.2.2):
   * Does not support Mac.
   * Database only covers 577 games (as of 2022-11-16), although it can also import
     the Ludusavi manifest starting in 1.3.1.
   * No command line interface.
-  * Can automatically back up saves for a game after you play it
-    (Ludusavi can only do that in conjunction with a launcher like Playnite).
+  * Can automatically back up saves for a game after you play it.
+    Ludusavi can only do that in conjunction with a launcher like Playnite.
 * [Gaming Backup Multitool for Linux](https://supremesonicbrazil.gitlab.io/gbml-web) (as of v1.4.0.0):
   * Only supports Linux and Steam.
-  * Database is not actively updated (as of 2022-11-16, the last update was 2018-06-05).
+  * Database is not actively updated. As of 2022-11-16, the last update was 2018-06-05.
   * No command line interface.
 
 ## Troubleshooting
+* The window content is way too big and goes off screen.
+  * Try setting the `WINIT_X11_SCALE_FACTOR` environment variable to `1`.
+    Flatpak installs will have this set automatically.
 * The file/folder picker doesn't work.
   * **Linux:** Make sure that you have Zenity or kdialog installed and available on the `PATH`.
     The `DISPLAY` environment variable must also be set.

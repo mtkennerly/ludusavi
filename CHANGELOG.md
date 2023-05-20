@@ -1,4 +1,4 @@
-## Unreleased
+## v0.18.0 (2023-05-20)
 
 * Added:
   * You can now upload backups to the cloud.
@@ -6,7 +6,7 @@
     and Ludusavi can help you configure some of the more common ones:
     Google Drive, OneDrive, Dropbox, Box, FTP servers, SMB servers, and WebDAV servers.
 
-    For the GUI, refer to the "cloud" section on the `other` screen.
+    For the GUI, refer to the "cloud" section on the "other" screen.
     For the CLI, use the `cloud` command group (e.g., `ludusavi cloud upload`).
   * The Lutris launcher is now supported as a root type.
     Ludusavi can find saves from Wine prefixes configured in Lutris.

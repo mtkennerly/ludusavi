@@ -46,18 +46,20 @@
         <keyword translate="no">Epic</keyword>
         <keyword translate="no">GOG</keyword>
         <keyword translate="no">Heroic</keyword>
+        <keyword translate="no">Lutris</keyword>
         <keyword translate="no">Proton</keyword>
         <keyword translate="no">Steam</keyword>
     </keywords>
     <screenshots>
         <screenshot type="default">
-            <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.17.1/docs/sample-gui-linux.png</image>
+            <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.18.0/docs/sample-gui-linux.png</image>
             <caption>Graphical user interface</caption>
         </screenshot>
     </screenshots>
     <content_rating type="oars-1.1" />
     <launchable type="desktop-id">com.github.mtkennerly.ludusavi.desktop</launchable>
     <releases>
+        <release version="0.18.0" date="2023-05-20"/>
         <release version="0.17.1" date="2023-04-10"/>
         <release version="0.17.0" date="2023-04-09"/>
         <release version="0.16.0" date="2023-03-18"/>
