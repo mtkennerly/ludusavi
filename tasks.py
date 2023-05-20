@@ -15,6 +15,11 @@ def get_version(ctx) -> str:
 
 
 @task
+def version(ctx):
+    print(get_version(ctx))
+
+
+@task
 def legal(ctx):
     version = get_version(ctx)
     legal_path = ROOT / "dist" / f"ludusavi-v{version}-legal.txt"

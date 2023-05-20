@@ -58,6 +58,8 @@
   * Some config fields weren't serialized if they matched the default value.
     Now they're serialized anyway in case the default value were to ever change.
     Fields: `backup.filter.excludeStoreScreenshots`, `scan.showDeselectedGames`, `scan.showUnchangedGames`, and `scan.showUnscannedGames`.
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:
   * Significantly improved performance of zip file extraction.
     Ludusavi had been unnecessarily reopening the zip for each file inside.

@@ -67,3 +67,32 @@ Also install the Crowdin CLI manually.
 * Run `cargo build` to update the version in Cargo.lock
 * Add the new version to `.github/ISSUE_TEMPLATE/*.yaml`.
 * Update the README if necessary for any new features.
+
+#### Publish
+Commands assume you've set `VERSION=$(invoke version)`.
+
+* Flatpak:
+  * Use fork of https://github.com/flathub/com.github.mtkennerly.ludusavi .
+  * From master, create a new branch (`release/v${VERSION}`).
+  * Update `com.github.mtkennerly.ludusavi.yaml` to reference the new tag.
+  * Replace `generated-sources.json` (new file produced by `invoke prerelease` earlier).
+  * Open a pull request.
+    * Recommended commit message and PR title:
+      `Update for v${VERSION}`
+  * After the PR is merged, publish via https://buildbot.flathub.org/#/apps/com.github.mtkennerly.ludusavi .
+* winget:
+  * Use fork of https://github.com/microsoft/winget-pkgs .
+  * From master, create a new branch (`mtkennerly.ludusavi-${VERSION}`).
+  * Run `wingetcreate update mtkennerly.ludusavi --version ${VERSION} --urls https://github.com/mtkennerly/ludusavi/releases/download/v${VERSION}/ludusavi-v${VERSION}-win64.zip https://github.com/mtkennerly/ludusavi/releases/download/v${VERSION}/ludusavi-v${VERSION}-win32.zip`
+  * In the generated `manifests/m/mtkennerly/ludusavi/${VERSION}/mtkennerly.ludusavi.locale.en-US.yaml` file,
+    add the `ReleaseNotes` and `ReleaseNotesUrl` fields:
+
+    ```yaml
+    ReleaseNotes: |-
+      <copy/paste from CHANGELOG.md>
+    ReleaseNotesUrl: https://github.com/mtkennerly/ludusavi/releases/tag/v${VERSION}
+    ```
+  * Run `winget validate --manifest manifests/m/mtkennerly/ludusavi/${VERSION}`
+  * Open a pull request.
+    * Recommended commit message and PR title:
+      `mtkennerly.ludusavi version ${VERSION}`
