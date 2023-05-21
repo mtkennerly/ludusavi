@@ -112,6 +112,10 @@ along with the root's type:
   When using Wine prefixes with Heroic, Ludusavi will back up the `*.reg` files
   if the game is known to have registry-based saves.
 * For a Lutris root, this should be the folder containing the `games` subdirectory.
+
+  Ludusavi expects the game YAML files to contain a few fields,
+  particularly `name`, `game_slug`, and either `game.working_dir` or `game.exe`.
+  Games will be skipped if they don't have the necessary fields.
 * For the "other" root type and the remaining store-specific roots,
   this should be a folder whose direct children are individual games.
   For example, in the Epic Games store, this would be what you choose as the

@@ -1,3 +1,10 @@
+## Unreleased
+
+* Fixed:
+  * When a Lutris game file does not include the `game > working_dir` field,
+    Ludusavi will now try to fall back to the `game > exe` field and cut off the file name.
+    Ludusavi will also log a more specific message when an expected field is missing.
+
 ## v0.18.1 (2023-05-21)
 
 * Fixed:

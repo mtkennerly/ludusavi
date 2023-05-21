@@ -11,15 +11,16 @@ use crate::{
 struct LutrisGame {
     game: GameSection,
     /// ID of the game itself.
-    game_slug: String,
+    game_slug: Option<String>,
     /// Human-readable.
-    name: String,
+    name: Option<String>,
 }
 
 #[derive(serde::Deserialize)]
 struct GameSection {
+    exe: Option<StrictPath>,
     prefix: Option<StrictPath>,
-    working_dir: StrictPath,
+    working_dir: Option<StrictPath>,
 }
 
 pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
@@ -39,7 +40,12 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
             continue;
         };
 
-        let official_title = title_finder.find_one(&[game.name.to_owned()], &None, &None, true, true, false);
+        let (Some(game_slug), Some(name)) = (game.game_slug.clone(), game.name.clone()) else {
+            log::info!("Skipping Lutris game file without `game_slug` and `name` fields: {}", spec.render());
+            continue;
+        };
+
+        let official_title = title_finder.find_one(&[name.clone()], &None, &None, true, true, false);
         let prefix = game.game.prefix;
         let platform = Some(match &prefix {
             Some(_) => Os::Windows,
@@ -50,28 +56,45 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
             Some(title) => {
                 log::trace!(
                     "Recognized Lutris game: '{title}' from '{}' (slug: '{}')",
-                    &game.name,
-                    &game.game_slug
+                    &name,
+                    &game_slug
                 );
                 title
             }
             None => {
-                let log_message = format!(
-                    "Unrecognized Lutris game: '{}' (slug: '{}')",
-                    &game.name, &game.game_slug
-                );
+                let log_message = format!("Unrecognized Lutris game: '{}' (slug: '{}')", &name, &game_slug);
                 if std::env::var(ENV_DEBUG).is_ok() {
                     eprintln!("{log_message}");
                 }
                 log::info!("{log_message}");
-                game.name
+                name
             }
+        };
+
+        let install_dir = if let Some(working_dir) = game.game.working_dir.as_ref() {
+            working_dir.clone()
+        } else if let Some(exe) = game.game.exe.as_ref() {
+            if let Some(parent) = exe.parent() {
+                parent
+            } else {
+                log::info!(
+                    "Skipping Lutris game file with indeterminate parent folder of exe: {}",
+                    spec.render()
+                );
+                continue;
+            }
+        } else {
+            log::info!(
+                "Skipping Lutris game file without `working_dir` and `exe` fields: {}",
+                spec.render()
+            );
+            continue;
         };
 
         games.insert(
             title,
             LauncherGame {
-                install_dir: game.game.working_dir,
+                install_dir,
                 prefix,
                 platform,
             },
