@@ -1,4 +1,4 @@
-## Unreleased
+## v0.18.2 (2023-05-21)
 
 * Fixed:
   * When a Lutris game file does not include the `game > working_dir` field,
