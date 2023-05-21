@@ -630,6 +630,11 @@ cross-platform and cross-store solution:
   * **Flatpak:** The `DISPLAY` environment variable may not be getting passed through to the container.
     This has been observed on GNOME systems.
     Try running `flatpak run --nosocket=fallback-x11 --socket=x11 com.github.mtkennerly.ludusavi`.
+* On Windows 11, when I open the GUI, a console window also stays open.
+  * This is a limitation of the new Windows Terminal app (https://github.com/microsoft/terminal/issues/14416).
+    It should be fixed once Windows Terminal v1.17 is released.
+    In the meantime, you can work around it by opening Windows Terminal from the Start Menu,
+    opening its settings, and changing the "default terminal application" to "Windows Console Host".
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
