@@ -31,6 +31,7 @@ static HANDLER_SIGINT: Mutex<Option<signal_hook::SigId>> = Mutex::new(None);
 
 pub const ENV_DEBUG: &str = "LUDUSAVI_DEBUG";
 const ENV_THREADS: &str = "LUDUSAVI_THREADS";
+pub const ENV_RELAUNCHED: &str = "LUDUSAVI_INTERNAL_RELAUNCHED";
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Finality {

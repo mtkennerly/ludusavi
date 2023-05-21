@@ -497,6 +497,26 @@ pub struct Cli {
     pub sub: Option<Subcommand>,
 }
 
+impl Cli {
+    pub fn relaunch_gui_args(&self) -> Vec<String> {
+        let mut args = vec![];
+
+        if let Some(config) = self.config.as_ref() {
+            args.push("--config".into());
+            args.push(config.to_string_lossy().to_string());
+        }
+
+        if self.no_manifest_update {
+            args.push("--no-manifest-update".into());
+        }
+        if self.try_manifest_update {
+            args.push("--try-manifest-update".into());
+        }
+
+        args
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use clap::Parser;

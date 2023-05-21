@@ -2,6 +2,16 @@
 
 * Fixed:
   * Cloud backups would fail if the cloud path contained a backslash (`\`).
+  * On Windows, if the default terminal application was the [Windows Terminal](https://aka.ms/terminal)
+    (as opposed to the older Windows Console Host), then a couple of problems would happen
+    when Ludusavi was launched from Windows Explorer:
+
+    * An empty console window would stay open along with the GUI.
+    * Asynchronous Rclone commands would fail.
+
+    This was ultimately related to how Ludusavi hides the console in GUI mode.
+    Now, instead of removing the console from the currently running instance,
+    Ludusavi simply relaunches itself in a detached state.
 
 ## v0.18.0 (2023-05-20)
 

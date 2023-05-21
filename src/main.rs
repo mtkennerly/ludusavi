@@ -16,10 +16,11 @@ mod testing;
 use crate::{
     gui::Flags,
     lang::TRANSLATOR,
-    prelude::{app_dir, CONFIG_DIR, VERSION},
+    prelude::{app_dir, CONFIG_DIR, ENV_DEBUG, ENV_RELAUNCHED, VERSION},
 };
 
 /// The logger must be assigned to a variable because we're using async logging.
+/// We should also avoid doing this if we're just going to relaunch into detached mode anyway.
 /// https://docs.rs/flexi_logger/0.23.1/flexi_logger/error_info/index.html#write
 fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLoggerError> {
     flexi_logger::Logger::try_with_env_or_str("ludusavi=warn")
@@ -45,6 +46,37 @@ fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLo
         .start()
 }
 
+fn has_env(key: &str) -> bool {
+    std::env::var(key).is_ok()
+}
+
+fn relaunch_detached(args: Vec<String>) -> ! {
+    let exe = match std::env::current_exe() {
+        Ok(x) => x,
+        Err(e) => {
+            eprintln!("Unable to relaunch in detached mode: {e:?}");
+            std::process::exit(1);
+        }
+    };
+
+    let mut command = std::process::Command::new(exe);
+    command.args(args).env(ENV_RELAUNCHED, "1");
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+        command.creation_flags(winapi::um::winbase::CREATE_NO_WINDOW);
+    }
+
+    match command.spawn() {
+        Ok(_) => std::process::exit(0),
+        Err(e) => {
+            eprintln!("Unable to relaunch in detached mode: {e:?}");
+            std::process::exit(1);
+        }
+    }
+}
+
 fn main() {
     let args = cli::parse();
     if let Some(config_dir) = args.config.as_deref() {
@@ -52,23 +84,10 @@ fn main() {
     }
     match args.sub {
         None => {
-            #[cfg(target_os = "windows")]
-            {
-                if std::env::var(crate::prelude::ENV_DEBUG).is_err() {
-                    // The purpose of this unsafe block is to detach the process from the console
-                    // that it starts with. Otherwise, the GUI would be accompanied by a console
-                    // window. Unfortunately, it does not seem to be possible to go the other direction
-                    // (setting `#![windows_subsystem = "windows"]` and calling `AllocConsole`),
-                    // so there's a brief console icon in the task bar, but no visible console window.
-                    let code = unsafe { winapi::um::wincon::FreeConsole() };
-                    if code == 0 {
-                        eprintln!("Unable to detach the console");
-                        std::process::exit(1);
-                    }
-                }
+            if cfg!(target_os = "windows") && !has_env(ENV_DEBUG) && !has_env(ENV_RELAUNCHED) {
+                relaunch_detached(args.relaunch_gui_args());
             }
 
-            // We must do this after detaching the console, or else it will still be present, somehow.
             #[allow(unused)]
             let logger = prepare_logging();
 
