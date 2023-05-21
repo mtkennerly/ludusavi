@@ -550,7 +550,9 @@ impl Rclone {
     }
 
     fn path(&self, path: &str) -> String {
-        format!("{}:{}", self.remote.id(), path)
+        // Rclone doesn't allow backslashes in non-local paths:
+        // https://rclone.org/docs/#syntax-of-remote-paths
+        format!("{}:{}", self.remote.id(), path.replace('\\', "/"))
     }
 
     fn args(&self, args: &[String]) -> Vec<String> {
