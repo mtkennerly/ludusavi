@@ -1,4 +1,4 @@
-## Unreleased
+## v0.18.1 (2023-05-21)
 
 * Fixed:
   * Cloud backups would fail if the cloud path contained a backslash (`\`).

@@ -2225,7 +2225,7 @@ dependencies = [
 
 [[package]]
 name = "ludusavi"
-version = "0.18.0"
+version = "0.18.1"
 dependencies = [
  "base64 0.13.1",
  "byte-unit",
