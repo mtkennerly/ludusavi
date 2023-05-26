@@ -777,6 +777,7 @@ impl Config {
             (format!("{}/EA Games", pf32), Store::Ea),
             (format!("{}/EA Games", pf64), Store::Ea),
             // Lutris:
+            ("~/.config/lutris".to_string(), Store::Lutris),
             ("~/.var/app/net.lutris.Lutris/config/lutris".to_string(), Store::Lutris),
         ];
 

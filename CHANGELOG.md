@@ -1,3 +1,8 @@
+## Unreleased
+
+* Added:
+  * Automatic detection of non-Flatpak Lutris roots (`~/.config/lutris`).
+
 ## v0.18.2 (2023-05-21)
 
 * Fixed:
