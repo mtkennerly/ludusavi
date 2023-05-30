@@ -2,6 +2,10 @@
 
 * Added:
   * Automatic detection of non-Flatpak Lutris roots (`~/.config/lutris`).
+* Fixed:
+  * After making a backup with a configured backup/bidirectional redirect,
+    a subsequent backup would fail because Ludusavi would mark the redirect target
+    as a removed file.
 
 ## v0.18.2 (2023-05-21)
 

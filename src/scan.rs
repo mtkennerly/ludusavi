@@ -555,10 +555,22 @@ pub fn scan_game_for_backup(
     }
 
     // Mark removed files.
-    let current_files: Vec<_> = found_files.iter().map(|x| x.path.interpret()).collect();
+    let current_files: Vec<_> = found_files
+        .iter()
+        .map(|x| x.redirected.as_ref().unwrap_or(&x.path).interpret())
+        .collect();
+    // But if a file is only "removed" because now it has a redirect,
+    // then the removal isn't very interesting
+    // and would lead to duplicate hash keys during reporting.
+    let current_files_with_redirects: Vec<_> = found_files
+        .iter()
+        .filter_map(|x| x.redirected.is_some().then(|| x.path.interpret()))
+        .collect();
     for (previous_file, _) in previous_files {
         let previous_file_interpreted = previous_file.interpret();
-        if !current_files.contains(&previous_file_interpreted) {
+        if !current_files.contains(&previous_file_interpreted)
+            && !current_files_with_redirects.contains(&previous_file_interpreted)
+        {
             found_files.insert(ScannedFile {
                 change: ScanChange::Removed,
                 size: 0,
