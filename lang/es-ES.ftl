@@ -36,9 +36,9 @@ button-select-all = Seleccionar todos
 button-deselect-all = Deseleccionar todos
 button-enable-all = Habilitar todos
 button-disable-all = Deshabilitar todos
-button-customize = Customize
+button-customize = Personalizar
 button-exit = Salir
-button-comment = Comment
+button-comment = Comentar
 button-lock = Lock
 button-unlock = Unlock
 # This opens a download page.
@@ -79,7 +79,7 @@ field-redirect-source =
     .placeholder = Origen (ubicación original)
 field-redirect-target =
     .placeholder = Destino (nueva ubicación)
-field-roots = Roots:
+field-roots = Raíces:
 field-backup-excluded-items = Backup exclusions:
 field-redirects = Redirects:
 # This appears next to the number of full backups that you'd like to keep.
@@ -88,11 +88,11 @@ field-retention-full = Full:
 # This appears next to the number of differential backups that you'd like to keep.
 # A differential backup includes only the files that have changed since the last full backup.
 field-retention-differential = Differential:
-field-backup-format = Format:
-field-backup-compression = Compression:
+field-backup-format = Formato:
+field-backup-compression = Compresión:
 # The compression level determines how much compresison we perform.
-field-backup-compression-level = Level:
-label-manifest = Manifest
+field-backup-compression-level = Nivel:
+label-manifest = Manifiesto
 # This shows the time when we checked for an update to the manifest.
 label-checked = Checked
 # This shows the time when we found an update to the manifest.
@@ -104,7 +104,7 @@ label-scan = Scan
 label-filter = Filter
 label-unique = Unique
 label-complete = Complete
-label-partial = Partial
+label-partial = Parcial
 label-enabled = Enabled
 label-disabled = Disabled
 # https://en.wikipedia.org/wiki/Thread_(computing)
@@ -124,10 +124,10 @@ label-host = Host
 # https://en.wikipedia.org/wiki/Port_(computer_networking)
 label-port = Port
 label-username = Username
-label-password = Password
+label-password = Contraseña
 # This is a specific website or service that provides some cloud functionality.
 # For example, Nextcloud and Owncloud are providers of WebDAV services.
-label-provider = Provider
+label-provider = Proveedor
 label-custom = Custom
 label-none = None
 label-change-count = Changes: { $total }
@@ -155,12 +155,12 @@ compression-zstd = Zstd
 theme = Tema
 theme-light = Blanco
 theme-dark = Oscuro
-redirect-bidirectional = Bidirectional
+redirect-bidirectional = Bidireccional
 show-deselected-games = Show deselected games
 show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
-synchronize-automatically = Synchronize automatically
+synchronize-automatically = Sincronizar automáticamente
 explanation-for-exclude-store-screenshots = En las copias de seguridad, excluye las capturas de pantalla específicas de la tienda
 consider-doing-a-preview =
     Si aún no lo has hecho, considera hacer una vista previa primero para que
@@ -181,11 +181,11 @@ confirm-cloud-download =
     Do you want to replace your local files with your cloud files?
     Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
     Local files will be updated or deleted as necessary.
-confirm-add-missing-roots = Add these roots?
+confirm-add-missing-roots = ¿Añadir estas raíces?
 no-missing-roots = No additional roots found.
-loading = Loading...
+loading = Cargando...
 preparing-backup-target = Preparing backup directory...
-updating-manifest = Updating manifest...
+updating-manifest = Actualizando manifiesto...
 no-cloud-changes = No changes to synchronize
 saves-found = Save data found.
 no-saves-found = No save data found.
@@ -195,7 +195,7 @@ suffix-no-confirmation = no confirmation
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
 suffix-restart-required = restart required
 prefix-error = Error: { $message }
-prefix-warning = Warning: { $message }
+prefix-warning = Advertencia: { $message }
 cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
 cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
 cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.

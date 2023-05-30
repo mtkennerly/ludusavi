@@ -84,6 +84,9 @@ pub enum Language {
     #[serde(rename = "ru-RU")]
     Spanish,
     #[allow(dead_code)]
+    #[serde(rename = "th-TH")]
+    Thai,
+    #[allow(dead_code)]
     #[serde(rename = "uk-UA")]
     Ukrainian,
 }
@@ -121,6 +124,7 @@ impl Language {
             Self::PortugueseBrazilian => "pt-BR",
             Self::Russian => "ru-RU",
             Self::Spanish => "es-ES",
+            Self::Thai => "th-TH",
             Self::Ukrainian => "uk-UA",
         };
         id.parse().unwrap()
@@ -145,6 +149,7 @@ impl ToString for Language {
             Self::PortugueseBrazilian => "Português brasileiro (95%)",
             Self::Russian => "Русский язык (20%)",
             Self::Spanish => "Español (54%)",
+            Self::Thai => "ภาษาไทย (29%)",
             Self::Ukrainian => "Украї́нська мо́ва (7%)",
         }
         .to_string()
@@ -189,6 +194,7 @@ fn set_language(language: Language) {
         Language::PortugueseBrazilian => include_str!("../lang/pt-BR.ftl"),
         Language::Russian => include_str!("../lang/ru-RU.ftl"),
         Language::Spanish => include_str!("../lang/es-ES.ftl"),
+        Language::Thai => include_str!("../lang/th-TH.ftl"),
         Language::Ukrainian => include_str!("../lang/uk-UA.ftl"),
     }
     .to_owned();

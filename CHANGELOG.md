@@ -2,6 +2,12 @@
 
 * Added:
   * Automatic detection of non-Flatpak Lutris roots (`~/.config/lutris`).
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
+
+    A partial translation for Thai has been added, but it only has experimental support
+    because of a [technical limitation](https://github.com/mtkennerly/ludusavi/issues/9).
+    You can enable it by editing the config file directly with language code `th-TH`,
 * Fixed:
   * After making a backup with a configured backup/bidirectional redirect,
     a subsequent backup would fail because Ludusavi would mark the redirect target
