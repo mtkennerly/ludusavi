@@ -47,10 +47,8 @@ fn title_case(text: &str) -> String {
 // TODO: Some are blocked by https://github.com/mtkennerly/ludusavi/issues/9.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Language {
-    #[allow(dead_code)]
     #[serde(rename = "ar-SA")]
     Arabic,
-    #[allow(dead_code)]
     #[serde(rename = "zh-Hans")]
     ChineseSimplified,
     #[serde(rename = "nl-NL")]
@@ -68,25 +66,20 @@ pub enum Language {
     German,
     #[serde(rename = "it-IT")]
     Italian,
-    #[allow(dead_code)]
     #[serde(rename = "ja-JP")]
     Japanese,
-    #[allow(dead_code)]
     #[serde(rename = "ko-KR")]
     Korean,
     #[serde(rename = "pt-BR")]
     PortugueseBrazilian,
     #[serde(rename = "pl-PL")]
     Polish,
-    #[allow(dead_code)]
-    #[serde(rename = "ja-JP")]
-    Russian,
     #[serde(rename = "ru-RU")]
+    Russian,
+    #[serde(rename = "es-ES")]
     Spanish,
-    #[allow(dead_code)]
     #[serde(rename = "th-TH")]
     Thai,
-    #[allow(dead_code)]
     #[serde(rename = "uk-UA")]
     Ukrainian,
 }

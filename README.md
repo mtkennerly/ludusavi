@@ -492,7 +492,8 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   `ar-SA` (Arabic),
   `ja-JP` (Japanese),
   `ko-KR` (Korean),
-  `zh-Hans` (Simplified Chinese).
+  `zh-Hans` (Simplified Chinese),
+  `th-TH` (Thai).
 * `theme` (string, optional): Visual theme. Valid options:
   `light` (default), `dark`.
 * `roots` (list):

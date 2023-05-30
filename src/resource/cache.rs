@@ -1,7 +1,8 @@
 use std::collections::{BTreeSet, HashMap};
 
 use crate::{
-    prelude::{app_dir, StrictPath},
+    lang::Language,
+    prelude::{app_dir, StrictPath, CANONICAL_VERSION},
     resource::{
         config::{Config, RootsConfig},
         manifest::ManifestUpdate,
@@ -11,6 +12,8 @@ use crate::{
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Cache {
+    #[serde(default)]
+    pub version: Option<(u32, u32, u32)>,
     #[serde(default)]
     pub migrations: Migrations,
     #[serde(default)]
@@ -27,6 +30,8 @@ pub struct Cache {
 pub struct Migrations {
     #[serde(default)]
     pub adopted_cache: bool,
+    #[serde(default)]
+    pub fixed_spanish_config: bool,
 }
 
 pub type Manifests = HashMap<String, Manifest>;
@@ -71,8 +76,21 @@ impl Cache {
             updated = true;
         }
 
+        if !self.migrations.fixed_spanish_config && self.version.is_none() {
+            if config.language == Language::Russian {
+                config.language = Language::Spanish;
+            }
+            self.migrations.fixed_spanish_config = true;
+            updated = true;
+        }
+
         if self.roots.is_empty() && !config.roots.is_empty() {
             self.add_roots(&config.roots);
+            updated = true;
+        }
+
+        if self.version != Some(*CANONICAL_VERSION) {
+            self.version = Some(*CANONICAL_VERSION);
             updated = true;
         }
 

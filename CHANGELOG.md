@@ -12,6 +12,9 @@
   * After making a backup with a configured backup/bidirectional redirect,
     a subsequent backup would fail because Ludusavi would mark the redirect target
     as a removed file.
+  * The Spanish and Russian translations were set incorrectly in the config file.
+    If you selected Spanish, it would display normally, but the config file would be set to Russian.
+    If you selected Russian and restarted the app, it would display in Japanese.
 
 ## v0.18.2 (2023-05-21)
 

@@ -108,8 +108,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
     if let Some(threads) = get_threads_from_env().or(config.runtime.threads) {
         initialize_rayon(threads);
     }
-    TRANSLATOR.set_language(config.language);
     let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
+    TRANSLATOR.set_language(config.language);
     let mut failed = false;
     let mut duplicate_detector = DuplicateDetector::default();
 

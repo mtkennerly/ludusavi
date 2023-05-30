@@ -12,6 +12,17 @@ use crate::resource::manifest::Os;
 pub static VERSION: Lazy<&'static str> =
     Lazy::new(|| option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")));
 pub static VARIANT: Option<&'static str> = option_env!("LUDUSAVI_VARIANT");
+pub static CANONICAL_VERSION: Lazy<(u32, u32, u32)> = Lazy::new(|| {
+    let version_parts: Vec<u32> = env!("CARGO_PKG_VERSION")
+        .split('.')
+        .map(|x| x.parse().unwrap_or(0))
+        .collect();
+    if version_parts.len() != 3 {
+        (0, 0, 0)
+    } else {
+        (version_parts[0], version_parts[1], version_parts[2])
+    }
+});
 
 pub type AnyError = Box<dyn std::error::Error>;
 

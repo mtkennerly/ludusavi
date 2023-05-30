@@ -969,8 +969,8 @@ impl Application for App {
                 Config::default()
             }
         };
-        TRANSLATOR.set_language(config.language);
         let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
+        TRANSLATOR.set_language(config.language);
         let manifest = match Manifest::load() {
             Ok(y) => y,
             Err(_) => {
