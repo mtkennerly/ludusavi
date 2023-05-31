@@ -179,7 +179,7 @@ show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
-force-new-full-backup = Always create a new full backup
+force-new-full-backup = Create a new full backup even when unnecessary
 
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots

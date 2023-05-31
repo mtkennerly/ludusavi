@@ -1873,7 +1873,7 @@ impl Application for App {
             }
             Message::SetForceNewFullBackup(value) => {
                 self.config.backup.retention.force_new_full = value;
-                self.config.save();
+                // Intentionally not saved because it's only meant for temporary debugging.
                 Command::none()
             }
             Message::FilterDuplicates { restoring, game } => {

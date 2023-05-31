@@ -316,7 +316,7 @@ pub struct Sort {
 pub struct Retention {
     pub full: u8,
     pub differential: u8,
-    #[serde(default, rename = "forceNewFull")]
+    #[serde(default, skip)]
     pub force_new_full: bool,
 }
 
@@ -1557,7 +1557,6 @@ backup:
   retention:
     full: 1
     differential: 0
-    forceNewFull: false
   format:
     chosen: simple
     zip:
