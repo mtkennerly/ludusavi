@@ -1132,7 +1132,7 @@ impl GameLayout {
             .large_file(true);
 
         'item: for file in &scan.found_files {
-            if !backup.includes_file(file.path.render()) {
+            if !backup.includes_file(file.effective().render()) {
                 log::debug!("[{}] skipped: {}", self.mapping.name, file.path.raw());
                 continue;
             }

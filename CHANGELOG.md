@@ -9,9 +9,24 @@
     because of a [technical limitation](https://github.com/mtkennerly/ludusavi/issues/9).
     You can enable it by editing the config file directly with language code `th-TH`,
 * Fixed:
-  * After making a backup with a configured backup/bidirectional redirect,
-    a subsequent backup would fail because Ludusavi would mark the redirect target
+  * If you had configured a backup-only or bidirectional redirect,
+    then the first backup for a game would complete successfully,
+    but a subsequent backup would fail because Ludusavi would mark the redirect target
     as a removed file.
+  * If you had configured a backup-only or bidirectional redirect
+    and you were using zip-based backups,
+    then the redirected files would not be included in the backup.
+    Unfortunately, they would still be recorded in mapping.yaml,
+    so Ludusavi cannot detect and warn you where this already occurred.
+
+    If this affects you, you can force a new backup for the affected games
+    by either deleting their backups or by doing the following:
+
+    * Edit each game's `mapping.yaml` file, find the last `hash` field, and add a letter at the end of the value.
+      For example, `hash: da3...709` would become `hash: da3...709x`.
+    * Set the differential backup limit to 0.
+    * Perform new backups.
+    * Reconfigure your desired differential backup limit.
   * The Spanish and Russian translations were set incorrectly in the config file.
     If you selected Spanish, it would display normally, but the config file would be set to Russian.
     If you selected Russian and restarted the app, it would display in Japanese.
