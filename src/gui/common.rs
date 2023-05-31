@@ -199,6 +199,7 @@ pub enum Message {
     SetShowDeselectedGames(bool),
     SetShowUnchangedGames(bool),
     SetShowUnscannedGames(bool),
+    SetForceNewFullBackup(bool),
     FilterDuplicates {
         restoring: bool,
         game: Option<String>,

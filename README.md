@@ -160,6 +160,13 @@ then Ludusavi will keep the full backup and just delete the oldest differential 
 On the restore screen, you can use the three-dot menu next to a game to lock any of its backups.
 Locked backups do not count toward the retention limits and are retained indefinitely.
 
+<!--
+For debugging/troubleshooting purposes,
+the "other" screen has an option to always create a new full backup,
+even if there are no changes or there's room for a new differential backup.
+You don't normally need to use this, but it's available in case something has gone wrong.
+-->
+
 ### Cloud backup
 Ludusavi integrates with [Rclone](https://rclone.org) to provide cloud backups.
 You can configure this on the "other" screen.
@@ -539,6 +546,11 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   * `retention` (map):
     * `full` (integer): Full backups to keep. Range: 1-255.
     * `differential` (integer): Full backups to keep. Range: 0-255.
+<!--
+    * `forceNewFull` (boolean): Create a new full backup even when unnecessary
+      (i.e., there are no changes or there's room for a new differential backup).
+      This is intended for troubleshooting purposes if there's something wrong with a backup.
+-->
   * `format` (map):
     * `chosen` (string): One of `simple`, `zip`.
     * `zip` (map): Settings for the zip format.

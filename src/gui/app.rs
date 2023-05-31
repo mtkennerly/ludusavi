@@ -1871,6 +1871,11 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::SetForceNewFullBackup(value) => {
+                self.config.backup.retention.force_new_full = value;
+                self.config.save();
+                Command::none()
+            }
             Message::FilterDuplicates { restoring, game } => {
                 let log = if restoring {
                     &mut self.restore_screen.log

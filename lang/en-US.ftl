@@ -141,6 +141,8 @@ label-provider = Provider
 label-custom = Custom
 label-none = None
 label-change-count = Changes: {$total}
+# This would be shown by options that are intended for debugging/troubleshooting.
+label-debug = Debug
 
 store-ea = EA
 store-epic = Epic
@@ -177,6 +179,7 @@ show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
+force-new-full-backup = Always create a new full backup
 
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots

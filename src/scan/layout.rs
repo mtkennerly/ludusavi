@@ -894,7 +894,7 @@ impl GameLayout {
         now: &chrono::DateTime<chrono::Utc>,
         format: &BackupFormats,
     ) -> Option<Backup> {
-        if !scan.found_anything_processable() {
+        if !scan.found_anything_processable() && !self.retention.force_new_full {
             return None;
         }
 
@@ -909,6 +909,10 @@ impl GameLayout {
     }
 
     fn plan_backup_kind(&self) -> BackupKind {
+        if self.retention.force_new_full {
+            return BackupKind::Full;
+        }
+
         let fulls = self.mapping.backups.iter().filter(|full| !full.locked).count() as u8;
         let diffs = self
             .mapping
@@ -2143,6 +2147,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 0,
+                    ..Default::default()
                 },
                 ..Default::default()
             };
@@ -2162,6 +2167,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 0,
+                    ..Default::default()
                 },
                 ..Default::default()
             };
@@ -2178,6 +2184,7 @@ mod tests {
                 retention: Retention {
                     full: 2,
                     differential: 0,
+                    ..Default::default()
                 },
                 ..Default::default()
             };
@@ -2194,6 +2201,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 1,
+                    ..Default::default()
                 },
                 ..Default::default()
             };
@@ -2213,6 +2221,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 1,
+                    ..Default::default()
                 },
                 ..Default::default()
             };
@@ -2241,6 +2250,7 @@ mod tests {
                 retention: Retention {
                     full: 2,
                     differential: 2,
+                    ..Default::default()
                 },
                 ..Default::default()
             };
@@ -2272,6 +2282,7 @@ mod tests {
                 retention: Retention {
                     full: 2,
                     differential: 2,
+                    ..Default::default()
                 },
                 ..Default::default()
             };
@@ -2297,6 +2308,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 2,
+                    ..Default::default()
                 },
                 ..Default::default()
             };
@@ -2625,6 +2637,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 1,
+                    ..Default::default()
                 },
                 ..Default::default()
             };
@@ -2664,6 +2677,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 0,
+                    ..Default::default()
                 },
                 ..Default::default()
             };
@@ -2732,6 +2746,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 1,
+                    ..Default::default()
                 },
                 ..Default::default()
             };
@@ -2825,6 +2840,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 1,
+                    ..Default::default()
                 },
             };
             assert_eq!(
@@ -2874,6 +2890,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 1,
+                    ..Default::default()
                 },
             };
             assert_eq!(
@@ -2934,6 +2951,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 1,
+                    ..Default::default()
                 },
             };
             assert_eq!(
@@ -3004,6 +3022,7 @@ mod tests {
                 retention: Retention {
                     full: 1,
                     differential: 1,
+                    ..Default::default()
                 },
             };
             assert_eq!(
@@ -3092,6 +3111,7 @@ mod tests {
                 Retention {
                     full: 1,
                     differential: 1,
+                    ..Default::default()
                 },
             );
             let backups = vec![Backup::Full(FullBackup {

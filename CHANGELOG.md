@@ -2,6 +2,9 @@
 
 * Added:
   * Automatic detection of non-Flatpak Lutris roots (`~/.config/lutris`).
+  * On the "other" screen, there is an option to always create new full backups,
+    even if there are no changes and there's room for a new differential backup.
+    This is intended for debugging/troubleshooting purposes (see below).
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
@@ -9,7 +12,8 @@
     because of a [technical limitation](https://github.com/mtkennerly/ludusavi/issues/9).
     You can enable it by editing the config file directly with language code `th-TH`,
 * Fixed:
-  * If you had configured a backup-only or bidirectional redirect,
+  * If you had configured a backup-only or bidirectional redirect
+    and you were using simple backups,
     then the first backup for a game would complete successfully,
     but a subsequent backup would fail because Ludusavi would mark the redirect target
     as a removed file.
@@ -19,14 +23,11 @@
     Unfortunately, they would still be recorded in mapping.yaml,
     so Ludusavi cannot detect and warn you where this already occurred.
 
-    If this affects you, you can force a new backup for the affected games
-    by either deleting their backups or by doing the following:
+    If this affects you, you can make new, corrected backups by doing the following:
 
-    * Edit each game's `mapping.yaml` file, find the last `hash` field, and add a letter at the end of the value.
-      For example, `hash: da3...709` would become `hash: da3...709x`.
-    * Set the differential backup limit to 0.
-    * Perform new backups.
-    * Reconfigure your desired differential backup limit.
+    * On the "other" screen, enable the "debug: always create a new full backup" option.
+    * Run a full preview and backup of all games.
+    * Disable the "debug: always create a new full backup" option.
   * Compatibility with Heroic 2.7.0+, which now uses `store_cache/gog_library.json` instead of `gog_store/library.json`.
   * The Spanish and Russian translations were set incorrectly in the config file.
     If you selected Spanish, it would display normally, but the config file would be set to Russian.

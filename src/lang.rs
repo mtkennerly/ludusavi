@@ -1040,8 +1040,20 @@ impl Translator {
         translate_args("label-change-count", &args)
     }
 
+    pub fn debug_label(&self) -> String {
+        translate("label-debug")
+    }
+
     pub fn synchronize_automatically(&self) -> String {
         translate("synchronize-automatically")
+    }
+
+    pub fn force_new_full_backup(&self) -> String {
+        format!(
+            "{} {}",
+            self.field(&self.debug_label()),
+            translate("force-new-full-backup")
+        )
     }
 
     pub fn total_games(&self) -> String {

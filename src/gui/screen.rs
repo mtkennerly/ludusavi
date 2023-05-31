@@ -394,6 +394,11 @@ pub fn other<'a>(
                                     TRANSLATOR.show_unscanned_games(),
                                     config.scan.show_unscanned_games,
                                     Message::SetShowUnscannedGames,
+                                ))
+                                .push(Checkbox::new(
+                                    TRANSLATOR.force_new_full_backup(),
+                                    config.backup.retention.force_new_full,
+                                    Message::SetForceNewFullBackup,
                                 )),
                         )
                         .style(style::Container::GameListEntry),
