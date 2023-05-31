@@ -1,0 +1,21 @@
+{
+  "200": {
+    "autoInstallDxvk": false,
+    "autoInstallVkd3d": false,
+    "preferSystemLibs": false,
+    "nvidiaPrime": false,
+    "enviromentOptions": [],
+    "wrapperOptions": [],
+    "showFps": false,
+    "useGameMode": false,
+    "language": "",
+    "wineVersion": {
+      "bin": "/usr/share/steam/compatibilitytools.d/proton-ge-custom/proton",
+      "name": "Proton - proton-ge-custom",
+      "type": "proton"
+    },
+    "winePrefix": "/home/root/Games/Heroic/Prefixes/proton-game"
+  },
+  "version": "v0",
+  "explicit": true
+}

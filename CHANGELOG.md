@@ -27,6 +27,7 @@
     * Set the differential backup limit to 0.
     * Perform new backups.
     * Reconfigure your desired differential backup limit.
+  * Compatibility with Heroic 2.7.0+, which now uses `store_cache/gog_library.json` instead of `gog_store/library.json`.
   * The Spanish and Russian translations were set incorrectly in the config file.
     If you selected Spanish, it would display normally, but the config file would be set to Russian.
     If you selected Russian and restarted the app, it would display in Japanese.

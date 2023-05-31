@@ -151,8 +151,23 @@ fn detect_gog_games(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<S
         root.path.interpret()
     );
 
-    // use gog_store/library.json to build map .app_name -> .title
-    let library_path = root.path.joined("gog_store").joined("library.json");
+    // use library.json to build map .app_name -> .title
+    let libraries = [
+        root.path.joined("store_cache").joined("gog_library.json"),
+        root.path.joined("gog_store").joined("library.json"),
+    ];
+    let library_path: StrictPath;
+    'library: {
+        for library in libraries {
+            if library.is_file() {
+                library_path = library;
+                break 'library;
+            }
+        }
+        log::info!("detect_gog_games aborting since it could not find GOG library");
+        return games;
+    }
+
     let game_titles: HashMap<String, String> =
         match serde_json::from_str::<GogLibrary>(&library_path.read().unwrap_or_default()) {
             Ok(gog_library) => gog_library
@@ -365,9 +380,34 @@ mod tests {
     }
 
     #[test]
-    fn scan_finds_all_games() {
+    fn scan_finds_all_games_without_store_cache() {
         let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/launchers/heroic", repo())),
+            path: StrictPath::new(format!("{}/tests/launchers/heroic-without-store-cache", repo())),
+            store: Store::Heroic,
+        };
+        let legendary = Some(StrictPath::new(format!("{}/tests/launchers/legendary", repo())));
+        let games = scan(&root, &title_finder(), legendary.as_ref());
+        assert_eq!(
+            hashmap! {
+                "windows-game".to_string() => LauncherGame {
+                    install_dir: StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string()),
+                    prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string())),
+                    platform: Some(Os::Windows),
+                },
+                "proton-game".to_string() => LauncherGame {
+                    install_dir: StrictPath::new("/home/root/Games/proton-game".to_string()),
+                    prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/proton-game/pfx".to_string())),
+                    platform: Some(Os::Windows),
+                },
+            },
+            games,
+        );
+    }
+
+    #[test]
+    fn scan_finds_all_games_with_store_cache() {
+        let root = RootsConfig {
+            path: StrictPath::new(format!("{}/tests/launchers/heroic-with-store-cache", repo())),
             store: Store::Heroic,
         };
         let legendary = Some(StrictPath::new(format!("{}/tests/launchers/legendary", repo())));

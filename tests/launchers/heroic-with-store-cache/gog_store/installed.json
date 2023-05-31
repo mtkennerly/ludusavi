@@ -1,0 +1,30 @@
+{
+    "installed": [
+        {
+            "platform": "windows",
+            "executable": "",
+            "install_path": "C:\\Users\\me\\Games\\Heroic\\windows-game",
+            "install_size": "22.74 MiB",
+            "is_dlc": false,
+            "version": "3.0",
+            "appName": "100",
+            "installedWithDLCs": false,
+            "language": "en-US",
+            "versionEtag": "\"3640869511\"",
+            "buildId": "52095636268561745"
+        },
+        {
+            "platform": "windows",
+            "executable": "",
+            "install_path": "/home/root/Games/proton-game",
+            "install_size": "27.63 MiB",
+            "is_dlc": false,
+            "version": "",
+            "appName": "200",
+            "installedWithDLCs": false,
+            "language": "English",
+            "versionEtag": "\"1234567890\"",
+            "buildId": "12345"
+        }
+    ]
+}

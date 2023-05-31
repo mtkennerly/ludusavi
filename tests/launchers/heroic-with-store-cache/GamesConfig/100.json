@@ -1,0 +1,23 @@
+{
+  "100": {
+    "autoInstallDxvk": false,
+    "autoInstallVkd3d": false,
+    "preferSystemLibs": false,
+    "nvidiaPrime": false,
+    "enviromentOptions": [],
+    "wrapperOptions": [],
+    "showFps": false,
+    "useGameMode": false,
+    "language": "",
+    "wineVersion": {
+      "bin": "/usr/bin/wine",
+      "name": "Wine Default - wine-ge-7.0 (Staging)",
+      "type": "wine",
+      "wineserver": "/usr/bin/wineserver",
+      "wineboot": "/usr/bin/wineboot"
+    },
+    "winePrefix": "/home/root/Games/Heroic/Prefixes/windows-game"
+  },
+  "version": "v0",
+  "explicit": true
+}

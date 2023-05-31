@@ -1,0 +1,73 @@
+{
+    "games": [
+        {
+            "runner": "gog",
+            "app_name": "100",
+            "cloud_save_enabled": true,
+            "compatible_apps": [],
+            "extra": {
+                "about": {
+                    "description": "foo",
+                    "shortDescription": ""
+                },
+                "reqs": []
+            },
+            "folder_name": "",
+            "install": {
+                "version": null,
+                "executable": "",
+                "install_path": "",
+                "install_size": "",
+                "is_dlc": false,
+                "platform": ""
+            },
+            "is_game": true,
+            "is_installed": false,
+            "is_ue_asset": false,
+            "is_ue_plugin": false,
+            "is_ue_project": false,
+            "namespace": "windows-game",
+            "save_folder": "",
+            "title": "windows-game",
+            "canRunOffline": true,
+            "is_mac_native": false,
+            "is_linux_native": false
+        },
+        {
+            "runner": "gog",
+            "app_name": "200",
+            "cloud_save_enabled": true,
+            "compatible_apps": [],
+            "extra": {
+                "about": {
+                    "description": "foo",
+                    "shortDescription": ""
+                },
+                "reqs": []
+            },
+            "folder_name": "",
+            "install": {
+                "version": null,
+                "executable": "",
+                "install_path": "",
+                "install_size": "",
+                "is_dlc": false,
+                "platform": ""
+            },
+            "is_game": true,
+            "is_installed": false,
+            "is_ue_asset": false,
+            "is_ue_plugin": false,
+            "is_ue_project": false,
+            "namespace": "proton-game",
+            "save_folder": "",
+            "title": "proton-game",
+            "canRunOffline": true,
+            "is_mac_native": false,
+            "is_linux_native": false
+        }
+    ],
+    "totalGames": 2,
+    "totalMovies": 0,
+    "cloud_saves_enabled": true
+}
