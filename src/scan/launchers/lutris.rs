@@ -40,8 +40,8 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
             continue;
         };
 
-        let (Some(game_slug), Some(name)) = (game.game_slug.clone(), game.name.clone()) else {
-            log::info!("Skipping Lutris game file without `game_slug` and `name` fields: {}", spec.render());
+        let Some(name) = game.name.clone() else {
+            log::info!("Skipping Lutris game file without `name` field: {}", spec.render());
             continue;
         };
 
@@ -55,14 +55,18 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
         let title = match official_title {
             Some(title) => {
                 log::trace!(
-                    "Recognized Lutris game: '{title}' from '{}' (slug: '{}')",
+                    "Recognized Lutris game: '{title}' from '{}' (slug: '{:?}')",
                     &name,
-                    &game_slug
+                    game.game_slug.as_ref(),
                 );
                 title
             }
             None => {
-                let log_message = format!("Unrecognized Lutris game: '{}' (slug: '{}')", &name, &game_slug);
+                let log_message = format!(
+                    "Unrecognized Lutris game: '{}' (slug: '{:?}')",
+                    &name,
+                    game.game_slug.as_ref()
+                );
                 if std::env::var(ENV_DEBUG).is_ok() {
                     eprintln!("{log_message}");
                 }

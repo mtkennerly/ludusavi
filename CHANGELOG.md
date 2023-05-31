@@ -29,6 +29,8 @@
     * Run a full preview and backup of all games.
     * Disable the "debug: always create a new full backup" option.
   * Compatibility with Heroic 2.7.0+, which now uses `store_cache/gog_library.json` instead of `gog_store/library.json`.
+  * For Lutris, the `game_slug` field is no longer required,
+    since Ludusavi only uses it for logging when available.
   * The Spanish and Russian translations were set incorrectly in the config file.
     If you selected Spanish, it would display normally, but the config file would be set to Russian.
     If you selected Russian and restarted the app, it would display in Japanese.
