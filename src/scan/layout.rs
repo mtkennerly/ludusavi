@@ -1825,7 +1825,8 @@ impl GameLayout {
                             .mapping
                             .game_file_immutable(&self.path, &original_path, &backup.name);
                         if !stored.is_file() {
-                            println!("can't find {}", stored.render());
+                            #[cfg(test)]
+                            eprintln!("can't find {}", stored.render());
                             return false;
                         }
                     }
@@ -1838,7 +1839,8 @@ impl GameLayout {
                         let original_path = StrictPath::new(file.to_string());
                         let stored = self.mapping.game_file_for_zip_immutable(&original_path);
                         if archive.by_name(&stored).is_err() {
-                            println!("can't find {}", stored);
+                            #[cfg(test)]
+                            eprintln!("can't find {}", stored);
                             return false;
                         }
                     }
@@ -1859,7 +1861,8 @@ impl GameLayout {
                                 .mapping
                                 .game_file_immutable(&self.path, &original_path, &backup.name);
                             if !stored.is_file() {
-                                println!("can't find {}", stored.render());
+                                #[cfg(test)]
+                                eprintln!("can't find {}", stored.render());
                                 return false;
                             }
                         }
@@ -1877,7 +1880,8 @@ impl GameLayout {
                             let original_path = StrictPath::new(file.to_string());
                             let stored = self.mapping.game_file_for_zip_immutable(&original_path);
                             if archive.by_name(&stored).is_err() {
-                                println!("can't find {}", stored);
+                                #[cfg(test)]
+                                eprintln!("can't find {}", stored);
                                 return false;
                             }
                         }
@@ -3157,6 +3161,8 @@ mod tests {
     mod game_layout {
         use pretty_assertions::assert_eq;
 
+        use crate::testing::drives_x_always;
+
         use super::*;
 
         fn now() -> chrono::DateTime<chrono::Utc> {
@@ -3325,7 +3331,7 @@ mod tests {
         fn can_validate_a_simple_full_backup_when_valid() {
             let layout = GameLayout {
                 mapping: IndividualMapping {
-                    drives: drives_x(),
+                    drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".into(),
                         files: btreemap! {
@@ -3346,7 +3352,7 @@ mod tests {
         fn can_validate_a_simple_full_backup_when_invalid() {
             let layout = GameLayout {
                 mapping: IndividualMapping {
-                    drives: drives_x(),
+                    drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".into(),
                         files: btreemap! {
@@ -3366,7 +3372,7 @@ mod tests {
         fn can_validate_a_simple_diff_backup_when_valid() {
             let layout = GameLayout {
                 mapping: IndividualMapping {
-                    drives: drives_x(),
+                    drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".into(),
                         files: btreemap! {
@@ -3395,7 +3401,7 @@ mod tests {
         fn can_validate_a_simple_diff_backup_when_invalid() {
             let layout = GameLayout {
                 mapping: IndividualMapping {
-                    drives: drives_x(),
+                    drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".into(),
                         files: btreemap! {
@@ -3423,7 +3429,7 @@ mod tests {
         fn can_validate_a_zip_full_backup_when_valid() {
             let layout = GameLayout {
                 mapping: IndividualMapping {
-                    drives: drives_x(),
+                    drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "test.zip".into(),
                         files: btreemap! {
@@ -3444,7 +3450,7 @@ mod tests {
         fn can_validate_a_zip_full_backup_when_invalid() {
             let layout = GameLayout {
                 mapping: IndividualMapping {
-                    drives: drives_x(),
+                    drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "test.zip".into(),
                         files: btreemap! {
@@ -3464,7 +3470,7 @@ mod tests {
         fn can_validate_a_zip_diff_backup_when_valid() {
             let layout = GameLayout {
                 mapping: IndividualMapping {
-                    drives: drives_x(),
+                    drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "test.zip".into(),
                         files: btreemap! {
@@ -3493,7 +3499,7 @@ mod tests {
         fn can_validate_a_zip_diff_backup_when_invalid() {
             let layout = GameLayout {
                 mapping: IndividualMapping {
-                    drives: drives_x(),
+                    drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "test.zip".into(),
                         files: btreemap! {

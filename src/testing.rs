@@ -30,6 +30,14 @@ pub fn drives_x() -> HashMap<String, String> {
     }
 }
 
+pub fn drives_x_always() -> HashMap<String, String> {
+    if cfg!(target_os = "windows") {
+        hashmap! { "X:".into() => "drive-X".into() }
+    } else {
+        hashmap! { "".into() => "drive-X".into() }
+    }
+}
+
 pub fn make_original_path(file: &str) -> StrictPath {
     StrictPath::new(format!("{}{file}", if cfg!(target_os = "windows") { "X:" } else { "" }))
 }
