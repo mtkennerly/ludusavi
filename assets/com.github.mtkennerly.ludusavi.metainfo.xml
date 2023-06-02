@@ -52,13 +52,14 @@
     </keywords>
     <screenshots>
         <screenshot type="default">
-            <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.18.2/docs/sample-gui-linux.png</image>
+            <image type="source">https://raw.githubusercontent.com/mtkennerly/ludusavi/v0.19.0/docs/sample-gui-linux.png</image>
             <caption>Graphical user interface</caption>
         </screenshot>
     </screenshots>
     <content_rating type="oars-1.1" />
     <launchable type="desktop-id">com.github.mtkennerly.ludusavi.desktop</launchable>
     <releases>
+        <release version="0.19.0" date="2023-06-02"/>
         <release version="0.18.2" date="2023-05-21"/>
         <release version="0.18.1" date="2023-05-21"/>
         <release version="0.18.0" date="2023-05-20"/>

@@ -1,10 +1,10 @@
-## Unreleased
+## v0.19.0 (2023-06-02)
 
 * Added:
-  * Automatic detection of non-Flatpak Lutris roots (`~/.config/lutris`).
   * On the restore screen, there is a "validate" button to check whether
     your backups are missing any files declared in their mapping.yaml.
     This is intended to help rectify a bug identified below.
+  * Automatic detection of non-Flatpak Lutris roots (`~/.config/lutris`).
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
