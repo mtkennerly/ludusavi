@@ -43,6 +43,7 @@ button-lock = Lock
 button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get { $app }
+button-validate = Validate
 no-roots-are-configured = Paki-lagay mga roots upang mag-back up ng higit pang data.
 config-is-invalid = Error: Invalid ang config file.
 manifest-is-invalid = Error: Invalid ang manifest file.
@@ -187,6 +188,10 @@ loading = Loading...
 preparing-backup-target = Preparing backup directory...
 updating-manifest = Updating manifest...
 no-cloud-changes = No changes to synchronize
+backups-are-valid = Your backups are valid.
+backups-are-invalid =
+    These games' backups appear to be invalid.
+    Do you want to create new full backups for these games?
 saves-found = Save data found.
 no-saves-found = No save data found.
 # This is tacked on to form something like "Back up (no confirmation)",

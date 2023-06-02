@@ -39,10 +39,11 @@ button-disable-all = Desativar tudo
 button-customize = Personalizar
 button-exit = Sair
 button-comment = Comentário
-button-lock = Lock
-button-unlock = Unlock
+button-lock = Travar
+button-unlock = Destravar
 # This opens a download page.
 button-get-app = Obter { $app }
+button-validate = Validate
 no-roots-are-configured = Adicione algumas raízes para armazenar ainda mais dados.
 config-is-invalid = Erro: O arquivo de configuração é inválido.
 manifest-is-invalid = Erro: O arquivo de manifesto é inválido.
@@ -187,6 +188,10 @@ loading = Carregando...
 preparing-backup-target = Preparando o diretório de backup...
 updating-manifest = Atualizando manifesto...
 no-cloud-changes = Não há alterações para sincronizar
+backups-are-valid = Your backups are valid.
+backups-are-invalid =
+    These games' backups appear to be invalid.
+    Do you want to create new full backups for these games?
 saves-found = Dados salvos encontrados.
 no-saves-found = Não foram encontrados dados salvos.
 # This is tacked on to form something like "Back up (no confirmation)",

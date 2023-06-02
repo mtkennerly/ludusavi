@@ -43,6 +43,7 @@ button-lock = Lock
 button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get { $app }
+button-validate = Validate
 no-roots-are-configured = 최상위 디렉토리를 추가해서 더 많은 데이터를 백업하세요.
 config-is-invalid = 오류: 설정 파일이 올바르지 않습니다.
 manifest-is-invalid = 오류: 매니페스트 파일이 올바르지 않습니다.
@@ -187,6 +188,10 @@ loading = Loading...
 preparing-backup-target = Preparing backup directory...
 updating-manifest = Updating manifest...
 no-cloud-changes = No changes to synchronize
+backups-are-valid = Your backups are valid.
+backups-are-invalid =
+    These games' backups appear to be invalid.
+    Do you want to create new full backups for these games?
 saves-found = Save data found.
 no-saves-found = No save data found.
 # This is tacked on to form something like "Back up (no confirmation)",

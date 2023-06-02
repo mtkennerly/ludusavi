@@ -43,6 +43,7 @@ button-lock = Lock
 button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get { $app }
+button-validate = Validate
 no-roots-are-configured = いくつかのルートを追加して、さらに多くのデータをバックアップします。
 config-is-invalid = エラー：設定ファイルが無効です。
 manifest-is-invalid = エラー: マニフェストファイルが無効です。
@@ -185,6 +186,10 @@ loading = Loading...
 preparing-backup-target = バックアップディレクトリを準備中...
 updating-manifest = マニフェストを更新中...
 no-cloud-changes = No changes to synchronize
+backups-are-valid = Your backups are valid.
+backups-are-invalid =
+    These games' backups appear to be invalid.
+    Do you want to create new full backups for these games?
 saves-found = セーブデータが見つかりました。
 no-saves-found = セーブデータが見つかりませんでした。
 # This is tacked on to form something like "Back up (no confirmation)",

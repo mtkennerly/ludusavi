@@ -43,6 +43,7 @@ button-lock = Lock
 button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get { $app }
+button-validate = Validate
 no-roots-are-configured = Add some roots to back up even more data.
 config-is-invalid = Error: The config file is invalid.
 manifest-is-invalid = Error: The manifest file is invalid.
@@ -187,6 +188,10 @@ loading = Loading...
 preparing-backup-target = Preparing backup directory...
 updating-manifest = Updating manifest...
 no-cloud-changes = No changes to synchronize
+backups-are-valid = Your backups are valid.
+backups-are-invalid =
+    These games' backups appear to be invalid.
+    Do you want to create new full backups for these games?
 saves-found = Save data found.
 no-saves-found = No save data found.
 # This is tacked on to form something like "Back up (no confirmation)",

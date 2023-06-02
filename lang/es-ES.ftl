@@ -43,6 +43,7 @@ button-lock = Lock
 button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get { $app }
+button-validate = Validate
 no-roots-are-configured = Añade algunas raíces para respaldar aún más datos.
 config-is-invalid = Error: El archivo de configuración no es válido.
 manifest-is-invalid = Error: El archivo de manifiesto no es válido.
@@ -111,8 +112,8 @@ label-disabled = Disabled
 label-threads = Threads
 label-cloud = Cloud
 # A "remote" is what Rclone calls cloud systems like Google Drive.
-label-remote = Remote
-label-remote-name = Remote name
+label-remote = Remoto
+label-remote-name = Nombre remoto
 label-folder = Folder
 # An executable file
 label-executable = Executable
@@ -187,6 +188,10 @@ loading = Cargando...
 preparing-backup-target = Preparing backup directory...
 updating-manifest = Actualizando manifiesto...
 no-cloud-changes = No changes to synchronize
+backups-are-valid = Your backups are valid.
+backups-are-invalid =
+    These games' backups appear to be invalid.
+    Do you want to create new full backups for these games?
 saves-found = Save data found.
 no-saves-found = No save data found.
 # This is tacked on to form something like "Back up (no confirmation)",

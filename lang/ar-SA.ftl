@@ -43,6 +43,7 @@ button-lock = Lock
 button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get { $app }
+button-validate = Validate
 no-roots-are-configured = إضافة بعض الجذور لنسخ المزيد من البيانات احتياطياً.
 config-is-invalid = خطأ: ملف التكوين غير صالح.
 manifest-is-invalid = خطأ: ملف البيان غير صالح.
@@ -187,6 +188,10 @@ loading = Loading...
 preparing-backup-target = جارِ إعداد دليل النسخ الاحتياطي...
 updating-manifest = تحديث البيان...
 no-cloud-changes = No changes to synchronize
+backups-are-valid = Your backups are valid.
+backups-are-invalid =
+    These games' backups appear to be invalid.
+    Do you want to create new full backups for these games?
 saves-found = العثور على بيانات محفوظة.
 no-saves-found = لا توجد بيانات محفوظة.
 # This is tacked on to form something like "Back up (no confirmation)",
