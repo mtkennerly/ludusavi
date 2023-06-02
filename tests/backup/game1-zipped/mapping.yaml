@@ -1,0 +1,17 @@
+---
+name: game1-zipped
+drives:
+  drive-X: "X:"
+backups:
+  - name: "test.zip"
+    when: "2000-01-02T03:04:05Z"
+    files:
+      "X:/file1.txt":
+        hash: 3a52ce780950d4d969792a2559cd519d7ee8c727
+        size: 1
+      "X:/file2.txt":
+        hash: 9d891e731f75deae56884d79e9816736b7488080
+        size: 2
+    registry:
+      hash: ~
+    children: []

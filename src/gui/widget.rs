@@ -139,6 +139,7 @@ impl Progress {
         let label = match operation {
             Operation::Idle => None,
             Operation::Backup { .. } | Operation::Restore { .. } => Some(TRANSLATOR.scan_label()),
+            Operation::ValidateBackups { .. } => Some(TRANSLATOR.validate_button()),
             Operation::Cloud { .. } => Some(TRANSLATOR.cloud_label()),
         };
 
@@ -158,7 +159,7 @@ impl Progress {
         } else {
             match operation {
                 Operation::Idle => None,
-                Operation::Backup { .. } | Operation::Restore { .. } => {
+                Operation::Backup { .. } | Operation::Restore { .. } | Operation::ValidateBackups { .. } => {
                     Some(format!("{}: {} / {}", TRANSLATOR.total_games(), self.current, self.max))
                 }
                 Operation::Cloud { .. } => Some(TRANSLATOR.cloud_progress(self.current as u64, self.max as u64)),

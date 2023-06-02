@@ -240,6 +240,7 @@ impl Restore {
                     .push(button::toggle_all_scanned_games(
                         self.log.all_entries_selected(config, true),
                     ))
+                    .push(button::validate_backups(operation))
                     .push(button::filter(Screen::Restore, self.log.search.show)),
             )
             .push(make_status_row(
@@ -394,11 +395,6 @@ pub fn other<'a>(
                                     TRANSLATOR.show_unscanned_games(),
                                     config.scan.show_unscanned_games,
                                     Message::SetShowUnscannedGames,
-                                ))
-                                .push(Checkbox::new(
-                                    TRANSLATOR.force_new_full_backup(),
-                                    config.backup.retention.force_new_full,
-                                    Message::SetForceNewFullBackup,
                                 )),
                         )
                         .style(style::Container::GameListEntry),

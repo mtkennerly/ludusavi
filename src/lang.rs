@@ -402,7 +402,7 @@ impl Translator {
         self.label(&self.badge_ignored())
     }
 
-    fn field(&self, text: &str) -> String {
+    pub fn field(&self, text: &str) -> String {
         let language = LANGUAGE.lock().unwrap();
         match *language {
             Language::French => format!("{} :", text),
@@ -618,6 +618,14 @@ impl Translator {
         translate("updating-manifest")
     }
 
+    pub fn backups_are_valid(&self) -> String {
+        translate("backups-are-valid")
+    }
+
+    pub fn backups_are_invalid(&self) -> String {
+        translate("backups-are-invalid")
+    }
+
     pub fn confirm_add_missing_roots(&self, roots: &[RootsConfig]) -> String {
         use std::fmt::Write;
         let mut msg = translate("confirm-add-missing-roots") + "\n";
@@ -673,6 +681,10 @@ impl Translator {
         let mut args = FluentArgs::new();
         args.set(APP, "Rclone");
         translate_args("button-get-app", &args)
+    }
+
+    pub fn validate_button(&self) -> String {
+        translate("button-validate")
     }
 
     pub fn no_roots_are_configured(&self) -> String {
@@ -1040,20 +1052,8 @@ impl Translator {
         translate_args("label-change-count", &args)
     }
 
-    pub fn debug_label(&self) -> String {
-        translate("label-debug")
-    }
-
     pub fn synchronize_automatically(&self) -> String {
         translate("synchronize-automatically")
-    }
-
-    pub fn force_new_full_backup(&self) -> String {
-        format!(
-            "{} {}",
-            self.field(&self.debug_label()),
-            translate("force-new-full-backup")
-        )
     }
 
     pub fn total_games(&self) -> String {

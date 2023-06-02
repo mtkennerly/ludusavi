@@ -2,7 +2,10 @@ use iced::alignment;
 
 use crate::{
     gui::{
-        common::{BackupPhase, BrowseFileSubject, BrowseSubject, EditAction, Message, Operation, RestorePhase, Screen},
+        common::{
+            BackupPhase, BrowseFileSubject, BrowseSubject, EditAction, Message, Operation, RestorePhase, Screen,
+            ValidatePhase,
+        },
         icon::Icon,
         style,
         widget::{Button, Element, IcedButtonExt, Text},
@@ -337,6 +340,7 @@ pub fn backup_preview<'a>(ongoing: &Operation) -> Element<'a> {
         match ongoing {
             Operation::Idle => Some(Message::Backup(BackupPhase::Start {
                 preview: true,
+                repair: false,
                 games: None,
             })),
             Operation::Backup {
@@ -431,5 +435,23 @@ pub fn restore_preview<'a>(ongoing: &Operation) -> Element<'a> {
             }
         )
         .then_some(style::Button::Negative),
+    )
+}
+
+pub fn validate_backups<'a>(ongoing: &Operation) -> Element<'a> {
+    template(
+        Text::new(match ongoing {
+            Operation::ValidateBackups { cancelling: false, .. } => TRANSLATOR.cancel_button(),
+            Operation::ValidateBackups { cancelling: true, .. } => TRANSLATOR.cancelling_button(),
+            _ => TRANSLATOR.validate_button(),
+        })
+        .width(125)
+        .horizontal_alignment(alignment::Horizontal::Center),
+        match ongoing {
+            Operation::Idle => Some(Message::ValidateBackups(ValidatePhase::Start)),
+            Operation::ValidateBackups { cancelling: false, .. } => Some(Message::CancelOperation),
+            _ => None,
+        },
+        matches!(ongoing, Operation::ValidateBackups { .. }).then_some(style::Button::Negative),
     )
 }

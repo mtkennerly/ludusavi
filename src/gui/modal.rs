@@ -1,4 +1,7 @@
+use std::collections::BTreeSet;
+
 use iced::{Alignment, Length};
+use itertools::Itertools;
 
 use crate::{
     cloud::{CloudChange, Remote, RemoteChoice, WebDavProvider},
@@ -91,6 +94,9 @@ pub enum Modal {
     },
     NoMissingRoots,
     ConfirmAddMissingRoots(Vec<RootsConfig>),
+    BackupValidation {
+        games: BTreeSet<String>,
+    },
     UpdatingManifest,
     ConfirmCloudSync {
         local: String,
@@ -120,6 +126,13 @@ impl Modal {
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. } => ModalVariant::Confirm,
+            Self::BackupValidation { games } => {
+                if games.is_empty() {
+                    ModalVariant::Info
+                } else {
+                    ModalVariant::Confirm
+                }
+            }
             modal @ Self::ConfirmCloudSync { done, syncing, .. } => {
                 if (*done && *syncing) || !modal.any_cloud_changes() {
                     ModalVariant::Info
@@ -145,6 +158,13 @@ impl Modal {
             Self::NoMissingRoots => TRANSLATOR.no_missing_roots(),
             Self::ConfirmAddMissingRoots(missing) => TRANSLATOR.confirm_add_missing_roots(missing),
             Self::UpdatingManifest => TRANSLATOR.updating_manifest(),
+            Self::BackupValidation { games } => {
+                if games.is_empty() {
+                    TRANSLATOR.backups_are_valid()
+                } else {
+                    TRANSLATOR.backups_are_invalid()
+                }
+            }
             modal @ Self::ConfirmCloudSync {
                 local,
                 cloud,
@@ -168,10 +188,13 @@ impl Modal {
 
     pub fn message(&self, histories: &TextHistories) -> Option<Message> {
         match self {
-            Self::Error { .. } | Self::Errors { .. } | Self::NoMissingRoots => Some(Message::CloseModal),
+            Self::Error { .. } | Self::Errors { .. } | Self::NoMissingRoots | Self::BackupValidation { .. } => {
+                Some(Message::CloseModal)
+            }
             Self::Exiting => None,
             Self::ConfirmBackup { games } => Some(Message::Backup(BackupPhase::Start {
                 preview: false,
+                repair: false,
                 games: games.clone(),
             })),
             Self::ConfirmRestore { games } => Some(Message::Restore(RestorePhase::Start {
@@ -274,6 +297,20 @@ impl Modal {
                     )]
                 }
             }
+            Self::BackupValidation { games } => {
+                if games.is_empty() {
+                    vec![]
+                } else {
+                    vec![button::primary(
+                        TRANSLATOR.backup_button(),
+                        Some(Message::Backup(BackupPhase::Start {
+                            preview: false,
+                            repair: true,
+                            games: Some(games.iter().cloned().collect()),
+                        })),
+                    )]
+                }
+            }
             Self::Error { .. }
             | Self::Errors { .. }
             | Self::Exiting
@@ -305,6 +342,11 @@ impl Modal {
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
             | Self::UpdatingManifest => (),
+            Self::BackupValidation { games } => {
+                for game in games.iter().sorted() {
+                    col = col.push(Text::new(game))
+                }
+            }
             modal @ Self::ConfirmCloudSync {
                 changes,
                 page,
@@ -391,6 +433,7 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
+            | Self::BackupValidation { .. }
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -410,6 +453,7 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
+            | Self::BackupValidation { .. }
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -429,6 +473,7 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
+            | Self::BackupValidation { .. }
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -446,6 +491,7 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
+            | Self::BackupValidation { .. }
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -465,6 +511,7 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
+            | Self::BackupValidation { .. }
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -482,6 +529,7 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
+            | Self::BackupValidation { .. }
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -527,7 +575,7 @@ impl Modal {
                                 ModalVariant::Loading => Row::new(),
                                 ModalVariant::Info => Row::with_children(self.extra_controls()).push(positive_button),
                                 ModalVariant::Confirm => Row::with_children(self.extra_controls())
-                                    .push(positive_button)
+                                    .push_if(|| !matches!(self, Modal::BackupValidation { .. }), || positive_button)
                                     .push(negative_button),
                             }
                             .padding([30, 0, 30, 0])

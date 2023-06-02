@@ -1812,6 +1812,82 @@ impl GameLayout {
             }
         }
     }
+
+    /// Checks the latest backup (full + diff) only.
+    /// Returns whether backup is valid.
+    pub fn validate(&self, backup_id: BackupId) -> bool {
+        if let Some((backup, diff)) = self.find_by_id(&backup_id) {
+            match backup.format() {
+                BackupFormat::Simple => {
+                    for file in backup.files.keys() {
+                        let original_path = StrictPath::new(file.to_string());
+                        let stored = self
+                            .mapping
+                            .game_file_immutable(&self.path, &original_path, &backup.name);
+                        if !stored.is_file() {
+                            println!("can't find {}", stored.render());
+                            return false;
+                        }
+                    }
+                }
+                BackupFormat::Zip => {
+                    let Ok(handle) = std::fs::File::open(self.path.joined(&backup.name).interpret()) else { return false };
+                    let Ok(mut archive) = zip::ZipArchive::new(handle) else { return false };
+
+                    for file in backup.files.keys() {
+                        let original_path = StrictPath::new(file.to_string());
+                        let stored = self.mapping.game_file_for_zip_immutable(&original_path);
+                        if archive.by_name(&stored).is_err() {
+                            println!("can't find {}", stored);
+                            return false;
+                        }
+                    }
+                }
+            }
+
+            if let Some(backup) = diff {
+                match backup.format() {
+                    BackupFormat::Simple => {
+                        for (file, data) in &backup.files {
+                            if data.is_none() {
+                                // File is deliberately omitted.
+                                continue;
+                            }
+
+                            let original_path = StrictPath::new(file.to_string());
+                            let stored = self
+                                .mapping
+                                .game_file_immutable(&self.path, &original_path, &backup.name);
+                            if !stored.is_file() {
+                                println!("can't find {}", stored.render());
+                                return false;
+                            }
+                        }
+                    }
+                    BackupFormat::Zip => {
+                        let Ok(handle) = std::fs::File::open(self.path.joined(&backup.name).interpret()) else { return false };
+                        let Ok(mut archive) = zip::ZipArchive::new(handle) else { return false };
+
+                        for (file, data) in &backup.files {
+                            if data.is_none() {
+                                // File is deliberately omitted.
+                                continue;
+                            }
+
+                            let original_path = StrictPath::new(file.to_string());
+                            let stored = self.mapping.game_file_for_zip_immutable(&original_path);
+                            if archive.by_name(&stored).is_err() {
+                                println!("can't find {}", stored);
+                                return false;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        true
+    }
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -1884,6 +1960,21 @@ impl BackupLayout {
                 retention: self.retention.clone(),
             },
         }
+    }
+
+    pub fn try_game_layout(&self, name: &str) -> Option<GameLayout> {
+        let path = self.game_folder(name);
+
+        GameLayout::load(path, self.retention.clone()).ok().map(|mut x| {
+            if x.mapping.name != name {
+                // This can happen if the game name changed in the manifest,
+                // but differs only by capitalization when we're on a case-insensitive OS.
+                // If we don't adjust it, it'll always show up as a new game.
+                log::info!("Updating renamed game: {} -> {}", &x.mapping.name, name);
+                x.mapping.name = name.to_string();
+            }
+            x
+        })
     }
 
     fn contains_game(&self, name: &str) -> bool {
@@ -3228,6 +3319,202 @@ mod tests {
                     layout.scan_for_restoration("game3", &BackupId::Latest, &[]),
                 );
             }
+        }
+
+        #[test]
+        fn can_validate_a_simple_full_backup_when_valid() {
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: ".".into(),
+                        files: btreemap! {
+                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        },
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
+                ..Default::default()
+            };
+            assert!(layout.validate(BackupId::Latest));
+        }
+
+        #[test]
+        fn can_validate_a_simple_full_backup_when_invalid() {
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: ".".into(),
+                        files: btreemap! {
+                            mapping_file_key("/fake.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        },
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
+                ..Default::default()
+            };
+            assert!(!layout.validate(BackupId::Latest));
+        }
+
+        #[test]
+        fn can_validate_a_simple_diff_backup_when_valid() {
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: ".".into(),
+                        files: btreemap! {
+                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        },
+                        children: VecDeque::from(vec![DifferentialBackup {
+                            name: ".".into(),
+                            files: btreemap! {
+                                mapping_file_key("/file1.txt") => None,
+                                mapping_file_key("/file2.txt") => Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
+                            },
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
+                ..Default::default()
+            };
+            assert!(layout.validate(BackupId::Latest));
+        }
+
+        #[test]
+        fn can_validate_a_simple_diff_backup_when_invalid() {
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: ".".into(),
+                        files: btreemap! {
+                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        },
+                        children: VecDeque::from(vec![DifferentialBackup {
+                            name: ".".into(),
+                            files: btreemap! {
+                                mapping_file_key("/fake.txt") => Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
+                            },
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
+                ..Default::default()
+            };
+            assert!(!layout.validate(BackupId::Latest));
+        }
+
+        #[test]
+        fn can_validate_a_zip_full_backup_when_valid() {
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "test.zip".into(),
+                        files: btreemap! {
+                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        },
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                path: StrictPath::new(format!("{}/tests/backup/game1-zipped", repo_raw())),
+                ..Default::default()
+            };
+            assert!(layout.validate(BackupId::Latest));
+        }
+
+        #[test]
+        fn can_validate_a_zip_full_backup_when_invalid() {
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "test.zip".into(),
+                        files: btreemap! {
+                            mapping_file_key("/fake.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        },
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                path: StrictPath::new(format!("{}/tests/backup/game1-zipped", repo_raw())),
+                ..Default::default()
+            };
+            assert!(!layout.validate(BackupId::Latest));
+        }
+
+        #[test]
+        fn can_validate_a_zip_diff_backup_when_valid() {
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "test.zip".into(),
+                        files: btreemap! {
+                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        },
+                        children: VecDeque::from(vec![DifferentialBackup {
+                            name: "test.zip".into(),
+                            files: btreemap! {
+                                mapping_file_key("/file1.txt") => None,
+                                mapping_file_key("/file2.txt") => Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
+                            },
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                path: StrictPath::new(format!("{}/tests/backup/game1-zipped", repo_raw())),
+                ..Default::default()
+            };
+            assert!(layout.validate(BackupId::Latest));
+        }
+
+        #[test]
+        fn can_validate_a_zip_diff_backup_when_invalid() {
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "test.zip".into(),
+                        files: btreemap! {
+                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        },
+                        children: VecDeque::from(vec![DifferentialBackup {
+                            name: "test.zip".into(),
+                            files: btreemap! {
+                                mapping_file_key("/fake.txt") => Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
+                            },
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                path: StrictPath::new(format!("{}/tests/backup/game1-zipped", repo_raw())),
+                ..Default::default()
+            };
+            assert!(!layout.validate(BackupId::Latest));
         }
     }
 }

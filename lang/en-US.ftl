@@ -49,6 +49,7 @@ button-lock = Lock
 button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get {$app}
+button-validate = Validate
 
 no-roots-are-configured = Add some roots to back up even more data.
 
@@ -141,8 +142,6 @@ label-provider = Provider
 label-custom = Custom
 label-none = None
 label-change-count = Changes: {$total}
-# This would be shown by options that are intended for debugging/troubleshooting.
-label-debug = Debug
 
 store-ea = EA
 store-epic = Epic
@@ -179,7 +178,6 @@ show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
-force-new-full-backup = Create a new full backup even when unnecessary
 
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots
@@ -214,6 +212,11 @@ loading = Loading...
 preparing-backup-target = Preparing backup directory...
 updating-manifest = Updating manifest...
 no-cloud-changes = No changes to synchronize
+backups-are-valid =
+    Your backups are valid.
+backups-are-invalid =
+    These games' backups appear to be invalid.
+    Do you want to create new full backups for these games?
 
 saves-found = Save data found.
 no-saves-found = No save data found.

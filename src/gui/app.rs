@@ -204,7 +204,7 @@ impl App {
     fn handle_backup(&mut self, phase: BackupPhase) -> Command<Message> {
         match phase {
             BackupPhase::Confirm { games } => self.show_modal(Modal::ConfirmBackup { games }),
-            BackupPhase::Start { preview, games } => {
+            BackupPhase::Start { preview, repair, games } => {
                 if !self.operation.idle() {
                     return Command::none();
                 }
@@ -219,6 +219,7 @@ impl App {
 
                 self.operation =
                     Operation::new_backup(if preview { Finality::Preview } else { Finality::Final }, games);
+                self.operation.set_force_new_full_backups(repair);
 
                 if !preview {
                     if let Err(e) = prepare_backup_target(&self.config.backup.path) {
@@ -228,6 +229,11 @@ impl App {
 
                 Command::batch([
                     self.close_modal(),
+                    if repair {
+                        self.switch_screen(Screen::Backup)
+                    } else {
+                        Command::none()
+                    },
                     self.refresh_scroll_position_on_log(cleared_log),
                     self.handle_backup(BackupPhase::CloudCheck),
                 ])
@@ -275,6 +281,7 @@ impl App {
                 let mut manifest = self.manifest.clone();
                 let config = self.config.clone();
                 let previewed_games = self.backup_screen.previewed_games.clone();
+                let should_force_new_full_backups = self.operation.should_force_new_full_backups();
 
                 Command::perform(
                     async move {
@@ -292,8 +299,11 @@ impl App {
                             manifest.0.keys().cloned().collect()
                         };
 
+                        let mut retention = config.backup.retention.clone();
+                        retention.force_new_full = should_force_new_full_backups;
+
                         let roots = config.expanded_roots();
-                        let layout = BackupLayout::new(config.backup.path.clone(), config.backup.retention.clone());
+                        let layout = BackupLayout::new(config.backup.path.clone(), retention);
                         let title_finder = TitleFinder::new(&manifest, &layout);
                         let steam = SteamShortcuts::scan();
                         let launchers = Launchers::scan(&roots, &manifest, &subjects, &title_finder, None);
@@ -819,6 +829,123 @@ impl App {
         }
     }
 
+    fn handle_validation(&mut self, phase: ValidatePhase) -> Command<Message> {
+        match phase {
+            ValidatePhase::Start => {
+                if !self.operation.idle() {
+                    return Command::none();
+                }
+
+                let path = self.config.restore.path.clone();
+                if !path.is_dir() {
+                    return self.show_modal(Modal::Error {
+                        variant: Error::RestorationSourceInvalid { path },
+                    });
+                }
+
+                self.operation = Operation::new_validate_backups();
+
+                self.invalidate_path_caches();
+                self.timed_notification = None;
+
+                Command::batch([self.close_modal(), self.handle_validation(ValidatePhase::Load)])
+            }
+            ValidatePhase::Load => {
+                let restore_path = self.config.restore.path.clone();
+
+                let config = std::sync::Arc::new(self.config.clone());
+
+                self.progress.start();
+
+                Command::perform(
+                    async move {
+                        let layout = BackupLayout::new(restore_path, config.backup.retention.clone());
+                        let subjects = layout.restorable_games();
+                        (layout, subjects)
+                    },
+                    move |(layout, subjects)| {
+                        Message::ValidateBackups(ValidatePhase::RegisterCommands { layout, subjects })
+                    },
+                )
+            }
+            ValidatePhase::RegisterCommands { subjects, layout } => {
+                log::info!("beginning validation with {} steps", subjects.len());
+
+                if self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed) {
+                    self.go_idle();
+                    return Command::none();
+                }
+
+                if subjects.is_empty() {
+                    self.go_idle();
+                    return Command::none();
+                }
+
+                self.progress.set_max(subjects.len() as f32);
+
+                let layout = std::sync::Arc::new(layout);
+
+                for name in subjects {
+                    let layout = layout.clone();
+                    let cancel_flag = self.operation_should_cancel.clone();
+                    let backup_id = self.backups_to_restore.get(&name).cloned().unwrap_or(BackupId::Latest);
+                    self.operation_steps.push(Command::perform(
+                        async move {
+                            if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                                // TODO: https://github.com/hecrj/iced/issues/436
+                                std::thread::sleep(std::time::Duration::from_millis(1));
+                                return (name, true);
+                            }
+
+                            let Some(layout) = layout.try_game_layout(&name) else {
+                                return (name, false);
+                            };
+
+                            let valid = layout.validate(backup_id);
+                            (name, valid)
+                        },
+                        move |(game, valid)| Message::ValidateBackups(ValidatePhase::GameScanned { game, valid }),
+                    ));
+                }
+
+                self.operation_steps_active = 100.min(self.operation_steps.len());
+                Command::batch(self.operation_steps.drain(..self.operation_steps_active))
+            }
+            ValidatePhase::GameScanned { game, valid } => {
+                self.progress.step();
+                log::trace!("step {} / {}: {}", self.progress.current, self.progress.max, &game);
+
+                if !valid {
+                    if let Operation::ValidateBackups { faulty_games, .. } = &mut self.operation {
+                        faulty_games.insert(game);
+                    }
+                }
+
+                match self.operation_steps.pop() {
+                    Some(step) => step,
+                    None => {
+                        self.operation_steps_active -= 1;
+                        if self.operation_steps_active == 0 {
+                            self.handle_validation(ValidatePhase::Done)
+                        } else {
+                            Command::none()
+                        }
+                    }
+                }
+            }
+            ValidatePhase::Done => {
+                log::info!("completed validation");
+                let faulty_games = if let Operation::ValidateBackups { faulty_games, .. } = &self.operation {
+                    faulty_games.clone()
+                } else {
+                    Default::default()
+                };
+                self.go_idle();
+                self.show_modal(Modal::BackupValidation { games: faulty_games })
+            }
+        }
+    }
+
     fn transition_from_cloud_step(&mut self) -> Option<Command<Message>> {
         let synced = self.operation.cloud_changes() == 0;
 
@@ -828,13 +955,16 @@ impl App {
             match self.operation {
                 Operation::Backup { .. } => Some(self.handle_backup(BackupPhase::Load)),
                 Operation::Restore { .. } => Some(self.handle_restore(RestorePhase::Load)),
-                Operation::Idle | Operation::Cloud { .. } => None,
+                Operation::Idle | Operation::ValidateBackups { .. } | Operation::Cloud { .. } => None,
             }
         } else if self.operation.integrated_syncing_cloud() {
             self.operation.transition_from_cloud_step(synced);
             match self.operation {
                 Operation::Backup { .. } => Some(self.handle_backup(BackupPhase::Done)),
-                Operation::Idle | Operation::Restore { .. } | Operation::Cloud { .. } => None,
+                Operation::Idle
+                | Operation::ValidateBackups { .. }
+                | Operation::Restore { .. }
+                | Operation::Cloud { .. } => None,
             }
         } else {
             None
@@ -1104,6 +1234,7 @@ impl Application for App {
             }
             Message::Backup(phase) => self.handle_backup(phase),
             Message::Restore(phase) => self.handle_restore(phase),
+            Message::ValidateBackups(phase) => self.handle_validation(phase),
             Message::CancelOperation => self.cancel_operation(),
             Message::EditedBackupTarget(text) => {
                 self.text_histories.backup_target.push(&text);
@@ -1810,6 +1941,7 @@ impl Application for App {
             Message::GameAction { action, game } => match action {
                 GameAction::PreviewBackup => self.handle_backup(BackupPhase::Start {
                     preview: true,
+                    repair: false,
                     games: Some(vec![game]),
                 }),
                 GameAction::Backup { confirm } => {
@@ -1820,6 +1952,7 @@ impl Application for App {
                     } else {
                         self.handle_backup(BackupPhase::Start {
                             preview: false,
+                            repair: false,
                             games: Some(vec![game]),
                         })
                     }
@@ -1869,11 +2002,6 @@ impl Application for App {
             Message::SetShowUnscannedGames(value) => {
                 self.config.scan.show_unscanned_games = value;
                 self.config.save();
-                Command::none()
-            }
-            Message::SetForceNewFullBackup(value) => {
-                self.config.backup.retention.force_new_full = value;
-                // Intentionally not saved because it's only meant for temporary debugging.
                 Command::none()
             }
             Message::FilterDuplicates { restoring, game } => {

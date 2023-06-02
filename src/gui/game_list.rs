@@ -104,6 +104,7 @@ impl GameListEntry {
                                 } else {
                                     Some(Message::Backup(BackupPhase::Start {
                                         preview: true,
+                                        repair: false,
                                         games: Some(vec![self.scan_info.game_name.clone()]),
                                     }))
                                 }

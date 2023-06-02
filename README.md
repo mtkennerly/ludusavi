@@ -160,14 +160,6 @@ then Ludusavi will keep the full backup and just delete the oldest differential 
 On the restore screen, you can use the three-dot menu next to a game to lock any of its backups.
 Locked backups do not count toward the retention limits and are retained indefinitely.
 
-<!--
-For debugging/troubleshooting purposes,
-the "other" screen has an option to create a new full backup even when it's unnecessary
-(i.e., there are no changes or there's room for a new differential backup).
-You don't normally need to use this, but it's available in case something has gone wrong.
-The option will reset to disabled whenever you close Ludusavi.
--->
-
 ### Cloud backup
 Ludusavi integrates with [Rclone](https://rclone.org) to provide cloud backups.
 You can configure this on the "other" screen.
@@ -312,6 +304,21 @@ Backup exclusions let you set paths and registry keys to completely ignore
 from all games. They will not be shown at all during backup scans.
 
 Configure exclusions on the "other" screen.
+
+<!--
+### Validation
+On the restore screen, there is a "validate" button that will check the integrity
+of the latest backup (full + differential, if any) for each game.
+You won't normally need to use this, but it exists for troubleshooting purposes.
+
+Specifically, this checks the following:
+
+* Is mapping.yaml malformed?
+* Is any file declared in mapping.yaml missing from the actual backup?
+
+If it finds problems, then it will prompt you to create new full backups for the games in question.
+At this time, it will not remove the invalid backups, outside of your normal retention settings.
+-->
 
 ### Command line
 Run `ludusavi --help` for the CLI usage information.

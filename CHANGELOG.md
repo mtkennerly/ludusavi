@@ -2,9 +2,9 @@
 
 * Added:
   * Automatic detection of non-Flatpak Lutris roots (`~/.config/lutris`).
-  * On the "other" screen, there is an option to always create new full backups,
-    even if there are no changes and there's room for a new differential backup.
-    This is intended for debugging/troubleshooting purposes (see below).
+  * On the restore screen, there is a "validate" button to check whether
+    your backups are missing any files declared in their mapping.yaml.
+    This is intended to help rectify a bug identified below.
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
@@ -20,14 +20,9 @@
   * If you had configured a backup-only or bidirectional redirect
     and you were using zip-based backups,
     then the redirected files would not be included in the backup.
-    Unfortunately, they would still be recorded in mapping.yaml,
-    so Ludusavi cannot detect and warn you where this already occurred.
 
-    If this affects you, you can make new, corrected backups by doing the following:
-
-    * On the "other" screen, enable the "debug: always create a new full backup" option.
-    * Run a full preview and backup of all games.
-    * Disable the "debug: always create a new full backup" option.
+    You can check if this affects you by going to the restore screen and clicking the "validate" button.
+    If it finds any issues, it will prompt you to make new full backups for the games in question.
   * Compatibility with Heroic 2.7.0+, which now uses `store_cache/gog_library.json` instead of `gog_store/library.json`.
   * For Lutris, the `game_slug` field is no longer required,
     since Ludusavi only uses it for logging when available.

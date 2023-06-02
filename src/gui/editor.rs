@@ -129,6 +129,7 @@ pub fn custom_games<'a>(config: &Config, operating: bool, histories: &TextHistor
                                             Message::Backup(BackupPhase::Start {
                                                 games: Some(vec![config.custom_games[i].name.clone()]),
                                                 preview: true,
+                                                repair: false,
                                             }),
                                             operating,
                                         ),
