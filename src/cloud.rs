@@ -159,11 +159,11 @@ impl RcloneProcess {
                 Some(code) if code == 0 => Some(Ok(())),
                 Some(code) => {
                     let stdout = self.child.stdout.as_mut().and_then(|x| {
-                        let lines = BufReader::new(x).lines().filter_map(|x| x.ok()).collect::<Vec<_>>();
+                        let lines = BufReader::new(x).lines().map_while(Result::ok).collect::<Vec<_>>();
                         (!lines.is_empty()).then_some(lines.join("\n"))
                     });
                     let stderr = self.stderr.as_mut().and_then(|x| {
-                        let lines = x.lines().filter_map(|x| x.ok()).collect::<Vec<_>>();
+                        let lines = x.lines().map_while(Result::ok).collect::<Vec<_>>();
                         (!lines.is_empty()).then_some(lines.join("\n"))
                     });
 
