@@ -328,7 +328,7 @@ impl App {
                 steam,
                 launchers,
             } => {
-                log::info!("beginning backup with {} steps", self.progress.max);
+                log::info!("beginning backup with {} steps", subjects.len());
                 let preview = self.operation.preview();
                 let full = self.operation.full();
 
@@ -639,7 +639,7 @@ impl App {
                 mut restorables,
                 layout,
             } => {
-                log::info!("beginning restore with {} steps", self.progress.max);
+                log::info!("beginning restore with {} steps", restorables.len());
                 let preview = self.operation.preview();
                 let full = self.operation.full();
                 let games = self.operation.games();
