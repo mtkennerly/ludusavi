@@ -6,6 +6,9 @@
   * For Lutris roots, when inferring the `<base>` from the `exe` field,
     Ludusavi assumed that the path would be absolute, but it could also be relative.
     Now, Ludusavi will combine the `prefix` and `exe` fields if necessary.
+* Changed:
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
 ## v0.19.0 (2023-06-02)
 

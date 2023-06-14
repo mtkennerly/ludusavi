@@ -43,7 +43,7 @@ button-lock = Verrouiller
 button-unlock = Déverrouiller
 # This opens a download page.
 button-get-app = Obtenir { $app }
-button-validate = Validate
+button-validate = Valider
 no-roots-are-configured = Ajoutez quelques dossiers pour sauvegarder encore plus de données.
 config-is-invalid = Erreur : Le fichier de configuration est invalide.
 manifest-is-invalid = Erreur : Le manifeste est invalide.
@@ -186,10 +186,10 @@ loading = Chargement...
 preparing-backup-target = Préparation du répertoire de sauvegarde...
 updating-manifest = Mise à jour du manifeste...
 no-cloud-changes = Aucun changement à synchroniser
-backups-are-valid = Your backups are valid.
+backups-are-valid = Vos sauvegardes sont valides.
 backups-are-invalid =
-    These games' backups appear to be invalid.
-    Do you want to create new full backups for these games?
+    Les sauvegardes de ces jeux semblent être invalides.
+    Voulez-vous créer de nouvelles sauvegardes complètes pour ces jeux ?
 saves-found = Données de sauvegarde trouvée.
 no-saves-found = Aucune donnée de sauvegarde trouvée.
 # This is tacked on to form something like "Back up (no confirmation)",

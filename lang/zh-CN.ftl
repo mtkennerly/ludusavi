@@ -43,7 +43,7 @@ button-lock = Lock
 button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get { $app }
-button-validate = Validate
+button-validate = 验证
 no-roots-are-configured = 添加一些根，以备份甚至更多的数据。
 config-is-invalid = 错误：配置文件无效。
 manifest-is-invalid = 错误：manifest 文件无效。
@@ -178,10 +178,10 @@ loading = Loading...
 preparing-backup-target = 正在准备备份文件夹...
 updating-manifest = 正在更新 Manifest 文件...
 no-cloud-changes = No changes to synchronize
-backups-are-valid = Your backups are valid.
+backups-are-valid = 您的备份是有效的。
 backups-are-invalid =
-    These games' backups appear to be invalid.
-    Do you want to create new full backups for these games?
+    这些游戏的备份似乎无效。
+    您想为这些游戏创建新的完全备份吗？
 saves-found = 发现已有的存档。
 no-saves-found = 未找到存档。
 # This is tacked on to form something like "Back up (no confirmation)",

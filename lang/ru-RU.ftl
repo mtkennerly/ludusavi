@@ -43,7 +43,7 @@ button-lock = Lock
 button-unlock = Unlock
 # This opens a download page.
 button-get-app = Получить { $app }
-button-validate = Validate
+button-validate = Проверить
 no-roots-are-configured = Add some roots to back up even more data.
 config-is-invalid = Ошибка: неверный файл конфигурации.
 manifest-is-invalid = Error: The manifest file is invalid.
@@ -185,20 +185,20 @@ confirm-cloud-download =
 confirm-add-missing-roots = Add these roots?
 no-missing-roots = No additional roots found.
 loading = Loading...
-preparing-backup-target = Preparing backup directory...
-updating-manifest = Updating manifest...
-no-cloud-changes = No changes to synchronize
-backups-are-valid = Your backups are valid.
+preparing-backup-target = Подготовка папки резервной копии...
+updating-manifest = Обновление манифеста...
+no-cloud-changes = Нет изменений для синхронизации
+backups-are-valid = Ваши резервные копии действительны.
 backups-are-invalid =
     These games' backups appear to be invalid.
     Do you want to create new full backups for these games?
-saves-found = Save data found.
-no-saves-found = No save data found.
+saves-found = Найдены данные сохранения.
+no-saves-found = Сохраненных данных не найдено.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = без подтверждения
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
-suffix-restart-required = restart required
+suffix-restart-required = Требуется перезапуск
 prefix-error = Ошибка: { $message }
 prefix-warning = Внимание: { $message }
 cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
