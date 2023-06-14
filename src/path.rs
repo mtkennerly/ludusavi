@@ -252,6 +252,10 @@ impl StrictPath {
         std::path::PathBuf::from(&self.interpret())
     }
 
+    pub fn as_std_path_buf_raw(&self) -> std::path::PathBuf {
+        std::path::PathBuf::from(&self.raw())
+    }
+
     pub fn raw(&self) -> String {
         self.raw.to_string()
     }
@@ -367,6 +371,10 @@ impl StrictPath {
         Self::new(format!("{}{}{}", self.interpret(), TYPICAL_SEPARATOR, other))
     }
 
+    pub fn joined_raw(&self, other: &str) -> Self {
+        Self::new(format!("{}/{}", self.raw(), other))
+    }
+
     pub fn create_dirs(&self) -> std::io::Result<()> {
         std::fs::create_dir_all(self.as_std_path_buf())?;
         Ok(())
@@ -383,10 +391,19 @@ impl StrictPath {
         self.as_std_path_buf().parent().map(Self::from)
     }
 
+    pub fn parent_raw(&self) -> Option<Self> {
+        self.as_std_path_buf_raw().parent().map(Self::from)
+    }
+
     pub fn leaf(&self) -> Option<String> {
         self.as_std_path_buf()
             .file_name()
             .map(|x| x.to_string_lossy().to_string())
+    }
+
+    pub fn is_absolute(&self) -> bool {
+        // TODO: Handle `~`
+        self.as_std_path_buf_raw().is_absolute()
     }
 
     pub fn copy_to_path(&self, context: &str, attempt: u8, target_file: &StrictPath) -> Result<(), std::io::Error> {

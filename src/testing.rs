@@ -14,6 +14,14 @@ pub fn repo_raw() -> String {
     env!("CARGO_MANIFEST_DIR").to_string()
 }
 
+pub fn absolute_path(file: &str) -> StrictPath {
+    if cfg!(target_os = "windows") {
+        StrictPath::new(format!("X:{file}"))
+    } else {
+        StrictPath::new(file.to_string())
+    }
+}
+
 pub fn mapping_file_key(file: &str) -> String {
     if cfg!(target_os = "windows") {
         format!("X:{file}")

@@ -114,7 +114,7 @@ along with the root's type:
 * For a Lutris root, this should be the folder containing the `games` subdirectory.
 
   Ludusavi expects the game YAML files to contain a few fields,
-  particularly `name`, `game_slug`, and either `game.working_dir` or `game.exe`.
+  particularly `name` and either `game.working_dir` or `game.exe`.
   Games will be skipped if they don't have the necessary fields.
 * For the "other" root type and the remaining store-specific roots,
   this should be a folder whose direct children are individual games.

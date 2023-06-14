@@ -28,86 +28,105 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
 
     log::trace!("Scanning Lutris root for games: {}", root.path.interpret());
 
-    for spec in root.path.joined("games/*.y*ml").glob() {
-        log::debug!("Inspecting Lutris game file: {}", spec.render());
+    for spec_path in root.path.joined("games/*.y*ml").glob() {
+        log::debug!("Inspecting Lutris game file: {}", spec_path.render());
 
-        let Some(content) = spec.read() else {
-            log::warn!("Unable to read Lutris game file: {}", spec.render());
-            continue;
-        };
-        let Ok(game) = serde_yaml::from_str::<LutrisGame>(&content) else {
-            log::warn!("Unable to parse Lutris game file: {}", spec.render());
+        let Some(content) = spec_path.read() else {
+            log::warn!("Unable to read Lutris game file: {}", spec_path.render());
             continue;
         };
 
-        let Some(name) = game.name.clone() else {
-            log::info!("Skipping Lutris game file without `name` field: {}", spec.render());
+        let Ok(spec) = serde_yaml::from_str::<LutrisGame>(&content) else {
+            log::warn!("Unable to parse Lutris game file: {}", spec_path.render());
             continue;
         };
 
-        let official_title = title_finder.find_one(&[name.clone()], &None, &None, true, true, false);
-        let prefix = game.game.prefix;
-        let platform = Some(match &prefix {
-            Some(_) => Os::Windows,
-            None => Os::HOST,
-        });
-
-        let title = match official_title {
-            Some(title) => {
-                log::trace!(
-                    "Recognized Lutris game: '{title}' from '{}' (slug: '{:?}')",
-                    &name,
-                    game.game_slug.as_ref(),
-                );
-                title
-            }
-            None => {
-                let log_message = format!(
-                    "Unrecognized Lutris game: '{}' (slug: '{:?}')",
-                    &name,
-                    game.game_slug.as_ref()
-                );
-                if std::env::var(ENV_DEBUG).is_ok() {
-                    eprintln!("{log_message}");
-                }
-                log::info!("{log_message}");
-                name
-            }
-        };
-
-        let install_dir = if let Some(working_dir) = game.game.working_dir.as_ref() {
-            working_dir.clone()
-        } else if let Some(exe) = game.game.exe.as_ref() {
-            if let Some(parent) = exe.parent() {
-                parent
-            } else {
-                log::info!(
-                    "Skipping Lutris game file with indeterminate parent folder of exe: {}",
-                    spec.render()
-                );
-                continue;
-            }
-        } else {
-            log::info!(
-                "Skipping Lutris game file without `working_dir` and `exe` fields: {}",
-                spec.render()
-            );
-            continue;
-        };
-
-        games.insert(
-            title,
-            LauncherGame {
-                install_dir,
-                prefix,
-                platform,
-            },
-        );
+        if let Some((title, game)) = scan_spec(spec, &spec_path, title_finder) {
+            games.insert(title, game);
+        }
     }
 
     log::trace!("Finished scanning Lutris root for games: {}", root.path.interpret());
 
     games
+}
+
+fn scan_spec(spec: LutrisGame, spec_path: &StrictPath, title_finder: &TitleFinder) -> Option<(String, LauncherGame)> {
+    let Some(name) = spec.name.clone() else {
+        log::info!("Skipping Lutris game file without `name` field: {}", spec_path.render());
+        return None;
+    };
+
+    let official_title = title_finder.find_one(&[name.clone()], &None, &None, true, true, false);
+    let prefix = spec.game.prefix;
+    let platform = Some(match &prefix {
+        Some(_) => Os::Windows,
+        None => Os::HOST,
+    });
+
+    let title = match official_title {
+        Some(title) => {
+            log::trace!(
+                "Recognized Lutris game: '{title}' from '{}' (slug: '{:?}')",
+                &name,
+                spec.game_slug.as_ref(),
+            );
+            title
+        }
+        None => {
+            let log_message = format!(
+                "Unrecognized Lutris game: '{}' (slug: '{:?}')",
+                &name,
+                spec.game_slug.as_ref()
+            );
+            if std::env::var(ENV_DEBUG).is_ok() {
+                eprintln!("{log_message}");
+            }
+            log::info!("{log_message}");
+            name
+        }
+    };
+
+    let install_dir = if let Some(working_dir) = spec.game.working_dir {
+        working_dir
+    } else if let Some(exe) = spec.game.exe {
+        let exe = if exe.is_absolute() {
+            exe
+        } else if let Some(prefix) = &prefix {
+            prefix.joined_raw(&exe.raw())
+        } else {
+            log::info!(
+                "Skipping Lutris game file with relative exe and no prefix: {}",
+                spec_path.render()
+            );
+            return None;
+        };
+
+        if let Some(parent) = exe.parent_raw() {
+            parent
+        } else {
+            log::info!(
+                "Skipping Lutris game file with indeterminate parent folder of exe: {}",
+                spec_path.render()
+            );
+            return None;
+        }
+    } else {
+        log::info!(
+            "Skipping Lutris game file without `working_dir` and `exe` fields: {}",
+            spec_path.render()
+        );
+        return None;
+    };
+
+    Some((
+        title,
+        LauncherGame {
+            install_dir,
+            prefix,
+            platform,
+        },
+    ))
 }
 
 #[cfg(test)]
@@ -121,13 +140,19 @@ mod tests {
             manifest::{Manifest, Store},
             ResourceFile,
         },
-        testing::repo,
+        testing::{absolute_path, repo},
     };
 
     fn manifest() -> Manifest {
         Manifest::load_from_string(
             r#"
             windows-game:
+              files:
+                <base>/file1.txt: {}
+            windows-game-with-absolute-exe:
+              files:
+                  <base>/file1.txt: {}
+            windows-game-with-relative-exe:
               files:
                 <base>/file1.txt: {}
             "#,
@@ -165,6 +190,54 @@ mod tests {
                 },
             },
             games,
+        );
+    }
+
+    #[test]
+    fn can_scan_spec_with_absolute_exe() {
+        let spec = LutrisGame {
+            game: GameSection {
+                exe: Some(absolute_path("/install/drive_c/game/launcher.exe")),
+                prefix: Some(absolute_path("/prefix")),
+                working_dir: None,
+            },
+            game_slug: None,
+            name: Some("Windows Game with Absolute Exe".into()),
+        };
+        assert_eq!(
+            Some((
+                "windows-game-with-absolute-exe".into(),
+                LauncherGame {
+                    install_dir: absolute_path("/install/drive_c/game"),
+                    prefix: Some(absolute_path("/prefix")),
+                    platform: Some(Os::Windows),
+                }
+            )),
+            scan_spec(spec, &absolute_path("/tmp"), &title_finder()),
+        );
+    }
+
+    #[test]
+    fn can_scan_spec_with_relative_exe_but_prefix() {
+        let spec = LutrisGame {
+            game: GameSection {
+                exe: Some(StrictPath::new("drive_c/game/launcher.exe".into())),
+                prefix: Some(absolute_path("/prefix")),
+                working_dir: None,
+            },
+            game_slug: None,
+            name: Some("Windows Game with Relative Exe".into()),
+        };
+        assert_eq!(
+            Some((
+                "windows-game-with-relative-exe".into(),
+                LauncherGame {
+                    install_dir: absolute_path("/prefix/drive_c/game"),
+                    prefix: Some(absolute_path("/prefix")),
+                    platform: Some(Os::Windows),
+                }
+            )),
+            scan_spec(spec, &absolute_path("/tmp"), &title_finder()),
         );
     }
 }
