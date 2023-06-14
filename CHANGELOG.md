@@ -1,3 +1,9 @@
+## Unreleased
+
+* Fixed:
+  * For Lutris roots, the `<base>` placeholder was resolved generically
+    instead of using the Lutris-specific logic.
+
 ## v0.19.0 (2023-06-02)
 
 * Added:
