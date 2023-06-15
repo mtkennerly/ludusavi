@@ -87,37 +87,49 @@ impl FilterComponent {
             Column::new()
                 .push(
                     Row::new()
-                        .padding([0, 20, 20, 20])
+                        .padding([0, 20, 10, 20])
                         .spacing(20)
                         .align_items(Alignment::Center)
                         .push(Text::new(TRANSLATOR.filter_label()))
                         .push(histories.input(match screen {
                             Screen::Restore => UndoSubject::RestoreSearchGameName,
                             _ => UndoSubject::BackupSearchGameName,
-                        }))
-                        .push(template(
-                            &self.uniqueness,
-                            FilterKind::Uniqueness,
-                            game_filter::Uniqueness::ALL,
-                            Message::EditedSearchFilterUniqueness,
-                        ))
-                        .push(template(
-                            &self.completeness,
-                            FilterKind::Completeness,
-                            game_filter::Completeness::ALL,
-                            Message::EditedSearchFilterCompleteness,
-                        ))
-                        .push_if(
-                            || show_deselected_games,
-                            || {
-                                template(
-                                    &self.enablement,
-                                    FilterKind::Enablement,
-                                    game_filter::Enablement::ALL,
-                                    Message::EditedSearchFilterEnablement,
-                                )
-                            },
-                        ),
+                        })),
+                )
+                .push(
+                    Row::new()
+                    .padding([0, 20, 20, 20])
+                    .spacing(20)
+                    .align_items(Alignment::Center)
+                    .push(template(
+                        &self.uniqueness,
+                        FilterKind::Uniqueness,
+                        game_filter::Uniqueness::ALL,
+                        Message::EditedSearchFilterUniqueness,
+                    ))
+                    .push(template(
+                        &self.completeness,
+                        FilterKind::Completeness,
+                        game_filter::Completeness::ALL,
+                        Message::EditedSearchFilterCompleteness,
+                    ))
+                    .push(template(
+                        &self.change,
+                        FilterKind::Change,
+                        game_filter::Change::ALL,
+                        Message::EditedSearchFilterChange
+                    ))
+                    .push_if(
+                        || show_deselected_games,
+                        || {
+                            template(
+                                &self.enablement,
+                                FilterKind::Enablement,
+                                game_filter::Enablement::ALL,
+                                Message::EditedSearchFilterEnablement,
+                            )
+                        },
+                    ),
                 )
                 .into(),
         )
