@@ -847,6 +847,15 @@ impl Translator {
         })
     }
 
+    pub fn filter_freshness(&self, filter: game_filter::Change) -> String {
+        translate(match filter {
+            game_filter::Change::New => "label-new",
+            game_filter::Change::Updated => "label-updated",
+            game_filter::Change::Unknown => "label-unknown",
+
+        })
+    }
+
     pub fn backup_format(&self, key: &BackupFormat) -> String {
         translate(match key {
             BackupFormat::Simple => "backup-format-simple",

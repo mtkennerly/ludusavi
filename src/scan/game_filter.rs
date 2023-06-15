@@ -3,11 +3,14 @@ use crate::{
     scan::{Duplication, ScanInfo},
 };
 
+use super::ScanChange;
+
 #[derive(Clone, Copy, Debug)]
 pub enum FilterKind {
     Uniqueness,
     Completeness,
     Enablement,
+    Change,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -79,5 +82,31 @@ impl Enablement {
 impl ToString for Enablement {
     fn to_string(&self) -> String {
         TRANSLATOR.filter_enablement(*self)
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum Change {
+    New,
+    Updated,
+    #[default]
+    Unknown
+}
+
+impl ToString for Change {
+    fn to_string(&self) -> String {
+        TRANSLATOR.filter_freshness(*self)
+    }
+}
+
+impl Change {
+    pub const ALL: &'static [Self] = &[Self::New, Self::Updated, Self::Unknown];
+
+    pub fn qualifies(&self, scan: &ScanInfo) -> bool {
+        match self {
+            Change::New => scan.overall_change() == ScanChange::New,
+            Change::Updated => scan.overall_change() == ScanChange::Different,
+            Change::Unknown => scan.overall_change() == ScanChange::Unknown,
+        }
     }
 }

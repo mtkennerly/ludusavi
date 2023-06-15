@@ -142,6 +142,7 @@ label-provider = Provider
 label-custom = Custom
 label-none = None
 label-change-count = Changes: {$total}
+label-unknown = Unknown
 
 store-ea = EA
 store-epic = Epic
