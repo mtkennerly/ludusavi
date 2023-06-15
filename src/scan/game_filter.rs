@@ -89,6 +89,7 @@ impl ToString for Enablement {
 pub enum Change {
     New,
     Updated,
+    NoChanges,
     #[default]
     Unknown
 }
@@ -100,12 +101,13 @@ impl ToString for Change {
 }
 
 impl Change {
-    pub const ALL: &'static [Self] = &[Self::New, Self::Updated, Self::Unknown];
+    pub const ALL: &'static [Self] = &[Self::New, Self::Updated, Self::NoChanges, Self::Unknown];
 
     pub fn qualifies(&self, scan: &ScanInfo) -> bool {
         match self {
             Change::New => scan.overall_change() == ScanChange::New,
             Change::Updated => scan.overall_change() == ScanChange::Different,
+            Change::NoChanges => scan.overall_change() == ScanChange::Same,
             Change::Unknown => scan.overall_change() == ScanChange::Unknown,
         }
     }

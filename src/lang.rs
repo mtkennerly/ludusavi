@@ -852,7 +852,7 @@ impl Translator {
             game_filter::Change::New => "label-new",
             game_filter::Change::Updated => "label-updated",
             game_filter::Change::Unknown => "label-unknown",
-
+            game_filter::Change::NoChanges => "label-no-changes",
         })
     }
 

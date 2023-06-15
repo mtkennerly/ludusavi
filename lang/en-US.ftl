@@ -111,6 +111,7 @@ label-updated = Updated
 label-new = New
 label-removed = Removed
 label-comment = Comment
+label-no-changes = No Changes
 label-scan = Scan
 label-filter  = Filter
 label-unique = Unique
