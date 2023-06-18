@@ -111,7 +111,7 @@ label-updated = Updated
 label-new = New
 label-removed = Removed
 label-comment = Comment
-label-no-changes = No Changes
+label-unchanged = Unchanged
 label-scan = Scan
 label-filter  = Filter
 label-unique = Unique
@@ -143,7 +143,7 @@ label-provider = Provider
 label-custom = Custom
 label-none = None
 label-change-count = Changes: {$total}
-label-unknown = Unknown
+label-unscanned = Unscanned
 
 store-ea = EA
 store-epic = Epic
