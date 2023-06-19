@@ -2,6 +2,7 @@
 
 * Added:
   * Option to filter scan results by change status (new/updated/unchanged/unscanned).
+    ([Contributed by kekonn](https://github.com/mtkennerly/ludusavi/pull/226))
 * Fixed:
   * For Lutris roots, the `<base>` placeholder was resolved generically
     instead of using the Lutris-specific logic.
