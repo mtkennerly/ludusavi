@@ -27,6 +27,7 @@ pub struct FilterComponent {
     pub uniqueness: Filter<game_filter::Uniqueness>,
     pub completeness: Filter<game_filter::Completeness>,
     pub enablement: Filter<game_filter::Enablement>,
+    pub change: Filter<game_filter::Change>,
 }
 
 fn template<'a, T: 'static + Default + Copy + Eq + PartialEq + ToString>(
@@ -64,8 +65,9 @@ impl FilterComponent {
         let unique = !self.uniqueness.active || self.uniqueness.choice.qualifies(duplicated);
         let complete = !self.completeness.active || self.completeness.choice.qualifies(scan);
         let enable = !show_deselected_games || !self.enablement.active || self.enablement.choice.qualifies(enabled);
+        let changed = !self.change.active || self.change.choice.qualifies(scan);
 
-        fuzzy && unique && complete && enable
+        fuzzy && unique && complete && changed && enable
     }
 
     pub fn toggle_filter(&mut self, filter: FilterKind, enabled: bool) {
@@ -73,6 +75,7 @@ impl FilterComponent {
             FilterKind::Uniqueness => self.uniqueness.active = enabled,
             FilterKind::Completeness => self.completeness.active = enabled,
             FilterKind::Enablement => self.enablement.active = enabled,
+            FilterKind::Change => self.change.active = enabled,
         }
     }
 
@@ -84,14 +87,20 @@ impl FilterComponent {
             Column::new()
                 .push(
                     Row::new()
-                        .padding([0, 20, 20, 20])
+                        .padding([0, 20, 10, 20])
                         .spacing(20)
                         .align_items(Alignment::Center)
                         .push(Text::new(TRANSLATOR.filter_label()))
                         .push(histories.input(match screen {
                             Screen::Restore => UndoSubject::RestoreSearchGameName,
                             _ => UndoSubject::BackupSearchGameName,
-                        }))
+                        })),
+                )
+                .push(
+                    Row::new()
+                        .padding([0, 20, 20, 20])
+                        .spacing(20)
+                        .align_items(Alignment::Center)
                         .push(template(
                             &self.uniqueness,
                             FilterKind::Uniqueness,
@@ -103,6 +112,12 @@ impl FilterComponent {
                             FilterKind::Completeness,
                             game_filter::Completeness::ALL,
                             Message::EditedSearchFilterCompleteness,
+                        ))
+                        .push(template(
+                            &self.change,
+                            FilterKind::Change,
+                            game_filter::Change::ALL,
+                            Message::EditedSearchFilterChange,
                         ))
                         .push_if(
                             || show_deselected_games,
