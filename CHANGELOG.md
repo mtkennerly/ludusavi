@@ -1,5 +1,7 @@
 ## Unreleased
 
+* Added:
+  * Option to filter scan results by change status (new/updated/unchanged/unscanned).
 * Fixed:
   * For Lutris roots, the `<base>` placeholder was resolved generically
     instead of using the Lutris-specific logic.
