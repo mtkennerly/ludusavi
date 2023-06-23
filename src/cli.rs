@@ -1,8 +1,11 @@
 mod parse;
 mod report;
 
+use std::process::Command;
+
 use clap::CommandFactory;
 use indicatif::{ParallelProgressIterator, ProgressBar};
+use itertools::Itertools;
 use rayon::{
     iter::{IntoParallelRefIterator, ParallelIterator},
     prelude::IndexedParallelIterator,
@@ -52,6 +55,14 @@ impl GameSubjects {
         subjects.invalid.sort();
         subjects
     }
+}
+
+// TODO.2023-06-23 move to heroic.rs?
+/// Deserialization of Heroic gog_store/installed.json
+#[derive(serde::Deserialize)]
+struct GogGameInfo {
+    name: String,
+    // ignore everything else
 }
 
 fn warn_backup_deprecations(merge: bool, no_merge: bool, update: bool, try_update: bool) {
@@ -110,6 +121,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
     }
     let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
     TRANSLATOR.set_language(config.language);
+    // TODO.2023-06-20 replace with Option<Error>
     let mut failed = false;
     let mut duplicate_detector = DuplicateDetector::default();
 
@@ -727,8 +739,141 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 report_cloud_changes(&changes, api);
             }
         },
-    }
+        // TODO.2023-06-22 path separator linux specific
+        // TODO.2023-06-23 show small popup during backup
+        // TODO.2023-06-23 refactor println into logs
+        // TODO.2023-06-23 error handling if restore / backup fails
+        // TODO.2023-06-23 let clap put even --XXX into commands
+        Subcommand::Launcher { commands } => {
+            let mut launch_error: Option<String> = None;
+            let game_dir;
+            let game_id;
+            let mut game_name = String::default();
 
+            println!("launcher commands: {:#?}", commands);
+
+            let mut iter = commands.iter();
+            if iter.find_position(|p| p.ends_with("gogdl")).is_some() {
+                println!("launcher: gogdl found");
+                if iter.find_position(|p| p.ends_with("launch")).is_some() {
+                    game_dir = iter.next().unwrap();
+                    game_id = iter.next().unwrap();
+                    let gog_info_path_native = StrictPath::from(&format!("{}/gameinfo", game_dir));
+                    match gog_info_path_native.is_file() {
+                        true => {
+                            // GOG Linux native
+                            //     GAMENAME=`$HEAD -1 "$GAME_DIR/gameinfo"`
+                            game_name = gog_info_path_native
+                                .read()
+                                .unwrap_or_default()
+                                .lines()
+                                .next()
+                                .unwrap_or_default()
+                                .to_string();
+                            if game_name.is_empty() {
+                                launch_error = Some(format!("Error reading {}", gog_info_path_native.interpret()));
+                            }
+                        }
+                        false => {
+                            // GOG Windows game
+                            //     GAMENAME=`$JQ -r .name "$GAME_DIR/goggame-$GAME_ID.info"`
+                            let gog_info_path_windows =
+                                StrictPath::from(&format!("{}/goggame-{}.info", game_dir, game_id));
+
+                            match serde_json::from_str::<GogGameInfo>(&gog_info_path_windows.read().unwrap_or_default())
+                            {
+                                Ok(ggi) => {
+                                    game_name = ggi.name;
+                                    if game_name.is_empty() {
+                                        launch_error = Some(format!(
+                                            "Error reading {}, no name entry found.",
+                                            gog_info_path_windows.interpret()
+                                        ));
+                                    }
+                                }
+                                Err(e) => {
+                                    launch_error =
+                                        Some(format!("Error reading {}: {:#?}", gog_info_path_windows.interpret(), e));
+                                }
+                            }
+                        }
+                    }
+                    println!(
+                        "launcher: gogdl launch found: {} - {}, name: {}",
+                        game_dir, game_id, game_name
+                    );
+                } else {
+                    launch_error = Some("gogdl launch parameter not found".to_string());
+                }
+            } else {
+                // TODO.2023-06-23 handle other launchers (legendary, ...) here
+                launch_error = Some("gogdl not found in command line parameters".to_string());
+            }
+
+            if let Some(msg) = launch_error {
+                println!("launcher failed with: {}", msg);
+                failed = true;
+            } else {
+                // restore
+                if let Err(err) = run(
+                    Subcommand::Restore {
+                        // restore the game found
+                        games: vec![game_name.clone()],
+                        force: true,
+                        // everything else is default
+                        preview: Default::default(),
+                        path: Default::default(),
+                        api: Default::default(),
+                        sort: Default::default(),
+                        backup: Default::default(),
+                        cloud_sync: Default::default(),
+                        no_cloud_sync: Default::default(),
+                    },
+                    no_manifest_update,
+                    try_manifest_update,
+                ) {
+                    println!("Restore failed with: {:#?}", err);
+                    failed = true;
+                }
+
+                // execute commands
+                println!("Would execute commands: {:#?}", commands);
+                let result = Command::new(&commands[0]).args(&commands[1..]).status();
+                println!("commands returned {:#?}", result);
+
+                // backup
+                if let Err(err) = run(
+                    Subcommand::Backup {
+                        // backup the game found
+                        games: vec![game_name],
+                        force: true,
+                        // everything else is default
+                        preview: Default::default(),
+                        path: Default::default(),
+                        merge: Default::default(),
+                        no_merge: Default::default(),
+                        update: Default::default(),
+                        try_update: Default::default(),
+                        wine_prefix: Default::default(),
+                        api: Default::default(),
+                        sort: Default::default(),
+                        format: Default::default(),
+                        compression: Default::default(),
+                        compression_level: Default::default(),
+                        full_limit: Default::default(),
+                        differential_limit: Default::default(),
+                        cloud_sync: Default::default(),
+                        no_cloud_sync: Default::default(),
+                    },
+                    no_manifest_update,
+                    try_manifest_update,
+                ) {
+                    println!("Backup failed with: {:#?}", err);
+                    failed = true;
+                }
+            }
+        }
+    }
     if failed {
         Err(Error::SomeEntriesFailed)
     } else {
