@@ -1,6 +1,10 @@
 ## Unreleased
 
 * Added:
+  * Support for checking secondary/associated Steam IDs for a game.
+    This is mainly useful for discovering Proton prefix folders of DLC,
+    since DLC saves may be kept separately from base game saves.
+    Specifically, this detection is based on the `steamExtra` field from the manifest.
   * Option to filter scan results by change status (new/updated/unchanged/unscanned).
     ([Contributed by kekonn](https://github.com/mtkennerly/ludusavi/pull/226))
 * Fixed:

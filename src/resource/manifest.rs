@@ -157,6 +157,7 @@ pub struct Game {
     pub steam: Option<SteamMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gog: Option<GogMetadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<IdMetadata>,
 }
 
@@ -232,9 +233,14 @@ pub struct GogMetadata {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IdMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flatpak: Option<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub gog_extra: Vec<u64>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub steam_extra: Vec<u32>,
 }
 
 impl From<CustomGame> for Game {
@@ -518,6 +524,8 @@ mod tests {
                 id: 102
               id:
                 flatpak: com.example.Game
+                gogExtra: [10, 11]
+                steamExtra: [1, 2]
             "#,
         )
         .unwrap();
@@ -551,7 +559,9 @@ mod tests {
                 steam: Some(SteamMetadata { id: Some(101) }),
                 gog: Some(GogMetadata { id: Some(102) }),
                 id: Some(IdMetadata {
-                    flatpak: Some("com.example.Game".to_string())
+                    flatpak: Some("com.example.Game".to_string()),
+                    gog_extra: vec![10, 11],
+                    steam_extra: vec![1, 2],
                 }),
             },
             manifest.0["game"],
