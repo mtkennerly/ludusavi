@@ -1,6 +1,7 @@
 use std::{
     collections::{BTreeMap, HashMap, HashSet},
     num::NonZeroUsize,
+    sync::{Arc, Mutex},
 };
 
 use crate::{
@@ -147,7 +148,7 @@ impl ToString for RedirectKind {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct BackupFilter {
     #[serde(default, rename = "excludeStoreScreenshots")]
     pub exclude_store_screenshots: bool,
@@ -155,17 +156,64 @@ pub struct BackupFilter {
     pub ignored_paths: Vec<StrictPath>,
     #[serde(default, rename = "ignoredRegistry")]
     pub ignored_registry: Vec<RegistryItem>,
+    #[serde(skip)]
+    pub path_globs: Arc<Mutex<Option<globset::GlobSet>>>,
+}
+
+impl Eq for BackupFilter {}
+
+impl PartialEq for BackupFilter {
+    fn eq(&self, other: &Self) -> bool {
+        self.exclude_store_screenshots == other.exclude_store_screenshots
+            && self.ignored_paths == other.ignored_paths
+            && self.ignored_registry == other.ignored_registry
+    }
 }
 
 impl BackupFilter {
+    pub fn build_globs(&mut self) {
+        let mut path_globs = self.path_globs.lock().unwrap();
+        if self.ignored_paths.is_empty() {
+            *path_globs = None;
+            return;
+        }
+
+        let mut builder = globset::GlobSetBuilder::new();
+        for item in &self.ignored_paths {
+            let normalized = crate::path::parse_home(&item.raw()).replace('\\', "/");
+            let normalized = normalized.trim_end_matches('/');
+
+            let variants = vec![
+                normalized.to_string(),
+                // If the user has specified a plain folder, we also want to ignore its children.
+                format!("{}/**", &normalized),
+            ];
+
+            for variant in variants {
+                if let Ok(glob) = globset::GlobBuilder::new(&variant)
+                    .literal_separator(true)
+                    .backslash_escape(false)
+                    .case_insensitive(true)
+                    .build()
+                {
+                    builder.add(glob);
+                }
+            }
+        }
+
+        *path_globs = builder.build().ok();
+    }
+
     pub fn is_path_ignored(&self, item: &StrictPath) -> bool {
         if self.ignored_paths.is_empty() {
             return false;
         }
-        let interpreted = item.interpret();
-        self.ignored_paths
-            .iter()
-            .any(|x| x.is_prefix_of(item) || x.interpret() == interpreted)
+
+        let path_globs = self.path_globs.lock().unwrap();
+        path_globs
+            .as_ref()
+            .map(|set| set.is_match(item.render()))
+            .unwrap_or(false)
     }
 
     #[allow(dead_code)]
@@ -705,6 +753,8 @@ impl ResourceFile for Config {
                 self.apps.rclone.path = StrictPath::from(path);
             }
         }
+
+        self.backup.filter.build_globs();
 
         self
     }

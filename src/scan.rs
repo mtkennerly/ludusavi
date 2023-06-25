@@ -1125,7 +1125,8 @@ mod tests {
             ),
         ];
 
-        for (filter, ignored, found) in cases {
+        for (mut filter, ignored, found) in cases {
+            filter.build_globs();
             assert_eq!(
                 ScanInfo {
                     game_name: s("game1"),
