@@ -314,6 +314,8 @@ impl Translator {
                 )
             }
             Error::CloudConflict => TRANSLATOR.prefix_error(&TRANSLATOR.cloud_synchronize_conflict()),
+            // TODO.2023-06-26 use specific error handling instead of generig some_entries_failed, show msg to user
+            Error::WrapCommandNotRecognized { msg: _ } => self.some_entries_failed(),
         }
     }
 

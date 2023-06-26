@@ -9,6 +9,7 @@ mod prelude;
 mod resource;
 mod scan;
 mod serialization;
+mod wrap;
 
 #[cfg(test)]
 mod testing;

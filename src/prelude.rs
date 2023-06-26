@@ -108,6 +108,9 @@ pub enum Error {
     UnableToConfigureCloud(CommandError),
     UnableToSynchronizeCloud(CommandError),
     CloudConflict,
+    WrapCommandNotRecognized {
+        msg: String,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]

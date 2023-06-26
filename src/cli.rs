@@ -5,7 +5,6 @@ use std::process::Command;
 
 use clap::CommandFactory;
 use indicatif::{ParallelProgressIterator, ProgressBar};
-use itertools::Itertools;
 use rayon::{
     iter::{IntoParallelRefIterator, ParallelIterator},
     prelude::IndexedParallelIterator,
@@ -27,6 +26,7 @@ use crate::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
         OperationStepDecision, SteamShortcuts, TitleFinder,
     },
+    wrap::get_game_name_from_launch_commands,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -55,14 +55,6 @@ impl GameSubjects {
         subjects.invalid.sort();
         subjects
     }
-}
-
-// TODO.2023-06-23 move to heroic.rs?
-/// Deserialization of Heroic gog_store/installed.json
-#[derive(serde::Deserialize)]
-struct GogGameInfo {
-    name: String,
-    // ignore everything else
 }
 
 fn warn_backup_deprecations(merge: bool, no_merge: bool, update: bool, try_update: bool) {
@@ -739,85 +731,27 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 report_cloud_changes(&changes, api);
             }
         },
+        // TODO.2023-06-26 support invocations like:
+        // # Predetermined name - don't need to do any special lookups.
+        // ludusavi wrap Factorio -- ...
+        //
+        // # Infer info from CLI explicitly for Heroic.
+        // ludusavi wrap --infer heroic -- ...
         // TODO.2023-06-22 path separator linux specific
         // TODO.2023-06-23 show small popup during backup
         // TODO.2023-06-23 refactor println into logs
-        // TODO.2023-06-23 error handling if restore / backup fails
-        // TODO.2023-06-23 let clap put even --XXX into commands
-        // TODO.2023-06-23 legendary (EPIC) sample command:
-        // Launch Command: LD_PRELOAD= WINEPREFIX=/home/saschal/Games/Heroic/Prefixes/Slain WINEDLLOVERRIDES=winemenubuilder.exe=d ORIG_LD_LIBRARY_PATH= LD_LIBRARY_PATH=/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib64:/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib GST_PLUGIN_SYSTEM_PATH_1_0=/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib64/gstreamer-1.0:/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib/gstreamer-1.0 WINEDLLPATH=/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib64/wine:/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib/wine /usr/bin/mangohud --dlsym /opt/Heroic/resources/app.asar.unpacked/build/bin/linux/legendary launch d8a4c98b5020483881eb7f0c3fc4cea3 --language en --wine /home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/bin/wine
-        // read from /home/saschal/.config/legendary/metadata/d8a4c98b5020483881eb7f0c3fc4cea3.json
-        Subcommand::Launcher { commands } => {
-            let mut launch_error: Option<String> = None;
-            let game_dir;
-            let game_id;
+        // TODO.2023-06-23 error handling if restore / game execution / backup fails
+        Subcommand::Wrap { commands } => {
             let mut game_name = String::default();
-
-            println!("launcher commands: {:#?}", commands);
-
-            let mut iter = commands.iter();
-            // // TODO.2023-06-23 legendary .. launch LEGENDARY_GAME_ID
-            if iter.find_position(|p| p.ends_with("gogdl")).is_some() {
-                println!("launcher: gogdl found");
-                if iter.find_position(|p| p.ends_with("launch")).is_some() {
-                    game_dir = iter.next().unwrap();
-                    game_id = iter.next().unwrap();
-                    let gog_info_path_native = StrictPath::from(&format!("{}/gameinfo", game_dir));
-                    match gog_info_path_native.is_file() {
-                        true => {
-                            // GOG Linux native
-                            //     GAMENAME=`$HEAD -1 "$GAME_DIR/gameinfo"`
-                            game_name = gog_info_path_native
-                                .read()
-                                .unwrap_or_default()
-                                .lines()
-                                .next()
-                                .unwrap_or_default()
-                                .to_string();
-                            if game_name.is_empty() {
-                                launch_error = Some(format!("Error reading {}", gog_info_path_native.interpret()));
-                            }
-                        }
-                        false => {
-                            // GOG Windows game
-                            //     GAMENAME=`$JQ -r .name "$GAME_DIR/goggame-$GAME_ID.info"`
-                            let gog_info_path_windows =
-                                StrictPath::from(&format!("{}/goggame-{}.info", game_dir, game_id));
-
-                            match serde_json::from_str::<GogGameInfo>(&gog_info_path_windows.read().unwrap_or_default())
-                            {
-                                Ok(ggi) => {
-                                    game_name = ggi.name;
-                                    if game_name.is_empty() {
-                                        launch_error = Some(format!(
-                                            "Error reading {}, no name entry found.",
-                                            gog_info_path_windows.interpret()
-                                        ));
-                                    }
-                                }
-                                Err(e) => {
-                                    launch_error =
-                                        Some(format!("Error reading {}: {:#?}", gog_info_path_windows.interpret(), e));
-                                }
-                            }
-                        }
-                    }
-                    println!(
-                        "launcher: gogdl launch found: {} - {}, name: {}",
-                        game_dir, game_id, game_name
-                    );
-                } else {
-                    launch_error = Some("gogdl launch parameter not found".to_string());
+            match get_game_name_from_launch_commands(&commands) {
+                Ok(name) => game_name = name,
+                Err(msg) => {
+                    println!("wrap failed with: {:#?}", msg);
+                    failed = true;
                 }
-            } else {
-                // TODO.2023-06-23 handle other launchers (legendary, ...) here
-                launch_error = Some("gogdl not found in command line parameters".to_string());
             }
 
-            if let Some(msg) = launch_error {
-                println!("launcher failed with: {}", msg);
-                failed = true;
-            } else {
+            if !failed {
                 // restore
                 if let Err(err) = run(
                     Subcommand::Restore {

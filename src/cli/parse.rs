@@ -324,8 +324,8 @@ pub enum Subcommand {
         #[clap(subcommand)]
         sub: CloudSubcommand,
     },
-    /// Launch game and restore/backup around launch
-    Launcher {
+    /// Wrap around game execution to restore/backup around it
+    Wrap {
         #[clap()]
         commands: Vec<String>,
     },
