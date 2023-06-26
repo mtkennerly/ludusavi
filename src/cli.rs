@@ -741,7 +741,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
         // TODO.2023-06-23 show small popup during backup
         // TODO.2023-06-23 refactor println into logs
         // TODO.2023-06-23 error handling if restore / game execution / backup fails
-        Subcommand::Wrap { commands } => {
+        Subcommand::Wrap { infer, name, commands } => {
+            println!(
+                "WRAP called, infer: {:#?}, name: {:#?}, commands: {:#?}",
+                infer, name, commands
+            );
             let mut game_name = String::default();
             match get_game_name_from_launch_commands(&commands) {
                 Ok(name) => game_name = name,

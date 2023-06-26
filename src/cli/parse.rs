@@ -6,6 +6,8 @@ use crate::{
     resource::config::{BackupFormat, Sort, SortKey, ZipCompression},
 };
 
+use clap::ValueEnum;
+
 macro_rules! possible_values {
     ($t: ty, $options: ident) => {{
         use clap::builder::{PossibleValuesParser, TypedValueParser};
@@ -97,6 +99,12 @@ impl From<CliSort> for Sort {
             },
         }
     }
+}
+
+/// Supported launchers for wrap --infer command
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum LauncherTypes {
+    Heroic,
 }
 
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
@@ -324,8 +332,17 @@ pub enum Subcommand {
         #[clap(subcommand)]
         sub: CloudSubcommand,
     },
-    /// Wrap around game execution to restore/backup around it
+    /// Wrap restore/backup around game execution
     Wrap {
+        /// Infer game name from commands based on launcher type
+        #[clap(long, value_enum, value_name = "LAUNCHER")]
+        infer: Option<LauncherTypes>,
+
+        /// Directly set game name as known to ludusavi
+        #[clap(long, conflicts_with("infer"))]
+        name: Option<String>,
+
+        /// Commands to launch the game
         #[clap()]
         commands: Vec<String>,
     },
