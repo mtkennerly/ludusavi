@@ -744,6 +744,9 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
         // TODO.2023-06-23 refactor println into logs
         // TODO.2023-06-23 error handling if restore / backup fails
         // TODO.2023-06-23 let clap put even --XXX into commands
+        // TODO.2023-06-23 legendary (EPIC) sample command:
+        // Launch Command: LD_PRELOAD= WINEPREFIX=/home/saschal/Games/Heroic/Prefixes/Slain WINEDLLOVERRIDES=winemenubuilder.exe=d ORIG_LD_LIBRARY_PATH= LD_LIBRARY_PATH=/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib64:/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib GST_PLUGIN_SYSTEM_PATH_1_0=/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib64/gstreamer-1.0:/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib/gstreamer-1.0 WINEDLLPATH=/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib64/wine:/home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/lib/wine /usr/bin/mangohud --dlsym /opt/Heroic/resources/app.asar.unpacked/build/bin/linux/legendary launch d8a4c98b5020483881eb7f0c3fc4cea3 --language en --wine /home/saschal/.config/heroic/tools/wine/Wine-GE-Proton7-31/bin/wine
+        // read from /home/saschal/.config/legendary/metadata/d8a4c98b5020483881eb7f0c3fc4cea3.json
         Subcommand::Launcher { commands } => {
             let mut launch_error: Option<String> = None;
             let game_dir;
@@ -753,6 +756,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             println!("launcher commands: {:#?}", commands);
 
             let mut iter = commands.iter();
+            // // TODO.2023-06-23 legendary .. launch LEGENDARY_GAME_ID
             if iter.find_position(|p| p.ends_with("gogdl")).is_some() {
                 println!("launcher: gogdl found");
                 if iter.find_position(|p| p.ends_with("launch")).is_some() {
