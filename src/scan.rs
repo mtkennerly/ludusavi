@@ -104,13 +104,29 @@ fn check_nonwindows_path_str(path: &str) -> &str {
     }
 }
 
+pub fn steam_ids(game: &Game, shortcut: Option<&SteamShortcut>) -> Vec<u32> {
+    let mut ids = vec![];
+    if let Some(steam_id) = game.steam.as_ref().and_then(|x| x.id) {
+        ids.push(steam_id);
+    }
+    if let Some(id_section) = game.id.as_ref() {
+        for extra in &id_section.steam_extra {
+            ids.push(*extra);
+        }
+    }
+    if let Some(shortcut) = shortcut {
+        ids.push(shortcut.id);
+    }
+    ids
+}
+
 /// Returns paths to check and whether they require case-sensitive matching.
 pub fn parse_paths(
     path: &str,
     root: &RootsConfig,
     install_dir: &Option<String>,
     full_install_dir: &Option<&StrictPath>,
-    steam_id: &Option<u32>,
+    steam_ids: &[u32],
     ids: Option<&IdMetadata>,
     manifest_dir: &StrictPath,
     steam_shortcut: Option<&SteamShortcut>,
@@ -240,15 +256,7 @@ pub fn parse_paths(
         }
     }
     if root.store == Store::Steam && Os::HOST == Os::Linux {
-        let mut ids = vec![];
-        if let Some(steam_id) = steam_id {
-            ids.push(*steam_id);
-        }
-        if let Some(steam_shortcut) = steam_shortcut {
-            ids.push(steam_shortcut.id);
-        }
-
-        for id in ids {
+        for id in steam_ids {
             let prefix = format!("{}/steamapps/compatdata/{}/pfx/drive_c", &root_interpreted, id);
             let path2 = path
                 .replace(ROOT, &root_interpreted)
@@ -375,7 +383,7 @@ pub fn scan_game_for_backup(
     roots_to_check.extend(roots.iter().cloned());
 
     let manifest_dir_interpreted = manifest_dir.interpret();
-    let steam_id = game.steam.as_ref().and_then(|x| x.id);
+    let steam_ids = steam_ids(game, steam_shortcuts.get(name));
 
     // We can add this for Wine prefixes from the CLI because they're
     // typically going to be used for only one or a few games at a time.
@@ -432,7 +440,7 @@ pub fn scan_game_for_backup(
                     &root,
                     &install_dir,
                     &full_install_dir,
-                    &steam_id,
+                    &steam_ids,
                     game.id.as_ref(),
                     manifest_dir,
                     steam_shortcuts.get(name),
@@ -448,38 +456,36 @@ pub fn scan_game_for_backup(
                 }
             }
         }
-        if root.store == Store::Steam && steam_id.is_some() {
-            // Cloud saves:
-            paths_to_check.insert((
-                StrictPath::relative(
-                    format!("{}/userdata/*/{}/remote/", root_interpreted.clone(), &steam_id.unwrap()),
-                    Some(manifest_dir_interpreted.clone()),
-                ),
-                None,
-            ));
-
-            // Screenshots:
-            if !filter.exclude_store_screenshots {
+        if root.store == Store::Steam {
+            for id in &steam_ids {
+                // Cloud saves:
                 paths_to_check.insert((
                     StrictPath::relative(
-                        format!(
-                            "{}/userdata/*/760/remote/{}/screenshots/*.*",
-                            &root_interpreted,
-                            &steam_id.unwrap()
-                        ),
+                        format!("{}/userdata/*/{}/remote/", root_interpreted.clone(), id),
                         Some(manifest_dir_interpreted.clone()),
                     ),
                     None,
                 ));
-            }
 
-            // Registry:
-            if game.registry.is_some() {
-                let prefix = format!("{}/steamapps/compatdata/{}/pfx", &root_interpreted, steam_id.unwrap());
-                paths_to_check.insert((
-                    StrictPath::relative(format!("{}/*.reg", prefix), Some(manifest_dir_interpreted.clone())),
-                    None,
-                ));
+                // Screenshots:
+                if !filter.exclude_store_screenshots {
+                    paths_to_check.insert((
+                        StrictPath::relative(
+                            format!("{}/userdata/*/760/remote/{}/screenshots/*.*", &root_interpreted, id),
+                            Some(manifest_dir_interpreted.clone()),
+                        ),
+                        None,
+                    ));
+                }
+
+                // Registry:
+                if game.registry.is_some() {
+                    let prefix = format!("{}/steamapps/compatdata/{}/pfx", &root_interpreted, id);
+                    paths_to_check.insert((
+                        StrictPath::relative(format!("{}/*.reg", prefix), Some(manifest_dir_interpreted.clone())),
+                        None,
+                    ));
+                }
             }
         }
     }
@@ -1119,7 +1125,8 @@ mod tests {
             ),
         ];
 
-        for (filter, ignored, found) in cases {
+        for (mut filter, ignored, found) in cases {
+            filter.build_globs();
             assert_eq!(
                 ScanInfo {
                     game_name: s("game1"),

@@ -305,6 +305,11 @@ from all games. They will not be shown at all during backup scans.
 
 Configure exclusions on the "other" screen.
 
+<!--
+For excluded file paths, you can use glob syntax.
+For example, to exclude all files named `remotecache.vdf`, you would specify `**/remotecache.vdf`.
+-->
+
 ### Backup validation
 On the restore screen, there is a "validate" button that will check the integrity
 of the latest backup (full + differential, if any) for each game.

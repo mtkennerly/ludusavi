@@ -1445,6 +1445,7 @@ impl Application for App {
                         self.config.backup.filter.ignored_paths.swap(index, offset);
                     }
                 }
+                self.config.backup.filter.build_globs();
                 self.config.save();
                 Command::none()
             }
@@ -1646,6 +1647,15 @@ impl Application for App {
                     &mut self.restore_screen.log.search
                 };
                 search.enablement.choice = filter;
+                Command::none()
+            }
+            Message::EditedSearchFilterChange(filter) => {
+                let search = if self.screen == Screen::Backup {
+                    &mut self.backup_screen.log.search
+                } else {
+                    &mut self.restore_screen.log.search
+                };
+                search.change.choice = filter;
                 Command::none()
             }
             Message::EditedSortKey { screen, value } => {

@@ -1,5 +1,13 @@
 ## Unreleased
 
+* Added:
+  * You can now use glob syntax for file paths in the "backup exclusions" section.
+  * Support for checking secondary/associated Steam IDs for a game.
+    This is mainly useful for discovering Proton prefix folders of DLC,
+    since DLC saves may be kept separately from base game saves.
+    Specifically, this detection is based on the `steamExtra` field from the manifest.
+  * Option to filter scan results by change status (new/updated/unchanged/unscanned).
+    ([Contributed by kekonn](https://github.com/mtkennerly/ludusavi/pull/226))
 * Fixed:
   * For Lutris roots, the `<base>` placeholder was resolved generically
     instead of using the Lutris-specific logic.

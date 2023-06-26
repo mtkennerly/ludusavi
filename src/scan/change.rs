@@ -126,8 +126,10 @@ impl ScanChangeCount {
             ScanChange::Removed
         } else if self.updated() {
             ScanChange::Different
-        } else {
+        } else if self.same != 0 {
             ScanChange::Same
+        } else {
+            ScanChange::Unknown
         }
     }
 }
