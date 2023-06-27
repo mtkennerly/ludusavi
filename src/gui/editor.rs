@@ -42,7 +42,7 @@ pub fn root<'a>(config: &Config, histories: &TextHistories) -> Container<'a> {
         Row::new()
             .spacing(20)
             .push(button::add(Message::EditedRoot))
-            .push(button::refresh(Message::FindRoots, false)),
+            .push(button::search(Message::FindRoots)),
     );
 
     Container::new(content)

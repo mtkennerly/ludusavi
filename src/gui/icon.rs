@@ -12,7 +12,6 @@ pub enum Icon {
     AddCircle,
     Edit,
     FolderOpen,
-    FileOpen,
     KeyboardArrowRight,
     KeyboardArrowDown,
     Language,
@@ -38,6 +37,7 @@ pub enum Icon {
     Download,
     Lock,
     LockOpen,
+    Search,
 }
 
 impl Icon {
@@ -47,7 +47,6 @@ impl Icon {
             Self::AddCircle => '\u{E147}',
             Self::Edit => '\u{E150}',
             Self::FolderOpen => '\u{E2C8}',
-            Self::FileOpen => '\u{eaf3}',
             Self::KeyboardArrowRight => '\u{E315}',
             Self::KeyboardArrowDown => '\u{E313}',
             Self::Language => '\u{E894}',
@@ -73,6 +72,7 @@ impl Icon {
             Self::Download => '\u{f090}',
             Self::Lock => '\u{e897}',
             Self::LockOpen => '\u{e898}',
+            Self::Search => '\u{e8b6}',
         }
     }
 

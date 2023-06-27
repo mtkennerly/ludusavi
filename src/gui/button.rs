@@ -82,7 +82,7 @@ pub fn choose_folder<'a>(subject: BrowseSubject) -> Element<'a> {
 }
 
 pub fn choose_file<'a>(subject: BrowseFileSubject) -> Element<'a> {
-    template(Icon::FileOpen.as_text(), Some(Message::BrowseFile(subject)), None)
+    template(Icon::FolderOpen.as_text(), Some(Message::BrowseFile(subject)), None)
 }
 
 pub fn filter<'a>(screen: Screen, open: bool) -> Element<'a> {
@@ -110,6 +110,10 @@ pub fn sort_order<'a>(screen: Screen, reversed: bool) -> Element<'a> {
 
 pub fn refresh<'a>(action: Message, ongoing: bool) -> Element<'a> {
     template(Icon::Refresh.as_text(), (!ongoing).then_some(action), None)
+}
+
+pub fn search<'a>(action: Message) -> Element<'a> {
+    template(Icon::Search.as_text(), Some(action), None)
 }
 
 pub fn settings<'a>(open: bool) -> Element<'a> {

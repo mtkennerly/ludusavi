@@ -15,6 +15,8 @@
     Ludusavi assumed that the path would be absolute, but it could also be relative.
     Now, Ludusavi will combine the `prefix` and `exe` fields if necessary.
 * Changed:
+  * All path selectors now use the same icon.
+  * The button to find missing roots now uses a search icon instead of a refresh icon.
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
