@@ -133,6 +133,11 @@ You may use [globs] in root paths to identify multiple roots at once.
 If you have a folder name that contains a special glob character,
 you can escape it by wrapping it in brackets (e.g., `[` becomes `[[]`).
 
+The order of the configured roots is not significant.
+The only case where it may make a difference is if Ludusavi finds secondary manifests (`.ludusavi.yaml` files)
+*and* those manfiests contain overlapping entries for the same game,
+in which case Ludusavi will merge the data together in the order that it finds them.
+
 ### Backup retention
 You can configure how many backups to keep by pressing the gear icon on the backup screen.
 A full backup contains all save data for a game,
