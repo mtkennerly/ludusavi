@@ -6,6 +6,7 @@
     This is mainly useful for discovering Proton prefix folders of DLC,
     since DLC saves may be kept separately from base game saves.
     Specifically, this detection is based on the `steamExtra` field from the manifest.
+  * A "custom" badge is shown next to custom games in scan results.
   * Option to filter scan results by change status (new/updated/unchanged/unscanned).
     ([Contributed by kekonn](https://github.com/mtkennerly/ludusavi/pull/226))
 * Fixed:
