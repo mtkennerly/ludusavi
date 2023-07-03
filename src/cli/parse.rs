@@ -6,7 +6,7 @@ use crate::{
     resource::config::{BackupFormat, Sort, SortKey, ZipCompression},
 };
 
-use clap::ValueEnum;
+use clap::{ArgGroup, Args, ValueEnum};
 
 macro_rules! possible_values {
     ($t: ty, $options: ident) => {{
@@ -334,15 +334,14 @@ pub enum Subcommand {
     },
     /// Wrap restore/backup around game execution
     Wrap {
-        /// Infer game name from commands based on launcher type
-        #[clap(long, value_enum, value_name = "LAUNCHER")]
-        infer: Option<LauncherTypes>,
+        #[clap(flatten)]
+        name_source: WrapSubcommand,
 
-        /// Directly set game name as known to ludusavi
-        #[clap(long, conflicts_with("infer"))]
-        name: Option<String>,
+        /// Show a GUI notification during restore/backup
+        #[clap(long)]
+        gui: bool,
 
-        /// Commands to launch the game
+        /// Commands to launch the game, separate with -- from wrap options!
         #[clap()]
         commands: Vec<String>,
     },
@@ -497,6 +496,21 @@ pub enum CloudSetSubcommand {
         #[clap(long, default_value = WebDavProvider::OTHER, value_parser = possible_values!(WebDavProvider, ALL_CLI))]
         provider: WebDavProvider,
     },
+}
+
+#[derive(Args, Clone, Debug, PartialEq, Eq)]
+#[clap(group(ArgGroup::new("name_source_group")
+             .required(true)
+             .multiple(false)
+             .args(&["infer", "name"])))]
+pub struct WrapSubcommand {
+    /// Infer game name from commands based on launcher type
+    #[clap(long, value_enum, value_name = "LAUNCHER")]
+    pub infer: Option<LauncherTypes>,
+
+    /// Directly set game name as known to ludusavi
+    #[clap(long)]
+    pub name: Option<String>,
 }
 
 /// Back up and restore PC game saves

@@ -26,7 +26,7 @@ use crate::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
         OperationStepDecision, SteamShortcuts, TitleFinder,
     },
-    wrap::get_game_name_from_launch_commands,
+    wrap::get_game_name_from_heroic_launch_commands,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -731,89 +731,102 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 report_cloud_changes(&changes, api);
             }
         },
-        // TODO.2023-06-26 support invocations like:
-        // # Predetermined name - don't need to do any special lookups.
-        // ludusavi wrap Factorio -- ...
-        //
-        // # Infer info from CLI explicitly for Heroic.
-        // ludusavi wrap --infer heroic -- ...
-        // TODO.2023-06-22 path separator linux specific
         // TODO.2023-06-23 show small popup during backup
         // TODO.2023-06-23 refactor println into logs
         // TODO.2023-06-23 error handling if restore / game execution / backup fails
-        Subcommand::Wrap { infer, name, commands } => {
+        Subcommand::Wrap {
+            name_source,
+            gui,
+            commands,
+        } => 'wrap: {
             println!(
-                "WRAP called, infer: {:#?}, name: {:#?}, commands: {:#?}",
-                infer, name, commands
+                "WRAP::called, infer: {:#?}, name: {:#?}, gui: {:#?}, commands: {:#?}",
+                name_source.infer, name_source.name, gui, commands
             );
-            let mut game_name = String::default();
-            match get_game_name_from_launch_commands(&commands) {
-                Ok(name) => game_name = name,
-                Err(msg) => {
-                    println!("wrap failed with: {:#?}", msg);
-                    failed = true;
+            failed = true;
+            let game_name;
+
+            if let Some(name) = name_source.name {
+                game_name = name;
+            } else {
+                match name_source.infer.unwrap() {
+                    parse::LauncherTypes::Heroic => match get_game_name_from_heroic_launch_commands(&commands) {
+                        Ok(name) => game_name = name,
+                        Err(msg) => {
+                            println!("WRAP::game name detection failed with: {:#?}", msg);
+                            break 'wrap;
+                        }
+                    },
                 }
             }
 
-            if !failed {
-                // restore
-                if let Err(err) = run(
-                    Subcommand::Restore {
-                        // restore the game found
-                        games: vec![game_name.clone()],
-                        force: true,
-                        // everything else is default
-                        preview: Default::default(),
-                        path: Default::default(),
-                        api: Default::default(),
-                        sort: Default::default(),
-                        backup: Default::default(),
-                        cloud_sync: Default::default(),
-                        no_cloud_sync: Default::default(),
-                    },
-                    no_manifest_update,
-                    try_manifest_update,
-                ) {
-                    println!("Restore failed with: {:#?}", err);
-                    failed = true;
+            // restore
+            if let Err(err) = run(
+                Subcommand::Restore {
+                    // restore the game found
+                    games: vec![game_name.clone()],
+                    force: true,
+                    // everything else is default
+                    preview: Default::default(),
+                    path: Default::default(),
+                    api: Default::default(),
+                    sort: Default::default(),
+                    backup: Default::default(),
+                    cloud_sync: Default::default(),
+                    no_cloud_sync: Default::default(),
+                },
+                no_manifest_update,
+                try_manifest_update,
+            ) {
+                println!("WRAP::Restore failed with: {:#?}", err);
+                break 'wrap;
+            }
+
+            // execute commands
+            println!("WRAP::Game commands to be executed: {:#?}", commands);
+            let result = Command::new(&commands[0]).args(&commands[1..]).status();
+            match result {
+                Ok(status) => {
+                    println!("WRAP::Game command executed, returning status: {:#?}", status);
                 }
-
-                // execute commands
-                println!("Would execute commands: {:#?}", commands);
-                let result = Command::new(&commands[0]).args(&commands[1..]).status();
-                println!("commands returned {:#?}", result);
-
-                // backup
-                if let Err(err) = run(
-                    Subcommand::Backup {
-                        // backup the game found
-                        games: vec![game_name],
-                        force: true,
-                        // everything else is default
-                        preview: Default::default(),
-                        path: Default::default(),
-                        merge: Default::default(),
-                        no_merge: Default::default(),
-                        update: Default::default(),
-                        try_update: Default::default(),
-                        wine_prefix: Default::default(),
-                        api: Default::default(),
-                        sort: Default::default(),
-                        format: Default::default(),
-                        compression: Default::default(),
-                        compression_level: Default::default(),
-                        full_limit: Default::default(),
-                        differential_limit: Default::default(),
-                        cloud_sync: Default::default(),
-                        no_cloud_sync: Default::default(),
-                    },
-                    no_manifest_update,
-                    try_manifest_update,
-                ) {
-                    println!("Backup failed with: {:#?}", err);
-                    failed = true;
+                Err(err) => {
+                    println!("WRAP::Game command execution failde with: {:#?}", err);
+                    break 'wrap;
                 }
             }
+
+            // backup
+            if let Err(err) = run(
+                Subcommand::Backup {
+                    // backup the game found
+                    games: vec![game_name],
+                    force: true,
+                    // everything else is default
+                    preview: Default::default(),
+                    path: Default::default(),
+                    merge: Default::default(),
+                    no_merge: Default::default(),
+                    update: Default::default(),
+                    try_update: Default::default(),
+                    wine_prefix: Default::default(),
+                    api: Default::default(),
+                    sort: Default::default(),
+                    format: Default::default(),
+                    compression: Default::default(),
+                    compression_level: Default::default(),
+                    full_limit: Default::default(),
+                    differential_limit: Default::default(),
+                    cloud_sync: Default::default(),
+                    no_cloud_sync: Default::default(),
+                },
+                no_manifest_update,
+                try_manifest_update,
+            ) {
+                println!("WRAP::Backup failed with: {:#?}", err);
+                break 'wrap;
+            }
+            // if we reach this point, everything worked without error
+            failed = false;
         }
     }
     if failed {
