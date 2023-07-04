@@ -8,6 +8,7 @@ use crate::{
         widget::{checkbox, pick_list, text, Column, Element, IcedParentExt, Row},
     },
     lang::TRANSLATOR,
+    resource::manifest::Store,
     scan::{
         game_filter::{self, FilterKind},
         Duplication, ScanInfo,
@@ -28,6 +29,7 @@ pub struct FilterComponent {
     pub completeness: Filter<game_filter::Completeness>,
     pub enablement: Filter<game_filter::Enablement>,
     pub change: Filter<game_filter::Change>,
+    pub store: Filter<crate::resource::manifest::Store>,
 }
 
 fn template<'a, T: 'static + Default + Copy + Eq + PartialEq + ToString>(
@@ -66,8 +68,9 @@ impl FilterComponent {
         let complete = !self.completeness.active || self.completeness.choice.qualifies(scan);
         let enable = !show_deselected_games || !self.enablement.active || self.enablement.choice.qualifies(enabled);
         let changed = !self.change.active || self.change.choice.qualifies(scan);
+        let store = !self.store.active || self.store.choice.qualifies(scan);
 
-        fuzzy && unique && complete && changed && enable
+        fuzzy && unique && complete && changed && store && enable
     }
 
     pub fn toggle_filter(&mut self, filter: FilterKind, enabled: bool) {
@@ -76,6 +79,7 @@ impl FilterComponent {
             FilterKind::Completeness => self.completeness.active = enabled,
             FilterKind::Enablement => self.enablement.active = enabled,
             FilterKind::Change => self.change.active = enabled,
+            FilterKind::Store => self.store.active = enabled,
         }
     }
 
@@ -118,6 +122,12 @@ impl FilterComponent {
                             FilterKind::Change,
                             game_filter::Change::ALL,
                             Message::EditedSearchFilterChange,
+                        ))
+                        .push(template(
+                            &self.store,
+                            FilterKind::Store,
+                            Store::ALL,
+                            Message::EditedSearchFilterStore,
                         ))
                         .push_if(
                             || show_deselected_games,

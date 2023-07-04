@@ -1,5 +1,6 @@
 use crate::{
     lang::TRANSLATOR,
+    resource::manifest::Store,
     scan::{Duplication, ScanInfo},
 };
 
@@ -11,6 +12,7 @@ pub enum FilterKind {
     Completeness,
     Enablement,
     Change,
+    Store,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -109,6 +111,16 @@ impl Change {
             Change::Updated => scan.overall_change() == ScanChange::Different,
             Change::Unchanged => scan.overall_change() == ScanChange::Same,
             Change::Unscanned => scan.overall_change() == ScanChange::Unknown,
+        }
+    }
+}
+
+impl Store {
+    pub fn qualifies(&self, scan: &ScanInfo) -> bool {
+        if let Some(selection) = scan.store {
+            *self == selection
+        } else {
+            false
         }
     }
 }

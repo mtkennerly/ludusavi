@@ -176,6 +176,7 @@ pub enum Message {
     EditedSearchFilterCompleteness(game_filter::Completeness),
     EditedSearchFilterEnablement(game_filter::Enablement),
     EditedSearchFilterChange(game_filter::Change),
+    EditedSearchFilterStore(Store),
     EditedSortKey {
         screen: Screen,
         value: SortKey,
