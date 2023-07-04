@@ -46,7 +46,11 @@ fn make_status_row<'a>(status: &OperationStatus, duplication: Duplication) -> Ro
         .push(text(TRANSLATOR.processed_games(status)).size(size))
         .push_if(
             || status.changed_games.new > 0,
-            || Badge::new_entry_with_count(status.changed_games.new).view(),
+            || {
+                Badge::new_entry_with_count(status.changed_games.new)
+                    .on_press(Message::EditedSearchFilterChange(crate::scan::game_filter::Change::New))
+                    .view()
+            },
         )
         .push_if(
             || status.changed_games.different > 0,
