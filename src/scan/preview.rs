@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
 use crate::{
-    resource::config::{ToggledPaths, ToggledRegistry},
+    resource::{
+        config::{ToggledPaths, ToggledRegistry},
+        manifest::Store,
+    },
     scan::{layout::Backup, BackupInfo, ScanChange, ScanChangeCount, ScannedFile, ScannedRegistry},
 };
 
@@ -14,6 +17,8 @@ pub struct ScanInfo {
     pub available_backups: Vec<Backup>,
     /// Only populated by a restoration scan.
     pub backup: Option<Backup>,
+    /// Which store the game belongs to.
+    pub store: Option<Store>,
 }
 
 impl ScanInfo {

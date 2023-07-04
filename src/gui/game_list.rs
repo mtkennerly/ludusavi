@@ -20,7 +20,7 @@ use crate::{
     resource::{
         cache::Cache,
         config::{Config, Sort},
-        manifest::{Manifest, Os},
+        manifest::{Manifest, Os, Store},
     },
     scan::{layout::GameLayout, BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo},
 };
@@ -37,6 +37,7 @@ pub struct GameListEntry {
     /// The `scan_info` gets mutated in response to things like toggling saves off,
     /// so we need a persistent flag to say if the game has been scanned yet.
     pub scanned: bool,
+    pub store: Option<Store>,
 }
 
 impl GameListEntry {

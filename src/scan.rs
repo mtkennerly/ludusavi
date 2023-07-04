@@ -18,7 +18,7 @@ use std::collections::{HashMap, HashSet};
 pub use self::{backup::*, change::*, duplicate::*, launchers::*, preview::*, saves::*, steam::*, title::*};
 
 use crate::{
-    path::StrictPath,
+    path::{PathMetadata, StrictPath},
     prelude::{filter_map_walkdir, Error, SKIP},
     resource::{
         config::{BackupFilter, RedirectConfig, RedirectKind, RootsConfig, SortKey, ToggledPaths, ToggledRegistry},
@@ -115,7 +115,7 @@ pub fn parse_paths(
     manifest_dir: &StrictPath,
     steam_shortcut: Option<&SteamShortcut>,
     platform: Os,
-) -> HashSet<(StrictPath, bool)> {
+) -> HashSet<(StrictPath, PathMetadata)> {
     use crate::resource::manifest::placeholder::*;
 
     let mut paths = HashSet::new();
@@ -341,7 +341,12 @@ pub fn parse_paths(
 
     paths
         .iter()
-        .map(|(x, y)| (StrictPath::relative(x.to_string(), Some(manifest_dir.interpret())), *y))
+        .map(|(x, y)| {
+            (
+                StrictPath::relative(x.to_string(), Some(manifest_dir.interpret())),
+                PathMetadata::new(*y, Some(root.store)),
+            )
+        })
         .collect()
 }
 
@@ -438,13 +443,13 @@ pub fn scan_game_for_backup(
                     steam_shortcuts.get(name),
                     platform,
                 );
-                for (candidate, case_sensitive) in candidates {
+                for (candidate, metadata) in candidates {
                     log::trace!("[{name}] parsed candidate: {}", candidate.raw());
                     if candidate.raw().contains('<') {
                         // This covers `SKIP` and any other unmatched placeholders.
                         continue;
                     }
-                    paths_to_check.insert((candidate, Some(case_sensitive)));
+                    paths_to_check.insert((candidate, Some(metadata.is_case_sensitive())));
                 }
             }
         }

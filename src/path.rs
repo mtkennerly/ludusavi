@@ -2,7 +2,10 @@ use std::sync::{Arc, Mutex};
 
 use filetime::FileTime;
 
-use crate::{prelude::AnyError, resource::manifest::Os};
+use crate::{
+    prelude::AnyError,
+    resource::manifest::{Os, Store},
+};
 
 #[cfg(target_os = "windows")]
 const TYPICAL_SEPARATOR: &str = "\\";
@@ -165,6 +168,38 @@ fn splittable(path: &StrictPath) -> String {
     match prefixed.strip_suffix('/') {
         Some(x) => x.to_string(),
         _ => prefixed,
+    }
+}
+
+/// Stores metadata related to the path.
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct PathMetadata {
+    is_case_sensitive: bool,
+    store: Option<Store>,
+}
+
+impl PathMetadata {
+    pub fn new(is_case_sensitive: bool, store: Option<Store>) -> Self {
+        PathMetadata {
+            is_case_sensitive,
+            store,
+        }
+    }
+
+    pub fn is_case_sensitive(&self) -> bool {
+        self.is_case_sensitive
+    }
+
+    #[allow(dead_code)]
+    pub fn store(&self) -> Option<Store> {
+        self.store
+    }
+}
+
+impl std::hash::Hash for PathMetadata {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.is_case_sensitive.hash(state);
+        self.store.hash(state);
     }
 }
 

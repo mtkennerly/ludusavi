@@ -611,6 +611,7 @@ impl GameLayout {
                 found_registry_keys: Default::default(),
                 available_backups: vec![],
                 backup: None,
+                store: None,
             })
         }
     }
@@ -1511,6 +1512,7 @@ impl GameLayout {
             found_registry_keys,
             available_backups,
             backup,
+            store: None,
         }
     }
 

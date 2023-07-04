@@ -1657,6 +1657,15 @@ impl Application for App {
                 search.change.choice = filter;
                 Command::none()
             }
+            Message::EditedSearchFilterStore(filter) => {
+                let search = if self.screen == Screen::Backup {
+                    &mut self.backup_screen.log.search
+                } else {
+                    &mut self.restore_screen.log.search
+                };
+                search.store.choice = filter;
+                Command::none()
+            }
             Message::EditedSortKey { screen, value } => {
                 match screen {
                     Screen::Backup => {
