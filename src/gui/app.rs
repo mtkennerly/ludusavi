@@ -1445,6 +1445,7 @@ impl Application for App {
                         self.config.backup.filter.ignored_paths.swap(index, offset);
                     }
                 }
+                self.config.backup.filter.build_globs();
                 self.config.save();
                 Command::none()
             }

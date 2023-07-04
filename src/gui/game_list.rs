@@ -153,6 +153,10 @@ impl GameListEntry {
                                     .view()
                             },
                         )
+                        .push_if(
+                            || customized,
+                            || Badge::new(&TRANSLATOR.custom_label().to_uppercase()).view(),
+                        )
                         .push_if(|| !successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
                         .push_some(|| {
                             self.scan_info

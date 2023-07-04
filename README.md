@@ -133,6 +133,11 @@ You may use [globs] in root paths to identify multiple roots at once.
 If you have a folder name that contains a special glob character,
 you can escape it by wrapping it in brackets (e.g., `[` becomes `[[]`).
 
+The order of the configured roots is not significant.
+The only case where it may make a difference is if Ludusavi finds secondary manifests (`.ludusavi.yaml` files)
+*and* those manfiests contain overlapping entries for the same game,
+in which case Ludusavi will merge the data together in the order that it finds them.
+
 ### Backup retention
 You can configure how many backups to keep by pressing the gear icon on the backup screen.
 A full backup contains all save data for a game,
@@ -304,6 +309,11 @@ Backup exclusions let you set paths and registry keys to completely ignore
 from all games. They will not be shown at all during backup scans.
 
 Configure exclusions on the "other" screen.
+
+<!--
+For excluded file paths, you can use glob syntax.
+For example, to exclude all files named `remotecache.vdf`, you would specify `**/remotecache.vdf`.
+-->
 
 ### Backup validation
 On the restore screen, there is a "validate" button that will check the integrity

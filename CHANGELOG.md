@@ -1,6 +1,12 @@
 ## Unreleased
 
 * Added:
+  * You can now use glob syntax for file paths in the "backup exclusions" section.
+  * Support for checking secondary/associated Steam IDs for a game.
+    This is mainly useful for discovering Proton prefix folders of DLC,
+    since DLC saves may be kept separately from base game saves.
+    Specifically, this detection is based on the `steamExtra` field from the manifest.
+  * A "custom" badge is shown next to custom games in scan results.
   * Option to filter scan results by change status (new/updated/unchanged/unscanned).
     ([Contributed by kekonn](https://github.com/mtkennerly/ludusavi/pull/226))
 * Fixed:
@@ -10,6 +16,8 @@
     Ludusavi assumed that the path would be absolute, but it could also be relative.
     Now, Ludusavi will combine the `prefix` and `exe` fields if necessary.
 * Changed:
+  * All path selectors now use the same icon.
+  * The button to find missing roots now uses a search icon instead of a refresh icon.
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 

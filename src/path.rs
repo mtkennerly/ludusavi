@@ -28,7 +28,7 @@ pub enum SetFileTimeError {
     InvalidTimestamp,
 }
 
-fn parse_home(path: &str) -> String {
+pub fn parse_home(path: &str) -> String {
     if path == "~" || path.starts_with("~/") || path.starts_with("~\\") {
         path.replacen('~', &dirs::home_dir().unwrap().to_string_lossy(), 1)
     } else {

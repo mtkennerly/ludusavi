@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::{
     lang::TRANSLATOR,
@@ -157,6 +157,7 @@ pub struct Game {
     pub steam: Option<SteamMetadata>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gog: Option<GogMetadata>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<IdMetadata>,
 }
 
@@ -232,9 +233,14 @@ pub struct GogMetadata {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct IdMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flatpak: Option<String>,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub gog_extra: BTreeSet<u64>,
+    #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
+    pub steam_extra: BTreeSet<u32>,
 }
 
 impl From<CustomGame> for Game {
@@ -441,6 +447,8 @@ impl Manifest {
                         if standard_id.flatpak.is_none() {
                             standard_id.flatpak = secondary_id.flatpak;
                         }
+                        standard_id.gog_extra.extend(secondary_id.gog_extra);
+                        standard_id.steam_extra.extend(secondary_id.steam_extra);
                     } else {
                         standard.id = Some(secondary_id);
                     }
@@ -518,6 +526,8 @@ mod tests {
                 id: 102
               id:
                 flatpak: com.example.Game
+                gogExtra: [10, 11]
+                steamExtra: [1, 2]
             "#,
         )
         .unwrap();
@@ -551,7 +561,9 @@ mod tests {
                 steam: Some(SteamMetadata { id: Some(101) }),
                 gog: Some(GogMetadata { id: Some(102) }),
                 id: Some(IdMetadata {
-                    flatpak: Some("com.example.Game".to_string())
+                    flatpak: Some("com.example.Game".to_string()),
+                    gog_extra: vec![10, 11].into_iter().collect(),
+                    steam_extra: vec![1, 2].into_iter().collect(),
                 }),
             },
             manifest.0["game"],

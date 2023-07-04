@@ -21,6 +21,7 @@ flexi_logger = { version = "0.25.3", features = ["async"] }
 fluent = "0.16.0"
 fuzzy-matcher = "0.3.7"
 globetter = "0.1.1"
+globset = "0.4.10"
 iced = { version = "0.9.0", features = ["default_system_font", "glow", "tokio"] }
 iced_native = { version = "0.10.3" }
 iced_style = "0.8.0"
