@@ -9,6 +9,8 @@
   * A "custom" badge is shown next to custom games in scan results.
   * Option to filter scan results by change status (new/updated/unchanged/unscanned).
     ([Contributed by kekonn](https://github.com/mtkennerly/ludusavi/pull/226))
+  * For buttons that open a path selector dialog,
+    shift+click will open the configured path in your file explorer.
 * Fixed:
   * For Lutris roots, the `<base>` placeholder was resolved generically
     instead of using the Lutris-specific logic.

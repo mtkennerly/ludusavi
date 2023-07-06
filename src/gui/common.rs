@@ -184,6 +184,8 @@ pub enum Message {
     OpenDir {
         path: StrictPath,
     },
+    OpenDirSubject(BrowseSubject),
+    OpenFileSubject(BrowseFileSubject),
     OpenDirFailure {
         path: StrictPath,
     },

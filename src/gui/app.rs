@@ -1793,6 +1793,28 @@ impl Application for App {
                     Err(_) => Message::OpenDirFailure { path: path2 },
                 })
             }
+            Message::OpenDirSubject(subject) => {
+                let path = match subject {
+                    BrowseSubject::BackupTarget => self.config.backup.path.clone(),
+                    BrowseSubject::RestoreSource => self.config.restore.path.clone(),
+                    BrowseSubject::Root(i) => self.config.roots[i].path.clone(),
+                    BrowseSubject::RedirectSource(i) => self.config.redirects[i].source.parent_if_file(),
+                    BrowseSubject::RedirectTarget(i) => self.config.redirects[i].target.parent_if_file(),
+                    BrowseSubject::CustomGameFile(i, j) => {
+                        StrictPath::new(self.config.custom_games[i].files[j].clone()).parent_if_file()
+                    }
+                    BrowseSubject::BackupFilterIgnoredPath(i) => {
+                        self.config.backup.filter.ignored_paths[i].parent_if_file()
+                    }
+                };
+                self.update(Message::OpenDir { path })
+            }
+            Message::OpenFileSubject(subject) => {
+                let path = match subject {
+                    BrowseFileSubject::RcloneExecutable => self.config.apps.rclone.path.parent_if_file(),
+                };
+                self.update(Message::OpenDir { path })
+            }
             Message::OpenDirFailure { path } => self.show_modal(Modal::Error {
                 variant: Error::UnableToOpenDir(path),
             }),
@@ -2316,13 +2338,19 @@ impl Application for App {
                     &self.text_histories,
                     &self.modifiers,
                 ),
-                Screen::CustomGames => screen::custom_games(&self.config, !self.operation.idle(), &self.text_histories),
+                Screen::CustomGames => screen::custom_games(
+                    &self.config,
+                    !self.operation.idle(),
+                    &self.text_histories,
+                    &self.modifiers,
+                ),
                 Screen::Other => screen::other(
                     self.updating_manifest,
                     &self.config,
                     &self.cache,
                     &self.operation,
                     &self.text_histories,
+                    &self.modifiers,
                 ),
             })
             .push_some(|| self.timed_notification.as_ref().map(|x| x.view()))

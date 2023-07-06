@@ -391,6 +391,18 @@ impl StrictPath {
         self.as_std_path_buf().parent().map(Self::from)
     }
 
+    pub fn parent_if_file(&self) -> Self {
+        let pathbuf = self.as_std_path_buf();
+        if pathbuf.is_file() {
+            match pathbuf.parent() {
+                Some(parent) => Self::from(parent),
+                None => self.clone(),
+            }
+        } else {
+            self.clone()
+        }
+    }
+
     pub fn parent_raw(&self) -> Option<Self> {
         self.as_std_path_buf_raw().parent().map(Self::from)
     }
