@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use iced::{widget::scrollable, Alignment, Application, Command, Subscription};
+use iced::{keyboard, widget::scrollable, Alignment, Application, Command, Subscription};
 
 use crate::{
     cloud::{rclone_monitor, Rclone, Remote},
@@ -76,6 +76,7 @@ pub struct App {
     text_histories: TextHistories,
     rclone_monitor_sender: Option<iced_native::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
     exiting: bool,
+    modifiers: keyboard::Modifiers,
 }
 
 impl App {
@@ -1800,8 +1801,7 @@ impl Application for App {
             }),
             Message::KeyboardEvent(event) => {
                 if let iced::keyboard::Event::ModifiersChanged(modifiers) = event {
-                    self.backup_screen.log.modifiers = modifiers;
-                    self.restore_screen.log.modifiers = modifiers;
+                    self.modifiers = modifiers;
                 }
                 match event {
                     iced::keyboard::Event::KeyPressed {
@@ -2302,14 +2302,20 @@ impl Application for App {
                     .push(button::nav(Screen::Other, self.screen)),
             )
             .push(match self.screen {
-                Screen::Backup => {
-                    self.backup_screen
-                        .view(&self.config, &self.manifest, &self.operation, &self.text_histories)
-                }
-                Screen::Restore => {
-                    self.restore_screen
-                        .view(&self.config, &self.manifest, &self.operation, &self.text_histories)
-                }
+                Screen::Backup => self.backup_screen.view(
+                    &self.config,
+                    &self.manifest,
+                    &self.operation,
+                    &self.text_histories,
+                    &self.modifiers,
+                ),
+                Screen::Restore => self.restore_screen.view(
+                    &self.config,
+                    &self.manifest,
+                    &self.operation,
+                    &self.text_histories,
+                    &self.modifiers,
+                ),
                 Screen::CustomGames => screen::custom_games(&self.config, !self.operation.idle(), &self.text_histories),
                 Screen::Other => screen::other(
                     self.updating_manifest,

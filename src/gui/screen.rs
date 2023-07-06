@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use iced::{Alignment, Length};
+use iced::{keyboard, Alignment, Length};
 
 use crate::{
     cloud::{Remote, RemoteChoice},
@@ -80,6 +80,7 @@ impl Backup {
         manifest: &Manifest,
         operation: &Operation,
         histories: &TextHistories,
+        modifiers: &keyboard::Modifiers,
     ) -> Element {
         let screen = Screen::Backup;
         let sort = &config.backup.sort;
@@ -196,10 +197,15 @@ impl Backup {
                         })
                 },
             )
-            .push(
-                self.log
-                    .view(false, config, manifest, &self.duplicate_detector, operation, histories),
-            );
+            .push(self.log.view(
+                false,
+                config,
+                manifest,
+                &self.duplicate_detector,
+                operation,
+                histories,
+                modifiers,
+            ));
 
         template(content)
     }
@@ -225,6 +231,7 @@ impl Restore {
         manifest: &Manifest,
         operation: &Operation,
         histories: &TextHistories,
+        modifiers: &keyboard::Modifiers,
     ) -> Element {
         let screen = Screen::Restore;
         let sort = &config.restore.sort;
@@ -266,10 +273,15 @@ impl Restore {
                     )
                     .push(button::sort_order(screen, sort.reversed)),
             )
-            .push(
-                self.log
-                    .view(true, config, manifest, &self.duplicate_detector, operation, histories),
-            );
+            .push(self.log.view(
+                true,
+                config,
+                manifest,
+                &self.duplicate_detector,
+                operation,
+                histories,
+                modifiers,
+            ));
 
         template(content)
     }

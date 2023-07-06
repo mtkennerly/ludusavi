@@ -382,7 +382,6 @@ pub struct GameList {
     pub entries: Vec<GameListEntry>,
     pub search: FilterComponent,
     expanded_games: HashSet<String>,
-    pub modifiers: Modifiers,
     pub filter_duplicates_of: Option<String>,
 }
 
@@ -395,6 +394,7 @@ impl GameList {
         duplicate_detector: &DuplicateDetector,
         operation: &Operation,
         histories: &TextHistories,
+        modifiers: &Modifiers,
     ) -> Container {
         let duplicatees = self.filter_duplicates_of.as_ref().and_then(|game| {
             let mut duplicatees = duplicate_detector.duplicate_games(game);
@@ -452,7 +452,7 @@ impl GameList {
                                     duplicate_detector,
                                     operation,
                                     self.expanded_games.contains(&x.scan_info.game_name),
-                                    &self.modifiers,
+                                    modifiers,
                                     duplicatees.is_some(),
                                 ))
                             },
