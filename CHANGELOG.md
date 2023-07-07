@@ -14,6 +14,11 @@
   * For buttons that open a path selector dialog,
     shift+click will open the configured path in your file explorer.
 * Fixed:
+  * When restoring registry saves,
+    multi-string values would be restored as expandable string values,
+    and expandable string values would be restored as multi-string values.
+    This only affected the restore process; backups would still be correct.
+    This issue was introduced in v0.18.0.
   * For Lutris roots, the `<base>` placeholder was resolved generically
     instead of using the Lutris-specific logic.
   * For Lutris roots, when inferring the `<base>` from the `exe` field,

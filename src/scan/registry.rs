@@ -363,11 +363,11 @@ impl From<&Entry> for Option<winreg::RegValue> {
             Entry::Sz(x) => Some(x.to_reg_value()),
             Entry::ExpandSz(x) => Some(winreg::RegValue {
                 bytes: x.to_reg_value().bytes,
-                vtype: winreg::enums::RegType::REG_MULTI_SZ,
+                vtype: winreg::enums::RegType::REG_EXPAND_SZ,
             }),
             Entry::MultiSz(x) => Some(winreg::RegValue {
                 bytes: x.to_reg_value().bytes,
-                vtype: winreg::enums::RegType::REG_EXPAND_SZ,
+                vtype: winreg::enums::RegType::REG_MULTI_SZ,
             }),
             Entry::Dword(x) => Some(x.to_reg_value()),
             Entry::Qword(x) => Some(x.to_reg_value()),
