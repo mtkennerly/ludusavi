@@ -1456,7 +1456,7 @@ impl GameLayout {
         id: &BackupId,
         redirects: &[RedirectConfig],
         toggled_paths: &ToggledPaths,
-        toggled_registry: &ToggledRegistry,
+        #[allow(unused)] toggled_registry: &ToggledRegistry,
     ) -> ScanInfo {
         log::trace!("[{name}] beginning scan for restore");
 
@@ -1539,7 +1539,7 @@ impl GameLayout {
         }
     }
 
-    pub fn restore(&self, scan: &ScanInfo, toggled: &ToggledRegistry) -> BackupInfo {
+    pub fn restore(&self, scan: &ScanInfo, #[allow(unused)] toggled: &ToggledRegistry) -> BackupInfo {
         log::trace!("[{}] beginning restore", &scan.game_name);
 
         let mut failed_files = HashSet::new();
