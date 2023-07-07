@@ -606,6 +606,10 @@ pub struct RestoreConfig {
         serialize_with = "crate::serialization::ordered_set"
     )]
     pub ignored_games: HashSet<String>,
+    #[serde(default, rename = "toggledPaths")]
+    pub toggled_paths: ToggledPaths,
+    #[serde(default, rename = "toggledRegistry")]
+    pub toggled_registry: ToggledRegistry,
     #[serde(default)]
     pub sort: Sort,
 }
@@ -713,6 +717,8 @@ impl Default for RestoreConfig {
         Self {
             path: default_backup_dir(),
             ignored_games: HashSet::new(),
+            toggled_paths: Default::default(),
+            toggled_registry: Default::default(),
             sort: Default::default(),
         }
     }
@@ -1345,6 +1351,8 @@ mod tests {
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
                     ignored_games: HashSet::new(),
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                     sort: Default::default(),
                 },
                 scan: Default::default(),
@@ -1463,6 +1471,8 @@ mod tests {
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                     sort: Default::default(),
                 },
                 scan: Scan {
@@ -1553,6 +1563,8 @@ mod tests {
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
                     ignored_games: HashSet::new(),
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                     sort: Default::default(),
                 },
                 scan: Default::default(),
@@ -1624,6 +1636,8 @@ restore:
     - Restore Game 1
     - Restore Game 2
     - Restore Game 3
+  toggledPaths: {}
+  toggledRegistry: {}
   sort:
     key: status
     reversed: false
@@ -1700,6 +1714,8 @@ customGames:
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                     sort: Default::default(),
                 },
                 scan: Scan {

@@ -387,7 +387,8 @@ impl App {
                                 return (None, None, OperationStepDecision::Cancelled);
                             }
 
-                            let previous = layout.latest_backup(&key, false, &config.redirects);
+                            let previous =
+                                layout.latest_backup(&key, false, &config.redirects, &config.restore.toggled_paths);
 
                             let scan_info = scan_game_for_backup(
                                 &game,
@@ -696,13 +697,19 @@ impl App {
                                 return (None, None, OperationStepDecision::Cancelled, layout);
                             }
 
-                            let scan_info = layout.scan_for_restoration(&name, &backup_id, &config.redirects);
+                            let scan_info = layout.scan_for_restoration(
+                                &name,
+                                &backup_id,
+                                &config.redirects,
+                                &config.restore.toggled_paths,
+                                &config.restore.toggled_registry,
+                            );
                             if !config.is_game_enabled_for_restore(&name) && full {
                                 return (Some(scan_info), None, OperationStepDecision::Ignored, layout);
                             }
 
                             let backup_info = if scan_info.backup.is_some() && !preview {
-                                Some(layout.restore(&scan_info))
+                                Some(layout.restore(&scan_info, &config.restore.toggled_registry))
                             } else {
                                 None
                             };
@@ -1578,26 +1585,57 @@ impl Application for App {
                 }
                 Command::none()
             }
-            Message::ToggleSpecificBackupPathIgnored { name, path, .. } => {
-                self.config.backup.toggled_paths.toggle(&name, &path);
+            Message::ToggleSpecificGamePathIgnored {
+                name,
+                path,
+                enabled: _,
+                restoring,
+            } => {
+                if restoring {
+                    self.config.restore.toggled_paths.toggle(&name, &path);
+                    self.restore_screen.log.refresh_game_tree(
+                        &name,
+                        &self.config,
+                        &mut self.restore_screen.duplicate_detector,
+                        restoring,
+                    );
+                } else {
+                    self.config.backup.toggled_paths.toggle(&name, &path);
+                    self.backup_screen.log.refresh_game_tree(
+                        &name,
+                        &self.config,
+                        &mut self.backup_screen.duplicate_detector,
+                        restoring,
+                    );
+                }
                 self.config.save();
-                self.backup_screen.log.refresh_game_tree(
-                    &name,
-                    &self.config,
-                    &mut self.backup_screen.duplicate_detector,
-                    false,
-                );
                 Command::none()
             }
-            Message::ToggleSpecificBackupRegistryIgnored { name, path, value, .. } => {
-                self.config.backup.toggled_registry.toggle_owned(&name, &path, value);
+            Message::ToggleSpecificGameRegistryIgnored {
+                name,
+                path,
+                value,
+                enabled: _,
+                restoring,
+            } => {
+                if restoring {
+                    self.config.restore.toggled_registry.toggle_owned(&name, &path, value);
+                    self.restore_screen.log.refresh_game_tree(
+                        &name,
+                        &self.config,
+                        &mut self.restore_screen.duplicate_detector,
+                        restoring,
+                    );
+                } else {
+                    self.config.backup.toggled_registry.toggle_owned(&name, &path, value);
+                    self.backup_screen.log.refresh_game_tree(
+                        &name,
+                        &self.config,
+                        &mut self.backup_screen.duplicate_detector,
+                        restoring,
+                    );
+                }
                 self.config.save();
-                self.backup_screen.log.refresh_game_tree(
-                    &name,
-                    &self.config,
-                    &mut self.backup_screen.duplicate_detector,
-                    false,
-                );
                 Command::none()
             }
             Message::EditedSearchGameName { screen, value } => {

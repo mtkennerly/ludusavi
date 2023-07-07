@@ -639,8 +639,11 @@ impl GameList {
         restoring: bool,
     ) {
         if let Some(index) = self.find_game(game) {
-            // Can't toggle restore items.
-            if !restoring {
+            if restoring {
+                self.entries[index]
+                    .scan_info
+                    .update_ignored(&config.restore.toggled_paths, &config.restore.toggled_registry);
+            } else {
                 self.entries[index]
                     .scan_info
                     .update_ignored(&config.backup.toggled_paths, &config.backup.toggled_registry);

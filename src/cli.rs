@@ -234,7 +234,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let game = &manifest.0[name];
 
-                    let previous = layout.latest_backup(name, false, &config.redirects);
+                    let previous = layout.latest_backup(name, false, &config.redirects, &config.restore.toggled_paths);
 
                     let scan_info = scan_game_for_backup(
                         game,
@@ -411,6 +411,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         name,
                         backup_id.as_ref().unwrap_or(&BackupId::Latest),
                         &config.redirects,
+                        &config.restore.toggled_paths,
+                        &config.restore.toggled_registry,
                     );
                     let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified;
                     let decision = if ignored {
@@ -437,7 +439,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     let restore_info = if scan_info.backup.is_none() || preview || ignored {
                         crate::scan::BackupInfo::default()
                     } else {
-                        layout.restore(&scan_info)
+                        layout.restore(&scan_info, &config.restore.toggled_registry)
                     };
                     log::trace!("step {i} completed");
                     (name, scan_info, restore_info, decision, None)

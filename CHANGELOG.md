@@ -1,6 +1,8 @@
 ## Unreleased
 
 * Added:
+  * The restore screen now supports deselecting individual saves
+    (like you already could on the backup screen).
   * You can now use glob syntax for file paths in the "backup exclusions" section.
   * Support for checking secondary/associated Steam IDs for a game.
     This is mainly useful for discovering Proton prefix folders of DLC,

@@ -579,6 +579,10 @@ Here are the available settings in `config.yaml` (all are required unless otherw
     This can be overridden in the CLI with `--path`.
   * `ignoredGames` (optional, list of strings): Names of games to skip when restoring.
     This can be overridden in the CLI by passing a list of games.
+  <!--
+  * `toggledPaths` (map): Same as the equivalent field in the `backup` section.
+  * `toggledRegistry` (map): Same as the equivalent field in the `backup` section.
+  -->
   * `sort` (map):
     * `key` (string): One of `name`, `size`.
     * `reversed` (boolean): If true, sort reverse alphabetical or from the largest size.
