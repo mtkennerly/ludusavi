@@ -196,6 +196,7 @@ pub enum Subcommand {
         no_cloud_sync: bool,
 
         /// Only back up these specific games.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         games: Vec<String>,
     },
@@ -242,6 +243,7 @@ pub enum Subcommand {
         no_cloud_sync: bool,
 
         /// Only restore these specific games.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         games: Vec<String>,
     },
@@ -263,6 +265,7 @@ pub enum Subcommand {
         api: bool,
 
         /// Only report these specific games.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         games: Vec<String>,
     },
@@ -311,6 +314,7 @@ pub enum Subcommand {
 
         /// Look up game by an exact title.
         /// With multiple values, they will be checked in the order given.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         names: Vec<String>,
     },
@@ -376,6 +380,7 @@ pub enum CloudSubcommand {
         api: bool,
 
         /// Only sync these specific games.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         games: Vec<String>,
     },
@@ -405,6 +410,7 @@ pub enum CloudSubcommand {
         api: bool,
 
         /// Only sync these specific games.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         games: Vec<String>,
     },

@@ -4,6 +4,8 @@
   * The restore screen now supports deselecting individual saves
     (like you already could on the backup screen).
   * You can now use glob syntax for file paths in the "backup exclusions" section.
+  * CLI: Commands that take a list of games now support reading stdin (one game per line).
+    For example, `ludusavi find --steam-id 504230 | ludusavi backup --preview`.
   * Support for checking secondary/associated Steam IDs for a game.
     This is mainly useful for discovering Proton prefix folders of DLC,
     since DLC saves may be kept separately from base game saves.

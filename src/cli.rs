@@ -98,6 +98,23 @@ fn load_manifest(
     }
 }
 
+fn parse_games(games: Vec<String>) -> Vec<String> {
+    if !games.is_empty() {
+        games
+    } else {
+        use std::io::IsTerminal;
+
+        let stdin = std::io::stdin();
+        if stdin.is_terminal() {
+            vec![]
+        } else {
+            let games = stdin.lines().map_while(Result::ok).collect();
+            log::debug!("Games from stdin: {:?}", &games);
+            games
+        }
+    }
+}
+
 pub fn parse() -> Cli {
     use clap::Parser;
     Cli::parse()
@@ -138,6 +155,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             games,
         } => {
             warn_backup_deprecations(x_merge, x_no_merge, x_update, x_try_update);
+            let games = parse_games(games);
 
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
@@ -332,6 +350,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             no_cloud_sync,
             games,
         } => {
+            let games = parse_games(games);
+
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
             let restore_dir = match path {
@@ -491,6 +511,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             )
         }
         Subcommand::Backups { path, api, games } => {
+            let games = parse_games(games);
+
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
             reporter.suppress_overall();
 
@@ -538,6 +560,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             normalized,
             names,
         } => {
+            let names = parse_games(names);
+
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
             reporter.suppress_overall();
 
@@ -686,6 +710,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 api,
                 games,
             } => {
+                let games = parse_games(games);
+
                 let local = local.unwrap_or(config.backup.path.clone());
                 let cloud = cloud.unwrap_or(config.cloud.path.clone());
 
@@ -711,6 +737,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 api,
                 games,
             } => {
+                let games = parse_games(games);
+
                 let local = local.unwrap_or(config.backup.path.clone());
                 let cloud = cloud.unwrap_or(config.cloud.path.clone());
 
