@@ -407,6 +407,9 @@ For the `backup`/`restore` commands:
         * `change` (string): Same as game-level field, but for a specific backup item.
         * `ignored` (optional, boolean): Whether this entry was ignored.
         * `bytes` (number): Size of the file.
+        * `redirectedPath` (optional, string):
+          If the file was backed up to a redirected location,
+          then this is its location within the backup.
         * `originalPath` (optional, string): If the file was restored to a
           redirected location, then this is its original path.
         * `duplicatedBy` (optional, array of strings): Any other games that
