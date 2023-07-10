@@ -5,7 +5,7 @@ total-games = 游戏
 file-size = 大小
 file-location = 位置
 overall = 总体
-status = Status
+status = 状态
 cli-unrecognized-games = 没有这些游戏的信息：
 cli-unable-to-request-confirmation = 无法请求确认。
     .winpty-workaround = 若您正在使用 Bash 模拟器（例如 Git Bash），请尝试运行 winpty。
@@ -38,11 +38,11 @@ button-enable-all = 全部启用
 button-disable-all = 全部禁用
 button-customize = 自定义
 button-exit = 退出
-button-comment = Comment
-button-lock = Lock
-button-unlock = Unlock
+button-comment = 备注
+button-lock = 锁定
+button-unlock = 解锁
 # This opens a download page.
-button-get-app = Get { $app }
+button-get-app = 获取 { $app }
 button-validate = 验证
 no-roots-are-configured = 添加一些根，以备份甚至更多的数据。
 config-is-invalid = 错误：配置文件无效。
@@ -54,12 +54,12 @@ registry-issue = 错误：一些注册表条目被跳过。
 unable-to-browse-file-system = 错误：无法浏览您的系统。
 unable-to-open-directory = 错误：无法打开目录：
 unable-to-open-url = 错误：无法打开链接：
-unable-to-configure-cloud = Unable to configure cloud.
-unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
-cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
-command-unlaunched = Command did not launch: { $command }
-command-terminated = Command terminated abruptly: { $command }
-command-failed = Command failed with code { $code }: { $command }
+unable-to-configure-cloud = 无法配置云备份
+unable-to-synchronize-with-cloud = 无法与云备份同步
+cloud-synchronize-conflict = 你的本地文件和云备份发生冲突，执行上传或下载以解决这个问题。
+command-unlaunched = 命令未启动： { $command }
+command-terminated = 命令突然终止： { $command }
+command-failed = 命令失败，错误代码 { $code }: { $command }
 processed-games = { $total-games } 游戏
 processed-games-subset = { $processed-games }，共 { $total-games } 游戏
 processed-size-subset = { $total-size }中的{ $processed-size }
@@ -72,7 +72,7 @@ field-redirect-source =
     .placeholder = 源 (原始位置)
 field-redirect-target =
     .placeholder = 目标 (新位置)
-field-roots = Roots:
+field-roots = 根目录：
 field-backup-excluded-items = 备份排除：
 field-redirects = 文件夹重定向
 # This appears next to the number of full backups that you'd like to keep.
@@ -91,39 +91,39 @@ label-checked = 已检查
 # This shows the time when we found an update to the manifest.
 label-updated = 已更新
 label-new = 新的存档
-label-removed = Removed
-label-comment = Comment
-label-scan = Scan
-label-filter = Filter
-label-unique = Unique
-label-complete = Complete
-label-partial = Partial
-label-enabled = Enabled
-label-disabled = Disabled
+label-removed = 删除
+label-comment = 备注
+label-scan = 扫描
+label-filter = 筛选
+label-unique = 单一
+label-complete = 全部
+label-partial = 部分
+label-enabled = 启用
+label-disabled = 禁用
 # https://en.wikipedia.org/wiki/Thread_(computing)
-label-threads = Threads
-label-cloud = Cloud
+label-threads = 线程
+label-cloud = 云备份
 # A "remote" is what Rclone calls cloud systems like Google Drive.
-label-remote = Remote
-label-remote-name = Remote name
-label-folder = Folder
+label-remote = 远程
+label-remote-name = 远程名称
+label-folder = 目录
 # An executable file
-label-executable = Executable
+label-executable = 可执行文件
 # Options given to a command line program
-label-arguments = Arguments
-label-url = URL
+label-arguments = 参数
+label-url = 链接地址
 # https://en.wikipedia.org/wiki/Host_(network)
-label-host = Host
+label-host = 主机
 # https://en.wikipedia.org/wiki/Port_(computer_networking)
-label-port = Port
-label-username = Username
-label-password = Password
+label-port = 端口
+label-username = 用户名
+label-password = 密码
 # This is a specific website or service that provides some cloud functionality.
 # For example, Nextcloud and Owncloud are providers of WebDAV services.
-label-provider = Provider
-label-custom = Custom
-label-none = None
-label-change-count = Changes: { $total }
+label-provider = 提供方
+label-custom = 自定义
+label-none = 无
+label-change-count = 更改︰ { $total }
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -149,11 +149,11 @@ theme = 主题
 theme-light = 亮
 theme-dark = 暗
 redirect-bidirectional = 双向
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
-override-max-threads = Override max threads
-synchronize-automatically = Synchronize automatically
+show-deselected-games = 显示未选中的游戏
+show-unchanged-games = 显示未修改的游戏
+show-unscanned-games = 显示未扫描的游戏
+override-max-threads = 覆盖最大线程
+synchronize-automatically = 自动同步
 explanation-for-exclude-store-screenshots = 在备份中，排除特定商店的屏幕截图
 consider-doing-a-preview = 如果您还没有预览，请考虑先进行预览，防止发生任何意料之外的结果。
 confirm-backup =
@@ -165,19 +165,19 @@ confirm-restore =
     您确定要继续恢复吗？
     这将会覆盖当前备份的所有文件：
 confirm-cloud-upload =
-    Do you want to replace your cloud files with your local files?
-    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
-    Files in the cloud will be updated or deleted as necessary.
+    你想要用本地文件替换云备份文件吗？
+    云备份文件({ $cloud-path }) 将成为本地文件的副本({ $local-path })。
+    云备份的文件将根据需求在必要时更新或删除。
 confirm-cloud-download =
-    Do you want to replace your local files with your cloud files?
-    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
-    Local files will be updated or deleted as necessary.
+    你想要用云备份文件替换本地文件吗？
+    本地文件({ $local-path }) 将成为云备份文件的副本({ $cloud-path })。
+    本地的文件将根据需求在必要时更新或删除。
 confirm-add-missing-roots = 添加这些根目录吗？
 no-missing-roots = 未找到其他根目录。
-loading = Loading...
+loading = 正在加载...
 preparing-backup-target = 正在准备备份文件夹...
 updating-manifest = 正在更新 Manifest 文件...
-no-cloud-changes = No changes to synchronize
+no-cloud-changes = 没有需要同步的更改
 backups-are-valid = 您的备份是有效的。
 backups-are-invalid =
     这些游戏的备份似乎无效。
@@ -188,9 +188,9 @@ no-saves-found = 未找到存档。
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = 不进行确认
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
-suffix-restart-required = restart required
-prefix-error = Error: { $message }
-prefix-warning = Warning: { $message }
-cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
-cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
-cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.
+suffix-restart-required = 需要重启
+prefix-error = 错误： { $message }
+prefix-warning = 警告： { $message }
+cloud-app-unavailable = 云备份已禁用，因为 { $app } 不可用。
+cloud-not-configured = 云备份已禁用，因为没有配置云远程设置。
+cloud-path-invalid = 云备份已禁用，因为备份路径无效。
