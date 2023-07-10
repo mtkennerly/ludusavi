@@ -5,7 +5,7 @@
     <project_license>MIT</project_license>
     <name>ludusavi</name>
     <developer_name>mtkennerly</developer_name>
-    <summary>Ludusavi is a tool for backing up your PC video game save data.</summary>
+    <summary>Back up your PC video game save data</summary>
     <url type="homepage">https://github.com/mtkennerly/ludusavi/</url>
     <url type="bugtracker">https://github.com/mtkennerly/ludusavi/issues</url>
     <url type="translate">https://crowdin.com/project/ludusavi</url>
