@@ -322,6 +322,14 @@ impl ToggledRegistryEntry {
         }
     }
 
+    pub fn fully_enabled(&self) -> bool {
+        match self {
+            Self::Unset => true,
+            Self::Key(enabled) => *enabled,
+            Self::Complex { values, .. } => values.iter().all(|x| *x.1),
+        }
+    }
+
     pub fn remove_value(&mut self, value: &str) {
         if let Self::Complex { key, values } = self {
             values.remove(value);
@@ -951,6 +959,38 @@ impl Config {
 
     pub fn disable_game_for_restore(&mut self, name: &str) {
         self.restore.ignored_games.insert(name.to_owned());
+    }
+
+    pub fn any_saves_ignored(&self, name: &str, restoring: bool) -> bool {
+        if restoring {
+            self.restore
+                .toggled_paths
+                .0
+                .get(name)
+                .map(|x| x.values().any(|x| !x))
+                .unwrap_or(false)
+                || self
+                    .restore
+                    .toggled_registry
+                    .0
+                    .get(name)
+                    .map(|x| x.values().any(|x| !x.fully_enabled()))
+                    .unwrap_or(false)
+        } else {
+            self.backup
+                .toggled_paths
+                .0
+                .get(name)
+                .map(|x| x.values().any(|x| !x))
+                .unwrap_or(false)
+                || self
+                    .backup
+                    .toggled_registry
+                    .0
+                    .get(name)
+                    .map(|x| x.values().any(|x| !x.fully_enabled()))
+                    .unwrap_or(false)
+        }
     }
 
     pub fn add_redirect(&mut self, source: &StrictPath, target: &StrictPath) {

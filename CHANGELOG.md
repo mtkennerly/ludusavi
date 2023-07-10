@@ -6,6 +6,9 @@
   * You can now use glob syntax for file paths in the "backup exclusions" section.
   * CLI: Commands that take a list of games now support reading stdin (one game per line).
     For example, `ludusavi find --steam-id 504230 | ludusavi backup --preview`.
+  * CLI: The `find` command will now report multiple results if you don't specify a name or ID.
+    The command also has new options for filtering these results: `--disabled` and `--partial`.
+    For example, `ludusavi find --restore --disabled` will list all games that can be restored and are disabled.
   * Support for checking secondary/associated Steam IDs for a game.
     This is mainly useful for discovering Proton prefix folders of DLC,
     since DLC saves may be kept separately from base game saves.

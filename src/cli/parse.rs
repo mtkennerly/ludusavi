@@ -271,7 +271,7 @@ pub enum Subcommand {
     },
     /// Find game titles
     ///
-    /// Precedence: Steam ID -> exact names -> normalized names.
+    /// Precedence: Steam ID -> GOG ID -> exact names -> normalized names.
     /// Once a match is found for one of these options,
     /// Ludusavi will stop looking and return that match.
     ///
@@ -311,6 +311,14 @@ pub enum Subcommand {
         /// This may find multiple games for a single input.
         #[clap(long)]
         normalized: bool,
+
+        /// Select games that are disabled.
+        #[clap(long)]
+        disabled: bool,
+
+        /// Select games that have some saves disabled.
+        #[clap(long)]
+        partial: bool,
 
         /// Look up game by an exact title.
         /// With multiple values, they will be checked in the order given.
@@ -1055,6 +1063,8 @@ mod tests {
                     steam_id: None,
                     gog_id: None,
                     normalized: false,
+                    disabled: false,
+                    partial: false,
                     names: vec![],
                 }),
             },
@@ -1077,6 +1087,8 @@ mod tests {
                 "--gog-id",
                 "102",
                 "--normalized",
+                "--disabled",
+                "--partial",
                 "game1",
                 "game2",
             ],
@@ -1092,6 +1104,8 @@ mod tests {
                     steam_id: Some(101),
                     gog_id: Some(102),
                     normalized: true,
+                    disabled: true,
+                    partial: true,
                     names: vec![s("game1"), s("game2")],
                 }),
             },

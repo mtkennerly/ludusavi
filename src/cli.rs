@@ -558,6 +558,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             steam_id,
             gog_id,
             normalized,
+            disabled,
+            partial,
             names,
         } => {
             let names = parse_games(names);
@@ -576,7 +578,9 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
 
             let title_finder = TitleFinder::new(&manifest, &layout);
-            let found = title_finder.find(&names, &steam_id, &gog_id, normalized, backup, restore);
+            let found = title_finder.find(
+                &names, &config, &steam_id, &gog_id, normalized, backup, restore, disabled, partial,
+            );
             reporter.add_found_titles(&found);
 
             if found.is_empty() {
