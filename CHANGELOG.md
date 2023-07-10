@@ -1,7 +1,14 @@
-## Unreleased
+## v0.20.0 (2023-07-10)
 
 * Added:
+  * The restore screen now supports deselecting individual saves
+    (like you already could on the backup screen).
   * You can now use glob syntax for file paths in the "backup exclusions" section.
+  * CLI: Commands that take a list of games now support reading stdin (one game per line).
+    For example, `ludusavi find --steam-id 504230 | ludusavi backup --preview`.
+  * CLI: The `find` command will now report multiple results if you don't specify a name or ID.
+    The command also has new options for filtering these results: `--disabled` and `--partial`.
+    For example, `ludusavi find --restore --disabled` will list all games that can be restored and are disabled.
   * Support for checking secondary/associated Steam IDs for a game.
     This is mainly useful for discovering Proton prefix folders of DLC,
     since DLC saves may be kept separately from base game saves.
@@ -9,7 +16,14 @@
   * A "custom" badge is shown next to custom games in scan results.
   * Option to filter scan results by change status (new/updated/unchanged/unscanned).
     ([Contributed by kekonn](https://github.com/mtkennerly/ludusavi/pull/226))
+  * For buttons that open a path selector dialog,
+    shift+click will open the configured path in your file explorer.
 * Fixed:
+  * When restoring registry saves,
+    multi-string values would be restored as expandable string values,
+    and expandable string values would be restored as multi-string values.
+    This only affected the restore process; backups would still be correct.
+    This issue was introduced in v0.18.0.
   * For Lutris roots, the `<base>` placeholder was resolved generically
     instead of using the Lutris-specific logic.
   * For Lutris roots, when inferring the `<base>` from the `exe` field,

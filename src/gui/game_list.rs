@@ -383,7 +383,6 @@ pub struct GameList {
     pub entries: Vec<GameListEntry>,
     pub search: FilterComponent,
     expanded_games: HashSet<String>,
-    pub modifiers: Modifiers,
     pub filter_duplicates_of: Option<String>,
 }
 
@@ -396,6 +395,7 @@ impl GameList {
         duplicate_detector: &DuplicateDetector,
         operation: &Operation,
         histories: &TextHistories,
+        modifiers: &Modifiers,
     ) -> Container {
         let duplicatees = self.filter_duplicates_of.as_ref().and_then(|game| {
             let mut duplicatees = duplicate_detector.duplicate_games(game);
@@ -453,7 +453,7 @@ impl GameList {
                                     duplicate_detector,
                                     operation,
                                     self.expanded_games.contains(&x.scan_info.game_name),
-                                    &self.modifiers,
+                                    modifiers,
                                     duplicatees.is_some(),
                                 ))
                             },
@@ -640,8 +640,11 @@ impl GameList {
         restoring: bool,
     ) {
         if let Some(index) = self.find_game(game) {
-            // Can't toggle restore items.
-            if !restoring {
+            if restoring {
+                self.entries[index]
+                    .scan_info
+                    .update_ignored(&config.restore.toggled_paths, &config.restore.toggled_registry);
+            } else {
                 self.entries[index]
                     .scan_info
                     .update_ignored(&config.backup.toggled_paths, &config.backup.toggled_registry);

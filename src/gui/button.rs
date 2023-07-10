@@ -1,4 +1,4 @@
-use iced::alignment;
+use iced::{alignment, keyboard};
 
 use crate::{
     gui::{
@@ -77,12 +77,20 @@ pub fn close<'a>(action: Message) -> Element<'a> {
     )
 }
 
-pub fn choose_folder<'a>(subject: BrowseSubject) -> Element<'a> {
-    template(Icon::FolderOpen.as_text(), Some(Message::BrowseDir(subject)), None)
+pub fn choose_folder<'a>(subject: BrowseSubject, modifiers: &keyboard::Modifiers) -> Element<'a> {
+    if modifiers.shift() {
+        template(Icon::OpenInNew.as_text(), Some(Message::OpenDirSubject(subject)), None)
+    } else {
+        template(Icon::FolderOpen.as_text(), Some(Message::BrowseDir(subject)), None)
+    }
 }
 
-pub fn choose_file<'a>(subject: BrowseFileSubject) -> Element<'a> {
-    template(Icon::FolderOpen.as_text(), Some(Message::BrowseFile(subject)), None)
+pub fn choose_file<'a>(subject: BrowseFileSubject, modifiers: &keyboard::Modifiers) -> Element<'a> {
+    if modifiers.shift() {
+        template(Icon::OpenInNew.as_text(), Some(Message::OpenFileSubject(subject)), None)
+    } else {
+        template(Icon::FolderOpen.as_text(), Some(Message::BrowseFile(subject)), None)
+    }
 }
 
 pub fn filter<'a>(screen: Screen, open: bool) -> Element<'a> {

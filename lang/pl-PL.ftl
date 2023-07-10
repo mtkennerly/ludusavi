@@ -39,11 +39,11 @@ button-disable-all = Wyłącz wszystkie
 button-customize = Dostosuj
 button-exit = Wyjdź
 button-comment = Komentarz
-button-lock = Lock
-button-unlock = Unlock
+button-lock = Zablokuj
+button-unlock = Odblokuj
 # This opens a download page.
-button-get-app = Get { $app }
-button-validate = Validate
+button-get-app = Pobierz { $app }
+button-validate = Zweryfikuj
 no-roots-are-configured = Dodaj kilka katalogów głównych, aby utworzyć kopię większej ilości danych.
 config-is-invalid = Błąd: Plik konfiguracji jest nieprawidłowy.
 manifest-is-invalid = Błąd: Plik manifest jest nieprawidłowy.
@@ -54,12 +54,12 @@ registry-issue = Błąd: Niektóre pozycje rejestru zostały pominięte.
 unable-to-browse-file-system = Błąd. Nie można przeglądać na Twoim systemie.
 unable-to-open-directory = Błąd: Nie można otworzyć katalogu:
 unable-to-open-url = Błąd: Nie można otworzyć adresu URL:
-unable-to-configure-cloud = Unable to configure cloud.
-unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
-cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
-command-unlaunched = Command did not launch: { $command }
-command-terminated = Command terminated abruptly: { $command }
-command-failed = Command failed with code { $code }: { $command }
+unable-to-configure-cloud = Nie udało się skonfigurować chmury.
+unable-to-synchronize-with-cloud = Nie można zsynchronizować z chmurą.
+cloud-synchronize-conflict = Kopia lokalna różni się od tej w chmurze. Wyślij lub pobierz odpowiednią wersję, aby rozwiązać problem.
+command-unlaunched = Polecenia nie uruchomiono: { $command }
+command-terminated = Polecenie zakończone nagle: { $command }
+command-failed = Polecenie nie powiodło się z kodem { $code }: { $command }
 processed-games =
     { $total-games } { $total-games ->
         [one] gra
@@ -99,39 +99,39 @@ label-checked = Sprawdzono
 # This shows the time when we found an update to the manifest.
 label-updated = Zaktualizowano
 label-new = Nowy
-label-removed = Removed
+label-removed = Usunięto
 label-comment = Komentarz
-label-scan = Scan
-label-filter = Filter
-label-unique = Unique
-label-complete = Complete
-label-partial = Partial
-label-enabled = Enabled
-label-disabled = Disabled
+label-scan = Skan
+label-filter = Filtruj
+label-unique = Unikalne
+label-complete = Pełny
+label-partial = Częściowy
+label-enabled = Aktywny
+label-disabled = Nieaktywny
 # https://en.wikipedia.org/wiki/Thread_(computing)
-label-threads = Threads
-label-cloud = Cloud
+label-threads = Wątki
+label-cloud = Chmura
 # A "remote" is what Rclone calls cloud systems like Google Drive.
 label-remote = Remote
 label-remote-name = Remote name
 label-folder = Folder
 # An executable file
-label-executable = Executable
+label-executable = Plik wykonywalny
 # Options given to a command line program
-label-arguments = Arguments
+label-arguments = Parametry
 label-url = URL
 # https://en.wikipedia.org/wiki/Host_(network)
 label-host = Host
 # https://en.wikipedia.org/wiki/Port_(computer_networking)
 label-port = Port
-label-username = Username
-label-password = Password
+label-username = Nazwa użytkownika
+label-password = Hasło
 # This is a specific website or service that provides some cloud functionality.
 # For example, Nextcloud and Owncloud are providers of WebDAV services.
-label-provider = Provider
-label-custom = Custom
-label-none = None
-label-change-count = Changes: { $total }
+label-provider = Usługodawca
+label-custom = Własny
+label-none = Brak
+label-change-count = Zmiany: { $total }
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -157,11 +157,11 @@ theme = Motyw
 theme-light = Jasny
 theme-dark = Ciemny
 redirect-bidirectional = Dwukierunkowy
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
-override-max-threads = Override max threads
-synchronize-automatically = Synchronize automatically
+show-deselected-games = Pokaż niezaznaczone gry
+show-unchanged-games = Pokaż niezmienione gry
+show-unscanned-games = Pokaż nieprzeskanowane gry
+override-max-threads = Zastąp maksymalną liczbę wątków
+synchronize-automatically = Synchronizuj automatycznie
 explanation-for-exclude-store-screenshots = Nie zawieraj w kopiach zapasowych zrzutów ekranu dla konkretnego sklepu
 consider-doing-a-preview = Jeśli jeszcze tego nie zrobiono, rozważ wykonanie pierwszego testu, aby zobaczyć, czy wszystko działa.
 confirm-backup =
@@ -173,32 +173,32 @@ confirm-restore =
     Czy na pewno chcesz kontynuować przywracanie?
     Jakiekolwiek bieżące pliki z kopią zapasową zostaną zastąpione:
 confirm-cloud-upload =
-    Do you want to replace your cloud files with your local files?
-    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
-    Files in the cloud will be updated or deleted as necessary.
+    Czy chcesz zastąpić pliki w chmurze plikami lokalnymi?
+    Twoje pliki ({ $cloud-path }) staną się dokładną kopią plików lokalnych ({ $local-path }).
+    Pliki w chmurze zostaną w razie potrzeby zaktualizowane lub usunięte.
 confirm-cloud-download =
-    Do you want to replace your local files with your cloud files?
-    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
-    Local files will be updated or deleted as necessary.
+    Czy chcesz zastąpić pliki lokalne plikami w chmurze?
+    Twoje lokalne pliki ({ $local-path }) staną się dokładną kopią Twoich plików w chmurze ({ $cloud-path }).
+    Pliki lokalne zostaną w razie potrzeby zaktualizowane lub usunięte.
 confirm-add-missing-roots = Czy to są katalogi główne?
 no-missing-roots = Nie znaleziono więcej katalogów głównych.
-loading = Loading...
+loading = Ładowanie...
 preparing-backup-target = Przygotowywanie katalogu kopii zapasowej...
 updating-manifest = Aktualizowanie manifestu...
-no-cloud-changes = No changes to synchronize
-backups-are-valid = Your backups are valid.
+no-cloud-changes = Nie ma zmian do synchronizacji
+backups-are-valid = Twoje kopie zapasowe są prawidłowe.
 backups-are-invalid =
-    These games' backups appear to be invalid.
-    Do you want to create new full backups for these games?
+    Kopie zapasowe tych gier wydają się nieprawidłowe.
+    Czy chcesz utworzyć nowe pełne kopie zapasowe?
 saves-found = Znaleziono dane zapisu.
 no-saves-found = Nie znaleziono danych zapisu.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = bez potwierdzenia
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
-suffix-restart-required = restart required
-prefix-error = Error: { $message }
-prefix-warning = Warning: { $message }
-cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
-cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
-cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.
+suffix-restart-required = wymagane ponowne uruchomienie
+prefix-error = Błąd: { $message }
+prefix-warning = Ostrzeżenie: { $message }
+cloud-app-unavailable = Kopie zapasowe w chmurze są wyłączone, ponieważ { $app } jest niedostępny.
+cloud-not-configured = Kopie zapasowe w chmurze są wyłączone, ponieważ nie skonfigurowano żadnego systemu w chmurze.
+cloud-path-invalid = Kopie zapasowe w chmurze są wyłączone, ponieważ ścieżka kopii zapasowej jest nieprawidłowa.

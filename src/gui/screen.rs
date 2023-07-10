@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use iced::{Alignment, Length};
+use iced::{keyboard, Alignment, Length};
 
 use crate::{
     cloud::{Remote, RemoteChoice},
@@ -84,6 +84,7 @@ impl Backup {
         manifest: &Manifest,
         operation: &Operation,
         histories: &TextHistories,
+        modifiers: &keyboard::Modifiers,
     ) -> Element {
         let screen = Screen::Backup;
         let sort = &config.backup.sort;
@@ -113,7 +114,7 @@ impl Backup {
                     .align_items(Alignment::Center)
                     .push(Text::new(TRANSLATOR.backup_target_label()))
                     .push(histories.input(UndoSubject::BackupTarget))
-                    .push(button::choose_folder(BrowseSubject::BackupTarget))
+                    .push(button::choose_folder(BrowseSubject::BackupTarget, modifiers))
                     .push("|")
                     .push(Text::new(TRANSLATOR.sort_label()))
                     .push(
@@ -200,10 +201,15 @@ impl Backup {
                         })
                 },
             )
-            .push(
-                self.log
-                    .view(false, config, manifest, &self.duplicate_detector, operation, histories),
-            );
+            .push(self.log.view(
+                false,
+                config,
+                manifest,
+                &self.duplicate_detector,
+                operation,
+                histories,
+                modifiers,
+            ));
 
         template(content)
     }
@@ -229,6 +235,7 @@ impl Restore {
         manifest: &Manifest,
         operation: &Operation,
         histories: &TextHistories,
+        modifiers: &keyboard::Modifiers,
     ) -> Element {
         let screen = Screen::Restore;
         let sort = &config.restore.sort;
@@ -258,7 +265,7 @@ impl Restore {
                     .align_items(Alignment::Center)
                     .push(Text::new(TRANSLATOR.restore_source_label()))
                     .push(histories.input(UndoSubject::RestoreSource))
-                    .push(button::choose_folder(BrowseSubject::RestoreSource))
+                    .push(button::choose_folder(BrowseSubject::RestoreSource, modifiers))
                     .push("|")
                     .push(Text::new(TRANSLATOR.sort_label()))
                     .push(
@@ -270,16 +277,26 @@ impl Restore {
                     )
                     .push(button::sort_order(screen, sort.reversed)),
             )
-            .push(
-                self.log
-                    .view(true, config, manifest, &self.duplicate_detector, operation, histories),
-            );
+            .push(self.log.view(
+                true,
+                config,
+                manifest,
+                &self.duplicate_detector,
+                operation,
+                histories,
+                modifiers,
+            ));
 
         template(content)
     }
 }
 
-pub fn custom_games<'a>(config: &Config, operating: bool, histories: &TextHistories) -> Element<'a> {
+pub fn custom_games<'a>(
+    config: &Config,
+    operating: bool,
+    histories: &TextHistories,
+    modifiers: &keyboard::Modifiers,
+) -> Element<'a> {
     let content = Column::new()
         .push(
             Row::new()
@@ -289,7 +306,7 @@ pub fn custom_games<'a>(config: &Config, operating: bool, histories: &TextHistor
                 .push(button::add_game())
                 .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled())),
         )
-        .push(editor::custom_games(config, operating, histories));
+        .push(editor::custom_games(config, operating, histories, modifiers));
 
     template(content)
 }
@@ -300,6 +317,7 @@ pub fn other<'a>(
     cache: &'a Cache,
     operation: &Operation,
     histories: &'a TextHistories,
+    modifiers: &keyboard::Modifiers,
 ) -> Element<'a> {
     let is_rclone_valid = config.apps.rclone.is_valid();
     let is_cloud_configured = config.cloud.remote.is_some();
@@ -469,7 +487,7 @@ pub fn other<'a>(
                                             || !is_rclone_valid,
                                             || Icon::Error.as_text().width(Length::Shrink).style(style::Text::Failure),
                                         )
-                                        .push(button::choose_file(BrowseFileSubject::RcloneExecutable))
+                                        .push(button::choose_file(BrowseFileSubject::RcloneExecutable, modifiers))
                                         .push(histories.input(UndoSubject::RcloneArguments)),
                                 );
 
@@ -580,7 +598,7 @@ pub fn other<'a>(
                             Column::new()
                                 .padding(5)
                                 .spacing(4)
-                                .push(editor::root(config, histories)),
+                                .push(editor::root(config, histories, modifiers)),
                         )
                         .style(style::Container::GameListEntry),
                     ),
@@ -588,12 +606,12 @@ pub fn other<'a>(
                 .push(
                     Column::new()
                         .push(Text::new(TRANSLATOR.ignored_items_label()))
-                        .push(editor::ignored_items(config, histories).padding([10, 0, 0, 0])),
+                        .push(editor::ignored_items(config, histories, modifiers).padding([10, 0, 0, 0])),
                 )
                 .push(
                     Column::new()
                         .push(Text::new(TRANSLATOR.redirects_label()))
-                        .push(editor::redirect(config, histories).padding([10, 0, 0, 0])),
+                        .push(editor::redirect(config, histories, modifiers).padding([10, 0, 0, 0])),
                 );
             ScrollSubject::Other.into_widget(content)
         });

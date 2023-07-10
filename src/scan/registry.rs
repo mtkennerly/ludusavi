@@ -268,7 +268,7 @@ impl Hives {
         Ok(())
     }
 
-    pub fn restore(&self) -> Result<(), Error> {
+    pub fn restore(&self, game_name: &str, toggled: &ToggledRegistry) -> Result<(), Error> {
         let mut failed = false;
 
         for (hive_name, keys) in self.0.iter() {
@@ -281,6 +281,13 @@ impl Hives {
             };
 
             for (key_name, entries) in keys.0.iter() {
+                let path = &RegistryItem::from_hive_and_key(hive_name, key_name);
+                if toggled.is_ignored(game_name, path, None)
+                    && entries.0.keys().all(|x| toggled.is_ignored(game_name, path, Some(x)))
+                {
+                    continue;
+                }
+
                 let (key, _) = match hive.create_subkey(key_name) {
                     Ok(x) => x,
                     Err(_) => {
@@ -290,6 +297,10 @@ impl Hives {
                 };
 
                 for (entry_name, entry) in entries.0.iter() {
+                    if toggled.is_ignored(game_name, path, Some(entry_name)) {
+                        continue;
+                    }
+
                     if let Some(value) = Option::<winreg::RegValue>::from(entry) {
                         if key.set_raw_value(entry_name, &value).is_err() {
                             failed = true;
@@ -352,11 +363,11 @@ impl From<&Entry> for Option<winreg::RegValue> {
             Entry::Sz(x) => Some(x.to_reg_value()),
             Entry::ExpandSz(x) => Some(winreg::RegValue {
                 bytes: x.to_reg_value().bytes,
-                vtype: winreg::enums::RegType::REG_MULTI_SZ,
+                vtype: winreg::enums::RegType::REG_EXPAND_SZ,
             }),
             Entry::MultiSz(x) => Some(winreg::RegValue {
                 bytes: x.to_reg_value().bytes,
-                vtype: winreg::enums::RegType::REG_EXPAND_SZ,
+                vtype: winreg::enums::RegType::REG_MULTI_SZ,
             }),
             Entry::Dword(x) => Some(x.to_reg_value()),
             Entry::Qword(x) => Some(x.to_reg_value()),

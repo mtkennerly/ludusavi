@@ -1,4 +1,4 @@
-use iced::{widget::Space, Alignment, Length};
+use iced::{keyboard, widget::Space, Alignment, Length};
 use iced_native::widget::tooltip;
 
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
     },
 };
 
-pub fn root<'a>(config: &Config, histories: &TextHistories) -> Container<'a> {
+pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard::Modifiers) -> Container<'a> {
     let mut content = Column::new().width(Length::Fill).spacing(5);
     if config.roots.is_empty() {
         content = content.push(Text::new(TRANSLATOR.no_roots_are_configured()));
@@ -32,7 +32,7 @@ pub fn root<'a>(config: &Config, histories: &TextHistories) -> Container<'a> {
                         PickList::new(Store::ALL, Some(root.store), move |v| Message::SelectedRootStore(i, v))
                             .style(style::PickList::Primary),
                     )
-                    .push(button::choose_folder(BrowseSubject::Root(i)))
+                    .push(button::choose_folder(BrowseSubject::Root(i), modifiers))
                     .push(button::remove(Message::EditedRoot, i)),
             )
         });
@@ -48,7 +48,7 @@ pub fn root<'a>(config: &Config, histories: &TextHistories) -> Container<'a> {
     Container::new(content)
 }
 
-pub fn redirect<'a>(config: &Config, histories: &TextHistories) -> Container<'a> {
+pub fn redirect<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard::Modifiers) -> Container<'a> {
     let redirects = config.get_redirects();
 
     let inner = Container::new({
@@ -73,9 +73,9 @@ pub fn redirect<'a>(config: &Config, histories: &TextHistories) -> Container<'a>
                             .style(style::PickList::Primary),
                         )
                         .push(histories.input(UndoSubject::RedirectSource(i)))
-                        .push(button::choose_folder(BrowseSubject::RedirectSource(i)))
+                        .push(button::choose_folder(BrowseSubject::RedirectSource(i), modifiers))
                         .push(histories.input(UndoSubject::RedirectTarget(i)))
-                        .push(button::choose_folder(BrowseSubject::RedirectTarget(i)))
+                        .push(button::choose_folder(BrowseSubject::RedirectTarget(i), modifiers))
                         .push(button::remove(|x| Message::EditedRedirect(x, None), i)),
                 )
             })
@@ -86,7 +86,12 @@ pub fn redirect<'a>(config: &Config, histories: &TextHistories) -> Container<'a>
     Container::new(inner)
 }
 
-pub fn custom_games<'a>(config: &Config, operating: bool, histories: &TextHistories) -> Container<'a> {
+pub fn custom_games<'a>(
+    config: &Config,
+    operating: bool,
+    histories: &TextHistories,
+    modifiers: &keyboard::Modifiers,
+) -> Container<'a> {
     if config.custom_games.is_empty() {
         return Container::new(Space::new(Length::Shrink, Length::Shrink));
     }
@@ -166,7 +171,10 @@ pub fn custom_games<'a>(config: &Config, operating: bool, histories: &TextHistor
                                                         x.files.len(),
                                                     ))
                                                     .push(histories.input(UndoSubject::CustomGameFile(i, ii)))
-                                                    .push(button::choose_folder(BrowseSubject::CustomGameFile(i, ii)))
+                                                    .push(button::choose_folder(
+                                                        BrowseSubject::CustomGameFile(i, ii),
+                                                        modifiers,
+                                                    ))
                                                     .push(button::remove_nested(Message::EditedCustomGameFile, i, ii)),
                                             )
                                         })
@@ -220,7 +228,7 @@ pub fn custom_games<'a>(config: &Config, operating: bool, histories: &TextHistor
     Container::new(ScrollSubject::CustomGames.into_widget(content))
 }
 
-pub fn ignored_items<'a>(config: &Config, histories: &TextHistories) -> Container<'a> {
+pub fn ignored_items<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard::Modifiers) -> Container<'a> {
     Container::new({
         Column::new().width(Length::Fill).height(Length::Fill).spacing(10).push(
             Container::new(
@@ -252,7 +260,10 @@ pub fn ignored_items<'a>(config: &Config, histories: &TextHistories) -> Containe
                                                     config.backup.filter.ignored_paths.len(),
                                                 ))
                                                 .push(histories.input(UndoSubject::BackupFilterIgnoredPath(ii)))
-                                                .push(button::choose_folder(BrowseSubject::BackupFilterIgnoredPath(ii)))
+                                                .push(button::choose_folder(
+                                                    BrowseSubject::BackupFilterIgnoredPath(ii),
+                                                    modifiers,
+                                                ))
                                                 .push(button::remove(Message::EditedBackupFilterIgnoredPath, ii)),
                                         )
                                     })

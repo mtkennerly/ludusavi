@@ -9,7 +9,9 @@ use crate::{
     path::StrictPath,
     prelude::INVALID_FILE_CHARS,
     resource::{
-        config::{BackupFormat, BackupFormats, RedirectConfig, Retention, ZipCompression},
+        config::{
+            BackupFormat, BackupFormats, RedirectConfig, Retention, ToggledPaths, ToggledRegistry, ZipCompression,
+        },
         manifest::Os,
     },
     scan::{
@@ -600,13 +602,18 @@ impl GameLayout {
 
     /// When `restoring` is false, we don't check for entries' ScanChange,
     /// because the backup scan will do that separately.
-    pub fn latest_backup(&self, restoring: bool, redirects: &[RedirectConfig]) -> Option<ScanInfo> {
+    pub fn latest_backup(
+        &self,
+        restoring: bool,
+        redirects: &[RedirectConfig],
+        toggled_paths: &ToggledPaths,
+    ) -> Option<ScanInfo> {
         if self.mapping.backups.is_empty() {
             None
         } else {
             Some(ScanInfo {
                 game_name: self.mapping.name.clone(),
-                found_files: self.restorable_files(&BackupId::Latest, restoring, redirects),
+                found_files: self.restorable_files(&BackupId::Latest, restoring, redirects, toggled_paths),
                 // Registry is handled separately.
                 found_registry_keys: Default::default(),
                 available_backups: vec![],
@@ -634,18 +641,19 @@ impl GameLayout {
         id: &BackupId,
         restoring: bool,
         redirects: &[RedirectConfig],
+        toggled_paths: &ToggledPaths,
     ) -> HashSet<ScannedFile> {
         let mut files = HashSet::new();
 
         match self.find_by_id(id) {
             None => {}
             Some((full, None)) => {
-                files.extend(self.restorable_files_from_full_backup(full, restoring, redirects));
+                files.extend(self.restorable_files_from_full_backup(full, restoring, redirects, toggled_paths));
             }
             Some((full, Some(diff))) => {
-                files.extend(self.restorable_files_from_diff_backup(diff, restoring, redirects));
+                files.extend(self.restorable_files_from_diff_backup(diff, restoring, redirects, toggled_paths));
 
-                for full_file in self.restorable_files_from_full_backup(full, restoring, redirects) {
+                for full_file in self.restorable_files_from_full_backup(full, restoring, redirects, toggled_paths) {
                     let original_path = full_file.original_path.as_ref().unwrap().render();
                     if diff.file(original_path) == BackupInclusion::Inherited {
                         files.insert(full_file);
@@ -662,12 +670,14 @@ impl GameLayout {
         backup: &FullBackup,
         restoring: bool,
         redirects: &[RedirectConfig],
+        toggled_paths: &ToggledPaths,
     ) -> HashSet<ScannedFile> {
         let mut restorables = HashSet::new();
 
         for (k, v) in &backup.files {
             let original_path = StrictPath::new(k.to_string());
             let redirected = game_file_target(&original_path, redirects, true);
+            let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
                     restorables.insert(ScannedFile {
@@ -681,9 +691,9 @@ impl GameLayout {
                             .game_file_immutable(&self.path, &original_path, &backup.name),
                         size: v.size,
                         hash: v.hash.clone(),
+                        ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
                         redirected,
                         original_path: Some(original_path),
-                        ignored: false,
                         container: None,
                     });
                 }
@@ -697,9 +707,9 @@ impl GameLayout {
                         path: StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path)),
                         size: v.size,
                         hash: v.hash.clone(),
+                        ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
                         redirected,
                         original_path: Some(original_path),
-                        ignored: false,
                         container: Some(self.path.joined(&backup.name)),
                     });
                 }
@@ -714,6 +724,7 @@ impl GameLayout {
         backup: &DifferentialBackup,
         restoring: bool,
         redirects: &[RedirectConfig],
+        toggled_paths: &ToggledPaths,
     ) -> HashSet<ScannedFile> {
         let mut restorables = HashSet::new();
 
@@ -721,6 +732,7 @@ impl GameLayout {
             let v = some_or_continue!(v);
             let original_path = StrictPath::new(k.to_string());
             let redirected = game_file_target(&original_path, redirects, true);
+            let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
                     restorables.insert(ScannedFile {
@@ -734,9 +746,9 @@ impl GameLayout {
                             .game_file_immutable(&self.path, &original_path, &backup.name),
                         size: v.size,
                         hash: v.hash.clone(),
+                        ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
                         redirected,
                         original_path: Some(original_path),
-                        ignored: false,
                         container: None,
                     });
                 }
@@ -750,9 +762,9 @@ impl GameLayout {
                         path: StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path)),
                         size: v.size,
                         hash: v.hash.clone(),
+                        ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
                         redirected,
                         original_path: Some(original_path),
-                        ignored: false,
                         container: Some(self.path.joined(&backup.name)),
                     });
                 }
@@ -1439,7 +1451,14 @@ impl GameLayout {
         available_backups
     }
 
-    pub fn scan_for_restoration(&mut self, name: &str, id: &BackupId, redirects: &[RedirectConfig]) -> ScanInfo {
+    pub fn scan_for_restoration(
+        &mut self,
+        name: &str,
+        id: &BackupId,
+        redirects: &[RedirectConfig],
+        toggled_paths: &ToggledPaths,
+        #[allow(unused)] toggled_registry: &ToggledRegistry,
+    ) -> ScanInfo {
         log::trace!("[{name}] beginning scan for restore");
 
         let mut found_files = HashSet::new();
@@ -1453,7 +1472,7 @@ impl GameLayout {
 
         if self.path.is_dir() {
             self.migrate_legacy_backup();
-            found_files = self.restorable_files(&id, true, redirects);
+            found_files = self.restorable_files(&id, true, redirects, toggled_paths);
             available_backups = self.restorable_backups_flattened();
             backup = self.find_by_id_flattened(&id);
         }
@@ -1469,11 +1488,13 @@ impl GameLayout {
                             let live_entries = registry::try_read_registry_key(hive_name, key_name);
                             let mut live_values = ScannedRegistryValues::new();
 
+                            let path = RegistryItem::from_hive_and_key(hive_name, key_name);
+
                             for (entry_name, entry) in entries.0.iter() {
                                 live_values.insert(
                                     entry_name.clone(),
                                     ScannedRegistryValue {
-                                        ignored: false,
+                                        ignored: toggled_registry.is_ignored(name, &path, Some(entry_name)),
                                         change: live_entries
                                             .as_ref()
                                             .and_then(|x| x.0.get(entry_name))
@@ -1490,8 +1511,12 @@ impl GameLayout {
                             }
 
                             found_registry_keys.insert(ScannedRegistry {
-                                path: RegistryItem::new(format!("{}/{}", hive_name, key_name).replace('\\', "/")),
-                                ignored: false,
+                                ignored: toggled_registry.is_ignored(name, &path, None)
+                                    && entries
+                                        .0
+                                        .keys()
+                                        .all(|x| toggled_registry.is_ignored(name, &path, Some(x))),
+                                path,
                                 change: match &live_entries {
                                     None => ScanChange::New,
                                     Some(_) => ScanChange::Same,
@@ -1516,7 +1541,7 @@ impl GameLayout {
         }
     }
 
-    pub fn restore(&self, scan: &ScanInfo) -> BackupInfo {
+    pub fn restore(&self, scan: &ScanInfo, #[allow(unused)] toggled: &ToggledRegistry) -> BackupInfo {
         log::trace!("[{}] beginning restore", &scan.game_name);
 
         let mut failed_files = HashSet::new();
@@ -1529,7 +1554,7 @@ impl GameLayout {
             let original_path = some_or_continue!(&file.original_path);
             let target = file.effective();
 
-            if !file.change().is_changed() {
+            if !file.change().is_changed() || file.ignored {
                 log::info!(
                     "[{}] skipping file; change={:?}, ignored={}: {} -> {}",
                     self.mapping.name,
@@ -1612,7 +1637,7 @@ impl GameLayout {
                 if let Some(registry_content) = self.registry_content(&backup.id()) {
                     if let Some(hives) = Hives::deserialize(&registry_content) {
                         // TODO: Track failed keys.
-                        let _ = hives.restore();
+                        let _ = hives.restore(&scan.game_name, toggled);
                     }
                 }
             }
@@ -1988,10 +2013,16 @@ impl BackupLayout {
             || (!Os::HOST.is_case_sensitive() && self.games_lowercase.contains_key(&name.to_lowercase()))
     }
 
-    pub fn latest_backup(&self, name: &str, restoring: bool, redirects: &[RedirectConfig]) -> Option<LatestBackup> {
+    pub fn latest_backup(
+        &self,
+        name: &str,
+        restoring: bool,
+        redirects: &[RedirectConfig],
+        toggled_paths: &ToggledPaths,
+    ) -> Option<LatestBackup> {
         if self.contains_game(name) {
             let game_layout = self.game_layout(name);
-            let scan = game_layout.latest_backup(restoring, redirects);
+            let scan = game_layout.latest_backup(restoring, redirects, toggled_paths);
             scan.map(|scan| LatestBackup {
                 scan,
                 registry_content: if cfg!(target_os = "windows") {
@@ -2963,7 +2994,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[]),
+                layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
             );
         }
 
@@ -3013,7 +3044,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[]),
+                layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
             );
         }
 
@@ -3084,7 +3115,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[]),
+                layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
             );
         }
 
@@ -3155,7 +3186,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[]),
+                layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
             );
         }
     }
@@ -3258,7 +3289,13 @@ mod tests {
                     backup: Some(backups[0].clone()),
                     ..Default::default()
                 },
-                layout.scan_for_restoration("game1", &BackupId::Latest, &[]),
+                layout.scan_for_restoration(
+                    "game1",
+                    &BackupId::Latest,
+                    &[],
+                    &Default::default(),
+                    &Default::default()
+                ),
             );
         }
 
@@ -3300,7 +3337,13 @@ mod tests {
                         })),
                         ..Default::default()
                     },
-                    layout.scan_for_restoration("game3", &BackupId::Latest, &[]),
+                    layout.scan_for_restoration(
+                        "game3",
+                        &BackupId::Latest,
+                        &[],
+                        &Default::default(),
+                        &Default::default()
+                    ),
                 );
             } else {
                 assert_eq!(
@@ -3324,7 +3367,13 @@ mod tests {
                         })),
                         ..Default::default()
                     },
-                    layout.scan_for_restoration("game3", &BackupId::Latest, &[]),
+                    layout.scan_for_restoration(
+                        "game3",
+                        &BackupId::Latest,
+                        &[],
+                        &Default::default(),
+                        &Default::default()
+                    ),
                 );
             }
         }

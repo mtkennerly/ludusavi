@@ -322,6 +322,14 @@ impl ToggledRegistryEntry {
         }
     }
 
+    pub fn fully_enabled(&self) -> bool {
+        match self {
+            Self::Unset => true,
+            Self::Key(enabled) => *enabled,
+            Self::Complex { values, .. } => values.iter().all(|x| *x.1),
+        }
+    }
+
     pub fn remove_value(&mut self, value: &str) {
         if let Self::Complex { key, values } = self {
             values.remove(value);
@@ -606,6 +614,10 @@ pub struct RestoreConfig {
         serialize_with = "crate::serialization::ordered_set"
     )]
     pub ignored_games: HashSet<String>,
+    #[serde(default, rename = "toggledPaths")]
+    pub toggled_paths: ToggledPaths,
+    #[serde(default, rename = "toggledRegistry")]
+    pub toggled_registry: ToggledRegistry,
     #[serde(default)]
     pub sort: Sort,
 }
@@ -713,6 +725,8 @@ impl Default for RestoreConfig {
         Self {
             path: default_backup_dir(),
             ignored_games: HashSet::new(),
+            toggled_paths: Default::default(),
+            toggled_registry: Default::default(),
             sort: Default::default(),
         }
     }
@@ -945,6 +959,38 @@ impl Config {
 
     pub fn disable_game_for_restore(&mut self, name: &str) {
         self.restore.ignored_games.insert(name.to_owned());
+    }
+
+    pub fn any_saves_ignored(&self, name: &str, restoring: bool) -> bool {
+        if restoring {
+            self.restore
+                .toggled_paths
+                .0
+                .get(name)
+                .map(|x| x.values().any(|x| !x))
+                .unwrap_or(false)
+                || self
+                    .restore
+                    .toggled_registry
+                    .0
+                    .get(name)
+                    .map(|x| x.values().any(|x| !x.fully_enabled()))
+                    .unwrap_or(false)
+        } else {
+            self.backup
+                .toggled_paths
+                .0
+                .get(name)
+                .map(|x| x.values().any(|x| !x))
+                .unwrap_or(false)
+                || self
+                    .backup
+                    .toggled_registry
+                    .0
+                    .get(name)
+                    .map(|x| x.values().any(|x| !x.fully_enabled()))
+                    .unwrap_or(false)
+        }
     }
 
     pub fn add_redirect(&mut self, source: &StrictPath, target: &StrictPath) {
@@ -1345,6 +1391,8 @@ mod tests {
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
                     ignored_games: HashSet::new(),
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                     sort: Default::default(),
                 },
                 scan: Default::default(),
@@ -1463,6 +1511,8 @@ mod tests {
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                     sort: Default::default(),
                 },
                 scan: Scan {
@@ -1553,6 +1603,8 @@ mod tests {
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
                     ignored_games: HashSet::new(),
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                     sort: Default::default(),
                 },
                 scan: Default::default(),
@@ -1624,6 +1676,8 @@ restore:
     - Restore Game 1
     - Restore Game 2
     - Restore Game 3
+  toggledPaths: {}
+  toggledRegistry: {}
   sort:
     key: status
     reversed: false
@@ -1700,6 +1754,8 @@ customGames:
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
+                    toggled_paths: Default::default(),
+                    toggled_registry: Default::default(),
                     sort: Default::default(),
                 },
                 scan: Scan {

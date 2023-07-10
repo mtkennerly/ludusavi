@@ -5,7 +5,7 @@ total-games = Игры
 file-size = Размер
 file-location = Местоположение
 overall = Всего
-status = Status
+status = Статус
 cli-unrecognized-games = Нет информации об этих играх:
 cli-unable-to-request-confirmation = Не удалось запросить подтверждение.
     .winpty-workaround = Если вы используете эмулятор Bash (например Git Bash), попробуйте запустить winpty.
@@ -17,9 +17,9 @@ badge-duplicated = ДУБЛИРОВАННЫЙ
 badge-ignored = ИГНОРИРОВАН
 badge-redirected-from = ИЗ: { $path }
 badge-redirecting-to = В: { $path }
-some-entries-failed = Some entries failed to process; look for { badge-failed } in the output for details. Double check whether you can access those files or whether their paths are very long.
-cli-game-line-item-redirected = Redirected from: { $path }
-cli-game-line-item-redirecting = Redirecting to: { $path }
+some-entries-failed = Некоторые записи не удалось обработать; ищите { badge-failed } на выходе для получения деталей. Дважды проверьте, имеют ли вы доступ к этим файлам или их пути очень длинные.
+cli-game-line-item-redirected = Перенаправлено из: { $path }
+cli-game-line-item-redirecting = Перенаправление в: { $path }
 button-backup = Резервирование
 button-preview = Предпросмотр
 button-restore = Восстановить
@@ -39,8 +39,8 @@ button-disable-all = Отключить все
 button-customize = Настроить
 button-exit = Выйти
 button-comment = Комментарий
-button-lock = Lock
-button-unlock = Unlock
+button-lock = Заблокировать
+button-unlock = Разблокировать
 # This opens a download page.
 button-get-app = Получить { $app }
 button-validate = Проверить
@@ -54,9 +54,9 @@ registry-issue = Error: Some registry entries were skipped.
 unable-to-browse-file-system = Error: Unable to browse on your system.
 unable-to-open-directory = Error: Unable to open directory:
 unable-to-open-url = Error: Unable to open URL:
-unable-to-configure-cloud = Unable to configure cloud.
-unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
-cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
+unable-to-configure-cloud = Не удалось настроить облако.
+unable-to-synchronize-with-cloud = Не удалось синхронизировать с облаком.
+cloud-synchronize-conflict = Ваши локальные и облачные резервные копии конфликтуют. Выполните закачку или загрузку, чтобы разрешить это.
 command-unlaunched = Command did not launch: { $command }
 command-terminated = Command terminated abruptly: { $command }
 command-failed = Command failed with code { $code }: { $command }
@@ -70,7 +70,7 @@ processed-games-subset =
         [one] game
        *[other] games
     }
-processed-size-subset = { $processed-size } of { $total-size }
+processed-size-subset = { $processed-size } из { $total-size }
 field-backup-target = Резервировать в:
 field-restore-source = Восстановить из:
 field-custom-files = Пути:
@@ -95,10 +95,10 @@ field-backup-compression = Сжатие:
 field-backup-compression-level = Степень:
 label-manifest = Манифест
 # This shows the time when we checked for an update to the manifest.
-label-checked = Checked
+label-checked = Проверен
 # This shows the time when we found an update to the manifest.
 label-updated = Обновлено
-label-new = New
+label-new = Новый
 label-removed = Удалено
 label-comment = Комментарий
 label-scan = Сканирование
@@ -110,13 +110,13 @@ label-enabled = Включено
 label-disabled = Отключено
 # https://en.wikipedia.org/wiki/Thread_(computing)
 label-threads = Threads
-label-cloud = Cloud
+label-cloud = Облачное хранилище
 # A "remote" is what Rclone calls cloud systems like Google Drive.
 label-remote = Remote
 label-remote-name = Remote name
 label-folder = Folder
 # An executable file
-label-executable = Executable
+label-executable = Исполняемый файл
 # Options given to a command line program
 label-arguments = Arguments
 label-url = URL
@@ -124,14 +124,14 @@ label-url = URL
 label-host = Host
 # https://en.wikipedia.org/wiki/Port_(computer_networking)
 label-port = Port
-label-username = Username
-label-password = Password
+label-username = Имя пользователя
+label-password = Пароль
 # This is a specific website or service that provides some cloud functionality.
 # For example, Nextcloud and Owncloud are providers of WebDAV services.
-label-provider = Provider
-label-custom = Custom
-label-none = None
-label-change-count = Changes: { $total }
+label-provider = Хранилище
+label-custom = Пользовательское
+label-none = Нет
+label-change-count = Изменений: { $total }
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -143,55 +143,55 @@ store-origin = Origin
 store-prime = Prime Gaming
 store-steam = Steam
 store-uplay = Uplay
-store-other-home = Home folder
-store-other-wine = Wine prefix
-store-other = Other
-backup-format-simple = Simple
+store-other-home = Домашняя папка
+store-other-wine = Wine префикс
+store-other = Другое
+backup-format-simple = Простой
 backup-format-zip = Zip
-compression-none = None
+compression-none = Нет
 # "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
-theme = Theme
-theme-light = Light
-theme-dark = Dark
-redirect-bidirectional = Bidirectional
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
-override-max-threads = Override max threads
-synchronize-automatically = Synchronize automatically
-explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
+theme = Тема оформления
+theme-light = Светлая
+theme-dark = Тёмная
+redirect-bidirectional = Двунаправленный
+show-deselected-games = Показать невыбранные игры
+show-unchanged-games = Показать неизменные игры
+show-unscanned-games = Показать несканированные игры
+override-max-threads = Переопределить макс. количество потоков
+synchronize-automatically = Синхронизировать автоматически
+explanation-for-exclude-store-screenshots = В резервных копиях исключить скриншоты из конкретного магазина
 consider-doing-a-preview =
-    If you haven't already, consider doing a preview first so that there
-    are no surprises.
+    Если вы еще этого не сделали, предлагаю сначала сделать предварительный просмотр, чтобы
+    не было сюрпризов.
 confirm-backup =
-    Are you sure you want to proceed with the backup? { $path-action ->
-        [merge] New save data will be merged into the target folder:
-       *[create] The target folder will be created:
+    Вы уверены, что хотите продолжить создание резервной копии? { $path-action ->
+        [merge] Новые данные сохранения будут объединены в целевую папку:
+       *[create] Будет создана целевая папка:
     }
 confirm-restore =
-    Are you sure you want to proceed with the restoration?
-    This will overwrite any current files with the backups from here:
+    Вы уверены, что хотите продолжить восстановление?
+    Это перезапишет все текущие файлы резервными копиями отсюда:
 confirm-cloud-upload =
-    Do you want to replace your cloud files with your local files?
-    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
-    Files in the cloud will be updated or deleted as necessary.
+    Вы хотите заменить ваши облачные файлы локальными файлами?
+    Ваши файлы в облаке ({ $cloud-path }) станут точной копией локальных файлов ({ $local-path }).
+    Файлы в облаке будут обновлены или удалены по мере необходимости.
 confirm-cloud-download =
-    Do you want to replace your local files with your cloud files?
-    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
-    Local files will be updated or deleted as necessary.
-confirm-add-missing-roots = Add these roots?
-no-missing-roots = No additional roots found.
-loading = Loading...
+    Вы хотите заменить локальные файлы на ваши облачные файлы?
+    Ваши локальные файлы ({ $local-path }) станут точной копией ваших облачных файлов ({ $cloud-path }).
+    По мере необходимости локальные файлы будут обновлены или удалены.
+confirm-add-missing-roots = Добавить эти корневые папки?
+no-missing-roots = Дополнительные корневые папки не найдены.
+loading = Загрузка...
 preparing-backup-target = Подготовка папки резервной копии...
 updating-manifest = Обновление манифеста...
 no-cloud-changes = Нет изменений для синхронизации
 backups-are-valid = Ваши резервные копии действительны.
 backups-are-invalid =
-    These games' backups appear to be invalid.
-    Do you want to create new full backups for these games?
+    Резервные копии этих игр кажутся недействительными.
+    Вы хотите создать новые полные резервные копии для этих игр?
 saves-found = Найдены данные сохранения.
 no-saves-found = Сохраненных данных не найдено.
 # This is tacked on to form something like "Back up (no confirmation)",
@@ -201,6 +201,6 @@ suffix-no-confirmation = без подтверждения
 suffix-restart-required = Требуется перезапуск
 prefix-error = Ошибка: { $message }
 prefix-warning = Внимание: { $message }
-cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
-cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
-cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.
+cloud-app-unavailable = Облачные резервные копии отключены, потому что { $app } недоступно.
+cloud-not-configured = Облачные резервные копии отключены, так как облачная система не настроена.
+cloud-path-invalid = Облачные резервные копии отключены, так как путь резервного копирования недействителен.
