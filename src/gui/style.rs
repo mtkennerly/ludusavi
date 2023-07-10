@@ -257,6 +257,7 @@ impl container::StyleSheet for Theme {
                 _ => self.background.into(),
             },
             border_color: match style {
+                Self::Style::Wrapper => Color::TRANSPARENT,
                 Self::Style::GameListEntry | Self::Style::Notification => self.field,
                 Self::Style::ChangeBadge(change) => match change {
                     ScanChange::New => self.added,
@@ -288,6 +289,7 @@ impl container::StyleSheet for Theme {
                 _ => 0.0,
             },
             text_color: match style {
+                Self::Style::Wrapper => None,
                 Self::Style::DisabledBackup => Some(self.text_inverted),
                 Self::Style::ChangeBadge(change) => match change {
                     ScanChange::New => Some(self.added),
