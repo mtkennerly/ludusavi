@@ -140,16 +140,18 @@ pub enum Message {
     ToggleSearch {
         screen: Screen,
     },
-    ToggleSpecificBackupPathIgnored {
+    ToggleSpecificGamePathIgnored {
         name: String,
         path: StrictPath,
         enabled: bool,
+        restoring: bool,
     },
-    ToggleSpecificBackupRegistryIgnored {
+    ToggleSpecificGameRegistryIgnored {
         name: String,
         path: RegistryItem,
         value: Option<String>,
         enabled: bool,
+        restoring: bool,
     },
     ToggleCustomGameEnabled {
         index: usize,
@@ -184,6 +186,8 @@ pub enum Message {
     OpenDir {
         path: StrictPath,
     },
+    OpenDirSubject(BrowseSubject),
+    OpenFileSubject(BrowseFileSubject),
     OpenDirFailure {
         path: StrictPath,
     },

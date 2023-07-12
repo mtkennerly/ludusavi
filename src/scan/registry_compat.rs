@@ -11,7 +11,7 @@ impl RegistryItem {
     #[allow(unused)]
     pub fn from_hive_and_key(hive: &str, key: &str) -> Self {
         Self {
-            raw: format!("{}/{}", hive, key),
+            raw: format!("{}/{}", hive, key).replace('\\', "/"),
         }
     }
 

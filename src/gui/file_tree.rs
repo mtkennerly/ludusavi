@@ -20,16 +20,16 @@ use crate::{
 };
 
 fn check_ignored(game: &str, path: &FileTreeNodePath, config: &Config, restoring: bool) -> bool {
-    if restoring {
-        false
+    let (paths, registries) = if restoring {
+        (&config.restore.toggled_paths, &config.restore.toggled_registry)
     } else {
-        match path {
-            FileTreeNodePath::File(path) => config.backup.toggled_paths.is_ignored(game, path),
-            FileTreeNodePath::RegistryKey(path) => config.backup.toggled_registry.is_ignored(game, path, None),
-            FileTreeNodePath::RegistryValue(path, name) => {
-                config.backup.toggled_registry.is_ignored(game, path, Some(name))
-            }
-        }
+        (&config.backup.toggled_paths, &config.backup.toggled_registry)
+    };
+
+    match path {
+        FileTreeNodePath::File(path) => paths.is_ignored(game, path),
+        FileTreeNodePath::RegistryKey(path) => registries.is_ignored(game, path, None),
+        FileTreeNodePath::RegistryValue(path, name) => registries.is_ignored(game, path, Some(name)),
     }
 }
 
@@ -108,31 +108,30 @@ impl FileTreeNode {
         let expanded = expansion.expanded(&self.keys);
 
         let make_enabler = || {
-            if restoring {
-                return None;
-            }
-
             let game_name = game_name.to_string();
             let path = self.path.clone();
             Some(
                 Container::new(
                     Checkbox::new("", !self.ignored, move |enabled| match &path {
-                        FileTreeNodePath::File(path) => Message::ToggleSpecificBackupPathIgnored {
+                        FileTreeNodePath::File(path) => Message::ToggleSpecificGamePathIgnored {
                             name: game_name.clone(),
                             path: path.clone(),
                             enabled,
+                            restoring,
                         },
-                        FileTreeNodePath::RegistryKey(path) => Message::ToggleSpecificBackupRegistryIgnored {
+                        FileTreeNodePath::RegistryKey(path) => Message::ToggleSpecificGameRegistryIgnored {
                             name: game_name.clone(),
                             path: path.clone(),
                             value: None,
                             enabled,
+                            restoring,
                         },
-                        FileTreeNodePath::RegistryValue(path, name) => Message::ToggleSpecificBackupRegistryIgnored {
+                        FileTreeNodePath::RegistryValue(path, name) => Message::ToggleSpecificGameRegistryIgnored {
                             name: game_name.clone(),
                             path: path.clone(),
                             value: Some(name.clone()),
                             enabled,
+                            restoring,
                         },
                     })
                     .spacing(5)

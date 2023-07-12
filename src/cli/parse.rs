@@ -204,6 +204,7 @@ pub enum Subcommand {
         no_cloud_sync: bool,
 
         /// Only back up these specific games.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         games: Vec<String>,
     },
@@ -250,6 +251,7 @@ pub enum Subcommand {
         no_cloud_sync: bool,
 
         /// Only restore these specific games.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         games: Vec<String>,
     },
@@ -271,12 +273,13 @@ pub enum Subcommand {
         api: bool,
 
         /// Only report these specific games.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         games: Vec<String>,
     },
     /// Find game titles
     ///
-    /// Precedence: Steam ID -> exact names -> normalized names.
+    /// Precedence: Steam ID -> GOG ID -> exact names -> normalized names.
     /// Once a match is found for one of these options,
     /// Ludusavi will stop looking and return that match.
     ///
@@ -317,8 +320,17 @@ pub enum Subcommand {
         #[clap(long)]
         normalized: bool,
 
+        /// Select games that are disabled.
+        #[clap(long)]
+        disabled: bool,
+
+        /// Select games that have some saves disabled.
+        #[clap(long)]
+        partial: bool,
+
         /// Look up game by an exact title.
         /// With multiple values, they will be checked in the order given.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         names: Vec<String>,
     },
@@ -397,6 +409,7 @@ pub enum CloudSubcommand {
         api: bool,
 
         /// Only sync these specific games.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         games: Vec<String>,
     },
@@ -426,6 +439,7 @@ pub enum CloudSubcommand {
         api: bool,
 
         /// Only sync these specific games.
+        /// Alternatively supports stdin (one value per line).
         #[clap()]
         games: Vec<String>,
     },
@@ -1085,6 +1099,8 @@ mod tests {
                     steam_id: None,
                     gog_id: None,
                     normalized: false,
+                    disabled: false,
+                    partial: false,
                     names: vec![],
                 }),
             },
@@ -1107,6 +1123,8 @@ mod tests {
                 "--gog-id",
                 "102",
                 "--normalized",
+                "--disabled",
+                "--partial",
                 "game1",
                 "game2",
             ],
@@ -1122,6 +1140,8 @@ mod tests {
                     steam_id: Some(101),
                     gog_id: Some(102),
                     normalized: true,
+                    disabled: true,
+                    partial: true,
                     names: vec![s("game1"), s("game2")],
                 }),
             },

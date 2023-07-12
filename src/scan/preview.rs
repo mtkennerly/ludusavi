@@ -67,7 +67,7 @@ impl ScanInfo {
             .iter()
             .map(|x| {
                 let mut y = x.clone();
-                y.ignored = toggled_paths.is_ignored(&self.game_name, &x.path);
+                y.ignored = toggled_paths.is_ignored(&self.game_name, x.effective());
                 y
             })
             .collect();

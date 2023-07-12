@@ -133,6 +133,11 @@ You may use [globs] in root paths to identify multiple roots at once.
 If you have a folder name that contains a special glob character,
 you can escape it by wrapping it in brackets (e.g., `[` becomes `[[]`).
 
+The order of the configured roots is not significant.
+The only case where it may make a difference is if Ludusavi finds secondary manifests (`.ludusavi.yaml` files)
+*and* those manfiests contain overlapping entries for the same game,
+in which case Ludusavi will merge the data together in the order that it finds them.
+
 ### Backup retention
 You can configure how many backups to keep by pressing the gear icon on the backup screen.
 A full backup contains all save data for a game,
@@ -305,10 +310,8 @@ from all games. They will not be shown at all during backup scans.
 
 Configure exclusions on the "other" screen.
 
-<!--
 For excluded file paths, you can use glob syntax.
 For example, to exclude all files named `remotecache.vdf`, you would specify `**/remotecache.vdf`.
--->
 
 ### Backup validation
 On the restore screen, there is a "validate" button that will check the integrity
@@ -402,6 +405,9 @@ For the `backup`/`restore` commands:
         * `change` (string): Same as game-level field, but for a specific backup item.
         * `ignored` (optional, boolean): Whether this entry was ignored.
         * `bytes` (number): Size of the file.
+        * `redirectedPath` (optional, string):
+          If the file was backed up to a redirected location,
+          then this is its location within the backup.
         * `originalPath` (optional, string): If the file was restored to a
           redirected location, then this is its original path.
         * `duplicatedBy` (optional, array of strings): Any other games that
@@ -574,6 +580,8 @@ Here are the available settings in `config.yaml` (all are required unless otherw
     This can be overridden in the CLI with `--path`.
   * `ignoredGames` (optional, list of strings): Names of games to skip when restoring.
     This can be overridden in the CLI by passing a list of games.
+  * `toggledPaths` (map): Same as the equivalent field in the `backup` section.
+  * `toggledRegistry` (map): Same as the equivalent field in the `backup` section.
   * `sort` (map):
     * `key` (string): One of `name`, `size`.
     * `reversed` (boolean): If true, sort reverse alphabetical or from the largest size.
