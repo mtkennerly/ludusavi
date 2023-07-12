@@ -1,5 +1,5 @@
 /target
 /dist
 /tmp
-assets/*~
 tests/root3/game5/data-symlink
+*~
