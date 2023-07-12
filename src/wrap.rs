@@ -20,6 +20,8 @@ pub fn get_game_name_from_heroic_launch_commands(commands: &[String]) -> Result<
     let detectors: Vec<Box<dyn LaunchParser>> =
         vec![Box::new(gogdl::HeroicGogdl {}), Box::new(legendary::Legendary {})];
 
+    // TODO.2023-07-12 make use of scan::title::TitleFinder to handle
+    // "Slain: Back From Hell" from legendary to "Slain: Back from Hell" as known to ludusavi
     match detectors.iter().find_map(|parser| parser.parse(commands)) {
         Some(game_name) => Ok(game_name),
         None => Err(Error::WrapCommandNotRecognized {
