@@ -23,8 +23,8 @@ use crate::{
     },
     resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
     scan::{
-        layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
-        OperationStepDecision, SteamShortcuts, TitleFinder,
+        layout::BackupLayout, normalize_title, prepare_backup_target, scan_game_for_backup, BackupId,
+        DuplicateDetector, Launchers, OperationStepDecision, SteamShortcuts, TitleFinder,
     },
     wrap::get_game_name_from_heroic_launch_commands,
 };
@@ -778,7 +778,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 name_source.infer, name_source.name, gui, commands
             );
             failed = true;
-            let game_name;
+            let mut game_name;
 
             if let Some(name) = name_source.name {
                 game_name = name;
@@ -800,11 +800,55 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
             println!("WRAP::setup: game name is: {}", game_name);
 
+            // make use of scan::title::TitleFinder to handle
+            // "Slain: Back From Hell" from legendary to "Slain: Back from Hell" as known to ludusavi
+            let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
+            let title_finder = TitleFinder::new(
+                &manifest,
+                &BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone()),
+            );
+            match title_finder.find_one(&[normalize_title(&game_name)], &None, &None, true, false, true) {
+                Some(name) => {
+                    println!("WRAP::restore: title_finder returns: {}", name);
+                    game_name = name;
+                }
+                None => {
+                    match native_dialog::MessageDialog::new()
+                        .set_title("Ludusavi Wrap")
+                        .set_text(&format!(
+                            "Could not find a suitable backup for {}.\n\nContinue to launch game anyways?",
+                            game_name
+                        ))
+                        .set_type(native_dialog::MessageType::Warning)
+                        .show_confirm()
+                    {
+                        Ok(confirmation) => match confirmation {
+                            true => {}
+                            false => {
+                                println!("WRAP::restore: user rejected to continue without restoration.");
+                                break 'wrap;
+                            }
+                        },
+                        Err(err) => {
+                            println!("WRAP::restore: could not get user confirmation to restore: {:?}", err);
+                            break 'wrap;
+                        }
+                    };
+
+                    let _ = native_dialog::MessageDialog::new()
+                        .set_title("Ludusavi Wrap Error")
+                        .set_text(&format!("Could not find a suitable backup for {}", game_name))
+                        .set_type(native_dialog::MessageType::Error)
+                        .show_alert();
+                    break 'wrap;
+                }
+            };
+
             // restore
             // TODO.2023-07-12 detect if there are differences between backed up and actual saves
             let notification_result = native_dialog::MessageDialog::new()
                 .set_title("Ludusavi Wrap")
-                .set_text(&format!("Restoring backup for {}", game_name))
+                .set_text(&format!("About to restore backup for {}, continue?", game_name))
                 .set_type(native_dialog::MessageType::Info)
                 .show_confirm();
             println!("WRAP::restore: user confirmation response: {:?}", notification_result);
@@ -852,6 +896,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
 
             // execute commands
+            // TODO.2023-07-12 legendary returns immediately, handle this!
             println!("WRAP::execute: commands to be executed: {:?}", commands);
             let result = Command::new(&commands[0]).args(&commands[1..]).status();
             match result {
@@ -878,7 +923,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 .set_text(&format!("Backup of savegames for {}", game_name))
                 .set_type(native_dialog::MessageType::Info)
                 .show_confirm();
-
             match notification_result {
                 Ok(confirmation) => match confirmation {
                     true => {}
@@ -892,7 +936,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     break 'wrap;
                 }
             };
+
             if let Err(err) = run(
+                // TODO.2023-07-12 use title finder here, too
+                // title_finder.find_one(&[normalize_title(&game_name)], &None, &None, true, false, true)
                 Subcommand::Backup {
                     // backup the game found
                     games: vec![game_name],

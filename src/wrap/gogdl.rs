@@ -15,8 +15,6 @@ impl LaunchParser for HeroicGogdl {
     // TODO.2023-06-22 path separator linux specific
     // TODO.2023-06-23 refactor println into logs
     fn parse(&self, commands: &[String]) -> Option<String> {
-        println!("HeroicGogdl::parse: commands: {:#?}", commands);
-
         let mut iter = commands.iter();
 
         if iter.find_position(|p| p.ends_with("gogdl")).is_none() {

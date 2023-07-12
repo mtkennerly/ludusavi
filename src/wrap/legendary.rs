@@ -15,8 +15,6 @@ pub struct LegendaryGameInfo {
 pub struct Legendary;
 impl LaunchParser for Legendary {
     fn parse(&self, commands: &[String]) -> Option<String> {
-        println!("Legendary::parse: commands: {:#?}", commands);
-
         let mut iter = commands.iter();
 
         let legendary_command = match iter.find_position(|p| p.ends_with("legendary")) {
