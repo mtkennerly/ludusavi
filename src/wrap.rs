@@ -4,8 +4,9 @@ mod gogdl;
 mod legendary;
 
 /// Trait for command line argument parsers to determine the actual game name,
-/// for implementations check the submodules
+/// for implementations check the submodules.
 trait LaunchParser {
+    /// Determine game name from `commands`, return `None` if it fails.
     fn parse(&self, commands: &[String]) -> Option<String>;
 }
 

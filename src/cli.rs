@@ -130,7 +130,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
     }
     let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
     TRANSLATOR.set_language(config.language);
-    // TODO.2023-06-20 replace with Option<Error>
     let mut failed = false;
     let mut duplicate_detector = DuplicateDetector::default();
 
@@ -765,8 +764,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 report_cloud_changes(&changes, api);
             }
         },
-        // TODO.2023-06-23 show small popup during backup
-        // TODO.2023-07-12 inform user to manually check backups
         // TODO.2023-06-23 refactor println into logs
         Subcommand::Wrap {
             name_source,
@@ -834,13 +831,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                             break 'wrap;
                         }
                     };
-
-                    let _ = native_dialog::MessageDialog::new()
-                        .set_title("Ludusavi Wrap Error")
-                        .set_text(&format!("Could not find a suitable backup for {}", game_name))
-                        .set_type(native_dialog::MessageType::Error)
-                        .show_alert();
-                    break 'wrap;
                 }
             };
 
@@ -848,7 +838,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             // TODO.2023-07-12 detect if there are differences between backed up and actual saves
             let notification_result = native_dialog::MessageDialog::new()
                 .set_title("Ludusavi Wrap")
-                .set_text(&format!("About to restore backup for {}, continue?", game_name))
+                .set_text(&format!(
+                    "About to restore backup for {}, continue (YES) or abort (NO)?",
+                    game_name
+                ))
                 .set_type(native_dialog::MessageType::Info)
                 .show_confirm();
             println!("WRAP::restore: user confirmation response: {:?}", notification_result);
@@ -920,7 +913,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             // backup
             let notification_result = native_dialog::MessageDialog::new()
                 .set_title("Ludusavi Wrap")
-                .set_text(&format!("Backup of savegames for {}", game_name))
+                .set_text(&format!(
+                    "About to backup savegames for {}, continue (YES) or abort (NO)?",
+                    game_name
+                ))
                 .set_type(native_dialog::MessageType::Info)
                 .show_confirm();
             match notification_result {
