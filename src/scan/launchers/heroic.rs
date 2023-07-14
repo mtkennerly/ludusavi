@@ -23,10 +23,10 @@ struct HeroicInstalled {
 
 /// Deserialization of Heroic gog_store/library.json
 #[derive(serde::Deserialize)]
-struct GogLibraryGame {
+pub struct GogLibraryGame {
     /// This is an opaque ID, not the human-readable title.
-    app_name: String,
-    title: String,
+    pub app_name: String,
+    pub title: String,
 }
 #[derive(serde::Deserialize)]
 struct GogLibrary {
@@ -143,11 +143,9 @@ fn detect_legendary_games(
     games
 }
 
-fn detect_gog_games(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
-    let mut games = HashMap::new();
-
+pub fn get_gog_library_games(root: &RootsConfig) -> Option<Vec<GogLibraryGame>> {
     log::trace!(
-        "detect_gog_games searching for GOG information in {}",
+        "get_gog_library searching for GOG information in {}",
         root.path.interpret()
     );
 
@@ -164,31 +162,48 @@ fn detect_gog_games(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<S
                 break 'library;
             }
         }
-        log::info!("detect_gog_games aborting since it could not find GOG library");
-        return games;
+        log::info!("get_gog_library could not find GOG library");
+        return None;
     }
+    match serde_json::from_str::<GogLibrary>(&library_path.read().unwrap_or_default()) {
+        Ok(gog_library) => {
+            log::trace!(
+                "get_gog_library found {} games in {}",
+                gog_library.games.len(),
+                library_path.interpret()
+            );
 
-    let game_titles: HashMap<String, String> =
-        match serde_json::from_str::<GogLibrary>(&library_path.read().unwrap_or_default()) {
-            Ok(gog_library) => gog_library
-                .games
-                .iter()
-                .map(|game| (game.app_name.clone(), game.title.clone()))
-                .collect(),
-            Err(e) => {
-                log::warn!(
-                    "detect_gog_games aborting since it could not read {}: {}",
-                    library_path.interpret(),
-                    e
-                );
-                return games;
-            }
-        };
+            Some(gog_library.games)
+        }
+        Err(e) => {
+            log::warn!(
+                "get_gog_library returns None since it could not read {}: {}",
+                library_path.interpret(),
+                e
+            );
+            None
+        }
+    }
+}
+
+fn detect_gog_games(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
+    let mut games = HashMap::new();
+
     log::trace!(
-        "detect_gog_games found {} games in {}",
-        game_titles.len(),
-        library_path.interpret()
+        "detect_gog_games searching for GOG information in {}",
+        root.path.interpret()
     );
+
+    let game_titles: HashMap<String, String> = match get_gog_library_games(root) {
+        Some(gog_library_games) => gog_library_games
+            .iter()
+            .map(|game| (game.app_name.clone(), game.title.clone()))
+            .collect(),
+        None => {
+            log::warn!("detect_gog_games aborting since gog_library was not read successfully.");
+            return games;
+        }
+    };
 
     // iterate over all games found in HEROCONFIGDIR/gog_store/installed.json and call find_prefix
     let installed_path = root.path.joined("gog_store").joined("installed.json");

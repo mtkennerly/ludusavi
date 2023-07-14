@@ -784,19 +784,22 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             if let Some(name) = name_source.name {
                 game_name = name;
             } else {
+                let roots = config.expanded_roots();
                 match name_source.infer.unwrap() {
-                    parse::LauncherTypes::Heroic => match get_game_name_from_heroic_launch_commands(&commands) {
-                        Ok(name) => game_name = name,
-                        Err(msg) => {
-                            let _ = native_dialog::MessageDialog::new()
+                    parse::LauncherTypes::Heroic => {
+                        match get_game_name_from_heroic_launch_commands(&roots, &commands) {
+                            Ok(name) => game_name = name,
+                            Err(msg) => {
+                                let _ = native_dialog::MessageDialog::new()
                                 .set_title("Ludusavi Wrap Error")
                                 .set_text(
                                     &format!("Could not determine game name from launch commands, aborting. \n\n Error message: {:?}", msg))
                                 .set_type(native_dialog::MessageType::Error)
                                 .show_alert();
-                            break 'wrap;
+                                break 'wrap;
+                            }
                         }
-                    },
+                    }
                 }
             }
             log::debug!("WRAP::setup: game name is: {}", game_name);

@@ -1,6 +1,9 @@
 use itertools::Itertools;
 
-use crate::prelude::{run_command, Privacy};
+use crate::{
+    prelude::{run_command, Privacy},
+    resource::config::RootsConfig,
+};
 
 use super::LaunchParser;
 
@@ -12,9 +15,10 @@ pub struct LegendaryGameInfo {
     // ignore everything else
 }
 
+// TODO.2023-07-14 refactor analog to gogdl to use get_legendary_games or alike from scan::launcher::heroic
 pub struct Legendary;
 impl LaunchParser for Legendary {
-    fn parse(&self, commands: &[String]) -> Option<String> {
+    fn parse(&self, _roots: &[RootsConfig], commands: &[String]) -> Option<String> {
         let mut iter = commands.iter();
 
         let legendary_command = match iter.find_position(|p| p.ends_with("legendary")) {

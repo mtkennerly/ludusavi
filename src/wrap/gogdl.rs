@@ -1,19 +1,11 @@
 use itertools::Itertools;
 
 use super::LaunchParser;
-use crate::prelude::StrictPath;
-
-/// Deserialization of GOG Game info file "$GAME_DIR/goggame-$GAME_ID.info"
-#[derive(serde::Deserialize)]
-pub struct GogGameInfo {
-    pub name: String,
-    // ignore everything else
-}
+use crate::{resource::config::RootsConfig, scan::launchers::heroic::get_gog_library_games};
 
 pub struct HeroicGogdl;
 impl LaunchParser for HeroicGogdl {
-    // TODO.2023-06-22 path separator linux specific
-    fn parse(&self, commands: &[String]) -> Option<String> {
+    fn parse(&self, roots: &[RootsConfig], commands: &[String]) -> Option<String> {
         let mut iter = commands.iter();
 
         if iter.find_position(|p| p.ends_with("gogdl")).is_none() {
@@ -34,54 +26,16 @@ impl LaunchParser for HeroicGogdl {
             game_id
         );
 
-        let gog_info_path_native = StrictPath::from(&format!("{}/gameinfo", game_dir));
-        match gog_info_path_native.is_file() {
-            true => {
-                // GOG Linux native
-                //     GAMENAME=`$HEAD -1 "$GAME_DIR/gameinfo"`
-                let game_name = gog_info_path_native
-                    .read()
-                    .unwrap_or_default()
-                    .lines()
-                    .next()
-                    .unwrap_or_default()
-                    .to_string();
-                if game_name.is_empty() {
-                    log::debug!("HeroicGogdl::parse: Error reading {}", gog_info_path_native.interpret());
-                    None
-                } else {
-                    Some(game_name)
-                }
+        // TODO.2023-07-14 filter for root.type = Heroic
+        roots.iter().find_map(|root| {
+            log::debug!("HeroicGogdl::parse: checking root {:?}", root);
+            match get_gog_library_games(root) {
+                Some(gog_games) => gog_games.iter().find_map(|g| match g.app_name == *game_id {
+                    true => Some(g.title.clone()),
+                    false => None,
+                }),
+                None => None,
             }
-            false => {
-                // GOG Windows game
-                //     GAMENAME=`$JQ -r .name "$GAME_DIR/goggame-$GAME_ID.info"`
-                let gog_info_path_windows = StrictPath::from(&format!("{}/goggame-{}.info", game_dir, game_id));
-
-                match serde_json::from_str::<GogGameInfo>(&gog_info_path_windows.read().unwrap_or_default()) {
-                    Ok(ggi) => {
-                        let game_name = ggi.name;
-                        match game_name.is_empty() {
-                            true => {
-                                log::debug!(
-                                    "HeroicGogdl::parse: Error reading {}, no name entry found.",
-                                    gog_info_path_windows.interpret()
-                                );
-                                None
-                            }
-                            false => Some(game_name),
-                        }
-                    }
-                    Err(e) => {
-                        log::debug!(
-                            "HeroicGogdl::parse: Error reading {}: {:#?}",
-                            gog_info_path_windows.interpret(),
-                            e
-                        );
-                        None
-                    }
-                }
-            }
-        }
+        })
     }
 }

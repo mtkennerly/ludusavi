@@ -2,7 +2,7 @@ mod backup;
 mod change;
 mod duplicate;
 pub mod game_filter;
-mod launchers;
+pub mod launchers;
 pub mod layout;
 mod preview;
 pub mod registry_compat;

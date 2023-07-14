@@ -1,4 +1,4 @@
-use crate::prelude::Error;
+use crate::{prelude::Error, resource::config::RootsConfig};
 
 mod gogdl;
 mod legendary;
@@ -7,10 +7,10 @@ mod legendary;
 /// for implementations check the submodules.
 trait LaunchParser {
     /// Determine game name from `commands`, return `None` if it fails.
-    fn parse(&self, commands: &[String]) -> Option<String>;
+    fn parse(&self, roots: &[RootsConfig], commands: &[String]) -> Option<String>;
 }
 
-pub fn get_game_name_from_heroic_launch_commands(commands: &[String]) -> Result<String, Error> {
+pub fn get_game_name_from_heroic_launch_commands(roots: &[RootsConfig], commands: &[String]) -> Result<String, Error> {
     // I'd love to write let d = vec![Heroic{}, Legendary{}];
     //
     // Coming from OOP the code below seems a bit much of syntactical noise, but
@@ -24,7 +24,7 @@ pub fn get_game_name_from_heroic_launch_commands(commands: &[String]) -> Result<
     let detectors: Vec<Box<dyn LaunchParser>> =
         vec![Box::new(gogdl::HeroicGogdl {}), Box::new(legendary::Legendary {})];
 
-    match detectors.iter().find_map(|parser| parser.parse(commands)) {
+    match detectors.iter().find_map(|parser| parser.parse(roots, commands)) {
         Some(game_name) => Ok(game_name),
         None => Err(Error::WrapCommandNotRecognized {
             msg: "get_game_name_from_heroic_launch_commands: could not detect any known launcher.".to_string(),
