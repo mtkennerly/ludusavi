@@ -775,8 +775,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 name_source.infer, name_source.name, gui, commands
             );
             failed = true;
-            let mut game_name;
 
+            //
+            // Determine game name
+            //
+            let mut game_name;
             if let Some(name) = name_source.name {
                 game_name = name;
             } else {
@@ -797,8 +800,12 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
             println!("WRAP::setup: game name is: {}", game_name);
 
-            // make use of scan::title::TitleFinder to handle
-            // "Slain: Back From Hell" from legendary to "Slain: Back from Hell" as known to ludusavi
+            //
+            // Check using TitleFinder
+            //
+            // e.g. "Slain: Back From Hell" from legendary to "Slain: Back from
+            // Hell" as known to ludusavi
+            //
             let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
             let title_finder = TitleFinder::new(
                 &manifest,
@@ -813,7 +820,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     match native_dialog::MessageDialog::new()
                         .set_title("Ludusavi Wrap")
                         .set_text(&format!(
-                            "Could not find a suitable backup for {}.\n\nContinue to launch game anyways?",
+                            "Could not find a suitable backup for {} to restore.\n\nContinue to launch game anyways?",
                             game_name
                         ))
                         .set_type(native_dialog::MessageType::Warning)
@@ -834,7 +841,9 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
             };
 
+            //
             // restore
+            //
             // TODO.2023-07-12 detect if there are differences between backed up and actual saves
             let notification_result = native_dialog::MessageDialog::new()
                 .set_title("Ludusavi Wrap")
@@ -860,7 +869,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             };
             if let Err(err) = run(
                 Subcommand::Restore {
-                    // restore the game found
                     games: vec![game_name.clone()],
                     force: true,
                     // everything else is default
@@ -888,12 +896,15 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 break 'wrap;
             }
 
+            //
             // execute commands
+            //
             // TODO.2023-07-12 legendary returns immediately, handle this!
             println!("WRAP::execute: commands to be executed: {:?}", commands);
             let result = Command::new(&commands[0]).args(&commands[1..]).status();
             match result {
                 Ok(status) => {
+                    // TODO.2023-07-14 handle return status which indicate an error condition, e.g. != 0
                     println!("WRAP::execute: Game command executed, returning status: {:#?}", status);
                 }
                 Err(err) => {
@@ -901,7 +912,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     let _ = native_dialog::MessageDialog::new()
                         .set_title("Ludusavi Wrap Error")
                         .set_text(&format!(
-                            "Game ran, but returned an error, aborting before backing up.\n\nError message:\n{:?}",
+                            "Game ran, but returned an error.  Aborting before backing up.\n\nError message:\n{:?}",
                             err
                         ))
                         .set_type(native_dialog::MessageType::Error)
@@ -910,7 +921,30 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
             }
 
+            //
+            // Check if ludusavi is able to back up
+            //
+            match title_finder.find_one(&[normalize_title(&game_name)], &None, &None, true, true, false) {
+                Some(name) => {
+                    println!("WRAP::backup: title_finder returns: {}", name);
+                    game_name = name;
+                }
+                None => {
+                    let _ = native_dialog::MessageDialog::new()
+                        .set_title("Ludusavi Wrap Error")
+                        .set_text(&format!(
+                            "Game ran, but ludusavi does not know how to back up {}.  Aborting.",
+                            game_name
+                        ))
+                        .set_type(native_dialog::MessageType::Error)
+                        .show_alert();
+                    break 'wrap;
+                }
+            };
+
+            //
             // backup
+            //
             let notification_result = native_dialog::MessageDialog::new()
                 .set_title("Ludusavi Wrap")
                 .set_text(&format!(
@@ -932,12 +966,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     break 'wrap;
                 }
             };
-
             if let Err(err) = run(
-                // TODO.2023-07-12 use title finder here, too
-                // title_finder.find_one(&[normalize_title(&game_name)], &None, &None, true, false, true)
                 Subcommand::Backup {
-                    // backup the game found
                     games: vec![game_name],
                     force: true,
                     // everything else is default
@@ -970,7 +1000,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     .show_alert();
                 break 'wrap;
             }
-            // if we reach this point, everything worked without error
+
+            //
+            // Wrap finished - if we reach this point, everything worked fine
+            //
             failed = false;
         }
     }

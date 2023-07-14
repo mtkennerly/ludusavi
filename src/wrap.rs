@@ -18,6 +18,9 @@ pub fn get_game_name_from_heroic_launch_commands(commands: &[String]) -> Result<
     // size, so I "Box" it to put the actual objects on the heap.
     //
     // Taken from https://doc.rust-lang.org/book/ch17-02-trait-objects.html
+    //
+    // Also support for Amazon Prime is in the works for heroic:
+    // https://github.com/Heroic-Games-Launcher/HeroicGamesLauncher/pull/2831
     let detectors: Vec<Box<dyn LaunchParser>> =
         vec![Box::new(gogdl::HeroicGogdl {}), Box::new(legendary::Legendary {})];
 
