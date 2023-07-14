@@ -764,19 +764,20 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 report_cloud_changes(&changes, api);
             }
         },
-        // TODO.2023-06-23 refactor println into logs
         Subcommand::Wrap {
             name_source,
             gui,
             commands,
         } => 'wrap: {
-            println!(
+            log::info!(
                 "WRAP::setup: infer: {:#?}, name: {:#?}, gui: {:#?}, commands: {:#?}",
-                name_source.infer, name_source.name, gui, commands
+                name_source.infer,
+                name_source.name,
+                gui,
+                commands
             );
             failed = true;
 
-            //
             // Determine game name
             //
             let mut game_name;
@@ -798,7 +799,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     },
                 }
             }
-            println!("WRAP::setup: game name is: {}", game_name);
+            log::debug!("WRAP::setup: game name is: {}", game_name);
 
             //
             // Check using TitleFinder
@@ -813,7 +814,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             );
             match title_finder.find_one(&[normalize_title(&game_name)], &None, &None, true, false, true) {
                 Some(name) => {
-                    println!("WRAP::restore: title_finder returns: {}", name);
+                    log::debug!("WRAP::restore: title_finder returns: {}", name);
                     game_name = name;
                 }
                 None => {
@@ -829,12 +830,12 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         Ok(confirmation) => match confirmation {
                             true => {}
                             false => {
-                                println!("WRAP::restore: user rejected to continue without restoration.");
+                                log::info!("WRAP::restore: user rejected to continue without restoration.");
                                 break 'wrap;
                             }
                         },
                         Err(err) => {
-                            println!("WRAP::restore: could not get user confirmation to restore: {:?}", err);
+                            log::error!("WRAP::restore: could not get user confirmation to restore: {:?}", err);
                             break 'wrap;
                         }
                     };
@@ -853,17 +854,17 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 ))
                 .set_type(native_dialog::MessageType::Info)
                 .show_confirm();
-            println!("WRAP::restore: user confirmation response: {:?}", notification_result);
+            log::debug!("WRAP::restore: user confirmation response: {:?}", notification_result);
             match notification_result {
                 Ok(confirmation) => match confirmation {
                     true => {}
                     false => {
-                        println!("WRAP::restore: user rejected to restore");
+                        log::info!("WRAP::restore: user rejected to restore");
                         break 'wrap;
                     }
                 },
                 Err(err) => {
-                    println!("WRAP::restore: could not get user confirmation to restore: {:?}", err);
+                    log::error!("WRAP::restore: could not get user confirmation to restore: {:?}", err);
                     break 'wrap;
                 }
             };
@@ -884,7 +885,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 no_manifest_update,
                 try_manifest_update,
             ) {
-                println!("WRAP::restore: failed with: {:?}", err);
+                log::error!("WRAP::restore: failed for game {} with: {:?}", game_name, err);
                 let _ = native_dialog::MessageDialog::new()
                     .set_title("Ludusavi Wrap Error")
                     .set_text(&format!(
@@ -900,15 +901,15 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             // execute commands
             //
             // TODO.2023-07-12 legendary returns immediately, handle this!
-            println!("WRAP::execute: commands to be executed: {:?}", commands);
+            log::debug!("WRAP::execute: commands to be executed: {:?}", commands);
             let result = Command::new(&commands[0]).args(&commands[1..]).status();
             match result {
                 Ok(status) => {
                     // TODO.2023-07-14 handle return status which indicate an error condition, e.g. != 0
-                    println!("WRAP::execute: Game command executed, returning status: {:#?}", status);
+                    log::debug!("WRAP::execute: Game command executed, returning status: {:#?}", status);
                 }
                 Err(err) => {
-                    println!("WRAP::execute: Game command execution failed with: {:#?}", err);
+                    log::error!("WRAP::execute: Game command execution failed with: {:#?}", err);
                     let _ = native_dialog::MessageDialog::new()
                         .set_title("Ludusavi Wrap Error")
                         .set_text(&format!(
@@ -926,10 +927,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             match title_finder.find_one(&[normalize_title(&game_name)], &None, &None, true, true, false) {
                 Some(name) => {
-                    println!("WRAP::backup: title_finder returns: {}", name);
+                    log::debug!("WRAP::backup: title_finder returns: {}", name);
                     game_name = name;
                 }
                 None => {
+                    log::error!("WRAP::backup: title_finder returned nothing for {}", game_name);
                     let _ = native_dialog::MessageDialog::new()
                         .set_title("Ludusavi Wrap Error")
                         .set_text(&format!(
@@ -957,12 +959,12 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 Ok(confirmation) => match confirmation {
                     true => {}
                     false => {
-                        println!("WRAP::backup: user rejected to backup.");
+                        log::info!("WRAP::backup: user rejected to backup.");
                         break 'wrap;
                     }
                 },
                 Err(err) => {
-                    println!("WRAP::backup: could not get user confirmation to backup: {:?}", err);
+                    log::error!("WRAP::backup: could not get user confirmation to backup: {:?}", err);
                     break 'wrap;
                 }
             };
@@ -992,7 +994,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 no_manifest_update,
                 try_manifest_update,
             ) {
-                println!("WRAP::backup: failed with: {:#?}", err);
+                log::error!("WRAP::backup: failed with: {:#?}", err);
                 let _ = native_dialog::MessageDialog::new()
                     .set_title("Ludusavi Wrap Error")
                     .set_text(&format!("Backup failed, aborting.\n\nError message:\n{:?}", err))

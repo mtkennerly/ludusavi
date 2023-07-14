@@ -13,25 +13,25 @@ pub struct GogGameInfo {
 pub struct HeroicGogdl;
 impl LaunchParser for HeroicGogdl {
     // TODO.2023-06-22 path separator linux specific
-    // TODO.2023-06-23 refactor println into logs
     fn parse(&self, commands: &[String]) -> Option<String> {
         let mut iter = commands.iter();
 
         if iter.find_position(|p| p.ends_with("gogdl")).is_none() {
-            println!("HeroicGogdl::parse: gogdl not found");
+            log::debug!("HeroicGogdl::parse: gogdl not found");
             return None;
         }
-        println!("HeroicGogdl::parse: gogdl found");
+        log::debug!("HeroicGogdl::parse: gogdl found");
 
         if iter.find_position(|p| p.ends_with("launch")).is_none() {
-            println!("HeroicGogdl::parse: launch not found");
+            log::debug!("HeroicGogdl::parse: launch not found");
             return None;
         }
         let game_dir = iter.next().unwrap();
         let game_id = iter.next().unwrap();
-        println!(
+        log::debug!(
             "HeroicGogdl::parse: gogdl launch found: dir = {}, id = {}",
-            game_dir, game_id
+            game_dir,
+            game_id
         );
 
         let gog_info_path_native = StrictPath::from(&format!("{}/gameinfo", game_dir));
@@ -47,7 +47,7 @@ impl LaunchParser for HeroicGogdl {
                     .unwrap_or_default()
                     .to_string();
                 if game_name.is_empty() {
-                    println!("HeroicGogdl::parse: Error reading {}", gog_info_path_native.interpret());
+                    log::debug!("HeroicGogdl::parse: Error reading {}", gog_info_path_native.interpret());
                     None
                 } else {
                     Some(game_name)
@@ -63,7 +63,7 @@ impl LaunchParser for HeroicGogdl {
                         let game_name = ggi.name;
                         match game_name.is_empty() {
                             true => {
-                                println!(
+                                log::debug!(
                                     "HeroicGogdl::parse: Error reading {}, no name entry found.",
                                     gog_info_path_windows.interpret()
                                 );
@@ -73,7 +73,7 @@ impl LaunchParser for HeroicGogdl {
                         }
                     }
                     Err(e) => {
-                        println!(
+                        log::debug!(
                             "HeroicGogdl::parse: Error reading {}: {:#?}",
                             gog_info_path_windows.interpret(),
                             e
