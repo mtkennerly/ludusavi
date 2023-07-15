@@ -317,7 +317,7 @@ impl FileTreeNode {
             for (value_name, value) in registry_values {
                 let mut full_keys = full_keys.clone();
                 full_keys.push(TreeNodeKey::RegistryKey(value_name.clone()));
-                let mut node = node
+                let node = node
                     .nodes
                     .entry(TreeNodeKey::RegistryValue(value_name.clone()))
                     .or_insert_with(|| {
