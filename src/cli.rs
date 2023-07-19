@@ -777,7 +777,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 commands
             );
             failed = true;
-
+            // TODO.2023-07-17 pass legendary path downwards
             // Determine game name
             //
             let mut game_name;
@@ -848,6 +848,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             // restore
             //
+            // TODO.2023-07-19 skip restoration if no suitable backup was found above
             // TODO.2023-07-12 detect if there are differences between backed up and actual saves
             let notification_result = native_dialog::MessageDialog::new()
                 .set_title("Ludusavi Wrap")

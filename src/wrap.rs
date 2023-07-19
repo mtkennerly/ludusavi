@@ -24,6 +24,8 @@ pub fn get_game_name_from_heroic_launch_commands(roots: &[RootsConfig], commands
     let detectors: Vec<Box<dyn LaunchParser>> =
         vec![Box::new(gogdl::HeroicGogdl {}), Box::new(legendary::Legendary {})];
 
+    // TODO.2023-07-19 check only applicable roots
+
     match detectors.iter().find_map(|parser| parser.parse(roots, commands)) {
         Some(game_name) => Ok(game_name),
         None => Err(Error::WrapCommandNotRecognized {

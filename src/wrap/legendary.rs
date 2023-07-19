@@ -1,9 +1,6 @@
 use itertools::Itertools;
 
-use crate::{
-    prelude::{run_command, Privacy},
-    resource::config::RootsConfig,
-};
+use crate::{resource::config::RootsConfig, scan::heroic::get_legendary_installed_games};
 
 use super::LaunchParser;
 
@@ -15,10 +12,9 @@ pub struct LegendaryGameInfo {
     // ignore everything else
 }
 
-// TODO.2023-07-14 refactor analog to gogdl to use get_legendary_games or alike from scan::launcher::heroic
 pub struct Legendary;
 impl LaunchParser for Legendary {
-    fn parse(&self, _roots: &[RootsConfig], commands: &[String]) -> Option<String> {
+    fn parse(&self, roots: &[RootsConfig], commands: &[String]) -> Option<String> {
         let mut iter = commands.iter();
 
         let legendary_command = match iter.find_position(|p| p.ends_with("legendary")) {
@@ -37,41 +33,15 @@ impl LaunchParser for Legendary {
         let game_id = iter.next().unwrap();
         log::debug!("Legendary::parse: legendary launch found: id = {}", game_id);
 
-        // Instead of reading from $HOME/.config/legendary/metadata/d8a4c98b5020483881eb7f0c3fc4cea3.json
-        // lets call legendary `list-installed --json` and do not rely on the metadata path.
-        match run_command(legendary_command, &["list-installed", "--json"], &[0], Privacy::Public) {
-            Ok(output) => {
-                log::debug!("Legendary::parse: legendary game information is: {:#?}", output.stdout);
-                match serde_json::from_str::<Vec<LegendaryGameInfo>>(&output.stdout) {
-                    Ok(game_list) => {
-                        log::debug!("Legendary::parse: legendary game list: {:?}", game_list);
-                        match game_list.iter().find(|gi| &gi.app_name == game_id) {
-                            Some(game_info) => Some(game_info.title.clone()),
-                            None => {
-                                log::debug!(
-                                    "Legendary::parse: could not find game with ID {} in list of installed games.",
-                                    game_id
-                                );
-                                None
-                            }
-                        }
-                    }
-                    Err(err) => {
-                        log::debug!(
-                            "Legendary::parse: failed to parse legendary game information: {:?}",
-                            err
-                        );
-                        None
-                    }
-                }
-            }
-            Err(err) => {
-                log::debug!(
-                    "Legendary::parse: could not invoke legendary to get game information: {:?}",
-                    err
-                );
-                None
-            }
-        }
+        // TODO.2023-07-14 filter for root.type?
+        roots.iter().find_map(|root| {
+            // TODO.2023-07-19 use some valid value for legendary parameter instead of None
+            get_legendary_installed_games(root, None)
+                .iter()
+                .find_map(|legendary_game| match legendary_game.app_name == *game_id {
+                    true => Some(legendary_game.title.clone()),
+                    false => None,
+                })
+        })
     }
 }

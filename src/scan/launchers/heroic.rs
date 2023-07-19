@@ -34,12 +34,12 @@ struct GogLibrary {
 }
 
 /// Deserialization of Legendary legendary/installed.json
-#[derive(serde::Deserialize)]
-struct LegendaryInstalledGame {
+#[derive(Clone, serde::Deserialize)]
+pub struct LegendaryInstalledGame {
     /// This is an opaque ID, not the human-readable title.
     #[serde(rename = "app_name")]
-    app_name: String,
-    title: String,
+    pub app_name: String,
+    pub title: String,
     platform: String,
     install_path: String,
 }
@@ -80,14 +80,12 @@ pub fn scan(
     games
 }
 
-fn detect_legendary_games(
+pub fn get_legendary_installed_games(
     root: &RootsConfig,
-    title_finder: &TitleFinder,
     legendary: Option<&StrictPath>,
-) -> HashMap<String, LauncherGame> {
-    let mut games = HashMap::new();
-
+) -> Vec<LegendaryInstalledGame> {
     log::trace!("detect_legendary_games searching for legendary config...");
+    let mut result: Vec<LegendaryInstalledGame> = Vec::new();
 
     let legendary_paths = match legendary {
         None => vec![
@@ -111,24 +109,7 @@ fn detect_legendary_games(
                     serde_json::from_str::<LegendaryInstalled>(&legendary_installed.read().unwrap_or_default())
                 {
                     for game in installed_games.0.values() {
-                        log::trace!(
-                            "detect_legendary_games found legendary game {} ({})",
-                            game.title,
-                            game.app_name
-                        );
-                        let official_title =
-                            title_finder.find_one(&[game.title.to_owned()], &None, &None, true, true, false);
-                        // process game from GamesConfig
-                        let prefix =
-                            find_prefix(&root.path, &game.title, &game.platform.to_lowercase(), &game.app_name);
-                        memorize_game(
-                            &mut games,
-                            &game.title,
-                            official_title,
-                            StrictPath::new(game.install_path.clone()),
-                            prefix,
-                            &game.platform,
-                        );
+                        result.push(game.clone());
                     }
                 }
             } else {
@@ -140,10 +121,39 @@ fn detect_legendary_games(
         }
     }
 
+    result
+}
+
+fn detect_legendary_games(
+    root: &RootsConfig,
+    title_finder: &TitleFinder,
+    legendary: Option<&StrictPath>,
+) -> HashMap<String, LauncherGame> {
+    let mut games = HashMap::new();
+
+    for game in get_legendary_installed_games(root, legendary) {
+        log::trace!(
+            "detect_legendary_games found legendary game {} ({})",
+            game.title,
+            game.app_name
+        );
+        let official_title = title_finder.find_one(&[game.title.to_owned()], &None, &None, true, true, false);
+        // process game from GamesConfig
+        let prefix = find_prefix(&root.path, &game.title, &game.platform.to_lowercase(), &game.app_name);
+        memorize_game(
+            &mut games,
+            &game.title,
+            official_title,
+            StrictPath::new(game.install_path.clone()),
+            prefix,
+            &game.platform,
+        );
+    }
+
     games
 }
 
-pub fn get_gog_library_games(root: &RootsConfig) -> Option<Vec<GogLibraryGame>> {
+pub fn get_gog_games_library(root: &RootsConfig) -> Option<Vec<GogLibraryGame>> {
     log::trace!(
         "get_gog_library searching for GOG information in {}",
         root.path.interpret()
@@ -194,8 +204,8 @@ fn detect_gog_games(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<S
         root.path.interpret()
     );
 
-    let game_titles: HashMap<String, String> = match get_gog_library_games(root) {
-        Some(gog_library_games) => gog_library_games
+    let game_titles: HashMap<String, String> = match get_gog_games_library(root) {
+        Some(gog_games_library) => gog_games_library
             .iter()
             .map(|game| (game.app_name.clone(), game.title.clone()))
             .collect(),
