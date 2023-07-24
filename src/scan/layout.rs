@@ -1386,7 +1386,7 @@ impl GameLayout {
         }
 
         if !files.is_empty() || registry.hash.is_some() {
-            let mut backup = self.mapping.backups.back_mut().unwrap();
+            let backup = self.mapping.backups.back_mut().unwrap();
             backup.files = files;
             backup.registry = registry;
             self.save();
