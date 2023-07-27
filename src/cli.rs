@@ -793,7 +793,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                                 let _ = native_dialog::MessageDialog::new()
                                 .set_title("Ludusavi Wrap Error")
                                 .set_text(
-                                    &format!("Could not determine game name from launch commands, aborting. \n\n Error message: {:?}", msg))
+                                    &format!("Could not determine game name from launch commands, aborting.\n\nError message: {:?}", msg))
                                 .set_type(native_dialog::MessageType::Error)
                                 .show_alert();
                                 break 'wrap;
@@ -811,6 +811,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             // Hell" as known to ludusavi
             //
             let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
+            let mut skip_restore = false;
             let title_finder = TitleFinder::new(
                 &manifest,
                 &BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone()),
@@ -824,14 +825,14 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     match native_dialog::MessageDialog::new()
                         .set_title("Ludusavi Wrap")
                         .set_text(&format!(
-                            "Could not find a suitable backup for {} to restore.\n\nContinue to launch game anyways?",
+                            "Could not find a restorable backup for {}.\n\nContinue to launch game anyways?",
                             game_name
                         ))
                         .set_type(native_dialog::MessageType::Warning)
                         .show_confirm()
                     {
                         Ok(confirmation) => match confirmation {
-                            true => {}
+                            true => skip_restore = true,
                             false => {
                                 log::info!("WRAP::restore: user rejected to continue without restoration.");
                                 break 'wrap;
@@ -848,57 +849,58 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             // restore
             //
-            // TODO.2023-07-19 skip restoration if no suitable backup was found above
             // TODO.2023-07-12 detect if there are differences between backed up and actual saves
-            let notification_result = native_dialog::MessageDialog::new()
-                .set_title("Ludusavi Wrap")
-                .set_text(&format!(
-                    "About to restore backup for {}, continue (YES) or abort (NO)?",
-                    game_name
-                ))
-                .set_type(native_dialog::MessageType::Info)
-                .show_confirm();
-            log::debug!("WRAP::restore: user confirmation response: {:?}", notification_result);
-            match notification_result {
-                Ok(confirmation) => match confirmation {
-                    true => {}
-                    false => {
-                        log::info!("WRAP::restore: user rejected to restore");
+            if !skip_restore {
+                let notification_result = native_dialog::MessageDialog::new()
+                    .set_title("Ludusavi Wrap")
+                    .set_text(&format!(
+                        "About to restore backup for {}.\n\nContinue (YES) or abort (NO)?",
+                        game_name
+                    ))
+                    .set_type(native_dialog::MessageType::Info)
+                    .show_confirm();
+                log::debug!("WRAP::restore: user confirmation response: {:?}", notification_result);
+                match notification_result {
+                    Ok(confirmation) => match confirmation {
+                        true => {}
+                        false => {
+                            log::info!("WRAP::restore: user rejected to restore");
+                            break 'wrap;
+                        }
+                    },
+                    Err(err) => {
+                        log::error!("WRAP::restore: could not get user confirmation to restore: {:?}", err);
                         break 'wrap;
                     }
-                },
-                Err(err) => {
-                    log::error!("WRAP::restore: could not get user confirmation to restore: {:?}", err);
+                };
+                if let Err(err) = run(
+                    Subcommand::Restore {
+                        games: vec![game_name.clone()],
+                        force: true,
+                        // everything else is default
+                        // force: Default::default(),
+                        preview: Default::default(),
+                        path: Default::default(),
+                        api: Default::default(),
+                        sort: Default::default(),
+                        backup: Default::default(),
+                        cloud_sync: Default::default(),
+                        no_cloud_sync: Default::default(),
+                    },
+                    no_manifest_update,
+                    try_manifest_update,
+                ) {
+                    log::error!("WRAP::restore: failed for game {} with: {:?}", game_name, err);
+                    let _ = native_dialog::MessageDialog::new()
+                        .set_title("Ludusavi Wrap Error")
+                        .set_text(&format!(
+                            "Savegame restoration failed, aborting.\n\nError message:\n{:?}",
+                            err
+                        ))
+                        .set_type(native_dialog::MessageType::Error)
+                        .show_alert();
                     break 'wrap;
                 }
-            };
-            if let Err(err) = run(
-                Subcommand::Restore {
-                    games: vec![game_name.clone()],
-                    force: true,
-                    // everything else is default
-                    // force: Default::default(),
-                    preview: Default::default(),
-                    path: Default::default(),
-                    api: Default::default(),
-                    sort: Default::default(),
-                    backup: Default::default(),
-                    cloud_sync: Default::default(),
-                    no_cloud_sync: Default::default(),
-                },
-                no_manifest_update,
-                try_manifest_update,
-            ) {
-                log::error!("WRAP::restore: failed for game {} with: {:?}", game_name, err);
-                let _ = native_dialog::MessageDialog::new()
-                    .set_title("Ludusavi Wrap Error")
-                    .set_text(&format!(
-                        "Savegame restoration failed, aborting.\n\nError message:\n{:?}",
-                        err
-                    ))
-                    .set_type(native_dialog::MessageType::Error)
-                    .show_alert();
-                break 'wrap;
             }
 
             //
@@ -954,7 +956,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let notification_result = native_dialog::MessageDialog::new()
                 .set_title("Ludusavi Wrap")
                 .set_text(&format!(
-                    "About to backup savegames for {}, continue (YES) or abort (NO)?",
+                    "About to backup savegames for {}\n\nContinue (YES) or abort (NO)?",
                     game_name
                 ))
                 .set_type(native_dialog::MessageType::Info)
