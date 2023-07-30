@@ -433,6 +433,7 @@ where
         // .width(bounds.width.round() as u16)
         .padding(padding)
         .font(font)
+        .text_shaping(text::Shaping::Advanced)
         .style(style);
 
         if let Some(text_size) = text_size {

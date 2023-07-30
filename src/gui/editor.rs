@@ -10,7 +10,7 @@ use crate::{
         common::{BackupPhase, BrowseSubject, Message, ScrollSubject, UndoSubject},
         shortcuts::TextHistories,
         style,
-        widget::{Checkbox, Column, Container, PickList, Row, Text, Tooltip},
+        widget::{checkbox, pick_list, text, Column, Container, Row, Tooltip},
     },
     lang::TRANSLATOR,
     resource::{
@@ -22,7 +22,7 @@ use crate::{
 pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard::Modifiers) -> Container<'a> {
     let mut content = Column::new().width(Length::Fill).spacing(5);
     if config.roots.is_empty() {
-        content = content.push(Text::new(TRANSLATOR.no_roots_are_configured()));
+        content = content.push(text(TRANSLATOR.no_roots_are_configured()));
     } else {
         content = config.roots.iter().enumerate().fold(content, |parent, (i, root)| {
             parent.push(
@@ -32,7 +32,7 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
                     .push(button::move_down(Message::EditedRoot, i, config.roots.len()))
                     .push(histories.input(UndoSubject::Root(i)))
                     .push(
-                        PickList::new(Store::ALL, Some(root.store), move |v| Message::SelectedRootStore(i, v))
+                        pick_list(Store::ALL, Some(root.store), move |v| Message::SelectedRootStore(i, v))
                             .style(style::PickList::Primary),
                     )
                     .push(button::choose_folder(BrowseSubject::Root(i), modifiers))
@@ -70,7 +70,7 @@ pub fn redirect<'a>(config: &Config, histories: &TextHistories, modifiers: &keyb
                             config.redirects.len(),
                         ))
                         .push(
-                            PickList::new(RedirectKind::ALL, Some(redirects[i].kind), move |v| {
+                            pick_list(RedirectKind::ALL, Some(redirects[i].kind), move |v| {
                                 Message::SelectedRedirectKind(i, v)
                             })
                             .style(style::PickList::Primary),
@@ -117,7 +117,7 @@ pub fn custom_games<'a>(
                                         .spacing(20)
                                         .align_items(Alignment::Center)
                                         .push(
-                                            Checkbox::new("", config.is_custom_game_enabled(i), move |enabled| {
+                                            checkbox("", config.is_custom_game_enabled(i), move |enabled| {
                                                 Message::ToggleCustomGameEnabled { index: i, enabled }
                                             })
                                             .spacing(0)
@@ -152,11 +152,7 @@ pub fn custom_games<'a>(
                         )
                         .push(
                             Row::new()
-                                .push(
-                                    Column::new()
-                                        .width(130)
-                                        .push(Text::new(TRANSLATOR.custom_files_label())),
-                                )
+                                .push(Column::new().width(130).push(text(TRANSLATOR.custom_files_label())))
                                 .push(
                                     x.files
                                         .iter()
@@ -186,11 +182,7 @@ pub fn custom_games<'a>(
                         )
                         .push(
                             Row::new()
-                                .push(
-                                    Column::new()
-                                        .width(130)
-                                        .push(Text::new(TRANSLATOR.custom_registry_label())),
-                                )
+                                .push(Column::new().width(130).push(text(TRANSLATOR.custom_registry_label())))
                                 .push(
                                     x.registry
                                         .iter()
@@ -240,11 +232,7 @@ pub fn ignored_items<'a>(config: &Config, histories: &TextHistories, modifiers: 
                     .spacing(5)
                     .push(
                         Row::new()
-                            .push(
-                                Column::new()
-                                    .width(100)
-                                    .push(Text::new(TRANSLATOR.custom_files_label())),
-                            )
+                            .push(Column::new().width(100).push(text(TRANSLATOR.custom_files_label())))
                             .push(
                                 config
                                     .backup
@@ -275,11 +263,7 @@ pub fn ignored_items<'a>(config: &Config, histories: &TextHistories, modifiers: 
                     )
                     .push(
                         Row::new()
-                            .push(
-                                Column::new()
-                                    .width(100)
-                                    .push(Text::new(TRANSLATOR.custom_registry_label())),
-                            )
+                            .push(Column::new().width(100).push(text(TRANSLATOR.custom_registry_label())))
                             .push(
                                 config
                                     .backup

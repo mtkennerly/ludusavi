@@ -1,3 +1,14 @@
+## Unreleased
+
+* Added:
+  * GUI: Thanks to updates in [Iced](https://github.com/iced-rs/iced),
+    there is now much better support for non-ASCII characters.
+    This means that several translations are now properly supported:
+    Simplified Chinese, Japanese, Korean, and Thai.
+
+    Unfortunately, there are still technical limitations with Arabic,
+    so that translation remains experimental via the config file.
+
 ## v0.20.0 (2023-07-10)
 
 * Added:

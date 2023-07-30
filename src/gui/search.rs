@@ -5,7 +5,7 @@ use crate::{
     gui::{
         common::{Message, Screen, UndoSubject},
         shortcuts::TextHistories,
-        widget::{Checkbox, Column, Element, IcedParentExt, PickList, Row, Text},
+        widget::{checkbox, pick_list, text, Column, Element, IcedParentExt, Row},
     },
     lang::TRANSLATOR,
     scan::{
@@ -40,13 +40,13 @@ fn template<'a, T: 'static + Default + Copy + Eq + PartialEq + ToString>(
         .spacing(10)
         .align_items(Alignment::Center)
         .push(
-            Checkbox::new("", filter.active, move |enabled| Message::ToggledSearchFilter {
+            checkbox("", filter.active, move |enabled| Message::ToggledSearchFilter {
                 filter: kind,
                 enabled,
             })
             .spacing(0),
         )
-        .push(PickList::new(options, Some(filter.choice), message))
+        .push(pick_list(options, Some(filter.choice), message))
         .into()
 }
 
@@ -90,7 +90,7 @@ impl FilterComponent {
                         .padding([0, 20, 10, 20])
                         .spacing(20)
                         .align_items(Alignment::Center)
-                        .push(Text::new(TRANSLATOR.filter_label()))
+                        .push(text(TRANSLATOR.filter_label()))
                         .push(histories.input(match screen {
                             Screen::Restore => UndoSubject::RestoreSearchGameName,
                             _ => UndoSubject::BackupSearchGameName,

@@ -8,7 +8,7 @@ use crate::{
         common::{Message, TreeNodeKey},
         icon::Icon,
         style,
-        widget::{Button, Checkbox, Column, Container, IcedParentExt, Row, Text},
+        widget::{checkbox, text, Button, Column, Container, IcedParentExt, Row},
     },
     lang::TRANSLATOR,
     path::StrictPath,
@@ -112,7 +112,7 @@ impl FileTreeNode {
             let path = self.path.clone();
             Some(
                 Container::new(
-                    Checkbox::new("", !self.ignored, move |enabled| match &path {
+                    checkbox("", !self.ignored, move |enabled| match &path {
                         FileTreeNodePath::File(path) => Message::ToggleSpecificGamePathIgnored {
                             name: game_name.clone(),
                             path: path.clone(),
@@ -160,7 +160,7 @@ impl FileTreeNode {
                         ),
                     })
                     .push_some(make_enabler)
-                    .push(Text::new(label))
+                    .push(text(label))
                     .push_some(|| {
                         let badge = match self.change {
                             ScanChange::Same | ScanChange::Unknown => return None,
@@ -233,13 +233,11 @@ impl FileTreeNode {
                             .width(25),
                         )
                         .push_some(make_enabler)
-                        .push(Text::new(
-                            if label.is_empty() && self.node_type == FileTreeNodeType::File {
-                                "/".to_string()
-                            } else {
-                                label
-                            },
-                        ))
+                        .push(text(if label.is_empty() && self.node_type == FileTreeNodeType::File {
+                            "/".to_string()
+                        } else {
+                            label
+                        }))
                         .push_some(|| {
                             if let FileTreeNodePath::File(path) = &self.path {
                                 return Some(

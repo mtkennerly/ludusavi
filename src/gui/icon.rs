@@ -1,6 +1,6 @@
 use iced::{alignment, font, Font};
 
-use crate::gui::widget::Text;
+use crate::gui::widget::{text, Text};
 
 pub const ICONS_DATA: &[u8] = include_bytes!("../../assets/MaterialIcons-Regular.ttf");
 // pub const ICONS: Font = Font::External {
@@ -86,7 +86,7 @@ impl Icon {
     }
 
     pub fn text(self) -> Text<'static> {
-        Text::new(self.as_char().to_string())
+        text(self.as_char().to_string())
             .font(ICONS)
             .size(20)
             .width(60)
@@ -97,7 +97,7 @@ impl Icon {
     }
 
     pub fn text_small(self) -> Text<'static> {
-        Text::new(self.as_char().to_string())
+        text(self.as_char().to_string())
             .font(ICONS)
             .size(15)
             .width(15)

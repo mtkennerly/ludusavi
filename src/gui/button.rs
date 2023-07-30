@@ -8,7 +8,7 @@ use crate::{
         },
         icon::Icon,
         style,
-        widget::{Button, Element, IcedButtonExt, Text},
+        widget::{text, Button, Element, IcedButtonExt, Text},
     },
     lang::TRANSLATOR,
     prelude::{Finality, SyncDirection},
@@ -22,7 +22,7 @@ fn template(content: Text, action: Option<Message>, style: Option<style::Button>
 }
 
 pub fn primary<'a>(content: String, action: Option<Message>) -> Element<'a> {
-    Button::new(Text::new(content).horizontal_alignment(alignment::Horizontal::Center))
+    Button::new(text(content).horizontal_alignment(alignment::Horizontal::Center))
         .on_press_some(action)
         .style(style::Button::Primary)
         .width(125)
@@ -30,7 +30,7 @@ pub fn primary<'a>(content: String, action: Option<Message>) -> Element<'a> {
 }
 
 pub fn negative<'a>(content: String, action: Option<Message>) -> Element<'a> {
-    Button::new(Text::new(content).horizontal_alignment(alignment::Horizontal::Center))
+    Button::new(text(content).horizontal_alignment(alignment::Horizontal::Center))
         .on_press_some(action)
         .style(style::Button::Negative)
         .width(125)
@@ -180,13 +180,13 @@ pub fn previous_page<'a>(action: fn(usize) -> Message, page: usize) -> Element<'
 pub fn toggle_all_scanned_games<'a>(all_enabled: bool) -> Element<'a> {
     if all_enabled {
         template(
-            Text::new(TRANSLATOR.deselect_all_button()).width(125),
+            text(TRANSLATOR.deselect_all_button()).width(125),
             Some(Message::DeselectAllGames),
             None,
         )
     } else {
         template(
-            Text::new(TRANSLATOR.select_all_button()).width(125),
+            text(TRANSLATOR.select_all_button()).width(125),
             Some(Message::SelectAllGames),
             None,
         )
@@ -196,13 +196,13 @@ pub fn toggle_all_scanned_games<'a>(all_enabled: bool) -> Element<'a> {
 pub fn toggle_all_custom_games<'a>(all_enabled: bool) -> Element<'a> {
     if all_enabled {
         template(
-            Text::new(TRANSLATOR.disable_all_button()).width(125),
+            text(TRANSLATOR.disable_all_button()).width(125),
             Some(Message::DeselectAllGames),
             None,
         )
     } else {
         template(
-            Text::new(TRANSLATOR.enable_all_button()).width(125),
+            text(TRANSLATOR.enable_all_button()).width(125),
             Some(Message::SelectAllGames),
             None,
         )
@@ -211,36 +211,32 @@ pub fn toggle_all_custom_games<'a>(all_enabled: bool) -> Element<'a> {
 
 pub fn add_game<'a>() -> Element<'a> {
     template(
-        Text::new(TRANSLATOR.add_game_button()).width(125),
+        text(TRANSLATOR.add_game_button()).width(125),
         Some(Message::EditedCustomGame(EditAction::Add)),
         None,
     )
 }
 
 pub fn open_url<'a>(label: String, url: String) -> Element<'a> {
-    template(Text::new(label).width(125), Some(Message::OpenUrl(url)), None)
+    template(text(label).width(125), Some(Message::OpenUrl(url)), None)
 }
 
 pub fn nav<'a>(screen: Screen, current_screen: Screen) -> Button<'a> {
-    let text = match screen {
+    let label = match screen {
         Screen::Backup => TRANSLATOR.nav_backup_button(),
         Screen::Restore => TRANSLATOR.nav_restore_button(),
         Screen::CustomGames => TRANSLATOR.nav_custom_games_button(),
         Screen::Other => TRANSLATOR.nav_other_button(),
     };
 
-    Button::new(
-        Text::new(text)
-            .size(14)
-            .horizontal_alignment(alignment::Horizontal::Center),
-    )
-    .on_press(Message::SwitchScreen(screen))
-    .padding([5, 20, 5, 20])
-    .style(if current_screen == screen {
-        style::Button::NavButtonActive
-    } else {
-        style::Button::NavButtonInactive
-    })
+    Button::new(text(label).size(14).horizontal_alignment(alignment::Horizontal::Center))
+        .on_press(Message::SwitchScreen(screen))
+        .padding([5, 20, 5, 20])
+        .style(if current_screen == screen {
+            style::Button::NavButtonActive
+        } else {
+            style::Button::NavButtonInactive
+        })
 }
 
 pub fn upload<'a>(operation: &Operation) -> Element<'a> {
@@ -293,7 +289,7 @@ pub fn download<'a>(operation: &Operation) -> Element<'a> {
 
 pub fn backup<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        Text::new(match ongoing {
+        text(match ongoing {
             Operation::Backup {
                 finality: Finality::Final,
                 cancelling: false,
@@ -330,7 +326,7 @@ pub fn backup<'a>(ongoing: &Operation) -> Element<'a> {
 
 pub fn backup_preview<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        Text::new(match ongoing {
+        text(match ongoing {
             Operation::Backup {
                 finality: Finality::Preview,
                 cancelling: false,
@@ -371,7 +367,7 @@ pub fn backup_preview<'a>(ongoing: &Operation) -> Element<'a> {
 
 pub fn restore<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        Text::new(match ongoing {
+        text(match ongoing {
             Operation::Restore {
                 finality: Finality::Final,
                 cancelling: false,
@@ -408,7 +404,7 @@ pub fn restore<'a>(ongoing: &Operation) -> Element<'a> {
 
 pub fn restore_preview<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        Text::new(match ongoing {
+        text(match ongoing {
             Operation::Restore {
                 finality: Finality::Preview,
                 cancelling: false,
@@ -448,7 +444,7 @@ pub fn restore_preview<'a>(ongoing: &Operation) -> Element<'a> {
 
 pub fn validate_backups<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        Text::new(match ongoing {
+        text(match ongoing {
             Operation::ValidateBackups { cancelling: false, .. } => TRANSLATOR.cancel_button(),
             Operation::ValidateBackups { cancelling: true, .. } => TRANSLATOR.cancelling_button(),
             _ => TRANSLATOR.validate_button(),
