@@ -194,7 +194,7 @@ pub enum Message {
     OpenUrlFailure {
         url: String,
     },
-    KeyboardEvent(iced_native::keyboard::Event),
+    KeyboardEvent(iced::keyboard::Event),
     EditedFullRetention(u8),
     EditedDiffRetention(u8),
     SelectedBackupToRestore {
@@ -215,7 +215,7 @@ pub enum Message {
     UndoRedo(crate::gui::undoable::Action, UndoSubject),
     Scroll {
         subject: ScrollSubject,
-        position: iced_native::widget::scrollable::RelativeOffset,
+        position: iced::widget::scrollable::RelativeOffset,
     },
     EditedBackupComment {
         game: String,
@@ -669,7 +669,7 @@ impl ScrollSubject {
         }
     }
 
-    pub fn id(&self) -> iced_native::widget::scrollable::Id {
+    pub fn id(&self) -> iced::widget::scrollable::Id {
         match self {
             Self::Backup => crate::gui::widget::id::backup_scroll(),
             Self::Restore => crate::gui::widget::id::restore_scroll(),
@@ -687,9 +687,9 @@ impl ScrollSubject {
             .height(Length::Fill)
             .style(crate::gui::style::Scrollable)
             .id(self.id())
-            .on_scroll(move |position| Message::Scroll {
+            .on_scroll(move |viewport| Message::Scroll {
                 subject: self,
-                position,
+                position: viewport.relative_offset(),
             })
     }
 }

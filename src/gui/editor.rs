@@ -1,5 +1,8 @@
-use iced::{keyboard, widget::Space, Alignment, Length};
-use iced_native::widget::tooltip;
+use iced::{
+    keyboard,
+    widget::{tooltip, Space},
+    Alignment, Length,
+};
 
 use crate::{
     gui::{

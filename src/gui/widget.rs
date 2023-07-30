@@ -74,12 +74,12 @@ pub fn number_input<'a>(
             .push(Text::new(label))
             .push(Text::new(value.to_string()))
             .push({
-                Button::new(Icon::Remove.as_text().width(Length::Shrink))
+                Button::new(Icon::Remove.text().width(Length::Shrink))
                     .on_press_if(|| &value > range.start(), || (change)(value - 1))
                     .style(style::Button::Negative)
             })
             .push({
-                Button::new(Icon::Add.as_text().width(Length::Shrink))
+                Button::new(Icon::Add.text().width(Length::Shrink))
                     .on_press_if(|| &value < range.end(), || (change)(value + 1))
                     .style(style::Button::Primary)
             }),

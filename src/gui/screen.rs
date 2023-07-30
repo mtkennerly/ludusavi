@@ -37,11 +37,13 @@ fn template(content: Column) -> Element {
 }
 
 fn make_status_row<'a>(status: &OperationStatus, duplication: Duplication) -> Row<'a> {
+    let size = 25;
+
     Row::new()
         .padding([0, 20, 0, 20])
         .align_items(Alignment::Center)
         .spacing(15)
-        .push(Text::new(TRANSLATOR.processed_games(status)).size(35))
+        .push(Text::new(TRANSLATOR.processed_games(status)).size(size))
         .push_if(
             || status.changed_games.new > 0,
             || Badge::new_entry_with_count(status.changed_games.new).view(),
@@ -50,8 +52,8 @@ fn make_status_row<'a>(status: &OperationStatus, duplication: Duplication) -> Ro
             || status.changed_games.different > 0,
             || Badge::changed_entry_with_count(status.changed_games.different).view(),
         )
-        .push(Text::new("|").size(35))
-        .push(Text::new(TRANSLATOR.processed_bytes(status)).size(35))
+        .push(Text::new("|").size(size))
+        .push(Text::new(TRANSLATOR.processed_bytes(status)).size(size))
         .push_if(
             || !duplication.resolved(),
             || Badge::new(&TRANSLATOR.badge_duplicates()).view(),
@@ -481,7 +483,7 @@ pub fn other<'a>(
                                         .push(histories.input(UndoSubject::RcloneExecutable))
                                         .push_if(
                                             || !is_rclone_valid,
-                                            || Icon::Error.as_text().width(Length::Shrink).style(style::Text::Failure),
+                                            || Icon::Error.text().width(Length::Shrink).style(style::Text::Failure),
                                         )
                                         .push(button::choose_file(BrowseFileSubject::RcloneExecutable, modifiers))
                                         .push(histories.input(UndoSubject::RcloneArguments)),
@@ -540,7 +542,7 @@ pub fn other<'a>(
                                                         || !is_cloud_path_valid,
                                                         || {
                                                             Icon::Error
-                                                                .as_text()
+                                                                .text()
                                                                 .width(Length::Shrink)
                                                                 .style(style::Text::Failure)
                                                         },

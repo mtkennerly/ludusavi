@@ -1,9 +1,12 @@
-use iced::keyboard::KeyCode;
-use iced_native::{
+use iced::{
+    advanced::{
+        layout, renderer,
+        widget::{Operation, Tree},
+        Clipboard, Layout, Shell, Widget,
+    },
     event::{self, Event},
-    layout, mouse, overlay, renderer,
-    widget::{Operation, Tree},
-    Clipboard, Element, Layout, Length, Point, Rectangle, Shell, Widget,
+    keyboard::KeyCode,
+    mouse, overlay, Element, Length, Rectangle,
 };
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -41,7 +44,7 @@ where
 impl<'a, Message, Renderer, F> Widget<Message, Renderer> for Undoable<'a, Message, Renderer, F>
 where
     Message: Clone,
-    Renderer: iced_native::Renderer,
+    Renderer: iced::advanced::Renderer,
     F: Fn(Action) -> Message + 'a,
 {
     fn children(&self) -> Vec<Tree> {
@@ -81,15 +84,16 @@ where
         tree: &mut Tree,
         event: Event,
         layout: Layout<'_>,
-        cursor_position: Point,
+        cursor: mouse::Cursor,
         renderer: &Renderer,
         clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
+        viewport: &Rectangle,
     ) -> event::Status {
         if let Event::Keyboard(iced::keyboard::Event::KeyPressed { key_code, modifiers }) = event {
             let focused = tree.children[0]
                 .state
-                .downcast_ref::<iced_native::widget::text_input::State>()
+                .downcast_ref::<iced::widget::text_input::State>()
                 .is_focused();
             if focused {
                 match (key_code, modifiers.command(), modifiers.shift()) {
@@ -110,10 +114,11 @@ where
             &mut tree.children[0],
             event,
             layout,
-            cursor_position,
+            cursor,
             renderer,
             clipboard,
             shell,
+            viewport,
         )
     }
 
@@ -121,7 +126,7 @@ where
         &self,
         tree: &Tree,
         layout: Layout<'_>,
-        cursor_position: Point,
+        cursor_position: mouse::Cursor,
         viewport: &Rectangle,
         renderer: &Renderer,
     ) -> mouse::Interaction {
@@ -137,18 +142,12 @@ where
         theme: &Renderer::Theme,
         style: &renderer::Style,
         layout: Layout<'_>,
-        cursor_position: Point,
+        cursor: mouse::Cursor,
         viewport: &Rectangle,
     ) {
-        self.content.as_widget().draw(
-            &tree.children[0],
-            renderer,
-            theme,
-            style,
-            layout,
-            cursor_position,
-            viewport,
-        )
+        self.content
+            .as_widget()
+            .draw(&tree.children[0], renderer, theme, style, layout, cursor, viewport)
     }
 
     fn overlay<'b>(
@@ -166,7 +165,7 @@ where
 impl<'a, Message, Renderer, F> From<Undoable<'a, Message, Renderer, F>> for Element<'a, Message, Renderer>
 where
     Message: 'a + Clone,
-    Renderer: iced_native::Renderer + 'a,
+    Renderer: iced::advanced::Renderer + 'a,
     F: Fn(Action) -> Message + 'a,
 {
     fn from(undoable: Undoable<'a, Message, Renderer, F>) -> Self {

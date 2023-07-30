@@ -678,7 +678,7 @@ impl Rclone {
 }
 
 pub mod rclone_monitor {
-    use iced_native::{
+    use iced::{
         futures::{channel::mpsc, StreamExt},
         subscription::{self, Subscription},
     };

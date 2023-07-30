@@ -164,7 +164,7 @@ impl GameListEntry {
                                 .and_then(|backup| backup.comment().as_ref())
                                 .map(|comment| {
                                     Tooltip::new(
-                                        Icon::Comment.as_text().width(Length::Shrink),
+                                        Icon::Comment.text().width(Length::Shrink),
                                         comment,
                                         tooltip::Position::Top,
                                     )
@@ -183,9 +183,10 @@ impl GameListEntry {
                                 })
                         })
                         .push_some(|| {
-                            self.scan_info.backup.as_ref().and_then(|backup| {
-                                backup.locked().then_some(Icon::Lock.into_text().width(Length::Shrink))
-                            })
+                            self.scan_info
+                                .backup
+                                .as_ref()
+                                .and_then(|backup| backup.locked().then_some(Icon::Lock.text().width(Length::Shrink)))
                         })
                         .push(
                             Row::new()
@@ -249,7 +250,7 @@ impl GameListEntry {
                                         None
                                     };
                                     if let Some(action) = action {
-                                        let button = Button::new(action.icon().into_text().width(45))
+                                        let button = Button::new(action.icon().text().width(45))
                                             .on_press_if(
                                                 || !operating,
                                                 || Message::GameAction {
