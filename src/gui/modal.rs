@@ -11,7 +11,7 @@ use crate::{
         common::{BackupPhase, Message, RestorePhase, ScrollSubject, UndoSubject},
         shortcuts::TextHistories,
         style,
-        widget::{Column, Container, Element, IcedParentExt, PickList, Row, Space, Text},
+        widget::{pick_list, text, Column, Container, Element, IcedParentExt, Row, Space},
     },
     lang::TRANSLATOR,
     prelude::{Error, Finality, SyncDirection},
@@ -57,7 +57,7 @@ impl ModalField {
 
         Row::new()
             .align_items(Alignment::Center)
-            .push(Text::new(label).width(150))
+            .push(text(label).width(150))
             .push(histories.input(UndoSubject::ModalField(kind)))
     }
 
@@ -67,9 +67,9 @@ impl ModalField {
     {
         Row::new()
             .align_items(Alignment::Center)
-            .push(Text::new(label).width(150))
+            .push(text(label).width(150))
             .push(
-                Container::new(PickList::new(choices, Some(*value), move |x| {
+                Container::new(pick_list(choices, Some(*value), move |x| {
                     Message::EditedModalField(change(x))
                 }))
                 .width(Length::Fill),
@@ -331,7 +331,7 @@ impl Modal {
             .spacing(15)
             .padding([0, 10, 0, 0])
             .align_items(Alignment::Center)
-            .push(Text::new(self.text(config)));
+            .push(text(self.text(config)));
 
         match self {
             Self::Error { .. }
@@ -344,7 +344,7 @@ impl Modal {
             | Self::UpdatingManifest => (),
             Self::BackupValidation { games } => {
                 for game in games.iter().sorted() {
-                    col = col.push(Text::new(game))
+                    col = col.push(text(game))
                 }
             }
             modal @ Self::ConfirmCloudSync {
@@ -363,8 +363,8 @@ impl Modal {
                                 Row::new()
                                     .spacing(20)
                                     .align_items(Alignment::Center)
-                                    .push(Text::new(TRANSLATOR.change_count_label(changes.len())))
-                                    .push_if(|| changes.is_empty() && !done, || Text::new(TRANSLATOR.loading()))
+                                    .push(text(TRANSLATOR.change_count_label(changes.len())))
+                                    .push_if(|| changes.is_empty() && !done, || text(TRANSLATOR.loading()))
                                     .push(Space::new(Length::Fill, Length::Shrink))
                                     .push(button::previous_page(Message::ModalChangePage, *page))
                                     .push(button::next_page(
@@ -387,7 +387,7 @@ impl Modal {
                                                 .spacing(20)
                                                 .align_items(Alignment::Start)
                                                 .push(Badge::scan_change(*change).view())
-                                                .push(Text::new(path)),
+                                                .push(text(path)),
                                         )
                                     },
                                 ),

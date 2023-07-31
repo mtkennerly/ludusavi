@@ -4,7 +4,7 @@ use iced::alignment;
 
 use crate::gui::{
     style,
-    widget::{Container, Text},
+    widget::{text, Container},
 };
 
 pub struct Notification {
@@ -36,7 +36,7 @@ impl Notification {
 
     pub fn view(&self) -> Container<'static> {
         Container::new(
-            Container::new(Text::new(self.text.clone()))
+            Container::new(text(self.text.clone()))
                 .padding([3, 40])
                 .align_x(alignment::Horizontal::Center)
                 .align_y(alignment::Vertical::Center)

@@ -74,7 +74,7 @@ pub struct App {
     timed_notification: Option<Notification>,
     scroll_offsets: HashMap<ScrollSubject, scrollable::RelativeOffset>,
     text_histories: TextHistories,
-    rclone_monitor_sender: Option<iced_native::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
+    rclone_monitor_sender: Option<iced::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
     exiting: bool,
     modifiers: keyboard::Modifiers,
 }
@@ -1137,8 +1137,10 @@ impl Application for App {
 
         log::debug!("Config on startup: {config:?}");
 
-        let command = if flags.update_manifest {
-            Command::perform(
+        let mut commands =
+            vec![iced::font::load(std::borrow::Cow::Borrowed(crate::gui::icon::ICONS_DATA)).map(|_| Message::Ignore)];
+        if flags.update_manifest {
+            commands.push(Command::perform(
                 async move {
                     tokio::task::spawn_blocking(move || Manifest::update(manifest_config, manifest_cache, false)).await
                 },
@@ -1146,10 +1148,8 @@ impl Application for App {
                     Ok(x) => Message::ManifestUpdated(x),
                     Err(_) => Message::Ignore,
                 },
-            )
-        } else {
-            Command::none()
-        };
+            ));
+        }
 
         (
             Self {
@@ -1163,7 +1163,7 @@ impl Application for App {
                 text_histories,
                 ..Self::default()
             },
-            command,
+            Command::batch(commands),
         )
     }
 
@@ -2312,11 +2312,9 @@ impl Application for App {
 
     fn subscription(&self) -> Subscription<Message> {
         let mut subscriptions = vec![
-            iced_native::subscription::events_with(|event, _| match event {
-                iced_native::Event::Keyboard(event) => Some(Message::KeyboardEvent(event)),
-                iced_native::Event::Window(iced_native::window::Event::CloseRequested) => {
-                    Some(Message::Exit { user: true })
-                }
+            iced::subscription::events_with(|event, _| match event {
+                iced::Event::Keyboard(event) => Some(Message::KeyboardEvent(event)),
+                iced::Event::Window(iced::window::Event::CloseRequested) => Some(Message::Exit { user: true }),
                 _ => None,
             }),
             rclone_monitor::run().map(Message::RcloneMonitor),
@@ -2336,7 +2334,7 @@ impl Application for App {
                 .push(iced::time::every(std::time::Duration::from_millis(50)).map(|_| Message::Exit { user: false }));
         }
 
-        iced_native::subscription::Subscription::batch(subscriptions)
+        iced::subscription::Subscription::batch(subscriptions)
     }
 
     fn view(&self) -> Element {

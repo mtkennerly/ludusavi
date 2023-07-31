@@ -1,10 +1,19 @@
-use iced::{alignment::Horizontal as HorizontalAlignment, Font};
+use iced::{alignment, font, Font};
 
-use crate::gui::widget::Text;
+use crate::gui::widget::{text, Text};
 
-pub const ICONS: Font = Font::External {
-    name: "Material Icons",
-    bytes: include_bytes!("../../assets/MaterialIcons-Regular.ttf"),
+pub const ICONS_DATA: &[u8] = include_bytes!("../../assets/MaterialIcons-Regular.ttf");
+// pub const ICONS: Font = Font::External {
+//     name: "Material Icons",
+//     bytes: include_bytes!("../../assets/MaterialIcons-Regular.ttf"),
+// };
+pub const ICONS: Font = Font {
+    // name: "Material Icons",
+    // bytes: include_bytes!("../../assets/MaterialIcons-Regular.ttf"),
+    family: font::Family::Name("Material Icons"),
+    weight: font::Weight::Normal,
+    stretch: font::Stretch::Normal,
+    monospaced: false,
 };
 
 pub enum Icon {
@@ -76,17 +85,25 @@ impl Icon {
         }
     }
 
-    pub fn as_text(&self) -> Text {
-        Text::new(self.as_char().to_string())
+    pub fn text(self) -> Text<'static> {
+        text(self.as_char().to_string())
             .font(ICONS)
+            .size(20)
             .width(60)
-            .horizontal_alignment(HorizontalAlignment::Center)
+            .height(20)
+            .horizontal_alignment(alignment::Horizontal::Center)
+            .vertical_alignment(iced::alignment::Vertical::Center)
+            .line_height(1.0)
     }
 
-    pub fn into_text(self) -> Text<'static> {
-        Text::new(self.as_char().to_string())
+    pub fn text_small(self) -> Text<'static> {
+        text(self.as_char().to_string())
             .font(ICONS)
-            .width(60)
-            .horizontal_alignment(HorizontalAlignment::Center)
+            .size(15)
+            .width(15)
+            .height(15)
+            .horizontal_alignment(alignment::Horizontal::Center)
+            .vertical_alignment(iced::alignment::Vertical::Center)
+            .line_height(1.0)
     }
 }

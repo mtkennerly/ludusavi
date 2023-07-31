@@ -8,7 +8,7 @@ use crate::{
         },
         icon::Icon,
         style,
-        widget::{Button, Element, IcedButtonExt, Text},
+        widget::{text, Button, Element, IcedButtonExt, Text},
     },
     lang::TRANSLATOR,
     prelude::{Finality, SyncDirection},
@@ -22,7 +22,7 @@ fn template(content: Text, action: Option<Message>, style: Option<style::Button>
 }
 
 pub fn primary<'a>(content: String, action: Option<Message>) -> Element<'a> {
-    Button::new(Text::new(content).horizontal_alignment(alignment::Horizontal::Center))
+    Button::new(text(content).horizontal_alignment(alignment::Horizontal::Center))
         .on_press_some(action)
         .style(style::Button::Primary)
         .width(125)
@@ -30,7 +30,7 @@ pub fn primary<'a>(content: String, action: Option<Message>) -> Element<'a> {
 }
 
 pub fn negative<'a>(content: String, action: Option<Message>) -> Element<'a> {
-    Button::new(Text::new(content).horizontal_alignment(alignment::Horizontal::Center))
+    Button::new(text(content).horizontal_alignment(alignment::Horizontal::Center))
         .on_press_some(action)
         .style(style::Button::Negative)
         .width(125)
@@ -38,16 +38,16 @@ pub fn negative<'a>(content: String, action: Option<Message>) -> Element<'a> {
 }
 
 pub fn add<'a>(action: fn(EditAction) -> Message) -> Element<'a> {
-    template(Icon::AddCircle.as_text(), Some(action(EditAction::Add)), None)
+    template(Icon::AddCircle.text(), Some(action(EditAction::Add)), None)
 }
 
 pub fn add_nested<'a>(action: fn(usize, EditAction) -> Message, parent: usize) -> Element<'a> {
-    template(Icon::AddCircle.as_text(), Some(action(parent, EditAction::Add)), None)
+    template(Icon::AddCircle.text(), Some(action(parent, EditAction::Add)), None)
 }
 
 pub fn remove<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'a> {
     template(
-        Icon::RemoveCircle.as_text(),
+        Icon::RemoveCircle.text(),
         Some(action(EditAction::Remove(index))),
         Some(style::Button::Negative),
     )
@@ -55,7 +55,7 @@ pub fn remove<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'a
 
 pub fn remove_nested<'a>(action: fn(usize, EditAction) -> Message, parent: usize, index: usize) -> Element<'a> {
     template(
-        Icon::RemoveCircle.as_text(),
+        Icon::RemoveCircle.text(),
         Some(action(parent, EditAction::Remove(index))),
         Some(style::Button::Negative),
     )
@@ -63,39 +63,35 @@ pub fn remove_nested<'a>(action: fn(usize, EditAction) -> Message, parent: usize
 
 pub fn delete<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'a> {
     template(
-        Icon::Delete.as_text(),
+        Icon::Delete.text(),
         Some(action(EditAction::Remove(index))),
         Some(style::Button::Negative),
     )
 }
 
 pub fn close<'a>(action: Message) -> Element<'a> {
-    template(
-        Icon::Close.as_text().width(15).size(15),
-        Some(action),
-        Some(style::Button::Negative),
-    )
+    template(Icon::Close.text_small(), Some(action), Some(style::Button::Negative))
 }
 
 pub fn choose_folder<'a>(subject: BrowseSubject, modifiers: &keyboard::Modifiers) -> Element<'a> {
     if modifiers.shift() {
-        template(Icon::OpenInNew.as_text(), Some(Message::OpenDirSubject(subject)), None)
+        template(Icon::OpenInNew.text(), Some(Message::OpenDirSubject(subject)), None)
     } else {
-        template(Icon::FolderOpen.as_text(), Some(Message::BrowseDir(subject)), None)
+        template(Icon::FolderOpen.text(), Some(Message::BrowseDir(subject)), None)
     }
 }
 
 pub fn choose_file<'a>(subject: BrowseFileSubject, modifiers: &keyboard::Modifiers) -> Element<'a> {
     if modifiers.shift() {
-        template(Icon::OpenInNew.as_text(), Some(Message::OpenFileSubject(subject)), None)
+        template(Icon::OpenInNew.text(), Some(Message::OpenFileSubject(subject)), None)
     } else {
-        template(Icon::FolderOpen.as_text(), Some(Message::BrowseFile(subject)), None)
+        template(Icon::FolderOpen.text(), Some(Message::BrowseFile(subject)), None)
     }
 }
 
 pub fn filter<'a>(screen: Screen, open: bool) -> Element<'a> {
     template(
-        Icon::Filter.as_text(),
+        Icon::Filter.text(),
         Some(Message::ToggleSearch { screen }),
         open.then_some(style::Button::Negative),
     )
@@ -104,9 +100,9 @@ pub fn filter<'a>(screen: Screen, open: bool) -> Element<'a> {
 pub fn sort_order<'a>(screen: Screen, reversed: bool) -> Element<'a> {
     template(
         if reversed {
-            Icon::ArrowDownward.as_text()
+            Icon::ArrowDownward.text()
         } else {
-            Icon::ArrowUpward.as_text()
+            Icon::ArrowUpward.text()
         },
         Some(Message::EditedSortReversed {
             screen,
@@ -117,16 +113,16 @@ pub fn sort_order<'a>(screen: Screen, reversed: bool) -> Element<'a> {
 }
 
 pub fn refresh<'a>(action: Message, ongoing: bool) -> Element<'a> {
-    template(Icon::Refresh.as_text(), (!ongoing).then_some(action), None)
+    template(Icon::Refresh.text(), (!ongoing).then_some(action), None)
 }
 
 pub fn search<'a>(action: Message) -> Element<'a> {
-    template(Icon::Search.as_text(), Some(action), None)
+    template(Icon::Search.text(), Some(action), None)
 }
 
 pub fn settings<'a>(open: bool) -> Element<'a> {
     template(
-        Icon::Settings.as_text(),
+        Icon::Settings.text(),
         Some(Message::ToggleBackupSettings),
         open.then_some(style::Button::Negative),
     )
@@ -134,7 +130,7 @@ pub fn settings<'a>(open: bool) -> Element<'a> {
 
 pub fn move_up<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'a> {
     template(
-        Icon::ArrowUpward.as_text().width(15).size(15),
+        Icon::ArrowUpward.text_small(),
         (index > 0).then(|| action(EditAction::move_up(index))),
         None,
     )
@@ -142,7 +138,7 @@ pub fn move_up<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'
 
 pub fn move_up_nested<'a>(action: fn(usize, EditAction) -> Message, parent: usize, index: usize) -> Element<'a> {
     template(
-        Icon::ArrowUpward.as_text().width(15).size(15),
+        Icon::ArrowUpward.text_small(),
         (index > 0).then(|| action(parent, EditAction::move_up(index))),
         None,
     )
@@ -150,7 +146,7 @@ pub fn move_up_nested<'a>(action: fn(usize, EditAction) -> Message, parent: usiz
 
 pub fn move_down<'a>(action: fn(EditAction) -> Message, index: usize, max: usize) -> Element<'a> {
     template(
-        Icon::ArrowDownward.as_text().width(15).size(15),
+        Icon::ArrowDownward.text_small(),
         (index < max - 1).then(|| action(EditAction::move_down(index))),
         None,
     )
@@ -163,7 +159,7 @@ pub fn move_down_nested<'a>(
     max: usize,
 ) -> Element<'a> {
     template(
-        Icon::ArrowDownward.as_text().width(15).size(15),
+        Icon::ArrowDownward.text_small(),
         (index < max - 1).then(|| action(parent, EditAction::move_down(index))),
         None,
     )
@@ -171,26 +167,26 @@ pub fn move_down_nested<'a>(
 
 pub fn next_page<'a>(action: fn(usize) -> Message, page: usize, pages: usize) -> Element<'a> {
     template(
-        Icon::ArrowForward.as_text(),
+        Icon::ArrowForward.text(),
         (page < pages).then(|| action(page + 1)),
         None,
     )
 }
 
 pub fn previous_page<'a>(action: fn(usize) -> Message, page: usize) -> Element<'a> {
-    template(Icon::ArrowBack.as_text(), (page > 0).then(|| action(page - 1)), None)
+    template(Icon::ArrowBack.text(), (page > 0).then(|| action(page - 1)), None)
 }
 
 pub fn toggle_all_scanned_games<'a>(all_enabled: bool) -> Element<'a> {
     if all_enabled {
         template(
-            Text::new(TRANSLATOR.deselect_all_button()).width(125),
+            text(TRANSLATOR.deselect_all_button()).width(125),
             Some(Message::DeselectAllGames),
             None,
         )
     } else {
         template(
-            Text::new(TRANSLATOR.select_all_button()).width(125),
+            text(TRANSLATOR.select_all_button()).width(125),
             Some(Message::SelectAllGames),
             None,
         )
@@ -200,13 +196,13 @@ pub fn toggle_all_scanned_games<'a>(all_enabled: bool) -> Element<'a> {
 pub fn toggle_all_custom_games<'a>(all_enabled: bool) -> Element<'a> {
     if all_enabled {
         template(
-            Text::new(TRANSLATOR.disable_all_button()).width(125),
+            text(TRANSLATOR.disable_all_button()).width(125),
             Some(Message::DeselectAllGames),
             None,
         )
     } else {
         template(
-            Text::new(TRANSLATOR.enable_all_button()).width(125),
+            text(TRANSLATOR.enable_all_button()).width(125),
             Some(Message::SelectAllGames),
             None,
         )
@@ -215,41 +211,37 @@ pub fn toggle_all_custom_games<'a>(all_enabled: bool) -> Element<'a> {
 
 pub fn add_game<'a>() -> Element<'a> {
     template(
-        Text::new(TRANSLATOR.add_game_button()).width(125),
+        text(TRANSLATOR.add_game_button()).width(125),
         Some(Message::EditedCustomGame(EditAction::Add)),
         None,
     )
 }
 
 pub fn open_url<'a>(label: String, url: String) -> Element<'a> {
-    template(Text::new(label).width(125), Some(Message::OpenUrl(url)), None)
+    template(text(label).width(125), Some(Message::OpenUrl(url)), None)
 }
 
 pub fn nav<'a>(screen: Screen, current_screen: Screen) -> Button<'a> {
-    let text = match screen {
+    let label = match screen {
         Screen::Backup => TRANSLATOR.nav_backup_button(),
         Screen::Restore => TRANSLATOR.nav_restore_button(),
         Screen::CustomGames => TRANSLATOR.nav_custom_games_button(),
         Screen::Other => TRANSLATOR.nav_other_button(),
     };
 
-    Button::new(
-        Text::new(text)
-            .size(16)
-            .horizontal_alignment(alignment::Horizontal::Center),
-    )
-    .on_press(Message::SwitchScreen(screen))
-    .padding([5, 20, 5, 20])
-    .style(if current_screen == screen {
-        style::Button::NavButtonActive
-    } else {
-        style::Button::NavButtonInactive
-    })
+    Button::new(text(label).size(14).horizontal_alignment(alignment::Horizontal::Center))
+        .on_press(Message::SwitchScreen(screen))
+        .padding([5, 20, 5, 20])
+        .style(if current_screen == screen {
+            style::Button::NavButtonActive
+        } else {
+            style::Button::NavButtonInactive
+        })
 }
 
 pub fn upload<'a>(operation: &Operation) -> Element<'a> {
     template(
-        Icon::Upload.as_text(),
+        Icon::Upload.text(),
         match operation {
             Operation::Idle => Some(Message::ConfirmSynchronizeCloud {
                 direction: SyncDirection::Upload,
@@ -273,7 +265,7 @@ pub fn upload<'a>(operation: &Operation) -> Element<'a> {
 
 pub fn download<'a>(operation: &Operation) -> Element<'a> {
     template(
-        Icon::Download.as_text(),
+        Icon::Download.text(),
         match operation {
             Operation::Idle => Some(Message::ConfirmSynchronizeCloud {
                 direction: SyncDirection::Download,
@@ -297,7 +289,7 @@ pub fn download<'a>(operation: &Operation) -> Element<'a> {
 
 pub fn backup<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        Text::new(match ongoing {
+        text(match ongoing {
             Operation::Backup {
                 finality: Finality::Final,
                 cancelling: false,
@@ -334,7 +326,7 @@ pub fn backup<'a>(ongoing: &Operation) -> Element<'a> {
 
 pub fn backup_preview<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        Text::new(match ongoing {
+        text(match ongoing {
             Operation::Backup {
                 finality: Finality::Preview,
                 cancelling: false,
@@ -375,7 +367,7 @@ pub fn backup_preview<'a>(ongoing: &Operation) -> Element<'a> {
 
 pub fn restore<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        Text::new(match ongoing {
+        text(match ongoing {
             Operation::Restore {
                 finality: Finality::Final,
                 cancelling: false,
@@ -412,7 +404,7 @@ pub fn restore<'a>(ongoing: &Operation) -> Element<'a> {
 
 pub fn restore_preview<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        Text::new(match ongoing {
+        text(match ongoing {
             Operation::Restore {
                 finality: Finality::Preview,
                 cancelling: false,
@@ -452,7 +444,7 @@ pub fn restore_preview<'a>(ongoing: &Operation) -> Element<'a> {
 
 pub fn validate_backups<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        Text::new(match ongoing {
+        text(match ongoing {
             Operation::ValidateBackups { cancelling: false, .. } => TRANSLATOR.cancel_button(),
             Operation::ValidateBackups { cancelling: true, .. } => TRANSLATOR.cancelling_button(),
             _ => TRANSLATOR.validate_button(),

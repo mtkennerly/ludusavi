@@ -100,10 +100,10 @@ pub enum Text {
 impl iced::widget::text::StyleSheet for Theme {
     type Style = Text;
 
-    fn appearance(&self, style: Self::Style) -> iced_style::text::Appearance {
+    fn appearance(&self, style: Self::Style) -> iced::widget::text::Appearance {
         match style {
-            Text::Default => iced_style::text::Appearance { color: None },
-            Text::Failure => iced_style::text::Appearance {
+            Text::Default => iced::widget::text::Appearance { color: None },
+            Text::Failure => iced::widget::text::Appearance {
                 color: Some(self.negative),
             },
         }
@@ -122,7 +122,7 @@ impl iced_style::menu::StyleSheet for Theme {
             text_color: self.text,
             selected_background: self.positive.into(),
             border_width: 1.0,
-            border_radius: 5.0,
+            border_radius: 5.0.into(),
             selected_text_color: Color::WHITE,
         }
     }
@@ -171,8 +171,8 @@ impl button::StyleSheet for Theme {
                 | Self::Style::GameListEntryTitleDisabled
                 | Self::Style::GameListEntryTitleUnscanned
                 | Self::Style::NavButtonActive
-                | Self::Style::NavButtonInactive => 10.0,
-                _ => 4.0,
+                | Self::Style::NavButtonInactive => 10.0.into(),
+                _ => 4.0.into(),
             },
             border_width: match style {
                 Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 1.0,
@@ -204,7 +204,7 @@ impl button::StyleSheet for Theme {
                 _ => self.active(style).background,
             },
             border_radius: match style {
-                Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 10.0,
+                Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 10.0.into(),
                 _ => active.border_radius,
             },
             border_width: match style {
@@ -248,14 +248,14 @@ impl container::StyleSheet for Theme {
 
     fn appearance(&self, style: &Self::Style) -> container::Appearance {
         container::Appearance {
-            background: match style {
+            background: Some(match style {
                 Self::Style::Wrapper => Color::TRANSPARENT.into(),
                 Self::Style::GameListEntry => self.field.alpha(0.15).into(),
                 Self::Style::ModalBackground | Self::Style::Notification | Self::Style::Tooltip => self.field.into(),
                 Self::Style::DisabledBackup => self.disabled.into(),
                 Self::Style::BadgeActivated => self.negative.into(),
                 _ => self.background.into(),
-            },
+            }),
             border_color: match style {
                 Self::Style::Wrapper => Color::TRANSPARENT,
                 Self::Style::GameListEntry | Self::Style::Notification => self.field,
@@ -284,9 +284,9 @@ impl container::StyleSheet for Theme {
                 | Self::Style::BadgeActivated
                 | Self::Style::BadgeFaded
                 | Self::Style::ChangeBadge(..)
-                | Self::Style::DisabledBackup => 10.0,
-                Self::Style::Notification | Self::Style::Tooltip => 20.0,
-                _ => 0.0,
+                | Self::Style::DisabledBackup => 10.0.into(),
+                Self::Style::Notification | Self::Style::Tooltip => 20.0.into(),
+                _ => 0.0.into(),
             },
             text_color: match style {
                 Self::Style::Wrapper => None,
@@ -312,13 +312,13 @@ impl scrollable::StyleSheet for Theme {
 
     fn active(&self, _style: &Self::Style) -> scrollable::Scrollbar {
         scrollable::Scrollbar {
-            background: Color::TRANSPARENT.into(),
-            border_radius: 5.0,
+            background: Some(Color::TRANSPARENT.into()),
+            border_radius: 5.0.into(),
             border_width: 0.0,
             border_color: Color::TRANSPARENT,
             scroller: scrollable::Scroller {
                 color: self.text.alpha(0.7),
-                border_radius: 5.0,
+                border_radius: 5.0.into(),
                 border_width: 0.0,
                 border_color: Color::TRANSPARENT,
             },
@@ -333,7 +333,7 @@ impl scrollable::StyleSheet for Theme {
         }
 
         scrollable::Scrollbar {
-            background: self.text.alpha(0.4).into(),
+            background: Some(self.text.alpha(0.4).into()),
             scroller: scrollable::Scroller {
                 color: self.text.alpha(0.8),
                 ..active.scroller
@@ -356,8 +356,8 @@ impl pick_list::StyleSheet for Theme {
     fn active(&self, style: &Self::Style) -> pick_list::Appearance {
         pick_list::Appearance {
             border_radius: match style {
-                Self::Style::Primary => 5.0,
-                Self::Style::Backup | Self::Style::Popup => 10.0,
+                Self::Style::Primary => 5.0.into(),
+                Self::Style::Backup | Self::Style::Popup => 10.0.into(),
             },
             background: self.field.alpha(0.6).into(),
             border_color: self.text.alpha(0.7),
@@ -385,7 +385,7 @@ impl checkbox::StyleSheet for Theme {
         checkbox::Appearance {
             background: self.field.alpha(0.6).into(),
             icon_color: self.text,
-            border_radius: 5.0,
+            border_radius: 5.0.into(),
             border_width: 1.0,
             border_color: self.text.alpha(0.6),
             text_color: Some(self.text),
@@ -408,7 +408,7 @@ impl text_input::StyleSheet for Theme {
     fn active(&self, _style: &Self::Style) -> text_input::Appearance {
         text_input::Appearance {
             background: Color::TRANSPARENT.into(),
-            border_radius: 5.0,
+            border_radius: 5.0.into(),
             border_width: 1.0,
             border_color: self.text.alpha(0.8),
             icon_color: self.negative,
@@ -455,7 +455,7 @@ impl iced::widget::progress_bar::StyleSheet for Theme {
         iced_style::progress_bar::Appearance {
             background: self.disabled.into(),
             bar: self.added.into(),
-            border_radius: 4.0,
+            border_radius: 4.0.into(),
         }
     }
 }

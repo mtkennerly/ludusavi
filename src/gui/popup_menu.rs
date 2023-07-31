@@ -4,19 +4,27 @@
 //! Display a dropdown list of selectable values.
 use std::borrow::Cow;
 
-use iced_native::{
+use iced::{
+    advanced::{
+        self, layout, overlay, renderer, text,
+        widget::tree::{self, Tree},
+        Clipboard, Layout, Shell, Widget,
+    },
     alignment,
     event::{self, Event},
-    layout, mouse, overlay,
-    overlay::menu::{self, Menu},
-    renderer,
-    text::{self, Text},
+    mouse,
+    // widget::text::Text,
     touch,
     widget::{
-        container, scrollable,
-        tree::{self, Tree},
+        container,
+        overlay::menu::{self, Menu},
+        scrollable,
     },
-    Clipboard, Element, Layout, Length, Padding, Point, Rectangle, Shell, Size, Widget,
+    Element,
+    Length,
+    Padding,
+    Rectangle,
+    Size,
 };
 pub use iced_style::pick_list::{Appearance, StyleSheet};
 
@@ -35,7 +43,7 @@ where
     width: Length,
     padding: Padding,
     text_size: Option<f32>,
-    font: Renderer::Font,
+    font: Option<Renderer::Font>,
     style: <Renderer::Theme as StyleSheet>::Style,
 }
 
@@ -65,7 +73,7 @@ where
             width: Length::Shrink,
             text_size: None,
             padding: Self::DEFAULT_PADDING,
-            font: Default::default(),
+            font: None,
             style: Default::default(),
         }
     }
@@ -139,7 +147,7 @@ where
             self.width,
             self.padding,
             self.text_size,
-            &self.font,
+            self.font,
             // self.placeholder.as_deref(),
             // &self.options,
         )
@@ -150,15 +158,16 @@ where
         tree: &mut Tree,
         event: Event,
         layout: Layout<'_>,
-        cursor_position: Point,
+        cursor: mouse::Cursor,
         _renderer: &Renderer,
         _clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
+        _viewport: &Rectangle,
     ) -> event::Status {
         update(
             event,
             layout,
-            cursor_position,
+            cursor,
             shell,
             self.on_selected.as_ref(),
             // self.selected.as_ref(),
@@ -172,11 +181,11 @@ where
         &self,
         _tree: &Tree,
         layout: Layout<'_>,
-        cursor_position: Point,
+        cursor: mouse::Cursor,
         _viewport: &Rectangle,
         _renderer: &Renderer,
     ) -> mouse::Interaction {
-        mouse_interaction(layout, cursor_position, !self.options.is_empty())
+        mouse_interaction(layout, cursor, !self.options.is_empty())
     }
 
     fn draw(
@@ -186,14 +195,14 @@ where
         theme: &Renderer::Theme,
         _style: &renderer::Style,
         layout: Layout<'_>,
-        cursor_position: Point,
+        cursor: mouse::Cursor,
         _viewport: &Rectangle,
     ) {
         draw(
             renderer,
             theme,
             layout,
-            cursor_position,
+            cursor,
             // self.padding,
             // self.text_size,
             // &self.font,
@@ -207,7 +216,7 @@ where
         &'b mut self,
         tree: &'b mut Tree,
         layout: Layout<'_>,
-        _renderer: &Renderer,
+        renderer: &Renderer,
     ) -> Option<overlay::Element<'b, Message, Renderer>> {
         let state = tree.state.downcast_mut::<State<T>>();
 
@@ -216,8 +225,9 @@ where
             state,
             self.padding,
             self.text_size,
-            self.font,
+            self.font.unwrap_or_else(|| renderer.default_font()),
             &self.options,
+            &self.on_selected,
             self.style.clone(),
         )
     }
@@ -274,7 +284,7 @@ pub fn layout<Renderer>(
     width: Length,
     padding: Padding,
     text_size: Option<f32>,
-    font: &Renderer::Font,
+    font: Option<Renderer::Font>,
     // placeholder: Option<&str>,
     // options: &[T],
 ) -> layout::Node
@@ -290,11 +300,13 @@ where
 
     let max_width = match width {
         Length::Shrink => {
-            let (width, _) = renderer.measure(
+            let Size { width, .. } = renderer.measure(
                 &crate::gui::icon::Icon::MoreVert.as_char().to_string(),
                 text_size,
-                font.clone(),
+                text::LineHeight::default(),
+                font.unwrap_or_else(|| renderer.default_font()),
                 Size::new(f32::INFINITY, f32::INFINITY),
+                text::Shaping::Advanced,
             );
             width.round() as u32
         }
@@ -316,7 +328,7 @@ where
 pub fn update<'a, T, Message>(
     event: Event,
     layout: Layout<'_>,
-    cursor_position: Point,
+    cursor: mouse::Cursor,
     shell: &mut Shell<'_, Message>,
     on_selected: &dyn Fn(T) -> Message,
     selected: Option<&T>,
@@ -337,7 +349,7 @@ where
                 state.is_open = false;
 
                 event::Status::Captured
-            } else if layout.bounds().contains(cursor_position) {
+            } else if cursor.is_over(layout.bounds()) {
                 state.is_open = !options.is_empty();
                 state.hovered_option = options.iter().position(|option| Some(option) == selected);
 
@@ -373,9 +385,9 @@ where
 }
 
 /// Returns the current [`mouse::Interaction`] of a [`PopupMenu`].
-pub fn mouse_interaction(layout: Layout<'_>, cursor_position: Point, usable: bool) -> mouse::Interaction {
+pub fn mouse_interaction(layout: Layout<'_>, cursor: mouse::Cursor, usable: bool) -> mouse::Interaction {
     let bounds = layout.bounds();
-    let is_mouse_over = bounds.contains(cursor_position);
+    let is_mouse_over = cursor.is_over(bounds);
 
     if is_mouse_over && usable {
         mouse::Interaction::Pointer
@@ -392,6 +404,7 @@ pub fn overlay<'a, T, Message, Renderer>(
     text_size: Option<f32>,
     font: Renderer::Font,
     options: &'a [T],
+    on_selected: &'a dyn Fn(T) -> Message,
     style: <Renderer::Theme as StyleSheet>::Style,
 ) -> Option<overlay::Element<'a, Message, Renderer>>
 where
@@ -408,12 +421,19 @@ where
             &mut state.menu,
             options,
             &mut state.hovered_option,
-            &mut state.last_selection,
+            // &mut state.last_selection,
+            |option| {
+                state.is_open = false;
+
+                (on_selected)(option)
+            },
+            None,
         )
         .width(150.0)
         // .width(bounds.width.round() as u16)
         .padding(padding)
         .font(font)
+        .text_shaping(text::Shaping::Advanced)
         .style(style);
 
         if let Some(text_size) = text_size {
@@ -432,7 +452,7 @@ pub fn draw<Renderer>(
     renderer: &mut Renderer,
     theme: &Renderer::Theme,
     layout: Layout<'_>,
-    cursor_position: Point,
+    cursor: mouse::Cursor,
     // padding: Padding,
     // text_size: Option<f32>,
     // font: &Renderer::Font,
@@ -445,7 +465,7 @@ pub fn draw<Renderer>(
     // T: ToString,
 {
     let bounds = layout.bounds();
-    let is_mouse_over = bounds.contains(cursor_position);
+    let is_mouse_over = cursor.is_over(bounds);
     // let is_selected = selected.is_some();
 
     let style = if is_mouse_over {
@@ -460,14 +480,14 @@ pub fn draw<Renderer>(
                 bounds,
                 border_color: style.border_color,
                 border_width: style.border_width,
-                border_radius: renderer::BorderRadius::from(style.border_radius),
+                border_radius: style.border_radius,
             },
             style.background,
         );
     }
 
     let icon_size = 0.5;
-    renderer.fill_text(Text {
+    renderer.fill_text(advanced::Text {
         // content: &Renderer::ARROW_DOWN_ICON.to_string(),
         content: &crate::gui::icon::Icon::MoreVert.as_char().to_string(),
         // font: Renderer::ICON_FONT,
@@ -483,5 +503,7 @@ pub fn draw<Renderer>(
         // horizontal_alignment: alignment::Horizontal::Right,
         horizontal_alignment: alignment::Horizontal::Center,
         vertical_alignment: alignment::Vertical::Center,
+        line_height: text::LineHeight::default(),
+        shaping: text::Shaping::Advanced,
     });
 }

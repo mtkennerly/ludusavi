@@ -30,6 +30,26 @@ pub type Undoable<'a, F> = crate::gui::undoable::Undoable<'a, Message, Renderer,
 
 pub use w::Space;
 
+pub fn checkbox<'a>(label: impl Into<String>, is_checked: bool, f: impl Fn(bool) -> Message + 'a) -> Checkbox<'a> {
+    Checkbox::new(label, is_checked, f).text_shaping(w::text::Shaping::Advanced)
+}
+
+pub fn pick_list<'a, T>(
+    options: impl Into<std::borrow::Cow<'a, [T]>>,
+    selected: Option<T>,
+    on_selected: impl Fn(T) -> Message + 'a,
+) -> PickList<'a, T>
+where
+    T: ToString + Eq + 'static,
+    [T]: ToOwned<Owned = Vec<T>>,
+{
+    PickList::new(options, selected, on_selected).text_shaping(w::text::Shaping::Advanced)
+}
+
+pub fn text<'a>(content: impl Into<std::borrow::Cow<'a, str>>) -> Text<'a> {
+    Text::new(content).shaping(w::text::Shaping::Advanced)
+}
+
 pub mod id {
     use once_cell::sync::Lazy;
 
@@ -71,15 +91,15 @@ pub fn number_input<'a>(
         Row::new()
             .spacing(5)
             .align_items(Alignment::Center)
-            .push(Text::new(label))
-            .push(Text::new(value.to_string()))
+            .push(text(label))
+            .push(text(value.to_string()))
             .push({
-                Button::new(Icon::Remove.as_text().width(Length::Shrink))
+                Button::new(Icon::Remove.text().width(Length::Shrink))
                     .on_press_if(|| &value > range.start(), || (change)(value - 1))
                     .style(style::Button::Negative)
             })
             .push({
-                Button::new(Icon::Add.as_text().width(Length::Shrink))
+                Button::new(Icon::Add.text().width(Length::Shrink))
                     .on_press_if(|| &value < range.end(), || (change)(value + 1))
                     .style(style::Button::Primary)
             }),
@@ -172,10 +192,10 @@ impl Progress {
                 .spacing(5)
                 .padding([0, 5, 0, 5])
                 .align_items(Alignment::Center)
-                .push_some(|| label.map(|x| Text::new(x).size(15)))
-                .push_some(|| elapsed.map(|x| Text::new(x).size(15)))
+                .push_some(|| label.map(|x| text(x).size(15)))
+                .push_some(|| elapsed.map(|x| text(x).size(15)))
                 .push(ProgressBar::new(0.0..=self.max, self.current).height(8))
-                .push_some(|| count.map(|x| Text::new(x).size(15))),
+                .push_some(|| count.map(|x| text(x).size(15))),
         )
         .height(15)
         .style(style::Container::ModalBackground)

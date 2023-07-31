@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use iced::{Alignment, Length};
+use iced::Alignment;
 
 use crate::{
     gui::{
@@ -8,7 +8,7 @@ use crate::{
         common::{Message, TreeNodeKey},
         icon::Icon,
         style,
-        widget::{Button, Checkbox, Column, Container, IcedParentExt, Row, Text},
+        widget::{checkbox, text, Button, Column, Container, IcedParentExt, Row},
     },
     lang::TRANSLATOR,
     path::StrictPath,
@@ -112,7 +112,7 @@ impl FileTreeNode {
             let path = self.path.clone();
             Some(
                 Container::new(
-                    Checkbox::new("", !self.ignored, move |enabled| match &path {
+                    checkbox("", !self.ignored, move |enabled| match &path {
                         FileTreeNodePath::File(path) => Message::ToggleSpecificGamePathIgnored {
                             name: game_name.clone(),
                             path: path.clone(),
@@ -150,17 +150,17 @@ impl FileTreeNode {
                     .spacing(10)
                     .push(match self.node_type {
                         FileTreeNodeType::File | FileTreeNodeType::RegistryValue(_) => {
-                            Container::new(Icon::SubdirectoryArrowRight.as_text().height(25).width(25).size(25))
+                            Container::new(Icon::SubdirectoryArrowRight.text().height(25).width(25).size(25))
                         }
                         FileTreeNodeType::RegistryKey => Container::new(
-                            Button::new(Icon::KeyboardArrowDown.into_text().width(15).size(15))
+                            Button::new(Icon::KeyboardArrowDown.text_small())
                                 .style(style::Button::Primary)
                                 .height(25)
                                 .width(25),
                         ),
                     })
                     .push_some(make_enabler)
-                    .push(Text::new(label))
+                    .push(text(label))
                     .push_some(|| {
                         let badge = match self.change {
                             ScanChange::Same | ScanChange::Unknown => return None,
@@ -222,9 +222,7 @@ impl FileTreeNode {
                                 } else {
                                     Icon::KeyboardArrowRight
                                 })
-                                .into_text()
-                                .width(15)
-                                .size(15),
+                                .text_small(),
                             )
                             .on_press(Message::ToggleGameListEntryTreeExpanded {
                                 name: game_name.to_string(),
@@ -235,17 +233,15 @@ impl FileTreeNode {
                             .width(25),
                         )
                         .push_some(make_enabler)
-                        .push(Text::new(
-                            if label.is_empty() && self.node_type == FileTreeNodeType::File {
-                                "/".to_string()
-                            } else {
-                                label
-                            },
-                        ))
+                        .push(text(if label.is_empty() && self.node_type == FileTreeNodeType::File {
+                            "/".to_string()
+                        } else {
+                            label
+                        }))
                         .push_some(|| {
                             if let FileTreeNodePath::File(path) = &self.path {
                                 return Some(
-                                    Button::new(Icon::OpenInNew.as_text().width(Length::Shrink).size(15))
+                                    Button::new(Icon::OpenInNew.text_small())
                                         .on_press(Message::OpenDir { path: path.clone() })
                                         .style(style::Button::Primary)
                                         .height(25),
