@@ -9,6 +9,7 @@ pub fn get_game_name_from_heroic_launch_commands(roots: &[RootsConfig], commands
     let parsers = vec![
         gogdl::parse_heroic_2_9,
         gogdl::parse_heroic_2_8,
+        legendary::parse_heroic_2_9,
         legendary::parse_heroic_2_8,
     ];
     match parsers.iter().find_map(|parser| parser(roots, commands)) {
