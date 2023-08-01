@@ -22,7 +22,7 @@ use crate::{
     prelude::{filter_map_walkdir, Error, SKIP},
     resource::{
         config::{BackupFilter, RedirectConfig, RedirectKind, RootsConfig, SortKey, ToggledPaths, ToggledRegistry},
-        manifest::{Game, IdMetadata, Os, Store},
+        manifest::{Game, GameFileEntry, IdMetadata, Os, Store},
     },
     scan::layout::LatestBackup,
 };
@@ -123,6 +123,7 @@ pub fn steam_ids(game: &Game, shortcut: Option<&SteamShortcut>) -> Vec<u32> {
 /// Returns paths to check and whether they require case-sensitive matching.
 pub fn parse_paths(
     path: &str,
+    data: &GameFileEntry,
     root: &RootsConfig,
     install_dir: &Option<String>,
     full_install_dir: &Option<&StrictPath>,
@@ -287,6 +288,23 @@ pub fn parse_paths(
                     ),
                 false,
             ));
+
+            if data
+                .when
+                .as_ref()
+                .map(|x| x.iter().any(|x| x.store == Some(Store::Uplay)))
+                .unwrap_or_default()
+            {
+                let ubisoft = format!("{}/Program Files (x86)/Ubisoft/Ubisoft Game Launcher", prefix);
+                paths.insert((
+                    path.replace(ROOT, &ubisoft)
+                        .replace(GAME, install_dir)
+                        .replace(BASE, &format!("{}/{}", &ubisoft, install_dir))
+                        .replace(STORE_USER_ID, "*")
+                        .replace(OS_USER_NAME, "steamuser"),
+                    platform.is_case_sensitive(),
+                ));
+            }
         }
     }
     if root.store == Store::OtherWine {
@@ -430,13 +448,14 @@ pub fn scan_game_for_backup(
             let install_dir = launchers.get_install_dir_leaf(&root, name);
             let full_install_dir = launchers.get_install_dir(&root, name);
 
-            for raw_path in files.keys() {
+            for (raw_path, path_data) in files {
                 log::trace!("[{name}] parsing candidates from: {}", raw_path);
                 if raw_path.trim().is_empty() {
                     continue;
                 }
                 let candidates = parse_paths(
                     raw_path,
+                    path_data,
                     &root,
                     &install_dir,
                     &full_install_dir,

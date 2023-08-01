@@ -8,6 +8,9 @@
 
     Unfortunately, there are still technical limitations with Arabic,
     so that translation remains experimental via the config file.
+* Fixed:
+  * Detection of saves associated with the Ubisoft Game Launcher folder
+    on Linux when installed with Steam and Proton.
 
 ## v0.20.0 (2023-07-10)
 
