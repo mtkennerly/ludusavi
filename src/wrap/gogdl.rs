@@ -8,7 +8,23 @@ use crate::{
     scan::launchers::heroic::get_gog_games_library,
 };
 
-/// Parsing of command line for Heroic 2.9.x
+fn find_in_roots(roots: &[RootsConfig], game_id: &str) -> Option<String> {
+    roots
+        .iter()
+        .filter(|root| root.store == Store::Heroic)
+        .find_map(|root| {
+            log::debug!("HeroicGogdl::find_in_roots: checking root {:?}", root);
+            match get_gog_games_library(root) {
+                Some(gog_games) => gog_games.iter().find_map(|g| match g.app_name == *game_id {
+                    true => Some(g.title.clone()),
+                    false => None,
+                }),
+                None => None,
+            }
+        })
+}
+
+/// Parsing of command line for Heroic 2.9.x, returns a game name or None
 pub fn parse_heroic_2_9(roots: &[RootsConfig], commands: &[String]) -> Option<String> {
     let mut game_id = String::default();
 
@@ -42,8 +58,7 @@ pub fn parse_heroic_2_9(roots: &[RootsConfig], commands: &[String]) -> Option<St
         // Is this a Windows game?
         //
         // check environment variable
-        // STEAM_COMPAT_INSTALL_PATH='/home/MYUSER/Games/The Riftbreaker' and
-        // then env(STEAM_COMPAT_INSTALL_PATH)/goggame-GAME_ID.id
+        // env(STEAM_COMPAT_INSTALL_PATH)/goggame-GAME_ID.id
         if let Ok(env_install_path) = env::var("STEAM_COMPAT_INSTALL_PATH") {
             let id_files = StrictPath::from(env_install_path.as_str())
                 .joined("goggame-*.id")
@@ -69,25 +84,15 @@ pub fn parse_heroic_2_9(roots: &[RootsConfig], commands: &[String]) -> Option<St
     }
 
     if game_id.is_empty() {
+        log::debug!("HeroicGogdl::parse_heroic_2_9: no goggame-*.id found, neither for Linux native nor Windows");
         None
     } else {
-        roots
-            .iter()
-            .filter(|root| root.store == Store::Heroic)
-            .find_map(|root| {
-                log::debug!("HeroicGogdl::parse_heroic_2_9: checking root {:?}", root);
-                match get_gog_games_library(root) {
-                    Some(gog_games) => gog_games.iter().find_map(|g| match g.app_name == game_id {
-                        true => Some(g.title.clone()),
-                        false => None,
-                    }),
-                    None => None,
-                }
-            })
+        find_in_roots(roots, &game_id)
     }
 }
 
-/// Parsing of command line for Heroic 2.8.x (and probably earlier versions)
+/// Parsing of command line for Heroic 2.8.x (and probably earlier versions),
+/// returns a game name or None
 pub fn parse_heroic_2_8(roots: &[RootsConfig], commands: &[String]) -> Option<String> {
     let mut iter = commands.iter();
 
@@ -110,17 +115,5 @@ pub fn parse_heroic_2_8(roots: &[RootsConfig], commands: &[String]) -> Option<St
         game_id
     );
 
-    roots
-        .iter()
-        .filter(|root| root.store == Store::Heroic)
-        .find_map(|root| {
-            log::debug!("HeroicGogdl::parse_heroic_2_8: checking root {:?}", root);
-            match get_gog_games_library(root) {
-                Some(gog_games) => gog_games.iter().find_map(|g| match g.app_name == *game_id {
-                    true => Some(g.title.clone()),
-                    false => None,
-                }),
-                None => None,
-            }
-        })
+    find_in_roots(roots, game_id)
 }
