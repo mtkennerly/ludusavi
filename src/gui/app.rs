@@ -1137,8 +1137,10 @@ impl Application for App {
 
         log::debug!("Config on startup: {config:?}");
 
-        let mut commands =
-            vec![iced::font::load(std::borrow::Cow::Borrowed(crate::gui::icon::ICONS_DATA)).map(|_| Message::Ignore)];
+        let mut commands = vec![
+            iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::TEXT_DATA)).map(|_| Message::Ignore),
+            iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::ICONS_DATA)).map(|_| Message::Ignore),
+        ];
         if flags.update_manifest {
             commands.push(Command::perform(
                 async move {

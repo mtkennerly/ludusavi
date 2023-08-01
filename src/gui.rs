@@ -4,6 +4,7 @@ mod button;
 mod common;
 mod editor;
 mod file_tree;
+mod font;
 mod game_list;
 mod icon;
 mod modal;
@@ -28,6 +29,7 @@ pub fn run(flags: Flags) {
 
     settings.window.min_size = Some((800, 600));
     settings.exit_on_close_request = false;
+    settings.default_font = font::TEXT;
     settings.window.icon = match image::load_from_memory(include_bytes!("../assets/icon.png")) {
         Ok(buffer) => {
             let buffer = buffer.to_rgba8();

@@ -491,7 +491,7 @@ pub fn draw<Renderer>(
         // content: &Renderer::ARROW_DOWN_ICON.to_string(),
         content: &crate::gui::icon::Icon::MoreVert.as_char().to_string(),
         // font: Renderer::ICON_FONT,
-        font: crate::gui::icon::ICONS,
+        font: crate::gui::font::ICONS,
         size: bounds.height * icon_size * 1.5,
         bounds: Rectangle {
             // x: bounds.x + bounds.width - f32::from(padding.horizontal()),

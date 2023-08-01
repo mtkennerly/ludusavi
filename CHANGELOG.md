@@ -6,6 +6,9 @@
     This means that several translations are now properly supported:
     Simplified Chinese, Japanese, Korean, and Thai.
 
+    Ludusavi now bundles and uses the Noto Sans font for consistency,
+    but some languages will still depend on your system fonts.
+
     Unfortunately, there are still technical limitations with Arabic,
     so that translation remains experimental via the config file.
 * Fixed:
