@@ -13,7 +13,7 @@ use crate::{
         shortcuts::TextHistories,
         style,
         widget::{
-            Button, Checkbox, Column, Container, IcedButtonExt, IcedParentExt, PickList, Row, Text, TextInput, Tooltip,
+            checkbox, pick_list, text, Button, Column, Container, IcedButtonExt, IcedParentExt, Row, TextInput, Tooltip,
         },
     },
     lang::TRANSLATOR,
@@ -78,7 +78,7 @@ impl GameListEntry {
                         .spacing(15)
                         .align_items(Alignment::Center)
                         .push(
-                            Checkbox::new("", enabled, move |enabled| Message::ToggleGameListEntryEnabled {
+                            checkbox("", enabled, move |enabled| Message::ToggleGameListEntryEnabled {
                                 name: name_for_checkbox.clone(),
                                 enabled,
                                 restoring,
@@ -88,7 +88,7 @@ impl GameListEntry {
                         )
                         .push(
                             Button::new(
-                                Text::new(self.scan_info.game_name.clone())
+                                text(self.scan_info.game_name.clone())
                                     .horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press_some(if self.scanned {
@@ -164,7 +164,7 @@ impl GameListEntry {
                                 .and_then(|backup| backup.comment().as_ref())
                                 .map(|comment| {
                                     Tooltip::new(
-                                        Icon::Comment.as_text().width(Length::Shrink),
+                                        Icon::Comment.text().width(Length::Shrink),
                                         comment,
                                         tooltip::Position::Top,
                                     )
@@ -183,16 +183,17 @@ impl GameListEntry {
                                 })
                         })
                         .push_some(|| {
-                            self.scan_info.backup.as_ref().and_then(|backup| {
-                                backup.locked().then_some(Icon::Lock.into_text().width(Length::Shrink))
-                            })
+                            self.scan_info
+                                .backup
+                                .as_ref()
+                                .and_then(|backup| backup.locked().then_some(Icon::Lock.text().width(Length::Shrink)))
                         })
                         .push(
                             Row::new()
                                 .push_some(|| {
                                     if self.scan_info.available_backups.len() == 1 {
                                         self.scan_info.backup.as_ref().map(|backup| {
-                                            Container::new(Text::new(backup.label()).size(18))
+                                            Container::new(text(backup.label()).size(18))
                                                 .padding([2, 0, 0, 0])
                                                 .width(165)
                                                 .align_x(HorizontalAlignment::Center)
@@ -200,7 +201,7 @@ impl GameListEntry {
                                     } else if !self.scan_info.available_backups.is_empty() {
                                         if operating {
                                             return self.scan_info.backup.as_ref().map(|backup| {
-                                                Container::new(Text::new(backup.label()).size(15))
+                                                Container::new(text(backup.label()).size(15))
                                                     .padding(2)
                                                     .width(165)
                                                     .height(25)
@@ -212,7 +213,7 @@ impl GameListEntry {
 
                                         let game = self.scan_info.game_name.clone();
                                         let content = Container::new(
-                                            PickList::new(
+                                            pick_list(
                                                 &self.scan_info.available_backups,
                                                 self.scan_info.backup.as_ref().cloned(),
                                                 move |backup| Message::SelectedBackupToRestore {
@@ -249,7 +250,7 @@ impl GameListEntry {
                                         None
                                     };
                                     if let Some(action) = action {
-                                        let button = Button::new(action.icon().into_text().width(45))
+                                        let button = Button::new(action.icon().text().width(45))
                                             .on_press_if(
                                                 || !operating,
                                                 || Message::GameAction {
@@ -291,7 +292,7 @@ impl GameListEntry {
                                     }
                                 })
                                 .push(
-                                    Container::new(Text::new({
+                                    Container::new(text({
                                         let summed = self.scan_info.sum_bytes(self.backup_info.as_ref());
                                         if summed == 0 && !self.scan_info.found_anything() {
                                             "".to_string()
@@ -320,7 +321,7 @@ impl GameListEntry {
                             .align_items(Alignment::Center)
                             .padding([0, 20])
                             .spacing(20)
-                            .push(Text::new(TRANSLATOR.comment_label()))
+                            .push(text(TRANSLATOR.comment_label()))
                             .push(
                                 TextInput::new(&TRANSLATOR.comment_label(), comment).on_input(move |value| {
                                     Message::EditedBackupComment {

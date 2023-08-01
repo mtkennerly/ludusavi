@@ -4,7 +4,7 @@ use crate::{
     gui::{
         common::Message,
         style,
-        widget::{Button, Container, Text, Tooltip},
+        widget::{text, Button, Container, Tooltip},
     },
     lang::TRANSLATOR,
     scan::ScanChange,
@@ -95,7 +95,7 @@ impl Badge {
     pub fn view(self) -> Container<'static> {
         Container::new({
             let content = Container::new(
-                Text::new(self.text)
+                text(self.text)
                     .size(14)
                     .horizontal_alignment(alignment::Horizontal::Center)
                     .width(self.width.unwrap_or(Length::Shrink)),

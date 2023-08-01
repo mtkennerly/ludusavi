@@ -13,7 +13,7 @@ use crate::{
         icon::Icon,
         shortcuts::TextHistories,
         style,
-        widget::{number_input, Button, Checkbox, Column, Container, Element, IcedParentExt, PickList, Row, Text},
+        widget::{checkbox, number_input, pick_list, text, Button, Column, Container, Element, IcedParentExt, Row},
     },
     lang::{Language, TRANSLATOR},
     prelude::{AVAILABLE_PARALELLISM, STEAM_DECK},
@@ -37,11 +37,13 @@ fn template(content: Column) -> Element {
 }
 
 fn make_status_row<'a>(status: &OperationStatus, duplication: Duplication) -> Row<'a> {
+    let size = 25;
+
     Row::new()
         .padding([0, 20, 0, 20])
         .align_items(Alignment::Center)
         .spacing(15)
-        .push(Text::new(TRANSLATOR.processed_games(status)).size(35))
+        .push(text(TRANSLATOR.processed_games(status)).size(size))
         .push_if(
             || status.changed_games.new > 0,
             || Badge::new_entry_with_count(status.changed_games.new).view(),
@@ -50,8 +52,8 @@ fn make_status_row<'a>(status: &OperationStatus, duplication: Duplication) -> Ro
             || status.changed_games.different > 0,
             || Badge::changed_entry_with_count(status.changed_games.different).view(),
         )
-        .push(Text::new("|").size(35))
-        .push(Text::new(TRANSLATOR.processed_bytes(status)).size(35))
+        .push(text("|").size(size))
+        .push(text(TRANSLATOR.processed_bytes(status)).size(size))
         .push_if(
             || !duplication.resolved(),
             || Badge::new(&TRANSLATOR.badge_duplicates()).view(),
@@ -108,13 +110,13 @@ impl Backup {
                     .padding([0, 20, 0, 20])
                     .spacing(20)
                     .align_items(Alignment::Center)
-                    .push(Text::new(TRANSLATOR.backup_target_label()))
+                    .push(text(TRANSLATOR.backup_target_label()))
                     .push(histories.input(UndoSubject::BackupTarget))
                     .push(button::choose_folder(BrowseSubject::BackupTarget, modifiers))
                     .push("|")
-                    .push(Text::new(TRANSLATOR.sort_label()))
+                    .push(text(TRANSLATOR.sort_label()))
                     .push(
-                        PickList::new(SortKey::ALL, Some(sort.key), move |value| Message::EditedSortKey {
+                        pick_list(SortKey::ALL, Some(sort.key), move |value| Message::EditedSortKey {
                             screen,
                             value,
                         })
@@ -159,9 +161,9 @@ impl Backup {
                             Row::new()
                                 .spacing(5)
                                 .align_items(Alignment::Center)
-                                .push(Text::new(TRANSLATOR.backup_format_field()))
+                                .push(text(TRANSLATOR.backup_format_field()))
                                 .push(
-                                    PickList::new(
+                                    pick_list(
                                         BackupFormat::ALL,
                                         Some(config.backup.format.chosen),
                                         Message::SelectedBackupFormat,
@@ -175,9 +177,9 @@ impl Backup {
                                 Row::new()
                                     .spacing(5)
                                     .align_items(Alignment::Center)
-                                    .push(Text::new(TRANSLATOR.backup_compression_field()))
+                                    .push(text(TRANSLATOR.backup_compression_field()))
                                     .push(
-                                        PickList::new(
+                                        pick_list(
                                             ZipCompression::ALL,
                                             Some(config.backup.format.zip.compression),
                                             Message::SelectedBackupCompression,
@@ -259,13 +261,13 @@ impl Restore {
                     .padding([0, 20, 0, 20])
                     .spacing(20)
                     .align_items(Alignment::Center)
-                    .push(Text::new(TRANSLATOR.restore_source_label()))
+                    .push(text(TRANSLATOR.restore_source_label()))
                     .push(histories.input(UndoSubject::RestoreSource))
                     .push(button::choose_folder(BrowseSubject::RestoreSource, modifiers))
                     .push("|")
-                    .push(Text::new(TRANSLATOR.sort_label()))
+                    .push(text(TRANSLATOR.sort_label()))
                     .push(
-                        PickList::new(SortKey::ALL, Some(sort.key), move |value| Message::EditedSortKey {
+                        pick_list(SortKey::ALL, Some(sort.key), move |value| Message::EditedSortKey {
                             screen,
                             value,
                         })
@@ -329,8 +331,7 @@ pub fn other<'a>(
                     .align_items(iced::Alignment::Center)
                     .push(
                         Button::new(
-                            Text::new(TRANSLATOR.exit_button())
-                                .horizontal_alignment(iced::alignment::Horizontal::Center),
+                            text(TRANSLATOR.exit_button()).horizontal_alignment(iced::alignment::Horizontal::Center),
                         )
                         .on_press(Message::Exit { user: true })
                         .width(125)
@@ -347,9 +348,9 @@ pub fn other<'a>(
                     Row::new()
                         .align_items(iced::Alignment::Center)
                         .spacing(20)
-                        .push(Text::new(TRANSLATOR.field_language()))
+                        .push(text(TRANSLATOR.field_language()))
                         .push(
-                            PickList::new(Language::ALL, Some(config.language), Message::SelectedLanguage)
+                            pick_list(Language::ALL, Some(config.language), Message::SelectedLanguage)
                                 .style(style::PickList::Primary),
                         ),
                 )
@@ -357,14 +358,14 @@ pub fn other<'a>(
                     Row::new()
                         .align_items(iced::Alignment::Center)
                         .spacing(20)
-                        .push(Text::new(TRANSLATOR.field_theme()))
+                        .push(text(TRANSLATOR.field_theme()))
                         .push(
-                            PickList::new(Theme::ALL, Some(config.theme), Message::SelectedTheme)
+                            pick_list(Theme::ALL, Some(config.theme), Message::SelectedTheme)
                                 .style(style::PickList::Primary),
                         ),
                 )
                 .push(
-                    Column::new().spacing(5).push(Text::new(TRANSLATOR.scan_field())).push(
+                    Column::new().spacing(5).push(text(TRANSLATOR.scan_field())).push(
                         Container::new(
                             Column::new()
                                 .padding(5)
@@ -373,7 +374,7 @@ pub fn other<'a>(
                                     AVAILABLE_PARALELLISM.map(|max_threads| {
                                         Column::new()
                                             .spacing(5)
-                                            .push(Checkbox::new(
+                                            .push(checkbox(
                                                 TRANSLATOR.override_max_threads(),
                                                 config.runtime.threads.is_some(),
                                                 Message::OverrideMaxThreads,
@@ -392,24 +393,24 @@ pub fn other<'a>(
                                     })
                                 })
                                 .push(
-                                    Checkbox::new(
+                                    checkbox(
                                         TRANSLATOR.explanation_for_exclude_store_screenshots(),
                                         config.backup.filter.exclude_store_screenshots,
                                         Message::EditedExcludeStoreScreenshots,
                                     )
                                     .style(style::Checkbox),
                                 )
-                                .push(Checkbox::new(
+                                .push(checkbox(
                                     TRANSLATOR.show_deselected_games(),
                                     config.scan.show_deselected_games,
                                     Message::SetShowDeselectedGames,
                                 ))
-                                .push(Checkbox::new(
+                                .push(checkbox(
                                     TRANSLATOR.show_unchanged_games(),
                                     config.scan.show_unchanged_games,
                                     Message::SetShowUnchangedGames,
                                 ))
-                                .push(Checkbox::new(
+                                .push(checkbox(
                                     TRANSLATOR.show_unscanned_games(),
                                     config.scan.show_unscanned_games,
                                     Message::SetShowUnscannedGames,
@@ -424,7 +425,7 @@ pub fn other<'a>(
                         .push(
                             Row::new()
                                 .align_items(iced::Alignment::Center)
-                                .push(Text::new(TRANSLATOR.manifest_label()).width(100))
+                                .push(text(TRANSLATOR.manifest_label()).width(100))
                                 .push(button::refresh(Message::UpdateManifest, updating_manifest)),
                         )
                         .push_some(|| {
@@ -449,14 +450,14 @@ pub fn other<'a>(
                                         .push(
                                             Row::new()
                                                 .align_items(iced::Alignment::Center)
-                                                .push(Container::new(Text::new(TRANSLATOR.checked_label())).width(100))
-                                                .push(Container::new(Text::new(checked))),
+                                                .push(Container::new(text(TRANSLATOR.checked_label())).width(100))
+                                                .push(Container::new(text(checked))),
                                         )
                                         .push(
                                             Row::new()
                                                 .align_items(iced::Alignment::Center)
-                                                .push(Container::new(Text::new(TRANSLATOR.updated_label())).width(100))
-                                                .push(Container::new(Text::new(updated))),
+                                                .push(Container::new(text(TRANSLATOR.updated_label())).width(100))
+                                                .push(Container::new(text(updated))),
                                         ),
                                 )
                                 .style(style::Container::GameListEntry),
@@ -469,7 +470,7 @@ pub fn other<'a>(
                         .push(
                             Row::new()
                                 .align_items(iced::Alignment::Center)
-                                .push(Text::new(TRANSLATOR.cloud_field()).width(100)),
+                                .push(text(TRANSLATOR.cloud_field()).width(100)),
                         )
                         .push(
                             Container::new({
@@ -477,11 +478,11 @@ pub fn other<'a>(
                                     Row::new()
                                         .spacing(20)
                                         .align_items(Alignment::Center)
-                                        .push(Text::new(TRANSLATOR.rclone_label()).width(70))
+                                        .push(text(TRANSLATOR.rclone_label()).width(70))
                                         .push(histories.input(UndoSubject::RcloneExecutable))
                                         .push_if(
                                             || !is_rclone_valid,
-                                            || Icon::Error.as_text().width(Length::Shrink).style(style::Text::Failure),
+                                            || Icon::Error.text().width(Length::Shrink).style(style::Text::Failure),
                                         )
                                         .push(button::choose_file(BrowseFileSubject::RcloneExecutable, modifiers))
                                         .push(histories.input(UndoSubject::RcloneArguments)),
@@ -494,11 +495,11 @@ pub fn other<'a>(
                                             let mut row = Row::new()
                                                 .spacing(20)
                                                 .align_items(Alignment::Center)
-                                                .push(Text::new(TRANSLATOR.remote_label()).width(70))
+                                                .push(text(TRANSLATOR.remote_label()).width(70))
                                                 .push_if(
                                                     || !operation.idle(),
                                                     || {
-                                                        Text::new(choice.to_string())
+                                                        text(choice.to_string())
                                                             .height(30)
                                                             .vertical_alignment(iced::alignment::Vertical::Center)
                                                     },
@@ -506,7 +507,7 @@ pub fn other<'a>(
                                                 .push_if(
                                                     || operation.idle(),
                                                     || {
-                                                        PickList::new(
+                                                        pick_list(
                                                             RemoteChoice::ALL,
                                                             Some(choice),
                                                             Message::EditedCloudRemote,
@@ -516,14 +517,14 @@ pub fn other<'a>(
 
                                             if let Some(Remote::Custom { .. }) = &config.cloud.remote {
                                                 row = row
-                                                    .push(Text::new(TRANSLATOR.remote_name_label()))
+                                                    .push(text(TRANSLATOR.remote_name_label()))
                                                     .push(histories.input(UndoSubject::CloudRemoteId));
                                             }
 
                                             if let Some(description) =
                                                 config.cloud.remote.as_ref().and_then(|x| x.description())
                                             {
-                                                row = row.push(Text::new(description));
+                                                row = row.push(text(description));
                                             }
 
                                             row
@@ -534,13 +535,13 @@ pub fn other<'a>(
                                                 Row::new()
                                                     .spacing(20)
                                                     .align_items(Alignment::Center)
-                                                    .push(Text::new(TRANSLATOR.folder_label()).width(70))
+                                                    .push(text(TRANSLATOR.folder_label()).width(70))
                                                     .push(histories.input(UndoSubject::CloudPath))
                                                     .push_if(
                                                         || !is_cloud_path_valid,
                                                         || {
                                                             Icon::Error
-                                                                .as_text()
+                                                                .text()
                                                                 .width(Length::Shrink)
                                                                 .style(style::Text::Failure)
                                                         },
@@ -555,28 +556,25 @@ pub fn other<'a>(
                                                     .align_items(Alignment::Center)
                                                     .push(button::upload(operation))
                                                     .push(button::download(operation))
-                                                    .push(Checkbox::new(
+                                                    .push(checkbox(
                                                         TRANSLATOR.synchronize_automatically(),
                                                         config.cloud.synchronize,
                                                         |_| Message::ToggleCloudSynchronize,
                                                     ))
                                             },
                                         )
-                                        .push_if(
-                                            || !is_cloud_configured,
-                                            || Text::new(TRANSLATOR.cloud_not_configured()),
-                                        )
+                                        .push_if(|| !is_cloud_configured, || text(TRANSLATOR.cloud_not_configured()))
                                         .push_if(
                                             || !is_cloud_path_valid,
                                             || {
-                                                Text::new(TRANSLATOR.prefix_warning(&TRANSLATOR.cloud_path_invalid()))
+                                                text(TRANSLATOR.prefix_warning(&TRANSLATOR.cloud_path_invalid()))
                                                     .style(style::Text::Failure)
                                             },
                                         );
                                 } else {
                                     column = column
                                         .push(
-                                            Text::new(TRANSLATOR.prefix_warning(&TRANSLATOR.rclone_unavailable()))
+                                            text(TRANSLATOR.prefix_warning(&TRANSLATOR.rclone_unavailable()))
                                                 .style(style::Text::Failure),
                                         )
                                         .push(button::open_url(TRANSLATOR.get_rclone_button(), RCLONE_URL.to_string()));
@@ -589,7 +587,7 @@ pub fn other<'a>(
                         ),
                 )
                 .push(
-                    Column::new().spacing(5).push(Text::new(TRANSLATOR.roots_label())).push(
+                    Column::new().spacing(5).push(text(TRANSLATOR.roots_label())).push(
                         Container::new(
                             Column::new()
                                 .padding(5)
@@ -601,12 +599,12 @@ pub fn other<'a>(
                 )
                 .push(
                     Column::new()
-                        .push(Text::new(TRANSLATOR.ignored_items_label()))
+                        .push(text(TRANSLATOR.ignored_items_label()))
                         .push(editor::ignored_items(config, histories, modifiers).padding([10, 0, 0, 0])),
                 )
                 .push(
                     Column::new()
-                        .push(Text::new(TRANSLATOR.redirects_label()))
+                        .push(text(TRANSLATOR.redirects_label()))
                         .push(editor::redirect(config, histories, modifiers).padding([10, 0, 0, 0])),
                 );
             ScrollSubject::Other.into_widget(content)

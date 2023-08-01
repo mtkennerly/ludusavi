@@ -98,6 +98,11 @@ impl Language {
         Self::PortugueseBrazilian,
         Self::Russian,
         Self::Ukrainian,
+        // Self::Arabic,
+        Self::ChineseSimplified,
+        Self::Japanese,
+        Self::Korean,
+        Self::Thai,
     ];
 
     pub fn id(&self) -> LanguageIdentifier {
