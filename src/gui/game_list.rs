@@ -193,21 +193,34 @@ impl GameListEntry {
                                 .push_some(|| {
                                     if self.scan_info.available_backups.len() == 1 {
                                         self.scan_info.backup.as_ref().map(|backup| {
-                                            Container::new(text(backup.label()).size(18))
-                                                .padding([2, 0, 0, 0])
-                                                .width(165)
-                                                .align_x(HorizontalAlignment::Center)
+                                            Container::new(
+                                                text(backup.label())
+                                                    .size(14)
+                                                    .horizontal_alignment(HorizontalAlignment::Center),
+                                            )
+                                            .padding([2, 2, 0, 0])
+                                            .width(150)
+                                            .height(20)
+                                            .center_x()
+                                            .center_y()
                                         })
                                     } else if !self.scan_info.available_backups.is_empty() {
                                         if operating {
                                             return self.scan_info.backup.as_ref().map(|backup| {
-                                                Container::new(text(backup.label()).size(15))
-                                                    .padding(2)
-                                                    .width(165)
+                                                Container::new(
+                                                    Container::new(
+                                                        text(backup.label())
+                                                            .size(14)
+                                                            .horizontal_alignment(HorizontalAlignment::Center),
+                                                    )
+                                                    .padding([2, 0, 0, 0])
+                                                    .width(148)
                                                     .height(25)
                                                     .center_x()
                                                     .center_y()
-                                                    .style(style::Container::DisabledBackup)
+                                                    .style(style::Container::DisabledBackup),
+                                                )
+                                                .padding([0, 2, 0, 0])
                                             });
                                         }
 
@@ -221,12 +234,15 @@ impl GameListEntry {
                                                     backup,
                                                 },
                                             )
-                                            .text_size(15)
+                                            .text_size(12)
+                                            .width(Length::Fill)
                                             .style(style::PickList::Backup),
                                         )
-                                        .width(165)
-                                        .padding([0, 0, 0, 0])
-                                        .align_x(HorizontalAlignment::Center);
+                                        .width(150)
+                                        .height(25)
+                                        .padding([0, 2, 0, 0])
+                                        .center_x()
+                                        .center_y();
                                         Some(content)
                                     } else {
                                         None
@@ -287,6 +303,7 @@ impl GameListEntry {
                                                 game: game_name.clone(),
                                             }
                                         })
+                                        .width(49)
                                         .style(style::PickList::Popup);
                                         Container::new(menu)
                                     }

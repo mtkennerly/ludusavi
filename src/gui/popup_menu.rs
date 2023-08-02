@@ -85,10 +85,10 @@ where
     // }
 
     /// Sets the width of the [`PopupMenu`].
-    // pub fn width(mut self, width: Length) -> Self {
-    //     self.width = width;
-    //     self
-    // }
+    pub fn width(mut self, width: impl Into<Length>) -> Self {
+        self.width = width.into();
+        self
+    }
 
     /// Sets the [`Padding`] of the [`PopupMenu`].
     // pub fn padding<P: Into<Padding>>(mut self, padding: P) -> Self {
