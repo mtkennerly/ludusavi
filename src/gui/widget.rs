@@ -186,18 +186,20 @@ impl Progress {
             }
         };
 
+        let text_size = 12;
+
         Container::new(
             Row::new()
                 .width(Length::Fill)
                 .spacing(5)
                 .padding([0, 5, 0, 5])
                 .align_items(Alignment::Center)
-                .push_some(|| label.map(|x| text(x).size(15)))
-                .push_some(|| elapsed.map(|x| text(x).size(15)))
+                .push_some(|| label.map(|x| text(x).size(text_size)))
+                .push_some(|| elapsed.map(|x| text(x).size(text_size)))
                 .push(ProgressBar::new(0.0..=self.max, self.current).height(8))
-                .push_some(|| count.map(|x| text(x).size(15))),
+                .push_some(|| count.map(|x| text(x).size(text_size))),
         )
-        .height(15)
+        .height(16)
         .style(style::Container::ModalBackground)
         .into()
     }

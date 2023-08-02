@@ -15,7 +15,6 @@ const CHANGE_BADGE_WIDTH: f32 = 10.0;
 #[derive(Default)]
 pub struct Badge {
     text: String,
-    left_margin: u16,
     change: Option<ScanChange>,
     tooltip: Option<String>,
     on_press: Option<Message>,
@@ -27,7 +26,6 @@ impl Badge {
     pub fn new(text: &str) -> Self {
         Self {
             text: text.to_string(),
-            left_margin: 0,
             change: None,
             tooltip: None,
             on_press: None,
@@ -96,11 +94,11 @@ impl Badge {
         Container::new({
             let content = Container::new(
                 text(self.text)
-                    .size(14)
+                    .size(12)
                     .horizontal_alignment(alignment::Horizontal::Center)
                     .width(self.width.unwrap_or(Length::Shrink)),
             )
-            .padding([2, 12, 2, 12])
+            .padding([2, 10, 2, 10])
             .style(match self.change {
                 None => match self.on_press.as_ref() {
                     Some(Message::FilterDuplicates { game: None, .. }) => style::Container::BadgeActivated,
@@ -130,7 +128,7 @@ impl Badge {
                 None => Container::new(content),
             }
         })
-        .padding([3, 0, 0, self.left_margin])
+        .padding([1, 0, 0, 0])
         .center_x()
         .center_y()
     }
