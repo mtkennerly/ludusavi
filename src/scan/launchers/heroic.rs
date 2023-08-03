@@ -92,6 +92,7 @@ fn detect_legendary_games(
     let legendary_paths = match legendary {
         None => vec![
             StrictPath::relative("../legendary".to_string(), Some(root.path.interpret())),
+            StrictPath::relative("legendaryConfig/legendary".to_string(), Some(root.path.interpret())),
             StrictPath::new("~/.config/legendary".to_string()),
         ],
         Some(x) => vec![x.clone()],

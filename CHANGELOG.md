@@ -11,6 +11,7 @@
 
     Unfortunately, there are still technical limitations with Arabic,
     so that translation remains experimental via the config file.
+  * Support for detecting Epic games defined in Heroic's `legendaryConfig` folder.
 * Fixed:
   * Detection of saves associated with the Ubisoft Game Launcher folder
     on Linux when installed with Steam and Proton.
