@@ -8,6 +8,13 @@ use crate::{
     scan::launchers::heroic::get_gog_games_library,
 };
 
+/// Deserialization of GOG goggame-SOME_ID.info
+#[derive(Debug, serde::Deserialize)]
+struct GogGameInfo {
+    #[serde(rename = "rootGameId")]
+    root_game_id: String,
+}
+
 fn find_in_roots(roots: &[RootsConfig], game_id: &str) -> Option<String> {
     roots
         .iter()
@@ -24,8 +31,81 @@ fn find_in_roots(roots: &[RootsConfig], game_id: &str) -> Option<String> {
         })
 }
 
-/// Parsing of command line for Heroic 2.9.x, returns a game name or None
-pub fn parse_heroic_2_9(roots: &[RootsConfig], commands: &[String]) -> Option<String> {
+/// Parsing of command line for Heroic 2.9.x, returns a game name or None taken
+/// from any goggame-SOME_ID.info found
+pub fn parse_heroic_2_9_goggame_info(roots: &[RootsConfig], commands: &[String]) -> Option<String> {
+    let mut game_id = String::default();
+
+    // Is this a Linux native game?
+    // Try checking dirname(commands[0])/game/__game/goggame-SOME_ID.info
+    let info_files = StrictPath::from(commands[0].as_str())
+        .parent_if_file()
+        .joined("game")
+        .joined("__game")
+        .joined("goggame-*.info")
+        .glob();
+    if !info_files.is_empty() {
+        let info_file = &info_files[0];
+        log::debug!(
+            "HeroicGogdl::parse_heroic_2_9_goggame_info: found Linux native goggame-*.info: {:?}",
+            info_file
+        );
+        let content = info_file.read();
+        if let Ok(ggi) = serde_json::from_str::<GogGameInfo>(&content.unwrap_or_default()) {
+            log::debug!(
+                "HeroicGogdl::parse_heroic_2_9_goggame_info: read goggame-SOME_ID.info: {:#?}",
+                ggi
+            );
+            game_id = ggi.root_game_id;
+        }
+    }
+
+    if game_id.is_empty() {
+        // Is this a Windows game?
+        //
+        // check environment variable
+        // env(STEAM_COMPAT_INSTALL_PATH)/goggame-SOME_ID.info
+        if let Ok(env_install_path) = env::var("STEAM_COMPAT_INSTALL_PATH") {
+            let info_files = StrictPath::from(env_install_path.as_str())
+                .joined("goggame-*.info")
+                .glob();
+            if !info_files.is_empty() {
+                let info_file = &info_files[0];
+                log::debug!(
+                    "HeroicGogdl::parse_heroic_2_9_goggame_info: found Windows goggame-*.info: {:?}",
+                    info_file
+                );
+                let content = info_file.read();
+                log::debug!(
+                    "HeroicGogdl::parse_heroic_2_9_goggame_info: read goggame-SOME_ID.info: {:#?}",
+                    content
+                );
+                if let Ok(ggi) = serde_json::from_str::<GogGameInfo>(&content.unwrap_or_default()) {
+                    log::debug!(
+                        "HeroicGogdl::parse_heroic_2_9_goggame_info: read goggame-SOME_ID.info: {:#?}",
+                        ggi
+                    );
+                    game_id = ggi.root_game_id;
+                }
+            }
+        }
+    }
+
+    if game_id.is_empty() {
+        log::debug!(
+            "HeroicGogdl::parse_heroic_2_9_goggame_info: no goggame-*.info found, neither for Linux native nor Windows"
+        );
+        None
+    } else {
+        find_in_roots(roots, &game_id)
+    }
+}
+
+// TODO.2023-08-07 this might be obsolete since parse_heroic_2_9_goggame_info
+// probably always returns a proper value
+/// Parsing of command line for Heroic 2.9.x, returns a game name if a
+/// goggame-GAME_ID.id file was found or None
+pub fn parse_heroic_2_9_goggame_id(roots: &[RootsConfig], commands: &[String]) -> Option<String> {
     let mut game_id = String::default();
 
     // Is this a Linux native game?
@@ -39,7 +119,7 @@ pub fn parse_heroic_2_9(roots: &[RootsConfig], commands: &[String]) -> Option<St
     if id_files.len() == 1 {
         let id_file = id_files[0].as_std_path_buf();
         log::debug!(
-            "HeroicGogdl::parse_heroic_2_9: found Linux native goggame-*.id: {:?}",
+            "HeroicGogdl::parse_heroic_2_9_goggame_id: found Linux native goggame-*.id: {:?}",
             id_file
         );
         game_id = String::from_str(
@@ -66,7 +146,7 @@ pub fn parse_heroic_2_9(roots: &[RootsConfig], commands: &[String]) -> Option<St
             if id_files.len() == 1 {
                 let id_file = id_files[0].as_std_path_buf();
                 log::debug!(
-                    "HeroicGogdl::parse_heroic_2_9: found Windows goggame-*.id: {:?}",
+                    "HeroicGogdl::parse_heroic_2_9_goggame_id: found Windows goggame-*.id: {:?}",
                     id_file
                 );
                 game_id = String::from_str(
@@ -84,7 +164,9 @@ pub fn parse_heroic_2_9(roots: &[RootsConfig], commands: &[String]) -> Option<St
     }
 
     if game_id.is_empty() {
-        log::debug!("HeroicGogdl::parse_heroic_2_9: no goggame-*.id found, neither for Linux native nor Windows");
+        log::debug!(
+            "HeroicGogdl::parse_heroic_2_9_goggame_id: no goggame-*.id found, neither for Linux native nor Windows"
+        );
         None
     } else {
         find_in_roots(roots, &game_id)
