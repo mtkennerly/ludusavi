@@ -1,19 +1,8 @@
-use iced::{alignment, font, Font};
+use iced::alignment;
 
-use crate::gui::widget::{text, Text};
-
-pub const ICONS_DATA: &[u8] = include_bytes!("../../assets/MaterialIcons-Regular.ttf");
-// pub const ICONS: Font = Font::External {
-//     name: "Material Icons",
-//     bytes: include_bytes!("../../assets/MaterialIcons-Regular.ttf"),
-// };
-pub const ICONS: Font = Font {
-    // name: "Material Icons",
-    // bytes: include_bytes!("../../assets/MaterialIcons-Regular.ttf"),
-    family: font::Family::Name("Material Icons"),
-    weight: font::Weight::Normal,
-    stretch: font::Stretch::Normal,
-    monospaced: false,
+use crate::gui::{
+    font,
+    widget::{text, Text},
 };
 
 pub enum Icon {
@@ -87,7 +76,7 @@ impl Icon {
 
     pub fn text(self) -> Text<'static> {
         text(self.as_char().to_string())
-            .font(ICONS)
+            .font(font::ICONS)
             .size(20)
             .width(60)
             .height(20)
@@ -98,7 +87,7 @@ impl Icon {
 
     pub fn text_small(self) -> Text<'static> {
         text(self.as_char().to_string())
-            .font(ICONS)
+            .font(font::ICONS)
             .size(15)
             .width(15)
             .height(15)

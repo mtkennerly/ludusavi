@@ -389,7 +389,7 @@ impl TextHistories {
             | UndoSubject::CustomGameFile(_, _)
             | UndoSubject::BackupFilterIgnoredPath(_)
             | UndoSubject::RcloneExecutable => (!path_appears_valid(&current)).then_some(text_input::Icon {
-                font: crate::gui::icon::ICONS,
+                font: crate::gui::font::ICONS,
                 code_point: crate::gui::icon::Icon::Error.as_char(),
                 size: None,
                 spacing: 5.0,
