@@ -16,7 +16,7 @@
   * Detection of saves associated with the Ubisoft Game Launcher folder
     on Linux when installed with Steam and Proton.
   * On non-Windows systems, when recursively finding files in a directory,
-    file names containing a backslash would cause an error.
+    file/folder names containing a backslash would cause an error.
     For now, these files will be ignored until they are properly supported.
 
 ## v0.20.0 (2023-07-10)
