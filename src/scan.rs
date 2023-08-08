@@ -561,6 +561,12 @@ pub fn scan_game_for_backup(
                     .filter_map(filter_map_walkdir)
                 {
                     if child.file_type().is_file() {
+                        #[cfg(not(target_os = "windows"))]
+                        if child.file_name().to_string_lossy().contains('\\') {
+                            // TODO: Support file names containing a slash.
+                            continue;
+                        }
+
                         let child = StrictPath::from(&child).rendered();
                         if filter.is_path_ignored(&child) {
                             log::debug!("[{name}] excluded: {}", child.raw());
