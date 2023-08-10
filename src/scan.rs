@@ -137,6 +137,11 @@ pub fn parse_paths(
 
     let mut paths = HashSet::new();
 
+    // Since STORE_USER_ID becomes `*`, we don't want to end up with an invalid `**`.
+    let path = path
+        .replace(&format!("*{}", STORE_USER_ID), STORE_USER_ID)
+        .replace(&format!("{}*", STORE_USER_ID), STORE_USER_ID);
+
     let install_dir = match install_dir {
         Some(d) => d,
         None => SKIP,
