@@ -729,7 +729,7 @@ impl Translator {
     }
 
     pub fn unable_to_open_dir(&self, path: &StrictPath) -> String {
-        format!("{}\n\n{}", translate("unable-to-open-directory"), path.render())
+        format!("{}\n\n{}", translate("unable-to-open-directory"), path.resolve())
     }
 
     pub fn unable_to_open_url(&self, url: &str) -> String {

@@ -18,6 +18,8 @@
   * On non-Windows systems, when recursively finding files in a directory,
     file/folder names containing a backslash would cause an error.
     For now, these files will be ignored until they are properly supported.
+  * When using shift+click on a path selector icon to browse the path,
+    it will now handle some manifest `<placeholder>`s.
 
 ## v0.20.0 (2023-07-10)
 

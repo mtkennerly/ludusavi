@@ -168,6 +168,69 @@ fn splittable(path: &StrictPath) -> String {
     }
 }
 
+pub enum StrictPathError {
+    Relative,
+    Unmappable,
+    Unsupported,
+}
+
+/// This is a newer alternative to `interpret`.
+/// It avoids canonicalization, because we may want to represent invalid or non-native paths,
+/// and we also want to flag relative paths as invalid rather than assume the current working directory.
+/// It also handles `~` and some manifest placeholders.
+/// For now, you should still use `interpret` in most cases, though.
+pub fn resolve(raw: impl Into<String>) -> Result<String, StrictPathError> {
+    use crate::resource::manifest::placeholder;
+
+    fn check_path(path: &Option<std::path::PathBuf>) -> Result<String, StrictPathError> {
+        match path {
+            Some(path) => Ok(path.to_string_lossy().to_string()),
+            None => Err(StrictPathError::Unmappable),
+        }
+    }
+
+    let mut path = parse_home(&raw.into())
+        .replace(placeholder::HOME, &check_path(&dirs::home_dir())?)
+        .replace(placeholder::OS_USER_NAME, &whoami::username());
+
+    if Os::HOST == Os::Windows {
+        path = path
+            .trim_end_matches(['/', '\\'])
+            .replace(placeholder::WIN_APP_DATA, &check_path(&dirs::data_dir())?)
+            .replace(placeholder::WIN_LOCAL_APP_DATA, &check_path(&dirs::data_local_dir())?)
+            .replace(placeholder::WIN_DOCUMENTS, &check_path(&dirs::document_dir())?)
+            .replace(placeholder::WIN_PUBLIC, &check_path(&dirs::public_dir())?)
+            .replace(placeholder::WIN_PROGRAM_DATA, "C:/ProgramData")
+            .replace(placeholder::WIN_DIR, "C:/Windows");
+
+        // On Windows, canonicalizing "C:" or "C:/" yields the current directory,
+        // but "C:\" works.
+        #[cfg(target_os = "windows")]
+        if path.ends_with(':') {
+            path += "\\";
+        }
+
+        if !path.contains(':') && !path.starts_with("\\\\") {
+            return Err(StrictPathError::Unsupported);
+        }
+    } else {
+        path = path
+            .trim_end_matches('/')
+            .replace(placeholder::XDG_DATA, &check_path(&dirs::data_dir())?)
+            .replace(placeholder::XDG_CONFIG, &check_path(&dirs::config_dir())?);
+
+        if path.contains(':') || path.starts_with("//") || path.starts_with('\\') {
+            return Err(StrictPathError::Unsupported);
+        }
+    }
+
+    if std::path::PathBuf::from(&path).is_relative() {
+        return Err(StrictPathError::Relative);
+    }
+
+    Ok(path)
+}
+
 /// This is a wrapper around paths to make it more obvious when we're
 /// converting between different representations. This also handles
 /// things like `~`.
@@ -299,6 +362,18 @@ impl StrictPath {
         }
     }
 
+    pub fn resolve(&self) -> String {
+        if let Ok(resolved) = resolve(&self.raw) {
+            resolved
+        } else {
+            self.raw.clone()
+        }
+    }
+
+    pub fn try_resolve(&self) -> Result<String, StrictPathError> {
+        resolve(&self.raw)
+    }
+
     pub fn is_file(&self) -> bool {
         std::path::Path::new(&self.interpret()).is_file()
     }
@@ -391,15 +466,16 @@ impl StrictPath {
         self.as_std_path_buf().parent().map(Self::from)
     }
 
-    pub fn parent_if_file(&self) -> Self {
-        let pathbuf = self.as_std_path_buf();
+    pub fn parent_if_file(&self) -> Result<Self, StrictPathError> {
+        let resolved = self.try_resolve()?;
+        let pathbuf = std::path::PathBuf::from(&resolved);
         if pathbuf.is_file() {
             match pathbuf.parent() {
-                Some(parent) => Self::from(parent),
-                None => self.clone(),
+                Some(parent) => Ok(Self::from(parent)),
+                None => Ok(self.clone()),
             }
         } else {
-            self.clone()
+            Ok(self.clone())
         }
     }
 

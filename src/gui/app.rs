@@ -1828,7 +1828,7 @@ impl Application for App {
             }
             Message::OpenDir { path } => {
                 let path2 = path.clone();
-                Command::perform(async move { opener::open(path.interpret()) }, move |res| match res {
+                Command::perform(async move { opener::open(path.resolve()) }, move |res| match res {
                     Ok(_) => Message::Ignore,
                     Err(_) => Message::OpenDirFailure { path: path2 },
                 })
@@ -1838,22 +1838,28 @@ impl Application for App {
                     BrowseSubject::BackupTarget => self.config.backup.path.clone(),
                     BrowseSubject::RestoreSource => self.config.restore.path.clone(),
                     BrowseSubject::Root(i) => self.config.roots[i].path.clone(),
-                    BrowseSubject::RedirectSource(i) => self.config.redirects[i].source.parent_if_file(),
-                    BrowseSubject::RedirectTarget(i) => self.config.redirects[i].target.parent_if_file(),
+                    BrowseSubject::RedirectSource(i) => self.config.redirects[i].source.clone(),
+                    BrowseSubject::RedirectTarget(i) => self.config.redirects[i].target.clone(),
                     BrowseSubject::CustomGameFile(i, j) => {
-                        StrictPath::new(self.config.custom_games[i].files[j].clone()).parent_if_file()
+                        StrictPath::new(self.config.custom_games[i].files[j].clone())
                     }
-                    BrowseSubject::BackupFilterIgnoredPath(i) => {
-                        self.config.backup.filter.ignored_paths[i].parent_if_file()
-                    }
+                    BrowseSubject::BackupFilterIgnoredPath(i) => self.config.backup.filter.ignored_paths[i].clone(),
                 };
-                self.update(Message::OpenDir { path })
+
+                match path.parent_if_file() {
+                    Ok(path) => self.update(Message::OpenDir { path }),
+                    Err(_) => self.show_error(Error::UnableToOpenDir(path)),
+                }
             }
             Message::OpenFileSubject(subject) => {
                 let path = match subject {
-                    BrowseFileSubject::RcloneExecutable => self.config.apps.rclone.path.parent_if_file(),
+                    BrowseFileSubject::RcloneExecutable => self.config.apps.rclone.path.clone(),
                 };
-                self.update(Message::OpenDir { path })
+
+                match path.parent_if_file() {
+                    Ok(path) => self.update(Message::OpenDir { path }),
+                    Err(_) => self.show_error(Error::UnableToOpenDir(path)),
+                }
             }
             Message::OpenDirFailure { path } => self.show_modal(Modal::Error {
                 variant: Error::UnableToOpenDir(path),
