@@ -15,6 +15,9 @@
 * Fixed:
   * If an invalid manifest file were downloaded, Ludusavi would correctly show an error,
     but then after relaunching, it would get stuck on an "updating manifest" screen.
+  * On Linux, if Ludusavi were installed via Flatpak, then `XDG_CONFIG_HOME` and `XDG_DATA_HOME`
+    would be set inside of the Flatpak environment, preventing it from finding some saves.
+    Now, Ludusavi will also check the default paths (`~/.config` and `~/.local/share` respectively).
   * Detection of saves associated with the Ubisoft Game Launcher folder
     on Linux when installed with Steam and Proton.
   * On non-Windows systems, when recursively finding files in a directory,

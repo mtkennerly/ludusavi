@@ -201,6 +201,18 @@ pub fn parse_paths(
         }
         paths.insert((virtual_store, case_sensitive));
     }
+    if Os::HOST == Os::Linux {
+        // Default XDG paths, in case we're in a Flatpak context.
+        paths.insert((
+            path.replace(GAME, install_dir)
+                .replace(STORE_USER_ID, "*")
+                .replace(OS_USER_NAME, &whoami::username())
+                .replace(XDG_DATA, "<home>/.local/share")
+                .replace(XDG_CONFIG, "<home>/.config")
+                .replace(HOME, &home),
+            platform.is_case_sensitive(),
+        ));
+    }
     if root.store == Store::Gog && Os::HOST == Os::Linux {
         paths.insert((
             path.replace(GAME, &format!("{}/game", install_dir))
