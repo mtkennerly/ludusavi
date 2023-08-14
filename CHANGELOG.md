@@ -13,6 +13,8 @@
     so that translation remains experimental via the config file.
   * Support for detecting Epic games defined in Heroic's `legendaryConfig` folder.
 * Fixed:
+  * If an invalid manifest file were downloaded, Ludusavi would correctly show an error,
+    but then after relaunching, it would get stuck on an "updating manifest" screen.
   * Detection of saves associated with the Ubisoft Game Launcher folder
     on Linux when installed with Steam and Proton.
   * On non-Windows systems, when recursively finding files in a directory,

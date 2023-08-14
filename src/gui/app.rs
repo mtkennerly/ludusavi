@@ -119,6 +119,14 @@ impl App {
         }
     }
 
+    fn close_specific_modal(&mut self, modal: Modal) -> Command<Message> {
+        if self.modal == Some(modal) {
+            self.close_modal()
+        } else {
+            Command::none()
+        }
+    }
+
     fn show_error(&mut self, error: Error) -> Command<Message> {
         self.show_modal(Modal::Error { variant: error })
     }
@@ -1098,37 +1106,48 @@ impl Application for App {
     type Theme = crate::gui::style::Theme;
 
     fn new(flags: Flags) -> (Self, Command<Message>) {
+        let mut errors = vec![];
+
         let mut modal: Option<Modal> = None;
         let mut config = match Config::load() {
             Ok(x) => x,
             Err(x) => {
-                modal = Some(Modal::Error { variant: x });
+                errors.push(x);
                 let _ = Config::archive_invalid();
                 Config::default()
             }
         };
         let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
         TRANSLATOR.set_language(config.language);
-        let manifest = match Manifest::load() {
-            Ok(y) => y,
-            Err(_) => {
-                if flags.update_manifest {
-                    modal = Some(Modal::UpdatingManifest);
+        let manifest = if Manifest::path().exists() {
+            match Manifest::load() {
+                Ok(y) => y,
+                Err(e) => {
+                    errors.push(e);
+                    Manifest::default()
                 }
-                Manifest::default()
             }
+        } else {
+            if flags.update_manifest {
+                modal = Some(Modal::UpdatingManifest);
+            }
+            Manifest::default()
         };
 
-        let missing: Vec<_> = config
-            .find_missing_roots()
-            .iter()
-            .filter(|x| !cache.has_root(x))
-            .cloned()
-            .collect();
-        if !missing.is_empty() {
-            cache.add_roots(&missing);
-            cache.save();
-            modal = Some(Modal::ConfirmAddMissingRoots(missing));
+        if !errors.is_empty() {
+            modal = Some(Modal::Errors { errors });
+        } else {
+            let missing: Vec<_> = config
+                .find_missing_roots()
+                .iter()
+                .filter(|x| !cache.has_root(x))
+                .cloned()
+                .collect();
+            if !missing.is_empty() {
+                cache.add_roots(&missing);
+                cache.save();
+                modal = Some(Modal::ConfirmAddMissingRoots(missing));
+            }
         }
 
         let manifest_config = config.manifest.clone();
@@ -1221,7 +1240,7 @@ impl Application for App {
 
                 let updated = match updated {
                     Ok(Some(updated)) => updated,
-                    Ok(None) => return Command::none(),
+                    Ok(None) => return self.close_specific_modal(Modal::UpdatingManifest),
                     Err(e) => {
                         return self.show_error(e);
                     }
@@ -1233,11 +1252,7 @@ impl Application for App {
                 match Manifest::load() {
                     Ok(x) => {
                         self.manifest = x;
-                        if self.modal == Some(Modal::UpdatingManifest) {
-                            self.close_modal()
-                        } else {
-                            Command::none()
-                        }
+                        self.close_specific_modal(Modal::UpdatingManifest)
                     }
                     Err(variant) => self.show_modal(Modal::Error { variant }),
                 }
