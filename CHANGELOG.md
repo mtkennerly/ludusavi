@@ -5,20 +5,21 @@
     there is now much better support for non-ASCII characters.
     This means that several translations are now properly supported:
     Simplified Chinese, Japanese, Korean, and Thai.
-
-    Ludusavi now bundles and uses the Noto Sans font for consistency,
-    but some languages will still depend on your system fonts.
-
     Unfortunately, there are still technical limitations with Arabic,
     so that translation remains experimental via the config file.
   * Support for detecting Epic games defined in Heroic's `legendaryConfig` folder.
+* Changed:
+  * GUI: Rendering now uses DirectX/Vulkan/Metal instead of OpenGL.
+    For systems that don't support those, there is a fallback software renderer as well.
+  * GUI: Ludusavi now bundles and uses the Noto Sans font for consistency,
+    but some languages will still depend on your system fonts.
 * Fixed:
   * If an invalid manifest file were downloaded, Ludusavi would correctly show an error,
     but then after relaunching, it would get stuck on an "updating manifest" screen.
   * On Linux, if Ludusavi were installed via Flatpak, then `XDG_CONFIG_HOME` and `XDG_DATA_HOME`
     would be set inside of the Flatpak environment, preventing it from finding some saves.
     Now, Ludusavi will also check the default paths (`~/.config` and `~/.local/share` respectively).
-  * Detection of saves associated with the Ubisoft Game Launcher folder
+  * Saves associated with the Ubisoft Game Launcher folder were not detected
     on Linux when installed with Steam and Proton.
   * On non-Windows systems, when recursively finding files in a directory,
     file/folder names containing a backslash would cause an error.
