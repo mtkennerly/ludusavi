@@ -8,6 +8,8 @@
     Unfortunately, there are still technical limitations with Arabic,
     so that translation remains experimental via the config file.
   * Support for detecting Epic games defined in Heroic's `legendaryConfig` folder.
+  * GUI: For custom games in scan results,
+    you can click on the "custom" badge to jump to the corresponding entry.
 * Changed:
   * GUI: Rendering now uses DirectX/Vulkan/Metal instead of OpenGL.
     For systems that don't support those, there is a fallback software renderer as well.

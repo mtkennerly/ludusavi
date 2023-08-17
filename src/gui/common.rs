@@ -217,6 +217,10 @@ pub enum Message {
         subject: ScrollSubject,
         position: iced::widget::scrollable::RelativeOffset,
     },
+    ScrollAbsolute {
+        subject: ScrollSubject,
+        position: iced::widget::scrollable::AbsoluteOffset,
+    },
     EditedBackupComment {
         game: String,
         comment: String,
@@ -249,6 +253,9 @@ pub enum Message {
     FinalizeRemote(Remote),
     EditedModalField(ModalField),
     ModalChangePage(usize),
+    ShowCustomGame {
+        name: String,
+    },
 }
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]

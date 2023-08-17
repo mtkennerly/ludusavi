@@ -215,6 +215,7 @@ pub fn custom_games<'a>(
                                 ),
                         ),
                 )
+                .id(iced::widget::container::Id::new(config.custom_games[i].name.clone()))
                 .style(style::Container::GameListEntry),
             )
         },

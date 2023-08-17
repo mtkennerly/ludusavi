@@ -2078,6 +2078,10 @@ impl Application for App {
                 self.scroll_offsets.insert(subject, position);
                 Command::none()
             }
+            Message::ScrollAbsolute { subject, position } => {
+                self.scroll_offsets.remove(&subject);
+                scrollable::scroll_to(subject.id(), position)
+            }
             Message::EditedBackupComment { game, comment } => {
                 self.restore_screen.log.set_comment(&game, comment);
                 Command::none()
@@ -2329,6 +2333,20 @@ impl Application for App {
                     modal.set_page(page);
                 }
                 Command::none()
+            }
+            Message::ShowCustomGame { name } => {
+                use crate::gui::widget::operation::container_scroll_offset;
+                use iced::widget::container;
+
+                let subject = ScrollSubject::CustomGames;
+
+                self.scroll_offsets.remove(&subject);
+                self.screen = Screen::CustomGames;
+
+                container_scroll_offset(container::Id::new(name.clone())).map(move |offset| match offset {
+                    Some(position) => Message::ScrollAbsolute { subject, position },
+                    None => Message::Ignore,
+                })
             }
         }
     }

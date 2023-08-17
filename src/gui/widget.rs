@@ -284,3 +284,62 @@ impl<'a> IcedButtonExt<'a> for Button<'a> {
         }
     }
 }
+
+pub mod operation {
+    use iced::{
+        advanced::{widget, widget::Operation},
+        widget::{container, scrollable::AbsoluteOffset},
+        Command, Rectangle, Vector,
+    };
+
+    pub fn container_scroll_offset(id: container::Id) -> Command<Option<AbsoluteOffset>> {
+        struct ContainerScrollOffset {
+            target: widget::Id,
+            offset: Option<AbsoluteOffset>,
+            anchor: Option<f32>,
+        }
+
+        impl Operation<Option<AbsoluteOffset>> for ContainerScrollOffset {
+            fn scrollable(
+                &mut self,
+                _state: &mut dyn widget::operation::Scrollable,
+                _id: Option<&widget::Id>,
+                bounds: Rectangle,
+                _translation: Vector,
+            ) {
+                self.anchor = Some(bounds.y);
+            }
+
+            fn container(
+                &mut self,
+                id: Option<&widget::Id>,
+                bounds: Rectangle,
+                operate_on_children: &mut dyn FnMut(&mut dyn Operation<Option<AbsoluteOffset>>),
+            ) {
+                if self.offset.is_some() {
+                    return;
+                }
+
+                if id == Some(&self.target) {
+                    self.offset = Some(AbsoluteOffset {
+                        x: 0.0,
+                        y: bounds.y - self.anchor.unwrap_or(0.0),
+                    });
+                    return;
+                }
+
+                operate_on_children(self);
+            }
+
+            fn finish(&self) -> widget::operation::Outcome<Option<AbsoluteOffset>> {
+                widget::operation::Outcome::Some(self.offset)
+            }
+        }
+
+        Command::widget(ContainerScrollOffset {
+            target: id.into(),
+            offset: None,
+            anchor: None,
+        })
+    }
+}

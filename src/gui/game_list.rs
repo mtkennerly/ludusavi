@@ -60,6 +60,7 @@ impl GameListEntry {
         let all_items_ignored = self.scan_info.all_ignored();
         let customized = config.is_game_customized(&self.scan_info.game_name);
         let customized_pure = customized && !manifest.0.contains_key(&self.scan_info.game_name);
+        let name = self.scan_info.game_name.clone();
         let name_for_checkbox = self.scan_info.game_name.clone();
         let name_for_comment = self.scan_info.game_name.clone();
         let name_for_comment2 = self.scan_info.game_name.clone();
@@ -154,7 +155,11 @@ impl GameListEntry {
                         )
                         .push_if(
                             || customized,
-                            || Badge::new(&TRANSLATOR.custom_label().to_uppercase()).view(),
+                            || {
+                                Badge::new(&TRANSLATOR.custom_label().to_uppercase())
+                                    .on_press(Message::ShowCustomGame { name: name.clone() })
+                                    .view()
+                            },
                         )
                         .push_if(|| !successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
                         .push_some(|| {
