@@ -213,11 +213,11 @@ pub enum Message {
         game: String,
     },
     UndoRedo(crate::gui::undoable::Action, UndoSubject),
-    Scroll {
+    Scrolled {
         subject: ScrollSubject,
-        position: iced::widget::scrollable::RelativeOffset,
+        position: iced::widget::scrollable::AbsoluteOffset,
     },
-    ScrollAbsolute {
+    Scroll {
         subject: ScrollSubject,
         position: iced::widget::scrollable::AbsoluteOffset,
     },
@@ -694,9 +694,9 @@ impl ScrollSubject {
             .height(Length::Fill)
             .style(crate::gui::style::Scrollable)
             .id(self.id())
-            .on_scroll(move |viewport| Message::Scroll {
+            .on_scroll(move |viewport| Message::Scrolled {
                 subject: self,
-                position: viewport.relative_offset(),
+                position: viewport.absolute_offset(),
             })
     }
 }

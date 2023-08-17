@@ -72,7 +72,7 @@ pub struct App {
     updating_manifest: bool,
     notify_on_single_game_scanned: Option<(String, Screen)>,
     timed_notification: Option<Notification>,
-    scroll_offsets: HashMap<ScrollSubject, scrollable::RelativeOffset>,
+    scroll_offsets: HashMap<ScrollSubject, scrollable::AbsoluteOffset>,
     text_histories: TextHistories,
     rclone_monitor_sender: Option<iced::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
     exiting: bool,
@@ -1057,15 +1057,9 @@ impl App {
 
     fn refresh_scroll_position(&mut self) -> Command<Message> {
         let subject = self.scroll_subject();
-        let offset = self
-            .scroll_offsets
-            .get(&subject)
-            .copied()
-            .unwrap_or(scrollable::RelativeOffset::START);
+        let offset = self.scroll_offsets.get(&subject).copied().unwrap_or_default();
 
-        // TODO: use `scroll_to` once it's released.
-        // https://github.com/iced-rs/iced/pull/1796
-        scrollable::snap_to(subject.id(), offset)
+        scrollable::scroll_to(subject.id(), offset)
     }
 
     fn refresh_scroll_position_on_log(&mut self, cleared: bool) -> Command<Message> {
@@ -1077,7 +1071,8 @@ impl App {
     }
 
     fn reset_scroll_position(&mut self, subject: ScrollSubject) {
-        self.scroll_offsets.insert(subject, scrollable::RelativeOffset::START);
+        self.scroll_offsets
+            .insert(subject, scrollable::AbsoluteOffset::default());
     }
 
     fn configure_remote(&self, remote: Remote) -> Command<Message> {
@@ -1382,8 +1377,10 @@ impl Application for App {
                 }
                 self.config.save();
                 if snap {
-                    self.scroll_offsets
-                        .insert(ScrollSubject::CustomGames, scrollable::RelativeOffset::END);
+                    self.scroll_offsets.insert(
+                        ScrollSubject::CustomGames,
+                        scrollable::AbsoluteOffset { x: 0.0, y: f32::MAX },
+                    );
                     self.refresh_scroll_position()
                 } else {
                     Command::none()
@@ -2074,12 +2071,12 @@ impl Application for App {
                     Command::none()
                 }
             },
-            Message::Scroll { subject, position } => {
+            Message::Scrolled { subject, position } => {
                 self.scroll_offsets.insert(subject, position);
                 Command::none()
             }
-            Message::ScrollAbsolute { subject, position } => {
-                self.scroll_offsets.remove(&subject);
+            Message::Scroll { subject, position } => {
+                self.scroll_offsets.insert(subject, position);
                 scrollable::scroll_to(subject.id(), position)
             }
             Message::EditedBackupComment { game, comment } => {
@@ -2344,7 +2341,7 @@ impl Application for App {
                 self.screen = Screen::CustomGames;
 
                 container_scroll_offset(container::Id::new(name.clone())).map(move |offset| match offset {
-                    Some(position) => Message::ScrollAbsolute { subject, position },
+                    Some(position) => Message::Scroll { subject, position },
                     None => Message::Ignore,
                 })
             }

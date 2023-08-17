@@ -29,6 +29,7 @@
   * When using shift+click on a path selector icon to browse the path,
     it will now handle some manifest `<placeholder>`s.
   * In paths, `<storeUserId>` next to `*` would trigger an error.
+  * GUI: When switching screens and then expanding a section, the scroll position remains stable.
 
 ## v0.20.0 (2023-07-10)
 
