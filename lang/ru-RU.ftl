@@ -85,11 +85,11 @@ field-backup-excluded-items = Исключения из резервной ко�
 field-redirects = Redirects:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
-field-retention-full = Full:
+field-retention-full = Полный:
 # This appears next to the number of differential backups that you'd like to keep.
 # A differential backup includes only the files that have changed since the last full backup.
-field-retention-differential = Differential:
-field-backup-format = Format:
+field-retention-differential = Дифференциальный:
+field-backup-format = Формат:
 field-backup-compression = Сжатие:
 # The compression level determines how much compresison we perform.
 field-backup-compression-level = Степень:
@@ -114,16 +114,16 @@ label-cloud = Облачное хранилище
 # A "remote" is what Rclone calls cloud systems like Google Drive.
 label-remote = Remote
 label-remote-name = Remote name
-label-folder = Folder
+label-folder = Папка
 # An executable file
 label-executable = Исполняемый файл
 # Options given to a command line program
-label-arguments = Arguments
-label-url = URL
+label-arguments = Аргументы
+label-url = Ссылка
 # https://en.wikipedia.org/wiki/Host_(network)
-label-host = Host
+label-host = Хост
 # https://en.wikipedia.org/wiki/Port_(computer_networking)
-label-port = Port
+label-port = Порт
 label-username = Имя пользователя
 label-password = Пароль
 # This is a specific website or service that provides some cloud functionality.
