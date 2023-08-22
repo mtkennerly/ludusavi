@@ -1,4 +1,4 @@
-## Unreleased
+## v0.21.0 (2023-08-22)
 
 * Added:
   * GUI: Thanks to updates in [Iced](https://github.com/iced-rs/iced),
@@ -7,7 +7,6 @@
     Simplified Chinese, Japanese, Korean, and Thai.
     Unfortunately, there are still technical limitations with Arabic,
     so that translation remains experimental via the config file.
-  * Support for detecting Epic games defined in Heroic's `legendaryConfig` folder.
   * GUI: For custom games in scan results,
     you can click on the "custom" badge to jump to the corresponding entry.
 * Changed:
@@ -21,6 +20,7 @@
   * On Linux, if Ludusavi were installed via Flatpak, then `XDG_CONFIG_HOME` and `XDG_DATA_HOME`
     would be set inside of the Flatpak environment, preventing it from finding some saves.
     Now, Ludusavi will also check the default paths (`~/.config` and `~/.local/share` respectively).
+  * For Heroic roots, Ludusavi now also checks the `legendaryConfig` folder used by Heroic 1.9.0.
   * Saves associated with the Ubisoft Game Launcher folder were not detected
     on Linux when installed with Steam and Proton.
   * On non-Windows systems, when recursively finding files in a directory,
@@ -29,7 +29,8 @@
   * When using shift+click on a path selector icon to browse the path,
     it will now handle some manifest `<placeholder>`s.
   * In paths, `<storeUserId>` next to `*` would trigger an error.
-  * GUI: When switching screens and then expanding a section, the scroll position remains stable.
+  * GUI: When switching screens and then expanding a section,
+    the scroll position did not remain visually stable.
 
 ## v0.20.0 (2023-07-10)
 

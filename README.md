@@ -108,6 +108,7 @@ along with the root's type:
 
   Ludusavi can find GOG/Epic saves in Heroic's game install folders.
   On Linux, Ludusavi can also find saves in Heroic's Wine, Proton, and Lutris prefixes.
+  However, Ludusavi does not yet support Heroic's Amazon or sideloaded games.
 
   When using Wine prefixes with Heroic, Ludusavi will back up the `*.reg` files
   if the game is known to have registry-based saves.
@@ -506,18 +507,18 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   `fil-PH` (Filipino),
   `fr-FR` (French),
   `it-IT` (Italian),
+  `ja-JP` (Japanese),
+  `ko-KR` (Korean),
   `nl-NL` (Dutch),
   `pl-PL` (Polish),
   `pt-BR` (Brazilian Portuguese),
   `ru-RU` (Russian),
-  `uk-UA` (Ukrainian).
+  `th-TH` (Thai),
+  `uk-UA` (Ukrainian),
+  `zh-Hans` (Simplified Chinese).
 
   Experimental options that currently have graphical display issues:
-  `ar-SA` (Arabic),
-  `ja-JP` (Japanese),
-  `ko-KR` (Korean),
-  `zh-Hans` (Simplified Chinese),
-  `th-TH` (Thai).
+  `ar-SA` (Arabic).
 * `theme` (string, optional): Visual theme. Valid options:
   `light` (default), `dark`.
 * `roots` (list):
