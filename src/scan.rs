@@ -137,6 +137,11 @@ pub fn parse_paths(
 
     let mut paths = HashSet::new();
 
+    // Since STORE_USER_ID becomes `*`, we don't want to end up with an invalid `**`.
+    let path = path
+        .replace(&format!("*{}", STORE_USER_ID), STORE_USER_ID)
+        .replace(&format!("{}*", STORE_USER_ID), STORE_USER_ID);
+
     let install_dir = match install_dir {
         Some(d) => d,
         None => SKIP,
@@ -195,6 +200,18 @@ pub fn parse_paths(
             }
         }
         paths.insert((virtual_store, case_sensitive));
+    }
+    if Os::HOST == Os::Linux {
+        // Default XDG paths, in case we're in a Flatpak context.
+        paths.insert((
+            path.replace(GAME, install_dir)
+                .replace(STORE_USER_ID, "*")
+                .replace(OS_USER_NAME, &whoami::username())
+                .replace(XDG_DATA, "<home>/.local/share")
+                .replace(XDG_CONFIG, "<home>/.config")
+                .replace(HOME, &home),
+            platform.is_case_sensitive(),
+        ));
     }
     if root.store == Store::Gog && Os::HOST == Os::Linux {
         paths.insert((
@@ -560,6 +577,12 @@ pub fn scan_game_for_backup(
                     .into_iter()
                     .filter_map(filter_map_walkdir)
                 {
+                    #[cfg(not(target_os = "windows"))]
+                    if child.path().to_string_lossy().contains('\\') {
+                        // TODO: Support names containing a slash.
+                        continue;
+                    }
+
                     if child.file_type().is_file() {
                         let child = StrictPath::from(&child).rendered();
                         if filter.is_path_ignored(&child) {

@@ -320,8 +320,17 @@ impl Manifest {
         match res.status() {
             reqwest::StatusCode::OK => {
                 std::fs::create_dir_all(app_dir()).map_err(|_| Error::ManifestCannotBeUpdated)?;
-                let mut file = std::fs::File::create(Self::path()).map_err(|_| Error::ManifestCannotBeUpdated)?;
-                res.copy_to(&mut file).map_err(|_| Error::ManifestCannotBeUpdated)?;
+
+                // Ensure that the manifest data is valid before we save it.
+                let mut manifest_bytes = vec![];
+                res.copy_to(&mut manifest_bytes)
+                    .map_err(|_| Error::ManifestCannotBeUpdated)?;
+                let manifest_string = String::from_utf8(manifest_bytes).map_err(|_| Error::ManifestCannotBeUpdated)?;
+                if let Err(e) = Self::load_from_string(&manifest_string) {
+                    return Err(Error::ManifestInvalid { why: e.to_string() });
+                }
+
+                std::fs::write(Self::path(), manifest_string).map_err(|_| Error::ManifestCannotBeUpdated)?;
 
                 let new_etag = res
                     .headers()

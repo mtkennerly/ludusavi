@@ -140,13 +140,13 @@ impl ToString for Language {
             Self::Filipino => "Filipino (39%)",
             Self::French => "Français (100%)",
             Self::German => "Deutsch (100%)",
-            Self::Italian => "Italiano (62%)",
+            Self::Italian => "Italiano (100%)",
             Self::Japanese => "日本語 (53%)",
             Self::Korean => "한국어 (32%)",
             Self::Polish => "Polski (99%)",
             Self::PortugueseBrazilian => "Português brasileiro (95%)",
-            Self::Russian => "Русский язык (75%)",
-            Self::Spanish => "Español (57%)",
+            Self::Russian => "Русский язык (77%)",
+            Self::Spanish => "Español (100%)",
             Self::Thai => "ภาษาไทย (28%)",
             Self::Ukrainian => "Украї́нська мо́ва (6%)",
         }
@@ -731,7 +731,7 @@ impl Translator {
     }
 
     pub fn unable_to_open_dir(&self, path: &StrictPath) -> String {
-        format!("{}\n\n{}", translate("unable-to-open-directory"), path.render())
+        format!("{}\n\n{}", translate("unable-to-open-directory"), path.resolve())
     }
 
     pub fn unable_to_open_url(&self, url: &str) -> String {

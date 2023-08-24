@@ -72,7 +72,7 @@ pub struct App {
     updating_manifest: bool,
     notify_on_single_game_scanned: Option<(String, Screen)>,
     timed_notification: Option<Notification>,
-    scroll_offsets: HashMap<ScrollSubject, scrollable::RelativeOffset>,
+    scroll_offsets: HashMap<ScrollSubject, scrollable::AbsoluteOffset>,
     text_histories: TextHistories,
     rclone_monitor_sender: Option<iced::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
     exiting: bool,
@@ -114,6 +114,14 @@ impl App {
                     Command::none()
                 },
             ])
+        } else {
+            Command::none()
+        }
+    }
+
+    fn close_specific_modal(&mut self, modal: Modal) -> Command<Message> {
+        if self.modal == Some(modal) {
+            self.close_modal()
         } else {
             Command::none()
         }
@@ -1049,15 +1057,9 @@ impl App {
 
     fn refresh_scroll_position(&mut self) -> Command<Message> {
         let subject = self.scroll_subject();
-        let offset = self
-            .scroll_offsets
-            .get(&subject)
-            .copied()
-            .unwrap_or(scrollable::RelativeOffset::START);
+        let offset = self.scroll_offsets.get(&subject).copied().unwrap_or_default();
 
-        // TODO: use `scroll_to` once it's released.
-        // https://github.com/iced-rs/iced/pull/1796
-        scrollable::snap_to(subject.id(), offset)
+        scrollable::scroll_to(subject.id(), offset)
     }
 
     fn refresh_scroll_position_on_log(&mut self, cleared: bool) -> Command<Message> {
@@ -1069,7 +1071,8 @@ impl App {
     }
 
     fn reset_scroll_position(&mut self, subject: ScrollSubject) {
-        self.scroll_offsets.insert(subject, scrollable::RelativeOffset::START);
+        self.scroll_offsets
+            .insert(subject, scrollable::AbsoluteOffset::default());
     }
 
     fn configure_remote(&self, remote: Remote) -> Command<Message> {
@@ -1098,37 +1101,48 @@ impl Application for App {
     type Theme = crate::gui::style::Theme;
 
     fn new(flags: Flags) -> (Self, Command<Message>) {
+        let mut errors = vec![];
+
         let mut modal: Option<Modal> = None;
         let mut config = match Config::load() {
             Ok(x) => x,
             Err(x) => {
-                modal = Some(Modal::Error { variant: x });
+                errors.push(x);
                 let _ = Config::archive_invalid();
                 Config::default()
             }
         };
         let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
         TRANSLATOR.set_language(config.language);
-        let manifest = match Manifest::load() {
-            Ok(y) => y,
-            Err(_) => {
-                if flags.update_manifest {
-                    modal = Some(Modal::UpdatingManifest);
+        let manifest = if Manifest::path().exists() {
+            match Manifest::load() {
+                Ok(y) => y,
+                Err(e) => {
+                    errors.push(e);
+                    Manifest::default()
                 }
-                Manifest::default()
             }
+        } else {
+            if flags.update_manifest {
+                modal = Some(Modal::UpdatingManifest);
+            }
+            Manifest::default()
         };
 
-        let missing: Vec<_> = config
-            .find_missing_roots()
-            .iter()
-            .filter(|x| !cache.has_root(x))
-            .cloned()
-            .collect();
-        if !missing.is_empty() {
-            cache.add_roots(&missing);
-            cache.save();
-            modal = Some(Modal::ConfirmAddMissingRoots(missing));
+        if !errors.is_empty() {
+            modal = Some(Modal::Errors { errors });
+        } else {
+            let missing: Vec<_> = config
+                .find_missing_roots()
+                .iter()
+                .filter(|x| !cache.has_root(x))
+                .cloned()
+                .collect();
+            if !missing.is_empty() {
+                cache.add_roots(&missing);
+                cache.save();
+                modal = Some(Modal::ConfirmAddMissingRoots(missing));
+            }
         }
 
         let manifest_config = config.manifest.clone();
@@ -1221,7 +1235,7 @@ impl Application for App {
 
                 let updated = match updated {
                     Ok(Some(updated)) => updated,
-                    Ok(None) => return Command::none(),
+                    Ok(None) => return self.close_specific_modal(Modal::UpdatingManifest),
                     Err(e) => {
                         return self.show_error(e);
                     }
@@ -1233,11 +1247,7 @@ impl Application for App {
                 match Manifest::load() {
                     Ok(x) => {
                         self.manifest = x;
-                        if self.modal == Some(Modal::UpdatingManifest) {
-                            self.close_modal()
-                        } else {
-                            Command::none()
-                        }
+                        self.close_specific_modal(Modal::UpdatingManifest)
                     }
                     Err(variant) => self.show_modal(Modal::Error { variant }),
                 }
@@ -1367,8 +1377,10 @@ impl Application for App {
                 }
                 self.config.save();
                 if snap {
-                    self.scroll_offsets
-                        .insert(ScrollSubject::CustomGames, scrollable::RelativeOffset::END);
+                    self.scroll_offsets.insert(
+                        ScrollSubject::CustomGames,
+                        scrollable::AbsoluteOffset { x: 0.0, y: f32::MAX },
+                    );
                     self.refresh_scroll_position()
                 } else {
                     Command::none()
@@ -1828,7 +1840,7 @@ impl Application for App {
             }
             Message::OpenDir { path } => {
                 let path2 = path.clone();
-                Command::perform(async move { opener::open(path.interpret()) }, move |res| match res {
+                Command::perform(async move { opener::open(path.resolve()) }, move |res| match res {
                     Ok(_) => Message::Ignore,
                     Err(_) => Message::OpenDirFailure { path: path2 },
                 })
@@ -1838,22 +1850,28 @@ impl Application for App {
                     BrowseSubject::BackupTarget => self.config.backup.path.clone(),
                     BrowseSubject::RestoreSource => self.config.restore.path.clone(),
                     BrowseSubject::Root(i) => self.config.roots[i].path.clone(),
-                    BrowseSubject::RedirectSource(i) => self.config.redirects[i].source.parent_if_file(),
-                    BrowseSubject::RedirectTarget(i) => self.config.redirects[i].target.parent_if_file(),
+                    BrowseSubject::RedirectSource(i) => self.config.redirects[i].source.clone(),
+                    BrowseSubject::RedirectTarget(i) => self.config.redirects[i].target.clone(),
                     BrowseSubject::CustomGameFile(i, j) => {
-                        StrictPath::new(self.config.custom_games[i].files[j].clone()).parent_if_file()
+                        StrictPath::new(self.config.custom_games[i].files[j].clone())
                     }
-                    BrowseSubject::BackupFilterIgnoredPath(i) => {
-                        self.config.backup.filter.ignored_paths[i].parent_if_file()
-                    }
+                    BrowseSubject::BackupFilterIgnoredPath(i) => self.config.backup.filter.ignored_paths[i].clone(),
                 };
-                self.update(Message::OpenDir { path })
+
+                match path.parent_if_file() {
+                    Ok(path) => self.update(Message::OpenDir { path }),
+                    Err(_) => self.show_error(Error::UnableToOpenDir(path)),
+                }
             }
             Message::OpenFileSubject(subject) => {
                 let path = match subject {
-                    BrowseFileSubject::RcloneExecutable => self.config.apps.rclone.path.parent_if_file(),
+                    BrowseFileSubject::RcloneExecutable => self.config.apps.rclone.path.clone(),
                 };
-                self.update(Message::OpenDir { path })
+
+                match path.parent_if_file() {
+                    Ok(path) => self.update(Message::OpenDir { path }),
+                    Err(_) => self.show_error(Error::UnableToOpenDir(path)),
+                }
             }
             Message::OpenDirFailure { path } => self.show_modal(Modal::Error {
                 variant: Error::UnableToOpenDir(path),
@@ -2053,9 +2071,13 @@ impl Application for App {
                     Command::none()
                 }
             },
-            Message::Scroll { subject, position } => {
+            Message::Scrolled { subject, position } => {
                 self.scroll_offsets.insert(subject, position);
                 Command::none()
+            }
+            Message::Scroll { subject, position } => {
+                self.scroll_offsets.insert(subject, position);
+                scrollable::scroll_to(subject.id(), position)
             }
             Message::EditedBackupComment { game, comment } => {
                 self.restore_screen.log.set_comment(&game, comment);
@@ -2308,6 +2330,20 @@ impl Application for App {
                     modal.set_page(page);
                 }
                 Command::none()
+            }
+            Message::ShowCustomGame { name } => {
+                use crate::gui::widget::operation::container_scroll_offset;
+                use iced::widget::container;
+
+                let subject = ScrollSubject::CustomGames;
+
+                self.scroll_offsets.remove(&subject);
+                self.screen = Screen::CustomGames;
+
+                container_scroll_offset(container::Id::new(name.clone())).map(move |offset| match offset {
+                    Some(position) => Message::Scroll { subject, position },
+                    None => Message::Ignore,
+                })
             }
         }
     }
