@@ -43,6 +43,7 @@ pub fn parse_heroic_2_9_goggame_info(roots: &[RootsConfig], commands: &[String])
         // Linux native games like Stellaris, Dead Cells or Terraria
         StrictPath::from(commands[commands.len() - 1].as_str())
             .parent_if_file()
+            .unwrap_or_default()
             .joined("game")
             .joined("goggame-*.info"),
         // Windows games like Blasphemous, Desperados 3 or The Witcher 3 Wild Hunt GOTY
@@ -89,6 +90,7 @@ pub fn parse_heroic_2_9_goggame_id(roots: &[RootsConfig], commands: &[String]) -
     // Try checking dirname(commands[0])/game/__game/goggame-GAME_ID.id
     let id_files = StrictPath::from(commands[0].as_str())
         .parent_if_file()
+        .unwrap_or_default()
         .joined("game")
         .joined("__game")
         .joined("goggame-*.id")

@@ -1,7 +1,7 @@
 mod parse;
 mod report;
 
-use std::process::Command;
+use std::{fmt::Debug, process::Command};
 
 use clap::CommandFactory;
 use indicatif::{ParallelProgressIterator, ProgressBar};
@@ -789,13 +789,12 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     parse::LauncherTypes::Heroic => {
                         match get_game_name_from_heroic_launch_commands(&roots, &commands) {
                             Ok(name) => game_name = name,
-                            Err(msg) => {
-                                let _ = native_dialog::MessageDialog::new()
-                                .set_title("Ludusavi Wrap Error")
-                                .set_text(
-                                    &format!("Could not determine game name from launch commands, aborting.\n\nError message: {:?}", msg))
-                                .set_type(native_dialog::MessageType::Error)
-                                .show_alert();
+                            Err(err) => {
+                                let _ = crate::wrap::ui::alert_with_error(
+                                    gui,
+                                    "Could not determine game name from launch commands, aborting.",
+                                    &format!("{:?}", err),
+                                );
                                 break 'wrap;
                             }
                         }
@@ -822,15 +821,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     game_name = name;
                 }
                 None => {
-                    match native_dialog::MessageDialog::new()
-                        .set_title("Ludusavi Wrap")
-                        .set_text(&format!(
-                            "Could not find a restorable backup for {}.\n\nContinue to launch game anyways?",
-                            game_name
-                        ))
-                        .set_type(native_dialog::MessageType::Warning)
-                        .show_confirm()
-                    {
+                    match crate::wrap::ui::confirm(
+                        gui,
+                        &format!("Could not find a restorable backup for {}.", game_name),
+                        "Continue to launch game anyways?",
+                    ) {
                         Ok(confirmation) => match confirmation {
                             true => skip_restore = true,
                             false => {
@@ -851,16 +846,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             // TODO.2023-07-12 detect if there are differences between backed up and actual saves
             if !skip_restore {
-                let notification_result = native_dialog::MessageDialog::new()
-                    .set_title("Ludusavi Wrap")
-                    .set_text(&format!(
-                        "About to restore backup for {}.\n\nContinue (YES) or abort (NO)?",
-                        game_name
-                    ))
-                    .set_type(native_dialog::MessageType::Info)
-                    .show_confirm();
-                log::debug!("WRAP::restore: user confirmation response: {:?}", notification_result);
-                match notification_result {
+                match crate::wrap::ui::confirm_continue(gui, &format!("About to restore backup for {}.", game_name)) {
                     Ok(confirmation) => match confirmation {
                         true => {}
                         false => {
@@ -891,14 +877,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("WRAP::restore: failed for game {} with: {:?}", game_name, err);
-                    let _ = native_dialog::MessageDialog::new()
-                        .set_title("Ludusavi Wrap Error")
-                        .set_text(&format!(
-                            "Savegame restoration failed, aborting.\n\nError message:\n{:?}",
-                            err
-                        ))
-                        .set_type(native_dialog::MessageType::Error)
-                        .show_alert();
+                    let _ = crate::wrap::ui::alert_with_error(
+                        gui,
+                        "Savegame restoration failed, aborting.",
+                        &format!("{:?}", err),
+                    );
                     break 'wrap;
                 }
             }
@@ -916,14 +899,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
                 Err(err) => {
                     log::error!("WRAP::execute: Game command execution failed with: {:#?}", err);
-                    let _ = native_dialog::MessageDialog::new()
-                        .set_title("Ludusavi Wrap Error")
-                        .set_text(&format!(
-                            "Game ran, but returned an error.  Aborting before backing up.\n\nError message:\n{:?}",
-                            err
-                        ))
-                        .set_type(native_dialog::MessageType::Error)
-                        .show_alert();
+                    let _ = crate::wrap::ui::alert_with_error(
+                        gui,
+                        "Game ran, but returned an error.  Aborting before backing up.",
+                        &err.to_string(),
+                    );
                     break 'wrap;
                 }
             }
@@ -938,14 +918,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
                 None => {
                     log::error!("WRAP::backup: title_finder returned nothing for {}", game_name);
-                    let _ = native_dialog::MessageDialog::new()
-                        .set_title("Ludusavi Wrap Error")
-                        .set_text(&format!(
+                    let _ = crate::wrap::ui::alert(
+                        gui,
+                        &format!(
                             "Game ran, but ludusavi does not know how to back up {}.  Aborting.",
                             game_name
-                        ))
-                        .set_type(native_dialog::MessageType::Error)
-                        .show_alert();
+                        ),
+                    );
                     break 'wrap;
                 }
             };
@@ -953,15 +932,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             // backup
             //
-            let notification_result = native_dialog::MessageDialog::new()
-                .set_title("Ludusavi Wrap")
-                .set_text(&format!(
-                    "About to backup savegames for {}\n\nContinue (YES) or abort (NO)?",
-                    game_name
-                ))
-                .set_type(native_dialog::MessageType::Info)
-                .show_confirm();
-            match notification_result {
+            match crate::wrap::ui::confirm_simple(gui, &format!("About to backup savegames for {}", game_name)) {
                 Ok(confirmation) => match confirmation {
                     true => {}
                     false => {
@@ -1001,11 +972,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 try_manifest_update,
             ) {
                 log::error!("WRAP::backup: failed with: {:#?}", err);
-                let _ = native_dialog::MessageDialog::new()
-                    .set_title("Ludusavi Wrap Error")
-                    .set_text(&format!("Backup failed, aborting.\n\nError message:\n{:?}", err))
-                    .set_type(native_dialog::MessageType::Error)
-                    .show_alert();
+                let _ = crate::wrap::ui::alert_with_error(gui, "Backup failed, aborting.", &format!("{:?}", err));
                 break 'wrap;
             }
 
