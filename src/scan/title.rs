@@ -15,7 +15,7 @@ static RE_EDITION_KNOWN: Lazy<Regex> = Lazy::new(|| Regex::new(r#" (game of the 
 /// This covers any single-word editions that are not separated by punctuation.
 /// We can't assume more than one word because it may be part of the main title.
 static RE_EDITION_SHORT: Lazy<Regex> = Lazy::new(|| Regex::new(r#" [^ ]+ edition$"#).unwrap());
-static RE_YEAR_SUFFIX: Lazy<Regex> = Lazy::new(|| Regex::new(r#" \(\d+\)$"#).unwrap());
+static RE_YEAR_SUFFIX: Lazy<Regex> = Lazy::new(|| Regex::new(r" \(\d+\)$").unwrap());
 static RE_SYMBOLS: Lazy<Regex> = Lazy::new(|| Regex::new(r#"[™®©:-]"#).unwrap());
 static RE_SPACES: Lazy<Regex> = Lazy::new(|| Regex::new(r#" {2,}"#).unwrap());
 
