@@ -1613,7 +1613,9 @@ impl GameLayout {
             if let Err(e) = match &file.container {
                 None => self.restore_file_from_simple(target, file),
                 Some(container) => {
-                    let Some(archive) = containers.get_mut(container) else { continue };
+                    let Some(archive) = containers.get_mut(container) else {
+                        continue;
+                    };
                     self.restore_file_from_zip(target, file, archive)
                 }
             } {
@@ -1857,8 +1859,12 @@ impl GameLayout {
                     }
                 }
                 BackupFormat::Zip => {
-                    let Ok(handle) = std::fs::File::open(self.path.joined(&backup.name).interpret()) else { return false };
-                    let Ok(mut archive) = zip::ZipArchive::new(handle) else { return false };
+                    let Ok(handle) = std::fs::File::open(self.path.joined(&backup.name).interpret()) else {
+                        return false;
+                    };
+                    let Ok(mut archive) = zip::ZipArchive::new(handle) else {
+                        return false;
+                    };
 
                     for file in backup.files.keys() {
                         let original_path = StrictPath::new(file.to_string());
@@ -1893,8 +1899,12 @@ impl GameLayout {
                         }
                     }
                     BackupFormat::Zip => {
-                        let Ok(handle) = std::fs::File::open(self.path.joined(&backup.name).interpret()) else { return false };
-                        let Ok(mut archive) = zip::ZipArchive::new(handle) else { return false };
+                        let Ok(handle) = std::fs::File::open(self.path.joined(&backup.name).interpret()) else {
+                            return false;
+                        };
+                        let Ok(mut archive) = zip::ZipArchive::new(handle) else {
+                            return false;
+                        };
 
                         for (file, data) in &backup.files {
                             if data.is_none() {

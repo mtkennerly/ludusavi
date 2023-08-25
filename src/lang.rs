@@ -206,9 +206,9 @@ fn set_language(language: Language) {
     *last_language = language;
 }
 
-static RE_EXTRA_SPACES: Lazy<Regex> = Lazy::new(|| Regex::new(r#"([^\r\n ]) {2,}"#).unwrap());
-static RE_EXTRA_LINES: Lazy<Regex> = Lazy::new(|| Regex::new(r#"([^\r\n ])[\r\n]([^\r\n ])"#).unwrap());
-static RE_EXTRA_PARAGRAPHS: Lazy<Regex> = Lazy::new(|| Regex::new(r#"([^\r\n ])[\r\n]{2,}([^\r\n ])"#).unwrap());
+static RE_EXTRA_SPACES: Lazy<Regex> = Lazy::new(|| Regex::new(r"([^\r\n ]) {2,}").unwrap());
+static RE_EXTRA_LINES: Lazy<Regex> = Lazy::new(|| Regex::new(r"([^\r\n ])[\r\n]([^\r\n ])").unwrap());
+static RE_EXTRA_PARAGRAPHS: Lazy<Regex> = Lazy::new(|| Regex::new(r"([^\r\n ])[\r\n]{2,}([^\r\n ])").unwrap());
 
 fn translate(id: &str) -> String {
     translate_args(id, &FluentArgs::new())

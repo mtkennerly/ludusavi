@@ -142,7 +142,9 @@ pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> Has
     subjects
         .iter()
         .filter_map(|name| {
-            let Some((score, subdir)) = by_title.get(name) else { return None };
+            let Some((score, subdir)) = by_title.get(name) else {
+                return None;
+            };
 
             if *score < i64::MAX {
                 if let Some(competitors) = by_subdir.get(subdir) {

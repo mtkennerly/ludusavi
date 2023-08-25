@@ -727,7 +727,9 @@ impl GameList {
     pub fn set_comment(&mut self, game: &str, comment: String) {
         let Some(index) = self.find_game(game) else { return };
         let entry = &mut self.entries[index];
-        let Some(backup) = &mut entry.scan_info.backup else { return };
+        let Some(backup) = &mut entry.scan_info.backup else {
+            return;
+        };
         let Some(layout) = &mut entry.game_layout else { return };
 
         layout.set_backup_comment(backup.name(), &comment);
@@ -738,7 +740,9 @@ impl GameList {
     pub fn toggle_locked(&mut self, game: &str) {
         let Some(index) = self.find_game(game) else { return };
         let entry = &mut self.entries[index];
-        let Some(backup) = &mut entry.scan_info.backup else { return };
+        let Some(backup) = &mut entry.scan_info.backup else {
+            return;
+        };
         let Some(layout) = &mut entry.game_layout else { return };
 
         let new = !backup.locked();

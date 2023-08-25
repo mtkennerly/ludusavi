@@ -11,7 +11,9 @@ pub fn validate_cloud_config(config: &Config, cloud_path: &str) -> Result<Remote
     if !config.apps.rclone.is_valid() {
         return Err(Error::RcloneUnavailable);
     }
-    let Some(remote) = config.cloud.remote.clone() else { return Err(Error::CloudNotConfigured) };
+    let Some(remote) = config.cloud.remote.clone() else {
+        return Err(Error::CloudNotConfigured);
+    };
     validate_cloud_path(cloud_path)?;
     Ok(remote)
 }
