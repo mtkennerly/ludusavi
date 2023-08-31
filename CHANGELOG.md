@@ -1,3 +1,8 @@
+## Unreleased
+
+* Added:
+  * When a path or URL fails to open, additional information is now logged.
+
 ## v0.21.0 (2023-08-22)
 
 * Added:
