@@ -26,7 +26,7 @@ use crate::{
         layout::BackupLayout, normalize_title, prepare_backup_target, scan_game_for_backup, BackupId,
         DuplicateDetector, Launchers, OperationStepDecision, SteamShortcuts, TitleFinder,
     },
-    wrap::get_game_name_from_heroic_launch_commands,
+    wrap::get_game_name_from_heroic_launch_invocation,
 };
 
 #[derive(Clone, Debug, Default)]
@@ -787,7 +787,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 let roots = config.expanded_roots();
                 match name_source.infer.unwrap() {
                     parse::LauncherTypes::Heroic => {
-                        match get_game_name_from_heroic_launch_commands(&roots, &commands) {
+                        match get_game_name_from_heroic_launch_invocation(&roots, &commands) {
                             Ok(name) => game_name = name,
                             Err(err) => {
                                 let _ = crate::wrap::ui::alert_with_error(

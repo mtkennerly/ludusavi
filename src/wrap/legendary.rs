@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use itertools::Itertools;
 
 use crate::{resource::config::RootsConfig, scan::heroic::get_legendary_installed_games};

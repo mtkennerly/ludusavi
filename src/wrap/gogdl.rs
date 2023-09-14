@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use std::{env, str::FromStr};
 
 use itertools::Itertools;
