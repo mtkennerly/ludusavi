@@ -14,7 +14,7 @@ pub fn get_game_name_from_heroic_launch_invocation(
 ) -> Result<String, Error> {
     // TODO.2023-08-01 support Amazon Games (supported since Heroic 2.9.0)
     // TODO.2023-09-14 drop pre 2.9.2 implementations and mention heroic version
-    // requirement in README
+    // requirement in README, drop commands parameter
     let parsers = [
         heroic::parse_heroic_2_9_2_environment_variables,
         // gogdl::parse_heroic_2_9_goggame_info,

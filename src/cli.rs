@@ -23,8 +23,8 @@ use crate::{
     },
     resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
     scan::{
-        layout::BackupLayout, normalize_title, prepare_backup_target, scan_game_for_backup, BackupId,
-        DuplicateDetector, Launchers, OperationStepDecision, SteamShortcuts, TitleFinder,
+        layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
+        OperationStepDecision, SteamShortcuts, TitleFinder,
     },
     wrap::get_game_name_from_heroic_launch_invocation,
 };
@@ -777,7 +777,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 commands
             );
             failed = true;
-            // TODO.2023-07-17 pass legendary path downwards
+            //
             // Determine game name
             //
             let mut game_name;
@@ -801,7 +801,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     }
                 }
             }
-            log::debug!("WRAP::setup: game name is: {}", game_name);
+            log::debug!("WRAP::setup: game name as known to runner is: {}", game_name);
 
             //
             // Check using TitleFinder
@@ -811,16 +811,22 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
             let mut skip_restore = false;
+            // TODO.2023-09-15 restore list is empty for any of the third parameter, but WHY?
+            // Because heroic calls us with env XDG_CONFIG_HOME=/home/saschal/.config/heroic/legendaryConfig
+            // so we use an empty, default config.
+            // WORKAROUND: call ludusavi with --config
+            log::debug!("WRAP::restore: config is {:#?}", config);
             let title_finder = TitleFinder::new(
                 &manifest,
                 &BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone()),
             );
-            match title_finder.find_one(&[normalize_title(&game_name)], &None, &None, true, false, true) {
+            match title_finder.find_one(&[game_name.clone()], &None, &None, true, false, true) {
                 Some(name) => {
                     log::debug!("WRAP::restore: title_finder returns: {}", name);
                     game_name = name;
                 }
                 None => {
+                    log::debug!("WRAP::restore: title_finder did not find anything for {}", game_name);
                     match crate::wrap::ui::confirm(
                         gui,
                         &format!("Could not find a restorable backup for {}.", game_name),
@@ -911,7 +917,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             // Check if ludusavi is able to back up
             //
-            match title_finder.find_one(&[normalize_title(&game_name)], &None, &None, true, true, false) {
+            match title_finder.find_one(&[game_name.clone()], &None, &None, true, true, false) {
                 Some(name) => {
                     log::debug!("WRAP::backup: title_finder returns: {}", name);
                     game_name = name;
