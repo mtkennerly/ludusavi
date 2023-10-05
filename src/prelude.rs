@@ -111,8 +111,10 @@ pub enum Error {
     WrapCommandNotRecognized {
         msg: String,
     },
+    WrapCommandUITechnicalFailure {
+        msg: String,
+    },
 }
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommandError {
     Launched {

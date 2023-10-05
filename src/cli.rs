@@ -827,7 +827,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
                 None => {
                     log::debug!("WRAP::restore: title_finder did not find anything for {}", game_name);
-                    match crate::wrap::ui::confirm(
+                    match crate::wrap::ui::confirm_with_question(
                         gui,
                         &format!("Could not find a restorable backup for {}.", game_name),
                         "Continue to launch game anyways?",
