@@ -26,7 +26,7 @@ use crate::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
         OperationStepDecision, SteamShortcuts, TitleFinder,
     },
-    wrap::get_game_name_from_heroic_launch_invocation,
+    wrap::{get_game_info_from_heroic_launch_invocation, WrapGameInfo},
 };
 
 #[derive(Clone, Debug, Default)]
@@ -770,7 +770,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             commands,
         } => 'wrap: {
             log::info!(
-                "WRAP::setup: infer: {:#?}, name: {:#?}, gui: {:#?}, commands: {:#?}",
+                "WRAP:: called with: {:#?}, name: {:#?}, gui: {:#?}, commands: {:#?}",
                 name_source.infer,
                 name_source.name,
                 gui,
@@ -780,19 +780,19 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             // Determine game name
             //
-            let mut game_name;
+            let mut wrap_game_info = WrapGameInfo::default();
             if let Some(name) = name_source.name {
-                game_name = name;
+                wrap_game_info.name = Some(name);
             } else {
                 let roots = config.expanded_roots();
                 match name_source.infer.unwrap() {
                     parse::LauncherTypes::Heroic => {
-                        match get_game_name_from_heroic_launch_invocation(&roots, &commands) {
-                            Ok(name) => game_name = name,
+                        match get_game_info_from_heroic_launch_invocation(&roots, &commands) {
+                            Ok(gi) => wrap_game_info = gi,
                             Err(err) => {
                                 let _ = crate::wrap::ui::alert_with_error(
                                     gui,
-                                    "Could not determine game name from launch commands, aborting.",
+                                    "Could not determine game name or id from launch commands, aborting.",
                                     &format!("{:?}", err),
                                 );
                                 break 'wrap;
@@ -801,8 +801,9 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     }
                 }
             }
-            log::debug!("WRAP::setup: game name as known to runner is: {}", game_name);
+            log::debug!("WRAP::setup: game name as known to runner is: {:?}", wrap_game_info);
 
+            // TODO.2023-11-11 rework titlefinder logic to be able to work on Option(name), Option(runner, id) pairs
             //
             // Check using TitleFinder
             //
@@ -820,16 +821,27 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 &manifest,
                 &BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone()),
             );
-            match title_finder.find_one(&[game_name.clone()], &None, &None, true, false, true) {
-                Some(name) => {
+
+            let mut game_name: Option<String> = None;
+            if wrap_game_info.name.is_some() {
+                game_name =
+                    title_finder.find_one(&[wrap_game_info.name.clone().unwrap()], &None, &None, true, false, true);
+            }
+            if game_name.is_none() && wrap_game_info.gog_id.is_some() {
+                game_name = title_finder.find_one(&[], &None, &wrap_game_info.gog_id, false, false, true);
+            }
+            match game_name {
+                Some(ref name) => {
                     log::debug!("WRAP::restore: title_finder returns: {}", name);
-                    game_name = name;
                 }
                 None => {
-                    log::debug!("WRAP::restore: title_finder did not find anything for {}", game_name);
+                    log::debug!(
+                        "WRAP::restore: title_finder did not find anything for {:?}",
+                        wrap_game_info
+                    );
                     match crate::wrap::ui::confirm_with_question(
                         gui,
-                        &format!("Could not find a restorable backup for {}.", game_name),
+                        &format!("Could not find a restorable backup for {:?}.", wrap_game_info),
                         "Continue to launch game anyways?",
                     ) {
                         Ok(confirmation) => match confirmation {
@@ -846,6 +858,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     };
                 }
             };
+            let mut game_name = game_name.unwrap();
 
             //
             // restore
@@ -917,6 +930,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             // Check if ludusavi is able to back up
             //
+            // TODO.2023-11-11 adjust to WrapGameInfo
             match title_finder.find_one(&[game_name.clone()], &None, &None, true, true, false) {
                 Some(name) => {
                     log::debug!("WRAP::backup: title_finder returns: {}", name);

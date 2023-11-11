@@ -3,6 +3,7 @@ use std::env;
 use crate::{
     resource::{config::RootsConfig, manifest::Store},
     scan::heroic::{get_gog_games_library, get_legendary_installed_games},
+    wrap::WrapGameInfo,
 };
 
 /// Tries to find a game with ID `game_id` in the given game roots, actual
@@ -52,7 +53,9 @@ pub fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) ->
 /// HEROIC_APP_SOURCE (one of: gog, epic, amazon, sideload)
 ///
 /// We rely on HEROIC_APP_NAME and HEROIC_APP_RUNNER only.
-pub fn parse_heroic_2_9_2_environment_variables(roots: &[RootsConfig], _commands: &[String]) -> Option<String> {
+pub fn parse_heroic_2_9_2_environment_variables(roots: &[RootsConfig], _commands: &[String]) -> Option<WrapGameInfo> {
+    let mut result = WrapGameInfo::default();
+
     let heroic_app_name = match env::var("HEROIC_APP_NAME") {
         Ok(value) => value,
         Err(_) => return None,
@@ -69,5 +72,20 @@ pub fn parse_heroic_2_9_2_environment_variables(roots: &[RootsConfig], _commands
         heroic_app_runner,
     );
 
-    find_in_roots(roots, &heroic_app_name, &heroic_app_runner)
+    result.gog_id = match heroic_app_runner.as_str() {
+        "gog" => match heroic_app_name.parse() {
+            Ok(id) => Some(id),
+            Err(_) => Some(0),
+        },
+
+        _ => None,
+    };
+
+    result.name = find_in_roots(roots, &heroic_app_name, &heroic_app_runner);
+
+    if result.is_empty() {
+        None
+    } else {
+        Some(result)
+    }
 }

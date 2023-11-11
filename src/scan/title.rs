@@ -103,6 +103,30 @@ impl TitleFinder {
         found.iter().next().map(|x| x.to_owned())
     }
 
+    /// Lookup games based on certain criteria, returns a set of matching game
+    /// names, operates in different modes depending on which parameters are
+    /// set.
+    ///
+    /// # Modes
+    ///
+    /// * _ID mode_: if either `steam_id` or `gog_id` is set, returns a single
+    /// game for `steam_id` or `gog_id` which is eligible according to the
+    /// `backup` and `restore` parameters.  If nothing is found, continues as
+    /// _name search mode_.
+    ///
+    /// * _name search mode_: if `names` is not empty, returns the first game
+    /// from `self.all_games` whose name is equal to any of the given `names`
+    /// and which is eligible according to the `backup` and `restore`
+    /// parameters.  If `normalized` is set, it additionally tries to look up
+    /// the game in `self.normalized.get(&normalize_title(name))` (also filters
+    /// for eligible).
+    ///
+    /// * _multi mode_: if none of the parameters `names`, `steam_id` or
+    /// `gog_id` are set, returns a list of games based on `backup` and
+    /// `restore`, filtered by `disabled` (for backup and/or restore) and
+    /// `partial` (if any files are ignored for a backup / restore) as set in
+    /// the given `Config`.  This mode does not filter for elegible like the
+    /// other modes.
     pub fn find(
         &self,
         names: &[String],
