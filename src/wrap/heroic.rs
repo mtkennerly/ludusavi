@@ -8,7 +8,7 @@ use crate::{
 
 /// Tries to find a game with ID `game_id` in the given game roots, actual
 /// search algorithm used varies with `game_runner`.  Returns game name or None.
-pub fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) -> Option<String> {
+fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) -> Option<String> {
     roots
         .iter()
         .filter(|root| root.store == Store::Heroic)
@@ -53,7 +53,7 @@ pub fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) ->
 /// HEROIC_APP_SOURCE (one of: gog, epic, amazon, sideload)
 ///
 /// We rely on HEROIC_APP_NAME and HEROIC_APP_RUNNER only.
-pub fn parse_heroic_2_9_2_environment_variables(roots: &[RootsConfig], _commands: &[String]) -> Option<WrapGameInfo> {
+pub fn parse_heroic_environment_variables(roots: &[RootsConfig], _commands: &[String]) -> Option<WrapGameInfo> {
     let mut result = WrapGameInfo::default();
 
     let heroic_app_name = match env::var("HEROIC_APP_NAME") {

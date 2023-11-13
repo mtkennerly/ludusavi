@@ -139,6 +139,39 @@ The only case where it may make a difference is if Ludusavi finds secondary mani
 *and* those manfiests contain overlapping entries for the same game,
 in which case Ludusavi will merge the data together in the order that it finds them.
 
+### [Experimental] Wrap: automatic restore/backup in Heroic
+
+The command `wrap` allows ludusavi to be used as a game launch wrapper for
+automatic backup / restore around the actual game run.
+
+As of 2023-11, only Heroic is supported as a launcher and only GOG and Epic
+games are supported within that.
+
+At least Heroic 2.9.2 is needed to successfully use this feature.
+
+#### Usage:
+
+Create a file named `ludusavi-wrap.sh` with this content
+
+```
+$!/bin/sh
+ludusavi --try-manifest-update --config $HOME/.config/ludusavi wrap --gui --infer heroic -- "$@"
+```
+
+and set it as a wrapper within heroic (you need to do that for each game already
+installed individually).
+
+#### Explanation:
+
+* `--try-manifest-update`: do not abort if offline
+* `--config $HOME/.config/ludusavi`: heroic currently sets `XDG_CONFIG_HOME`, so
+   we need this option to use our standard ludusavi config (instead of an empty
+   one)
+* `wrap`: actual command for ludusavi
+* `--infer heroic`: tell ludusavi that it is being called from heroic and
+   determine game data based on that
+* `-- "%@"`: pass game invocation command line into ludusavi
+
 ### Backup retention
 You can configure how many backups to keep by pressing the gear icon on the backup screen.
 A full backup contains all save data for a game,

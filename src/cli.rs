@@ -26,7 +26,7 @@ use crate::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
         OperationStepDecision, SteamShortcuts, TitleFinder,
     },
-    wrap::{get_game_info_from_heroic_launch_invocation, WrapGameInfo},
+    wrap::{heroic::parse_heroic_environment_variables, WrapGameInfo},
 };
 
 #[derive(Clone, Debug, Default)]
@@ -786,32 +786,30 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             } else {
                 let roots = config.expanded_roots();
                 match name_source.infer.unwrap() {
-                    parse::LauncherTypes::Heroic => {
-                        match get_game_info_from_heroic_launch_invocation(&roots, &commands) {
-                            Ok(gi) => wrap_game_info = gi,
-                            Err(err) => {
-                                let _ = crate::wrap::ui::alert_with_error(
-                                    gui,
-                                    "Could not determine game name or id from launch commands, aborting.",
-                                    &format!("{:?}", err),
-                                );
-                                break 'wrap;
-                            }
+                    // NOTE.2023-11-13 this is the extension point to support
+                    // other launchers in the future, e.g. lutris
+                    parse::LauncherTypes::Heroic => match parse_heroic_environment_variables(&roots, &commands) {
+                        Some(gi) => wrap_game_info = gi,
+                        None => {
+                            let _ = crate::wrap::ui::alert(
+                                gui,
+                                "Could not determine game name or id from launch commands, aborting.",
+                            );
+                            break 'wrap;
                         }
-                    }
+                    },
                 }
             }
             log::debug!("WRAP::setup: game name as known to runner is: {:?}", wrap_game_info);
 
-            // TODO.2023-11-11 rework titlefinder logic to be able to work on Option(name), Option(runner, id) pairs
             //
-            // Check using TitleFinder
+            // Check name using TitleFinder
             //
             // e.g. "Slain: Back From Hell" from legendary to "Slain: Back from
             // Hell" as known to ludusavi
             //
-            let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
             let mut skip_restore = false;
+            let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
             // TODO.2023-09-15 restore list is empty for any of the third parameter, but WHY?
             // Because heroic calls us with env XDG_CONFIG_HOME=/home/saschal/.config/heroic/legendaryConfig
             // so we use an empty, default config.
@@ -823,16 +821,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             );
 
             let mut game_name: Option<String> = None;
-            log::debug!("WRAP::restore: title_finder input: {:?}", wrap_game_info);
             if wrap_game_info.name.is_some() {
                 game_name =
                     title_finder.find_one(&[wrap_game_info.name.clone().unwrap()], &None, &None, true, false, true);
             }
-            log::debug!("WRAP::restore: title_finder first output: {:?}", game_name);
             if game_name.is_none() && wrap_game_info.gog_id.is_some() {
                 game_name = title_finder.find_one(&[], &None, &wrap_game_info.gog_id, false, false, true);
             }
-            log::debug!("WRAP::restore: title_finder second output: {:?}", game_name);
             match game_name {
                 Some(ref name) => {
                     log::debug!("WRAP::restore: title_finder returns: {}", name);
@@ -844,7 +839,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     );
                     match crate::wrap::ui::confirm_with_question(
                         gui,
-                        // &format!("Could not find a restorable backup for {}.", wrap_game_info),
                         "Could not find a restorable backup.",
                         "Continue to launch game anyways?",
                     ) {
@@ -866,7 +860,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             // restore
             //
-            // TODO.2023-07-12 detect if there are differences between backed up and actual saves
+            // TODO.2023-07-12 detect if there are differences between backed up
+            // and actual saves and skip the question if there is none
             if !skip_restore {
                 match crate::wrap::ui::confirm_continue(gui, "Continue with backup restoration?") {
                     Ok(confirmation) => match confirmation {
@@ -935,18 +930,14 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             // Check if ludusavi is able to back up
             //
-            // TODO.2023-11-11 adjust to WrapGameInfo
             let mut game_name: Option<String> = None;
-            log::debug!("WRAP::backup: title_finder input: {:?}", wrap_game_info);
             if wrap_game_info.name.is_some() {
                 game_name =
                     title_finder.find_one(&[wrap_game_info.name.clone().unwrap()], &None, &None, true, true, false);
             }
-            log::debug!("WRAP::backup: title_finder first output: {:?}", game_name);
             if game_name.is_none() && wrap_game_info.gog_id.is_some() {
                 game_name = title_finder.find_one(&[], &None, &wrap_game_info.gog_id, false, true, false);
             }
-            log::debug!("WRAP::backup: title_finder second output: {:?}", game_name);
             match game_name {
                 Some(ref name) => {
                     log::debug!("WRAP::backup: title_finder returns: {}", name);
