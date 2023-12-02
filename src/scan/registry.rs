@@ -246,19 +246,19 @@ impl Hives {
 
         self.0
             .entry(hive_name.to_string())
-            .or_insert_with(Default::default)
+            .or_default()
             .0
             .entry(key.to_string())
-            .or_insert_with(Default::default);
+            .or_default();
         for (name, value) in subkey.enum_values().filter_map(|x| x.ok()) {
             let entry = Entry::from(value);
             if entry.is_set() {
                 self.0
                     .entry(hive_name.to_string())
-                    .or_insert_with(Default::default)
+                    .or_default()
                     .0
                     .entry(key.to_string())
-                    .or_insert_with(Default::default)
+                    .or_default()
                     .0
                     .entry(name.to_string())
                     .or_insert_with(|| entry);

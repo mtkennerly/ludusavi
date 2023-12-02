@@ -622,7 +622,8 @@ pub fn scan_game_for_backup(
     // and would lead to duplicate hash keys during reporting.
     let current_files_with_redirects: Vec<_> = found_files
         .iter()
-        .filter_map(|x| x.redirected.is_some().then(|| x.path.interpret()))
+        .filter(|&x| x.redirected.is_some())
+        .map(|x| x.path.interpret())
         .collect();
     for (previous_file, _) in previous_files {
         let previous_file_interpreted = previous_file.interpret();

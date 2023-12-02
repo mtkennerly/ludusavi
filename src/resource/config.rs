@@ -1128,7 +1128,7 @@ impl ToggledPaths {
         self.remove_with_children(game, path);
         self.0
             .entry(game.to_string())
-            .or_insert_with(Default::default)
+            .or_default()
             .insert(path.clone(), enabled);
     }
 
@@ -1243,7 +1243,7 @@ impl ToggledRegistry {
 
         self.0
             .entry(game.to_string())
-            .or_insert_with(Default::default)
+            .or_default()
             .entry(path.clone())
             .or_insert(ToggledRegistryEntry::Unset)
             .enable(value, enabled);

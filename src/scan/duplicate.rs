@@ -101,7 +101,7 @@ impl DuplicateDetector {
                     stale.extend(existing.cloned());
                 }
             }
-            self.files.entry(path.clone()).or_insert_with(Default::default).insert(
+            self.files.entry(path.clone()).or_default().insert(
                 scan_info.game_name.clone(),
                 DuplicateDetectorEntry {
                     enabled: game_enabled && !item.ignored,
@@ -110,7 +110,7 @@ impl DuplicateDetector {
             );
             self.game_files
                 .entry(scan_info.game_name.clone())
-                .or_insert_with(Default::default)
+                .or_default()
                 .insert(path);
         }
 
@@ -121,27 +121,24 @@ impl DuplicateDetector {
                     stale.extend(existing.cloned());
                 }
             }
-            self.registry
-                .entry(path.clone())
-                .or_insert_with(Default::default)
-                .insert(
-                    scan_info.game_name.clone(),
-                    DuplicateDetectorEntry {
-                        enabled: game_enabled && !item.ignored,
-                        change: item.change(scan_info.restoring()),
-                    },
-                );
+            self.registry.entry(path.clone()).or_default().insert(
+                scan_info.game_name.clone(),
+                DuplicateDetectorEntry {
+                    enabled: game_enabled && !item.ignored,
+                    change: item.change(scan_info.restoring()),
+                },
+            );
             self.game_registry
                 .entry(scan_info.game_name.clone())
-                .or_insert_with(Default::default)
+                .or_default()
                 .insert(path.clone());
 
             for (value_name, value) in item.values.iter() {
                 self.registry_values
                     .entry(path.clone())
-                    .or_insert_with(Default::default)
+                    .or_default()
                     .entry(value_name.to_string())
-                    .or_insert_with(Default::default)
+                    .or_default()
                     .insert(
                         scan_info.game_name.clone(),
                         DuplicateDetectorEntry {
@@ -151,9 +148,9 @@ impl DuplicateDetector {
                     );
                 self.game_registry_values
                     .entry(scan_info.game_name.clone())
-                    .or_insert_with(Default::default)
+                    .or_default()
                     .entry(path.clone())
-                    .or_insert_with(Default::default)
+                    .or_default()
                     .insert(value_name.to_string());
             }
         }

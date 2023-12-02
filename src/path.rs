@@ -262,12 +262,7 @@ impl Ord for StrictPath {
 
 impl PartialOrd for StrictPath {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        let raw = self.raw.partial_cmp(&other.raw);
-        if raw != Some(std::cmp::Ordering::Equal) {
-            raw
-        } else {
-            self.basis.partial_cmp(&other.basis)
-        }
+        Some(self.cmp(other))
     }
 }
 
