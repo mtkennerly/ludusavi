@@ -399,6 +399,14 @@ impl StrictPath {
         use chrono::{Datelike, Timelike};
 
         let mtime: chrono::DateTime<chrono::Utc> = self.get_mtime()?.into();
+
+        // Zip doesn't support years before 1980,
+        // and this is probably just a default Unix timestamp anyway,
+        // so we round up.
+        if mtime.year() < 1980 {
+            return Ok(zip::DateTime::default());
+        }
+
         let converted = zip::DateTime::from_date_and_time(
             mtime.year() as u16,
             mtime.month() as u8,
