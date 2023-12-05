@@ -1,6 +1,8 @@
 ## Unreleased
 
 * Added:
+  * CLI: `wrap` command to do a restore before playing a game and a backup afterwards.
+    ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/235))
   * When a path or URL fails to open, additional information is now logged.
 * Fixed:
   * When storing file modified times in zip archives,

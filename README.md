@@ -140,39 +140,6 @@ The only case where it may make a difference is if Ludusavi finds secondary mani
 *and* those manfiests contain overlapping entries for the same game,
 in which case Ludusavi will merge the data together in the order that it finds them.
 
-### [Experimental] Wrap: automatic restore/backup in Heroic
-
-The command `wrap` allows ludusavi to be used as a game launch wrapper for
-automatic backup / restore around the actual game run.
-
-As of 2023-11, only Heroic is supported as a launcher and only GOG and Epic
-games are supported within that.
-
-At least Heroic 2.9.2 is needed to successfully use this feature.
-
-#### Usage:
-
-Create a file named `ludusavi-wrap.sh` with this content
-
-```
-$!/bin/sh
-ludusavi --try-manifest-update --config $HOME/.config/ludusavi wrap --gui --infer heroic -- "$@"
-```
-
-and set it as a wrapper within heroic (you need to do that for each game already
-installed individually).
-
-#### Explanation:
-
-* `--try-manifest-update`: do not abort if offline
-* `--config $HOME/.config/ludusavi`: heroic currently sets `XDG_CONFIG_HOME`, so
-   we need this option to use our standard ludusavi config (instead of an empty
-   one)
-* `wrap`: actual command for ludusavi
-* `--infer heroic`: tell ludusavi that it is being called from heroic and
-   determine game data based on that
-* `-- "%@"`: pass game invocation command line into ludusavi
-
 ### Backup retention
 You can configure how many backups to keep by pressing the gear icon on the backup screen.
 A full backup contains all save data for a game,
@@ -392,6 +359,30 @@ By default, only warnings and errors are logged,
 but you can customize this by setting the `RUST_LOG` environment variable
 (e.g., `RUST_LOG=ludusavi=debug`).
 The most recent 5 log files are kept, rotating on app launch or when a log reaches 10 MiB.
+
+<!-- TODO: Uncomment before release
+### Game launch wrapping
+The CLI has a `wrap` command that can be used as a wrapper around launching a game.
+When wrapped, Ludusavi will restore data for the game first, launch it, and back up after playing.
+If you want to use this feature, you must manually configure your game launcher app to use this command.
+
+If you use Heroic 2.9.2 or newer, you can run `wrap --infer heroic -- GAME_INVOCATION` to automatically check the game name.
+For other launcher apps, you can run `wrap --name GAME_NAME -- GAME_INVOCATION`.
+
+#### Example with Heroic 2.9.2 on Linux
+Create a file named `ludusavi-wrap.sh` with this content:
+
+```
+$!/bin/sh
+ludusavi --try-manifest-update --config $HOME/.config/ludusavi wrap --gui --infer heroic -- "$@"
+```
+
+Mark the file as executable and set it as a wrapper within Heroic.
+You must set it as a wrapper for each game already installed individually.
+
+Note that the `--config` option is required because Heroic overrides the `XDG_CONFIG_HOME` environment variable,
+which would otherwise prevent Ludusavi from finding its configuration.
+-->
 
 ## Interfaces
 ### CLI API

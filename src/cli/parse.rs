@@ -353,7 +353,9 @@ pub enum Subcommand {
         #[clap(long)]
         gui: bool,
 
-        /// Commands to launch the game, separate with -- from wrap options!
+        /// Commands to launch the game.
+        /// Use `--` first to separate these from the `wrap` options;
+        /// e.g., `ludusavi wrap --name foo -- foo.exe --windowed`.
         #[clap()]
         commands: Vec<String>,
     },
@@ -522,7 +524,7 @@ pub struct WrapSubcommand {
     #[clap(long, value_enum, value_name = "LAUNCHER")]
     pub infer: Option<LauncherTypes>,
 
-    /// Directly set game name as known to ludusavi
+    /// Directly set game name as known to Ludusavi
     #[clap(long)]
     pub name: Option<String>,
 }
