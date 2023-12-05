@@ -35,7 +35,8 @@ If you'd like to help translate Ludusavi into other languages,
 ## Installation
 ### Requirements
 * Ludusavi is available for Windows, Linux, and Mac.
-* Your system must support OpenGL.
+* Your system must support one of DirectX, Vulkan, or Metal.
+  (If not, set the `ICED_BACKEND` environment variable to `tiny-skia` to use the software renderer.)
 
 ### Methods
 You can install Ludusavi one of these ways:
@@ -226,12 +227,12 @@ For example:
 
 * If you use something like [Google Drive for Desktop](https://www.google.com/drive/download),
   which creates a special drive (`G:`) to stream from/to the cloud,
-  then you can configure Ludusavi to use a folder in that drive.
+  then you can set Ludusavi's backup target to a folder in that drive.
 * If you use something like [Syncthing](https://syncthing.net),
   which continuously synchronizes a local folder across systems,
-  then you can configure Ludusavi to use that local folder.
+  then you can set Ludusavi's backup target to that local folder.
 * If you use Rclone's mounting functionality,
-  then you can configure Ludusavi to use the mount folder.
+  then you can set Ludusavi's backup target to the mount folder.
 
 ### Selective scanning
 Once you've done at least one full scan (via the preview/backup buttons),
@@ -719,6 +720,9 @@ cross-platform and cross-store solution:
     It should be fixed once Windows Terminal v1.17 is released.
     In the meantime, you can work around it by opening Windows Terminal from the Start Menu,
     opening its settings, and changing the "default terminal application" to "Windows Console Host".
+* The GUI won't launch.
+  * There may be an issue with your graphics drivers/support.
+    Try using the software renderer instead by setting the `ICED_BACKEND` environment variable to  `tiny-skia`.
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).

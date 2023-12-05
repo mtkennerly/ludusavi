@@ -103,7 +103,7 @@ impl Cache {
     }
 
     pub fn update_manifest(&mut self, update: ManifestUpdate) {
-        let cached = self.manifests.entry(update.url).or_insert_with(Default::default);
+        let cached = self.manifests.entry(update.url).or_default();
         cached.etag = update.etag;
         cached.checked = Some(update.timestamp);
         if update.modified {

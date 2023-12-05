@@ -158,7 +158,7 @@ impl RcloneProcess {
     pub fn succeeded(&mut self) -> Option<Result<(), CommandError>> {
         let res = match self.child.try_wait() {
             Ok(Some(status)) => match status.code() {
-                Some(code) if code == 0 => Some(Ok(())),
+                Some(0) => Some(Ok(())),
                 Some(code) => {
                     let stdout = self.child.stdout.as_mut().and_then(|x| {
                         let lines = BufReader::new(x).lines().map_while(Result::ok).collect::<Vec<_>>();
@@ -223,7 +223,7 @@ pub enum RemoteChoice {
 }
 
 impl RemoteChoice {
-    pub const ALL: &[Self] = &[
+    pub const ALL: &'static [Self] = &[
         Self::None,
         Self::Box,
         Self::Dropbox,
@@ -480,7 +480,7 @@ pub enum WebDavProvider {
 }
 
 impl WebDavProvider {
-    pub const ALL: &[Self] = &[
+    pub const ALL: &'static [Self] = &[
         Self::Other,
         Self::Nextcloud,
         Self::Owncloud,
@@ -488,18 +488,18 @@ impl WebDavProvider {
         Self::SharepointNtlm,
     ];
 
-    pub const ALL_CLI: &[&'static str] = &[
+    pub const ALL_CLI: &'static [&'static str] = &[
         Self::OTHER,
         Self::NEXTCLOUD,
         Self::OWNCLOUD,
         Self::SHAREPOINT,
         Self::SHAREPOINT_NTLM,
     ];
-    pub const OTHER: &str = "other";
-    const NEXTCLOUD: &str = "nextcloud";
-    const OWNCLOUD: &str = "owncloud";
-    const SHAREPOINT: &str = "sharepoint";
-    const SHAREPOINT_NTLM: &str = "sharepoint-ntlm";
+    pub const OTHER: &'static str = "other";
+    const NEXTCLOUD: &'static str = "nextcloud";
+    const OWNCLOUD: &'static str = "owncloud";
+    const SHAREPOINT: &'static str = "sharepoint";
+    const SHAREPOINT_NTLM: &'static str = "sharepoint-ntlm";
 }
 
 impl WebDavProvider {

@@ -1028,7 +1028,10 @@ impl App {
         let url2 = url.clone();
         Command::perform(async { opener::open(url) }, move |res| match res {
             Ok(_) => Message::Ignore,
-            Err(_) => Message::OpenUrlFailure { url: url2 },
+            Err(e) => {
+                log::error!("Unable to open URL: `{}` - {}", url2, e);
+                Message::OpenUrlFailure { url: url2 }
+            }
         })
     }
 
@@ -1842,7 +1845,10 @@ impl Application for App {
                 let path2 = path.clone();
                 Command::perform(async move { opener::open(path.resolve()) }, move |res| match res {
                     Ok(_) => Message::Ignore,
-                    Err(_) => Message::OpenDirFailure { path: path2 },
+                    Err(e) => {
+                        log::error!("Unable to open directory: `{}` - {:?}", path2.resolve(), e);
+                        Message::OpenDirFailure { path: path2 }
+                    }
                 })
             }
             Message::OpenDirSubject(subject) => {
