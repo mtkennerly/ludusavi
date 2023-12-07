@@ -108,8 +108,8 @@ pub enum Error {
     UnableToConfigureCloud(CommandError),
     UnableToSynchronizeCloud(CommandError),
     CloudConflict,
-    WrapCommandUITechnicalFailure {
-        msg: String,
+    GameDidNotLaunch {
+        why: String,
     },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]

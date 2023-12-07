@@ -808,8 +808,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             if game_name.is_none()
                 && !ui::confirm_with_question(
                     gui,
-                    "Ludusavi does not recognize this game.",
-                    "Continue to launch game anyways?",
+                    &TRANSLATOR.game_is_unrecognized(),
+                    &TRANSLATOR.launch_game_after_error(),
                 )?
             {
                 return Ok(());
@@ -828,8 +828,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 if !game_layout.has_backups() {
                     if ui::confirm_with_question(
                         gui,
-                        "Could not find a restorable backup.",
-                        "Continue to launch game anyways?",
+                        &TRANSLATOR.game_has_nothing_to_restore(),
+                        &TRANSLATOR.launch_game_after_error(),
                     )? {
                         break 'restore;
                     } else {
@@ -837,7 +837,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     }
                 }
 
-                if !ui::confirm_simple(gui, "Restore save data before playing?")? {
+                if !ui::confirm(gui, &TRANSLATOR.restore_one_game_confirm(game_name))? {
                     break 'restore;
                 }
 
@@ -845,8 +845,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     Subcommand::Restore {
                         games: vec![game_name.clone()],
                         force: true,
-                        // everything else is default
-                        // force: Default::default(),
                         preview: Default::default(),
                         path: Default::default(),
                         api: Default::default(),
@@ -859,7 +857,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("WRAP::restore: failed for game {:?} with: {:?}", wrap_game_info, err);
-                    ui::alert_with_error(gui, "Savegame restoration failed, aborting.", &format!("{:?}", err))?;
+                    ui::alert_with_error(gui, &TRANSLATOR.restore_one_game_failed(game_name), &err)?;
                     return Err(err);
                 }
             }
@@ -875,14 +873,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
                 Err(err) => {
                     log::error!("WRAP::execute: Game command execution failed with: {:#?}", err);
-                    ui::alert_with_error(
-                        gui,
-                        "Game did not run successfully.  Aborting before backing up.",
-                        &err.to_string(),
-                    )?;
-                    return Err(Error::WrapCommandUITechnicalFailure {
-                        msg: "Game did not run successfully".to_string(),
-                    });
+                    ui::alert_with_raw_error(gui, &TRANSLATOR.game_did_not_launch(), &err.to_string())?;
+                    return Err(Error::GameDidNotLaunch { why: err.to_string() });
                 }
             }
 
@@ -892,7 +884,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     break 'backup;
                 };
 
-                if !ui::confirm_simple(gui, "Back up save data?")? {
+                if !ui::confirm(gui, &TRANSLATOR.back_up_one_game_confirm(game_name))? {
                     break 'backup;
                 }
 
@@ -900,8 +892,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     Subcommand::Backup {
                         games: vec![game_name.clone()],
                         force: true,
-                        // everything else is default
-                        // force: Default::default(),
                         preview: Default::default(),
                         path: Default::default(),
                         merge: Default::default(),
@@ -923,10 +913,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("WRAP::backup: failed with: {:#?}", err);
-                    ui::alert_with_error(gui, "Backup failed, aborting.", &format!("{:?}", err))?;
-                    return Err(Error::WrapCommandUITechnicalFailure {
-                        msg: "Backup failed".to_string(),
-                    });
+                    ui::alert_with_error(gui, &TRANSLATOR.back_up_one_game_failed(game_name), &err)?;
+                    return Err(err);
                 }
             }
         }

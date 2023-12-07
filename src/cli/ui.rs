@@ -1,4 +1,4 @@
-use crate::prelude::Error;
+use crate::{lang::TRANSLATOR, prelude::Error};
 
 /// GUI looks nicer with an extra empty line as separator, but for terminals a single
 /// newline is sufficient
@@ -15,6 +15,7 @@ fn pause() -> Result<(), Error> {
     let mut stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
 
+    // TODO: Must be a string literal. Can we support translation?
     write!(stdout, "Press any key to continue...").map_err(|_| Error::CliUnableToRequestConfirmation)?;
     stdout.flush().map_err(|_| Error::CliUnableToRequestConfirmation)?;
 
@@ -25,15 +26,25 @@ fn pause() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn alert_with_error(gui: bool, msg: &str, error: &String) -> Result<(), Error> {
-    alert(gui, &format!("{}{}Error message: {}", msg, get_separator(gui), error))
+pub fn alert_with_raw_error(gui: bool, msg: &str, error: &str) -> Result<(), Error> {
+    alert(
+        gui,
+        &format!("{}{}{}", msg, get_separator(gui), TRANSLATOR.prefix_error(error)),
+    )
+}
+
+pub fn alert_with_error(gui: bool, msg: &str, error: &Error) -> Result<(), Error> {
+    alert(
+        gui,
+        &format!("{}{}{}", msg, get_separator(gui), TRANSLATOR.handle_error(error)),
+    )
 }
 
 pub fn alert(gui: bool, msg: &str) -> Result<(), Error> {
     log::debug!("Showing alert to user (GUI={}): {}", gui, msg);
     if gui {
         match native_dialog::MessageDialog::new()
-            .set_title("Ludusavi")
+            .set_title(&TRANSLATOR.app_name())
             .set_text(msg)
             .set_type(native_dialog::MessageType::Error)
             .show_alert()
@@ -53,14 +64,14 @@ pub fn alert(gui: bool, msg: &str) -> Result<(), Error> {
 }
 
 pub fn confirm_with_question(gui: bool, msg: &str, question: &str) -> Result<bool, Error> {
-    confirm_simple(gui, &format!("{}{}{}", msg, get_separator(gui), question))
+    confirm(gui, &format!("{}{}{}", msg, get_separator(gui), question))
 }
 
-pub fn confirm_simple(gui: bool, msg: &str) -> Result<bool, Error> {
+pub fn confirm(gui: bool, msg: &str) -> Result<bool, Error> {
     log::debug!("Showing confirmation to user (GUI={}): {}", gui, msg);
     if gui {
         match native_dialog::MessageDialog::new()
-            .set_title("Ludusavi")
+            .set_title(&TRANSLATOR.app_name())
             .set_text(msg)
             .set_type(native_dialog::MessageType::Info)
             .show_confirm()
