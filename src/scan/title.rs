@@ -86,8 +86,6 @@ impl TitleFinder {
         steam_id: &Option<u32>,
         gog_id: &Option<u64>,
         normalized: bool,
-        backup: bool,
-        restore: bool,
     ) -> Option<String> {
         let found = self.find(
             names,
@@ -95,8 +93,8 @@ impl TitleFinder {
             steam_id,
             gog_id,
             normalized,
-            backup,
-            restore,
+            false,
+            false,
             false,
             false,
         );
@@ -109,13 +107,11 @@ impl TitleFinder {
         steam_id: Option<u32>,
         gog_id: Option<u64>,
         normalized: bool,
-        backup: bool,
-        restore: bool,
     ) -> Option<String> {
         if let Some(name) = name {
-            self.find_one(&[name.clone()], &steam_id, &gog_id, normalized, backup, restore)
+            self.find_one(&[name.clone()], &steam_id, &gog_id, normalized)
         } else {
-            self.find_one(&[], &steam_id, &gog_id, normalized, backup, restore)
+            self.find_one(&[], &steam_id, &gog_id, normalized)
         }
     }
 

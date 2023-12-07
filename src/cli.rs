@@ -794,14 +794,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
             let title_finder = TitleFinder::new(&manifest, &layout);
             let game_name = wrap_game_info.as_ref().and_then(|wrap_game_info| {
-                title_finder.maybe_find_one(
-                    wrap_game_info.name.as_ref(),
-                    None,
-                    wrap_game_info.gog_id,
-                    true,
-                    false,
-                    false,
-                )
+                title_finder.maybe_find_one(wrap_game_info.name.as_ref(), None, wrap_game_info.gog_id, true)
             });
             log::debug!("Title finder result: {:?}", &game_name);
 
