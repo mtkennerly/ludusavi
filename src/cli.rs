@@ -1,5 +1,6 @@
 mod parse;
 mod report;
+mod ui;
 
 use std::{fmt::Debug, process::Command};
 
@@ -805,7 +806,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             log::debug!("Title finder result: {:?}", &game_name);
 
             if game_name.is_none()
-                && !crate::wrap::ui::confirm_with_question(
+                && !ui::confirm_with_question(
                     gui,
                     "Ludusavi does not recognize this game.",
                     "Continue to launch game anyways?",
@@ -825,7 +826,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
                 let game_layout = layout.game_layout(game_name);
                 if !game_layout.has_backups() {
-                    if crate::wrap::ui::confirm_with_question(
+                    if ui::confirm_with_question(
                         gui,
                         "Could not find a restorable backup.",
                         "Continue to launch game anyways?",
@@ -836,7 +837,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     }
                 }
 
-                if !crate::wrap::ui::confirm_continue(gui, "Restore save data before playing?")? {
+                if !ui::confirm_simple(gui, "Restore save data before playing?")? {
                     break 'restore;
                 }
 
@@ -858,11 +859,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("WRAP::restore: failed for game {:?} with: {:?}", wrap_game_info, err);
-                    crate::wrap::ui::alert_with_error(
-                        gui,
-                        "Savegame restoration failed, aborting.",
-                        &format!("{:?}", err),
-                    )?;
+                    ui::alert_with_error(gui, "Savegame restoration failed, aborting.", &format!("{:?}", err))?;
                     return Err(err);
                 }
             }
@@ -878,7 +875,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
                 Err(err) => {
                     log::error!("WRAP::execute: Game command execution failed with: {:#?}", err);
-                    crate::wrap::ui::alert_with_error(
+                    ui::alert_with_error(
                         gui,
                         "Game did not run successfully.  Aborting before backing up.",
                         &err.to_string(),
@@ -895,7 +892,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     break 'backup;
                 };
 
-                if !crate::wrap::ui::confirm_simple(gui, "Back up save data?")? {
+                if !ui::confirm_simple(gui, "Back up save data?")? {
                     break 'backup;
                 }
 
@@ -926,7 +923,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("WRAP::backup: failed with: {:#?}", err);
-                    crate::wrap::ui::alert_with_error(gui, "Backup failed, aborting.", &format!("{:?}", err))?;
+                    ui::alert_with_error(gui, "Backup failed, aborting.", &format!("{:?}", err))?;
                     return Err(Error::WrapCommandUITechnicalFailure {
                         msg: "Backup failed".to_string(),
                     });

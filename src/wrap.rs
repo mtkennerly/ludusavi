@@ -1,5 +1,4 @@
 pub mod heroic;
-pub mod ui;
 
 /// Returned game information with whatever we could find
 #[derive(Default, Debug)]

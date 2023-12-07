@@ -9,11 +9,21 @@ fn get_separator(gui: bool) -> &'static str {
     }
 }
 
-// ---------------------------------------------------------------------------
-//
-// Alerts
-//
-// ---------------------------------------------------------------------------
+fn pause() -> Result<(), Error> {
+    use std::io::prelude::{Read, Write};
+
+    let mut stdin = std::io::stdin();
+    let mut stdout = std::io::stdout();
+
+    write!(stdout, "Press any key to continue...").map_err(|_| Error::CliUnableToRequestConfirmation)?;
+    stdout.flush().map_err(|_| Error::CliUnableToRequestConfirmation)?;
+
+    stdin
+        .read(&mut [0u8])
+        .map_err(|_| Error::CliUnableToRequestConfirmation)?;
+
+    Ok(())
+}
 
 pub fn alert_with_error(gui: bool, msg: &str, error: &String) -> Result<(), Error> {
     alert(gui, &format!("{}{}Error message: {}", msg, get_separator(gui), error))
@@ -23,7 +33,7 @@ pub fn alert(gui: bool, msg: &str) -> Result<(), Error> {
     log::debug!("Showing alert to user (GUI={}): {}", gui, msg);
     if gui {
         match native_dialog::MessageDialog::new()
-            .set_title("Ludusavi Wrap Error")
+            .set_title("Ludusavi")
             .set_text(msg)
             .set_type(native_dialog::MessageType::Error)
             .show_alert()
@@ -35,32 +45,11 @@ pub fn alert(gui: bool, msg: &str) -> Result<(), Error> {
             }
         }
     } else {
-        // Using select is a hack since dialoguer does not have a
-
-        // TODO.2023-10-05 bad style offering a choice when a OK is the only
-        // option, but dialoguer does not have an alert type yet.
-        //
-        // Check this issue / pull request for progress:
+        // TODO: Dialoguer doesn't have an alert type.
         // https://github.com/console-rs/dialoguer/issues/287
-        // https://github.com/console-rs/dialoguer/pull/288
-        match dialoguer::Confirm::new().with_prompt(msg).default(true).interact() {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                log::error!("Unable to show alert: {:?}", err);
-                Err(Error::CliUnableToRequestConfirmation)
-            }
-        }
+        println!("{}", msg);
+        pause()
     }
-}
-
-// ---------------------------------------------------------------------------
-//
-// Confirmations
-//
-// ---------------------------------------------------------------------------
-
-pub fn confirm_continue(gui: bool, msg: &str) -> Result<bool, Error> {
-    confirm_with_question(gui, msg, "Continue (YES) or abort (NO)?")
 }
 
 pub fn confirm_with_question(gui: bool, msg: &str, question: &str) -> Result<bool, Error> {
@@ -71,7 +60,7 @@ pub fn confirm_simple(gui: bool, msg: &str) -> Result<bool, Error> {
     log::debug!("Showing confirmation to user (GUI={}): {}", gui, msg);
     if gui {
         match native_dialog::MessageDialog::new()
-            .set_title("Ludusavi Wrap")
+            .set_title("Ludusavi")
             .set_text(msg)
             .set_type(native_dialog::MessageType::Info)
             .show_confirm()
