@@ -20,6 +20,7 @@ pub fn alert_with_error(gui: bool, msg: &str, error: &String) -> Result<(), Erro
 }
 
 pub fn alert(gui: bool, msg: &str) -> Result<(), Error> {
+    log::debug!("Showing alert to user (GUI={}): {}", gui, msg);
     if gui {
         match native_dialog::MessageDialog::new()
             .set_title("Ludusavi Wrap Error")
@@ -28,7 +29,10 @@ pub fn alert(gui: bool, msg: &str) -> Result<(), Error> {
             .show_alert()
         {
             Ok(_) => Ok(()),
-            Err(err) => Err(Error::WrapCommandUITechnicalFailure { msg: err.to_string() }),
+            Err(err) => {
+                log::error!("Unable to show alert: {:?}", err);
+                Err(Error::CliUnableToRequestConfirmation)
+            }
         }
     } else {
         // Using select is a hack since dialoguer does not have a
@@ -41,7 +45,10 @@ pub fn alert(gui: bool, msg: &str) -> Result<(), Error> {
         // https://github.com/console-rs/dialoguer/pull/288
         match dialoguer::Confirm::new().with_prompt(msg).default(true).interact() {
             Ok(_) => Ok(()),
-            Err(err) => Err(Error::WrapCommandUITechnicalFailure { msg: err.to_string() }),
+            Err(err) => {
+                log::error!("Unable to show alert: {:?}", err);
+                Err(Error::CliUnableToRequestConfirmation)
+            }
         }
     }
 }
@@ -61,6 +68,7 @@ pub fn confirm_with_question(gui: bool, msg: &str, question: &str) -> Result<boo
 }
 
 pub fn confirm_simple(gui: bool, msg: &str) -> Result<bool, Error> {
+    log::debug!("Showing confirmation to user (GUI={}): {}", gui, msg);
     if gui {
         match native_dialog::MessageDialog::new()
             .set_title("Ludusavi Wrap")
@@ -68,13 +76,25 @@ pub fn confirm_simple(gui: bool, msg: &str) -> Result<bool, Error> {
             .set_type(native_dialog::MessageType::Info)
             .show_confirm()
         {
-            Ok(value) => Ok(value),
-            Err(err) => Err(Error::WrapCommandUITechnicalFailure { msg: err.to_string() }),
+            Ok(value) => {
+                log::debug!("User responded: {}", value);
+                Ok(value)
+            }
+            Err(err) => {
+                log::error!("Unable to request confirmation: {:?}", err);
+                Err(Error::CliUnableToRequestConfirmation)
+            }
         }
     } else {
         match dialoguer::Confirm::new().with_prompt(msg).interact() {
-            Ok(value) => Ok(value),
-            Err(err) => Err(Error::WrapCommandUITechnicalFailure { msg: err.to_string() }),
+            Ok(value) => {
+                log::debug!("User responded: {}", value);
+                Ok(value)
+            }
+            Err(err) => {
+                log::error!("Unable to request confirmation: {:?}", err);
+                Err(Error::CliUnableToRequestConfirmation)
+            }
         }
     }
 }

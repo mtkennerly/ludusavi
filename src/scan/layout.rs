@@ -1450,6 +1450,10 @@ impl GameLayout {
         available_backups
     }
 
+    pub fn has_backups(&self) -> bool {
+        !self.mapping.backups.is_empty()
+    }
+
     pub fn scan_for_restoration(
         &mut self,
         name: &str,

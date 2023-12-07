@@ -103,6 +103,22 @@ impl TitleFinder {
         found.iter().next().map(|x| x.to_owned())
     }
 
+    pub fn maybe_find_one(
+        &self,
+        name: Option<&String>,
+        steam_id: Option<u32>,
+        gog_id: Option<u64>,
+        normalized: bool,
+        backup: bool,
+        restore: bool,
+    ) -> Option<String> {
+        if let Some(name) = name {
+            self.find_one(&[name.clone()], &steam_id, &gog_id, normalized, backup, restore)
+        } else {
+            self.find_one(&[], &steam_id, &gog_id, normalized, backup, restore)
+        }
+    }
+
     /// Lookup games based on certain criteria, returns a set of matching game
     /// names, operates in different modes depending on which parameters are
     /// set.

@@ -1,5 +1,3 @@
-use std::fmt::Display;
-
 pub mod heroic;
 pub mod ui;
 
@@ -8,23 +6,6 @@ pub mod ui;
 pub struct WrapGameInfo {
     pub name: Option<String>,
     pub gog_id: Option<u64>,
-}
-
-impl Display for WrapGameInfo {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let mut result: String = "".to_string();
-
-        if self.name.is_some() {
-            result += self.name.as_ref().unwrap().as_str();
-        }
-        if self.gog_id.is_some() {
-            if !result.is_empty() {
-                result += ", ";
-            }
-            result += &format!("GOG Id: {}", self.name.as_ref().unwrap().as_str());
-        }
-        write!(f, "{}", result)
-    }
 }
 
 impl WrapGameInfo {

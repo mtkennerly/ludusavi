@@ -31,15 +31,15 @@ fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) -> Opt
                     }),
 
                 "nile" => {
-                    log::warn!("wrap::heroic: heroic runner 'nile' not supported.");
+                    log::debug!("Ignoring Heroic game with unsupported runner 'nile'.");
                     None
                 }
                 "sideload" => {
-                    log::warn!("wrap::heroic: heroic runner 'sideload' not supported.");
+                    log::debug!("Ignoring Heroic game with unsupported runner 'sideload'.");
                     None
                 }
                 value => {
-                    log::warn!("wrap::heroic: unknown heroic runner '{}'", value);
+                    log::debug!("Ignoring Heroic game with unknown runner '{}'.", value);
                     None
                 }
             }
@@ -53,35 +53,24 @@ fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) -> Opt
 /// HEROIC_APP_SOURCE (one of: gog, epic, amazon, sideload)
 ///
 /// We rely on HEROIC_APP_NAME and HEROIC_APP_RUNNER only.
-pub fn parse_heroic_environment_variables(roots: &[RootsConfig], _commands: &[String]) -> Option<WrapGameInfo> {
-    let mut result = WrapGameInfo::default();
+pub fn infer_game_from_heroic(roots: &[RootsConfig], _commands: &[String]) -> Option<WrapGameInfo> {
+    let heroic_app_name = env::var("HEROIC_APP_NAME").ok()?;
 
-    let heroic_app_name = match env::var("HEROIC_APP_NAME") {
-        Ok(value) => value,
-        Err(_) => return None,
-    };
-
-    let heroic_app_runner = match env::var("HEROIC_APP_RUNNER") {
-        Ok(value) => value,
-        Err(_) => return None,
-    };
+    let heroic_app_runner = env::var("HEROIC_APP_RUNNER").ok()?;
 
     log::debug!(
-        "wrap::heroic::parse_heroic_2_9_2_environment_variables: found heroic_app_name={}, heroic_app_runner={}",
+        "Found Heroic environment variables: heroic_app_name={}, heroic_app_runner={}",
         heroic_app_name,
         heroic_app_runner,
     );
 
-    result.gog_id = match heroic_app_runner.as_str() {
-        "gog" => match heroic_app_name.parse() {
-            Ok(id) => Some(id),
-            Err(_) => Some(0),
+    let result = WrapGameInfo {
+        name: find_in_roots(roots, &heroic_app_name, &heroic_app_runner),
+        gog_id: match heroic_app_runner.as_str() {
+            "gog" => heroic_app_name.parse().ok(),
+            _ => None,
         },
-
-        _ => None,
     };
-
-    result.name = find_in_roots(roots, &heroic_app_name, &heroic_app_runner);
 
     if result.is_empty() {
         None

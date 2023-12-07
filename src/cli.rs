@@ -26,7 +26,7 @@ use crate::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
         OperationStepDecision, SteamShortcuts, TitleFinder,
     },
-    wrap::{heroic::parse_heroic_environment_variables, WrapGameInfo},
+    wrap::{heroic::infer_game_from_heroic, WrapGameInfo},
 };
 
 #[derive(Clone, Debug, Default)]
@@ -768,117 +768,81 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             name_source,
             gui,
             commands,
-        } => 'wrap: {
-            log::info!(
-                "WRAP:: called with: {:#?}, name: {:#?}, gui: {:#?}, commands: {:#?}",
-                name_source.infer,
-                name_source.name,
-                gui,
-                commands
-            );
-            failed = true;
-            //
-            // Determine game name
-            //
-            let mut wrap_game_info = WrapGameInfo::default();
-            if let Some(name) = name_source.name {
-                wrap_game_info.name = Some(name);
-            } else {
+        } => {
+            // Determine raw game identifiers
+            let wrap_game_info = if let Some(name) = name_source.name.as_ref() {
+                Some(WrapGameInfo {
+                    name: Some(name.clone()),
+                    ..Default::default()
+                })
+            } else if let Some(infer) = name_source.infer {
                 let roots = config.expanded_roots();
-                match name_source.infer.unwrap() {
-                    // NOTE.2023-11-13 this is the extension point to support
-                    // other launchers in the future, e.g. lutris
-                    parse::LauncherTypes::Heroic => match parse_heroic_environment_variables(&roots, &commands) {
-                        Some(gi) => wrap_game_info = gi,
-                        None => {
-                            let _ = crate::wrap::ui::alert(
-                                gui,
-                                "Could not determine game name or id from launch commands, aborting.",
-                            );
-                            break 'wrap;
-                        }
-                    },
+                match infer {
+                    parse::LauncherTypes::Heroic => infer_game_from_heroic(&roots, &commands),
                 }
-            }
-            log::debug!("WRAP::setup: game name as known to runner is: {:?}", wrap_game_info);
+            } else {
+                unreachable!();
+            };
+            log::debug!("Wrap game info: {:?}", &wrap_game_info);
 
-            //
-            // Check name using TitleFinder
+            // Check game identifiers against the manifest
             //
             // e.g. "Slain: Back From Hell" from legendary to "Slain: Back from
             // Hell" as known to ludusavi
-            //
-            let mut skip_restore = false;
             let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
-            // TODO.2023-09-15 restore list is empty for any of the third parameter, but WHY?
-            // Because heroic calls us with env XDG_CONFIG_HOME=/home/saschal/.config/heroic/legendaryConfig
-            // so we use an empty, default config.
-            // WORKAROUND: call ludusavi with --config
-            log::debug!("WRAP::restore: config has these roots: {:#?}", config.roots);
-            let title_finder = TitleFinder::new(
-                &manifest,
-                &BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone()),
-            );
+            let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
+            let title_finder = TitleFinder::new(&manifest, &layout);
+            let game_name = wrap_game_info.as_ref().and_then(|wrap_game_info| {
+                title_finder.maybe_find_one(
+                    wrap_game_info.name.as_ref(),
+                    None,
+                    wrap_game_info.gog_id,
+                    true,
+                    false,
+                    false,
+                )
+            });
+            log::debug!("Title finder result: {:?}", &game_name);
 
-            let mut game_name: Option<String> = None;
-            if wrap_game_info.name.is_some() {
-                game_name =
-                    title_finder.find_one(&[wrap_game_info.name.clone().unwrap()], &None, &None, true, false, true);
+            if game_name.is_none()
+                && !crate::wrap::ui::confirm_with_question(
+                    gui,
+                    "Ludusavi does not recognize this game.",
+                    "Continue to launch game anyways?",
+                )?
+            {
+                return Ok(());
             }
-            if game_name.is_none() && wrap_game_info.gog_id.is_some() {
-                game_name = title_finder.find_one(&[], &None, &wrap_game_info.gog_id, false, false, true);
-            }
-            match game_name {
-                Some(ref name) => {
-                    log::debug!("WRAP::restore: title_finder returns: {}", name);
-                }
-                None => {
-                    log::debug!(
-                        "WRAP::restore: title_finder did not find anything for {:?}",
-                        wrap_game_info
-                    );
-                    match crate::wrap::ui::confirm_with_question(
-                        gui,
-                        "Could not find a restorable backup.",
-                        "Continue to launch game anyways?",
-                    ) {
-                        Ok(confirmation) => match confirmation {
-                            true => skip_restore = true,
-                            false => {
-                                log::info!("WRAP::restore: user rejected to continue without restoration.");
-                                break 'wrap;
-                            }
-                        },
-                        Err(err) => {
-                            log::error!("WRAP::restore: could not get user confirmation to restore: {:?}", err);
-                            break 'wrap;
-                        }
-                    };
-                }
-            };
 
-            //
-            // restore
+            // Restore
             //
             // TODO.2023-07-12 detect if there are differences between backed up
             // and actual saves and skip the question if there is none
-            if !skip_restore {
-                match crate::wrap::ui::confirm_continue(gui, "Continue with backup restoration?") {
-                    Ok(confirmation) => match confirmation {
-                        true => {}
-                        false => {
-                            log::info!("WRAP::restore: user rejected to restore");
-                            break 'wrap;
-                        }
-                    },
-                    Err(err) => {
-                        log::error!("WRAP::restore: could not get user confirmation to restore: {:?}", err);
-                        break 'wrap;
-                    }
+            'restore: {
+                let Some(game_name) = game_name.as_ref() else {
+                    break 'restore;
                 };
+
+                let game_layout = layout.game_layout(game_name);
+                if !game_layout.has_backups() {
+                    if crate::wrap::ui::confirm_with_question(
+                        gui,
+                        "Could not find a restorable backup.",
+                        "Continue to launch game anyways?",
+                    )? {
+                        break 'restore;
+                    } else {
+                        return Ok(());
+                    }
+                }
+
+                if !crate::wrap::ui::confirm_continue(gui, "Restore save data before playing?")? {
+                    break 'restore;
+                }
+
                 if let Err(err) = run(
                     Subcommand::Restore {
-                        games: vec![game_name.unwrap().clone()],
+                        games: vec![game_name.clone()],
                         force: true,
                         // everything else is default
                         // force: Default::default(),
@@ -894,22 +858,18 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("WRAP::restore: failed for game {:?} with: {:?}", wrap_game_info, err);
-                    let _ = crate::wrap::ui::alert_with_error(
+                    crate::wrap::ui::alert_with_error(
                         gui,
                         "Savegame restoration failed, aborting.",
                         &format!("{:?}", err),
-                    );
-                    break 'wrap;
+                    )?;
+                    return Err(err);
                 }
-            } else {
-                log::debug!("WRAP::restore: skipping game restore");
             }
 
-            //
-            // execute commands
+            // Launch game
             //
             // TODO.2023-07-12 legendary returns immediately, handle this!
-            log::debug!("WRAP::execute: commands to be executed: {:?}", commands);
             let result = Command::new(&commands[0]).args(&commands[1..]).status();
             match result {
                 Ok(status) => {
@@ -918,91 +878,60 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
                 Err(err) => {
                     log::error!("WRAP::execute: Game command execution failed with: {:#?}", err);
-                    let _ = crate::wrap::ui::alert_with_error(
+                    crate::wrap::ui::alert_with_error(
                         gui,
-                        "Game ran, but returned an error.  Aborting before backing up.",
+                        "Game did not run successfully.  Aborting before backing up.",
                         &err.to_string(),
-                    );
-                    break 'wrap;
+                    )?;
+                    return Err(Error::WrapCommandUITechnicalFailure {
+                        msg: "Game did not run successfully".to_string(),
+                    });
                 }
             }
 
-            //
-            // Check if ludusavi is able to back up
-            //
-            let mut game_name: Option<String> = None;
-            if wrap_game_info.name.is_some() {
-                game_name =
-                    title_finder.find_one(&[wrap_game_info.name.clone().unwrap()], &None, &None, true, true, false);
-            }
-            if game_name.is_none() && wrap_game_info.gog_id.is_some() {
-                game_name = title_finder.find_one(&[], &None, &wrap_game_info.gog_id, false, true, false);
-            }
-            match game_name {
-                Some(ref name) => {
-                    log::debug!("WRAP::backup: title_finder returns: {}", name);
-                }
-                None => {
-                    log::error!("WRAP::backup: title_finder returned nothing for {:?}", wrap_game_info);
-                    let _ = crate::wrap::ui::alert(
-                        gui,
-                        "Game ran, but ludusavi does not know how to back up this game.  Aborting.",
-                    );
-                    break 'wrap;
-                }
-            };
+            // Backup
+            'backup: {
+                let Some(game_name) = game_name.as_ref() else {
+                    break 'backup;
+                };
 
-            //
-            // backup
-            //
-            match crate::wrap::ui::confirm_simple(gui, "Continue with savegame backup?") {
-                Ok(confirmation) => match confirmation {
-                    true => {}
-                    false => {
-                        log::info!("WRAP::backup: user rejected to backup.");
-                        break 'wrap;
-                    }
-                },
-                Err(err) => {
-                    log::error!("WRAP::backup: could not get user confirmation to backup: {:?}", err);
-                    break 'wrap;
+                if !crate::wrap::ui::confirm_simple(gui, "Back up save data?")? {
+                    break 'backup;
                 }
-            };
-            if let Err(err) = run(
-                Subcommand::Backup {
-                    games: vec![game_name.unwrap().clone()],
-                    force: true,
-                    // everything else is default
-                    // force: Default::default(),
-                    preview: Default::default(),
-                    path: Default::default(),
-                    merge: Default::default(),
-                    no_merge: Default::default(),
-                    update: Default::default(),
-                    try_update: Default::default(),
-                    wine_prefix: Default::default(),
-                    api: Default::default(),
-                    sort: Default::default(),
-                    format: Default::default(),
-                    compression: Default::default(),
-                    compression_level: Default::default(),
-                    full_limit: Default::default(),
-                    differential_limit: Default::default(),
-                    cloud_sync: Default::default(),
-                    no_cloud_sync: Default::default(),
-                },
-                no_manifest_update,
-                try_manifest_update,
-            ) {
-                log::error!("WRAP::backup: failed with: {:#?}", err);
-                let _ = crate::wrap::ui::alert_with_error(gui, "Backup failed, aborting.", &format!("{:?}", err));
-                break 'wrap;
-            }
 
-            //
-            // Wrap finished - if we reach this point, everything worked fine
-            //
-            failed = false;
+                if let Err(err) = run(
+                    Subcommand::Backup {
+                        games: vec![game_name.clone()],
+                        force: true,
+                        // everything else is default
+                        // force: Default::default(),
+                        preview: Default::default(),
+                        path: Default::default(),
+                        merge: Default::default(),
+                        no_merge: Default::default(),
+                        update: Default::default(),
+                        try_update: Default::default(),
+                        wine_prefix: Default::default(),
+                        api: Default::default(),
+                        sort: Default::default(),
+                        format: Default::default(),
+                        compression: Default::default(),
+                        compression_level: Default::default(),
+                        full_limit: Default::default(),
+                        differential_limit: Default::default(),
+                        cloud_sync: Default::default(),
+                        no_cloud_sync: Default::default(),
+                    },
+                    no_manifest_update,
+                    try_manifest_update,
+                ) {
+                    log::error!("WRAP::backup: failed with: {:#?}", err);
+                    crate::wrap::ui::alert_with_error(gui, "Backup failed, aborting.", &format!("{:?}", err))?;
+                    return Err(Error::WrapCommandUITechnicalFailure {
+                        msg: "Backup failed".to_string(),
+                    });
+                }
+            }
         }
     }
     if failed {
