@@ -4,6 +4,8 @@
   * CLI: `wrap` command to do a restore before playing a game and a backup afterwards.
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/235))
   * When a path or URL fails to open, additional information is now logged.
+* Changed:
+  * CLI: Help text is now styled a bit differently.
 * Fixed:
   * When storing file modified times in zip archives,
     if the year is too old for zip to support (i.e., before 1980),

@@ -25,6 +25,16 @@ fn parse_existing_strict_path(path: &str) -> Result<StrictPath, std::io::Error> 
     Ok(sp)
 }
 
+fn styles() -> clap::builder::styling::Styles {
+    use clap::builder::styling::{AnsiColor, Effects, Styles};
+
+    Styles::styled()
+        .header(AnsiColor::Yellow.on_default() | Effects::BOLD)
+        .usage(AnsiColor::Yellow.on_default() | Effects::BOLD)
+        .literal(AnsiColor::Green.on_default() | Effects::BOLD)
+        .placeholder(AnsiColor::Green.on_default())
+}
+
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
 pub enum CompletionShell {
     #[clap(about = "Completions for Bash")]
@@ -200,7 +210,7 @@ pub enum Subcommand {
 
         /// Don't perform any cloud checks or synchronization.
         /// When not specified, this defers to the config file.
-        #[clap(long, conflicts_with("cloud-sync"))]
+        #[clap(long, conflicts_with("cloud_sync"))]
         no_cloud_sync: bool,
 
         /// Only back up these specific games.
@@ -247,7 +257,7 @@ pub enum Subcommand {
 
         /// Don't perform any cloud checks or synchronization.
         /// When not specified, this defers to the config file.
-        #[clap(long, conflicts_with("cloud-sync"))]
+        #[clap(long, conflicts_with("cloud_sync"))]
         no_cloud_sync: bool,
 
         /// Only restore these specific games.
@@ -531,7 +541,7 @@ pub struct WrapSubcommand {
 
 /// Back up and restore PC game saves
 #[derive(clap::Parser, Clone, Debug, PartialEq, Eq)]
-#[clap(name = "ludusavi", version, term_width = 79)]
+#[clap(name = "ludusavi", version, max_term_width = 100, next_line_help = true, styles = styles())]
 pub struct Cli {
     /// Use configuration found in DIRECTORY
     #[clap(long, value_name = "DIRECTORY")]
@@ -577,13 +587,13 @@ mod tests {
     use crate::testing::s;
 
     fn check_args(args: &[&str], expected: Cli) {
-        assert_eq!(expected, Cli::from_clap(&Cli::clap().get_matches_from(args)));
+        assert_eq!(expected, Cli::parse_from(args));
     }
 
-    fn check_args_err(args: &[&str], error: clap::ErrorKind) {
-        let result = Cli::clap().get_matches_from_safe(args);
+    fn check_args_err(args: &[&str], error: clap::error::ErrorKind) {
+        let result = Cli::try_parse_from(args);
         assert!(result.is_err());
-        assert_eq!(error, result.unwrap_err().kind);
+        assert_eq!(error, result.unwrap_err().kind());
     }
 
     #[test]
@@ -790,7 +800,7 @@ mod tests {
     fn rejects_cli_backup_with_update_and_try_update() {
         check_args_err(
             &["ludusavi", "backup", "--update", "--try-update"],
-            clap::ErrorKind::ArgumentConflict,
+            clap::error::ErrorKind::ArgumentConflict,
         );
     }
 
@@ -932,7 +942,7 @@ mod tests {
     fn rejects_cli_restore_with_nonexistent_path() {
         check_args_err(
             &["ludusavi", "restore", "--path", "tests/fake"],
-            clap::ErrorKind::ValueValidation,
+            clap::error::ErrorKind::ValueValidation,
         );
     }
 
