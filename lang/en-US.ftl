@@ -236,3 +236,15 @@ prefix-warning = Warning: {$message}
 cloud-app-unavailable = Cloud backups are disabled because {$app} is not available.
 cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
 cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.
+
+game-is-unrecognized = Ludusavi does not recognize this game.
+game-has-nothing-to-restore = This game does not have a backup to restore.
+launch-game-after-error = Launch the game anyway?
+game-did-not-launch = Game failed to launch.
+
+back-up-specific-game =
+    .confirm = Back up save data for {$game}?
+    .failed = Failed to back up save data for {$game}
+restore-specific-game =
+    .confirm = Restore save data for {$game}?
+    .failed = Failed to restore save data for {$game}

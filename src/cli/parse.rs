@@ -6,6 +6,8 @@ use crate::{
     resource::config::{BackupFormat, Sort, SortKey, ZipCompression},
 };
 
+use clap::{ArgGroup, Args, ValueEnum};
+
 macro_rules! possible_values {
     ($t: ty, $options: ident) => {{
         use clap::builder::{PossibleValuesParser, TypedValueParser};
@@ -97,6 +99,12 @@ impl From<CliSort> for Sort {
             },
         }
     }
+}
+
+/// Supported launchers for wrap --infer command
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum LauncherTypes {
+    Heroic,
 }
 
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
@@ -336,6 +344,21 @@ pub enum Subcommand {
         #[clap(subcommand)]
         sub: CloudSubcommand,
     },
+    /// Wrap restore/backup around game execution
+    Wrap {
+        #[clap(flatten)]
+        name_source: WrapSubcommand,
+
+        /// Show a GUI notification during restore/backup
+        #[clap(long)]
+        gui: bool,
+
+        /// Commands to launch the game.
+        /// Use `--` first to separate these from the `wrap` options;
+        /// e.g., `ludusavi wrap --name foo -- foo.exe --windowed`.
+        #[clap()]
+        commands: Vec<String>,
+    },
 }
 
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
@@ -489,6 +512,21 @@ pub enum CloudSetSubcommand {
         #[clap(long, default_value = WebDavProvider::OTHER, value_parser = possible_values!(WebDavProvider, ALL_CLI))]
         provider: WebDavProvider,
     },
+}
+
+#[derive(Args, Clone, Debug, PartialEq, Eq)]
+#[clap(group(ArgGroup::new("name_source_group")
+             .required(true)
+             .multiple(false)
+             .args(&["infer", "name"])))]
+pub struct WrapSubcommand {
+    /// Infer game name from commands based on launcher type
+    #[clap(long, value_enum, value_name = "LAUNCHER")]
+    pub infer: Option<LauncherTypes>,
+
+    /// Directly set game name as known to Ludusavi
+    #[clap(long)]
+    pub name: Option<String>,
 }
 
 /// Back up and restore PC game saves

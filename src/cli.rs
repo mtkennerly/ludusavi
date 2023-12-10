@@ -1,5 +1,8 @@
 mod parse;
 mod report;
+mod ui;
+
+use std::{fmt::Debug, process::Command};
 
 use clap::CommandFactory;
 use indicatif::{ParallelProgressIterator, ProgressBar};
@@ -24,6 +27,7 @@ use crate::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
         OperationStepDecision, SteamShortcuts, TitleFinder,
     },
+    wrap::{heroic::infer_game_from_heroic, WrapGameInfo},
 };
 
 #[derive(Clone, Debug, Default)]
@@ -761,8 +765,153 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 report_cloud_changes(&changes, api);
             }
         },
-    }
+        Subcommand::Wrap {
+            name_source,
+            gui,
+            commands,
+        } => {
+            // Determine raw game identifiers
+            let wrap_game_info = if let Some(name) = name_source.name.as_ref() {
+                Some(WrapGameInfo {
+                    name: Some(name.clone()),
+                    ..Default::default()
+                })
+            } else if let Some(infer) = name_source.infer {
+                let roots = config.expanded_roots();
+                match infer {
+                    parse::LauncherTypes::Heroic => infer_game_from_heroic(&roots, &commands),
+                }
+            } else {
+                unreachable!();
+            };
+            log::debug!("Wrap game info: {:?}", &wrap_game_info);
 
+            // Check game identifiers against the manifest
+            //
+            // e.g. "Slain: Back From Hell" from legendary to "Slain: Back from
+            // Hell" as known to ludusavi
+            let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
+            let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
+            let title_finder = TitleFinder::new(&manifest, &layout);
+            let game_name = wrap_game_info.as_ref().and_then(|wrap_game_info| {
+                title_finder.maybe_find_one(wrap_game_info.name.as_ref(), None, wrap_game_info.gog_id, true)
+            });
+            log::debug!("Title finder result: {:?}", &game_name);
+
+            if game_name.is_none()
+                && !ui::confirm_with_question(
+                    gui,
+                    &TRANSLATOR.game_is_unrecognized(),
+                    &TRANSLATOR.launch_game_after_error(),
+                )?
+            {
+                return Ok(());
+            }
+
+            // Restore
+            //
+            // TODO.2023-07-12 detect if there are differences between backed up
+            // and actual saves and skip the question if there is none
+            'restore: {
+                let Some(game_name) = game_name.as_ref() else {
+                    break 'restore;
+                };
+
+                let game_layout = layout.game_layout(game_name);
+                if !game_layout.has_backups() {
+                    if ui::confirm_with_question(
+                        gui,
+                        &TRANSLATOR.game_has_nothing_to_restore(),
+                        &TRANSLATOR.launch_game_after_error(),
+                    )? {
+                        break 'restore;
+                    } else {
+                        return Ok(());
+                    }
+                }
+
+                if !ui::confirm(gui, &TRANSLATOR.restore_one_game_confirm(game_name))? {
+                    break 'restore;
+                }
+
+                if let Err(err) = run(
+                    Subcommand::Restore {
+                        games: vec![game_name.clone()],
+                        force: true,
+                        preview: Default::default(),
+                        path: Default::default(),
+                        api: Default::default(),
+                        sort: Default::default(),
+                        backup: Default::default(),
+                        cloud_sync: Default::default(),
+                        no_cloud_sync: Default::default(),
+                    },
+                    no_manifest_update,
+                    try_manifest_update,
+                ) {
+                    log::error!("WRAP::restore: failed for game {:?} with: {:?}", wrap_game_info, err);
+                    ui::alert_with_error(gui, &TRANSLATOR.restore_one_game_failed(game_name), &err)?;
+                    return Err(err);
+                }
+            }
+
+            // Launch game
+            //
+            // TODO.2023-07-12 legendary returns immediately, handle this!
+            let result = Command::new(&commands[0]).args(&commands[1..]).status();
+            match result {
+                Ok(status) => {
+                    // TODO.2023-07-14 handle return status which indicate an error condition, e.g. != 0
+                    log::debug!("WRAP::execute: Game command executed, returning status: {:#?}", status);
+                }
+                Err(err) => {
+                    log::error!("WRAP::execute: Game command execution failed with: {:#?}", err);
+                    ui::alert_with_raw_error(gui, &TRANSLATOR.game_did_not_launch(), &err.to_string())?;
+                    return Err(Error::GameDidNotLaunch { why: err.to_string() });
+                }
+            }
+
+            // Backup
+            'backup: {
+                let Some(game_name) = game_name.as_ref() else {
+                    break 'backup;
+                };
+
+                if !ui::confirm(gui, &TRANSLATOR.back_up_one_game_confirm(game_name))? {
+                    break 'backup;
+                }
+
+                if let Err(err) = run(
+                    Subcommand::Backup {
+                        games: vec![game_name.clone()],
+                        force: true,
+                        preview: Default::default(),
+                        path: Default::default(),
+                        merge: Default::default(),
+                        no_merge: Default::default(),
+                        update: Default::default(),
+                        try_update: Default::default(),
+                        wine_prefix: Default::default(),
+                        api: Default::default(),
+                        sort: Default::default(),
+                        format: Default::default(),
+                        compression: Default::default(),
+                        compression_level: Default::default(),
+                        full_limit: Default::default(),
+                        differential_limit: Default::default(),
+                        cloud_sync: Default::default(),
+                        no_cloud_sync: Default::default(),
+                    },
+                    no_manifest_update,
+                    try_manifest_update,
+                ) {
+                    log::error!("WRAP::backup: failed with: {:#?}", err);
+                    ui::alert_with_error(gui, &TRANSLATOR.back_up_one_game_failed(game_name), &err)?;
+                    return Err(err);
+                }
+            }
+        }
+    }
     if failed {
         Err(Error::SomeEntriesFailed)
     } else {

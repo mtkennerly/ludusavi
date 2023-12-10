@@ -1,5 +1,5 @@
 mod generic;
-mod heroic;
+pub mod heroic;
 mod lutris;
 
 use std::collections::HashMap;

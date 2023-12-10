@@ -29,6 +29,7 @@ const COMMAND: &str = "command";
 const CODE: &str = "code";
 const MESSAGE: &str = "message";
 const APP: &str = "app";
+const GAME: &str = "game";
 
 pub const TRANSLATOR: Translator = Translator {};
 pub const ADD_SYMBOL: &str = "+";
@@ -261,8 +262,12 @@ impl Translator {
         }
     }
 
+    pub fn app_name(&self) -> String {
+        translate("ludusavi")
+    }
+
     pub fn window_title(&self) -> String {
-        let name = translate("ludusavi");
+        let name = self.app_name();
         match VARIANT {
             Some(variant) => format!("{} v{} ({})", name, *VERSION, variant),
             None => format!("{} v{}", name, *VERSION),
@@ -319,6 +324,7 @@ impl Translator {
                 )
             }
             Error::CloudConflict => TRANSLATOR.prefix_error(&TRANSLATOR.cloud_synchronize_conflict()),
+            Error::GameDidNotLaunch { why } => format!("{}\n\n{}", self.game_did_not_launch(), self.prefix_error(why)),
         }
     }
 
@@ -1180,5 +1186,45 @@ impl Translator {
             self.adjusted_size(processed_bytes),
             self.adjusted_size(total_bytes)
         )
+    }
+
+    pub fn game_is_unrecognized(&self) -> String {
+        translate("game-is-unrecognized")
+    }
+
+    pub fn game_has_nothing_to_restore(&self) -> String {
+        translate("game-has-nothing-to-restore")
+    }
+
+    pub fn launch_game_after_error(&self) -> String {
+        translate("launch-game-after-error")
+    }
+
+    pub fn game_did_not_launch(&self) -> String {
+        translate("game-did-not-launch")
+    }
+
+    pub fn back_up_one_game_confirm(&self, game: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(GAME, game);
+        translate_args("back-up-specific-game.confirm", &args)
+    }
+
+    pub fn back_up_one_game_failed(&self, game: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(GAME, game);
+        translate_args("back-up-specific-game.failed", &args)
+    }
+
+    pub fn restore_one_game_confirm(&self, game: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(GAME, game);
+        translate_args("restore-specific-game.confirm", &args)
+    }
+
+    pub fn restore_one_game_failed(&self, game: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(GAME, game);
+        translate_args("restore-specific-game.failed", &args)
     }
 }

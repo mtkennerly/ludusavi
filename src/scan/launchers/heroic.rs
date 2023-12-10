@@ -23,10 +23,10 @@ struct HeroicInstalled {
 
 /// Deserialization of Heroic gog_store/library.json
 #[derive(serde::Deserialize)]
-struct GogLibraryGame {
+pub struct GogLibraryGame {
     /// This is an opaque ID, not the human-readable title.
-    app_name: String,
-    title: String,
+    pub app_name: String,
+    pub title: String,
 }
 #[derive(serde::Deserialize)]
 struct GogLibrary {
@@ -34,12 +34,12 @@ struct GogLibrary {
 }
 
 /// Deserialization of Legendary legendary/installed.json
-#[derive(serde::Deserialize)]
-struct LegendaryInstalledGame {
+#[derive(Clone, serde::Deserialize)]
+pub struct LegendaryInstalledGame {
     /// This is an opaque ID, not the human-readable title.
     #[serde(rename = "app_name")]
-    app_name: String,
-    title: String,
+    pub app_name: String,
+    pub title: String,
     platform: String,
     install_path: String,
 }
@@ -80,14 +80,12 @@ pub fn scan(
     games
 }
 
-fn detect_legendary_games(
+pub fn get_legendary_installed_games(
     root: &RootsConfig,
-    title_finder: &TitleFinder,
     legendary: Option<&StrictPath>,
-) -> HashMap<String, LauncherGame> {
-    let mut games = HashMap::new();
-
+) -> Vec<LegendaryInstalledGame> {
     log::trace!("detect_legendary_games searching for legendary config...");
+    let mut result: Vec<LegendaryInstalledGame> = Vec::new();
 
     let legendary_paths = match legendary {
         None => vec![
@@ -112,24 +110,7 @@ fn detect_legendary_games(
                     serde_json::from_str::<LegendaryInstalled>(&legendary_installed.read().unwrap_or_default())
                 {
                     for game in installed_games.0.values() {
-                        log::trace!(
-                            "detect_legendary_games found legendary game {} ({})",
-                            game.title,
-                            game.app_name
-                        );
-                        let official_title =
-                            title_finder.find_one(&[game.title.to_owned()], &None, &None, true, true, false);
-                        // process game from GamesConfig
-                        let prefix =
-                            find_prefix(&root.path, &game.title, &game.platform.to_lowercase(), &game.app_name);
-                        memorize_game(
-                            &mut games,
-                            &game.title,
-                            official_title,
-                            StrictPath::new(game.install_path.clone()),
-                            prefix,
-                            &game.platform,
-                        );
+                        result.push(game.clone());
                     }
                 }
             } else {
@@ -141,14 +122,41 @@ fn detect_legendary_games(
         }
     }
 
+    result
+}
+
+fn detect_legendary_games(
+    root: &RootsConfig,
+    title_finder: &TitleFinder,
+    legendary: Option<&StrictPath>,
+) -> HashMap<String, LauncherGame> {
+    let mut games = HashMap::new();
+
+    for game in get_legendary_installed_games(root, legendary) {
+        log::trace!(
+            "detect_legendary_games found legendary game {} ({})",
+            game.title,
+            game.app_name
+        );
+        let official_title = title_finder.find_one(&[game.title.to_owned()], &None, &None, true);
+        // process game from GamesConfig
+        let prefix = find_prefix(&root.path, &game.title, &game.platform.to_lowercase(), &game.app_name);
+        memorize_game(
+            &mut games,
+            &game.title,
+            official_title,
+            StrictPath::new(game.install_path.clone()),
+            prefix,
+            &game.platform,
+        );
+    }
+
     games
 }
 
-fn detect_gog_games(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
-    let mut games = HashMap::new();
-
+pub fn get_gog_games_library(root: &RootsConfig) -> Option<Vec<GogLibraryGame>> {
     log::trace!(
-        "detect_gog_games searching for GOG information in {}",
+        "get_gog_library searching for GOG information in {}",
         root.path.interpret()
     );
 
@@ -165,31 +173,48 @@ fn detect_gog_games(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<S
                 break 'library;
             }
         }
-        log::info!("detect_gog_games aborting since it could not find GOG library");
-        return games;
+        log::info!("get_gog_library could not find GOG library");
+        return None;
     }
+    match serde_json::from_str::<GogLibrary>(&library_path.read().unwrap_or_default()) {
+        Ok(gog_library) => {
+            log::trace!(
+                "get_gog_library found {} games in {}",
+                gog_library.games.len(),
+                library_path.interpret()
+            );
 
-    let game_titles: HashMap<String, String> =
-        match serde_json::from_str::<GogLibrary>(&library_path.read().unwrap_or_default()) {
-            Ok(gog_library) => gog_library
-                .games
-                .iter()
-                .map(|game| (game.app_name.clone(), game.title.clone()))
-                .collect(),
-            Err(e) => {
-                log::warn!(
-                    "detect_gog_games aborting since it could not read {}: {}",
-                    library_path.interpret(),
-                    e
-                );
-                return games;
-            }
-        };
+            Some(gog_library.games)
+        }
+        Err(e) => {
+            log::warn!(
+                "get_gog_library returns None since it could not read {}: {}",
+                library_path.interpret(),
+                e
+            );
+            None
+        }
+    }
+}
+
+fn detect_gog_games(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
+    let mut games = HashMap::new();
+
     log::trace!(
-        "detect_gog_games found {} games in {}",
-        game_titles.len(),
-        library_path.interpret()
+        "detect_gog_games searching for GOG information in {}",
+        root.path.interpret()
     );
+
+    let game_titles: HashMap<String, String> = match get_gog_games_library(root) {
+        Some(gog_games_library) => gog_games_library
+            .iter()
+            .map(|game| (game.app_name.clone(), game.title.clone()))
+            .collect(),
+        None => {
+            log::warn!("detect_gog_games aborting since gog_library was not read successfully.");
+            return games;
+        }
+    };
 
     // iterate over all games found in HEROCONFIGDIR/gog_store/installed.json and call find_prefix
     let installed_path = root.path.joined("gog_store").joined("installed.json");
@@ -198,7 +223,7 @@ fn detect_gog_games(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<S
         for game in installed_games.installed {
             if let Some(game_title) = game_titles.get(&game.app_name) {
                 let gog_id: Option<u64> = game.app_name.parse().ok();
-                let official_title = title_finder.find_one(&[game_title.to_owned()], &None, &gog_id, true, true, false);
+                let official_title = title_finder.find_one(&[game_title.to_owned()], &None, &gog_id, true);
                 let prefix = find_prefix(&root.path, game_title, &game.platform, &game.app_name);
                 memorize_game(
                     &mut games,

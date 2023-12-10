@@ -57,7 +57,7 @@ fn scan_spec(spec: LutrisGame, spec_path: &StrictPath, title_finder: &TitleFinde
         return None;
     };
 
-    let official_title = title_finder.find_one(&[name.clone()], &None, &None, true, true, false);
+    let official_title = title_finder.find_one(&[name.clone()], &None, &None, true);
     let prefix = spec.game.prefix;
     let platform = Some(match &prefix {
         Some(_) => Os::Windows,

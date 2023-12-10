@@ -108,8 +108,10 @@ pub enum Error {
     UnableToConfigureCloud(CommandError),
     UnableToSynchronizeCloud(CommandError),
     CloudConflict,
+    GameDidNotLaunch {
+        why: String,
+    },
 }
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum CommandError {
     Launched {
