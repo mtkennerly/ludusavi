@@ -5,6 +5,8 @@
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/235))
   * When a path or URL fails to open, additional information is now logged.
 * Changed:
+  * GUI: A different icon is now used for the button to hide the backup comment field.
+    The previous icon (a red X) could have been misinterpreted as "delete" rather than "close".
   * CLI: Help text is now styled a bit differently.
 * Fixed:
   * GUI: On some systems using Wayland, Ludusavi would crash on startup.

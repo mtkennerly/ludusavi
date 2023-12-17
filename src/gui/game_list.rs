@@ -352,7 +352,7 @@ impl GameListEntry {
                                     }
                                 }),
                             )
-                            .push(button::close(Message::GameAction {
+                            .push(button::hide(Message::GameAction {
                                 action: GameAction::Comment,
                                 game: name_for_comment2,
                             })),

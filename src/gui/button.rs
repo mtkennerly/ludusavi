@@ -69,8 +69,8 @@ pub fn delete<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'a
     )
 }
 
-pub fn close<'a>(action: Message) -> Element<'a> {
-    template(Icon::Close.text_small(), Some(action), Some(style::Button::Negative))
+pub fn hide<'a>(action: Message) -> Element<'a> {
+    template(Icon::VisibilityOff.text_small(), Some(action), None)
 }
 
 pub fn choose_folder<'a>(subject: BrowseSubject, modifiers: &keyboard::Modifiers) -> Element<'a> {

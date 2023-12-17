@@ -12,7 +12,6 @@ pub enum Icon {
     ArrowDownward,
     ArrowForward,
     ArrowUpward,
-    Close,
     Comment,
     Delete,
     Download,
@@ -36,6 +35,7 @@ pub enum Icon {
     Settings,
     SubdirectoryArrowRight,
     Upload,
+    VisibilityOff,
 }
 
 impl Icon {
@@ -47,7 +47,6 @@ impl Icon {
             Self::ArrowDownward => '\u{E5DB}',
             Self::ArrowForward => '\u{e5c8}',
             Self::ArrowUpward => '\u{E5D8}',
-            Self::Close => '\u{E5CD}',
             Self::Comment => '\u{E0B9}',
             Self::Delete => '\u{E872}',
             Self::Download => '\u{f090}',
@@ -71,6 +70,7 @@ impl Icon {
             Self::Settings => '\u{E8B8}',
             Self::SubdirectoryArrowRight => '\u{E5DA}',
             Self::Upload => '\u{f09b}',
+            Self::VisibilityOff => '\u{e8f5}',
         }
     }
 
