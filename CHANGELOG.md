@@ -7,6 +7,7 @@
 * Changed:
   * CLI: Help text is now styled a bit differently.
 * Fixed:
+  * GUI: On some systems using Wayland, Ludusavi would crash on startup.
   * When storing file modified times in zip archives,
     if the year is too old for zip to support (i.e., before 1980),
     Ludusavi will now round up to the earliest support date (1980-01-01).
