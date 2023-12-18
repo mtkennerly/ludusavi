@@ -116,6 +116,10 @@ pub fn refresh<'a>(action: Message, ongoing: bool) -> Element<'a> {
     template(Icon::Refresh.text(), (!ongoing).then_some(action), None)
 }
 
+pub fn refresh_custom_game<'a>(action: Message, ongoing: bool, enabled: bool) -> Element<'a> {
+    template(Icon::Refresh.text(), (!ongoing && enabled).then_some(action), None)
+}
+
 pub fn search<'a>(action: Message) -> Element<'a> {
     template(Icon::Search.text(), Some(action), None)
 }

@@ -133,13 +133,14 @@ pub fn custom_games<'a>(
                                 .push(histories.input(UndoSubject::CustomGameName(i)))
                                 .push(
                                     Tooltip::new(
-                                        button::refresh(
+                                        button::refresh_custom_game(
                                             Message::Backup(BackupPhase::Start {
                                                 games: Some(vec![config.custom_games[i].name.clone()]),
                                                 preview: true,
                                                 repair: false,
                                             }),
                                             operating,
+                                            config.is_custom_game_enabled(i),
                                         ),
                                         TRANSLATOR.preview_button_in_custom_mode(),
                                         tooltip::Position::Top,

@@ -31,6 +31,8 @@
     This was primarily intended to handle cases of duplicate backups that might cause a file to be busy,
     but it would also cause excessive delays for other, persistent errors.
     Now, Ludusavi will only try once per file.
+  * GUI: When a custom game was disabled, its refresh button would do nothing.
+    The refresh button will now be disabled for that game.
 
 ## v0.21.0 (2023-08-22)
 
