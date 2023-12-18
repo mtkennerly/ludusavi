@@ -26,6 +26,11 @@
     Ludusavi would silently convert it to a default 0,
     which could result in data loss when restored.
     Now, invalid registry values are backed up and restored as-is.
+  * If Ludusavi encountered an error when restoring a specific file,
+    it would retry up to 99 times in case it was just a temporary error.
+    This was primarily intended to handle cases of duplicate backups that might cause a file to be busy,
+    but it would also cause excessive delays for other, persistent errors.
+    Now, Ludusavi will only try once per file.
 
 ## v0.21.0 (2023-08-22)
 

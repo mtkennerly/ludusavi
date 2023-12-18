@@ -497,16 +497,12 @@ impl StrictPath {
         self.as_std_path_buf_raw().is_absolute()
     }
 
-    pub fn copy_to_path(&self, context: &str, attempt: u8, target_file: &StrictPath) -> Result<(), std::io::Error> {
-        log::trace!(
-            "[{context}] try {attempt}, copy {} -> {}",
-            self.interpret(),
-            target_file.interpret()
-        );
+    pub fn copy_to_path(&self, context: &str, target_file: &StrictPath) -> Result<(), std::io::Error> {
+        log::trace!("[{context}] copy {} -> {}", self.interpret(), target_file.interpret());
 
         if let Err(e) = target_file.create_parent_dir() {
             log::error!(
-                "[{context}] try {attempt}, unable to create parent directories: {} -> {} | {e}",
+                "[{context}] unable to create parent directories: {} -> {} | {e}",
                 self.raw(),
                 target_file.raw()
             );
@@ -515,7 +511,7 @@ impl StrictPath {
 
         if let Err(e) = target_file.unset_readonly() {
             log::warn!(
-                "[{context}] try {attempt}, failed to unset read-only on target: {} | {e}",
+                "[{context}] failed to unset read-only on target: {} | {e}",
                 target_file.raw()
             );
             return Err(std::io::Error::new(
@@ -524,7 +520,7 @@ impl StrictPath {
             ));
         } else if let Err(e) = std::fs::copy(self.interpret(), target_file.interpret()) {
             log::error!(
-                "[{context}] try {attempt}, unable to copy: {} -> {} | {e}",
+                "[{context}] unable to copy: {} -> {} | {e}",
                 self.raw(),
                 target_file.raw()
             );
@@ -534,7 +530,7 @@ impl StrictPath {
                 Ok(x) => x,
                 Err(e) => {
                     log::error!(
-                        "[{context}] try {attempt}, unable to get modification time: {} -> {} | {e}",
+                        "[{context}] unable to get modification time: {} -> {} | {e}",
                         self.raw(),
                         target_file.raw(),
                     );
@@ -543,7 +539,7 @@ impl StrictPath {
             };
             if let Err(e) = target_file.set_mtime(mtime) {
                 log::error!(
-                    "[{context}] try {attempt}, unable to set modification time: {} -> {} to {mtime:#?} | {e}",
+                    "[{context}] unable to set modification time: {} -> {} to {mtime:#?} | {e}",
                     self.raw(),
                     target_file.raw(),
                 );

@@ -1079,7 +1079,7 @@ impl GameLayout {
                 relevant_files.push(target_file);
                 continue;
             }
-            if let Err(_e) = file.path.copy_to_path(&self.mapping.name, 0, &target_file) {
+            if let Err(_e) = file.path.copy_to_path(&self.mapping.name, &target_file) {
                 backup_info.failed_files.insert(file.clone());
                 continue;
             }
@@ -1553,7 +1553,6 @@ impl GameLayout {
         let mut failed_containers: HashSet<StrictPath> = HashSet::new();
 
         for file in &scan.found_files {
-            let original_path = some_or_continue!(&file.original_path);
             let target = file.effective();
 
             if !file.change().is_changed() || file.ignored {
@@ -1574,7 +1573,7 @@ impl GameLayout {
                         "[{}] skipping file because container had failed to load: {} -> {} -> {}",
                         self.mapping.name,
                         container.raw(),
-                        original_path.raw(),
+                        file.path.raw(),
                         target.raw(),
                     );
                     failed_files.insert(file.clone());
@@ -1614,7 +1613,7 @@ impl GameLayout {
                 }
             }
 
-            if let Err(e) = match &file.container {
+            let outcome = match &file.container {
                 None => self.restore_file_from_simple(target, file),
                 Some(container) => {
                     let Some(archive) = containers.get_mut(container) else {
@@ -1622,14 +1621,26 @@ impl GameLayout {
                     };
                     self.restore_file_from_zip(target, file, archive)
                 }
-            } {
-                log::error!(
-                    "[{}] failed to restore: {} -> {} | {e}",
-                    self.mapping.name,
-                    original_path.raw(),
-                    target.raw()
-                );
-                failed_files.insert(file.clone());
+            };
+
+            match outcome {
+                Ok(_) => {
+                    log::info!(
+                        "[{}] restored: {} -> {}",
+                        &self.mapping.name,
+                        file.path.raw(),
+                        target.raw()
+                    );
+                }
+                Err(e) => {
+                    log::error!(
+                        "[{}] failed to restore: {} -> {} | {e}",
+                        self.mapping.name,
+                        file.path.raw(),
+                        target.raw()
+                    );
+                    failed_files.insert(file.clone());
+                }
             }
         }
 
@@ -1667,23 +1678,7 @@ impl GameLayout {
             target.raw()
         );
 
-        for i in 0..99 {
-            if let Err(_e) = file.path.copy_to_path(&self.mapping.name, i as u8, target) {
-                // File might be busy, especially if multiple games share a file,
-                // like in a collection, so retry after a delay:
-                std::thread::sleep(std::time::Duration::from_millis(i * self.mapping.name.len() as u64));
-            } else {
-                log::info!(
-                    "[{}] restored: {} -> {}",
-                    &self.mapping.name,
-                    file.path.raw(),
-                    target.raw()
-                );
-                return Ok(());
-            }
-        }
-
-        Err("Unable to restore file".into())
+        Ok(file.path.copy_to_path(&self.mapping.name, target)?)
     }
 
     fn restore_file_from_zip(
@@ -1699,63 +1694,58 @@ impl GameLayout {
             target.raw()
         );
 
-        target.create_parent_dir()?;
-        for i in 0..99 {
-            if i > 0 {
-                // File might be busy, especially if multiple games share a file,
-                // like in a collection, so retry after a delay:
-                std::thread::sleep(std::time::Duration::from_millis(i * self.mapping.name.len() as u64));
-            }
-            if let Err(e) = target.unset_readonly() {
+        if let Err(e) = target.create_parent_dir() {
+            log::error!(
+                "[{}] unable to create parent directories: {} | {e}",
+                self.mapping.name,
+                target.raw()
+            );
+            return Err(Box::new(e));
+        }
+        if let Err(e) = target.unset_readonly() {
+            log::warn!(
+                "[{}] failed to unset read-only on target: {} | {e}",
+                self.mapping.name,
+                target.raw()
+            );
+            return Err(e);
+        }
+        let mut target_handle = match std::fs::File::create(target.interpret()) {
+            Ok(x) => x,
+            Err(e) => {
                 log::warn!(
-                    "[{}] try {i}, failed to unset read-only on target: {} | {e}",
-                    self.mapping.name,
-                    target.raw()
-                );
-                continue;
-            }
-            let mut target_handle = match std::fs::File::create(target.interpret()) {
-                Ok(x) => x,
-                Err(e) => {
-                    log::warn!(
-                        "[{}] try {i}, failed to get handle: {} -> {} | {e}",
-                        self.mapping.name,
-                        file.path.raw(),
-                        target.raw()
-                    );
-                    continue;
-                }
-            };
-            let mut source_file = archive.by_name(&file.path.raw())?;
-            if let Err(e) = std::io::copy(&mut source_file, &mut target_handle) {
-                log::warn!(
-                    "[{}] try {i}, failed to copy to target: {} -> {} | {e}",
+                    "[{}] failed to get handle: {} -> {} | {e}",
                     self.mapping.name,
                     file.path.raw(),
                     target.raw()
                 );
-            } else {
-                let mtime = source_file.last_modified();
-                if let Err(e) = target.set_mtime_zip(mtime) {
-                    log::error!(
-                        "[{}] unable to set modification time: {} -> {} to {:#?} | {e:?}",
-                        self.mapping.name,
-                        file.path.raw(),
-                        target.raw(),
-                        mtime
-                    );
-                }
-                log::info!(
-                    "[{}] restored: {} -> {}",
-                    &self.mapping.name,
-                    file.path.raw(),
-                    target.raw()
-                );
-                return Ok(());
+                return Err(Box::new(e));
             }
+        };
+        let mut source_file = archive.by_name(&file.path.raw())?;
+        if let Err(e) = std::io::copy(&mut source_file, &mut target_handle) {
+            log::warn!(
+                "[{}] failed to copy to target: {} -> {} | {e}",
+                self.mapping.name,
+                file.path.raw(),
+                target.raw()
+            );
+            return Err(Box::new(e));
         }
 
-        Err("Unable to restore file".into())
+        let mtime = source_file.last_modified();
+        if let Err(e) = target.set_mtime_zip(mtime) {
+            log::error!(
+                "[{}] unable to set modification time: {} -> {} to {:#?} | {e:?}",
+                self.mapping.name,
+                file.path.raw(),
+                target.raw(),
+                mtime
+            );
+            return Err("unable to set modification time".into());
+        }
+
+        Ok(())
     }
 
     fn mapping_file(path: &StrictPath) -> StrictPath {
