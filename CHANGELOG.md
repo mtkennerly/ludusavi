@@ -11,6 +11,7 @@
     `REG_RESOURCE_LIST`,
     `REG_FULL_RESOURCE_DESCRIPTOR`,
     `REG_RESOURCE_REQUIREMENTS_LIST`.
+  * On Windows, Ludusavi now recognizes if you've moved the `%USERPROFILE%\Saved Games` folder.
 * Changed:
   * GUI: A different icon is now used for the button to hide the backup comment field.
     The previous icon (a red X) could have been misinterpreted as "delete" rather than "close".

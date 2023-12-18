@@ -153,6 +153,12 @@ pub fn parse_paths(
     let config_dir = check_path(dirs::config_dir());
     let home = check_path(dirs::home_dir());
 
+    #[cfg(target_os = "windows")]
+    let saved_games_dir = known_folders::get_known_folder_path(known_folders::KnownFolder::SavedGames)
+        .map(|x| x.to_string_lossy().trim_end_matches(['/', '\\']).to_string());
+    #[cfg(not(target_os = "windows"))]
+    let saved_games_dir: Option<String> = None;
+
     paths.insert((
         path.replace(ROOT, &root_interpreted)
             .replace(GAME, install_dir)
@@ -200,6 +206,18 @@ pub fn parse_paths(
             }
         }
         paths.insert((virtual_store, case_sensitive));
+
+        if let Some(saved_games_dir) = saved_games_dir.as_ref() {
+            paths.insert((
+                path.replace('\\', "/")
+                    .replace(GAME, install_dir)
+                    .replace(STORE_USER_ID, "*")
+                    .replace(OS_USER_NAME, &whoami::username())
+                    .replace("<home>/Saved Games/", &format!("{}/", saved_games_dir))
+                    .replace(HOME, &home),
+                platform.is_case_sensitive(),
+            ));
+        }
     }
     if Os::HOST == Os::Linux {
         // Default XDG paths, in case we're in a Flatpak context.

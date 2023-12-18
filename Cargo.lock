@@ -1953,6 +1953,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "known-folders"
+version = "1.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4397c789f2709d23cfcb703b316e0766a8d4b17db2d47b0ab096ef6047cae1d8"
+dependencies = [
+ "windows-sys 0.52.0",
+]
+
+[[package]]
 name = "kurbo"
 version = "0.9.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2059,6 +2068,7 @@ dependencies = [
  "indicatif",
  "intl-memoizer",
  "itertools",
+ "known-folders",
  "log",
  "maplit",
  "native-dialog",
