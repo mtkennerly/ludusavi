@@ -12,7 +12,7 @@ use crate::{
         screen,
         shortcuts::{Shortcut, TextHistories, TextHistory},
         style,
-        widget::{Column, Container, Element, IcedParentExt, Progress, Row},
+        widget::{id, Column, Container, Element, IcedParentExt, Progress, Row},
     },
     lang::TRANSLATOR,
     prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
@@ -1590,18 +1590,17 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
-            Message::ToggleSearch { screen } => {
-                match screen {
-                    Screen::Backup => {
-                        self.backup_screen.log.search.show = !self.backup_screen.log.search.show;
-                    }
-                    Screen::Restore => {
-                        self.restore_screen.log.search.show = !self.restore_screen.log.search.show;
-                    }
-                    _ => {}
+            Message::ToggleSearch { screen } => match screen {
+                Screen::Backup => {
+                    self.backup_screen.log.search.show = !self.backup_screen.log.search.show;
+                    iced::widget::text_input::focus(id::backup_search())
                 }
-                Command::none()
-            }
+                Screen::Restore => {
+                    self.restore_screen.log.search.show = !self.restore_screen.log.search.show;
+                    iced::widget::text_input::focus(id::restore_search())
+                }
+                _ => Command::none(),
+            },
             Message::ToggleSpecificGamePathIgnored {
                 name,
                 path,

@@ -60,6 +60,9 @@ pub mod id {
     pub static OTHER_SCROLL: Lazy<iced::widget::scrollable::Id> = Lazy::new(iced::widget::scrollable::Id::unique);
     pub static MODAL_SCROLL: Lazy<iced::widget::scrollable::Id> = Lazy::new(iced::widget::scrollable::Id::unique);
 
+    pub static BACKUP_SEARCH: Lazy<iced::widget::text_input::Id> = Lazy::new(iced::widget::text_input::Id::unique);
+    pub static RESTORE_SEARCH: Lazy<iced::widget::text_input::Id> = Lazy::new(iced::widget::text_input::Id::unique);
+
     pub fn backup_scroll() -> iced::widget::scrollable::Id {
         (*BACKUP_SCROLL).clone()
     }
@@ -78,6 +81,14 @@ pub mod id {
 
     pub fn modal_scroll() -> iced::widget::scrollable::Id {
         (*MODAL_SCROLL).clone()
+    }
+
+    pub fn backup_search() -> iced::widget::text_input::Id {
+        (*BACKUP_SEARCH).clone()
+    }
+
+    pub fn restore_search() -> iced::widget::text_input::Id {
+        (*RESTORE_SEARCH).clone()
     }
 }
 

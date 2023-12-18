@@ -14,6 +14,8 @@
 * Changed:
   * GUI: A different icon is now used for the button to hide the backup comment field.
     The previous icon (a red X) could have been misinterpreted as "delete" rather than "close".
+  * GUI: When you click the filter icon on the backup/restore screen,
+    the title search field is automatically focused.
   * CLI: Help text is now styled a bit differently.
 * Fixed:
   * GUI: On some systems using Wayland, Ludusavi would crash on startup.

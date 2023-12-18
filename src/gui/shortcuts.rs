@@ -11,7 +11,7 @@ use crate::{
         common::{EditAction, Message, RedirectEditActionField, Screen, UndoSubject},
         modal::{ModalField, ModalInputKind},
         style,
-        widget::{Element, TextInput, Undoable},
+        widget::{id, Element, TextInput, Undoable},
     },
     lang::TRANSLATOR,
     prelude::StrictPath,
@@ -406,6 +406,12 @@ impl TextHistories {
             | UndoSubject::ModalField(_) => None,
         };
 
+        let id = match subject {
+            UndoSubject::BackupSearchGameName => Some(id::backup_search()),
+            UndoSubject::RestoreSearchGameName => Some(id::restore_search()),
+            _ => None,
+        };
+
         Undoable::new(
             {
                 let mut input = TextInput::new(&placeholder, &current)
@@ -420,6 +426,10 @@ impl TextHistories {
 
                 if subject.privacy().sensitive() {
                     input = input.password();
+                }
+
+                if let Some(id) = id {
+                    input = input.id(id);
                 }
 
                 input
