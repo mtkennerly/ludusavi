@@ -12,5 +12,8 @@ Windows Registry Editor Version 5.00
 
 [HKEY_CURRENT_USER\Software\Ludusavi\other]
 
+[HKEY_CURRENT_USER\Software\Ludusavi\invalid]
+"dword"=hex(4):00,00,00,00,00,00,00,00
+
 [HKEY_CURRENT_USER\Software\Ludusavi\sp/ecial]
 "va/lu\\e"=""

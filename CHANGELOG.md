@@ -4,6 +4,13 @@
   * CLI: `wrap` command to do a restore before playing a game and a backup afterwards.
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/235))
   * When a path or URL fails to open, additional information is now logged.
+  * On Windows, Ludusavi can now back up additional types of registry data:
+    `REG_NONE`,
+    `REG_DWORD_BIG_ENDIAN`,
+    `REG_LINK`,
+    `REG_RESOURCE_LIST`,
+    `REG_FULL_RESOURCE_DESCRIPTOR`,
+    `REG_RESOURCE_REQUIREMENTS_LIST`.
 * Changed:
   * GUI: A different icon is now used for the button to hide the backup comment field.
     The previous icon (a red X) could have been misinterpreted as "delete" rather than "close".
@@ -13,6 +20,10 @@
   * When storing file modified times in zip archives,
     if the year is too old for zip to support (i.e., before 1980),
     Ludusavi will now round up to the earliest support date (1980-01-01).
+  * When backing up a malformed `dword`-type value from the registry,
+    Ludusavi would silently convert it to a default 0,
+    which could result in data loss when restored.
+    Now, invalid registry values are backed up and restored as-is.
 
 ## v0.21.0 (2023-08-22)
 

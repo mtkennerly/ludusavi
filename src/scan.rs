@@ -1246,6 +1246,8 @@ mod tests {
                         .with_value_new("multiSz")
                         .with_value_new("qword")
                         .with_value_new("sz"),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/invalid").change_as(ScanChange::New)
+                        .with_value_new("dword"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::New),
                 },
                 ..Default::default()
@@ -1273,7 +1275,10 @@ mod tests {
         let cases = vec![
             (
                 BackupFilter {
-                    ignored_registry: vec![RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/other"))],
+                    ignored_registry: vec![
+                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/invalid")),
+                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/other")),
+                    ],
                     ..Default::default()
                 },
                 ToggledRegistry::default(),
@@ -1304,6 +1309,8 @@ mod tests {
                         .with_value("multiSz", ScanChange::New, true)
                         .with_value("qword", ScanChange::New, true)
                         .with_value("sz", ScanChange::New, true),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/invalid").ignored().change_as(ScanChange::New)
+                        .with_value("dword", ScanChange::New, true),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change_as(ScanChange::New),
                 },
             ),
@@ -1329,6 +1336,8 @@ mod tests {
                         .with_value_new("multiSz")
                         .with_value("qword", ScanChange::New, true)
                         .with_value_new("sz"),
+                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/invalid").change_as(ScanChange::New)
+                        .with_value_new("dword"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change_as(ScanChange::New),
                 },
             ),

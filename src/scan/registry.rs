@@ -31,9 +31,69 @@ pub enum Entry {
     Qword(u64),
     #[serde(rename = "binary")]
     Binary(Vec<u8>),
+    #[serde(rename = "raw")]
+    Raw { kind: RegistryKind, data: Vec<u8> },
     #[default]
     #[serde(other)]
     Unknown,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RegistryKind {
+    #[default]
+    None,
+    Sz,
+    ExpandSz,
+    Binary,
+    Dword,
+    DwordBigEndian,
+    Link,
+    MultiSz,
+    ResourceList,
+    FullResourceDescriptor,
+    ResourceRequirementsList,
+    Qword,
+}
+
+impl From<winreg::enums::RegType> for RegistryKind {
+    fn from(value: winreg::enums::RegType) -> Self {
+        use winreg::enums::*;
+
+        match value {
+            REG_NONE => Self::None,
+            REG_SZ => Self::Sz,
+            REG_EXPAND_SZ => Self::ExpandSz,
+            REG_BINARY => Self::Binary,
+            REG_DWORD => Self::Dword,
+            REG_DWORD_BIG_ENDIAN => Self::DwordBigEndian,
+            REG_LINK => Self::Link,
+            REG_MULTI_SZ => Self::MultiSz,
+            REG_RESOURCE_LIST => Self::ResourceList,
+            REG_FULL_RESOURCE_DESCRIPTOR => Self::FullResourceDescriptor,
+            REG_RESOURCE_REQUIREMENTS_LIST => Self::ResourceRequirementsList,
+            REG_QWORD => Self::Qword,
+        }
+    }
+}
+
+impl From<RegistryKind> for winreg::enums::RegType {
+    fn from(value: RegistryKind) -> Self {
+        match value {
+            RegistryKind::None => Self::REG_NONE,
+            RegistryKind::Sz => Self::REG_SZ,
+            RegistryKind::ExpandSz => Self::REG_EXPAND_SZ,
+            RegistryKind::Binary => Self::REG_BINARY,
+            RegistryKind::Dword => Self::REG_DWORD,
+            RegistryKind::DwordBigEndian => Self::REG_DWORD_BIG_ENDIAN,
+            RegistryKind::Link => Self::REG_LINK,
+            RegistryKind::MultiSz => Self::REG_MULTI_SZ,
+            RegistryKind::ResourceList => Self::REG_RESOURCE_LIST,
+            RegistryKind::FullResourceDescriptor => Self::REG_FULL_RESOURCE_DESCRIPTOR,
+            RegistryKind::ResourceRequirementsList => Self::REG_RESOURCE_REQUIREMENTS_LIST,
+            RegistryKind::Qword => Self::REG_QWORD,
+        }
+    }
 }
 
 pub fn scan_registry(
@@ -345,14 +405,28 @@ impl Entry {
 
 impl From<winreg::RegValue> for Entry {
     fn from(item: winreg::RegValue) -> Self {
+        macro_rules! map {
+            ($variant:expr, $typ:ty) => {
+                <$typ>::from_reg_value(&item)
+                    .map($variant)
+                    .unwrap_or_else(|_| Self::Raw {
+                        kind: item.vtype.into(),
+                        data: item.bytes,
+                    })
+            };
+        }
+
         match item.vtype {
-            winreg::enums::RegType::REG_SZ => Self::Sz(String::from_reg_value(&item).unwrap_or_default()),
-            winreg::enums::RegType::REG_EXPAND_SZ => Self::ExpandSz(String::from_reg_value(&item).unwrap_or_default()),
-            winreg::enums::RegType::REG_MULTI_SZ => Self::MultiSz(String::from_reg_value(&item).unwrap_or_default()),
-            winreg::enums::RegType::REG_DWORD => Self::Dword(u32::from_reg_value(&item).unwrap_or_default()),
-            winreg::enums::RegType::REG_QWORD => Self::Qword(u64::from_reg_value(&item).unwrap_or_default()),
+            winreg::enums::RegType::REG_SZ => map!(Self::Sz, String),
+            winreg::enums::RegType::REG_EXPAND_SZ => map!(Self::ExpandSz, String),
+            winreg::enums::RegType::REG_MULTI_SZ => map!(Self::MultiSz, String),
+            winreg::enums::RegType::REG_DWORD => map!(Self::Dword, u32),
+            winreg::enums::RegType::REG_QWORD => map!(Self::Qword, u64),
             winreg::enums::RegType::REG_BINARY => Self::Binary(item.bytes),
-            _ => Default::default(),
+            _ => Self::Raw {
+                kind: item.vtype.into(),
+                data: item.bytes,
+            },
         }
     }
 }
@@ -374,6 +448,10 @@ impl From<&Entry> for Option<winreg::RegValue> {
             Entry::Binary(x) => Some(winreg::RegValue {
                 bytes: x.clone(),
                 vtype: winreg::enums::RegType::REG_BINARY,
+            }),
+            Entry::Raw { kind, data } => Some(winreg::RegValue {
+                bytes: data.clone(),
+                vtype: (*kind).into(),
             }),
             Entry::Unknown => None,
         }
@@ -412,6 +490,24 @@ mod tests {
                         s("dword") => Entry::Dword(1),
                         s("qword") => Entry::Qword(2),
                         s("binary") => Entry::Binary(vec![65]),
+                    })
+                })
+            }),
+            hives,
+        );
+    }
+
+    #[test]
+    fn can_store_key_from_full_path_of_leaf_key_with_invalid_values() {
+        let mut hives = Hives::default();
+        hives
+            .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi/invalid")
+            .unwrap();
+        assert_eq!(
+            Hives(hashmap! {
+                s("HKEY_CURRENT_USER") => Keys(hashmap! {
+                    s("Software\\Ludusavi\\invalid") => Entries(hashmap! {
+                        s("dword") => Entry::Raw { kind: RegistryKind::Dword, data: vec![0, 0, 0, 0, 0, 0, 0, 0] },
                     })
                 })
             }),
@@ -474,6 +570,19 @@ HKEY_CURRENT_USER:
       qword: 2
     sz:
       sz: foo
+  "Software\\Ludusavi\\invalid":
+    dword:
+      raw:
+        kind: dword
+        data:
+          - 0
+          - 0
+          - 0
+          - 0
+          - 0
+          - 0
+          - 0
+          - 0
   "Software\\Ludusavi\\other": {}
 "#
             .trim(),
@@ -487,6 +596,12 @@ HKEY_CURRENT_USER:
                         s("dword") => Entry::Dword(1),
                         s("qword") => Entry::Qword(2),
                         s("binary") => Entry::Binary(vec![1, 2, 3]),
+                    }),
+                    s("Software\\Ludusavi\\invalid") => Entries(hashmap! {
+                        s("dword") => Entry::Raw {
+                            kind: RegistryKind::Dword,
+                            data: vec![0, 0, 0, 0, 0, 0, 0, 0],
+                        },
                     }),
                     s("Software\\Ludusavi\\other") => Entries::default(),
                 })
