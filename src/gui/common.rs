@@ -105,7 +105,7 @@ pub enum Message {
     UpdateTime,
     PruneNotifications,
     UpdateManifest,
-    ManifestUpdated(Result<Option<ManifestUpdate>, Error>),
+    ManifestUpdated(Vec<Result<Option<ManifestUpdate>, Error>>),
     Backup(BackupPhase),
     Restore(RestorePhase),
     ValidateBackups(ValidatePhase),
@@ -115,6 +115,7 @@ pub enum Message {
     FindRoots,
     ConfirmAddMissingRoots(Vec<RootsConfig>),
     EditedRoot(EditAction),
+    EditedSecondaryManifest(EditAction),
     SelectedRootStore(usize, Store),
     SelectedRedirectKind(usize, RedirectKind),
     EditedRedirect(EditAction, Option<RedirectEditActionField>),
@@ -615,6 +616,7 @@ pub enum UndoSubject {
     BackupSearchGameName,
     RestoreSearchGameName,
     Root(usize),
+    SecondaryManifest(usize),
     RedirectSource(usize),
     RedirectTarget(usize),
     CustomGameName(usize),
@@ -637,6 +639,7 @@ impl UndoSubject {
             | UndoSubject::BackupSearchGameName
             | UndoSubject::RestoreSearchGameName
             | UndoSubject::Root(_)
+            | UndoSubject::SecondaryManifest(_)
             | UndoSubject::RedirectSource(_)
             | UndoSubject::RedirectTarget(_)
             | UndoSubject::CustomGameName(_)

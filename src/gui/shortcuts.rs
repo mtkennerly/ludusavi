@@ -197,6 +197,7 @@ pub struct TextHistories {
     pub backup_search_game_name: TextHistory,
     pub restore_search_game_name: TextHistory,
     pub roots: Vec<TextHistory>,
+    pub secondary_manifests: Vec<TextHistory>,
     pub redirects: Vec<RedirectHistory>,
     pub custom_games: Vec<CustomGameHistory>,
     pub backup_filter_ignored_paths: Vec<TextHistory>,
@@ -223,6 +224,10 @@ impl TextHistories {
 
         for x in &config.roots {
             histories.roots.push(TextHistory::path(&x.path));
+        }
+
+        for x in &config.manifest.secondary {
+            histories.secondary_manifests.push(TextHistory::raw(x));
         }
 
         for x in &config.redirects {
@@ -276,6 +281,9 @@ impl TextHistories {
             UndoSubject::BackupSearchGameName => self.backup_search_game_name.current(),
             UndoSubject::RestoreSearchGameName => self.restore_search_game_name.current(),
             UndoSubject::Root(i) => self.roots.get(i).map(|x| x.current()).unwrap_or_default(),
+            UndoSubject::SecondaryManifest(i) => {
+                self.secondary_manifests.get(i).map(|x| x.current()).unwrap_or_default()
+            }
             UndoSubject::RedirectSource(i) => self.redirects.get(i).map(|x| x.source.current()).unwrap_or_default(),
             UndoSubject::RedirectTarget(i) => self.redirects.get(i).map(|x| x.target.current()).unwrap_or_default(),
             UndoSubject::CustomGameName(i) => self.custom_games.get(i).map(|x| x.name.current()).unwrap_or_default(),
@@ -324,6 +332,9 @@ impl TextHistories {
                 value,
             }),
             UndoSubject::Root(i) => Box::new(move |value| Message::EditedRoot(EditAction::Change(i, value))),
+            UndoSubject::SecondaryManifest(i) => {
+                Box::new(move |value| Message::EditedSecondaryManifest(EditAction::Change(i, value)))
+            }
             UndoSubject::RedirectSource(i) => Box::new(move |value| {
                 Message::EditedRedirect(EditAction::Change(i, value), Some(RedirectEditActionField::Source))
             }),
@@ -366,6 +377,7 @@ impl TextHistories {
             UndoSubject::BackupSearchGameName => TRANSLATOR.search_game_name_placeholder(),
             UndoSubject::RestoreSearchGameName => TRANSLATOR.search_game_name_placeholder(),
             UndoSubject::Root(_) => "".to_string(),
+            UndoSubject::SecondaryManifest(_) => "".to_string(),
             UndoSubject::RedirectSource(_) => TRANSLATOR.redirect_source_placeholder(),
             UndoSubject::RedirectTarget(_) => TRANSLATOR.redirect_target_placeholder(),
             UndoSubject::CustomGameName(_) => TRANSLATOR.custom_game_name_placeholder(),
@@ -395,7 +407,8 @@ impl TextHistories {
                 spacing: 5.0,
                 side: text_input::Side::Right,
             }),
-            UndoSubject::BackupSearchGameName
+            UndoSubject::SecondaryManifest(_)
+            | UndoSubject::BackupSearchGameName
             | UndoSubject::RestoreSearchGameName
             | UndoSubject::CustomGameName(_)
             | UndoSubject::CustomGameRegistry(_, _)

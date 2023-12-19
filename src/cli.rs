@@ -186,7 +186,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 prepare_backup_target(&backup_dir)?;
             }
 
-            manifest.incorporate_extensions(&config.roots, &config.custom_games);
+            manifest.incorporate_extensions(&config);
 
             let games_specified = !games.is_empty();
             let subjects = GameSubjects::new(manifest.0.keys().cloned().collect(), games);
@@ -573,7 +573,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
             let mut manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
 
-            manifest.incorporate_extensions(&config.roots, &config.custom_games);
+            manifest.incorporate_extensions(&config);
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),
@@ -605,7 +605,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
         Subcommand::Manifest { sub: manifest_sub } => match manifest_sub {
             ManifestSubcommand::Show { api } => {
                 let mut manifest = Manifest::load().unwrap_or_default();
-                manifest.incorporate_extensions(&config.roots, &config.custom_games);
+                manifest.incorporate_extensions(&config);
 
                 if api {
                     println!("{}", serde_json::to_string(&manifest).unwrap());

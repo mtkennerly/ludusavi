@@ -5,9 +5,10 @@ use crate::{
     prelude::{app_dir, Error, StrictPath},
     resource::{
         cache::{self, Cache},
-        config::{Config, CustomGame, ManifestConfig, RootsConfig},
+        config::{Config, CustomGame, ManifestConfig},
         ResourceFile, SaveableResourceFile,
     },
+    scan::layout::escape_folder_name,
 };
 
 pub mod placeholder {
@@ -278,18 +279,37 @@ impl ResourceFile for Manifest {
 }
 
 impl Manifest {
+    fn file_name_for(url: &str, primary: bool) -> String {
+        if primary {
+            Self::FILE_NAME.to_string()
+        } else {
+            let encoded = escape_folder_name(url.trim_end_matches(".yaml"));
+            format!("manifest-{}.yaml", encoded)
+        }
+    }
+
+    fn path_for(url: &str, primary: bool) -> StrictPath {
+        if primary {
+            Self::path().into()
+        } else {
+            let mut path = app_dir();
+            path.push(Self::file_name_for(url, primary));
+            path.into()
+        }
+    }
+
     pub fn load() -> Result<Self, Error> {
         ResourceFile::load().map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })
     }
 
-    pub fn should_update(config: &ManifestConfig, cache: &cache::Manifests, force: bool) -> bool {
+    pub fn should_update(url: &str, cache: &cache::Manifests, force: bool, primary: bool) -> bool {
         if force {
             return true;
         }
-        if !Self::path().exists() {
+        if !Self::path_for(url, primary).exists() {
             return true;
         }
-        match cache.get(&config.url) {
+        match cache.get(url) {
             None => true,
             Some(cached) => {
                 let now = chrono::offset::Utc::now();
@@ -304,15 +324,34 @@ impl Manifest {
         config: ManifestConfig,
         cache: cache::Manifests,
         force: bool,
+    ) -> Vec<Result<Option<ManifestUpdate>, Error>> {
+        let mut out = vec![];
+
+        out.push(Self::update_one(&config.url, &cache, force, true));
+
+        for secondary in &config.secondary {
+            out.push(Self::update_one(secondary, &cache, force, false));
+        }
+
+        out
+    }
+
+    fn update_one(
+        url: &str,
+        cache: &cache::Manifests,
+        force: bool,
+        primary: bool,
     ) -> Result<Option<ManifestUpdate>, Error> {
-        if !Self::should_update(&config, &cache, force) {
+        if !Self::should_update(url, cache, force, primary) {
             return Ok(None);
         }
 
-        let mut req = reqwest::blocking::Client::new().get(&config.url);
-        let old_etag = cache.get(&config.url).and_then(|x| x.etag.clone());
+        let path = Self::path_for(url, primary);
+
+        let mut req = reqwest::blocking::Client::new().get(url);
+        let old_etag = cache.get(url).and_then(|x| x.etag.clone());
         if let Some(etag) = old_etag.as_ref() {
-            if StrictPath::from_std_path_buf(&Self::path()).exists() {
+            if path.exists() {
                 req = req.header(reqwest::header::IF_NONE_MATCH, etag);
             }
         }
@@ -330,7 +369,7 @@ impl Manifest {
                     return Err(Error::ManifestInvalid { why: e.to_string() });
                 }
 
-                std::fs::write(Self::path(), manifest_string).map_err(|_| Error::ManifestCannotBeUpdated)?;
+                std::fs::write(path.as_std_path_buf(), manifest_string).map_err(|_| Error::ManifestCannotBeUpdated)?;
 
                 let new_etag = res
                     .headers()
@@ -338,14 +377,14 @@ impl Manifest {
                     .map(|etag| String::from_utf8_lossy(etag.as_bytes()).to_string());
 
                 Ok(Some(ManifestUpdate {
-                    url: config.url,
+                    url: url.to_string(),
                     etag: new_etag,
                     timestamp: chrono::offset::Utc::now(),
                     modified: true,
                 }))
             }
             reqwest::StatusCode::NOT_MODIFIED => Ok(Some(ManifestUpdate {
-                url: config.url,
+                url: url.to_string(),
                 etag: old_etag,
                 timestamp: chrono::offset::Utc::now(),
                 modified: false,
@@ -355,10 +394,26 @@ impl Manifest {
     }
 
     pub fn update_mut(config: &Config, cache: &mut Cache, force: bool) -> Result<(), Error> {
-        let updated = Self::update(config.manifest.clone(), cache.manifests.clone(), force)?;
-        if let Some(updated) = updated {
-            cache.update_manifest(updated);
-            cache.save();
+        let mut error = None;
+
+        let updates = Self::update(config.manifest.clone(), cache.manifests.clone(), force);
+        for update in updates {
+            match update {
+                Ok(Some(update)) => {
+                    cache.update_manifest(update);
+                    cache.save();
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    if error.is_none() {
+                        error = Some(e);
+                    }
+                }
+            }
+        }
+
+        if let Some(error) = error {
+            return Err(error);
         }
         Ok(())
     }
@@ -383,14 +438,23 @@ impl Manifest {
             .collect()
     }
 
-    pub fn incorporate_extensions(&mut self, roots: &[RootsConfig], custom_games: &[CustomGame]) {
-        for root in roots {
+    pub fn incorporate_extensions(&mut self, config: &Config) {
+        for url in &config.manifest.secondary {
+            let path = Self::path_for(url, false);
+            if let Ok(secondary) = Manifest::load_from(&path.as_std_path_buf()) {
+                self.incorporate_secondary_manifest(path, secondary);
+            } else {
+                log::warn!("Configured secondary manifest is invalid: {}", path.render());
+            }
+        }
+
+        for root in &config.roots {
             for (path, secondary) in root.find_secondary_manifests() {
                 self.incorporate_secondary_manifest(path, secondary);
             }
         }
 
-        for custom_game in custom_games {
+        for custom_game in &config.custom_games {
             if custom_game.ignore {
                 continue;
             }
@@ -409,6 +473,7 @@ impl Manifest {
     }
 
     fn incorporate_secondary_manifest(&mut self, path: StrictPath, secondary: Manifest) {
+        log::debug!("incorporating secondary manifest: {}", path.render());
         for (name, mut game) in secondary.0 {
             game.normalize_relative_paths();
 

@@ -10,10 +10,11 @@ use crate::{
         common::{BackupPhase, BrowseSubject, Message, ScrollSubject, UndoSubject},
         shortcuts::TextHistories,
         style,
-        widget::{checkbox, pick_list, text, Column, Container, Row, Tooltip},
+        widget::{checkbox, pick_list, text, Column, Container, IcedParentExt, Row, Tooltip},
     },
     lang::TRANSLATOR,
     resource::{
+        cache::Cache,
         config::{Config, RedirectKind},
         manifest::Store,
     },
@@ -49,6 +50,97 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
     );
 
     Container::new(content)
+}
+
+pub fn manifest<'a>(config: &Config, cache: &'a Cache, histories: &TextHistories) -> Container<'a> {
+    let label_width = Length::Fixed(160.0);
+    let left_offset = Length::Fixed(70.0);
+    let right_offset = Length::Fixed(70.0);
+
+    let get_checked = |url: &str, cache: &'a Cache| {
+        let cached = cache.manifests.get(url)?;
+        let checked = match cached.checked {
+            Some(x) => chrono::DateTime::<chrono::Local>::from(x)
+                .format("%Y-%m-%dT%H:%M:%S")
+                .to_string(),
+            None => "?".to_string(),
+        };
+        Some(Container::new(text(checked)).width(label_width))
+    };
+
+    let get_updated = |url: &str, cache: &'a Cache| {
+        let cached = cache.manifests.get(url)?;
+        let updated = match cached.updated {
+            Some(x) => chrono::DateTime::<chrono::Local>::from(x)
+                .format("%Y-%m-%dT%H:%M:%S")
+                .to_string(),
+            None => "?".to_string(),
+        };
+        Some(Container::new(text(updated)).width(label_width))
+    };
+
+    let mut content = Column::new()
+        .padding(5)
+        .spacing(5)
+        .push(
+            Row::new()
+                .spacing(20)
+                .align_items(Alignment::Center)
+                .push_if(
+                    || !config.manifest.secondary.is_empty(),
+                    || Space::with_width(left_offset),
+                )
+                .push(text(TRANSLATOR.url_label()).width(Length::Fill))
+                .push(Container::new(text(TRANSLATOR.checked_label())).width(label_width))
+                .push(Container::new(text(TRANSLATOR.updated_label())).width(label_width))
+                .push_if(
+                    || !config.manifest.secondary.is_empty(),
+                    || Space::with_width(right_offset),
+                ),
+        )
+        .push(
+            Row::new()
+                .spacing(20)
+                .align_items(Alignment::Center)
+                .push_if(
+                    || !config.manifest.secondary.is_empty(),
+                    || Space::with_width(left_offset),
+                )
+                .push(iced::widget::TextInput::new("", &config.manifest.url).width(Length::Fill))
+                .push_some(|| get_checked(&config.manifest.url, cache))
+                .push_some(|| get_updated(&config.manifest.url, cache))
+                .push_if(
+                    || !config.manifest.secondary.is_empty(),
+                    || Space::with_width(right_offset),
+                ),
+        );
+
+    content = config
+        .manifest
+        .secondary
+        .iter()
+        .enumerate()
+        .fold(content, |column, (i, _)| {
+            column.push(
+                Row::new()
+                    .spacing(20)
+                    .align_items(Alignment::Center)
+                    .push(button::move_up(Message::EditedSecondaryManifest, i))
+                    .push(button::move_down(
+                        Message::EditedSecondaryManifest,
+                        i,
+                        config.manifest.secondary.len(),
+                    ))
+                    .push(histories.input(UndoSubject::SecondaryManifest(i)))
+                    .push_some(|| get_checked(&config.manifest.secondary[i], cache))
+                    .push_some(|| get_updated(&config.manifest.secondary[i], cache))
+                    .push(button::remove(Message::EditedSecondaryManifest, i)),
+            )
+        });
+
+    content = content.push(button::add(Message::EditedSecondaryManifest));
+
+    Container::new(content).style(style::Container::GameListEntry)
 }
 
 pub fn redirect<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard::Modifiers) -> Container<'a> {

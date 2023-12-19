@@ -35,7 +35,7 @@ fn encode_base64_for_folder(name: &str) -> String {
     base64::encode(name).replace('/', SAFE)
 }
 
-fn escape_folder_name(name: &str) -> String {
+pub fn escape_folder_name(name: &str) -> String {
     let mut escaped = String::from(name);
 
     // Technically, dots should be fine as long as the folder name isn't

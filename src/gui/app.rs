@@ -294,7 +294,7 @@ impl App {
 
                 Command::perform(
                     async move {
-                        manifest.incorporate_extensions(&config.roots, &config.custom_games);
+                        manifest.incorporate_extensions(&config);
                         let subjects: Vec<_> = if let Some(games) = &games {
                             manifest.0.keys().filter(|k| games.contains(k)).cloned().collect()
                         } else if !previewed_games.is_empty() && all_scanned {
@@ -1233,26 +1233,37 @@ impl Application for App {
                     },
                 )
             }
-            Message::ManifestUpdated(updated) => {
+            Message::ManifestUpdated(updates) => {
                 self.updating_manifest = false;
+                let mut errors = vec![];
 
-                let updated = match updated {
-                    Ok(Some(updated)) => updated,
-                    Ok(None) => return self.close_specific_modal(Modal::UpdatingManifest),
-                    Err(e) => {
-                        return self.show_error(e);
+                for update in updates {
+                    match update {
+                        Ok(Some(update)) => {
+                            self.cache.update_manifest(update);
+                        }
+                        Ok(None) => {}
+                        Err(e) => {
+                            errors.push(e);
+                        }
                     }
-                };
+                }
 
-                self.cache.update_manifest(updated);
                 self.cache.save();
 
                 match Manifest::load() {
                     Ok(x) => {
                         self.manifest = x;
-                        self.close_specific_modal(Modal::UpdatingManifest)
                     }
-                    Err(variant) => self.show_modal(Modal::Error { variant }),
+                    Err(e) => {
+                        errors.push(e);
+                    }
+                }
+
+                if errors.is_empty() {
+                    self.close_specific_modal(Modal::UpdatingManifest)
+                } else {
+                    self.show_modal(Modal::Errors { errors })
                 }
             }
             Message::Backup(phase) => self.handle_backup(phase),
@@ -1311,6 +1322,29 @@ impl Application for App {
                         let offset = direction.shift(index);
                         self.text_histories.roots.swap(index, offset);
                         self.config.roots.swap(index, offset);
+                    }
+                }
+                self.config.save();
+                Command::none()
+            }
+            Message::EditedSecondaryManifest(action) => {
+                match action {
+                    EditAction::Add => {
+                        self.text_histories.secondary_manifests.push(Default::default());
+                        self.config.manifest.secondary.push("".to_string());
+                    }
+                    EditAction::Change(index, value) => {
+                        self.text_histories.secondary_manifests[index].push(&value);
+                        self.config.manifest.secondary[index] = value;
+                    }
+                    EditAction::Remove(index) => {
+                        self.text_histories.secondary_manifests.remove(index);
+                        self.config.manifest.secondary.remove(index);
+                    }
+                    EditAction::Move(index, direction) => {
+                        let offset = direction.shift(index);
+                        self.text_histories.secondary_manifests.swap(index, offset);
+                        self.config.manifest.secondary.swap(index, offset);
                     }
                 }
                 self.config.save();
@@ -1923,6 +1957,10 @@ impl Application for App {
                     ),
                     UndoSubject::Root(i) => shortcut
                         .apply_to_strict_path_field(&mut self.config.roots[i].path, &mut self.text_histories.roots[i]),
+                    UndoSubject::SecondaryManifest(i) => shortcut.apply_to_string_field(
+                        &mut self.config.manifest.secondary[i],
+                        &mut self.text_histories.secondary_manifests[i],
+                    ),
                     UndoSubject::RedirectSource(i) => shortcut.apply_to_strict_path_field(
                         &mut self.config.redirects[i].source,
                         &mut self.text_histories.redirects[i].source,

@@ -56,6 +56,8 @@ pub struct Runtime {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct ManifestConfig {
     pub url: String,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub secondary: Vec<String>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -701,6 +703,7 @@ impl Default for ManifestConfig {
     fn default() -> Self {
         Self {
             url: MANIFEST_URL.to_string(),
+            secondary: vec![],
         }
     }
 }
@@ -748,6 +751,7 @@ impl ResourceFile for Config {
 
     fn migrate(mut self) -> Self {
         self.roots.retain(|x| !x.path.raw().trim().is_empty());
+        self.manifest.secondary.retain(|x| !x.trim().is_empty());
         self.redirects
             .retain(|x| !x.source.raw().trim().is_empty() && !x.target.raw().trim().is_empty());
         self.backup.filter.ignored_paths.retain(|x| !x.raw().trim().is_empty());
@@ -1370,7 +1374,10 @@ mod tests {
         assert_eq!(
             Config {
                 runtime: Default::default(),
-                manifest: ManifestConfig { url: s("example.com") },
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    secondary: vec![]
+                },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![],
@@ -1416,6 +1423,8 @@ mod tests {
             manifest:
               url: example.com
               etag: "foo"
+              secondary:
+                - example.com/2
             roots:
               - path: ~/steam
                 store: steam
@@ -1471,7 +1480,10 @@ mod tests {
         assert_eq!(
             Config {
                 runtime: Default::default(),
-                manifest: ManifestConfig { url: s("example.com") },
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    secondary: vec![s("example.com/2")]
+                },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![
@@ -1579,7 +1591,10 @@ mod tests {
         assert_eq!(
             Config {
                 runtime: Default::default(),
-                manifest: ManifestConfig { url: s("example.com") },
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    secondary: vec![]
+                },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![RootsConfig {
@@ -1712,7 +1727,10 @@ customGames:
             .trim(),
             serde_yaml::to_string(&Config {
                 runtime: Default::default(),
-                manifest: ManifestConfig { url: s("example.com") },
+                manifest: ManifestConfig {
+                    url: s("example.com"),
+                    secondary: vec![]
+                },
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![

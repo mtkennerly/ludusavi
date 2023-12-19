@@ -428,41 +428,7 @@ pub fn other<'a>(
                                 .push(text(TRANSLATOR.manifest_label()).width(100))
                                 .push(button::refresh(Message::UpdateManifest, updating_manifest)),
                         )
-                        .push_some(|| {
-                            let cached = cache.manifests.get(&config.manifest.url)?;
-                            let checked = match cached.checked {
-                                Some(x) => chrono::DateTime::<chrono::Local>::from(x)
-                                    .format("%Y-%m-%dT%H:%M:%S")
-                                    .to_string(),
-                                None => "?".to_string(),
-                            };
-                            let updated = match cached.updated {
-                                Some(x) => chrono::DateTime::<chrono::Local>::from(x)
-                                    .format("%Y-%m-%dT%H:%M:%S")
-                                    .to_string(),
-                                None => "?".to_string(),
-                            };
-                            Some(
-                                Container::new(
-                                    Column::new()
-                                        .padding(5)
-                                        .spacing(4)
-                                        .push(
-                                            Row::new()
-                                                .align_items(iced::Alignment::Center)
-                                                .push(Container::new(text(TRANSLATOR.checked_label())).width(100))
-                                                .push(Container::new(text(checked))),
-                                        )
-                                        .push(
-                                            Row::new()
-                                                .align_items(iced::Alignment::Center)
-                                                .push(Container::new(text(TRANSLATOR.updated_label())).width(100))
-                                                .push(Container::new(text(updated))),
-                                        ),
-                                )
-                                .style(style::Container::GameListEntry),
-                            )
-                        }),
+                        .push(editor::manifest(config, cache, histories).padding([10, 0, 0, 0])),
                 )
                 .push(
                     Column::new()
