@@ -7,7 +7,7 @@ use iced::{
 use crate::{
     gui::{
         button,
-        common::{BackupPhase, BrowseSubject, Message, ScrollSubject, UndoSubject},
+        common::{BackupPhase, BrowseFileSubject, BrowseSubject, Message, ScrollSubject, UndoSubject},
         shortcuts::TextHistories,
         style,
         widget::{checkbox, pick_list, text, Column, Container, IcedParentExt, Row, Tooltip},
@@ -15,7 +15,7 @@ use crate::{
     lang::TRANSLATOR,
     resource::{
         cache::Cache,
-        config::{Config, RedirectKind},
+        config::{Config, RedirectKind, SecondaryManifestConfigKind},
         manifest::Store,
     },
 };
@@ -52,12 +52,17 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
     Container::new(content)
 }
 
-pub fn manifest<'a>(config: &Config, cache: &'a Cache, histories: &TextHistories) -> Container<'a> {
+pub fn manifest<'a>(
+    config: &Config,
+    cache: &'a Cache,
+    histories: &TextHistories,
+    modifiers: &keyboard::Modifiers,
+) -> Container<'a> {
     let label_width = Length::Fixed(160.0);
-    let left_offset = Length::Fixed(70.0);
     let right_offset = Length::Fixed(70.0);
 
-    let get_checked = |url: &str, cache: &'a Cache| {
+    let get_checked = |url: Option<&str>, cache: &'a Cache| {
+        let url = url?;
         let cached = cache.manifests.get(url)?;
         let checked = match cached.checked {
             Some(x) => chrono::DateTime::<chrono::Local>::from(x)
@@ -68,7 +73,8 @@ pub fn manifest<'a>(config: &Config, cache: &'a Cache, histories: &TextHistories
         Some(Container::new(text(checked)).width(label_width))
     };
 
-    let get_updated = |url: &str, cache: &'a Cache| {
+    let get_updated = |url: Option<&str>, cache: &'a Cache| {
+        let url = url?;
         let cached = cache.manifests.get(url)?;
         let updated = match cached.updated {
             Some(x) => chrono::DateTime::<chrono::Local>::from(x)
@@ -86,11 +92,7 @@ pub fn manifest<'a>(config: &Config, cache: &'a Cache, histories: &TextHistories
             Row::new()
                 .spacing(20)
                 .align_items(Alignment::Center)
-                .push_if(
-                    || !config.manifest.secondary.is_empty(),
-                    || Space::with_width(left_offset),
-                )
-                .push(text(TRANSLATOR.url_label()).width(Length::Fill))
+                .push(Space::with_width(Length::Fill))
                 .push(Container::new(text(TRANSLATOR.checked_label())).width(label_width))
                 .push(Container::new(text(TRANSLATOR.updated_label())).width(label_width))
                 .push_if(
@@ -102,13 +104,9 @@ pub fn manifest<'a>(config: &Config, cache: &'a Cache, histories: &TextHistories
             Row::new()
                 .spacing(20)
                 .align_items(Alignment::Center)
-                .push_if(
-                    || !config.manifest.secondary.is_empty(),
-                    || Space::with_width(left_offset),
-                )
                 .push(iced::widget::TextInput::new("", &config.manifest.url).width(Length::Fill))
-                .push_some(|| get_checked(&config.manifest.url, cache))
-                .push_some(|| get_updated(&config.manifest.url, cache))
+                .push_some(|| get_checked(Some(&config.manifest.url), cache))
+                .push_some(|| get_updated(Some(&config.manifest.url), cache))
                 .push_if(
                     || !config.manifest.secondary.is_empty(),
                     || Space::with_width(right_offset),
@@ -131,9 +129,24 @@ pub fn manifest<'a>(config: &Config, cache: &'a Cache, histories: &TextHistories
                         i,
                         config.manifest.secondary.len(),
                     ))
+                    .push(
+                        pick_list(
+                            SecondaryManifestConfigKind::ALL,
+                            Some(config.manifest.secondary[i].kind()),
+                            move |v| Message::SelectedSecondaryManifestKind(i, v),
+                        )
+                        .style(style::PickList::Primary)
+                        .width(75),
+                    )
                     .push(histories.input(UndoSubject::SecondaryManifest(i)))
-                    .push_some(|| get_checked(&config.manifest.secondary[i], cache))
-                    .push_some(|| get_updated(&config.manifest.secondary[i], cache))
+                    .push_some(|| get_checked(config.manifest.secondary[i].url(), cache))
+                    .push_some(|| get_updated(config.manifest.secondary[i].url(), cache))
+                    .push_some(|| match config.manifest.secondary[i].kind() {
+                        SecondaryManifestConfigKind::Local => {
+                            Some(button::choose_file(BrowseFileSubject::SecondaryManifest(i), modifiers))
+                        }
+                        SecondaryManifestConfigKind::Remote => None,
+                    })
                     .push(button::remove(Message::EditedSecondaryManifest, i)),
             )
         });

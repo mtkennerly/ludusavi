@@ -38,6 +38,11 @@ where
         Self::load_from_string(&content)
     }
 
+    fn load_from_existing(path: &std::path::PathBuf) -> Result<Self, AnyError> {
+        let content = Self::load_raw(path)?;
+        Self::load_from_string(&content)
+    }
+
     fn load_raw(path: &std::path::PathBuf) -> Result<String, AnyError> {
         Ok(std::fs::read_to_string(path)?)
     }

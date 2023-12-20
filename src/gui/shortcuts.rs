@@ -227,7 +227,7 @@ impl TextHistories {
         }
 
         for x in &config.manifest.secondary {
-            histories.secondary_manifests.push(TextHistory::raw(x));
+            histories.secondary_manifests.push(TextHistory::raw(&x.value()));
         }
 
         for x in &config.redirects {

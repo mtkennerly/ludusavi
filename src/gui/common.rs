@@ -11,7 +11,9 @@ use crate::{
     lang::{Language, TRANSLATOR},
     prelude::{CommandError, Error, Finality, Privacy, StrictPath, SyncDirection},
     resource::{
-        config::{BackupFormat, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
+        config::{
+            BackupFormat, RedirectKind, RootsConfig, SecondaryManifestConfigKind, SortKey, Theme, ZipCompression,
+        },
         manifest::{Manifest, ManifestUpdate, Store},
     },
     scan::{
@@ -118,6 +120,7 @@ pub enum Message {
     EditedSecondaryManifest(EditAction),
     SelectedRootStore(usize, Store),
     SelectedRedirectKind(usize, RedirectKind),
+    SelectedSecondaryManifestKind(usize, SecondaryManifestConfigKind),
     EditedRedirect(EditAction, Option<RedirectEditActionField>),
     EditedCustomGame(EditAction),
     EditedCustomGameFile(usize, EditAction),
@@ -607,6 +610,7 @@ pub enum BrowseSubject {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BrowseFileSubject {
     RcloneExecutable,
+    SecondaryManifest(usize),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

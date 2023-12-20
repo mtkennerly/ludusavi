@@ -144,6 +144,8 @@ label-custom = Custom
 label-none = None
 label-change-count = Changes: {$total}
 label-unscanned = Unscanned
+# This refers to a local file on the computer
+label-file = File
 
 store-ea = EA
 store-epic = Epic

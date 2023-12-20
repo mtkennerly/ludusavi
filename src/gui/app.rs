@@ -1331,11 +1331,11 @@ impl Application for App {
                 match action {
                     EditAction::Add => {
                         self.text_histories.secondary_manifests.push(Default::default());
-                        self.config.manifest.secondary.push("".to_string());
+                        self.config.manifest.secondary.push(Default::default());
                     }
                     EditAction::Change(index, value) => {
                         self.text_histories.secondary_manifests[index].push(&value);
-                        self.config.manifest.secondary[index] = value;
+                        self.config.manifest.secondary[index].set(value);
                     }
                     EditAction::Remove(index) => {
                         self.text_histories.secondary_manifests.remove(index);
@@ -1357,6 +1357,11 @@ impl Application for App {
             }
             Message::SelectedRedirectKind(index, kind) => {
                 self.config.redirects[index].kind = kind;
+                self.config.save();
+                Command::none()
+            }
+            Message::SelectedSecondaryManifestKind(index, kind) => {
+                self.config.manifest.secondary[index].convert(kind);
                 self.config.save();
                 Command::none()
             }
@@ -1826,6 +1831,10 @@ impl Application for App {
                         self.text_histories.rclone_executable.push(&path.raw());
                         self.config.apps.rclone.path = path;
                     }
+                    BrowseFileSubject::SecondaryManifest(i) => {
+                        self.text_histories.secondary_manifests[i].push(&path.raw());
+                        self.config.manifest.secondary[i].set(path.raw());
+                    }
                 }
                 self.config.save();
                 Command::none()
@@ -1905,6 +1914,12 @@ impl Application for App {
             Message::OpenFileSubject(subject) => {
                 let path = match subject {
                     BrowseFileSubject::RcloneExecutable => self.config.apps.rclone.path.clone(),
+                    BrowseFileSubject::SecondaryManifest(i) => {
+                        let Some(path) = self.config.manifest.secondary[i].path() else {
+                            return Command::none();
+                        };
+                        path.clone()
+                    }
                 };
 
                 match path.parent_if_file() {
@@ -1957,10 +1972,17 @@ impl Application for App {
                     ),
                     UndoSubject::Root(i) => shortcut
                         .apply_to_strict_path_field(&mut self.config.roots[i].path, &mut self.text_histories.roots[i]),
-                    UndoSubject::SecondaryManifest(i) => shortcut.apply_to_string_field(
-                        &mut self.config.manifest.secondary[i],
-                        &mut self.text_histories.secondary_manifests[i],
-                    ),
+                    UndoSubject::SecondaryManifest(i) => {
+                        let history = &mut self.text_histories.secondary_manifests[i];
+                        match shortcut {
+                            Shortcut::Undo => {
+                                self.config.manifest.secondary[i].set(history.undo());
+                            }
+                            Shortcut::Redo => {
+                                self.config.manifest.secondary[i].set(history.redo());
+                            }
+                        }
+                    }
                     UndoSubject::RedirectSource(i) => shortcut.apply_to_strict_path_field(
                         &mut self.config.redirects[i].source,
                         &mut self.text_histories.redirects[i].source,

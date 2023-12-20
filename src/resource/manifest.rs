@@ -288,7 +288,7 @@ impl Manifest {
         }
     }
 
-    fn path_for(url: &str, primary: bool) -> StrictPath {
+    pub fn path_for(url: &str, primary: bool) -> StrictPath {
         if primary {
             Self::path().into()
         } else {
@@ -329,7 +329,7 @@ impl Manifest {
 
         out.push(Self::update_one(&config.url, &cache, force, true));
 
-        for secondary in &config.secondary {
+        for secondary in config.secondary_manifest_urls() {
             out.push(Self::update_one(secondary, &cache, force, false));
         }
 
@@ -439,13 +439,8 @@ impl Manifest {
     }
 
     pub fn incorporate_extensions(&mut self, config: &Config) {
-        for url in &config.manifest.secondary {
-            let path = Self::path_for(url, false);
-            if let Ok(secondary) = Manifest::load_from(&path.as_std_path_buf()) {
-                self.incorporate_secondary_manifest(path, secondary);
-            } else {
-                log::warn!("Configured secondary manifest is invalid: {}", path.render());
-            }
+        for (path, secondary) in config.manifest.load_secondary_manifests() {
+            self.incorporate_secondary_manifest(path, secondary);
         }
 
         for root in &config.roots {

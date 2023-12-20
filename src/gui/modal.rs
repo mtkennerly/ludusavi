@@ -48,7 +48,7 @@ pub enum ModalField {
 impl ModalField {
     pub fn view<'a>(kind: ModalInputKind, histories: &TextHistories) -> Row<'a> {
         let label = match kind {
-            ModalInputKind::Url => TRANSLATOR.url_label(),
+            ModalInputKind::Url => TRANSLATOR.url_field(),
             ModalInputKind::Host => TRANSLATOR.host_label(),
             ModalInputKind::Port => TRANSLATOR.port_label(),
             ModalInputKind::Username => TRANSLATOR.username_label(),

@@ -57,7 +57,120 @@ pub struct Runtime {
 pub struct ManifestConfig {
     pub url: String,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub secondary: Vec<String>,
+    pub secondary: Vec<SecondaryManifestConfig>,
+}
+
+impl ManifestConfig {
+    pub fn secondary_manifest_urls(&self) -> Vec<&str> {
+        self.secondary
+            .iter()
+            .filter_map(|x| match x {
+                SecondaryManifestConfig::Local { .. } => None,
+                SecondaryManifestConfig::Remote { url } => Some(url.as_str()),
+            })
+            .collect()
+    }
+
+    pub fn load_secondary_manifests(&self) -> Vec<(StrictPath, Manifest)> {
+        self.secondary
+            .iter()
+            .filter_map(|x| match x {
+                SecondaryManifestConfig::Local { path } => {
+                    let manifest = Manifest::load_from_existing(&path.as_std_path_buf()).ok()?;
+                    Some((path.clone(), manifest))
+                }
+                SecondaryManifestConfig::Remote { url } => {
+                    let path = Manifest::path_for(url, false);
+                    let manifest = Manifest::load_from_existing(&path.as_std_path_buf()).ok()?;
+                    Some((path.clone(), manifest))
+                }
+            })
+            .collect()
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+pub enum SecondaryManifestConfigKind {
+    Local,
+    #[default]
+    Remote,
+}
+
+impl SecondaryManifestConfigKind {
+    pub const ALL: &'static [Self] = &[Self::Local, Self::Remote];
+}
+
+impl ToString for SecondaryManifestConfigKind {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Local => TRANSLATOR.file_label(),
+            Self::Remote => TRANSLATOR.url_label(),
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(untagged, rename_all = "camelCase")]
+pub enum SecondaryManifestConfig {
+    Local { path: StrictPath },
+    Remote { url: String },
+}
+
+impl SecondaryManifestConfig {
+    pub fn url(&self) -> Option<&str> {
+        match self {
+            Self::Local { .. } => None,
+            Self::Remote { url } => Some(url.as_str()),
+        }
+    }
+
+    pub fn path(&self) -> Option<&StrictPath> {
+        match self {
+            Self::Local { path } => Some(path),
+            Self::Remote { .. } => None,
+        }
+    }
+
+    pub fn value(&self) -> String {
+        match self {
+            Self::Local { path } => path.raw(),
+            Self::Remote { url } => url.to_string(),
+        }
+    }
+
+    pub fn set(&mut self, value: String) {
+        match self {
+            Self::Local { path } => *path = StrictPath::new(value),
+            Self::Remote { url } => *url = value,
+        }
+    }
+
+    pub fn kind(&self) -> SecondaryManifestConfigKind {
+        match self {
+            Self::Local { .. } => SecondaryManifestConfigKind::Local,
+            Self::Remote { .. } => SecondaryManifestConfigKind::Remote,
+        }
+    }
+
+    pub fn convert(&mut self, kind: SecondaryManifestConfigKind) {
+        match (&self, kind) {
+            (Self::Local { path }, SecondaryManifestConfigKind::Remote) => {
+                *self = Self::Remote { url: path.raw() };
+            }
+            (Self::Remote { url }, SecondaryManifestConfigKind::Local) => {
+                *self = Self::Local {
+                    path: StrictPath::new(url.clone()),
+                };
+            }
+            _ => {}
+        }
+    }
+}
+
+impl Default for SecondaryManifestConfig {
+    fn default() -> Self {
+        Self::Remote { url: "".to_string() }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -751,7 +864,7 @@ impl ResourceFile for Config {
 
     fn migrate(mut self) -> Self {
         self.roots.retain(|x| !x.path.raw().trim().is_empty());
-        self.manifest.secondary.retain(|x| !x.trim().is_empty());
+        self.manifest.secondary.retain(|x| !x.value().trim().is_empty());
         self.redirects
             .retain(|x| !x.source.raw().trim().is_empty() && !x.target.raw().trim().is_empty());
         self.backup.filter.ignored_paths.retain(|x| !x.raw().trim().is_empty());
@@ -1424,7 +1537,7 @@ mod tests {
               url: example.com
               etag: "foo"
               secondary:
-                - example.com/2
+                - url: example.com/2
             roots:
               - path: ~/steam
                 store: steam
@@ -1482,7 +1595,9 @@ mod tests {
                 runtime: Default::default(),
                 manifest: ManifestConfig {
                     url: s("example.com"),
-                    secondary: vec![s("example.com/2")]
+                    secondary: vec![SecondaryManifestConfig::Remote {
+                        url: s("example.com/2")
+                    }]
                 },
                 language: Language::English,
                 theme: Theme::Light,

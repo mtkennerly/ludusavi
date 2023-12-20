@@ -428,7 +428,7 @@ pub fn other<'a>(
                                 .push(text(TRANSLATOR.manifest_label()).width(100))
                                 .push(button::refresh(Message::UpdateManifest, updating_manifest)),
                         )
-                        .push(editor::manifest(config, cache, histories).padding([10, 0, 0, 0])),
+                        .push(editor::manifest(config, cache, histories, modifiers).padding([10, 0, 0, 0])),
                 )
                 .push(
                     Column::new()

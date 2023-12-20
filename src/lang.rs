@@ -1034,7 +1034,15 @@ impl Translator {
         translate("label-arguments")
     }
 
+    pub fn file_label(&self) -> String {
+        translate("label-file")
+    }
+
     pub fn url_label(&self) -> String {
+        translate("label-url")
+    }
+
+    pub fn url_field(&self) -> String {
         self.field(&translate("label-url"))
     }
 
