@@ -293,8 +293,8 @@ impl Translator {
     pub fn handle_error(&self, error: &Error) -> String {
         match error {
             Error::ConfigInvalid { why } => self.config_is_invalid(why),
-            Error::ManifestInvalid { why } => self.manifest_is_invalid(why),
-            Error::ManifestCannotBeUpdated => self.manifest_cannot_be_updated(),
+            Error::ManifestInvalid { why, identifier } => self.manifest_is_invalid(why, identifier.as_deref()),
+            Error::ManifestCannotBeUpdated { identifier } => self.manifest_cannot_be_updated(identifier.as_deref()),
             Error::CliUnrecognizedGames { games } => self.cli_unrecognized_games(games),
             Error::CliUnableToRequestConfirmation => self.cli_unable_to_request_confirmation(),
             Error::CliBackupIdWithMultipleGames => self.cli_backup_id_with_multiple_games(),
@@ -706,12 +706,16 @@ impl Translator {
         format!("{}\n{}", translate("config-is-invalid"), why)
     }
 
-    pub fn manifest_is_invalid(&self, why: &str) -> String {
-        format!("{}\n{}", translate("manifest-is-invalid"), why)
+    pub fn manifest_is_invalid(&self, why: &str, identifier: Option<&str>) -> String {
+        let message = translate("manifest-is-invalid");
+        let identifier = identifier.map(|x| format!(" ({})", x)).unwrap_or("".to_string());
+        format!("{}{}\n{}", message, identifier, why)
     }
 
-    pub fn manifest_cannot_be_updated(&self) -> String {
-        translate("manifest-cannot-be-updated")
+    pub fn manifest_cannot_be_updated(&self, identifier: Option<&str>) -> String {
+        let message = translate("manifest-cannot-be-updated");
+        let identifier = identifier.map(|x| format!(" ({})", x)).unwrap_or("".to_string());
+        format!("{}{}", message, identifier)
     }
 
     pub fn cannot_prepare_backup_target(&self, target: &StrictPath) -> String {

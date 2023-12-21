@@ -76,13 +76,19 @@ impl ManifestConfig {
             .iter()
             .filter_map(|x| match x {
                 SecondaryManifestConfig::Local { path } => {
-                    let manifest = Manifest::load_from_existing(&path.as_std_path_buf()).ok()?;
-                    Some((path.clone(), manifest))
+                    let manifest = Manifest::load_from_existing(&path.as_std_path_buf());
+                    if let Err(e) = &manifest {
+                        log::error!("Cannot load secondary manifest: {} | {}", path.render(), e);
+                    }
+                    Some((path.clone(), manifest.ok()?))
                 }
                 SecondaryManifestConfig::Remote { url } => {
                     let path = Manifest::path_for(url, false);
-                    let manifest = Manifest::load_from_existing(&path.as_std_path_buf()).ok()?;
-                    Some((path.clone(), manifest))
+                    let manifest = Manifest::load_from(&path.as_std_path_buf());
+                    if let Err(e) = &manifest {
+                        log::error!("Cannot load manifest: {} | {}", path.render(), e);
+                    }
+                    Some((path.clone(), manifest.ok()?))
                 }
             })
             .collect()

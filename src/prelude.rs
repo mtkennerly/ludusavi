@@ -79,8 +79,11 @@ pub enum SyncDirection {
 pub enum Error {
     ManifestInvalid {
         why: String,
+        identifier: Option<String>,
     },
-    ManifestCannotBeUpdated,
+    ManifestCannotBeUpdated {
+        identifier: Option<String>,
+    },
     ConfigInvalid {
         why: String,
     },

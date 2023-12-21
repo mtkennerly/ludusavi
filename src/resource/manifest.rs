@@ -299,7 +299,10 @@ impl Manifest {
     }
 
     pub fn load() -> Result<Self, Error> {
-        ResourceFile::load().map_err(|e| Error::ManifestInvalid { why: format!("{}", e) })
+        ResourceFile::load().map_err(|e| Error::ManifestInvalid {
+            why: format!("{}", e),
+            identifier: None,
+        })
     }
 
     pub fn should_update(url: &str, cache: &cache::Manifests, force: bool, primary: bool) -> bool {
@@ -342,6 +345,11 @@ impl Manifest {
         force: bool,
         primary: bool,
     ) -> Result<Option<ManifestUpdate>, Error> {
+        let identifier = (!primary).then(|| url.to_string());
+        let cannot_update = || Error::ManifestCannotBeUpdated {
+            identifier: identifier.clone(),
+        };
+
         if !Self::should_update(url, cache, force, primary) {
             return Ok(None);
         }
@@ -355,21 +363,23 @@ impl Manifest {
                 req = req.header(reqwest::header::IF_NONE_MATCH, etag);
             }
         }
-        let mut res = req.send().map_err(|_e| Error::ManifestCannotBeUpdated)?;
+        let mut res = req.send().map_err(|_e| cannot_update())?;
         match res.status() {
             reqwest::StatusCode::OK => {
-                std::fs::create_dir_all(app_dir()).map_err(|_| Error::ManifestCannotBeUpdated)?;
+                std::fs::create_dir_all(app_dir()).map_err(|_| cannot_update())?;
 
                 // Ensure that the manifest data is valid before we save it.
                 let mut manifest_bytes = vec![];
-                res.copy_to(&mut manifest_bytes)
-                    .map_err(|_| Error::ManifestCannotBeUpdated)?;
-                let manifest_string = String::from_utf8(manifest_bytes).map_err(|_| Error::ManifestCannotBeUpdated)?;
+                res.copy_to(&mut manifest_bytes).map_err(|_| cannot_update())?;
+                let manifest_string = String::from_utf8(manifest_bytes).map_err(|_| cannot_update())?;
                 if let Err(e) = Self::load_from_string(&manifest_string) {
-                    return Err(Error::ManifestInvalid { why: e.to_string() });
+                    return Err(Error::ManifestInvalid {
+                        why: e.to_string(),
+                        identifier: identifier.clone(),
+                    });
                 }
 
-                std::fs::write(path.as_std_path_buf(), manifest_string).map_err(|_| Error::ManifestCannotBeUpdated)?;
+                std::fs::write(path.as_std_path_buf(), manifest_string).map_err(|_| cannot_update())?;
 
                 let new_etag = res
                     .headers()
@@ -389,7 +399,7 @@ impl Manifest {
                 timestamp: chrono::offset::Utc::now(),
                 modified: false,
             })),
-            _ => Err(Error::ManifestCannotBeUpdated),
+            _ => Err(cannot_update()),
         }
     }
 
