@@ -49,8 +49,8 @@ You can install Ludusavi one of these ways:
 
 * On Windows, you can use [Winget](https://github.com/microsoft/winget-cli).
 
-  * To install: `winget install -e --id mtkennerly.ludusavi`
-  * To update: `winget upgrade -e --id mtkennerly.ludusavi`
+  * To install: `winget install ludusavi`
+  * To update: `winget upgrade ludusavi`
 
 * On Windows, you can use [Scoop](https://scoop.sh).
 
