@@ -179,6 +179,9 @@ pub fn parse_paths(
                     | Store::Uplay
                     | Store::OtherHome
                     | Store::OtherWine
+                    | Store::OtherWindows
+                    | Store::OtherLinux
+                    | Store::OtherMac
                     | Store::Other => format!("{}/{}", &root_interpreted, install_dir),
                 },
             )
@@ -372,6 +375,47 @@ pub fn parse_paths(
                     &format!("{}/users/*/Local Settings/Application Data", prefix),
                 ),
             false,
+        ));
+    }
+
+    if root.store == Store::OtherWindows {
+        paths.insert((
+            path.replace(HOME, &format!("{}/Users/*", &root_interpreted))
+                .replace(STORE_USER_ID, "*")
+                .replace(OS_USER_NAME, "*")
+                .replace(WIN_APP_DATA, &format!("{}/Users/*/AppData/Roaming", &root_interpreted))
+                .replace(
+                    WIN_LOCAL_APP_DATA,
+                    &format!("{}/Users/*/AppData/Local", &root_interpreted),
+                )
+                .replace(WIN_DOCUMENTS, &format!("{}/Users/*/Documents", &root_interpreted))
+                .replace(WIN_PUBLIC, &format!("{}/Users/Public", &root_interpreted))
+                .replace(WIN_PROGRAM_DATA, &format!("{}/ProgramData", &root_interpreted))
+                .replace(WIN_DIR, &format!("{}/Windows", &root_interpreted)),
+            platform.is_case_sensitive(),
+        ));
+    }
+    if root.store == Store::OtherLinux {
+        paths.insert((
+            path.replace(HOME, &format!("{}/home/*", &root_interpreted))
+                .replace(STORE_USER_ID, "*")
+                .replace(OS_USER_NAME, "*")
+                .replace(XDG_DATA, &format!("{}/home/*/.local/share", &root_interpreted))
+                .replace(XDG_CONFIG, &format!("{}/home/*/.config", &root_interpreted)),
+            platform.is_case_sensitive(),
+        ));
+    }
+    if root.store == Store::OtherMac {
+        paths.insert((
+            path.replace(HOME, &format!("{}/Users/*", &root_interpreted))
+                .replace(STORE_USER_ID, "*")
+                .replace(OS_USER_NAME, "*")
+                .replace(XDG_DATA, &format!("{}/Users/*/Library", &root_interpreted))
+                .replace(
+                    XDG_CONFIG,
+                    &format!("{}/Users/*/Library/Preferences", &root_interpreted),
+                ),
+            platform.is_case_sensitive(),
         ));
     }
 

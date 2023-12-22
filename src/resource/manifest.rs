@@ -102,6 +102,12 @@ pub enum Store {
     OtherHome,
     #[serde(rename = "otherWine")]
     OtherWine,
+    #[serde(rename = "otherWindows")]
+    OtherWindows,
+    #[serde(rename = "otherLinux")]
+    OtherLinux,
+    #[serde(rename = "otherMac")]
+    OtherMac,
     #[default]
     #[serde(other, rename = "other")]
     Other,
@@ -122,6 +128,9 @@ impl Store {
         Store::Uplay,
         Store::OtherHome,
         Store::OtherWine,
+        Store::OtherWindows,
+        Store::OtherLinux,
+        Store::OtherMac,
         Store::Other,
     ];
 }

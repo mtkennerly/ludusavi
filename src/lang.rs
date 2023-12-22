@@ -829,6 +829,9 @@ impl Translator {
             Store::Uplay => "store-uplay",
             Store::OtherHome => "store-other-home",
             Store::OtherWine => "store-other-wine",
+            Store::OtherWindows => "store-other-windows",
+            Store::OtherLinux => "store-other-linux",
+            Store::OtherMac => "store-other-mac",
             Store::Other => "store-other",
         })
     }

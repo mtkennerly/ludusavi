@@ -160,6 +160,9 @@ store-steam = Steam
 store-uplay = Uplay
 store-other-home = Home folder
 store-other-wine = Wine prefix
+store-other-windows = Windows drive
+store-other-linux = Linux drive
+store-other-mac = Mac drive
 store-other = Other
 
 backup-format-simple = Simple

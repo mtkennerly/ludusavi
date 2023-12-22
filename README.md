@@ -130,6 +130,17 @@ along with the root's type:
 * For a Wine prefix root, this should be the folder containing `drive_c`.
   Currently, Ludusavi does not back up registry-based saves from the prefix,
   but will back up any file-based saves.
+<!--
+* The Windows, Linux, and Mac drive roots can be used
+  to make Ludusavi scan external hard drives with a separate OS installation.
+  For example, let's say you had a Windows laptop that broke,
+  but you recovered the hard drive and turned it into an external drive.
+  You could add it as a Windows drive root to make Ludusavi scan it.
+
+  In this case, Ludusavi can only look for normal/default locations of system folders.
+  Ludusavi will not be able to use the Windows API or check `XDG` environment variables
+  to detect alternative folder locations (e.g., if you've moved the `Documents` folder).
+-->
 
 You may use [globs] in root paths to identify multiple roots at once.
 If you have a folder name that contains a special glob character,
@@ -551,7 +562,7 @@ Here are the available settings in `config.yaml` (all are required unless otherw
     * `path` (string): Where the root is located on your system.
     * `store` (string): Game store associated with the root. Valid options:
       `ea`, `epic`, `gog`, `gogGalaxy`, `heroic`, `lutris`, `microsoft`, `origin`, `prime`,
-      `steam`, `uplay`, `otherHome`, `otherWine`, `other`
+      `steam`, `uplay`, `otherHome`, `otherWine`, <!-- `otherWindows`, `otherLinux`, `otherMac`, --> `other`
 * `redirects` (optional, list):
   * Each entry in the list should be a map with these fields:
     * `kind` (string): When and how to apply the redirect.
