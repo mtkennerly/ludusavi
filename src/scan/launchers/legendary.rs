@@ -7,12 +7,12 @@ use crate::{
 };
 
 #[derive(Clone, serde::Deserialize)]
-struct Game {
+pub struct Game {
     /// This is an opaque ID, not the human-readable title.
-    app_name: String,
-    title: String,
-    platform: String,
-    install_path: String,
+    pub app_name: String,
+    pub title: String,
+    pub platform: String,
+    pub install_path: String,
 }
 
 /// installed.json
@@ -47,8 +47,8 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
     out
 }
 
-fn get_games(source: &StrictPath) -> Vec<Game> {
-    let mut out: Vec<Game> = Vec::new();
+pub fn get_games(source: &StrictPath) -> Vec<Game> {
+    let mut out = vec![];
 
     let library = source.joined("installed.json");
 

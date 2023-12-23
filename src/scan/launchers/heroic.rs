@@ -4,7 +4,10 @@ use crate::prelude::{StrictPath, ENV_DEBUG};
 
 use crate::{
     resource::{config::RootsConfig, manifest::Os},
-    scan::{launchers::LauncherGame, TitleFinder},
+    scan::{
+        launchers::{legendary, LauncherGame},
+        TitleFinder,
+    },
 };
 
 /// Deserialization of Heroic gog_store/installed.json
@@ -32,19 +35,6 @@ pub struct GogLibraryGame {
 struct GogLibrary {
     games: Vec<GogLibraryGame>,
 }
-
-/// Deserialization of Legendary legendary/installed.json
-#[derive(Clone, serde::Deserialize)]
-pub struct LegendaryInstalledGame {
-    /// This is an opaque ID, not the human-readable title.
-    #[serde(rename = "app_name")]
-    pub app_name: String,
-    pub title: String,
-    platform: String,
-    install_path: String,
-}
-#[derive(serde::Deserialize)]
-struct LegendaryInstalled(HashMap<String, LegendaryInstalledGame>);
 
 /// Deserialization of Heroic GamesConfig/*.json
 #[derive(serde::Deserialize, Debug)]
@@ -80,12 +70,9 @@ pub fn scan(
     games
 }
 
-pub fn get_legendary_installed_games(
-    root: &RootsConfig,
-    legendary: Option<&StrictPath>,
-) -> Vec<LegendaryInstalledGame> {
+pub fn get_legendary_installed_games(root: &RootsConfig, legendary: Option<&StrictPath>) -> Vec<legendary::Game> {
     log::trace!("detect_legendary_games searching for legendary config...");
-    let mut result: Vec<LegendaryInstalledGame> = Vec::new();
+    let mut out = vec![];
 
     let legendary_paths = match legendary {
         None => vec![
@@ -97,32 +84,10 @@ pub fn get_legendary_installed_games(
     };
 
     for legendary_path in legendary_paths {
-        if legendary_path.is_dir() {
-            log::trace!(
-                "detect_legendary_games checking for legendary configuration in {}",
-                legendary_path.interpret()
-            );
-
-            let legendary_installed = legendary_path.joined("installed.json");
-            if legendary_installed.is_file() {
-                // read list of installed games and call find_prefix for result
-                if let Ok(installed_games) =
-                    serde_json::from_str::<LegendaryInstalled>(&legendary_installed.read().unwrap_or_default())
-                {
-                    for game in installed_games.0.values() {
-                        result.push(game.clone());
-                    }
-                }
-            } else {
-                log::trace!(
-                    "detect_legendary_games no such file '{:?}', legendary probably not used yet... skipping",
-                    legendary_installed
-                );
-            }
-        }
+        out.extend(legendary::get_games(&legendary_path));
     }
 
-    result
+    out
 }
 
 fn detect_legendary_games(
