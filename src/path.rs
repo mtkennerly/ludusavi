@@ -727,7 +727,11 @@ impl StrictPath {
     }
 
     pub fn read(&self) -> Option<String> {
-        std::fs::read_to_string(std::path::Path::new(&self.interpret())).ok()
+        self.try_read().ok()
+    }
+
+    pub fn try_read(&self) -> Result<String, AnyError> {
+        Ok(std::fs::read_to_string(std::path::Path::new(&self.interpret()))?)
     }
 
     pub fn size(&self) -> u64 {

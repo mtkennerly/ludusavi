@@ -821,6 +821,7 @@ impl Translator {
             Store::Gog => "store-gog",
             Store::GogGalaxy => "store-gog-galaxy",
             Store::Heroic => "store-heroic",
+            Store::Legendary => "store-legendary",
             Store::Lutris => "store-lutris",
             Store::Microsoft => "store-microsoft",
             Store::Origin => "store-origin",

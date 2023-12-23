@@ -1,0 +1,134 @@
+use std::collections::HashMap;
+
+use crate::{
+    prelude::StrictPath,
+    resource::{config::RootsConfig, manifest::Os},
+    scan::{launchers::LauncherGame, TitleFinder},
+};
+
+#[derive(Clone, serde::Deserialize)]
+struct Game {
+    /// This is an opaque ID, not the human-readable title.
+    app_name: String,
+    title: String,
+    platform: String,
+    install_path: String,
+}
+
+/// installed.json
+#[derive(serde::Deserialize)]
+struct Library(HashMap<String, Game>);
+
+pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
+    let mut out = HashMap::new();
+
+    for game in get_games(&root.path) {
+        let Some(official_title) = title_finder.find_one(&[game.title.to_owned()], &None, &None, true) else {
+            log::trace!("Ignoring unrecognized game: {}", &game.title);
+            continue;
+        };
+
+        log::trace!(
+            "Detected game: {} | app: {}, raw title: {}",
+            &official_title,
+            &game.app_name,
+            &game.title
+        );
+        out.insert(
+            official_title,
+            LauncherGame {
+                install_dir: StrictPath::new(game.install_path),
+                prefix: None,
+                platform: Some(Os::from(game.platform.as_str())),
+            },
+        );
+    }
+
+    out
+}
+
+fn get_games(source: &StrictPath) -> Vec<Game> {
+    let mut out: Vec<Game> = Vec::new();
+
+    let library = source.joined("installed.json");
+
+    let content = match library.try_read() {
+        Ok(content) => content,
+        Err(e) => {
+            log::debug!(
+                "In Legendary source '{}', unable to read installed.json | {:?}",
+                library.render(),
+                e,
+            );
+            return out;
+        }
+    };
+
+    if let Ok(installed_games) = serde_json::from_str::<Library>(&content) {
+        out.extend(installed_games.0.into_values());
+    }
+
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use maplit::hashmap;
+    use pretty_assertions::assert_eq;
+
+    use super::*;
+    use crate::{
+        resource::{
+            manifest::{Manifest, Store},
+            ResourceFile,
+        },
+        testing::repo,
+    };
+
+    fn manifest() -> Manifest {
+        Manifest::load_from_string(
+            r#"
+            windows-game:
+              files:
+                <base>/file1.txt: {}
+            proton-game:
+              files:
+                <base>/file1.txt: {}
+            "#,
+        )
+        .unwrap()
+    }
+
+    fn title_finder() -> TitleFinder {
+        TitleFinder::new(&manifest(), &Default::default())
+    }
+
+    #[test]
+    fn scan_finds_nothing_when_folder_does_not_exist() {
+        let root = RootsConfig {
+            path: StrictPath::new(format!("{}/tests/nonexistent", repo())),
+            store: Store::Legendary,
+        };
+        let games = scan(&root, &title_finder());
+        assert_eq!(HashMap::new(), games);
+    }
+
+    #[test]
+    fn scan_finds_all_games() {
+        let root = RootsConfig {
+            path: StrictPath::new(format!("{}/tests/launchers/legendary", repo())),
+            store: Store::Legendary,
+        };
+        let games = scan(&root, &title_finder());
+        assert_eq!(
+            hashmap! {
+                "windows-game".to_string() => LauncherGame {
+                    install_dir: StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string()),
+                    prefix: None,
+                    platform: Some(Os::Windows),
+                },
+            },
+            games,
+        );
+    }
+}

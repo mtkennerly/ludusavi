@@ -152,6 +152,7 @@ store-epic = Epic
 store-gog = GOG
 store-gog-galaxy = GOG Galaxy
 store-heroic = Heroic
+store-legendary = Legendary
 store-lutris = Lutris
 store-microsoft = Microsoft
 store-origin = Origin

@@ -166,7 +166,7 @@ pub fn parse_paths(
                 BASE,
                 &match root.store {
                     Store::Steam => format!("{}/steamapps/common/{}", &root_interpreted, install_dir),
-                    Store::Heroic | Store::Lutris => full_install_dir
+                    Store::Heroic | Store::Legendary | Store::Lutris => full_install_dir
                         .map(|x| x.interpret())
                         .unwrap_or_else(|| SKIP.to_string()),
                     Store::Ea

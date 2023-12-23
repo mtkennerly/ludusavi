@@ -113,6 +113,10 @@ along with the root's type:
 
   When using Wine prefixes with Heroic, Ludusavi will back up the `*.reg` files
   if the game is known to have registry-based saves.
+<!--
+* For a Legendary root, this should be the folder containing `installed.json`.
+  Currently, Ludusavi cannot detect Wine prefixes for Legendary roots.
+-->
 * For a Lutris root, this should be the folder containing the `games` subdirectory.
 
   Ludusavi expects the game YAML files to contain a few fields,

@@ -7,6 +7,8 @@
     that might not be covered by PCGamingWiki.
   * You can now configure roots for OS installations on other drives.
     New root types: `Windows drive`, `Linux drive`, `Mac drive`
+  * Ludusavi can now scan Legendary games on their own without Heroic.
+    New root type: `Legendary`
   * CLI: `wrap` command to do a restore before playing a game and a backup afterwards.
     ([Contributed by sluedecke](https://github.com/mtkennerly/ludusavi/pull/235))
   * When a path or URL fails to open, additional information is now logged.
