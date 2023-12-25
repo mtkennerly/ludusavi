@@ -5,7 +5,7 @@ total-games = الألعاب
 file-size = الحجم
 file-location = الموقع
 overall = الكلي
-status = Status
+status = الحالة
 cli-unrecognized-games = لا توجد معلومات عن هذه الألعاب:
 cli-unable-to-request-confirmation = تعذر طلب التأكيد.
     .winpty-workaround = إذا كنت تستخدم محاكي Bash (مثل Git Bash)، فحاول تشغيل winpty.
@@ -38,12 +38,12 @@ button-enable-all = تفعيل الكل
 button-disable-all = تعطيل الكل
 button-customize = تخصيص
 button-exit = خروج
-button-comment = Comment
-button-lock = Lock
-button-unlock = Unlock
+button-comment = تعليق
+button-lock = قفل
+button-unlock = إلغاء القُفْل
 # This opens a download page.
-button-get-app = Get { $app }
-button-validate = Validate
+button-get-app = احصل على { $app }
+button-validate = تحقق
 no-roots-are-configured = إضافة بعض الجذور لنسخ المزيد من البيانات احتياطياً.
 config-is-invalid = خطأ: ملف التكوين غير صالح.
 manifest-is-invalid = خطأ: ملف البيان غير صالح.
@@ -54,12 +54,12 @@ registry-issue = خطأ: تم تخطي بعض إدخالات السجل.
 unable-to-browse-file-system = خطأ: غير قادر لاستعراض على نظامك.
 unable-to-open-directory = خطأ: تعذر فتح الدليل:
 unable-to-open-url = خطأ: تعذر فتح الرابط:
-unable-to-configure-cloud = Unable to configure cloud.
-unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
-cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
-command-unlaunched = Command did not launch: { $command }
-command-terminated = Command terminated abruptly: { $command }
-command-failed = Command failed with code { $code }: { $command }
+unable-to-configure-cloud = تعذر تكوين السحابة.
+unable-to-synchronize-with-cloud = تعذر المزامنة مع السحابة.
+cloud-synchronize-conflict = النسخ الاحتياطي المحلي والسحابي مختلف. حمل أو نزل لحل هذه المشكلة.
+command-unlaunched = الأمر لم يبدأ: { $command }
+command-terminated = انهي الأمر فجأة: { $command }
+command-failed = فشل الأمر مع الرمز { $code }: { $command }
 processed-games =
     { $total-games } { $total-games ->
         [one] اللعبة
@@ -80,7 +80,7 @@ field-redirect-source =
     .placeholder = المصدر (الموقع الأصلي)
 field-redirect-target =
     .placeholder = الهدف (موقع جديد)
-field-roots = Roots:
+field-roots = الجذور:
 field-backup-excluded-items = استثناء النسخ الاحتياطية:
 field-redirects = إعادة توجيه:
 # This appears next to the number of full backups that you'd like to keep.
@@ -99,44 +99,52 @@ label-checked = متحقق
 # This shows the time when we found an update to the manifest.
 label-updated = محدث
 label-new = جديد
-label-removed = Removed
-label-comment = Comment
-label-scan = Scan
-label-filter = Filter
-label-unique = Unique
-label-complete = Complete
-label-partial = Partial
-label-enabled = Enabled
-label-disabled = Disabled
+label-removed = أُزيل
+label-comment = تعليق
+label-unchanged = Unchanged
+label-scan = نسخ
+label-filter = تصفية
+label-unique = فريد
+label-complete = مكتمل
+label-partial = جزئي
+label-enabled = مفعّل
+label-disabled = معطَّل
 # https://en.wikipedia.org/wiki/Thread_(computing)
-label-threads = Threads
-label-cloud = Cloud
+label-threads = المواضيع
+label-cloud = سحابة
 # A "remote" is what Rclone calls cloud systems like Google Drive.
-label-remote = Remote
-label-remote-name = Remote name
-label-folder = Folder
+label-remote = عن بُعد
+label-remote-name = اسم عن بعد
+label-folder = المجلد
 # An executable file
-label-executable = Executable
+label-executable = مِلَفّ تنفيذي
 # Options given to a command line program
 label-arguments = Arguments
 label-url = URL
 # https://en.wikipedia.org/wiki/Host_(network)
-label-host = Host
+label-host = المضيف
 # https://en.wikipedia.org/wiki/Port_(computer_networking)
-label-port = Port
-label-username = Username
-label-password = Password
+label-port = المنفذ
+label-username = اسم المستخدم
+label-password = كلمة المرور
 # This is a specific website or service that provides some cloud functionality.
 # For example, Nextcloud and Owncloud are providers of WebDAV services.
-label-provider = Provider
-label-custom = Custom
-label-none = None
-label-change-count = Changes: { $total }
+label-provider = المزود
+label-custom = مُخصّص
+label-none = لا شيء
+label-change-count = التغييرات: { $total }
+label-unscanned = Unscanned
+# This refers to a local file on the computer
+label-file = File
+label-game = Game
+# Aliases are alternative titles for the same game.
+label-alias = Alias
 store-ea = EA
 store-epic = متجر Epic
 store-gog = متجر GOG
 store-gog-galaxy = متجر GOG Galaxy
 store-heroic = Heroic
+store-legendary = Legendary
 store-lutris = Lutris
 store-microsoft = متجر Microsoft
 store-origin = متجر Origin
@@ -145,6 +153,9 @@ store-steam = متجر Steam
 store-uplay = متجر Uplay
 store-other-home = المجلد الرئيس
 store-other-wine = Wine prefix
+store-other-windows = Windows drive
+store-other-linux = Linux drive
+store-other-mac = Mac drive
 store-other = أخرى
 backup-format-simple = بسيط
 backup-format-zip = Zip
@@ -157,11 +168,11 @@ theme = السمة
 theme-light = فاتح
 theme-dark = مظلم
 redirect-bidirectional = ثنائي الاتجاه
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
-override-max-threads = Override max threads
-synchronize-automatically = Synchronize automatically
+show-deselected-games = إظهار الألعاب الغير محددة
+show-unchanged-games = إظهار الألعاب التي لم تتغير
+show-unscanned-games = إظهار الألعاب الغير منسوخة
+override-max-threads = تجاوز الحد الأقصى للموضوعات
+synchronize-automatically = المزامنة تلقائياً
 explanation-for-exclude-store-screenshots = في النسخ الاحتياطية، استبعاد لقطات الشاشة الخاصة بالمتجر
 consider-doing-a-preview =
     إذا لم تكن قد قمت بالفعل ، فكر في إجراء معاينة أولاً حتى لا يكون هناك
@@ -175,32 +186,42 @@ confirm-restore =
     هل أنت متأكد من أنك تريد المضي قدما في الاستعادة؟
     سيؤدي هذا إلى استبدال أي ملفات حالية مع النسخ الاحتياطية من هنا:
 confirm-cloud-upload =
-    Do you want to replace your cloud files with your local files?
-    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
-    Files in the cloud will be updated or deleted as necessary.
+    هل تريد استبدال ملفات السحابة الخاصة بك بملفاتك المحلية؟
+    ملفات السحابة الخاصة بك ({ $cloud-path }) ستكون نسخة مطابقة من ملفاتك المحلية ({ $local-path }).
+    سيتم تحديث الملفات الموجودة في السحابة أو حذفها حسب الضرورة.
 confirm-cloud-download =
-    Do you want to replace your local files with your cloud files?
-    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
-    Local files will be updated or deleted as necessary.
+    هل تريد استبدال ملفاتك المحلية بملفاتك السحابية؟
+    الملفات المحلية الخاصة بك ({ $local-path }) ستكون نسخة مطابقة من الملفات السحابية الخاصة بك ({ $cloud-path }).
+    سيتم تحديث الملفات المحلية أو حذفها حسب الضرورة.
 confirm-add-missing-roots = إضافة هذه الجذور؟
 no-missing-roots = لا توجد جذور إضافية.
-loading = Loading...
+loading = تحميل...
 preparing-backup-target = جارِ إعداد دليل النسخ الاحتياطي...
 updating-manifest = تحديث البيان...
-no-cloud-changes = No changes to synchronize
-backups-are-valid = Your backups are valid.
+no-cloud-changes = لا توجد تغييرات للمزامنة
+backups-are-valid = النسخ الاحتياطي الخاص بك صحيح.
 backups-are-invalid =
-    These games' backups appear to be invalid.
-    Do you want to create new full backups for these games?
+    يبدو بأن النُسخ الاحتياطية لهذه الألعاب غير صالحة.
+    هل تريد إنشاء نُسخ احتياطية كاملة جديدة لهذه الألعاب؟
 saves-found = العثور على بيانات محفوظة.
 no-saves-found = لا توجد بيانات محفوظة.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = لا تأكيد
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
-suffix-restart-required = restart required
-prefix-error = Error: { $message }
-prefix-warning = Warning: { $message }
-cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
-cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
-cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.
+suffix-restart-required = مطلوب إعادة التشغيل
+prefix-error = خطأ: { $message }
+prefix-warning = تحذير: { $message }
+cloud-app-unavailable = النسخ الاحتياطي السحابي معطل لأن { $app } غير متوفر.
+cloud-not-configured = النسخ الاحتياطي السحابي معطل لأنه لم يُنشأ أي نظام سحابي.
+cloud-path-invalid = النسخ الاحتياطي السحابي معطل لأن مسار النسخ الاحتياطي غير صالح.
+game-is-unrecognized = Ludusavi does not recognize this game.
+game-has-nothing-to-restore = This game does not have a backup to restore.
+launch-game-after-error = Launch the game anyway?
+game-did-not-launch = Game failed to launch.
+back-up-specific-game =
+    .confirm = Back up save data for { $game }?
+    .failed = Failed to back up save data for { $game }
+restore-specific-game =
+    .confirm = Restore save data for { $game }?
+    .failed = Failed to restore save data for { $game }
