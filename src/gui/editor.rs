@@ -15,7 +15,7 @@ use crate::{
     lang::TRANSLATOR,
     resource::{
         cache::Cache,
-        config::{Config, RedirectKind, SecondaryManifestConfigKind},
+        config::{Config, CustomGameKind, RedirectKind, SecondaryManifestConfigKind},
         manifest::Store,
     },
 };
@@ -237,6 +237,13 @@ pub fn custom_games<'a>(
                                 )
                                 .push(histories.input(UndoSubject::CustomGameName(i)))
                                 .push(
+                                    pick_list(CustomGameKind::ALL, Some(config.custom_games[i].kind()), move |v| {
+                                        Message::SelectedCustomGameKind(i, v)
+                                    })
+                                    .style(style::PickList::Primary)
+                                    .width(100),
+                                )
+                                .push(
                                     Tooltip::new(
                                         button::refresh_custom_game(
                                             Message::Backup(BackupPhase::Start {
@@ -245,7 +252,7 @@ pub fn custom_games<'a>(
                                                 repair: false,
                                             }),
                                             operating,
-                                            config.is_custom_game_enabled(i),
+                                            config.is_custom_game_individually_scannable(i),
                                         ),
                                         TRANSLATOR.preview_button_in_custom_mode(),
                                         tooltip::Position::Top,
@@ -256,69 +263,91 @@ pub fn custom_games<'a>(
                                 )
                                 .push(button::delete(Message::EditedCustomGame, i)),
                         )
-                        .push(
-                            Row::new()
-                                .push(Column::new().width(130).push(text(TRANSLATOR.custom_files_label())))
-                                .push(
-                                    x.files
-                                        .iter()
-                                        .enumerate()
-                                        .fold(Column::new().spacing(4), |column, (ii, _)| {
-                                            column.push(
-                                                Row::new()
-                                                    .align_items(Alignment::Center)
-                                                    .spacing(20)
-                                                    .push(button::move_up_nested(Message::EditedCustomGameFile, i, ii))
-                                                    .push(button::move_down_nested(
-                                                        Message::EditedCustomGameFile,
-                                                        i,
-                                                        ii,
-                                                        x.files.len(),
-                                                    ))
-                                                    .push(histories.input(UndoSubject::CustomGameFile(i, ii)))
-                                                    .push(button::choose_folder(
-                                                        BrowseSubject::CustomGameFile(i, ii),
-                                                        modifiers,
-                                                    ))
-                                                    .push(button::remove_nested(Message::EditedCustomGameFile, i, ii)),
-                                            )
-                                        })
-                                        .push(button::add_nested(Message::EditedCustomGameFile, i)),
-                                ),
+                        .push_if(
+                            || config.custom_games[i].kind() == CustomGameKind::Alias,
+                            || {
+                                Row::new()
+                                    .push(Column::new().width(130).push(text(TRANSLATOR.alias_field())))
+                                    .push(histories.input(UndoSubject::CustomGameAlias(i)))
+                            },
                         )
-                        .push(
-                            Row::new()
-                                .push(Column::new().width(130).push(text(TRANSLATOR.custom_registry_label())))
-                                .push(
-                                    x.registry
-                                        .iter()
-                                        .enumerate()
-                                        .fold(Column::new().spacing(4), |column, (ii, _)| {
-                                            column.push(
-                                                Row::new()
-                                                    .spacing(20)
-                                                    .align_items(Alignment::Center)
-                                                    .push(button::move_up_nested(
-                                                        Message::EditedCustomGameRegistry,
-                                                        i,
-                                                        ii,
-                                                    ))
-                                                    .push(button::move_down_nested(
-                                                        Message::EditedCustomGameRegistry,
-                                                        i,
-                                                        ii,
-                                                        x.registry.len(),
-                                                    ))
-                                                    .push(histories.input(UndoSubject::CustomGameRegistry(i, ii)))
-                                                    .push(button::remove_nested(
-                                                        Message::EditedCustomGameRegistry,
-                                                        i,
-                                                        ii,
-                                                    )),
-                                            )
-                                        })
-                                        .push(button::add_nested(Message::EditedCustomGameRegistry, i)),
-                                ),
+                        .push_if(
+                            || config.custom_games[i].kind() == CustomGameKind::Game,
+                            || {
+                                Row::new()
+                                    .push(Column::new().width(130).push(text(TRANSLATOR.custom_files_label())))
+                                    .push(
+                                        x.files
+                                            .iter()
+                                            .enumerate()
+                                            .fold(Column::new().spacing(4), |column, (ii, _)| {
+                                                column.push(
+                                                    Row::new()
+                                                        .align_items(Alignment::Center)
+                                                        .spacing(20)
+                                                        .push(button::move_up_nested(
+                                                            Message::EditedCustomGameFile,
+                                                            i,
+                                                            ii,
+                                                        ))
+                                                        .push(button::move_down_nested(
+                                                            Message::EditedCustomGameFile,
+                                                            i,
+                                                            ii,
+                                                            x.files.len(),
+                                                        ))
+                                                        .push(histories.input(UndoSubject::CustomGameFile(i, ii)))
+                                                        .push(button::choose_folder(
+                                                            BrowseSubject::CustomGameFile(i, ii),
+                                                            modifiers,
+                                                        ))
+                                                        .push(button::remove_nested(
+                                                            Message::EditedCustomGameFile,
+                                                            i,
+                                                            ii,
+                                                        )),
+                                                )
+                                            })
+                                            .push(button::add_nested(Message::EditedCustomGameFile, i)),
+                                    )
+                            },
+                        )
+                        .push_if(
+                            || config.custom_games[i].kind() == CustomGameKind::Game,
+                            || {
+                                Row::new()
+                                    .push(Column::new().width(130).push(text(TRANSLATOR.custom_registry_label())))
+                                    .push(
+                                        x.registry
+                                            .iter()
+                                            .enumerate()
+                                            .fold(Column::new().spacing(4), |column, (ii, _)| {
+                                                column.push(
+                                                    Row::new()
+                                                        .spacing(20)
+                                                        .align_items(Alignment::Center)
+                                                        .push(button::move_up_nested(
+                                                            Message::EditedCustomGameRegistry,
+                                                            i,
+                                                            ii,
+                                                        ))
+                                                        .push(button::move_down_nested(
+                                                            Message::EditedCustomGameRegistry,
+                                                            i,
+                                                            ii,
+                                                            x.registry.len(),
+                                                        ))
+                                                        .push(histories.input(UndoSubject::CustomGameRegistry(i, ii)))
+                                                        .push(button::remove_nested(
+                                                            Message::EditedCustomGameRegistry,
+                                                            i,
+                                                            ii,
+                                                        )),
+                                                )
+                                            })
+                                            .push(button::add_nested(Message::EditedCustomGameRegistry, i)),
+                                    )
+                            },
                         ),
                 )
                 .id(iced::widget::container::Id::new(config.custom_games[i].name.clone()))

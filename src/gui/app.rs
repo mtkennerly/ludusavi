@@ -18,7 +18,7 @@ use crate::{
     prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
     resource::{
         cache::Cache,
-        config::{Config, CustomGame, RootsConfig},
+        config::{Config, CustomGame, CustomGameKind, RootsConfig},
         manifest::{Manifest, Store},
         ResourceFile, SaveableResourceFile,
     },
@@ -305,7 +305,7 @@ impl App {
                                 .cloned()
                                 .collect()
                         } else {
-                            manifest.0.keys().cloned().collect()
+                            manifest.processable_titles().cloned().collect()
                         };
 
                         let mut retention = config.backup.retention.clone();
@@ -1005,6 +1005,7 @@ impl App {
             CustomGame {
                 name: name.clone(),
                 ignore: false,
+                alias: standard.alias.clone(),
                 files: standard.files.clone().unwrap_or_default().keys().cloned().collect(),
                 registry: standard.registry.clone().unwrap_or_default().keys().cloned().collect(),
             }
@@ -1012,6 +1013,7 @@ impl App {
             CustomGame {
                 name: name.clone(),
                 ignore: false,
+                alias: None,
                 files: vec![],
                 registry: vec![],
             }
@@ -1365,6 +1367,17 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::SelectedCustomGameKind(index, kind) => {
+                self.config.custom_games[index].convert(kind);
+                match kind {
+                    CustomGameKind::Game => {
+                        self.text_histories.custom_games[index].alias.clear();
+                    }
+                    CustomGameKind::Alias => {}
+                }
+                self.config.save();
+                Command::none()
+            }
             Message::EditedRedirect(action, field) => {
                 match action {
                     EditAction::Add => {
@@ -1427,6 +1440,13 @@ impl Application for App {
                 } else {
                     Command::none()
                 }
+            }
+            Message::EditedCustomGameAlias(index, value) => {
+                self.text_histories.custom_games[index].alias.push(&value);
+                self.config.custom_games[index].alias = Some(value);
+
+                self.config.save();
+                Command::none()
             }
             Message::EditedCustomGameFile(game_index, action) => {
                 match action {
@@ -1995,6 +2015,11 @@ impl Application for App {
                         &mut self.config.custom_games[i].name,
                         &mut self.text_histories.custom_games[i].name,
                     ),
+                    UndoSubject::CustomGameAlias(i) => {
+                        if let Some(alias) = self.config.custom_games[i].alias.as_mut() {
+                            shortcut.apply_to_string_field(alias, &mut self.text_histories.custom_games[i].alias)
+                        }
+                    }
                     UndoSubject::CustomGameFile(i, j) => shortcut.apply_to_string_field(
                         &mut self.config.custom_games[i].files[j],
                         &mut self.text_histories.custom_games[i].files[j],

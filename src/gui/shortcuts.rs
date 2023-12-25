@@ -177,6 +177,7 @@ pub struct RedirectHistory {
 #[derive(Default)]
 pub struct CustomGameHistory {
     pub name: TextHistory,
+    pub alias: TextHistory,
     pub files: Vec<TextHistory>,
     pub registry: Vec<TextHistory>,
 }
@@ -260,6 +261,7 @@ impl TextHistories {
     pub fn add_custom_game(&mut self, game: &CustomGame) {
         let history = CustomGameHistory {
             name: TextHistory::raw(&game.name),
+            alias: TextHistory::raw(&game.alias.clone().unwrap_or_default()),
             files: game.files.iter().map(|x| TextHistory::raw(x)).collect(),
             registry: game.registry.iter().map(|x| TextHistory::raw(x)).collect(),
         };
@@ -287,6 +289,7 @@ impl TextHistories {
             UndoSubject::RedirectSource(i) => self.redirects.get(i).map(|x| x.source.current()).unwrap_or_default(),
             UndoSubject::RedirectTarget(i) => self.redirects.get(i).map(|x| x.target.current()).unwrap_or_default(),
             UndoSubject::CustomGameName(i) => self.custom_games.get(i).map(|x| x.name.current()).unwrap_or_default(),
+            UndoSubject::CustomGameAlias(i) => self.custom_games.get(i).map(|x| x.alias.current()).unwrap_or_default(),
             UndoSubject::CustomGameFile(i, j) => self
                 .custom_games
                 .get(i)
@@ -344,6 +347,7 @@ impl TextHistories {
             UndoSubject::CustomGameName(i) => {
                 Box::new(move |value| Message::EditedCustomGame(EditAction::Change(i, value)))
             }
+            UndoSubject::CustomGameAlias(i) => Box::new(move |value| Message::EditedCustomGameAlias(i, value)),
             UndoSubject::CustomGameFile(i, j) => {
                 Box::new(move |value| Message::EditedCustomGameFile(i, EditAction::Change(j, value)))
             }
@@ -381,6 +385,7 @@ impl TextHistories {
             UndoSubject::RedirectSource(_) => TRANSLATOR.redirect_source_placeholder(),
             UndoSubject::RedirectTarget(_) => TRANSLATOR.redirect_target_placeholder(),
             UndoSubject::CustomGameName(_) => TRANSLATOR.custom_game_name_placeholder(),
+            UndoSubject::CustomGameAlias(_) => "".to_string(),
             UndoSubject::CustomGameFile(_, _) => TRANSLATOR.search_game_name_placeholder(),
             UndoSubject::CustomGameRegistry(_, _) => "".to_string(),
             UndoSubject::BackupFilterIgnoredPath(_) => "".to_string(),
@@ -411,6 +416,7 @@ impl TextHistories {
             | UndoSubject::BackupSearchGameName
             | UndoSubject::RestoreSearchGameName
             | UndoSubject::CustomGameName(_)
+            | UndoSubject::CustomGameAlias(_)
             | UndoSubject::CustomGameRegistry(_, _)
             | UndoSubject::BackupFilterIgnoredRegistry(_)
             | UndoSubject::RcloneArguments

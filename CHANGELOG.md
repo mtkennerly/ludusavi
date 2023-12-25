@@ -5,6 +5,10 @@
     which Ludusavi will download and use just like the primary one.
     This allows the community to create additional save lists for specific purposes
     that might not be covered by PCGamingWiki.
+  * You can now configure a custom game as an alias for another game,
+    without having to make a copy of the other game's info.
+    On the custom games screen,
+    use the dropdown to toggle between "game" (default) and "alias".
   * You can now configure roots for OS installations on other drives.
     New root types: `Windows drive`, `Linux drive`, `Mac drive`
   * Ludusavi can now scan Legendary games on their own without Heroic.

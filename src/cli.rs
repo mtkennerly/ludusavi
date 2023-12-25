@@ -2,7 +2,11 @@ mod parse;
 mod report;
 mod ui;
 
-use std::{fmt::Debug, process::Command};
+use std::{
+    collections::{BTreeSet, HashMap},
+    fmt::Debug,
+    process::Command,
+};
 
 use clap::CommandFactory;
 use indicatif::{ParallelProgressIterator, ProgressBar};
@@ -32,12 +36,13 @@ use crate::{
 
 #[derive(Clone, Debug, Default)]
 struct GameSubjects {
+    // TODO: Use BTreeSet
     valid: Vec<String>,
     invalid: Vec<String>,
 }
 
 impl GameSubjects {
-    pub fn new(known: Vec<String>, requested: Vec<String>) -> Self {
+    pub fn new(known: Vec<String>, requested: Vec<String>, aliases: Option<&HashMap<String, String>>) -> Self {
         let mut subjects = Self::default();
 
         if requested.is_empty() {
@@ -52,9 +57,26 @@ impl GameSubjects {
             }
         }
 
+        if let Some(aliases) = aliases.as_ref() {
+            subjects.resolve_aliases(aliases);
+        }
+
         subjects.valid.sort();
         subjects.invalid.sort();
         subjects
+    }
+
+    fn resolve_aliases(&mut self, aliases: &HashMap<String, String>) {
+        let mut filtered = self.valid.iter().cloned().collect::<BTreeSet<_>>();
+
+        for (alias, target) in aliases {
+            if filtered.contains(alias) {
+                filtered.remove(alias);
+                filtered.insert(target.to_string());
+            }
+        }
+
+        self.valid = filtered.into_iter().collect();
     }
 }
 
@@ -189,7 +211,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             manifest.incorporate_extensions(&config);
 
             let games_specified = !games.is_empty();
-            let subjects = GameSubjects::new(manifest.0.keys().cloned().collect(), games);
+            let subjects = GameSubjects::new(manifest.0.keys().cloned().collect(), games, Some(&manifest.aliases()));
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
@@ -384,7 +406,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let backup_id = backup.as_ref().map(|x| BackupId::Named(x.clone()));
 
             let games_specified = !games.is_empty();
-            let subjects = GameSubjects::new(restorable_names, games);
+            let subjects = GameSubjects::new(restorable_names, games, None);
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();
@@ -529,7 +551,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
             let restorable_names = layout.restorable_games();
 
-            let subjects = GameSubjects::new(restorable_names, games);
+            let subjects = GameSubjects::new(restorable_names, games, None);
             if !subjects.invalid.is_empty() {
                 reporter.trip_unknown_games(subjects.invalid.clone());
                 reporter.print_failure();

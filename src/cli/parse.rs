@@ -296,6 +296,8 @@ pub enum Subcommand {
     /// If there are no matches, Ludusavi will exit with an error.
     /// Depending on the options chosen, there may be multiple matches, but the default is a single match.
     ///
+    /// Aliases will be resolved to the target title.
+    ///
     /// This command automatically updates the manifest if necessary.
     Find {
         /// Print information to stdout in machine-readable JSON.

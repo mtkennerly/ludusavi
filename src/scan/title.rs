@@ -39,6 +39,7 @@ pub struct TitleFinder {
     steam_ids: HashMap<u32, String>,
     gog_ids: HashMap<u64, String>,
     normalized: HashMap<String, String>,
+    aliases: HashMap<String, String>,
 }
 
 impl TitleFinder {
@@ -53,6 +54,7 @@ impl TitleFinder {
             .iter()
             .map(|title| (normalize_title(title), title.to_owned()))
             .collect();
+        let aliases = manifest.aliases();
 
         Self {
             all_games,
@@ -62,6 +64,7 @@ impl TitleFinder {
             steam_ids,
             gog_ids,
             normalized,
+            aliases,
         }
     }
 
@@ -154,82 +157,92 @@ impl TitleFinder {
         let mut output = BTreeSet::new();
         let singular = !names.is_empty() || steam_id.is_some() || gog_id.is_some();
 
-        if singular {
-            if let Some(steam_id) = steam_id {
-                if let Some(found) = self.steam_ids.get(steam_id) {
-                    if self.eligible(found, backup, restore) {
-                        output.insert(found.to_owned());
-                        return output;
-                    }
-                }
-            }
-
-            if let Some(gog_id) = gog_id {
-                if let Some(found) = self.gog_ids.get(gog_id) {
-                    if self.eligible(found, backup, restore) {
-                        output.insert(found.to_owned());
-                        return output;
-                    }
-                }
-            }
-
-            for name in names {
-                if self.all_games.contains(name) && self.eligible(name, backup, restore) {
-                    output.insert(name.to_owned());
-                    return output;
-                }
-            }
-
-            if normalized {
-                for name in names {
-                    if let Some(found) = self.normalized.get(&normalize_title(name)) {
+        'outer: {
+            if singular {
+                if let Some(steam_id) = steam_id {
+                    if let Some(found) = self.steam_ids.get(steam_id) {
                         if self.eligible(found, backup, restore) {
-                            output.insert((*found).to_owned());
-                            return output;
+                            output.insert(found.to_owned());
+                            break 'outer;
                         }
                     }
                 }
+
+                if let Some(gog_id) = gog_id {
+                    if let Some(found) = self.gog_ids.get(gog_id) {
+                        if self.eligible(found, backup, restore) {
+                            output.insert(found.to_owned());
+                            break 'outer;
+                        }
+                    }
+                }
+
+                for name in names {
+                    if self.all_games.contains(name) && self.eligible(name, backup, restore) {
+                        output.insert(name.to_owned());
+                        break 'outer;
+                    }
+                }
+
+                if normalized {
+                    for name in names {
+                        if let Some(found) = self.normalized.get(&normalize_title(name)) {
+                            if self.eligible(found, backup, restore) {
+                                output.insert((*found).to_owned());
+                                break 'outer;
+                            }
+                        }
+                    }
+                }
+            } else {
+                let pool = match (backup, restore) {
+                    (true, true) => &self.can_do_both,
+                    (true, false) => &self.can_backup,
+                    (false, true) => &self.can_restore,
+                    (false, false) => &self.all_games,
+                };
+
+                for game in pool {
+                    if disabled {
+                        let enabled_for_backup = || config.is_game_enabled_for_backup(game);
+                        let enabled_for_restore = || config.is_game_enabled_for_restore(game);
+
+                        let skip = match (backup, restore) {
+                            (true, true) => enabled_for_backup() || enabled_for_restore(),
+                            (true, false) => enabled_for_backup(),
+                            (false, true) => enabled_for_restore(),
+                            (false, false) => enabled_for_backup() && enabled_for_restore(),
+                        };
+                        if skip {
+                            continue;
+                        }
+                    }
+
+                    if partial {
+                        let complete_for_backup = || !config.any_saves_ignored(game, false);
+                        let complete_for_restore = || !config.any_saves_ignored(game, true);
+
+                        let skip = match (backup, restore) {
+                            (true, true) => complete_for_backup() || complete_for_restore(),
+                            (true, false) => complete_for_backup(),
+                            (false, true) => complete_for_restore(),
+                            (false, false) => complete_for_backup() && complete_for_restore(),
+                        };
+                        if skip {
+                            continue;
+                        }
+                    }
+
+                    output.insert(game.to_owned());
+                }
             }
-        } else {
-            let pool = match (backup, restore) {
-                (true, true) => &self.can_do_both,
-                (true, false) => &self.can_backup,
-                (false, true) => &self.can_restore,
-                (false, false) => &self.all_games,
-            };
+        }
 
-            for game in pool {
-                if disabled {
-                    let enabled_for_backup = || config.is_game_enabled_for_backup(game);
-                    let enabled_for_restore = || config.is_game_enabled_for_restore(game);
-
-                    let skip = match (backup, restore) {
-                        (true, true) => enabled_for_backup() || enabled_for_restore(),
-                        (true, false) => enabled_for_backup(),
-                        (false, true) => enabled_for_restore(),
-                        (false, false) => enabled_for_backup() && enabled_for_restore(),
-                    };
-                    if skip {
-                        continue;
-                    }
-                }
-
-                if partial {
-                    let complete_for_backup = || !config.any_saves_ignored(game, false);
-                    let complete_for_restore = || !config.any_saves_ignored(game, true);
-
-                    let skip = match (backup, restore) {
-                        (true, true) => complete_for_backup() || complete_for_restore(),
-                        (true, false) => complete_for_backup(),
-                        (false, true) => complete_for_restore(),
-                        (false, false) => complete_for_backup() && complete_for_restore(),
-                    };
-                    if skip {
-                        continue;
-                    }
-                }
-
-                output.insert(game.to_owned());
+        // Resolve aliases to primary name.
+        for name in output.clone() {
+            if let Some(aliased) = self.aliases.get(&name) {
+                output.remove(&name);
+                output.insert(aliased.to_string());
             }
         }
 

@@ -812,10 +812,49 @@ pub struct CustomGame {
     pub name: String,
     #[serde(default, skip_serializing_if = "crate::serialization::is_false")]
     pub ignore: bool,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub alias: Option<String>,
     #[serde(default)]
     pub files: Vec<String>,
     #[serde(default)]
     pub registry: Vec<String>,
+}
+
+impl CustomGame {
+    pub fn kind(&self) -> CustomGameKind {
+        if self.alias.is_some() {
+            CustomGameKind::Alias
+        } else {
+            CustomGameKind::Game
+        }
+    }
+
+    pub fn convert(&mut self, kind: CustomGameKind) {
+        match kind {
+            CustomGameKind::Game => {
+                self.alias = None;
+            }
+            CustomGameKind::Alias => {
+                self.alias = Some("".to_string());
+            }
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CustomGameKind {
+    Game,
+    Alias,
+}
+
+impl CustomGameKind {
+    pub const ALL: &'static [Self] = &[Self::Game, Self::Alias];
+}
+
+impl ToString for CustomGameKind {
+    fn to_string(&self) -> String {
+        TRANSLATOR.custom_game_kind(self)
+    }
 }
 
 impl Default for ManifestConfig {
@@ -1133,6 +1172,7 @@ impl Config {
         self.custom_games.push(CustomGame {
             name: "".to_string(),
             ignore: false,
+            alias: None,
             files: vec![],
             registry: vec![],
         });
@@ -1152,6 +1192,10 @@ impl Config {
 
     pub fn is_custom_game_enabled(&self, index: usize) -> bool {
         !self.custom_games[index].ignore
+    }
+
+    pub fn is_custom_game_individually_scannable(&self, index: usize) -> bool {
+        self.is_custom_game_enabled(index) && self.custom_games[index].kind() == CustomGameKind::Game
     }
 
     pub fn are_all_custom_games_enabled(&self) -> bool {
@@ -1670,12 +1714,14 @@ mod tests {
                     CustomGame {
                         name: s("Custom Game 1"),
                         ignore: false,
+                        alias: None,
                         files: vec![],
                         registry: vec![],
                     },
                     CustomGame {
                         name: s("Custom Game 2"),
                         ignore: false,
+                        alias: None,
                         files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
@@ -1844,6 +1890,10 @@ customGames:
       - Custom Registry 1
       - Custom Registry 2
       - Custom Registry 2
+  - name: Alias
+    alias: Other
+    files: []
+    registry: []
 "#
             .trim(),
             serde_yaml::to_string(&Config {
@@ -1919,14 +1969,23 @@ customGames:
                     CustomGame {
                         name: s("Custom Game 1"),
                         ignore: false,
+                        alias: None,
                         files: vec![],
                         registry: vec![],
                     },
                     CustomGame {
                         name: s("Custom Game 2"),
                         ignore: false,
+                        alias: None,
                         files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
+                    },
+                    CustomGame {
+                        name: s("Alias"),
+                        ignore: false,
+                        alias: Some("Other".to_string()),
+                        files: vec![],
+                        registry: vec![],
                     },
                 ],
             })

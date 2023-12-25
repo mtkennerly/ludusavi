@@ -161,6 +161,8 @@ pub struct Manifest(#[serde(serialize_with = "crate::serialization::ordered_map"
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Game {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub alias: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub files: Option<BTreeMap<String, GameFileEntry>>,
     #[serde(rename = "installDir", skip_serializing_if = "Option::is_none")]
     pub install_dir: Option<BTreeMap<String, GameInstallDirEntry>>,
@@ -254,28 +256,6 @@ pub struct IdMetadata {
     pub gog_extra: BTreeSet<u64>,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub steam_extra: BTreeSet<u32>,
-}
-
-impl From<CustomGame> for Game {
-    fn from(item: CustomGame) -> Self {
-        let file_tuples = item.files.iter().map(|x| (x.to_string(), GameFileEntry::default()));
-        let files: BTreeMap<_, _> = file_tuples.collect();
-
-        let registry_tuples = item
-            .registry
-            .iter()
-            .map(|x| (x.to_string(), GameRegistryEntry::default()));
-        let registry: BTreeMap<_, _> = registry_tuples.collect();
-
-        Self {
-            files: Some(files),
-            install_dir: None,
-            registry: Some(registry),
-            steam: None,
-            gog: None,
-            id: None,
-        }
-    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -481,11 +461,30 @@ impl Manifest {
 
     fn add_custom_game(&mut self, custom: CustomGame) {
         let name = custom.name.clone();
-        let mut game: Game = custom.into();
-        if let Some(existing) = self.0.get(&name) {
-            game.steam = existing.steam.clone();
-            game.install_dir = existing.install_dir.clone();
-        }
+        let existing = self.0.get(&name);
+
+        let game = Game {
+            alias: custom.alias,
+            files: (!custom.files.is_empty()).then(|| {
+                custom
+                    .files
+                    .into_iter()
+                    .map(|x| (x, GameFileEntry::default()))
+                    .collect()
+            }),
+            install_dir: existing.and_then(|x| x.install_dir.clone()),
+            registry: (!custom.registry.is_empty()).then(|| {
+                custom
+                    .registry
+                    .into_iter()
+                    .map(|x| (x, GameRegistryEntry::default()))
+                    .collect()
+            }),
+            steam: existing.and_then(|x| x.steam.clone()),
+            gog: existing.and_then(|x| x.gog.clone()),
+            id: existing.and_then(|x| x.id.clone()),
+        };
+
         self.0.insert(name, game);
     }
 
@@ -559,11 +558,62 @@ impl Manifest {
             }
         }
     }
+
+    pub fn processable_titles(&self) -> impl Iterator<Item = &String> {
+        self.processable_games().map(|(k, _)| k)
+    }
+
+    pub fn processable_games(&self) -> impl Iterator<Item = (&String, &Game)> {
+        self.0.iter().filter(|(_, v)| {
+            let Game {
+                alias,
+                files,
+                install_dir: _,
+                registry,
+                steam,
+                gog,
+                id,
+            } = &v;
+            alias.is_none()
+                && (files.is_some() || registry.is_some() || steam.is_some() || gog.is_some() || id.is_some())
+        })
+    }
+
+    pub fn aliases(&self) -> HashMap<String, String> {
+        self.0
+            .keys()
+            .filter_map(|k| {
+                let mut i = 0;
+                let mut lookup = k;
+                loop {
+                    if i >= 100 {
+                        break None;
+                    }
+
+                    let game = self.0.get(lookup)?;
+                    match game.alias.as_ref() {
+                        Some(alias) => {
+                            lookup = alias;
+                        }
+                        None => {
+                            if i == 0 {
+                                break None;
+                            } else {
+                                break Some((k.to_string(), lookup.to_string()));
+                            }
+                        }
+                    }
+
+                    i += 1;
+                }
+            })
+            .collect()
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use maplit::btreemap;
+    use maplit::{btreemap, hashmap};
     use pretty_assertions::assert_eq;
 
     use super::*;
@@ -580,6 +630,7 @@ mod tests {
 
         assert_eq!(
             Game {
+                alias: None,
                 files: None,
                 install_dir: None,
                 registry: None,
@@ -596,6 +647,7 @@ mod tests {
         let manifest = Manifest::load_from_string(
             r#"
             game:
+              alias: other
               files:
                 foo:
                   when:
@@ -625,6 +677,7 @@ mod tests {
 
         assert_eq!(
             Game {
+                alias: Some("other".to_string()),
                 files: Some(btreemap! {
                     s("foo") => GameFileEntry {
                         when: Some(vec![
@@ -841,5 +894,27 @@ mod tests {
         .unwrap();
 
         assert_eq!(&GogMetadata { id: None }, manifest.0["game"].gog.as_ref().unwrap());
+    }
+
+    #[test]
+    fn can_get_aliases() {
+        let manifest = Manifest::load_from_string(
+            r#"
+            foo: {}
+            bar:
+              alias: foo
+            baz:
+              alias: bar
+            "#,
+        )
+        .unwrap();
+
+        assert_eq!(
+            hashmap! {
+                "bar".to_string() => "foo".to_string(),
+                "baz".to_string() => "foo".to_string(),
+            },
+            manifest.aliases(),
+        );
     }
 }

@@ -12,7 +12,8 @@ use crate::{
     prelude::{CommandError, Error, Finality, Privacy, StrictPath, SyncDirection},
     resource::{
         config::{
-            BackupFormat, RedirectKind, RootsConfig, SecondaryManifestConfigKind, SortKey, Theme, ZipCompression,
+            BackupFormat, CustomGameKind, RedirectKind, RootsConfig, SecondaryManifestConfigKind, SortKey, Theme,
+            ZipCompression,
         },
         manifest::{Manifest, ManifestUpdate, Store},
     },
@@ -121,8 +122,10 @@ pub enum Message {
     SelectedRootStore(usize, Store),
     SelectedRedirectKind(usize, RedirectKind),
     SelectedSecondaryManifestKind(usize, SecondaryManifestConfigKind),
+    SelectedCustomGameKind(usize, CustomGameKind),
     EditedRedirect(EditAction, Option<RedirectEditActionField>),
     EditedCustomGame(EditAction),
+    EditedCustomGameAlias(usize, String),
     EditedCustomGameFile(usize, EditAction),
     EditedCustomGameRegistry(usize, EditAction),
     EditedExcludeStoreScreenshots(bool),
@@ -624,6 +627,7 @@ pub enum UndoSubject {
     RedirectSource(usize),
     RedirectTarget(usize),
     CustomGameName(usize),
+    CustomGameAlias(usize),
     CustomGameFile(usize, usize),
     CustomGameRegistry(usize, usize),
     BackupFilterIgnoredPath(usize),
@@ -647,6 +651,7 @@ impl UndoSubject {
             | UndoSubject::RedirectSource(_)
             | UndoSubject::RedirectTarget(_)
             | UndoSubject::CustomGameName(_)
+            | UndoSubject::CustomGameAlias(_)
             | UndoSubject::CustomGameFile(_, _)
             | UndoSubject::CustomGameRegistry(_, _)
             | UndoSubject::BackupFilterIgnoredPath(_)

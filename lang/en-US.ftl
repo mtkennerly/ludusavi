@@ -146,6 +146,9 @@ label-change-count = Changes: {$total}
 label-unscanned = Unscanned
 # This refers to a local file on the computer
 label-file = File
+label-game = Game
+# Aliases are alternative titles for the same game.
+label-alias = Alias
 
 store-ea = EA
 store-epic = Epic
