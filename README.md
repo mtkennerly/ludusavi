@@ -113,10 +113,8 @@ along with the root's type:
 
   When using Wine prefixes with Heroic, Ludusavi will back up the `*.reg` files
   if the game is known to have registry-based saves.
-<!--
 * For a Legendary root, this should be the folder containing `installed.json`.
   Currently, Ludusavi cannot detect Wine prefixes for Legendary roots.
--->
 * For a Lutris root, this should be the folder containing the `games` subdirectory.
 
   Ludusavi expects the game YAML files to contain a few fields,
@@ -134,7 +132,6 @@ along with the root's type:
 * For a Wine prefix root, this should be the folder containing `drive_c`.
   Currently, Ludusavi does not back up registry-based saves from the prefix,
   but will back up any file-based saves.
-<!--
 * The Windows, Linux, and Mac drive roots can be used
   to make Ludusavi scan external hard drives with a separate OS installation.
   For example, let's say you had a Windows laptop that broke,
@@ -144,7 +141,6 @@ along with the root's type:
   In this case, Ludusavi can only look for normal/default locations of system folders.
   Ludusavi will not be able to use the Windows API or check `XDG` environment variables
   to detect alternative folder locations (e.g., if you've moved the `Documents` folder).
--->
 
 You may use [globs] in root paths to identify multiple roots at once.
 If you have a folder name that contains a special glob character,
@@ -375,7 +371,6 @@ but you can customize this by setting the `RUST_LOG` environment variable
 (e.g., `RUST_LOG=ludusavi=debug`).
 The most recent 5 log files are kept, rotating on app launch or when a log reaches 10 MiB.
 
-<!-- TODO: Uncomment before release
 ### Game launch wrapping
 The CLI has a `wrap` command that can be used as a wrapper around launching a game.
 When wrapped, Ludusavi will restore data for the game first, launch it, and back up after playing.
@@ -397,7 +392,6 @@ You must set it as a wrapper for each game already installed individually.
 
 Note that the `--config` option is required because Heroic overrides the `XDG_CONFIG_HOME` environment variable,
 which would otherwise prevent Ludusavi from finding its configuration.
--->
 
 ## Interfaces
 ### CLI API
@@ -565,8 +559,8 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   * Each entry in the list should be a map with these fields:
     * `path` (string): Where the root is located on your system.
     * `store` (string): Game store associated with the root. Valid options:
-      `ea`, `epic`, `gog`, `gogGalaxy`, `heroic`, `lutris`, `microsoft`, `origin`, `prime`,
-      `steam`, `uplay`, `otherHome`, `otherWine`, <!-- `otherWindows`, `otherLinux`, `otherMac`, --> `other`
+      `ea`, `epic`, `gog`, `gogGalaxy`, `heroic`, `legendary`, `lutris`, `microsoft`, `origin`, `prime`,
+      `steam`, `uplay`, `otherHome`, `otherWine`, `otherWindows`, `otherLinux`, `otherMac`, `other`
 * `redirects` (optional, list):
   * Each entry in the list should be a map with these fields:
     * `kind` (string): When and how to apply the redirect.

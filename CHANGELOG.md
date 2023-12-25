@@ -1,4 +1,4 @@
-## Unreleased
+## v0.22.0 (2023-12-26)
 
 * Added:
   * You can now configure additional manifests,
@@ -34,7 +34,7 @@
   * GUI: On some systems using Wayland, Ludusavi would crash on startup.
   * When storing file modified times in zip archives,
     if the year is too old for zip to support (i.e., before 1980),
-    Ludusavi will now round up to the earliest support date (1980-01-01).
+    Ludusavi will now round up to the earliest supported date (1980-01-01).
   * When backing up a malformed `dword`-type value from the registry,
     Ludusavi would silently convert it to a default 0,
     which could result in data loss when restored.

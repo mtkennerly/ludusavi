@@ -63,6 +63,8 @@ Also install the Crowdin CLI manually.
 * Update version in assets/com.github.mtkennerly.ludusavi.metainfo.xml
   including the `releases` section and the screenshot URL.
 * Run `invoke prerelease`
+  * If you already updated the translations separately,
+    then run `invoke prerelease --no-update-lang`
 * Update the translation percentages in src/lang.rs
 * Run `cargo build` to update the version in Cargo.lock
 * Add the new version to `.github/ISSUE_TEMPLATE/*.yaml`.
