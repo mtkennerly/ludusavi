@@ -535,6 +535,7 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   * `url` (string): Where to download the primary manifest.
 * `language` (string, optional): Display language. Valid options:
   `en-US` (English, default),
+  `cs-CZ` (Czech),
   `de-DE` (German),
   `eo-UY` (Esperanto),
   `es-ES` (Spanish),
