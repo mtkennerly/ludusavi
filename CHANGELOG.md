@@ -30,6 +30,8 @@
   * GUI: When you click the filter icon on the backup/restore screen,
     the title search field is automatically focused.
   * CLI: Help text is now styled a bit differently.
+  * Updated translations, including a new in-progress Czech translation.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:
   * GUI: On some systems using Wayland, Ludusavi would crash on startup.
   * When storing file modified times in zip archives,
