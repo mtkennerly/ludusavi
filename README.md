@@ -63,7 +63,7 @@ You can install Ludusavi one of these ways:
 
 * If you have [Rust](https://www.rust-lang.org), you can use Cargo.
 
-  * To install or update: `cargo install ludusavi`
+  * To install or update: `cargo install --locked ludusavi`
 
   On Linux, this requires the following system packages, or their equivalents
   for your distribution:
