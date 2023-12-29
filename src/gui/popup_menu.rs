@@ -26,7 +26,7 @@ use iced::{
     Rectangle,
     Size,
 };
-pub use iced_style::pick_list::{Appearance, StyleSheet};
+pub use iced_style::pick_list::StyleSheet;
 
 /// A widget for selecting a single value from a list of options.
 #[allow(missing_debug_implementations)]
