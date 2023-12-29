@@ -31,7 +31,7 @@ use crate::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
         OperationStepDecision, SteamShortcuts, TitleFinder,
     },
-    wrap::{heroic::infer_game_from_heroic, WrapGameInfo},
+    wrap::{heroic::infer_game_from_heroic, infer_game_from_steam, WrapGameInfo},
 };
 
 #[derive(Clone, Debug, Default)]
@@ -792,6 +792,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             gui,
             commands,
         } => {
+            let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
+            let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
+            let title_finder = TitleFinder::new(&manifest, &layout);
+
             // Determine raw game identifiers
             let wrap_game_info = if let Some(name) = name_source.name.as_ref() {
                 Some(WrapGameInfo {
@@ -802,6 +806,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 let roots = config.expanded_roots();
                 match infer {
                     parse::LauncherTypes::Heroic => infer_game_from_heroic(&roots, &commands),
+                    parse::LauncherTypes::Steam => infer_game_from_steam(&title_finder),
                 }
             } else {
                 unreachable!();
@@ -812,9 +817,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             // e.g. "Slain: Back From Hell" from legendary to "Slain: Back from
             // Hell" as known to ludusavi
-            let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
-            let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
-            let title_finder = TitleFinder::new(&manifest, &layout);
             let game_name = wrap_game_info.as_ref().and_then(|wrap_game_info| {
                 title_finder.maybe_find_one(wrap_game_info.name.as_ref(), None, wrap_game_info.gog_id, true)
             });

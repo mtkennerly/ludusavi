@@ -115,6 +115,7 @@ impl From<CliSort> for Sort {
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum LauncherTypes {
     Heroic,
+    Steam,
 }
 
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]

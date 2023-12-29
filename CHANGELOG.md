@@ -1,3 +1,9 @@
+## Unreleased
+
+* Added:
+  * CLI: The `wrap` command now supports `--infer steam`,
+    which will check for the `STEAMAPPID` environment variable.
+
 ## v0.22.0 (2023-12-26)
 
 * Added:
