@@ -7,7 +7,7 @@ use chrono::{Datelike, Timelike};
 
 use crate::{
     path::StrictPath,
-    prelude::INVALID_FILE_CHARS,
+    prelude::{AnyError, INVALID_FILE_CHARS},
     resource::{
         config::{
             BackupFormat, BackupFormats, RedirectConfig, Retention, ToggledPaths, ToggledRegistry, ZipCompression,
@@ -435,11 +435,11 @@ impl IndividualMapping {
         serde_yaml::to_string(&self).unwrap()
     }
 
-    pub fn load(file: &StrictPath) -> Result<Self, ()> {
+    pub fn load(file: &StrictPath) -> Result<Self, AnyError> {
         if !file.is_file() {
-            return Err(());
+            return Err("File does not exist".into());
         }
-        let content = Self::load_raw(file).unwrap();
+        let content = Self::load_raw(file)?;
         let mut parsed = Self::load_from_string(&content)?;
 
         // Handle legacy files without backup timestamps.
@@ -456,14 +456,14 @@ impl IndividualMapping {
         Ok(parsed)
     }
 
-    fn load_raw(file: &StrictPath) -> Result<String, Box<dyn std::error::Error>> {
+    fn load_raw(file: &StrictPath) -> Result<String, AnyError> {
         Ok(std::fs::read_to_string(file.interpret())?)
     }
 
-    pub fn load_from_string(content: &str) -> Result<Self, ()> {
+    pub fn load_from_string(content: &str) -> Result<Self, AnyError> {
         match serde_yaml::from_str(content) {
             Ok(x) => Ok(x),
-            Err(_) => Err(()),
+            Err(e) => Err(Box::new(e)),
         }
     }
 
@@ -530,11 +530,14 @@ impl GameLayout {
         }
     }
 
-    pub fn load(path: StrictPath, retention: Retention) -> Result<Self, ()> {
+    pub fn load(path: StrictPath, retention: Retention) -> Result<Self, AnyError> {
         let mapping = Self::mapping_file(&path);
         Ok(Self {
             path,
-            mapping: IndividualMapping::load(&mapping)?,
+            mapping: IndividualMapping::load(&mapping).map_err(|e| {
+                log::error!("Unable to load mapping: {} | {:?}", mapping.render(), e);
+                e
+            })?,
             retention,
         })
     }
@@ -1666,11 +1669,7 @@ impl GameLayout {
         }
     }
 
-    fn restore_file_from_simple(
-        &self,
-        target: &StrictPath,
-        file: &ScannedFile,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    fn restore_file_from_simple(&self, target: &StrictPath, file: &ScannedFile) -> Result<(), AnyError> {
         log::trace!(
             "[{}] about to restore (simple): {} -> {}",
             self.mapping.name,
@@ -1686,7 +1685,7 @@ impl GameLayout {
         target: &StrictPath,
         file: &ScannedFile,
         archive: &mut zip::ZipArchive<std::fs::File>,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    ) -> Result<(), AnyError> {
         log::debug!(
             "[{}] about to restore (zip): {} -> {}",
             self.mapping.name,
@@ -1964,8 +1963,13 @@ impl BackupLayout {
             let game_dir = StrictPath::from(&game_dir);
             let mapping_file = game_dir.joined("mapping.yaml");
             if mapping_file.is_file() {
-                if let Ok(mapping) = IndividualMapping::load(&mapping_file) {
-                    overall.insert(mapping.name.clone(), game_dir);
+                match IndividualMapping::load(&mapping_file) {
+                    Ok(mapping) => {
+                        overall.insert(mapping.name.clone(), game_dir);
+                    }
+                    Err(e) => {
+                        log::warn!("Ignoring unloadable mapping: {} | {:?}", mapping_file.render(), e);
+                    }
                 }
             }
         }

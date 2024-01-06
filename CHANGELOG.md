@@ -3,6 +3,9 @@
 * Added:
   * CLI: The `wrap` command now supports `--infer steam`,
     which will check for the `STEAMAPPID` environment variable.
+* Fixed:
+  * Ludusavi would crash when reading a non-UTF-8 mapping.yaml file.
+    This wouldn't normally happen, but could arise from external modifications.
 
 ## v0.22.0 (2023-12-26)
 
