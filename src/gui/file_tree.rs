@@ -191,6 +191,17 @@ impl FileTreeNode {
                                 Badge::new(&msg).view()
                             })
                         })
+                    })
+                    .push_some(|| {
+                        self.scanned_file
+                            .as_ref()
+                            .map(|f| f.size)
+                            .map(|bytes| TRANSLATOR.adjusted_size(bytes))
+                            .map(|size| {
+                                text(size)
+                                    .horizontal_alignment(iced::alignment::Horizontal::Right)
+                                    .width(150)
+                            })
                     }),
             );
         } else if self.nodes.len() == 1 {
