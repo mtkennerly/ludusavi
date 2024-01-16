@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use iced::Alignment;
+use iced::{Alignment, Length};
 
 use crate::{
     gui::{
@@ -200,7 +200,7 @@ impl FileTreeNode {
                             .map(|size| {
                                 text(size)
                                     .horizontal_alignment(iced::alignment::Horizontal::Right)
-                                    .width(150)
+                                    .width(Length::Fill)
                             })
                     }),
             );
