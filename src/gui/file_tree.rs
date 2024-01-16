@@ -268,10 +268,10 @@ impl FileTreeNode {
                             None
                         })
                         .push_some(|| {
-                            let total_bytes = self.calculate_directory_size();
+                            let total_bytes = self.calculate_directory_size(true);
                             let total_size = total_bytes.map(|bytes| TRANSLATOR.adjusted_size(bytes));
 
-                            let included_bytes = self.calculate_included_directory_size();
+                            let included_bytes = self.calculate_directory_size(false);
                             let included_size = included_bytes.map(|bytes| TRANSLATOR.adjusted_size(bytes));
 
                             match (included_size, total_size) {
@@ -389,40 +389,17 @@ impl FileTreeNode {
         node
     }
 
-    fn calculate_directory_size(&self) -> Option<u64> {
+    fn calculate_directory_size(&self, include_ignored: bool) -> Option<u64> {
         let mut size = 0;
         for child_node in self.nodes.values() {
             if child_node.nodes.is_empty() {
                 if let Some(scanned_file) = &child_node.scanned_file {
-                    size += scanned_file.size;
-                }
-            } else {
-                let child_size = child_node.calculate_directory_size().unwrap_or(0);
-                size += child_size;
-            }
-        }
-
-        if size == 0 {
-            None
-        } else {
-            Some(size)
-        }
-    }
-
-    fn calculate_included_directory_size(&self) -> Option<u64> {
-        if self.ignored {
-            return None;
-        }
-        let mut size = 0;
-        for child_node in self.nodes.values() {
-            if child_node.nodes.is_empty() {
-                if let Some(scanned_file) = &child_node.scanned_file {
-                    if !scanned_file.ignored {
+                    if include_ignored || !scanned_file.ignored {
                         size += scanned_file.size;
                     }
                 }
             } else {
-                let child_size = child_node.calculate_included_directory_size().unwrap_or(0);
+                let child_size = child_node.calculate_directory_size(include_ignored).unwrap_or(0);
                 size += child_size;
             }
         }
