@@ -146,7 +146,7 @@ impl FileTreeNode {
             return Container::new(
                 Row::new()
                     .align_items(Alignment::Center)
-                    .padding([0, 0, 0, 35 * level])
+                    .padding([0, 10, 0, 35 * level])
                     .spacing(10)
                     .push(match self.node_type {
                         FileTreeNodeType::File | FileTreeNodeType::RegistryValue(_) => {
@@ -201,6 +201,13 @@ impl FileTreeNode {
                                 text(size)
                                     .horizontal_alignment(iced::alignment::Horizontal::Right)
                                     .width(Length::Fill)
+                            })
+                            .map(|text| {
+                                if self.scanned_file.as_ref().map(|f| f.ignored).unwrap_or(false) {
+                                    text.style(style::Text::Disabled)
+                                } else {
+                                    text
+                                }
                             })
                     }),
             );
