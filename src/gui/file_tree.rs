@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use iced::{Alignment, Length};
+use iced::Alignment;
 
 use crate::{
     gui::{
@@ -193,22 +193,10 @@ impl FileTreeNode {
                         })
                     })
                     .push_some(|| {
-                        self.scanned_file
-                            .as_ref()
-                            .map(|f| f.size)
-                            .map(|bytes| TRANSLATOR.adjusted_size(bytes))
-                            .map(|size| {
-                                text(size)
-                                    .horizontal_alignment(iced::alignment::Horizontal::Right)
-                                    .width(Length::Fill)
-                            })
-                            .map(|text| {
-                                if self.scanned_file.as_ref().map(|f| f.ignored).unwrap_or(false) {
-                                    text.style(style::Text::Disabled)
-                                } else {
-                                    text
-                                }
-                            })
+                        self.scanned_file.as_ref().map(|f| {
+                            let size = TRANSLATOR.adjusted_size(f.size);
+                            Badge::new(&size).faded(f.ignored).view()
+                        })
                     }),
             );
         } else if self.nodes.len() == 1 {
@@ -274,7 +262,7 @@ impl FileTreeNode {
                             let included_bytes = self.calculate_directory_size(false);
                             let included_size = included_bytes.map(|bytes| TRANSLATOR.adjusted_size(bytes));
 
-                            match (included_size, total_size) {
+                            let text = match (included_size, total_size) {
                                 (Some(included), Some(total)) => {
                                     if included_bytes == total_bytes {
                                         Some(included)
@@ -285,19 +273,9 @@ impl FileTreeNode {
                                 (Some(included), None) => Some(format!("{} / ?", included)),
                                 (None, Some(total)) => Some(total.to_string()),
                                 (None, None) => None,
-                            }
-                            .map(|size_text| {
-                                text(size_text)
-                                    .horizontal_alignment(iced::alignment::Horizontal::Right)
-                                    .width(Length::Fill)
-                            })
-                            .map(|text| {
-                                if included_bytes.is_none() {
-                                    text.style(style::Text::Disabled)
-                                } else {
-                                    text
-                                }
-                            })
+                            };
+
+                            text.map(|text| Badge::new(&text).faded(included_bytes.is_none()).view())
                         }),
                 ),
                 |parent, (k, v)| {
