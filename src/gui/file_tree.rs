@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use iced::Alignment;
+use iced::{Alignment, Length};
 
 use crate::{
     gui::{
@@ -146,7 +146,7 @@ impl FileTreeNode {
             return Container::new(
                 Row::new()
                     .align_items(Alignment::Center)
-                    .padding([0, 0, 0, 35 * level])
+                    .padding([0, 10, 0, 35 * level])
                     .spacing(10)
                     .push(match self.node_type {
                         FileTreeNodeType::File | FileTreeNodeType::RegistryValue(_) => {
@@ -191,6 +191,24 @@ impl FileTreeNode {
                                 Badge::new(&msg).view()
                             })
                         })
+                    })
+                    .push_some(|| {
+                        self.scanned_file
+                            .as_ref()
+                            .map(|f| f.size)
+                            .map(|bytes| TRANSLATOR.adjusted_size(bytes))
+                            .map(|size| {
+                                text(size)
+                                    .horizontal_alignment(iced::alignment::Horizontal::Right)
+                                    .width(Length::Fill)
+                            })
+                            .map(|text| {
+                                if self.scanned_file.as_ref().map(|f| f.ignored).unwrap_or(false) {
+                                    text.style(style::Text::Disabled)
+                                } else {
+                                    text
+                                }
+                            })
                     }),
             );
         } else if self.nodes.len() == 1 {
@@ -248,6 +266,38 @@ impl FileTreeNode {
                                 );
                             }
                             None
+                        })
+                        .push_some(|| {
+                            let total_bytes = self.calculate_directory_size(true);
+                            let total_size = total_bytes.map(|bytes| TRANSLATOR.adjusted_size(bytes));
+
+                            let included_bytes = self.calculate_directory_size(false);
+                            let included_size = included_bytes.map(|bytes| TRANSLATOR.adjusted_size(bytes));
+
+                            match (included_size, total_size) {
+                                (Some(included), Some(total)) => {
+                                    if included_bytes == total_bytes {
+                                        Some(included)
+                                    } else {
+                                        Some(format!("{} / {}", included, total))
+                                    }
+                                }
+                                (Some(included), None) => Some(format!("{} / ?", included)),
+                                (None, Some(total)) => Some(total.to_string()),
+                                (None, None) => None,
+                            }
+                            .map(|size_text| {
+                                text(size_text)
+                                    .horizontal_alignment(iced::alignment::Horizontal::Right)
+                                    .width(Length::Fill)
+                            })
+                            .map(|text| {
+                                if included_bytes.is_none() {
+                                    text.style(style::Text::Disabled)
+                                } else {
+                                    text
+                                }
+                            })
                         }),
                 ),
                 |parent, (k, v)| {
@@ -337,6 +387,28 @@ impl FileTreeNode {
         }
 
         node
+    }
+
+    fn calculate_directory_size(&self, include_ignored: bool) -> Option<u64> {
+        let mut size = 0;
+        for child_node in self.nodes.values() {
+            if child_node.nodes.is_empty() {
+                if let Some(scanned_file) = &child_node.scanned_file {
+                    if include_ignored || !scanned_file.ignored {
+                        size += scanned_file.size;
+                    }
+                }
+            } else {
+                let child_size = child_node.calculate_directory_size(include_ignored).unwrap_or(0);
+                size += child_size;
+            }
+        }
+
+        if size == 0 {
+            None
+        } else {
+            Some(size)
+        }
     }
 }
 

@@ -96,6 +96,7 @@ pub enum Text {
     #[default]
     Default,
     Failure,
+    Disabled,
 }
 impl iced::widget::text::StyleSheet for Theme {
     type Style = Text;
@@ -105,6 +106,9 @@ impl iced::widget::text::StyleSheet for Theme {
             Text::Default => iced::widget::text::Appearance { color: None },
             Text::Failure => iced::widget::text::Appearance {
                 color: Some(self.negative),
+            },
+            Text::Disabled => iced::widget::text::Appearance {
+                color: Some(self.disabled),
             },
         }
     }
