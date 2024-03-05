@@ -514,7 +514,32 @@ impl App {
                 let local = self.config.backup.path.clone();
                 let games = self.operation.games();
 
-                match self.start_sync_cloud(&local, SyncDirection::Upload, Finality::Final, games.as_ref(), false) {
+                let changed_games: Vec<_> = self
+                    .backup_screen
+                    .log
+                    .entries
+                    .iter()
+                    .filter(|x| {
+                        let relevant = games
+                            .as_ref()
+                            .map(|games| games.contains(&x.scan_info.game_name))
+                            .unwrap_or(true);
+                        relevant && x.scan_info.needs_cloud_sync()
+                    })
+                    .map(|x| x.scan_info.game_name.clone())
+                    .collect();
+
+                if changed_games.is_empty() {
+                    return self.handle_backup(BackupPhase::Done);
+                }
+
+                match self.start_sync_cloud(
+                    &local,
+                    SyncDirection::Upload,
+                    Finality::Final,
+                    Some(&changed_games),
+                    false,
+                ) {
                     Ok(_) => {
                         // deferring to `transition_from_cloud_step`
                         Command::none()

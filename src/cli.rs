@@ -327,16 +327,23 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             log::info!("completed backup");
 
             if should_sync_cloud_after {
-                let sync_result = sync_cloud(
-                    &config,
-                    &backup_dir,
-                    &config.cloud.path,
-                    SyncDirection::Upload,
-                    Finality::Final,
-                    if games_specified { &subjects.valid } else { &[] },
-                );
-                if sync_result.is_err() {
-                    reporter.trip_cloud_sync_failed();
+                let changed_games: Vec<_> = info
+                    .iter()
+                    .filter(|(_, scan_info, _, _)| scan_info.needs_cloud_sync())
+                    .map(|(_, scan_info, _, _)| scan_info.game_name.clone())
+                    .collect();
+                if !changed_games.is_empty() {
+                    let sync_result = sync_cloud(
+                        &config,
+                        &backup_dir,
+                        &config.cloud.path,
+                        SyncDirection::Upload,
+                        Finality::Final,
+                        &changed_games,
+                    );
+                    if sync_result.is_err() {
+                        reporter.trip_cloud_sync_failed();
+                    }
                 }
             }
 

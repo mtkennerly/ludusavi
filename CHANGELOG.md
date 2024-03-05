@@ -8,6 +8,10 @@
 * Fixed:
   * Ludusavi would crash when reading a non-UTF-8 mapping.yaml file.
     This wouldn't normally happen, but could arise from external modifications.
+* Changed:
+  * When synchronizing to the cloud after a backup,
+    Ludusavi now instructs Rclone to only check paths for games with updated saves.
+    This improves the cloud sync performance.
 
 ## v0.22.0 (2023-12-26)
 

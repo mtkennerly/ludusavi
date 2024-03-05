@@ -215,6 +215,16 @@ impl ScanInfo {
             self.count_changes().overall()
         }
     }
+
+    pub fn needs_cloud_sync(&self) -> bool {
+        match self.overall_change() {
+            ScanChange::New => true,
+            ScanChange::Different => true,
+            ScanChange::Removed => false,
+            ScanChange::Same => false,
+            ScanChange::Unknown => false,
+        }
+    }
 }
 
 #[cfg(test)]
