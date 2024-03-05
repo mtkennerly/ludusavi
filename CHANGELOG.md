@@ -12,6 +12,10 @@
   * When synchronizing to the cloud after a backup,
     Ludusavi now instructs Rclone to only check paths for games with updated saves.
     This improves the cloud sync performance.
+  * The following are now configured as default arguments for Rclone:
+    `--fast-list --ignore-checksum`.
+    These should improve performance in most cases.
+    You can change or remove these on the "other" screen.
 
 ## v0.22.0 (2023-12-26)
 

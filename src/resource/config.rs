@@ -785,11 +785,19 @@ impl Default for Cloud {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Apps {
-    #[serde(default)]
+    #[serde(default = "App::default_rclone")]
     pub rclone: App,
+}
+
+impl Default for Apps {
+    fn default() -> Self {
+        Self {
+            rclone: App::default_rclone(),
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -804,6 +812,13 @@ pub struct App {
 impl App {
     pub fn is_valid(&self) -> bool {
         !self.path.raw().is_empty() && (self.path.is_file() || which::which(self.path.raw()).is_ok())
+    }
+
+    fn default_rclone() -> Self {
+        Self {
+            path: which::which("rclone").map(StrictPath::from).unwrap_or_default(),
+            arguments: "--fast-list --ignore-checksum".to_string(),
+        }
     }
 }
 
@@ -898,12 +913,6 @@ impl ResourceFile for Config {
 
     fn initialize(mut self) -> Self {
         self.add_common_roots();
-        if let Ok(path) = which::which("rclone") {
-            self.apps.rclone = App {
-                path: StrictPath::from(path),
-                arguments: "".to_string(),
-            };
-        }
         self
     }
 
