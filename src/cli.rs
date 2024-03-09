@@ -34,6 +34,8 @@ use crate::{
     wrap::{heroic::infer_game_from_heroic, infer_game_from_steam, WrapGameInfo},
 };
 
+const PROGRESS_BAR_REFRESH_INTERVAL_MS: u64 = 500;
+
 #[derive(Clone, Debug, Default)]
 struct GameSubjects {
     // TODO: Use BTreeSet
@@ -982,7 +984,9 @@ fn scan_progress_bar(length: u64) -> ProgressBar {
         TRANSLATOR.total_games()
     );
     let style = indicatif::ProgressStyle::default_bar().template(&template);
-    ProgressBar::new(length).with_style(style)
+    let bar = ProgressBar::new(length).with_style(style);
+    bar.enable_steady_tick(PROGRESS_BAR_REFRESH_INTERVAL_MS);
+    bar
 }
 
 fn cloud_progress_bar() -> ProgressBar {
@@ -991,7 +995,9 @@ fn cloud_progress_bar() -> ProgressBar {
         TRANSLATOR.cloud_label()
     );
     let style = indicatif::ProgressStyle::default_bar().template(&template);
-    ProgressBar::new(100).with_style(style)
+    let bar = ProgressBar::new(100).with_style(style);
+    bar.enable_steady_tick(PROGRESS_BAR_REFRESH_INTERVAL_MS);
+    bar
 }
 
 fn sync_cloud(

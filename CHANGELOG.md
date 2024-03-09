@@ -8,6 +8,8 @@
 * Fixed:
   * Ludusavi would crash when reading a non-UTF-8 mapping.yaml file.
     This wouldn't normally happen, but could arise from external modifications.
+  * CLI: During slow processing (e.g., cloud upload or a game with huge saves),
+    the progress bar timer wouldn't update.
 * Changed:
   * When synchronizing to the cloud after a backup,
     Ludusavi now instructs Rclone to only check paths for games with updated saves.
