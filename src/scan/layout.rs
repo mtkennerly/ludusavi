@@ -32,7 +32,9 @@ macro_rules! some_or_continue {
 }
 
 fn encode_base64_for_folder(name: &str) -> String {
-    base64::encode(name).replace('/', SAFE)
+    use base64::prelude::*;
+
+    BASE64_STANDARD.encode(name).replace('/', SAFE)
 }
 
 pub fn escape_folder_name(name: &str) -> String {

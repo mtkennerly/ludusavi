@@ -1027,19 +1027,20 @@ impl Config {
         }
 
         let detected_steam = match steamlocate::SteamDir::locate() {
-            Some(mut steam_dir) => steam_dir
-                .libraryfolders()
-                .paths
-                .iter()
-                .cloned()
-                .map(|mut pb| {
-                    // Remove "/steamapps" suffix:
-                    pb.pop();
-                    pb
-                })
-                .map(|pb| (pb.as_os_str().to_string_lossy().to_string(), Store::Steam))
-                .collect(),
-            None => vec![],
+            Ok(steam_dir) => match steam_dir.library_paths() {
+                Ok(libraries) => libraries
+                    .into_iter()
+                    .map(|pb| (pb.as_os_str().to_string_lossy().to_string(), Store::Steam))
+                    .collect(),
+                Err(e) => {
+                    log::warn!("Unable to load Steam libraries: {:?}", e);
+                    vec![]
+                }
+            },
+            Err(e) => {
+                log::warn!("Unable to locate Steam directory: {:?}", e);
+                vec![]
+            }
         };
 
         #[cfg(target_os = "windows")]

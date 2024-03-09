@@ -432,7 +432,7 @@ impl StrictPath {
             chrono::NaiveTime::from_hms_opt(mtime.hour() as u32, mtime.minute() as u32, mtime.second() as u32)
                 .ok_or(SetFileTimeError::InvalidTimestamp)?,
         );
-        self.set_mtime(chrono::DateTime::<chrono::Utc>::from_utc(naive_mtime, chrono::Utc).into())
+        self.set_mtime(chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive_mtime, chrono::Utc).into())
             .map_err(SetFileTimeError::Write)
     }
 
@@ -679,6 +679,7 @@ impl StrictPath {
             case_sensitive,
             require_literal_separator: true,
             require_literal_leading_dot: false,
+            follow_links: true,
         };
         let rendered = self.render();
         match globetter::glob_with(&rendered, options) {

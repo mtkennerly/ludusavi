@@ -1,6 +1,5 @@
 use std::sync::Mutex;
 
-use byte_unit::Byte;
 use fluent::{bundle::FluentBundle, FluentArgs, FluentResource};
 use intl_memoizer::concurrent::IntlLangMemoizer;
 use once_cell::sync::Lazy;
@@ -765,9 +764,9 @@ impl Translator {
     }
 
     pub fn adjusted_size(&self, bytes: u64) -> String {
-        let byte = Byte::from_bytes(bytes.into());
-        let adjusted_byte = byte.get_appropriate_unit(true);
-        adjusted_byte.to_string()
+        let byte = byte_unit::Byte::from(bytes);
+        let adjusted_byte = byte.get_appropriate_unit(byte_unit::UnitType::Binary);
+        format!("{adjusted_byte:.2}")
     }
 
     pub fn processed_games(&self, status: &OperationStatus) -> String {
@@ -1267,5 +1266,20 @@ impl Translator {
         let mut args = FluentArgs::new();
         args.set(GAME, game);
         translate_args("restore-specific-game.failed", &args)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::lang::TRANSLATOR;
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn adjusted_size() {
+        assert_eq!("0 B", &TRANSLATOR.adjusted_size(0));
+        assert_eq!("1 B", &TRANSLATOR.adjusted_size(1));
+        assert_eq!("1.03 KiB", &TRANSLATOR.adjusted_size(1_050));
+        assert_eq!("100.00 KiB", &TRANSLATOR.adjusted_size(102_400));
+        assert_eq!("114.98 GiB", &TRANSLATOR.adjusted_size(123_456_789_000));
     }
 }

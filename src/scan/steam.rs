@@ -16,22 +16,30 @@ impl SteamShortcuts {
         let mut instance = Self::default();
 
         let mut steam = match steamlocate::SteamDir::locate() {
-            Some(x) => x,
-            None => return instance,
+            Ok(x) => x,
+            Err(e) => {
+                log::warn!("Unable to locate Steam directory: {:?}", e);
+                return instance;
+            }
         };
 
-        for shortcut in steam.shortcuts() {
+        let Ok(shortcuts) = steam.shortcuts() else {
+            log::warn!("Unable to load Steam shortcuts");
+            return instance;
+        };
+
+        for shortcut in shortcuts.filter_map(|x| x.ok()) {
             log::trace!(
                 "Found Steam shortcut: name={}, id={}, start_dir={}",
                 &shortcut.app_name,
-                shortcut.appid,
+                shortcut.app_id,
                 &shortcut.start_dir
             );
             let start_dir = std::path::Path::new(shortcut.start_dir.trim_start_matches('"').trim_end_matches('"'));
             instance.0.insert(
                 shortcut.app_name.clone(),
                 SteamShortcut {
-                    id: shortcut.appid,
+                    id: shortcut.app_id,
                     start_dir: if start_dir.is_absolute() {
                         Some(StrictPath::from(start_dir))
                     } else {

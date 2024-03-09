@@ -6,6 +6,7 @@ use std::{
     collections::{BTreeSet, HashMap},
     fmt::Debug,
     process::Command,
+    time::Duration,
 };
 
 use clap::CommandFactory;
@@ -34,7 +35,7 @@ use crate::{
     wrap::{heroic::infer_game_from_heroic, infer_game_from_steam, WrapGameInfo},
 };
 
-const PROGRESS_BAR_REFRESH_INTERVAL_MS: u64 = 500;
+const PROGRESS_BAR_REFRESH_INTERVAL: Duration = Duration::from_millis(50);
 
 #[derive(Clone, Debug, Default)]
 struct GameSubjects {
@@ -983,9 +984,11 @@ fn scan_progress_bar(length: u64) -> ProgressBar {
         TRANSLATOR.scan_label(),
         TRANSLATOR.total_games()
     );
-    let style = indicatif::ProgressStyle::default_bar().template(&template);
+    let style = indicatif::ProgressStyle::default_bar()
+        .template(&template)
+        .expect("progress bar");
     let bar = ProgressBar::new(length).with_style(style);
-    bar.enable_steady_tick(PROGRESS_BAR_REFRESH_INTERVAL_MS);
+    bar.enable_steady_tick(PROGRESS_BAR_REFRESH_INTERVAL);
     bar
 }
 
@@ -994,9 +997,11 @@ fn cloud_progress_bar() -> ProgressBar {
         "{} ({{elapsed_precise}}) {{wide_bar}} {{msg}}",
         TRANSLATOR.cloud_label()
     );
-    let style = indicatif::ProgressStyle::default_bar().template(&template);
+    let style = indicatif::ProgressStyle::default_bar()
+        .template(&template)
+        .expect("progress bar");
     let bar = ProgressBar::new(100).with_style(style);
-    bar.enable_steady_tick(PROGRESS_BAR_REFRESH_INTERVAL_MS);
+    bar.enable_steady_tick(PROGRESS_BAR_REFRESH_INTERVAL);
     bar
 }
 
