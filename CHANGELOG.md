@@ -16,6 +16,9 @@
     `--fast-list --ignore-checksum`.
     These should improve performance in most cases.
     You can change or remove these on the "other" screen.
+  * GUI: During a backup or restore,
+    if the "synchronize automatically" cloud setting is enabled,
+    then the progress bar will display "cloud" instead of "scan" during the cloud operations.
 
 ## v0.22.0 (2023-12-26)
 

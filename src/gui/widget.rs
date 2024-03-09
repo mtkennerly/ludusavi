@@ -166,10 +166,31 @@ impl Progress {
         self.current_time = Some(chrono::Utc::now());
     }
 
+    fn game_count(&self) -> String {
+        format!("{}: {} / {}", TRANSLATOR.total_games(), self.current, self.max)
+    }
+
+    fn cloud_count(&self) -> String {
+        TRANSLATOR.cloud_progress(self.current as u64, self.max as u64)
+    }
+
     pub fn view(&self, operation: &Operation) -> Element {
         let label = match operation {
             Operation::Idle => None,
-            Operation::Backup { .. } | Operation::Restore { .. } => Some(TRANSLATOR.scan_label()),
+            Operation::Backup {
+                checking_cloud,
+                syncing_cloud,
+                ..
+            } => Some(if *checking_cloud || *syncing_cloud {
+                TRANSLATOR.cloud_label()
+            } else {
+                TRANSLATOR.scan_label()
+            }),
+            Operation::Restore { checking_cloud, .. } => Some(if *checking_cloud {
+                TRANSLATOR.cloud_label()
+            } else {
+                TRANSLATOR.scan_label()
+            }),
             Operation::ValidateBackups { .. } => Some(TRANSLATOR.validate_button()),
             Operation::Cloud { .. } => Some(TRANSLATOR.cloud_label()),
         };
@@ -190,10 +211,22 @@ impl Progress {
         } else {
             match operation {
                 Operation::Idle => None,
-                Operation::Backup { .. } | Operation::Restore { .. } | Operation::ValidateBackups { .. } => {
-                    Some(format!("{}: {} / {}", TRANSLATOR.total_games(), self.current, self.max))
-                }
-                Operation::Cloud { .. } => Some(TRANSLATOR.cloud_progress(self.current as u64, self.max as u64)),
+                Operation::Backup {
+                    checking_cloud,
+                    syncing_cloud,
+                    ..
+                } => Some(if *checking_cloud || *syncing_cloud {
+                    self.cloud_count()
+                } else {
+                    self.game_count()
+                }),
+                Operation::Restore { checking_cloud, .. } => Some(if *checking_cloud {
+                    self.cloud_count()
+                } else {
+                    self.game_count()
+                }),
+                Operation::ValidateBackups { .. } => Some(self.game_count()),
+                Operation::Cloud { .. } => Some(self.cloud_count()),
             }
         };
 
