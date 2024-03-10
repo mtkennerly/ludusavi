@@ -111,8 +111,7 @@ impl Badge {
             let content = match self.tooltip {
                 None => content,
                 Some(tooltip) => Container::new(
-                    Tooltip::new(content, tooltip, tooltip::Position::Top)
-                        .size(16)
+                    Tooltip::new(content, text(tooltip).size(16), tooltip::Position::Top)
                         .gap(5)
                         .style(style::Container::Tooltip),
                 ),

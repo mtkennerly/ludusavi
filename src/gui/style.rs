@@ -1,6 +1,6 @@
 use iced::{
     widget::{button, checkbox, container, pick_list, scrollable, text_input},
-    Color, Vector,
+    Border, Color, Shadow, Vector,
 };
 use iced_style::menu;
 
@@ -118,11 +118,13 @@ impl iced_style::menu::StyleSheet for Theme {
     fn appearance(&self, _style: &Self::Style) -> menu::Appearance {
         menu::Appearance {
             background: self.field.into(),
-            border_color: self.text.alpha(0.5),
+            border: Border {
+                color: self.text.alpha(0.5),
+                width: 1.0,
+                radius: 5.0.into(),
+            },
             text_color: self.text,
             selected_background: self.positive.into(),
-            border_width: 1.0,
-            border_radius: 5.0.into(),
             selected_text_color: Color::WHITE,
         }
     }
@@ -164,19 +166,25 @@ impl button::StyleSheet for Theme {
                 Self::Style::NavButtonInactive => None,
                 Self::Style::Badge => None,
             },
-            border_radius: match style {
-                Self::Style::GameActionPrimary
-                | Self::Style::GameListEntryTitle
-                | Self::Style::GameListEntryTitleFailed
-                | Self::Style::GameListEntryTitleDisabled
-                | Self::Style::GameListEntryTitleUnscanned
-                | Self::Style::NavButtonActive
-                | Self::Style::NavButtonInactive => 10.0.into(),
-                _ => 4.0.into(),
-            },
-            border_width: match style {
-                Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 1.0,
-                _ => 0.0,
+            border: Border {
+                color: match style {
+                    Self::Style::NavButtonActive | Self::Style::NavButtonInactive => self.navigation,
+                    _ => Color::TRANSPARENT,
+                },
+                width: match style {
+                    Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 1.0,
+                    _ => 0.0,
+                },
+                radius: match style {
+                    Self::Style::GameActionPrimary
+                    | Self::Style::GameListEntryTitle
+                    | Self::Style::GameListEntryTitleFailed
+                    | Self::Style::GameListEntryTitleDisabled
+                    | Self::Style::GameListEntryTitleUnscanned
+                    | Self::Style::NavButtonActive
+                    | Self::Style::NavButtonInactive => 10.0.into(),
+                    _ => 4.0.into(),
+                },
             },
             shadow_offset: match style {
                 Self::Style::NavButtonActive | Self::Style::NavButtonInactive => Vector::new(0.0, 0.0),
@@ -188,10 +196,7 @@ impl button::StyleSheet for Theme {
                 Self::Style::NavButtonInactive => self.text,
                 _ => self.text_button.alpha(0.8),
             },
-            border_color: match style {
-                Self::Style::NavButtonActive | Self::Style::NavButtonInactive => self.navigation,
-                _ => Color::TRANSPARENT,
-            },
+            shadow: Shadow::default(),
         }
     }
 
@@ -203,17 +208,19 @@ impl button::StyleSheet for Theme {
                 Self::Style::NavButtonInactive => Some(self.navigation.alpha(0.2).into()),
                 _ => self.active(style).background,
             },
-            border_radius: match style {
-                Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 10.0.into(),
-                _ => active.border_radius,
-            },
-            border_width: match style {
-                Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 1.0,
-                _ => active.border_width,
-            },
-            border_color: match style {
-                Self::Style::NavButtonActive | Self::Style::NavButtonInactive => self.navigation,
-                _ => active.border_color,
+            border: Border {
+                color: match style {
+                    Self::Style::NavButtonActive | Self::Style::NavButtonInactive => self.navigation,
+                    _ => active.border.color,
+                },
+                width: match style {
+                    Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 1.0,
+                    _ => active.border.width,
+                },
+                radius: match style {
+                    Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 10.0.into(),
+                    _ => active.border.radius,
+                },
             },
             text_color: match style {
                 Self::Style::GameListEntryTitleDisabled => self.text_skipped,
@@ -224,6 +231,7 @@ impl button::StyleSheet for Theme {
                 Self::Style::NavButtonActive | Self::Style::NavButtonInactive => Vector::new(0.0, 0.0),
                 _ => Vector::new(1.0, 2.0),
             },
+            shadow: Shadow::default(),
         }
     }
 }
@@ -256,37 +264,39 @@ impl container::StyleSheet for Theme {
                 Self::Style::BadgeActivated => self.negative.into(),
                 _ => self.background.into(),
             }),
-            border_color: match style {
-                Self::Style::Wrapper => Color::TRANSPARENT,
-                Self::Style::GameListEntry | Self::Style::Notification => self.field,
-                Self::Style::ChangeBadge(change) => match change {
-                    ScanChange::New => self.added,
-                    ScanChange::Different => self.positive,
-                    ScanChange::Removed => self.negative,
-                    ScanChange::Same | ScanChange::Unknown => self.disabled,
+            border: Border {
+                color: match style {
+                    Self::Style::Wrapper => Color::TRANSPARENT,
+                    Self::Style::GameListEntry | Self::Style::Notification => self.field,
+                    Self::Style::ChangeBadge(change) => match change {
+                        ScanChange::New => self.added,
+                        ScanChange::Different => self.positive,
+                        ScanChange::Removed => self.negative,
+                        ScanChange::Same | ScanChange::Unknown => self.disabled,
+                    },
+                    Self::Style::BadgeActivated => self.negative,
+                    Self::Style::BadgeFaded => self.disabled,
+                    _ => self.text,
                 },
-                Self::Style::BadgeActivated => self.negative,
-                Self::Style::BadgeFaded => self.disabled,
-                _ => self.text,
-            },
-            border_width: match style {
-                Self::Style::GameListEntry
-                | Self::Style::Badge
-                | Self::Style::BadgeActivated
-                | Self::Style::BadgeFaded
-                | Self::Style::ChangeBadge(..)
-                | Self::Style::Notification => 1.0,
-                _ => 0.0,
-            },
-            border_radius: match style {
-                Self::Style::GameListEntry
-                | Self::Style::Badge
-                | Self::Style::BadgeActivated
-                | Self::Style::BadgeFaded
-                | Self::Style::ChangeBadge(..)
-                | Self::Style::DisabledBackup => 10.0.into(),
-                Self::Style::Notification | Self::Style::Tooltip => 20.0.into(),
-                _ => 0.0.into(),
+                width: match style {
+                    Self::Style::GameListEntry
+                    | Self::Style::Badge
+                    | Self::Style::BadgeActivated
+                    | Self::Style::BadgeFaded
+                    | Self::Style::ChangeBadge(..)
+                    | Self::Style::Notification => 1.0,
+                    _ => 0.0,
+                },
+                radius: match style {
+                    Self::Style::GameListEntry
+                    | Self::Style::Badge
+                    | Self::Style::BadgeActivated
+                    | Self::Style::BadgeFaded
+                    | Self::Style::ChangeBadge(..)
+                    | Self::Style::DisabledBackup => 10.0.into(),
+                    Self::Style::Notification | Self::Style::Tooltip => 20.0.into(),
+                    _ => 0.0.into(),
+                },
             },
             text_color: match style {
                 Self::Style::Wrapper => None,
@@ -301,6 +311,11 @@ impl container::StyleSheet for Theme {
                 Self::Style::BadgeFaded => Some(self.disabled),
                 _ => Some(self.text),
             },
+            shadow: Shadow {
+                color: Color::BLACK,
+                offset: Vector::ZERO,
+                blur_radius: 0.0,
+            },
         }
     }
 }
@@ -310,33 +325,44 @@ pub struct Scrollable;
 impl scrollable::StyleSheet for Theme {
     type Style = Scrollable;
 
-    fn active(&self, _style: &Self::Style) -> scrollable::Scrollbar {
-        scrollable::Scrollbar {
-            background: Some(Color::TRANSPARENT.into()),
-            border_radius: 5.0.into(),
-            border_width: 0.0,
-            border_color: Color::TRANSPARENT,
-            scroller: scrollable::Scroller {
-                color: self.text.alpha(0.7),
-                border_radius: 5.0.into(),
-                border_width: 0.0,
-                border_color: Color::TRANSPARENT,
+    fn active(&self, _style: &Self::Style) -> scrollable::Appearance {
+        scrollable::Appearance {
+            container: container::Appearance::default(),
+            scrollbar: scrollable::Scrollbar {
+                background: Some(Color::TRANSPARENT.into()),
+                border: Border {
+                    color: Color::TRANSPARENT,
+                    width: 0.0,
+                    radius: 5.0.into(),
+                },
+                scroller: scrollable::Scroller {
+                    color: self.text.alpha(0.7),
+                    border: Border {
+                        color: Color::TRANSPARENT,
+                        width: 0.0,
+                        radius: 5.0.into(),
+                    },
+                },
             },
+            gap: None,
         }
     }
 
-    fn hovered(&self, style: &Self::Style, is_mouse_over_scrollbar: bool) -> scrollable::Scrollbar {
+    fn hovered(&self, style: &Self::Style, is_mouse_over_scrollbar: bool) -> scrollable::Appearance {
         let active = self.active(style);
 
         if !is_mouse_over_scrollbar {
             return active;
         }
 
-        scrollable::Scrollbar {
-            background: Some(self.text.alpha(0.4).into()),
-            scroller: scrollable::Scroller {
-                color: self.text.alpha(0.8),
-                ..active.scroller
+        scrollable::Appearance {
+            scrollbar: scrollable::Scrollbar {
+                background: Some(self.text.alpha(0.4).into()),
+                border: Border {
+                    color: self.text.alpha(0.8),
+                    ..active.scrollbar.border
+                },
+                ..active.scrollbar
             },
             ..active
         }
@@ -355,15 +381,17 @@ impl pick_list::StyleSheet for Theme {
 
     fn active(&self, style: &Self::Style) -> pick_list::Appearance {
         pick_list::Appearance {
-            border_radius: match style {
-                Self::Style::Primary => 5.0.into(),
-                Self::Style::Backup | Self::Style::Popup => 10.0.into(),
+            border: Border {
+                color: self.text.alpha(0.7),
+                width: 1.0,
+                radius: match style {
+                    Self::Style::Primary => 5.0.into(),
+                    Self::Style::Backup | Self::Style::Popup => 10.0.into(),
+                },
             },
             background: self.field.alpha(0.6).into(),
-            border_color: self.text.alpha(0.7),
             text_color: self.text,
             placeholder_color: iced::Color::BLACK,
-            border_width: 1.0,
             handle_color: self.text,
         }
     }
@@ -385,9 +413,11 @@ impl checkbox::StyleSheet for Theme {
         checkbox::Appearance {
             background: self.field.alpha(0.6).into(),
             icon_color: self.text,
-            border_radius: 5.0.into(),
-            border_width: 1.0,
-            border_color: self.text.alpha(0.6),
+            border: Border {
+                color: self.text.alpha(0.6),
+                width: 1.0,
+                radius: 5.0.into(),
+            },
             text_color: Some(self.text),
         }
     }
@@ -408,17 +438,24 @@ impl text_input::StyleSheet for Theme {
     fn active(&self, _style: &Self::Style) -> text_input::Appearance {
         text_input::Appearance {
             background: Color::TRANSPARENT.into(),
-            border_radius: 5.0.into(),
-            border_width: 1.0,
-            border_color: self.text.alpha(0.8),
+            border: Border {
+                color: self.text.alpha(0.8),
+                width: 1.0,
+                radius: 5.0.into(),
+            },
             icon_color: self.negative,
         }
     }
 
     fn focused(&self, style: &Self::Style) -> text_input::Appearance {
+        let active = self.active(style);
+
         text_input::Appearance {
-            border_color: self.text,
-            ..self.active(style)
+            border: Border {
+                color: self.text,
+                ..active.border
+            },
+            ..active
         }
     }
 

@@ -444,7 +444,7 @@ impl TextHistories {
                 }
 
                 if subject.privacy().sensitive() {
-                    input = input.password();
+                    input = input.secure(true);
                 }
 
                 if let Some(id) = id {

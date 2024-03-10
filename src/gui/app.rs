@@ -1984,8 +1984,9 @@ impl Application for App {
                 }
                 match event {
                     iced::keyboard::Event::KeyPressed {
-                        key_code: iced::keyboard::KeyCode::Tab,
+                        key: iced::keyboard::Key::Named(iced::keyboard::key::Named::Tab),
                         modifiers,
+                        ..
                     } => {
                         if modifiers.shift() {
                             iced::widget::focus_previous()
@@ -2465,9 +2466,11 @@ impl Application for App {
 
     fn subscription(&self) -> Subscription<Message> {
         let mut subscriptions = vec![
-            iced::subscription::events_with(|event, _| match event {
+            iced::event::listen_with(|event, _| match event {
                 iced::Event::Keyboard(event) => Some(Message::KeyboardEvent(event)),
-                iced::Event::Window(iced::window::Event::CloseRequested) => Some(Message::Exit { user: true }),
+                iced::Event::Window(iced::window::Id::MAIN, iced::window::Event::CloseRequested) => {
+                    Some(Message::Exit { user: true })
+                }
                 _ => None,
             }),
             rclone_monitor::run().map(Message::RcloneMonitor),

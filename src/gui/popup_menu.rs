@@ -12,64 +12,50 @@ use iced::{
     },
     alignment,
     event::{self, Event},
-    mouse,
-    // widget::text::Text,
-    touch,
+    mouse, touch,
     widget::{
         container,
         overlay::menu::{self, Menu},
         scrollable,
     },
-    Element,
-    Length,
-    Padding,
-    Rectangle,
-    Size,
+    Border, Element, Length, Padding, Rectangle, Shadow, Size, Vector,
 };
 pub use iced_style::pick_list::StyleSheet;
 
 /// A widget for selecting a single value from a list of options.
 #[allow(missing_debug_implementations)]
-pub struct PopupMenu<'a, T, Message, Renderer>
+pub struct PopupMenu<'a, T, Message, Theme = crate::gui::style::Theme, Renderer = iced::Renderer>
 where
     [T]: ToOwned<Owned = Vec<T>>,
+    Theme: StyleSheet,
     Renderer: text::Renderer,
-    Renderer::Theme: StyleSheet,
 {
     on_selected: Box<dyn Fn(T) -> Message + 'a>,
     options: Cow<'a, [T]>,
-    // placeholder: Option<String>,
-    // selected: Option<T>,
     width: Length,
     padding: Padding,
     text_size: Option<f32>,
     font: Option<Renderer::Font>,
-    style: <Renderer::Theme as StyleSheet>::Style,
+    style: Theme::Style,
 }
 
-impl<'a, T: 'a, Message, Renderer> PopupMenu<'a, T, Message, Renderer>
+impl<'a, T: 'a, Message, Theme, Renderer> PopupMenu<'a, T, Message, Theme, Renderer>
 where
     T: ToString + Eq,
     [T]: ToOwned<Owned = Vec<T>>,
+    Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet,
+    <Theme as menu::StyleSheet>::Style: From<<Theme as StyleSheet>::Style>,
     Renderer: text::Renderer,
-    Renderer::Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet,
-    <Renderer::Theme as menu::StyleSheet>::Style: From<<Renderer::Theme as StyleSheet>::Style>,
 {
     /// The default padding of a [`PopupMenu`].
     pub const DEFAULT_PADDING: Padding = Padding::new(5.0);
 
     /// Creates a new [`PopupMenu`] with the given list of options, the current
     /// selected value, and the message to produce when an option is selected.
-    pub fn new(
-        options: impl Into<Cow<'a, [T]>>,
-        // selected: Option<T>,
-        on_selected: impl Fn(T) -> Message + 'a,
-    ) -> Self {
+    pub fn new(options: impl Into<Cow<'a, [T]>>, on_selected: impl Fn(T) -> Message + 'a) -> Self {
         Self {
             on_selected: Box::new(on_selected),
             options: options.into(),
-            // placeholder: None,
-            // selected,
             width: Length::Shrink,
             text_size: None,
             padding: Self::DEFAULT_PADDING,
@@ -78,51 +64,28 @@ where
         }
     }
 
-    /// Sets the placeholder of the [`PopupMenu`].
-    // pub fn placeholder(mut self, placeholder: impl Into<String>) -> Self {
-    //     self.placeholder = Some(placeholder.into());
-    //     self
-    // }
-
     /// Sets the width of the [`PopupMenu`].
     pub fn width(mut self, width: impl Into<Length>) -> Self {
         self.width = width.into();
         self
     }
 
-    /// Sets the [`Padding`] of the [`PopupMenu`].
-    // pub fn padding<P: Into<Padding>>(mut self, padding: P) -> Self {
-    //     self.padding = padding.into();
-    //     self
-    // }
-
-    /// Sets the text size of the [`PopupMenu`].
-    // pub fn text_size(mut self, size: u16) -> Self {
-    //     self.text_size = Some(size);
-    //     self
-    // }
-
-    /// Sets the font of the [`PopupMenu`].
-    // pub fn font(mut self, font: Renderer::Font) -> Self {
-    //     self.font = font;
-    //     self
-    // }
-
     /// Sets the style of the [`PopupMenu`].
-    pub fn style(mut self, style: impl Into<<Renderer::Theme as StyleSheet>::Style>) -> Self {
+    pub fn style(mut self, style: impl Into<<Theme as StyleSheet>::Style>) -> Self {
         self.style = style.into();
         self
     }
 }
 
-impl<'a, T: 'a, Message, Renderer> Widget<Message, Renderer> for PopupMenu<'a, T, Message, Renderer>
+impl<'a, T: 'a, Message, Theme, Renderer> Widget<Message, Theme, Renderer>
+    for PopupMenu<'a, T, Message, Theme, Renderer>
 where
     T: Clone + ToString + Eq + 'static,
     [T]: ToOwned<Owned = Vec<T>>,
     Message: 'a,
+    Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet,
+    <Theme as menu::StyleSheet>::Style: From<<Theme as StyleSheet>::Style>,
     Renderer: text::Renderer<Font = iced::Font> + 'a,
-    Renderer::Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet,
-    <Renderer::Theme as menu::StyleSheet>::Style: From<<Renderer::Theme as StyleSheet>::Style>,
 {
     fn tag(&self) -> tree::Tag {
         tree::Tag::of::<State<T>>()
@@ -132,25 +95,15 @@ where
         tree::State::new(State::<T>::new())
     }
 
-    fn width(&self) -> Length {
-        self.width
+    fn size(&self) -> Size<Length> {
+        Size {
+            width: self.width,
+            height: Length::Shrink,
+        }
     }
 
-    fn height(&self) -> Length {
-        Length::Shrink
-    }
-
-    fn layout(&self, renderer: &Renderer, limits: &layout::Limits) -> layout::Node {
-        layout(
-            renderer,
-            limits,
-            self.width,
-            self.padding,
-            self.text_size,
-            self.font,
-            // self.placeholder.as_deref(),
-            // &self.options,
-        )
+    fn layout(&self, _tree: &mut Tree, renderer: &Renderer, limits: &layout::Limits) -> layout::Node {
+        layout(renderer, limits, self.width, self.padding, self.text_size, self.font)
     }
 
     fn on_event(
@@ -170,7 +123,6 @@ where
             cursor,
             shell,
             self.on_selected.as_ref(),
-            // self.selected.as_ref(),
             None,
             &self.options,
             || tree.state.downcast_mut::<State<T>>(),
@@ -192,24 +144,13 @@ where
         &self,
         _tree: &Tree,
         renderer: &mut Renderer,
-        theme: &Renderer::Theme,
+        theme: &Theme,
         _style: &renderer::Style,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         _viewport: &Rectangle,
     ) {
-        draw(
-            renderer,
-            theme,
-            layout,
-            cursor,
-            // self.padding,
-            // self.text_size,
-            // &self.font,
-            // self.placeholder.as_deref(),
-            // self.selected.as_ref(),
-            &self.style,
-        )
+        draw(renderer, theme, layout, cursor, &self.style)
     }
 
     fn overlay<'b>(
@@ -217,7 +158,8 @@ where
         tree: &'b mut Tree,
         layout: Layout<'_>,
         renderer: &Renderer,
-    ) -> Option<overlay::Element<'b, Message, Renderer>> {
+        _translation: Vector,
+    ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
         let state = tree.state.downcast_mut::<State<T>>();
 
         overlay(
@@ -233,16 +175,17 @@ where
     }
 }
 
-impl<'a, T: 'a, Message, Renderer> From<PopupMenu<'a, T, Message, Renderer>> for Element<'a, Message, Renderer>
+impl<'a, T: 'a, Message, Theme, Renderer> From<PopupMenu<'a, T, Message, Theme, Renderer>>
+    for Element<'a, Message, Theme, Renderer>
 where
     T: Clone + ToString + Eq + 'static,
     [T]: ToOwned<Owned = Vec<T>>,
     Message: 'a,
+    Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet + 'a,
+    <Theme as menu::StyleSheet>::Style: From<<Theme as StyleSheet>::Style>,
     Renderer: text::Renderer<Font = iced::Font> + 'a,
-    Renderer::Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet,
-    <Renderer::Theme as menu::StyleSheet>::Style: From<<Renderer::Theme as StyleSheet>::Style>,
 {
-    fn from(pick_list: PopupMenu<'a, T, Message, Renderer>) -> Self {
+    fn from(pick_list: PopupMenu<'a, T, Message, Theme, Renderer>) -> Self {
         Self::new(pick_list)
     }
 }
@@ -251,7 +194,6 @@ where
 #[derive(Debug)]
 pub struct State<T> {
     menu: menu::State,
-    // keyboard_modifiers: keyboard::Modifiers,
     is_open: bool,
     hovered_option: Option<usize>,
     last_selection: Option<T>,
@@ -277,49 +219,36 @@ impl<T> Default for State<T> {
 }
 
 /// Computes the layout of a [`PopupMenu`].
-// pub fn layout<Renderer, T>(
 pub fn layout<Renderer>(
     renderer: &Renderer,
     limits: &layout::Limits,
     width: Length,
     padding: Padding,
     text_size: Option<f32>,
-    font: Option<Renderer::Font>,
-    // placeholder: Option<&str>,
-    // options: &[T],
+    _font: Option<Renderer::Font>,
 ) -> layout::Node
 where
     Renderer: text::Renderer,
-    // T: ToString,
 {
-    use std::f32;
+    let limits = limits.width(width).height(Length::Shrink);
 
-    let limits = limits.width(width).height(Length::Shrink).pad(padding);
-
-    let text_size = text_size.unwrap_or_else(|| renderer.default_size());
+    let text_size = text_size.unwrap_or_else(|| renderer.default_size().0);
 
     let max_width = match width {
-        Length::Shrink => {
-            let Size { width, .. } = renderer.measure(
-                &crate::gui::icon::Icon::MoreVert.as_char().to_string(),
-                text_size,
-                text::LineHeight::default(),
-                font.unwrap_or_else(|| renderer.default_font()),
-                Size::new(f32::INFINITY, f32::INFINITY),
-                text::Shaping::Advanced,
-            );
-            width.round() as u32
-        }
-        _ => 0,
+        Length::Shrink => 10.0,
+        _ => 0.0,
     };
 
     let size = {
-        let intrinsic = Size::new(max_width as f32 + text_size + padding.left, text_size);
+        let intrinsic = Size::new(max_width + text_size + padding.left, text_size);
 
-        limits.resolve(intrinsic).pad(padding)
+        limits
+            .width(width)
+            .shrink(padding)
+            .resolve(width, Length::Shrink, intrinsic)
+            .expand(padding)
     };
 
-    // layout::Node::new(size)
     layout::Node::new(Size::new(size.width, 24.0))
 }
 
@@ -373,13 +302,6 @@ where
             state.is_open = false;
             event::Status::Ignored
         }
-        // Event::Keyboard(keyboard::Event::ModifiersChanged(modifiers)) => {
-        //     let state = state();
-
-        //     state.keyboard_modifiers = modifiers;
-
-        //     event::Status::Ignored
-        // }
         _ => event::Status::Ignored,
     }
 }
@@ -397,7 +319,7 @@ pub fn mouse_interaction(layout: Layout<'_>, cursor: mouse::Cursor, usable: bool
 }
 
 /// Returns the current overlay of a [`PopupMenu`].
-pub fn overlay<'a, T, Message, Renderer>(
+pub fn overlay<'a, T, Message, Theme, Renderer>(
     layout: Layout<'_>,
     state: &'a mut State<T>,
     padding: Padding,
@@ -405,14 +327,14 @@ pub fn overlay<'a, T, Message, Renderer>(
     font: Renderer::Font,
     options: &'a [T],
     on_selected: &'a dyn Fn(T) -> Message,
-    style: <Renderer::Theme as StyleSheet>::Style,
-) -> Option<overlay::Element<'a, Message, Renderer>>
+    style: <Theme as StyleSheet>::Style,
+) -> Option<overlay::Element<'a, Message, Theme, Renderer>>
 where
     T: Clone + ToString,
     Message: 'a,
+    Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet + 'a,
+    <Theme as menu::StyleSheet>::Style: From<<Theme as StyleSheet>::Style>,
     Renderer: text::Renderer + 'a,
-    Renderer::Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet,
-    <Renderer::Theme as menu::StyleSheet>::Style: From<<Renderer::Theme as StyleSheet>::Style>,
 {
     if state.is_open {
         let bounds = layout.bounds();
@@ -421,7 +343,6 @@ where
             &mut state.menu,
             options,
             &mut state.hovered_option,
-            // &mut state.last_selection,
             |option| {
                 state.is_open = false;
 
@@ -430,7 +351,6 @@ where
             None,
         )
         .width(150.0)
-        // .width(bounds.width.round() as u16)
         .padding(padding)
         .font(font)
         .text_shaping(text::Shaping::Advanced)
@@ -447,26 +367,18 @@ where
 }
 
 /// Draws a [`PopupMenu`].
-// pub fn draw<T, Renderer>(
-pub fn draw<Renderer>(
+pub fn draw<Theme, Renderer>(
     renderer: &mut Renderer,
-    theme: &Renderer::Theme,
+    theme: &Theme,
     layout: Layout<'_>,
     cursor: mouse::Cursor,
-    // padding: Padding,
-    // text_size: Option<f32>,
-    // font: &Renderer::Font,
-    // placeholder: Option<&str>,
-    // selected: Option<&T>,
-    style: &<Renderer::Theme as StyleSheet>::Style,
+    style: &<Theme as StyleSheet>::Style,
 ) where
+    Theme: StyleSheet,
     Renderer: text::Renderer<Font = iced::Font>,
-    Renderer::Theme: StyleSheet,
-    // T: ToString,
 {
     let bounds = layout.bounds();
     let is_mouse_over = cursor.is_over(bounds);
-    // let is_selected = selected.is_some();
 
     let style = if is_mouse_over {
         theme.hovered(style)
@@ -478,32 +390,38 @@ pub fn draw<Renderer>(
         renderer.fill_quad(
             renderer::Quad {
                 bounds,
-                border_color: style.border_color,
-                border_width: style.border_width,
-                border_radius: style.border_radius,
+                border: Border {
+                    color: style.border.color,
+                    width: style.border.width,
+                    radius: style.border.radius,
+                },
+                shadow: Shadow {
+                    color: iced::Color::BLACK,
+                    offset: Vector::ZERO,
+                    blur_radius: 0.0,
+                },
             },
             style.background,
         );
     }
 
     let icon_size = 0.5;
-    renderer.fill_text(advanced::Text {
-        // content: &Renderer::ARROW_DOWN_ICON.to_string(),
-        content: &crate::gui::icon::Icon::MoreVert.as_char().to_string(),
-        // font: Renderer::ICON_FONT,
-        font: crate::gui::font::ICONS,
-        size: bounds.height * icon_size * 1.5,
-        bounds: Rectangle {
-            // x: bounds.x + bounds.width - f32::from(padding.horizontal()),
-            x: bounds.center_x(),
-            y: bounds.center_y(),
-            ..bounds
+    renderer.fill_text(
+        advanced::Text {
+            content: &crate::gui::icon::Icon::MoreVert.as_char().to_string(),
+            font: crate::gui::font::ICONS,
+            size: (bounds.height * icon_size * 1.5).into(),
+            bounds: Size {
+                width: bounds.width,
+                height: bounds.height,
+            },
+            horizontal_alignment: alignment::Horizontal::Center,
+            vertical_alignment: alignment::Vertical::Center,
+            line_height: text::LineHeight::default(),
+            shaping: text::Shaping::Advanced,
         },
-        color: style.text_color,
-        // horizontal_alignment: alignment::Horizontal::Right,
-        horizontal_alignment: alignment::Horizontal::Center,
-        vertical_alignment: alignment::Vertical::Center,
-        line_height: text::LineHeight::default(),
-        shaping: text::Shaping::Advanced,
-    });
+        bounds.center(),
+        style.text_color,
+        bounds,
+    );
 }

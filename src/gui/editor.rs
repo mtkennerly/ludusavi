@@ -254,10 +254,9 @@ pub fn custom_games<'a>(
                                             operating,
                                             config.is_custom_game_individually_scannable(i),
                                         ),
-                                        TRANSLATOR.preview_button_in_custom_mode(),
+                                        text(TRANSLATOR.preview_button_in_custom_mode()).size(16),
                                         tooltip::Position::Top,
                                     )
-                                    .size(16)
                                     .gap(5)
                                     .style(style::Container::Tooltip),
                                 )
@@ -361,7 +360,7 @@ pub fn custom_games<'a>(
 
 pub fn ignored_items<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard::Modifiers) -> Container<'a> {
     Container::new({
-        Column::new().width(Length::Fill).height(Length::Fill).spacing(10).push(
+        Column::new().spacing(10).push(
             Container::new(
                 Column::new()
                     .padding(5)

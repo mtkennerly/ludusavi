@@ -11,37 +11,45 @@ use crate::{
     lang::TRANSLATOR,
 };
 
-pub type Renderer = iced::Renderer<Theme>;
+pub type Renderer = iced::Renderer;
 
-pub type Element<'a> = iced::Element<'a, Message, Renderer>;
+pub type Element<'a> = iced::Element<'a, Message, Theme, Renderer>;
 
-pub type Button<'a> = w::Button<'a, Message, Renderer>;
-pub type Checkbox<'a> = w::Checkbox<'a, Message, Renderer>;
-pub type Column<'a> = w::Column<'a, Message, Renderer>;
-pub type Container<'a> = w::Container<'a, Message, Renderer>;
-pub type PickList<'a, T> = w::PickList<'a, T, Message, Renderer>;
-pub type ProgressBar = w::ProgressBar<Renderer>;
-pub type Row<'a> = w::Row<'a, Message, Renderer>;
-pub type Scrollable<'a> = w::Scrollable<'a, Message, Renderer>;
-pub type Text<'a> = w::Text<'a, Renderer>;
-pub type TextInput<'a> = w::TextInput<'a, Message, Renderer>;
-pub type Tooltip<'a> = w::Tooltip<'a, Message, Renderer>;
-pub type Undoable<'a, F> = crate::gui::undoable::Undoable<'a, Message, Renderer, F>;
+pub type Button<'a> = w::Button<'a, Message, Theme, Renderer>;
+pub type Checkbox<'a> = w::Checkbox<'a, Message, Theme, Renderer>;
+pub type Column<'a> = w::Column<'a, Message, Theme, Renderer>;
+pub type Container<'a> = w::Container<'a, Message, Theme, Renderer>;
+pub type PickList<'a, T, L, V> = w::PickList<'a, T, L, V, Message, Theme, Renderer>;
+pub type ProgressBar = w::ProgressBar<Theme>;
+pub type Row<'a> = w::Row<'a, Message, Theme, Renderer>;
+pub type Scrollable<'a> = w::Scrollable<'a, Message, Theme, Renderer>;
+pub type Text<'a> = w::Text<'a, Theme, Renderer>;
+pub type TextInput<'a> = w::TextInput<'a, Message, Theme, Renderer>;
+pub type Tooltip<'a> = w::Tooltip<'a, Message, Theme, Renderer>;
+pub type Undoable<'a, F> = crate::gui::undoable::Undoable<'a, Message, Theme, Renderer, F>;
 
 pub use w::Space;
 
 pub fn checkbox<'a>(label: impl Into<String>, is_checked: bool, f: impl Fn(bool) -> Message + 'a) -> Checkbox<'a> {
-    Checkbox::new(label, is_checked, f).text_shaping(w::text::Shaping::Advanced)
+    Checkbox::new(label, is_checked)
+        .on_toggle(f)
+        .text_shaping(w::text::Shaping::Advanced)
 }
 
-pub fn pick_list<'a, T>(
-    options: impl Into<std::borrow::Cow<'a, [T]>>,
-    selected: Option<T>,
+pub fn pick_list<'a, T, L, V>(
+    options: L,
+    selected: Option<V>,
     on_selected: impl Fn(T) -> Message + 'a,
-) -> PickList<'a, T>
+) -> PickList<'a, T, L, V>
 where
-    T: ToString + Eq + 'static,
-    [T]: ToOwned<Owned = Vec<T>>,
+    T: ToString + PartialEq + Clone,
+    L: std::borrow::Borrow<[T]> + 'a,
+    V: std::borrow::Borrow<T> + 'a,
+    Message: Clone,
+    Theme:
+        w::pick_list::StyleSheet + w::scrollable::StyleSheet + w::overlay::menu::StyleSheet + w::container::StyleSheet,
+    <Theme as w::overlay::menu::StyleSheet>::Style: From<<Theme as w::pick_list::StyleSheet>::Style>,
+    Renderer: iced::advanced::text::Renderer,
 {
     PickList::new(options, selected, on_selected).text_shaping(w::text::Shaping::Advanced)
 }

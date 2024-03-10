@@ -5,7 +5,7 @@ use iced::{
         Clipboard, Layout, Shell, Widget,
     },
     event::{self, Event},
-    keyboard::KeyCode,
+    keyboard::Key,
     mouse, overlay, Element, Length, Rectangle,
 };
 
@@ -16,23 +16,23 @@ pub enum Action {
 }
 
 #[allow(missing_debug_implementations)]
-pub struct Undoable<'a, Message, Renderer, F>
+pub struct Undoable<'a, Message, Theme, Renderer, F>
 where
     Message: Clone,
     F: Fn(Action) -> Message + 'a,
 {
-    content: Element<'a, Message, Renderer>,
+    content: Element<'a, Message, Theme, Renderer>,
     on_change: F,
 }
 
-impl<'a, Message, Renderer, F> Undoable<'a, Message, Renderer, F>
+impl<'a, Message, Theme, Renderer, F> Undoable<'a, Message, Theme, Renderer, F>
 where
     Message: Clone,
     F: Fn(Action) -> Message + 'a,
 {
     pub fn new<T>(content: T, on_change: F) -> Self
     where
-        T: Into<Element<'a, Message, Renderer>>,
+        T: Into<Element<'a, Message, Theme, Renderer>>,
     {
         Self {
             content: content.into(),
@@ -41,30 +41,34 @@ where
     }
 }
 
-impl<'a, Message, Renderer, F> Widget<Message, Renderer> for Undoable<'a, Message, Renderer, F>
+impl<'a, Message, Theme, Renderer, F> Widget<Message, Theme, Renderer> for Undoable<'a, Message, Theme, Renderer, F>
 where
     Message: Clone,
-    Renderer: iced::advanced::Renderer,
+    Renderer: iced::advanced::text::Renderer,
     F: Fn(Action) -> Message + 'a,
 {
-    fn children(&self) -> Vec<Tree> {
-        vec![Tree::new(&self.content)]
-    }
-
     fn diff(&self, tree: &mut Tree) {
-        tree.diff_children(std::slice::from_ref(&self.content))
+        self.content.as_widget().diff(tree)
     }
 
-    fn width(&self) -> Length {
-        self.content.as_widget().width()
+    fn size(&self) -> iced::Size<Length> {
+        self.content.as_widget().size()
     }
 
-    fn height(&self) -> Length {
-        self.content.as_widget().height()
+    fn size_hint(&self) -> iced::Size<Length> {
+        self.content.as_widget().size_hint()
     }
 
-    fn layout(&self, renderer: &Renderer, limits: &layout::Limits) -> layout::Node {
-        self.content.as_widget().layout(renderer, limits)
+    fn state(&self) -> iced::advanced::widget::tree::State {
+        self.content.as_widget().state()
+    }
+
+    fn tag(&self) -> iced::advanced::widget::tree::Tag {
+        self.content.as_widget().tag()
+    }
+
+    fn layout(&self, tree: &mut Tree, renderer: &Renderer, limits: &layout::Limits) -> layout::Node {
+        self.content.as_widget().layout(tree, renderer, limits)
     }
 
     fn operate(
@@ -74,9 +78,7 @@ where
         renderer: &Renderer,
         operation: &mut dyn Operation<Message>,
     ) {
-        self.content
-            .as_widget()
-            .operate(&mut tree.children[0], layout, renderer, operation)
+        self.content.as_widget().operate(tree, layout, renderer, operation)
     }
 
     fn on_event(
@@ -90,18 +92,18 @@ where
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
     ) -> event::Status {
-        if let Event::Keyboard(iced::keyboard::Event::KeyPressed { key_code, modifiers }) = event {
-            let focused = tree.children[0]
+        if let Event::Keyboard(iced::keyboard::Event::KeyPressed { key, modifiers, .. }) = &event {
+            let focused = tree
                 .state
-                .downcast_ref::<iced::widget::text_input::State>()
+                .downcast_ref::<iced::widget::text_input::State<Renderer::Paragraph>>()
                 .is_focused();
             if focused {
-                match (key_code, modifiers.command(), modifiers.shift()) {
-                    (KeyCode::Z, true, false) => {
+                match (key.as_ref(), modifiers.command(), modifiers.shift()) {
+                    (Key::Character("z"), true, false) => {
                         shell.publish((self.on_change)(Action::Undo));
                         return event::Status::Captured;
                     }
-                    (KeyCode::Y, true, false) | (KeyCode::Z, true, true) => {
+                    (Key::Character("y"), true, false) | (Key::Character("z"), true, true) => {
                         shell.publish((self.on_change)(Action::Redo));
                         return event::Status::Captured;
                     }
@@ -110,16 +112,9 @@ where
             }
         }
 
-        self.content.as_widget_mut().on_event(
-            &mut tree.children[0],
-            event,
-            layout,
-            cursor,
-            renderer,
-            clipboard,
-            shell,
-            viewport,
-        )
+        self.content
+            .as_widget_mut()
+            .on_event(tree, event, layout, cursor, renderer, clipboard, shell, viewport)
     }
 
     fn mouse_interaction(
@@ -132,14 +127,14 @@ where
     ) -> mouse::Interaction {
         self.content
             .as_widget()
-            .mouse_interaction(&tree.children[0], layout, cursor_position, viewport, renderer)
+            .mouse_interaction(tree, layout, cursor_position, viewport, renderer)
     }
 
     fn draw(
         &self,
         tree: &Tree,
         renderer: &mut Renderer,
-        theme: &Renderer::Theme,
+        theme: &Theme,
         style: &renderer::Style,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
@@ -147,7 +142,7 @@ where
     ) {
         self.content
             .as_widget()
-            .draw(&tree.children[0], renderer, theme, style, layout, cursor, viewport)
+            .draw(tree, renderer, theme, style, layout, cursor, viewport)
     }
 
     fn overlay<'b>(
@@ -155,20 +150,23 @@ where
         tree: &'b mut Tree,
         layout: Layout<'_>,
         renderer: &Renderer,
-    ) -> Option<overlay::Element<'b, Message, Renderer>> {
+        translation: iced::Vector,
+    ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
         self.content
             .as_widget_mut()
-            .overlay(&mut tree.children[0], layout, renderer)
+            .overlay(tree, layout, renderer, translation)
     }
 }
 
-impl<'a, Message, Renderer, F> From<Undoable<'a, Message, Renderer, F>> for Element<'a, Message, Renderer>
+impl<'a, Message, Theme, Renderer, F> From<Undoable<'a, Message, Theme, Renderer, F>>
+    for Element<'a, Message, Theme, Renderer>
 where
     Message: 'a + Clone,
-    Renderer: iced::advanced::Renderer + 'a,
+    Theme: 'a,
+    Renderer: iced::advanced::text::Renderer + 'a,
     F: Fn(Action) -> Message + 'a,
 {
-    fn from(undoable: Undoable<'a, Message, Renderer, F>) -> Self {
+    fn from(undoable: Undoable<'a, Message, Theme, Renderer, F>) -> Self {
         Self::new(undoable)
     }
 }

@@ -22,8 +22,8 @@ fluent = "0.16.0"
 fuzzy-matcher = "0.3.7"
 globetter = "0.2.0"
 globset = "0.4.14"
-iced = { version = "0.10.0", features = ["advanced", "tokio"] }
-iced_style = "0.9.0"
+iced = { version = "0.12.1", features = ["advanced", "tokio"] }
+iced_style = "0.12.1"
 image = { version = "0.24.9", features = ["ico"], default-features = false }
 indicatif = { version = "0.17.8", features = ["rayon"] }
 intl-memoizer = "0.5.1"

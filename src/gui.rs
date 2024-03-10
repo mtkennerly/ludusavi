@@ -17,7 +17,7 @@ mod style;
 mod undoable;
 mod widget;
 
-use iced::Application;
+use iced::{Application, Size};
 
 pub use crate::gui::common::Flags;
 
@@ -27,8 +27,8 @@ pub fn run(flags: Flags) {
         ..Default::default()
     };
 
-    settings.window.min_size = Some((800, 600));
-    settings.exit_on_close_request = false;
+    settings.window.min_size = Some(Size::new(800.0, 600.0));
+    settings.window.exit_on_close_request = false;
     settings.default_font = font::TEXT;
     settings.window.icon = match image::load_from_memory(include_bytes!("../assets/icon.png")) {
         Ok(buffer) => {

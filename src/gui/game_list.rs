@@ -170,10 +170,9 @@ impl GameListEntry {
                                 .map(|comment| {
                                     Tooltip::new(
                                         Icon::Comment.text().width(Length::Shrink),
-                                        comment,
+                                        text(comment).size(16),
                                         tooltip::Position::Top,
                                     )
-                                    .size(16)
                                     .gap(5)
                                     .style(style::Container::Tooltip)
                                 })
@@ -201,6 +200,7 @@ impl GameListEntry {
                                             Container::new(
                                                 text(backup.label())
                                                     .size(14)
+                                                    .line_height(1.1)
                                                     .horizontal_alignment(HorizontalAlignment::Center),
                                             )
                                             .padding([2, 2, 0, 0])
@@ -232,7 +232,7 @@ impl GameListEntry {
                                         let game = self.scan_info.game_name.clone();
                                         let content = Container::new(
                                             pick_list(
-                                                &self.scan_info.available_backups,
+                                                self.scan_info.available_backups.clone(),
                                                 self.scan_info.backup.as_ref().cloned(),
                                                 move |backup| Message::SelectedBackupToRestore {
                                                     game: game.clone(),
@@ -282,10 +282,13 @@ impl GameListEntry {
                                             .style(style::Button::GameActionPrimary)
                                             .padding(2);
                                         Container::new(
-                                            Tooltip::new(button, action.to_string(), tooltip::Position::Top)
-                                                .size(16)
-                                                .gap(5)
-                                                .style(style::Container::Tooltip),
+                                            Tooltip::new(
+                                                button,
+                                                text(action.to_string()).size(16),
+                                                tooltip::Position::Top,
+                                            )
+                                            .gap(5)
+                                            .style(style::Container::Tooltip),
                                         )
                                     } else {
                                         let options = GameAction::options(
