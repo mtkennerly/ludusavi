@@ -443,8 +443,15 @@ impl Modal {
 
     pub fn finish_cloud_scan(&mut self) {
         match self {
-            Self::ConfirmCloudSync { done, .. } => {
+            Self::ConfirmCloudSync {
+                done,
+                previewing,
+                syncing,
+                ..
+            } => {
                 *done = true;
+                *previewing = false;
+                *syncing = false;
             }
             Self::Error { .. }
             | Self::Errors { .. }

@@ -10,6 +10,8 @@
     This wouldn't normally happen, but could arise from external modifications.
   * CLI: During slow processing (e.g., cloud upload or a game with huge saves),
     the progress bar timer wouldn't update.
+  * GUI: After performing a cloud upload preview on the other screen,
+    the very next backup preview wouldn't do anything.
 * Changed:
   * When synchronizing to the cloud after a backup,
     Ludusavi now instructs Rclone to only check paths for games with updated saves.
