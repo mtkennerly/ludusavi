@@ -12,6 +12,7 @@
     the progress bar timer wouldn't update.
   * GUI: After performing a cloud upload preview on the other screen,
     the very next backup preview wouldn't do anything.
+  * CLI: The `wrap` command did not fail gracefully when the game launch commands were missing.
 * Changed:
   * When synchronizing to the cloud after a backup,
     Ludusavi now instructs Rclone to only check paths for games with updated saves.

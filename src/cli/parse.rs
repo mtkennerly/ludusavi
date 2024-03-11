@@ -369,7 +369,7 @@ pub enum Subcommand {
         /// Commands to launch the game.
         /// Use `--` first to separate these from the `wrap` options;
         /// e.g., `ludusavi wrap --name foo -- foo.exe --windowed`.
-        #[clap()]
+        #[clap(required = true)]
         commands: Vec<String>,
     },
 }
