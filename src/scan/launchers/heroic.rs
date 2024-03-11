@@ -329,8 +329,8 @@ fn find_prefix(heroic_path: &StrictPath, game_name: &str, platform: &str, app_na
 
 #[cfg(test)]
 mod tests {
-    use maplit::hashmap;
     use pretty_assertions::assert_eq;
+    use velcro::hash_map;
 
     use super::*;
     use crate::{
@@ -379,13 +379,13 @@ mod tests {
         let legendary = Some(StrictPath::new(format!("{}/tests/launchers/legendary", repo())));
         let games = scan(&root, &title_finder(), legendary.as_ref());
         assert_eq!(
-            hashmap! {
-                "windows-game".to_string() => LauncherGame {
+            hash_map! {
+                "windows-game".to_string(): LauncherGame {
                     install_dir: StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string()),
                     prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string())),
                     platform: Some(Os::Windows),
                 },
-                "proton-game".to_string() => LauncherGame {
+                "proton-game".to_string(): LauncherGame {
                     install_dir: StrictPath::new("/home/root/Games/proton-game".to_string()),
                     prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/proton-game/pfx".to_string())),
                     platform: Some(Os::Windows),
@@ -404,13 +404,13 @@ mod tests {
         let legendary = Some(StrictPath::new(format!("{}/tests/launchers/legendary", repo())));
         let games = scan(&root, &title_finder(), legendary.as_ref());
         assert_eq!(
-            hashmap! {
-                "windows-game".to_string() => LauncherGame {
+            hash_map! {
+                "windows-game".to_string(): LauncherGame {
                     install_dir: StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string()),
                     prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string())),
                     platform: Some(Os::Windows),
                 },
-                "proton-game".to_string() => LauncherGame {
+                "proton-game".to_string(): LauncherGame {
                     install_dir: StrictPath::new("/home/root/Games/proton-game".to_string()),
                     prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/proton-game/pfx".to_string())),
                     platform: Some(Os::Windows),

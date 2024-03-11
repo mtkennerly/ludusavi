@@ -538,8 +538,8 @@ pub fn report_cloud_changes(changes: &[CloudChange], api: bool) {
 
 #[cfg(test)]
 mod tests {
-    use maplit::hashset;
     use pretty_assertions::assert_eq;
+    use velcro::hash_set;
 
     use super::*;
     use crate::{
@@ -588,7 +588,7 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile {
                         path: StrictPath::new(s("/file1")),
                         size: 102_400,
@@ -610,7 +610,7 @@ Overall:
                         redirected: None,
                     },
                 },
-                found_registry_keys: hashset! {
+                found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key2"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key3").with_value_same("Value1"),
@@ -618,10 +618,10 @@ Overall:
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hashset! {
+                failed_files: hash_set! {
                     ScannedFile::new("/file2", 51_200, "2"),
                 },
-                failed_registry: hashset! {
+                failed_registry: hash_set! {
                     RegistryItem::new(s("HKEY_CURRENT_USER/Key1"))
                 },
             },
@@ -657,7 +657,7 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile {
                         path: StrictPath::new(s("/file1")),
                         size: 1,
@@ -669,12 +669,12 @@ Overall:
                         redirected: None,
                     },
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hashset! {},
-                failed_registry: hashset! {},
+                failed_files: hash_set! {},
+                failed_registry: hash_set! {},
             },
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
@@ -683,7 +683,7 @@ Overall:
             "bar",
             &ScanInfo {
                 game_name: s("bar"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile {
                         path: StrictPath::new(s("/file2")),
                         size: 3,
@@ -695,12 +695,12 @@ Overall:
                         redirected: None,
                     },
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hashset! {},
-                failed_registry: hashset! {},
+                failed_files: hash_set! {},
+                failed_registry: hash_set! {},
             },
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
@@ -732,7 +732,7 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile {
                         path: StrictPath::new(format!("{}/backup/file1", drive())),
                         size: 102_400,
@@ -754,7 +754,7 @@ Overall:
                         redirected: None,
                     },
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             &BackupInfo::default(),
@@ -787,10 +787,10 @@ Overall:
             duplicate_detector.add_game(
                 &ScanInfo {
                     game_name: s(name),
-                    found_files: hashset! {
+                    found_files: hash_set! {
                         ScannedFile::new("/file1", 102_400, "1").change_as(ScanChange::New),
                     },
-                    found_registry_keys: hashset! {
+                    found_registry_keys: hash_set! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1").change_as(ScanChange::New),
                     },
                     ..Default::default()
@@ -803,10 +803,10 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new("/file1", 102_400, "1"),
                 },
-                found_registry_keys: hashset! {
+                found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                 },
                 ..Default::default()
@@ -840,18 +840,18 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new(s("/new"), 1, "1".to_string()).change_as(ScanChange::New),
                     ScannedFile::new(s("/different"), 1, "1".to_string()).change_as(ScanChange::Different),
                     ScannedFile::new(s("/same"), 1, "1".to_string()).change_as(ScanChange::Same),
                     ScannedFile::new(s("/unknown"), 1, "1".to_string()).change_as(ScanChange::Unknown),
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hashset! {},
-                failed_registry: hashset! {},
+                failed_files: hash_set! {},
+                failed_registry: hash_set! {},
             },
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
@@ -860,15 +860,15 @@ Overall:
             "bar",
             &ScanInfo {
                 game_name: s("bar"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new(s("/brand-new"), 1, "1".to_string()).change_as(ScanChange::New),
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hashset! {},
-                failed_registry: hashset! {},
+                failed_files: hash_set! {},
+                failed_registry: hash_set! {},
             },
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
@@ -936,11 +936,11 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new("/file1", 100, "1"),
                     ScannedFile::new("/file2", 50, "2"),
                 },
-                found_registry_keys: hashset! {
+                found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key2"),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key3").with_value_same("Value1")
@@ -948,10 +948,10 @@ Overall:
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hashset! {
+                failed_files: hash_set! {
                     ScannedFile::new("/file2", 50, "2"),
                 },
-                failed_registry: hashset! {
+                failed_registry: hash_set! {
                     RegistryItem::new(s("HKEY_CURRENT_USER/Key1"))
                 },
             },
@@ -1025,7 +1025,7 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile {
                         path: StrictPath::new(format!("{}/backup/file1", drive())),
                         size: 100,
@@ -1047,7 +1047,7 @@ Overall:
                         redirected: None,
                     },
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             &BackupInfo::default(),
@@ -1102,10 +1102,10 @@ Overall:
             duplicate_detector.add_game(
                 &ScanInfo {
                     game_name: s(name),
-                    found_files: hashset! {
+                    found_files: hash_set! {
                         ScannedFile::new("/file1", 102_400, "1"),
                     },
-                    found_registry_keys: hashset! {
+                    found_registry_keys: hash_set! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                     },
                     ..Default::default()
@@ -1118,10 +1118,10 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new("/file1", 100, "2"),
                 },
-                found_registry_keys: hashset! {
+                found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
                 },
                 ..Default::default()
@@ -1183,18 +1183,18 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new("/new", 1, "1").change_as(ScanChange::New),
                     ScannedFile::new("/different", 1, "2").change_as(ScanChange::Different),
                     ScannedFile::new("/same", 1, "2").change_as(ScanChange::Same),
                     ScannedFile::new("/unknown", 1, "2").change_as(ScanChange::Unknown),
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hashset! {},
-                failed_registry: hashset! {},
+                failed_files: hash_set! {},
+                failed_registry: hash_set! {},
             },
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),

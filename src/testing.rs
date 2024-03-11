@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use maplit::*;
+use velcro::hash_map;
 
 use crate::path::StrictPath;
 
@@ -32,17 +32,17 @@ pub fn mapping_file_key(file: &str) -> String {
 
 pub fn drives_x() -> HashMap<String, String> {
     if cfg!(target_os = "windows") {
-        hashmap! { "drive-X".into() => "X:".into() }
+        hash_map! { "drive-X".into(): "X:".into() }
     } else {
-        hashmap! { "drive-0".into() => "".into() }
+        hash_map! { "drive-0".into(): "".into() }
     }
 }
 
 pub fn drives_x_always() -> HashMap<String, String> {
     if cfg!(target_os = "windows") {
-        hashmap! { "drive-X".into() => "X:".into() }
+        hash_map! { "drive-X".into(): "X:".into() }
     } else {
-        hashmap! { "drive-X".into() => "".into() }
+        hash_map! { "drive-X".into(): "".into() }
     }
 }
 

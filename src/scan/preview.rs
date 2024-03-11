@@ -229,8 +229,8 @@ impl ScanInfo {
 
 #[cfg(test)]
 mod tests {
-    use maplit::*;
     use pretty_assertions::assert_eq;
+    use velcro::{btree_map, hash_set};
 
     use crate::{
         path::StrictPath,
@@ -242,7 +242,7 @@ mod tests {
     #[test]
     fn game_is_brand_new() {
         let scan = ScanInfo {
-            found_files: hashset! {
+            found_files: hash_set! {
                 ScannedFile::with_name("a").change_as(ScanChange::New),
                 ScannedFile::with_name("b").change_as(ScanChange::New),
             },
@@ -251,7 +251,7 @@ mod tests {
         assert_eq!(ScanChange::New, scan.overall_change());
 
         let scan = ScanInfo {
-            found_files: hashset! {
+            found_files: hash_set! {
                 ScannedFile::with_name("a").change_as(ScanChange::New),
                 ScannedFile::with_name("b").change_as(ScanChange::New).ignored(),
             },
@@ -263,7 +263,7 @@ mod tests {
     #[test]
     fn game_is_total_removal() {
         let scan = ScanInfo {
-            found_files: hashset! {
+            found_files: hash_set! {
                 ScannedFile::with_name("a").change_as(ScanChange::Removed),
                 ScannedFile::with_name("b").change_as(ScanChange::Removed),
             },
@@ -273,7 +273,7 @@ mod tests {
         assert!(scan.all_inert());
 
         let scan = ScanInfo {
-            found_files: hashset! {
+            found_files: hash_set! {
                 ScannedFile::with_name("a").change_as(ScanChange::Removed),
                 ScannedFile::with_name("b").change_as(ScanChange::Removed).ignored(),
             },
@@ -284,7 +284,7 @@ mod tests {
 
         // Ignored non-removed files don't count toward total removal.
         let scan = ScanInfo {
-            found_files: hashset! {
+            found_files: hash_set! {
                 ScannedFile::with_name("a").change_as(ScanChange::Removed),
                 ScannedFile::with_name("b").change_as(ScanChange::Same).ignored(),
             },
@@ -297,7 +297,7 @@ mod tests {
     #[test]
     fn count_changes_when_all_files_ignored() {
         let scan = ScanInfo {
-            found_files: hashset! {
+            found_files: hash_set! {
                 ScannedFile {
                     path: StrictPath::new("a".into()),
                     ignored: true,
@@ -328,7 +328,7 @@ mod tests {
     #[test]
     fn overall_change_when_game_is_different_with_removed_file() {
         let scan = ScanInfo {
-            found_files: hashset! {
+            found_files: hash_set! {
                 ScannedFile::with_name("removed").change_as(ScanChange::Removed),
                 ScannedFile::with_name("same").change_as(ScanChange::Same),
             },
@@ -341,7 +341,7 @@ mod tests {
     #[test]
     fn overall_change_when_game_is_different_but_inert() {
         let scan = ScanInfo {
-            found_files: hashset! {
+            found_files: hash_set! {
                 ScannedFile::with_name("removed").change_as(ScanChange::Removed),
                 ScannedFile::with_name("same").change_as(ScanChange::Different).ignored(),
             },
@@ -354,7 +354,7 @@ mod tests {
     #[test]
     fn count_changes_when_all_registry_keys_ignored() {
         let scan = ScanInfo {
-            found_registry_keys: hashset! {
+            found_registry_keys: hash_set! {
                 ScannedRegistry {
                     path: RegistryItem::new("a".into()),
                     ignored: true,
@@ -385,14 +385,14 @@ mod tests {
     #[test]
     fn count_changes_when_all_registry_values_ignored() {
         let scan = ScanInfo {
-            found_registry_keys: hashset! {
+            found_registry_keys: hash_set! {
                 ScannedRegistry {
                     path: RegistryItem::new("k".into()),
                     change: ScanChange::Same,
                     ignored: true,
-                    values: btreemap! {
-                        "a".to_string() => ScannedRegistryValue { ignored: true, change: ScanChange::Different },
-                        "b".to_string() => ScannedRegistryValue { ignored: true, change: ScanChange::Same },
+                    values: btree_map! {
+                        "a".to_string(): ScannedRegistryValue { ignored: true, change: ScanChange::Different },
+                        "b".to_string(): ScannedRegistryValue { ignored: true, change: ScanChange::Same },
                     },
                 },
             },
@@ -413,13 +413,13 @@ mod tests {
     #[test]
     fn count_changes_when_registry_key_ignored_but_value_is_not() {
         let scan = ScanInfo {
-            found_registry_keys: hashset! {
+            found_registry_keys: hash_set! {
                 ScannedRegistry {
                     path: RegistryItem::new("k".into()),
                     change: ScanChange::Same,
                     ignored: true,
-                    values: btreemap! {
-                        "a".to_string() => ScannedRegistryValue { ignored: false, change: ScanChange::Same },
+                    values: btree_map! {
+                        "a".to_string(): ScannedRegistryValue { ignored: false, change: ScanChange::Same },
                     },
                 },
             },
@@ -440,7 +440,7 @@ mod tests {
     #[test]
     fn registry_key_ignored_but_child_key_is_not() {
         let scan = ScanInfo {
-            found_registry_keys: hashset! {
+            found_registry_keys: hash_set! {
                 ScannedRegistry {
                     path: RegistryItem::new("HKEY_CURRENT_USER/foo".into()),
                     change: ScanChange::Same,
@@ -472,7 +472,7 @@ mod tests {
     #[test]
     fn registry_key_ignored_but_sibling_key_is_not() {
         let scan = ScanInfo {
-            found_registry_keys: hashset! {
+            found_registry_keys: hash_set! {
                 ScannedRegistry {
                     path: RegistryItem::new("HKEY_CURRENT_USER/foo".into()),
                     change: ScanChange::Same,
@@ -504,7 +504,7 @@ mod tests {
     #[test]
     fn no_can_report_game_when_total_removal() {
         let scan = ScanInfo {
-            found_files: hashset! {
+            found_files: hash_set! {
                 ScannedFile {
                     path: StrictPath::new("a".into()),
                     ignored: false,
@@ -531,7 +531,7 @@ mod tests {
     #[test]
     fn can_report_game_when_inert_but_not_total_removal() {
         let scan = ScanInfo {
-            found_files: hashset! {
+            found_files: hash_set! {
                 ScannedFile {
                     path: StrictPath::new("a".into()),
                     ignored: false,

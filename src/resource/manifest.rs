@@ -613,8 +613,8 @@ impl Manifest {
 
 #[cfg(test)]
 mod tests {
-    use maplit::{btreemap, hashmap};
     use pretty_assertions::assert_eq;
+    use velcro::{btree_map, hash_map};
 
     use super::*;
     use crate::testing::s;
@@ -678,8 +678,8 @@ mod tests {
         assert_eq!(
             Game {
                 alias: Some("other".to_string()),
-                files: Some(btreemap! {
-                    s("foo") => GameFileEntry {
+                files: Some(btree_map! {
+                    s("foo"): GameFileEntry {
                         when: Some(vec![
                             GameFileConstraint {
                                 os: Some(Os::Windows),
@@ -689,11 +689,11 @@ mod tests {
                         tags: Some(vec![Tag::Save]),
                     }
                 }),
-                install_dir: Some(btreemap! {
-                    s("ExampleGame") => GameInstallDirEntry {}
+                install_dir: Some(btree_map! {
+                    s("ExampleGame"): GameInstallDirEntry {}
                 }),
-                registry: Some(btreemap! {
-                    s("bar") => GameRegistryEntry {
+                registry: Some(btree_map! {
+                    s("bar"): GameRegistryEntry {
                         when: Some(vec![
                             GameRegistryConstraint {
                                 store: Some(Store::Epic),
@@ -910,9 +910,9 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            hashmap! {
-                "bar".to_string() => "foo".to_string(),
-                "baz".to_string() => "foo".to_string(),
+            hash_map! {
+                "bar".to_string(): "foo".to_string(),
+                "baz".to_string(): "foo".to_string(),
             },
             manifest.aliases(),
         );

@@ -876,8 +876,8 @@ fn compare_games_by_status(scan_info1: &ScanInfo, scan_info2: &ScanInfo) -> std:
 
 #[cfg(test)]
 mod tests {
-    use maplit::*;
     use pretty_assertions::assert_eq;
+    use velcro::{btree_map, hash_set};
 
     use super::*;
     #[cfg(target_os = "windows")]
@@ -951,11 +951,11 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game1"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new(),
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -977,10 +977,10 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game 2"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1009,10 +1009,10 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game5"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1041,10 +1041,10 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game 2"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1074,13 +1074,13 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH).change_new(),
                     ScannedFile::new(format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo()), 0, EMPTY_HASH).change_new(),
                     ScannedFile::new(format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo()), 0, EMPTY_HASH).change_new(),
                     ScannedFile::new(format!("{}/tests/home/Documents/winDocuments.txt", repo()), 0, EMPTY_HASH).change_new(),
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1110,12 +1110,12 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH).change_new(),
                     ScannedFile::new(format!("{}/tests/home/.config/xdgConfig.txt", repo()), 0, EMPTY_HASH).change_new(),
                     ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0, EMPTY_HASH).change_new(),
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1140,10 +1140,10 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0, EMPTY_HASH).change_new(),
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1168,10 +1168,10 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("fake-registry"),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0",).change_new(),
                 },
-                found_registry_keys: hashset! {},
+                found_registry_keys: hash_set! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1200,30 +1200,30 @@ mod tests {
                     ..Default::default()
                 },
                 ToggledPaths::default(),
-                hashset! {
+                hash_set! {
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
             ),
             (
                 BackupFilter::default(),
-                ToggledPaths::new(btreemap! {
-                    s("game1") => btreemap! {
-                        StrictPath::new(format!("{}\\tests/root1/game1/subdir", repo())) => false
+                ToggledPaths::new(btree_map! {
+                    s("game1"): btree_map! {
+                        StrictPath::new(format!("{}\\tests/root1/game1/subdir", repo())): false
                     }
                 }),
-                hashset! {
+                hash_set! {
                     ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
             ),
             (
                 BackupFilter::default(),
-                ToggledPaths::new(btreemap! {
-                    s("game1") => btreemap! {
-                        StrictPath::new(format!("{}\\tests/root1/game1/subdir/file2.txt", repo())) => false
+                ToggledPaths::new(btree_map! {
+                    s("game1"): btree_map! {
+                        StrictPath::new(format!("{}\\tests/root1/game1/subdir/file2.txt", repo())): false
                     }
                 }),
-                hashset! {
+                hash_set! {
                     ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
                     ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
@@ -1236,7 +1236,7 @@ mod tests {
                 ScanInfo {
                     game_name: s("game1"),
                     found_files: found,
-                    found_registry_keys: hashset! {},
+                    found_registry_keys: hash_set! {},
                     ..Default::default()
                 },
                 scan_game_for_backup(
@@ -1263,8 +1263,8 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game3"),
-                found_files: hashset! {},
-                found_registry_keys: hashset! {
+                found_files: hash_set! {},
+                found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
                         .with_value_new("binary")
                         .with_value_new("dword")
@@ -1298,8 +1298,8 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game3-outer"),
-                found_files: hashset! {},
-                found_registry_keys: hashset! {
+                found_files: hash_set! {},
+                found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
                         .with_value_new("binary")
@@ -1344,7 +1344,7 @@ mod tests {
                     ..Default::default()
                 },
                 ToggledRegistry::default(),
-                hashset! {
+                hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
                         .with_value_new("binary")
@@ -1357,12 +1357,12 @@ mod tests {
             ),
             (
                 BackupFilter::default(),
-                ToggledRegistry::new(btreemap! {
-                    s("game3-outer") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi")) => ToggledRegistryEntry::Key(false)
+                ToggledRegistry::new(btree_map! {
+                    s("game3-outer"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi")): ToggledRegistryEntry::Key(false)
                     }
                 }),
-                hashset! {
+                hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").ignored().change_as(ScanChange::New),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").ignored().change_as(ScanChange::New)
                         .with_value("binary", ScanChange::New, true)
@@ -1378,18 +1378,18 @@ mod tests {
             ),
             (
                 BackupFilter::default(),
-                ToggledRegistry::new(btreemap! {
-                    s("game3-outer") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/game3")) => ToggledRegistryEntry::Complex {
+                ToggledRegistry::new(btree_map! {
+                    s("game3-outer"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/game3")): ToggledRegistryEntry::Complex {
                             key: None,
-                            values: btreemap! {
-                                s("qword") => false,
+                            values: btree_map! {
+                                s("qword"): false,
                             },
                         },
-                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/other")) => ToggledRegistryEntry::Key(false),
+                        RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/other")): ToggledRegistryEntry::Key(false),
                     }
                 }),
-                hashset! {
+                hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
                         .with_value_new("binary")
@@ -1409,7 +1409,7 @@ mod tests {
             assert_eq!(
                 ScanInfo {
                     game_name: s("game3-outer"),
-                    found_files: hashset! {},
+                    found_files: hash_set! {},
                     found_registry_keys: found,
                     ..Default::default()
                 },

@@ -58,8 +58,8 @@ winapi = { version = "0.3.9", features = ["wincon"], default-features = false }
 winres = "0.1.12"
 
 [dev-dependencies]
-maplit = "1.0.2"
 pretty_assertions = "1.4.0"
+velcro = "0.5.4"
 
 [profile.dev]
 opt-level = 1

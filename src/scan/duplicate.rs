@@ -370,8 +370,8 @@ impl DuplicateDetector {
 
 #[cfg(test)]
 mod tests {
-    use maplit::*;
     use pretty_assertions::assert_eq;
+    use velcro::{hash_map, hash_set};
 
     use super::*;
     use crate::{scan::ScannedRegistry, testing::s};
@@ -390,8 +390,8 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: game1.clone(),
-                found_files: hashset! { file1.clone(), file2.clone() },
-                found_registry_keys: hashset! { ScannedRegistry::new(&reg1) },
+                found_files: hash_set! { file1.clone(), file2.clone() },
+                found_registry_keys: hash_set! { ScannedRegistry::new(&reg1) },
                 ..Default::default()
             },
             true,
@@ -399,8 +399,8 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: game2.clone(),
-                found_files: hashset! { file1.clone() },
-                found_registry_keys: hashset! { ScannedRegistry::new(&reg1), ScannedRegistry::new(&reg2) },
+                found_files: hash_set! { file1.clone() },
+                found_registry_keys: hash_set! { ScannedRegistry::new(&reg1), ScannedRegistry::new(&reg2) },
                 ..Default::default()
             },
             true,
@@ -408,17 +408,17 @@ mod tests {
 
         assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1));
         assert_eq!(
-            hashmap! {
-                game1.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
-                game2.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
+            hash_map! {
+                game1.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
+                game2.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
             detector.file(&file1)
         );
 
         assert_eq!(Duplication::Unique, detector.is_file_duplicated(&file2));
         assert_eq!(
-            hashmap! {
-                game1.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
+            hash_map! {
+                game1.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
             detector.file(&file2)
         );
@@ -428,9 +428,9 @@ mod tests {
             detector.is_registry_duplicated(&RegistryItem::new(reg1.clone()))
         );
         assert_eq!(
-            hashmap! {
-                game1 => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
-                game2.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
+            hash_map! {
+                game1: DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
+                game2.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
             detector.registry(&RegistryItem::new(reg1))
         );
@@ -440,8 +440,8 @@ mod tests {
             detector.is_registry_duplicated(&RegistryItem::new(reg2.clone()))
         );
         assert_eq!(
-            hashmap! {
-                game2 => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
+            hash_map! {
+                game2: DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
             detector.registry(&RegistryItem::new(reg2))
         );
@@ -477,7 +477,7 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: game1.clone(),
-                found_files: hashset! { file1a.clone() },
+                found_files: hash_set! { file1a.clone() },
                 ..Default::default()
             },
             true,
@@ -485,7 +485,7 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: game2.clone(),
-                found_files: hashset! { file1b.clone() },
+                found_files: hash_set! { file1b.clone() },
                 ..Default::default()
             },
             true,
@@ -493,9 +493,9 @@ mod tests {
 
         assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1a));
         assert_eq!(
-            hashmap! {
-                game1.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
-                game2.clone() => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
+            hash_map! {
+                game1.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
+                game2.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
             detector.file(&file1a)
         );
@@ -515,9 +515,9 @@ mod tests {
 
         assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1b));
         assert_eq!(
-            hashmap! {
-                game1 => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
-                game2 => DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
+            hash_map! {
+                game1: DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
+                game2: DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
             detector.file(&file1b)
         );
@@ -543,7 +543,7 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: "base".into(),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::with_name("unique-base"),
                     ScannedFile::with_name("file1").change_as(ScanChange::Removed),
                 },
@@ -554,7 +554,7 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: "conflict".into(),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::with_name("unique-conflict"),
                     ScannedFile::with_name("file1").change_as(ScanChange::Removed),
                 },
@@ -577,7 +577,7 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: "base".into(),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::with_name("unique-base"),
                     ScannedFile::with_name("file1").change_as(ScanChange::Different),
                 },
@@ -588,7 +588,7 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: "conflict".into(),
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::with_name("unique-conflict"),
                     ScannedFile::with_name("file1").change_as(ScanChange::Different).ignored(),
                 },

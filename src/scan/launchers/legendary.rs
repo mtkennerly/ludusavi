@@ -73,8 +73,8 @@ pub fn get_games(source: &StrictPath) -> Vec<Game> {
 
 #[cfg(test)]
 mod tests {
-    use maplit::hashmap;
     use pretty_assertions::assert_eq;
+    use velcro::hash_map;
 
     use super::*;
     use crate::{
@@ -121,8 +121,8 @@ mod tests {
         };
         let games = scan(&root, &title_finder());
         assert_eq!(
-            hashmap! {
-                "windows-game".to_string() => LauncherGame {
+            hash_map! {
+                "windows-game".to_string(): LauncherGame {
                     install_dir: StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string()),
                     prefix: None,
                     platform: Some(Os::Windows),

@@ -131,8 +131,8 @@ fn scan_spec(spec: LutrisGame, spec_path: &StrictPath, title_finder: &TitleFinde
 
 #[cfg(test)]
 mod tests {
-    use maplit::hashmap;
     use pretty_assertions::assert_eq;
+    use velcro::hash_map;
 
     use super::*;
     use crate::{
@@ -182,8 +182,8 @@ mod tests {
         };
         let games = scan(&root, &title_finder());
         assert_eq!(
-            hashmap! {
-                "windows-game".to_string() => LauncherGame {
+            hash_map! {
+                "windows-game".to_string(): LauncherGame {
                     install_dir: StrictPath::new("/home/deck/Games/service/windows-game/drive_c/game".to_string()),
                     prefix: Some(StrictPath::new("/home/deck/Games/service/windows-game".to_string())),
                     platform: Some(Os::Windows),

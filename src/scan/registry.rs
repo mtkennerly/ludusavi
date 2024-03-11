@@ -468,8 +468,8 @@ fn get_hkey_from_name(name: &str) -> Option<winreg::HKEY> {
 
 #[cfg(test)]
 mod tests {
-    use maplit::hashmap;
     use pretty_assertions::assert_eq;
+    use velcro::hash_map;
 
     use super::*;
     use crate::testing::s;
@@ -481,15 +481,15 @@ mod tests {
             .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi/game3")
             .unwrap();
         assert_eq!(
-            Hives(hashmap! {
-                s("HKEY_CURRENT_USER") => Keys(hashmap! {
-                    s("Software\\Ludusavi\\game3") => Entries(hashmap! {
-                        s("sz") => Entry::Sz(s("foo")),
-                        s("multiSz") => Entry::MultiSz(s("bar")),
-                        s("expandSz") => Entry::ExpandSz(s("baz")),
-                        s("dword") => Entry::Dword(1),
-                        s("qword") => Entry::Qword(2),
-                        s("binary") => Entry::Binary(vec![65]),
+            Hives(hash_map! {
+                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+                    s("Software\\Ludusavi\\game3"): Entries(hash_map! {
+                        s("sz"): Entry::Sz(s("foo")),
+                        s("multiSz"): Entry::MultiSz(s("bar")),
+                        s("expandSz"): Entry::ExpandSz(s("baz")),
+                        s("dword"): Entry::Dword(1),
+                        s("qword"): Entry::Qword(2),
+                        s("binary"): Entry::Binary(vec![65]),
                     })
                 })
             }),
@@ -504,10 +504,10 @@ mod tests {
             .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi/invalid")
             .unwrap();
         assert_eq!(
-            Hives(hashmap! {
-                s("HKEY_CURRENT_USER") => Keys(hashmap! {
-                    s("Software\\Ludusavi\\invalid") => Entries(hashmap! {
-                        s("dword") => Entry::Raw { kind: RegistryKind::Dword, data: vec![0, 0, 0, 0, 0, 0, 0, 0] },
+            Hives(hash_map! {
+                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+                    s("Software\\Ludusavi\\invalid"): Entries(hash_map! {
+                        s("dword"): Entry::Raw { kind: RegistryKind::Dword, data: vec![0, 0, 0, 0, 0, 0, 0, 0] },
                     })
                 })
             }),
@@ -522,9 +522,9 @@ mod tests {
             .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi/other")
             .unwrap();
         assert_eq!(
-            Hives(hashmap! {
-                s("HKEY_CURRENT_USER") => Keys(hashmap! {
-                    s("Software\\Ludusavi\\other") => Entries::default()
+            Hives(hash_map! {
+                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+                    s("Software\\Ludusavi\\other"): Entries::default()
                 })
             }),
             hives,
@@ -538,9 +538,9 @@ mod tests {
             .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi")
             .unwrap();
         assert_eq!(
-            Hives(hashmap! {
-                s("HKEY_CURRENT_USER") => Keys(hashmap! {
-                    s("Software\\Ludusavi") => Entries::default(),
+            Hives(hash_map! {
+                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+                    s("Software\\Ludusavi"): Entries::default(),
                 })
             }),
             hives,
@@ -586,24 +586,24 @@ HKEY_CURRENT_USER:
   "Software\\Ludusavi\\other": {}
 "#
             .trim(),
-            serde_yaml::to_string(&Hives(hashmap! {
-                s("HKEY_CURRENT_USER") => Keys(hashmap! {
-                    s("Software\\Ludusavi") => Entries::default(),
-                    s("Software\\Ludusavi\\game3") => Entries(hashmap! {
-                        s("sz") => Entry::Sz(s("foo")),
-                        s("multiSz") => Entry::MultiSz(s("bar")),
-                        s("expandSz") => Entry::ExpandSz(s("baz")),
-                        s("dword") => Entry::Dword(1),
-                        s("qword") => Entry::Qword(2),
-                        s("binary") => Entry::Binary(vec![1, 2, 3]),
+            serde_yaml::to_string(&Hives(hash_map! {
+                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+                    s("Software\\Ludusavi"): Entries::default(),
+                    s("Software\\Ludusavi\\game3"): Entries(hash_map! {
+                        s("sz"): Entry::Sz(s("foo")),
+                        s("multiSz"): Entry::MultiSz(s("bar")),
+                        s("expandSz"): Entry::ExpandSz(s("baz")),
+                        s("dword"): Entry::Dword(1),
+                        s("qword"): Entry::Qword(2),
+                        s("binary"): Entry::Binary(vec![1, 2, 3]),
                     }),
-                    s("Software\\Ludusavi\\invalid") => Entries(hashmap! {
-                        s("dword") => Entry::Raw {
+                    s("Software\\Ludusavi\\invalid"): Entries(hash_map! {
+                        s("dword"): Entry::Raw {
                             kind: RegistryKind::Dword,
                             data: vec![0, 0, 0, 0, 0, 0, 0, 0],
                         },
                     }),
-                    s("Software\\Ludusavi\\other") => Entries::default(),
+                    s("Software\\Ludusavi\\other"): Entries::default(),
                 })
             }))
             .unwrap()

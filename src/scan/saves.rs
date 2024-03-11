@@ -221,8 +221,8 @@ impl ScannedRegistryValue {
 
 #[cfg(test)]
 mod tests {
-    use maplit::*;
     use pretty_assertions::assert_eq;
+    use velcro::btree_map;
 
     use super::*;
 
@@ -244,8 +244,8 @@ mod tests {
                 path: RegistryItem::new("key".to_string()),
                 ignored: true,
                 change: ScanChange::Same,
-                values: btreemap! {
-                    "val1".to_string() => ScannedRegistryValue { ignored: true, change: ScanChange::New },
+                values: btree_map! {
+                    "val1".to_string(): ScannedRegistryValue { ignored: true, change: ScanChange::New },
                 },
             }
             .change(false)
@@ -256,9 +256,9 @@ mod tests {
                 path: RegistryItem::new("key".to_string()),
                 ignored: true,
                 change: ScanChange::Same,
-                values: btreemap! {
-                    "val1".to_string() => ScannedRegistryValue { ignored: true, change: ScanChange::New },
-                    "val2".to_string() => ScannedRegistryValue { ignored: false, change: ScanChange::Same },
+                values: btree_map! {
+                    "val1".to_string(): ScannedRegistryValue { ignored: true, change: ScanChange::New },
+                    "val2".to_string(): ScannedRegistryValue { ignored: false, change: ScanChange::Same },
                 },
             }
             .change(false)

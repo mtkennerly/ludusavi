@@ -1519,8 +1519,8 @@ impl ToggledRegistry {
 
 #[cfg(test)]
 mod tests {
-    use maplit::hashset;
     use pretty_assertions::assert_eq;
+    use velcro::{btree_map, hash_set};
 
     use super::*;
     use crate::testing::s;
@@ -1678,7 +1678,7 @@ mod tests {
                 }],
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
-                    ignored_games: hashset! {
+                    ignored_games: hash_set! {
                         s("Backup Game 1"),
                         s("Backup Game 2"),
                     },
@@ -1694,7 +1694,7 @@ mod tests {
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
-                    ignored_games: hashset! {
+                    ignored_games: hash_set! {
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
@@ -1931,7 +1931,7 @@ customGames:
                 }],
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
-                    ignored_games: hashset! {
+                    ignored_games: hash_set! {
                         s("Backup Game 3"),
                         s("Backup Game 1"),
                         s("Backup Game 2"),
@@ -1948,7 +1948,7 @@ customGames:
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
-                    ignored_games: hashset! {
+                    ignored_games: hash_set! {
                         s("Restore Game 3"),
                         s("Restore Game 1"),
                         s("Restore Game 2"),
@@ -2005,7 +2005,6 @@ customGames:
     }
 
     mod ignored_paths {
-        use maplit::*;
         use pretty_assertions::assert_eq;
 
         use super::*;
@@ -2054,9 +2053,9 @@ customGames:
                 ToggledPaths::default(),
                 &repo_path("tests/root1/game1/subdir/file2.txt"),
                 true,
-                ToggledPaths(btreemap! {
-                    s("game") => btreemap! {
-                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => false,
+                ToggledPaths(btree_map! {
+                    s("game"): btree_map! {
+                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")): false,
                     }
                 }),
             );
@@ -2065,17 +2064,17 @@ customGames:
         #[test]
         fn transitively_unset_and_specifically_enabled() {
             verify_toggle_registry_sequential(
-                ToggledPaths(btreemap! {
-                    s("game") => btreemap! {
-                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => true,
+                ToggledPaths(btree_map! {
+                    s("game"): btree_map! {
+                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")): true,
                     }
                 }),
                 &repo_path("tests/root1/game1/subdir/file2.txt"),
                 true,
                 vec![
-                    ToggledPaths(btreemap! {
-                        s("game") => btreemap! {
-                            StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => false,
+                    ToggledPaths(btree_map! {
+                        s("game"): btree_map! {
+                            StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")): false,
                         }
                     }),
                     ToggledPaths::default(),
@@ -2086,17 +2085,17 @@ customGames:
         #[test]
         fn transitively_disabled_and_specifically_unset_or_enabled() {
             verify_toggle_registry_bouncing(
-                ToggledPaths(btreemap! {
-                    s("game") => btreemap! {
-                        StrictPath::new(repo_path("tests/root1/game1/subdir")) => false,
+                ToggledPaths(btree_map! {
+                    s("game"): btree_map! {
+                        StrictPath::new(repo_path("tests/root1/game1/subdir")): false,
                     }
                 }),
                 &repo_path("tests/root1/game1/subdir/file2.txt"),
                 false,
-                ToggledPaths(btreemap! {
-                    s("game") => btreemap! {
-                        StrictPath::new(repo_path("tests/root1/game1/subdir")) => false,
-                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => true,
+                ToggledPaths(btree_map! {
+                    s("game"): btree_map! {
+                        StrictPath::new(repo_path("tests/root1/game1/subdir")): false,
+                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")): true,
                     }
                 }),
             );
@@ -2105,24 +2104,24 @@ customGames:
         #[test]
         fn transitively_disabled_and_specifically_disabled() {
             verify_toggle_registry_sequential(
-                ToggledPaths(btreemap! {
-                    s("game") => btreemap! {
-                        StrictPath::new(repo_path("tests/root1/game1/subdir")) => false,
-                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => false,
+                ToggledPaths(btree_map! {
+                    s("game"): btree_map! {
+                        StrictPath::new(repo_path("tests/root1/game1/subdir")): false,
+                        StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")): false,
                     }
                 }),
                 &repo_path("tests/root1/game1/subdir/file2.txt"),
                 false,
                 vec![
-                    ToggledPaths(btreemap! {
-                        s("game") => btreemap! {
-                            StrictPath::new(repo_path("tests/root1/game1/subdir")) => false,
-                            StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")) => true,
+                    ToggledPaths(btree_map! {
+                        s("game"): btree_map! {
+                            StrictPath::new(repo_path("tests/root1/game1/subdir")): false,
+                            StrictPath::new(repo_path("tests/root1/game1/subdir/file2.txt")): true,
                         }
                     }),
-                    ToggledPaths(btreemap! {
-                        s("game") => btreemap! {
-                            StrictPath::new(repo_path("tests/root1/game1/subdir")) => false,
+                    ToggledPaths(btree_map! {
+                        s("game"): btree_map! {
+                            StrictPath::new(repo_path("tests/root1/game1/subdir")): false,
                         }
                     }),
                 ],
@@ -2131,7 +2130,6 @@ customGames:
     }
 
     mod ignored_registry {
-        use maplit::*;
         use pretty_assertions::assert_eq;
 
         use super::*;
@@ -2183,9 +2181,9 @@ customGames:
                 "HKEY_CURRENT_USER/Software/Ludusavi",
                 None,
                 true,
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false),
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(false),
                     }
                 }),
             );
@@ -2194,18 +2192,18 @@ customGames:
         #[test]
         fn transitively_unset_and_specifically_enabled() {
             verify_toggle_registry_sequential(
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true),
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(true),
                     }
                 }),
                 "HKEY_CURRENT_USER/Software/Ludusavi",
                 None,
                 true,
                 vec![
-                    ToggledRegistry(btreemap! {
-                        s("game") => btreemap! {
-                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false),
+                    ToggledRegistry(btree_map! {
+                        s("game"): btree_map! {
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(false),
                         }
                     }),
                     ToggledRegistry::default(),
@@ -2216,18 +2214,18 @@ customGames:
         #[test]
         fn transitively_disabled_and_specifically_unset_or_enabled() {
             verify_toggle_registry_bouncing(
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => ToggledRegistryEntry::Key(false),
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")): ToggledRegistryEntry::Key(false),
                     }
                 }),
                 "HKEY_CURRENT_USER/Software/Ludusavi",
                 None,
                 false,
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => ToggledRegistryEntry::Key(false),
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true),
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")): ToggledRegistryEntry::Key(false),
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(true),
                     }
                 }),
             );
@@ -2236,25 +2234,25 @@ customGames:
         #[test]
         fn transitively_disabled_and_specifically_disabled() {
             verify_toggle_registry_sequential(
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => ToggledRegistryEntry::Key(false),
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false),
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software")): ToggledRegistryEntry::Key(false),
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(false),
                     }
                 }),
                 "HKEY_CURRENT_USER/Software/Ludusavi",
                 None,
                 false,
                 vec![
-                    ToggledRegistry(btreemap! {
-                        s("game") => btreemap! {
-                            RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => ToggledRegistryEntry::Key(false),
-                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true),
+                    ToggledRegistry(btree_map! {
+                        s("game"): btree_map! {
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software")): ToggledRegistryEntry::Key(false),
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(true),
                         }
                     }),
-                    ToggledRegistry(btreemap! {
-                        s("game") => btreemap! {
-                            RegistryItem::new(s("HKEY_CURRENT_USER/Software")) => ToggledRegistryEntry::Key(false),
+                    ToggledRegistry(btree_map! {
+                        s("game"): btree_map! {
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software")): ToggledRegistryEntry::Key(false),
                         }
                     }),
                 ],
@@ -2268,12 +2266,12 @@ customGames:
                 "HKEY_CURRENT_USER/Software/Ludusavi",
                 Some("qword"),
                 true,
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Complex {
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Complex {
                             key: None,
-                            values: btreemap! {
-                                s("qword") => false,
+                            values: btree_map! {
+                                s("qword"): false,
                             },
                         },
                     }
@@ -2284,40 +2282,40 @@ customGames:
         #[test]
         fn value_is_unset_and_inherits_specifically() {
             verify_toggle_registry_bouncing(
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false)
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(false)
                     }
                 }),
                 "HKEY_CURRENT_USER/Software/Ludusavi",
                 Some("qword"),
                 false,
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Complex {
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Complex {
                             key: Some(false),
-                            values: btreemap! {
-                                s("qword") => true,
+                            values: btree_map! {
+                                s("qword"): true,
                             },
                         },
                     }
                 }),
             );
             verify_toggle_registry_bouncing(
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true)
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(true)
                     }
                 }),
                 "HKEY_CURRENT_USER/Software/Ludusavi",
                 Some("qword"),
                 true,
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Complex {
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Complex {
                             key: Some(true),
-                            values: btreemap! {
-                                s("qword") => false,
+                            values: btree_map! {
+                                s("qword"): false,
                             },
                         },
                     }
@@ -2328,42 +2326,42 @@ customGames:
         #[test]
         fn value_is_unset_and_inherits_transitively() {
             verify_toggle_registry_bouncing(
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false)
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(false)
                     }
                 }),
                 "HKEY_CURRENT_USER/Software/Ludusavi/other",
                 Some("qword"),
                 false,
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(false),
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")) => ToggledRegistryEntry::Complex {
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(false),
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")): ToggledRegistryEntry::Complex {
                             key: None,
-                            values: btreemap! {
-                                s("qword") => true,
+                            values: btree_map! {
+                                s("qword"): true,
                             },
                         },
                     }
                 }),
             );
             verify_toggle_registry_bouncing(
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true)
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(true)
                     }
                 }),
                 "HKEY_CURRENT_USER/Software/Ludusavi/other",
                 Some("qword"),
                 true,
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")) => ToggledRegistryEntry::Key(true),
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")) => ToggledRegistryEntry::Complex {
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi")): ToggledRegistryEntry::Key(true),
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")): ToggledRegistryEntry::Complex {
                             key: None,
-                            values: btreemap! {
-                                s("qword") => false,
+                            values: btree_map! {
+                                s("qword"): false,
                             },
                         },
                     }
@@ -2374,12 +2372,12 @@ customGames:
         #[test]
         fn value_is_set() {
             verify_toggle_registry_bouncing(
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")) => ToggledRegistryEntry::Complex {
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")): ToggledRegistryEntry::Complex {
                             key: None,
-                            values: btreemap! {
-                                s("qword") => false,
+                            values: btree_map! {
+                                s("qword"): false,
                             },
                         }
                     }
@@ -2391,12 +2389,12 @@ customGames:
             );
 
             verify_toggle_registry_sequential(
-                ToggledRegistry(btreemap! {
-                    s("game") => btreemap! {
-                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")) => ToggledRegistryEntry::Complex {
+                ToggledRegistry(btree_map! {
+                    s("game"): btree_map! {
+                        RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")): ToggledRegistryEntry::Complex {
                             key: None,
-                            values: btreemap! {
-                                s("qword") => true,
+                            values: btree_map! {
+                                s("qword"): true,
                             },
                         }
                     }
@@ -2405,12 +2403,12 @@ customGames:
                 Some("qword"),
                 true,
                 vec![
-                    ToggledRegistry(btreemap! {
-                        s("game") => btreemap! {
-                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")) => ToggledRegistryEntry::Complex {
+                    ToggledRegistry(btree_map! {
+                        s("game"): btree_map! {
+                            RegistryItem::new(s("HKEY_CURRENT_USER/Software/Ludusavi/other")): ToggledRegistryEntry::Complex {
                                 key: None,
-                                values: btreemap! {
-                                    s("qword") => false,
+                                values: btree_map! {
+                                    s("qword"): false,
                                 },
                             },
                         }

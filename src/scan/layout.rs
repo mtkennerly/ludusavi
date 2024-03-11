@@ -2071,7 +2071,7 @@ impl BackupLayout {
 
 #[cfg(test)]
 mod tests {
-    use maplit::*;
+    use velcro::{btree_map, hash_map, hash_set};
 
     use super::*;
     use crate::testing::{drives_x, make_original_path, mapping_file_key, repo, repo_raw, s};
@@ -2115,7 +2115,7 @@ mod tests {
         fn drives() -> HashMap<String, String> {
             let (drive, _) = StrictPath::new("foo".to_string()).split_drive();
             let folder = IndividualMapping::new_drive_folder_name(&drive);
-            hashmap! { folder => drive }
+            hash_map! { folder: drive }
         }
 
         #[test]
@@ -2454,7 +2454,7 @@ mod tests {
         #[test]
         fn can_plan_full_backup_with_files() {
             let scan = ScanInfo {
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::with_change(repo_file("new"), 1, "n", ScanChange::New),
                     ScannedFile::with_change(repo_file("different"), 2, "d", ScanChange::Different),
                     ScannedFile::with_change(repo_file("removed"), 3, "r", ScanChange::Removed),
@@ -2469,10 +2469,10 @@ mod tests {
                     name: ".".to_string(),
                     when: now(),
                     os: Some(Os::HOST),
-                    files: btreemap! {
-                        StrictPath::new(repo_file("new")).render() => IndividualMappingFile { hash: "n".into(), size: 1 },
-                        StrictPath::new(repo_file("different")).render() => IndividualMappingFile { hash: "d".into(), size: 2 },
-                        StrictPath::new(repo_file("same")).render() => IndividualMappingFile { hash: "s".into(), size: 5 },
+                    files: btree_map! {
+                        StrictPath::new(repo_file("new")).render(): IndividualMappingFile { hash: "n".into(), size: 1 },
+                        StrictPath::new(repo_file("different")).render(): IndividualMappingFile { hash: "d".into(), size: 2 },
+                        StrictPath::new(repo_file("same")).render(): IndividualMappingFile { hash: "s".into(), size: 5 },
                     },
                     ..Default::default()
                 },
@@ -2489,7 +2489,7 @@ mod tests {
             // Realistically, if a value is marked as removed`, then it won't exist, so `Hives` won't load it.
             // The removed value here only makes it into the plan because it actually does exist.
             let scan = ScanInfo {
-                found_registry_keys: hashset! {
+                found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New).ignored(),
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::Different)
                         .with_value("binary", ScanChange::New, false)
@@ -2503,14 +2503,14 @@ mod tests {
                 ..Default::default()
             };
             let layout = GameLayout::default();
-            let hives = Hives(hashmap! {
-                s("HKEY_CURRENT_USER") => Keys(hashmap! {
-                    s("Software\\Ludusavi\\game3") => Entries(hashmap! {
-                        s("sz") => Entry::Sz("foo".into()),
-                        s("multiSz") => Entry::MultiSz("bar".into()),
-                        s("expandSz") => Entry::ExpandSz("baz".into()),
-                        s("dword") => Entry::Dword(1),
-                        s("binary") => Entry::Binary(vec![65]),
+            let hives = Hives(hash_map! {
+                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+                    s("Software\\Ludusavi\\game3"): Entries(hash_map! {
+                        s("sz"): Entry::Sz("foo".into()),
+                        s("multiSz"): Entry::MultiSz("bar".into()),
+                        s("expandSz"): Entry::ExpandSz("baz".into()),
+                        s("dword"): Entry::Dword(1),
+                        s("binary"): Entry::Binary(vec![65]),
                     }),
                 })
             });
@@ -2531,7 +2531,7 @@ mod tests {
         #[test]
         fn can_plan_differential_backup_with_files() {
             let scan = ScanInfo {
-                found_files: hashset! {
+                found_files: hash_set! {
                     ScannedFile::with_change(repo_file("new"), 1, "n", ScanChange::New),
                     ScannedFile::with_change(repo_file("different"), 2, "d+", ScanChange::Different),
                     ScannedFile::with_change(repo_file("removed"), 0, "", ScanChange::Removed),
@@ -2546,10 +2546,10 @@ mod tests {
                     backups: VecDeque::from_iter(vec![FullBackup {
                         name: ".".to_string(),
                         when: past(),
-                        files: btreemap! {
-                            StrictPath::new(repo_file("different")).render() => IndividualMappingFile { hash: "d".into(), size: 2 },
-                            StrictPath::new(repo_file("removed")).render() => IndividualMappingFile { hash: "r".into(), size: 3 },
-                            StrictPath::new(repo_file("same")).render() => IndividualMappingFile { hash: "s".into(), size: 5 },
+                        files: btree_map! {
+                            StrictPath::new(repo_file("different")).render(): IndividualMappingFile { hash: "d".into(), size: 2 },
+                            StrictPath::new(repo_file("removed")).render(): IndividualMappingFile { hash: "r".into(), size: 3 },
+                            StrictPath::new(repo_file("same")).render(): IndividualMappingFile { hash: "s".into(), size: 5 },
                         },
                         ..Default::default()
                     }]),
@@ -2562,10 +2562,10 @@ mod tests {
                     name: format!("backup-{}", now_str()),
                     when: now(),
                     os: Some(Os::HOST),
-                    files: btreemap! {
-                        StrictPath::new(repo_file("new")).render() => Some(IndividualMappingFile { hash: "n".into(), size: 1 }),
-                        StrictPath::new(repo_file("different")).render() => Some(IndividualMappingFile { hash: "d+".into(), size: 2 }),
-                        StrictPath::new(repo_file("removed")).render() => None,
+                    files: btree_map! {
+                        StrictPath::new(repo_file("new")).render(): Some(IndividualMappingFile { hash: "n".into(), size: 1 }),
+                        StrictPath::new(repo_file("different")).render(): Some(IndividualMappingFile { hash: "d+".into(), size: 2 }),
+                        StrictPath::new(repo_file("removed")).render(): None,
                     },
                     registry: None,
                     ..Default::default()
@@ -2580,7 +2580,7 @@ mod tests {
             use crate::scan::registry::{Entries, Hives, Keys};
 
             let scan = ScanInfo {
-                found_registry_keys: hashset! {
+                found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::New)
                 },
                 ..Default::default()
@@ -2597,9 +2597,9 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let hives = Hives(hashmap! {
-                s("HKEY_CURRENT_USER") => Keys(hashmap! {
-                    s("Software\\Ludusavi\\other") => Entries::default()
+            let hives = Hives(hash_map! {
+                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+                    s("Software\\Ludusavi\\other"): Entries::default()
                 })
             });
             assert_eq!(
@@ -2622,7 +2622,7 @@ mod tests {
             use crate::scan::registry::{Entries, Hives, Keys};
 
             let scan = ScanInfo {
-                found_registry_keys: hashset! {
+                found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::Different)
                         .with_value("removed", ScanChange::Removed, false)
                         // Fake registry values are ignored because `Hives` re-reads the actual registry.
@@ -2644,9 +2644,9 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let hives = Hives(hashmap! {
-                s("HKEY_CURRENT_USER") => Keys(hashmap! {
-                    s("Software\\Ludusavi\\other") => Entries::default()
+            let hives = Hives(hash_map! {
+                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+                    s("Software\\Ludusavi\\other"): Entries::default()
                 })
             });
             assert_eq!(
@@ -2669,14 +2669,14 @@ mod tests {
             use crate::scan::registry::{Entries, Hives, Keys};
 
             let scan = ScanInfo {
-                found_registry_keys: hashset! {
+                found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::Same)
                 },
                 ..Default::default()
             };
-            let hives = Hives(hashmap! {
-                s("HKEY_CURRENT_USER") => Keys(hashmap! {
-                    s("Software\\Ludusavi\\other") => Entries::default()
+            let hives = Hives(hash_map! {
+                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+                    s("Software\\Ludusavi\\other"): Entries::default()
                 })
             });
             let layout = GameLayout {
@@ -2709,7 +2709,7 @@ mod tests {
         #[cfg(target_os = "windows")]
         fn can_plan_differential_backup_with_registry_removed() {
             let scan = ScanInfo {
-                found_registry_keys: hashset! {
+                found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::Removed)
                 },
                 ..Default::default()
@@ -2966,9 +2966,9 @@ mod tests {
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1".into(),
                         when: past(),
-                        files: btreemap! {
-                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
+                        files: btree_map! {
+                            mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -2980,7 +2980,7 @@ mod tests {
                 },
             };
             assert_eq!(
-                hashset! {
+                hash_set! {
                     ScannedFile {
                         path: make_restorable_path("backup-1", "file1.txt"),
                         size: 1,
@@ -3016,9 +3016,9 @@ mod tests {
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1.zip".into(),
                         when: past(),
-                        files: btreemap! {
-                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
+                        files: btree_map! {
+                            mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "old".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -3030,7 +3030,7 @@ mod tests {
                 },
             };
             assert_eq!(
-                hashset! {
+                hash_set! {
                     ScannedFile {
                         path: make_restorable_path_zip("file1.txt"),
                         size: 1,
@@ -3066,18 +3066,18 @@ mod tests {
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1".into(),
                         when: past(),
-                        files: btreemap! {
-                            mapping_file_key("/unchanged.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
-                            mapping_file_key("/delete.txt") => IndividualMappingFile { hash: "old".into(), size: 3 },
+                        files: btree_map! {
+                            mapping_file_key("/unchanged.txt"): IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/changed.txt"): IndividualMappingFile { hash: "old".into(), size: 2 },
+                            mapping_file_key("/delete.txt"): IndividualMappingFile { hash: "old".into(), size: 3 },
                         },
                         children: VecDeque::from([DifferentialBackup {
                             name: "backup-2".into(),
                             when: past2(),
-                            files: btreemap! {
-                                mapping_file_key("/changed.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
-                                mapping_file_key("/delete.txt") => None,
-                                mapping_file_key("/added.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
+                            files: btree_map! {
+                                mapping_file_key("/changed.txt"): Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                                mapping_file_key("/delete.txt"): None,
+                                mapping_file_key("/added.txt"): Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                             },
                             ..Default::default()
                         }]),
@@ -3091,7 +3091,7 @@ mod tests {
                 },
             };
             assert_eq!(
-                hashset! {
+                hash_set! {
                     ScannedFile {
                         path: make_restorable_path("backup-1", "unchanged.txt"),
                         size: 1,
@@ -3137,18 +3137,18 @@ mod tests {
                     backups: VecDeque::from(vec![FullBackup {
                         name: "backup-1.zip".into(),
                         when: past(),
-                        files: btreemap! {
-                            mapping_file_key("/unchanged.txt") => IndividualMappingFile { hash: "old".into(), size: 1 },
-                            mapping_file_key("/changed.txt") => IndividualMappingFile { hash: "old".into(), size: 2 },
-                            mapping_file_key("/delete.txt") => IndividualMappingFile { hash: "old".into(), size: 3 },
+                        files: btree_map! {
+                            mapping_file_key("/unchanged.txt"): IndividualMappingFile { hash: "old".into(), size: 1 },
+                            mapping_file_key("/changed.txt"): IndividualMappingFile { hash: "old".into(), size: 2 },
+                            mapping_file_key("/delete.txt"): IndividualMappingFile { hash: "old".into(), size: 3 },
                         },
                         children: VecDeque::from([DifferentialBackup {
                             name: "backup-2.zip".into(),
                             when: past2(),
-                            files: btreemap! {
-                                mapping_file_key("/changed.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
-                                mapping_file_key("/delete.txt") => None,
-                                mapping_file_key("/added.txt") => Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
+                            files: btree_map! {
+                                mapping_file_key("/changed.txt"): Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                                mapping_file_key("/delete.txt"): None,
+                                mapping_file_key("/added.txt"): Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
                             },
                             ..Default::default()
                         }]),
@@ -3162,7 +3162,7 @@ mod tests {
                 },
             };
             assert_eq!(
-                hashset! {
+                hash_set! {
                     ScannedFile {
                         path: make_restorable_path_zip("unchanged.txt"),
                         size: 1,
@@ -3239,9 +3239,9 @@ mod tests {
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".into(),
                         when: now(),
-                        files: btreemap! {
-                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
-                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        files: btree_map! {
+                            mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -3255,12 +3255,12 @@ mod tests {
             let backups = vec![Backup::Full(FullBackup {
                 name: ".".to_string(),
                 when: now(),
-                files: btreemap! {
-                    mapping_file_key("/file1.txt") => IndividualMappingFile {
+                files: btree_map! {
+                    mapping_file_key("/file1.txt"): IndividualMappingFile {
                         hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
                         size: 1,
                     },
-                    mapping_file_key("/file2.txt") => IndividualMappingFile {
+                    mapping_file_key("/file2.txt"): IndividualMappingFile {
                         hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
                         size: 2,
                     },
@@ -3271,7 +3271,7 @@ mod tests {
             assert_eq!(
                 ScanInfo {
                     game_name: s("game1"),
-                    found_files: hashset! {
+                    found_files: hash_set! {
                         ScannedFile {
                             path: restorable_file_simple(".", "file1.txt"),
                             size: 1,
@@ -3318,7 +3318,7 @@ mod tests {
                 assert_eq!(
                     ScanInfo {
                         game_name: s("game3"),
-                        found_registry_keys: hashset! {
+                        found_registry_keys: hash_set! {
                             ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::Same)
                                 .with_value_same("binary")
                                 .with_value_same("dword")
@@ -3393,9 +3393,9 @@ mod tests {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".into(),
-                        files: btreemap! {
-                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
-                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        files: btree_map! {
+                            mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -3414,8 +3414,8 @@ mod tests {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".into(),
-                        files: btreemap! {
-                            mapping_file_key("/fake.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        files: btree_map! {
+                            mapping_file_key("/fake.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -3434,15 +3434,15 @@ mod tests {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".into(),
-                        files: btreemap! {
-                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
-                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        files: btree_map! {
+                            mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
                         children: VecDeque::from(vec![DifferentialBackup {
                             name: ".".into(),
-                            files: btreemap! {
-                                mapping_file_key("/file1.txt") => None,
-                                mapping_file_key("/file2.txt") => Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
+                            files: btree_map! {
+                                mapping_file_key("/file1.txt"): None,
+                                mapping_file_key("/file2.txt"): Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
                             },
                             ..Default::default()
                         }]),
@@ -3463,14 +3463,14 @@ mod tests {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: ".".into(),
-                        files: btreemap! {
-                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
-                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        files: btree_map! {
+                            mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
                         children: VecDeque::from(vec![DifferentialBackup {
                             name: ".".into(),
-                            files: btreemap! {
-                                mapping_file_key("/fake.txt") => Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
+                            files: btree_map! {
+                                mapping_file_key("/fake.txt"): Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
                             },
                             ..Default::default()
                         }]),
@@ -3491,9 +3491,9 @@ mod tests {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "test.zip".into(),
-                        files: btreemap! {
-                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
-                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        files: btree_map! {
+                            mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -3512,8 +3512,8 @@ mod tests {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "test.zip".into(),
-                        files: btreemap! {
-                            mapping_file_key("/fake.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        files: btree_map! {
+                            mapping_file_key("/fake.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
                         ..Default::default()
                     }]),
@@ -3532,15 +3532,15 @@ mod tests {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "test.zip".into(),
-                        files: btreemap! {
-                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
-                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        files: btree_map! {
+                            mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
                         children: VecDeque::from(vec![DifferentialBackup {
                             name: "test.zip".into(),
-                            files: btreemap! {
-                                mapping_file_key("/file1.txt") => None,
-                                mapping_file_key("/file2.txt") => Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
+                            files: btree_map! {
+                                mapping_file_key("/file1.txt"): None,
+                                mapping_file_key("/file2.txt"): Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
                             },
                             ..Default::default()
                         }]),
@@ -3561,14 +3561,14 @@ mod tests {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
                         name: "test.zip".into(),
-                        files: btreemap! {
-                            mapping_file_key("/file1.txt") => IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
-                            mapping_file_key("/file2.txt") => IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
+                        files: btree_map! {
+                            mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                            mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
                         children: VecDeque::from(vec![DifferentialBackup {
                             name: "test.zip".into(),
-                            files: btreemap! {
-                                mapping_file_key("/fake.txt") => Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
+                            files: btree_map! {
+                                mapping_file_key("/fake.txt"): Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
                             },
                             ..Default::default()
                         }]),
