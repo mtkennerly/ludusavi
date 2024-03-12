@@ -101,7 +101,7 @@ label-updated = Aktualisiert
 label-new = Neu
 label-removed = Entfernt
 label-comment = Kommentar
-label-unchanged = Unchanged
+label-unchanged = Unverändert
 label-scan = Scan
 label-filter = Filter
 label-unique = Einzigartig
@@ -133,10 +133,10 @@ label-provider = Provider
 label-custom = Benutzerdefiniert
 label-none = Keiner
 label-change-count = Änderungen: { $total }
-label-unscanned = Unscanned
+label-unscanned = Ungescannt
 # This refers to a local file on the computer
-label-file = File
-label-game = Game
+label-file = Datei
+label-game = Spiel
 # Aliases are alternative titles for the same game.
 label-alias = Alias
 store-ea = EA
@@ -153,9 +153,9 @@ store-steam = Steam
 store-uplay = Uplay
 store-other-home = Home-Ordner
 store-other-wine = Wine-Präfix
-store-other-windows = Windows drive
-store-other-linux = Linux drive
-store-other-mac = Mac drive
+store-other-windows = Windows-Laufwerk
+store-other-linux = Linux-Laufwerk
+store-other-mac = Mac-Laufwerk
 store-other = Sonstiges
 backup-format-simple = Einfach
 backup-format-zip = Zip
@@ -179,7 +179,7 @@ consider-doing-a-preview =
     keine Überraschungen gibt.
 confirm-backup =
     Bist du sicher, dass du mit der Sicherung fortfahren möchtest? { $path-action ->
-        [merge] Neue Speicherdaten werden mit dem Zielordner zusammengeführt:
+        [merge] Neue Spielstanddaten werden mit dem Zielordner zusammengeführt:
        *[create] Der Zielordner wird erstellt:
     }
 confirm-restore =
@@ -215,13 +215,13 @@ prefix-warning = Warnung: { $message }
 cloud-app-unavailable = Cloud-Backups sind deaktiviert, da { $app } nicht verfügbar ist.
 cloud-not-configured = Cloud-Backups sind deaktiviert, da kein Cloudsystem konfiguriert ist.
 cloud-path-invalid = Cloud-Backups sind deaktiviert, da der Backup-Pfad ungültig ist.
-game-is-unrecognized = Ludusavi does not recognize this game.
-game-has-nothing-to-restore = This game does not have a backup to restore.
-launch-game-after-error = Launch the game anyway?
-game-did-not-launch = Game failed to launch.
+game-is-unrecognized = Ludusavi erkennt dieses Spielt nicht.
+game-has-nothing-to-restore = Dieses Spiel hat keine wiederherzustellende Sicherungskopie.
+launch-game-after-error = Spiel trotzdem starten?
+game-did-not-launch = Spiel konnte nicht gestartet werden.
 back-up-specific-game =
-    .confirm = Back up save data for { $game }?
-    .failed = Failed to back up save data for { $game }
+    .confirm = Spielstanddaten für { $game } sichern?
+    .failed = Spielstanddaten für { $game } konnten nicht gesichert werden.
 restore-specific-game =
-    .confirm = Restore save data for { $game }?
-    .failed = Failed to restore save data for { $game }
+    .confirm = Spielstanddaten für { $game } wiederherstellen?
+    .failed = Spielstanddaten für { $game } konnten nicht wiederhergestellt werden.

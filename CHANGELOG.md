@@ -5,6 +5,8 @@
     which will check for the `STEAMAPPID` environment variable.
   * GUI: File sizes are now displayed for each file and directory.
     ([Contributed by JackSpagnoli](https://github.com/mtkennerly/ludusavi/pull/308))
+  * Updated translations, including a new in-progress Traditional Chinese translation.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:
   * Ludusavi would crash when reading a non-UTF-8 mapping.yaml file.
     This wouldn't normally happen, but could arise from external modifications.

@@ -51,6 +51,8 @@ pub enum Language {
     Arabic,
     #[serde(rename = "zh-Hans")]
     ChineseSimplified,
+    #[serde(rename = "zh-Hant")]
+    ChineseTraditional,
     #[serde(rename = "cs-CZ")]
     Czech,
     #[serde(rename = "nl-NL")]
@@ -103,6 +105,7 @@ impl Language {
         Self::Ukrainian,
         // Self::Arabic,
         Self::ChineseSimplified,
+        Self::ChineseTraditional,
         Self::Japanese,
         Self::Korean,
         Self::Thai,
@@ -112,6 +115,7 @@ impl Language {
         let id = match self {
             Self::Arabic => "ar-SA",
             Self::ChineseSimplified => "zh-Hans",
+            Self::ChineseTraditional => "zh-Hant",
             Self::Czech => "cs-CZ",
             Self::Dutch => "nl-NL",
             Self::English => "en-US",
@@ -138,22 +142,23 @@ impl ToString for Language {
         match self {
             Self::Arabic => "العربية (90%)",
             Self::ChineseSimplified => "中文（简体） (90%)",
-            Self::Czech => "Čeština (5%)",
+            Self::ChineseTraditional => "中文（繁體） (15%)",
+            Self::Czech => "Čeština (4%)",
             Self::Dutch => "Nederlands (22%)",
             Self::English => "English",
             Self::Esperanto => "Esperanto (19%)",
             Self::Filipino => "Filipino (36%)",
-            Self::French => "Français (90%)",
-            Self::German => "Deutsch (90%)",
-            Self::Italian => "Italiano (90%)",
+            Self::French => "Français (99%)",
+            Self::German => "Deutsch (100%)",
+            Self::Italian => "Italiano (100%)",
             Self::Japanese => "日本語 (48%)",
             Self::Korean => "한국어 (29%)",
             Self::Polish => "Polski (90%)",
-            Self::PortugueseBrazilian => "Português brasileiro (87%)",
-            Self::Russian => "Русский язык (70%)",
-            Self::Spanish => "Español (90%)",
+            Self::PortugueseBrazilian => "Português brasileiro (96%)",
+            Self::Russian => "Русский язык (85%)",
+            Self::Spanish => "Español (100%)",
             Self::Thai => "ภาษาไทย (25%)",
-            Self::Ukrainian => "Украї́нська мо́ва (6%)",
+            Self::Ukrainian => "Украї́нська мо́ва (43%)",
         }
         .to_string()
     }
@@ -184,6 +189,7 @@ fn set_language(language: Language) {
     let ftl = match language {
         Language::Arabic => include_str!("../lang/ar-SA.ftl"),
         Language::ChineseSimplified => include_str!("../lang/zh-CN.ftl"),
+        Language::ChineseTraditional => include_str!("../lang/zh-TW.ftl"),
         Language::Czech => include_str!("../lang/cs-CZ.ftl"),
         Language::Dutch => include_str!("../lang/nl-NL.ftl"),
         Language::English => include_str!("../lang/en-US.ftl"),

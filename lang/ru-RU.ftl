@@ -44,31 +44,31 @@ button-unlock = Разблокировать
 # This opens a download page.
 button-get-app = Получить { $app }
 button-validate = Проверить
-no-roots-are-configured = Add some roots to back up even more data.
+no-roots-are-configured = Добавьте несколько корней для резервирования еще больше данных.
 config-is-invalid = Ошибка: неверный файл конфигурации.
-manifest-is-invalid = Error: The manifest file is invalid.
-manifest-cannot-be-updated = Error: Unable to check for an update to the manifest file. Is your Internet connection down?
-cannot-prepare-backup-target = Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: { $path }
+manifest-is-invalid = Ошибка: неверный файл конфигурации (манифеста).
+manifest-cannot-be-updated = Ошибка: Невозможно проверить обновление файла манифеста. Подключение к Интернету отключено?
+cannot-prepare-backup-target = Ошибка: Не удается подготовить резервную копию цели (либо создание, либо очистка папки). Если папка открыта в браузере файлов, попробуйте закрыть её: { $path }
 restoration-source-is-invalid = Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: { $path }
-registry-issue = Error: Some registry entries were skipped.
+registry-issue = Ошибка: Некоторые записи реестра были пропущены.
 unable-to-browse-file-system = Error: Unable to browse on your system.
-unable-to-open-directory = Error: Unable to open directory:
-unable-to-open-url = Error: Unable to open URL:
+unable-to-open-directory = Ошибка: Не удается открыть каталог:
+unable-to-open-url = Ошибка: Не удается открыть URL:
 unable-to-configure-cloud = Не удалось настроить облако.
 unable-to-synchronize-with-cloud = Не удалось синхронизировать с облаком.
 cloud-synchronize-conflict = Ваши локальные и облачные резервные копии конфликтуют. Выполните закачку или загрузку, чтобы разрешить это.
-command-unlaunched = Command did not launch: { $command }
-command-terminated = Command terminated abruptly: { $command }
-command-failed = Command failed with code { $code }: { $command }
+command-unlaunched = Команда не запущена: { $command }
+command-terminated = Команда прервана: { $command }
+command-failed = Не удалось выполнить команду с кодом { $code }: { $command }
 processed-games =
     { $total-games } { $total-games ->
-        [one] game
-       *[other] games
+        [one] игр(а)
+       *[other] игр(ы)
     }
 processed-games-subset =
-    { $processed-games } of { $total-games } { $total-games ->
-        [one] game
-       *[other] games
+    { $processed-games } из { $total-games } { $total-games ->
+        [one] игр(а)
+       *[other] игр(ы)
     }
 processed-size-subset = { $processed-size } из { $total-size }
 field-backup-target = Резервировать в:
@@ -80,9 +80,9 @@ field-redirect-source =
     .placeholder = Источник (исходное место)
 field-redirect-target =
     .placeholder = Целевой (новое место)
-field-roots = Roots:
+field-roots = Корневые:
 field-backup-excluded-items = Исключения из резервной копии:
-field-redirects = Redirects:
+field-redirects = Перенаправления:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
 field-retention-full = Полный:
