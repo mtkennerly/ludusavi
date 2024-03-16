@@ -46,7 +46,7 @@ jobs:
       - if: ${{ matrix.os == 'ubuntu-20.04' }}
         run: sudo apt-get update && sudo apt-get install -y gcc libxcb-composite0-dev
       - run: cargo build --release
-      - uses: actions/upload-artifact@v1
+      - uses: actions/upload-artifact@v4
         with:
           name: ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}
           path: target/release/${{ matrix.artifact-file }}
