@@ -1,8 +1,9 @@
 ## Unreleased
 
 * Added:
-  * CLI: The `wrap` command now supports `--infer steam`,
-    which will check for the `STEAMAPPID` environment variable.
+  * CLI: The `wrap` command now supports some new arguments:
+    * `--infer steam` to check for the `STEAMAPPID` environment variable
+    * `--force` to skip confirmations
   * GUI: File sizes are now displayed for each file and directory.
     ([Contributed by JackSpagnoli](https://github.com/mtkennerly/ludusavi/pull/308))
   * Updated translations, including a new in-progress Traditional Chinese translation.

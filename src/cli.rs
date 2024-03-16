@@ -799,6 +799,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
         },
         Subcommand::Wrap {
             name_source,
+            force,
             gui,
             commands,
         } => {
@@ -835,6 +836,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             if game_name.is_none()
                 && !ui::confirm_with_question(
                     gui,
+                    force.then_some(true),
                     &TRANSLATOR.game_is_unrecognized(),
                     &TRANSLATOR.launch_game_after_error(),
                 )?
@@ -855,6 +857,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 if !game_layout.has_backups() {
                     if ui::confirm_with_question(
                         gui,
+                        force.then_some(true),
                         &TRANSLATOR.game_has_nothing_to_restore(),
                         &TRANSLATOR.launch_game_after_error(),
                     )? {
@@ -864,7 +867,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     }
                 }
 
-                if !ui::confirm(gui, &TRANSLATOR.restore_one_game_confirm(game_name))? {
+                if !ui::confirm(
+                    gui,
+                    force.then_some(true),
+                    &TRANSLATOR.restore_one_game_confirm(game_name),
+                )? {
                     break 'restore;
                 }
 
@@ -911,7 +918,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     break 'backup;
                 };
 
-                if !ui::confirm(gui, &TRANSLATOR.back_up_one_game_confirm(game_name))? {
+                if !ui::confirm(
+                    gui,
+                    force.then_some(true),
+                    &TRANSLATOR.back_up_one_game_confirm(game_name),
+                )? {
                     break 'backup;
                 }
 

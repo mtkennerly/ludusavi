@@ -63,12 +63,22 @@ pub fn alert(gui: bool, msg: &str) -> Result<(), Error> {
     }
 }
 
-pub fn confirm_with_question(gui: bool, msg: &str, question: &str) -> Result<bool, Error> {
-    confirm(gui, &format!("{}{}{}", msg, get_separator(gui), question))
+pub fn confirm_with_question(gui: bool, force: Option<bool>, msg: &str, question: &str) -> Result<bool, Error> {
+    if let Some(force) = force {
+        _ = alert(gui, msg);
+        return Ok(force);
+    }
+
+    confirm(gui, None, &format!("{}{}{}", msg, get_separator(gui), question))
 }
 
-pub fn confirm(gui: bool, msg: &str) -> Result<bool, Error> {
-    log::debug!("Showing confirmation to user (GUI={}): {}", gui, msg);
+pub fn confirm(gui: bool, force: Option<bool>, msg: &str) -> Result<bool, Error> {
+    log::debug!("Showing confirmation to user (GUI={}, force={:?}): {}", gui, force, msg);
+
+    if let Some(force) = force {
+        return Ok(force);
+    }
+
     if gui {
         match native_dialog::MessageDialog::new()
             .set_title(&TRANSLATOR.app_name())
