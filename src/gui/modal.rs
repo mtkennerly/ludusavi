@@ -77,6 +77,40 @@ impl ModalField {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CloudModalState {
+    Initial,
+    Previewing,
+    Previewed,
+    Syncing,
+    Synced,
+    NoChanges,
+}
+
+impl CloudModalState {
+    pub fn idle(&self) -> bool {
+        match self {
+            Self::Initial => true,
+            Self::Previewing => false,
+            Self::Previewed => true,
+            Self::Syncing => false,
+            Self::Synced => true,
+            Self::NoChanges => true,
+        }
+    }
+
+    pub fn done(&self) -> bool {
+        match self {
+            Self::Initial => false,
+            Self::Previewing => false,
+            Self::Previewed => false,
+            Self::Syncing => false,
+            Self::Synced => true,
+            Self::NoChanges => true,
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Modal {
     Error {
@@ -103,10 +137,8 @@ pub enum Modal {
         cloud: String,
         direction: SyncDirection,
         changes: Vec<CloudChange>,
-        done: bool,
         page: usize,
-        previewing: bool,
-        syncing: bool,
+        state: CloudModalState,
     },
     ConfigureFtpRemote,
     ConfigureSmbRemote,
@@ -133,8 +165,8 @@ impl Modal {
                     ModalVariant::Confirm
                 }
             }
-            modal @ Self::ConfirmCloudSync { done, syncing, .. } => {
-                if (*done && *syncing) || !modal.any_cloud_changes() {
+            Self::ConfirmCloudSync { state, .. } => {
+                if state.done() {
                     ModalVariant::Info
                 } else {
                     ModalVariant::Confirm
@@ -165,13 +197,14 @@ impl Modal {
                     TRANSLATOR.backups_are_invalid()
                 }
             }
-            modal @ Self::ConfirmCloudSync {
+            Self::ConfirmCloudSync {
                 local,
                 cloud,
                 direction,
+                state,
                 ..
             } => {
-                if !modal.any_cloud_changes() {
+                if *state == CloudModalState::NoChanges {
                     TRANSLATOR.no_cloud_changes()
                 } else {
                     match direction {
@@ -203,16 +236,11 @@ impl Modal {
             })),
             Self::ConfirmAddMissingRoots(missing) => Some(Message::ConfirmAddMissingRoots(missing.clone())),
             Self::UpdatingManifest => None,
-            modal @ Self::ConfirmCloudSync {
-                direction,
-                syncing,
-                done,
-                ..
-            } => {
-                if (*done && *syncing) || !modal.any_cloud_changes() {
+            Self::ConfirmCloudSync { direction, state, .. } => {
+                if state.done() {
                     Some(Message::CloseModal)
                 } else {
-                    (!syncing).then_some(Message::SynchronizeCloud {
+                    state.idle().then_some(Message::SynchronizeCloud {
                         direction: *direction,
                         finality: Finality::Final,
                     })
@@ -278,19 +306,13 @@ impl Modal {
 
     fn extra_controls(&self) -> Vec<Element> {
         match self {
-            modal @ Self::ConfirmCloudSync {
-                direction,
-                previewing,
-                syncing,
-                done,
-                ..
-            } => {
-                if (*done && *syncing) || !modal.any_cloud_changes() {
+            Self::ConfirmCloudSync { direction, state, .. } => {
+                if state.done() {
                     vec![]
                 } else {
                     vec![button::primary(
                         TRANSLATOR.preview_button(),
-                        (!previewing && !syncing).then_some(Message::SynchronizeCloud {
+                        state.idle().then_some(Message::SynchronizeCloud {
                             direction: *direction,
                             finality: Finality::Preview,
                         }),
@@ -347,24 +369,19 @@ impl Modal {
                     col = col.push(text(game))
                 }
             }
-            modal @ Self::ConfirmCloudSync {
-                changes,
-                page,
-                done,
-                previewing,
-                syncing,
-                ..
+            Self::ConfirmCloudSync {
+                changes, page, state, ..
             } => {
-                if modal.any_cloud_changes() {
+                if !changes.is_empty() || !state.idle() {
                     col = col
                         .push_if(
-                            || *previewing || *syncing,
+                            || !state.idle(),
                             || {
                                 Row::new()
                                     .spacing(20)
                                     .align_items(Alignment::Center)
                                     .push(text(TRANSLATOR.change_count_label(changes.len())))
-                                    .push_if(|| changes.is_empty() && !done, || text(TRANSLATOR.loading()))
+                                    .push_if(|| changes.is_empty(), || text(TRANSLATOR.loading()))
                                     .push(Space::new(Length::Fill, Length::Shrink))
                                     .push(button::previous_page(Message::ModalChangePage, *page))
                                     .push(button::next_page(
@@ -443,15 +460,24 @@ impl Modal {
 
     pub fn finish_cloud_scan(&mut self) {
         match self {
-            Self::ConfirmCloudSync {
-                done,
-                previewing,
-                syncing,
-                ..
-            } => {
-                *done = true;
-                *previewing = false;
-                *syncing = false;
+            Self::ConfirmCloudSync { state, changes, .. } => {
+                *state = match *state {
+                    CloudModalState::Previewing => {
+                        if changes.is_empty() {
+                            CloudModalState::NoChanges
+                        } else {
+                            CloudModalState::Previewed
+                        }
+                    }
+                    CloudModalState::Syncing => {
+                        if changes.is_empty() {
+                            CloudModalState::NoChanges
+                        } else {
+                            CloudModalState::Synced
+                        }
+                    }
+                    x => x,
+                };
             }
             Self::Error { .. }
             | Self::Errors { .. }
@@ -488,29 +514,9 @@ impl Modal {
         }
     }
 
-    pub fn any_cloud_changes(&self) -> bool {
-        match self {
-            Self::ConfirmCloudSync { done, changes, .. } => !changes.is_empty() || !done,
-            Self::Error { .. }
-            | Self::Errors { .. }
-            | Self::Exiting
-            | Self::ConfirmBackup { .. }
-            | Self::ConfirmRestore { .. }
-            | Self::NoMissingRoots
-            | Self::ConfirmAddMissingRoots(_)
-            | Self::BackupValidation { .. }
-            | Self::UpdatingManifest
-            | Self::ConfigureFtpRemote { .. }
-            | Self::ConfigureSmbRemote { .. }
-            | Self::ConfigureWebDavRemote { .. } => false,
-        }
-    }
-
     pub fn is_cloud_active(&self) -> bool {
         match self {
-            Self::ConfirmCloudSync {
-                previewing, syncing, ..
-            } => *previewing || *syncing,
+            Self::ConfirmCloudSync { state, .. } => !state.idle(),
             Self::Error { .. }
             | Self::Errors { .. }
             | Self::Exiting

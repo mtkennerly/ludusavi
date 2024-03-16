@@ -7,7 +7,7 @@ use crate::{
     gui::{
         button,
         common::*,
-        modal::{Modal, ModalField, ModalInputKind},
+        modal::{CloudModalState, Modal, ModalField, ModalInputKind},
         notification::Notification,
         screen,
         shortcuts::{Shortcut, TextHistories, TextHistory},
@@ -2343,10 +2343,8 @@ impl Application for App {
                     cloud: self.config.cloud.path.clone(),
                     direction,
                     changes: vec![],
-                    done: false,
                     page: 0,
-                    previewing: false,
-                    syncing: false,
+                    state: CloudModalState::Initial,
                 })
             }
             Message::SynchronizeCloud { direction, finality } => {
@@ -2361,10 +2359,11 @@ impl Application for App {
                     cloud: self.config.cloud.path.clone(),
                     direction,
                     changes: vec![],
-                    done: false,
                     page: 0,
-                    previewing: finality == Finality::Preview,
-                    syncing: finality == Finality::Final,
+                    state: match finality {
+                        Finality::Preview => CloudModalState::Previewing,
+                        Finality::Final => CloudModalState::Syncing,
+                    },
                 })
             }
             Message::RcloneMonitor(event) => {
