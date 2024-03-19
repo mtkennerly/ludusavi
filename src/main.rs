@@ -17,7 +17,7 @@ mod testing;
 use crate::{
     gui::Flags,
     lang::TRANSLATOR,
-    prelude::{app_dir, CONFIG_DIR, ENV_DEBUG, ENV_RELAUNCHED, VERSION},
+    prelude::{app_dir, CONFIG_DIR, VERSION},
 };
 
 /// The logger must be assigned to a variable because we're using async logging.
@@ -47,34 +47,69 @@ fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLo
         .start()
 }
 
-fn has_env(key: &str) -> bool {
-    std::env::var(key).is_ok()
-}
-
-fn relaunch_detached(args: Vec<String>) -> ! {
-    let exe = match std::env::current_exe() {
-        Ok(x) => x,
-        Err(e) => {
-            eprintln!("Unable to relaunch in detached mode: {e:?}");
-            std::process::exit(1);
-        }
+/// Detach the current process from its console on Windows.
+///
+/// ## Testing
+/// This has several edge cases and has been the source of multiple bugs.
+/// If you change this, be careful and make sure to test this matrix:
+///
+/// * Arguments:
+///   * None (double click in Windows Explorer)
+///   * None (from console)
+///   * `--help` (has output, but before this function is called)
+///   * `backup --preview` (has output, after this function is called)
+/// * Consoles:
+///   * Command Prompt
+///   * PowerShell
+///   * Git Bash
+/// * Console host for double clicking in Windows Explorer:
+///   * Windows Console Host
+///   * Windows Terminal
+///
+/// ## Alternatives
+/// We have tried `#![windows_subsystem = "windows"]` plus `AttachConsole`/`AllocConsole`,
+/// but that messes up the console output in Command Prompt and PowerShell
+/// (a new prompt line is shown, and then the output bleeds into that line).
+///
+/// We have tried relaunching the program with a special environment variable,
+/// but that eventually raised a false positive from Windows Defender (`Win32/Wacapew.C!ml`).
+///
+/// We may eventually want to try using a manifest to set `<consoleAllocationPolicy>`,
+/// but that is not yet widely available:
+/// https://github.com/microsoft/terminal/blob/5383cb3a1bb8095e214f7d4da085ea4646db8868/doc/specs/%237335%20-%20Console%20Allocation%20Policy.md
+///
+/// ## Considerations
+/// The current approach is to let the console appear and then immediately `FreeConsole`.
+/// Previously, Windows Terminal wouldn't remove the console in that case,
+/// but that has been fixed: https://github.com/microsoft/terminal/issues/16174
+///
+/// There was also an issue where asynchronous Rclone commands would fail to spawn
+/// ("The request is not supported (os error 50)"),
+/// but that has been solved by resetting the standard device handles:
+/// https://github.com/rust-lang/rust/issues/113277
+#[cfg(target_os = "windows")]
+unsafe fn detach_console() {
+    use winapi::um::{
+        processenv::SetStdHandle,
+        winbase::{STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE},
+        wincon::FreeConsole,
     };
 
-    let mut command = std::process::Command::new(exe);
-    command.args(args).env(ENV_RELAUNCHED, "1");
-
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        command.creation_flags(winapi::um::winbase::CREATE_NO_WINDOW);
+    if FreeConsole() == 0 {
+        eprintln!("Unable to detach the console");
+        std::process::exit(1);
     }
-
-    match command.spawn() {
-        Ok(_) => std::process::exit(0),
-        Err(e) => {
-            eprintln!("Unable to relaunch in detached mode: {e:?}");
-            std::process::exit(1);
-        }
+    if SetStdHandle(STD_INPUT_HANDLE, std::ptr::null_mut()) == 0 {
+        eprintln!("Unable to reset stdin handle");
+        std::process::exit(1);
+    }
+    if SetStdHandle(STD_OUTPUT_HANDLE, std::ptr::null_mut()) == 0 {
+        eprintln!("Unable to reset stdout handle");
+        std::process::exit(1);
+    }
+    if SetStdHandle(STD_ERROR_HANDLE, std::ptr::null_mut()) == 0 {
+        eprintln!("Unable to reset stderr handle");
+        std::process::exit(1);
     }
 }
 
@@ -85,10 +120,14 @@ fn main() {
     }
     match args.sub {
         None => {
-            if cfg!(target_os = "windows") && !has_env(ENV_DEBUG) && !has_env(ENV_RELAUNCHED) {
-                relaunch_detached(args.relaunch_gui_args());
+            #[cfg(target_os = "windows")]
+            if std::env::var(crate::prelude::ENV_DEBUG).is_err() {
+                unsafe {
+                    detach_console();
+                }
             }
 
+            // We must do this after detaching the console, or else it will still be present, somehow.
             #[allow(unused)]
             let logger = prepare_logging();
 

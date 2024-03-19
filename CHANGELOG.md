@@ -17,6 +17,13 @@
     the very next backup preview wouldn't do anything.
   * CLI: The `wrap` command did not fail gracefully when the game launch commands were missing.
 * Changed:
+  * On Windows, the way Ludusavi hides its console in GUI mode has changed,
+    in order to avoid a new false positive from Windows Defender.
+
+    Instead of relaunching itself, Ludusavi now detaches the console from the current instance.
+    This reverts a change from v0.18.1,
+    but care has been taken to address the problems that originally led to that change.
+    If you do notice any issues related to this, please report them.
   * When synchronizing to the cloud after a backup,
     Ludusavi now instructs Rclone to only check paths for games with updated saves.
     This improves the cloud sync performance.
