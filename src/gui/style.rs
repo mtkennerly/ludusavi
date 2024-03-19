@@ -312,7 +312,7 @@ impl container::StyleSheet for Theme {
                 _ => Some(self.text),
             },
             shadow: Shadow {
-                color: Color::BLACK,
+                color: Color::TRANSPARENT,
                 offset: Vector::ZERO,
                 blur_radius: 0.0,
             },
