@@ -961,7 +961,7 @@ impl GameLayout {
             match file.change() {
                 ScanChange::New | ScanChange::Different | ScanChange::Same => {
                     files.insert(
-                        file.effective().render(),
+                        file.mapping_key(),
                         IndividualMappingFile {
                             hash: file.hash.clone(),
                             size: file.size,
@@ -1007,7 +1007,7 @@ impl GameLayout {
             match file.change() {
                 ScanChange::New | ScanChange::Different | ScanChange::Same => {
                     files.insert(
-                        file.effective().render(),
+                        file.mapping_key(),
                         Some(IndividualMappingFile {
                             hash: file.hash.clone(),
                             size: file.size,
@@ -1015,7 +1015,7 @@ impl GameLayout {
                     );
                 }
                 ScanChange::Removed => {
-                    files.insert(file.effective().render(), None);
+                    files.insert(file.mapping_key(), None);
                 }
                 ScanChange::Unknown => (),
             };
@@ -1068,7 +1068,7 @@ impl GameLayout {
 
         let mut relevant_files = vec![];
         for file in &scan.found_files {
-            if !backup.includes_file(file.effective().render()) {
+            if !backup.includes_file(file.mapping_key()) {
                 log::debug!("[{}] skipped: {}", self.mapping.name, file.path.raw());
                 continue;
             }
@@ -1153,7 +1153,7 @@ impl GameLayout {
             .large_file(true);
 
         'item: for file in &scan.found_files {
-            if !backup.includes_file(file.effective().render()) {
+            if !backup.includes_file(file.mapping_key()) {
                 log::debug!("[{}] skipped: {}", self.mapping.name, file.path.raw());
                 continue;
             }
@@ -1373,7 +1373,7 @@ impl GameLayout {
 
         for file in self.restorable_files_in_simple(&backup.name) {
             files.insert(
-                file.original_path.unwrap().render(),
+                file.mapping_key(),
                 IndividualMappingFile {
                     hash: file.path.sha1(),
                     size: file.path.size(),

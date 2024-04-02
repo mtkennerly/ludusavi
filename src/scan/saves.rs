@@ -88,7 +88,12 @@ impl ScannedFile {
         self.original_path.is_some()
     }
 
-    /// This is stored in the mapping file and used for operations.
+    /// This is stored in the mapping file.
+    pub fn mapping_key(&self) -> String {
+        self.effective().render()
+    }
+
+    /// This is used for operations.
     pub fn effective(&self) -> &StrictPath {
         self.redirected.as_ref().unwrap_or_else(|| self.original_path())
     }
