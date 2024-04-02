@@ -7,7 +7,7 @@ use std::{
 use once_cell::sync::Lazy;
 
 pub use crate::path::StrictPath;
-use crate::resource::manifest::Os;
+use crate::{path::CommonPath, resource::manifest::Os};
 
 pub static VERSION: Lazy<&'static str> =
     Lazy::new(|| option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")));
@@ -33,6 +33,7 @@ pub const INVALID_FILE_CHARS: &[char] = &['\\', '/', ':', '*', '?', '"', '<', '>
 
 pub static STEAM_DECK: Lazy<bool> =
     Lazy::new(|| Os::HOST == Os::Linux && StrictPath::new("/home/deck".to_string()).exists());
+pub static OS_USERNAME: Lazy<String> = Lazy::new(whoami::username);
 
 pub static AVAILABLE_PARALELLISM: Lazy<Option<NonZeroUsize>> = Lazy::new(|| std::thread::available_parallelism().ok());
 
@@ -158,9 +159,7 @@ pub fn app_dir() -> std::path::PathBuf {
         }
     }
 
-    let mut path = dirs::config_dir().unwrap();
-    path.push(APP_DIR_NAME);
-    path
+    StrictPath::new(format!("{}/{}", CommonPath::Config.get().unwrap(), APP_DIR_NAME)).as_std_path_buf()
 }
 
 pub fn filter_map_walkdir(e: Result<walkdir::DirEntry, walkdir::Error>) -> Option<walkdir::DirEntry> {

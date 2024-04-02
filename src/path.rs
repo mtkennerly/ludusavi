@@ -1,8 +1,12 @@
 use std::sync::{Arc, Mutex};
 
 use filetime::FileTime;
+use once_cell::sync::Lazy;
 
-use crate::{prelude::AnyError, resource::manifest::Os};
+use crate::{
+    prelude::{AnyError, SKIP},
+    resource::manifest::Os,
+};
 
 #[cfg(target_os = "windows")]
 const TYPICAL_SEPARATOR: &str = "\\";
@@ -19,6 +23,51 @@ const UNC_PREFIX: &str = "\\\\";
 #[allow(dead_code)]
 const UNC_LOCAL_PREFIX: &str = "\\\\?\\";
 
+pub enum CommonPath {
+    Config,
+    Data,
+    DataLocal,
+    Document,
+    Home,
+    Public,
+}
+
+impl CommonPath {
+    pub fn get(&self) -> Option<&str> {
+        fn check_dir(path: Option<std::path::PathBuf>) -> Option<String> {
+            Some(path?.to_string_lossy().to_string())
+        }
+
+        static CONFIG: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::config_dir()));
+        static DATA: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::data_dir()));
+        static DATA_LOCAL: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::data_local_dir()));
+        static DOCUMENT: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::document_dir()));
+        static HOME: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::home_dir()));
+        static PUBLIC: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::public_dir()));
+
+        match self {
+            Self::Config => CONFIG.as_ref(),
+            Self::Data => DATA.as_ref(),
+            Self::DataLocal => DATA_LOCAL.as_ref(),
+            Self::Document => DOCUMENT.as_ref(),
+            Self::Home => HOME.as_ref(),
+            Self::Public => PUBLIC.as_ref(),
+        }
+        .map(|x| x.as_str())
+    }
+
+    pub fn get_or_skip(&self) -> &str {
+        self.get().unwrap_or(SKIP)
+    }
+
+    pub fn try_get(&self) -> Result<&str, StrictPathError> {
+        match self.get() {
+            Some(path) => Ok(path),
+            None => Err(StrictPathError::Unmappable),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum SetFileTimeError {
     Write(std::io::Error),
@@ -27,10 +76,12 @@ pub enum SetFileTimeError {
 
 pub fn parse_home(path: &str) -> String {
     if path == "~" || path.starts_with("~/") || path.starts_with("~\\") {
-        path.replacen('~', &dirs::home_dir().unwrap().to_string_lossy(), 1)
-    } else {
-        path.to_owned()
+        if let Some(home) = CommonPath::Home.get() {
+            return path.replacen('~', home, 1);
+        }
     }
+
+    path.to_owned()
 }
 
 fn normalize(path: &str) -> String {
@@ -182,24 +233,17 @@ pub enum StrictPathError {
 pub fn resolve(raw: impl Into<String>) -> Result<String, StrictPathError> {
     use crate::resource::manifest::placeholder;
 
-    fn check_path(path: &Option<std::path::PathBuf>) -> Result<String, StrictPathError> {
-        match path {
-            Some(path) => Ok(path.to_string_lossy().to_string()),
-            None => Err(StrictPathError::Unmappable),
-        }
-    }
-
     let mut path = parse_home(&raw.into())
-        .replace(placeholder::HOME, &check_path(&dirs::home_dir())?)
-        .replace(placeholder::OS_USER_NAME, &whoami::username());
+        .replace(placeholder::HOME, CommonPath::Home.try_get()?)
+        .replace(placeholder::OS_USER_NAME, &crate::prelude::OS_USERNAME);
 
     if Os::HOST == Os::Windows {
         path = path
             .trim_end_matches(['/', '\\'])
-            .replace(placeholder::WIN_APP_DATA, &check_path(&dirs::data_dir())?)
-            .replace(placeholder::WIN_LOCAL_APP_DATA, &check_path(&dirs::data_local_dir())?)
-            .replace(placeholder::WIN_DOCUMENTS, &check_path(&dirs::document_dir())?)
-            .replace(placeholder::WIN_PUBLIC, &check_path(&dirs::public_dir())?)
+            .replace(placeholder::WIN_APP_DATA, CommonPath::Data.try_get()?)
+            .replace(placeholder::WIN_LOCAL_APP_DATA, CommonPath::DataLocal.try_get()?)
+            .replace(placeholder::WIN_DOCUMENTS, CommonPath::Document.try_get()?)
+            .replace(placeholder::WIN_PUBLIC, CommonPath::Public.try_get()?)
             .replace(placeholder::WIN_PROGRAM_DATA, "C:/ProgramData")
             .replace(placeholder::WIN_DIR, "C:/Windows");
 
@@ -216,8 +260,8 @@ pub fn resolve(raw: impl Into<String>) -> Result<String, StrictPathError> {
     } else {
         path = path
             .trim_end_matches('/')
-            .replace(placeholder::XDG_DATA, &check_path(&dirs::data_dir())?)
-            .replace(placeholder::XDG_CONFIG, &check_path(&dirs::config_dir())?);
+            .replace(placeholder::XDG_DATA, CommonPath::Data.try_get()?)
+            .replace(placeholder::XDG_CONFIG, CommonPath::Config.try_get()?);
 
         if path.contains(':') || path.starts_with("//") || path.starts_with('\\') {
             return Err(StrictPathError::Unsupported);
@@ -840,11 +884,11 @@ mod tests {
     use crate::testing::{repo, repo_raw, s};
 
     fn username() -> String {
-        whoami::username()
+        (*crate::prelude::OS_USERNAME).clone()
     }
 
     fn home() -> String {
-        render_pathbuf(&dirs::home_dir().unwrap())
+        CommonPath::Home.get().unwrap().to_string()
     }
 
     fn drive() -> String {

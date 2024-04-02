@@ -18,7 +18,7 @@ use std::collections::{HashMap, HashSet};
 pub use self::{backup::*, change::*, duplicate::*, launchers::*, preview::*, saves::*, steam::*, title::*};
 
 use crate::{
-    path::StrictPath,
+    path::{CommonPath, StrictPath},
     prelude::{filter_map_walkdir, Error, SKIP},
     resource::{
         config::{BackupFilter, RedirectConfig, RedirectKind, RootsConfig, SortKey, ToggledPaths, ToggledRegistry},
@@ -72,32 +72,14 @@ pub fn game_file_target(
     }
 }
 
-fn check_path(path: Option<std::path::PathBuf>) -> String {
-    path.unwrap_or_else(|| SKIP.into()).to_string_lossy().to_string()
-}
-
-fn check_windows_path(path: Option<std::path::PathBuf>) -> String {
-    match Os::HOST {
-        Os::Windows => check_path(path),
-        _ => SKIP.to_string(),
-    }
-}
-
-fn check_windows_path_str(path: &str) -> &str {
+fn check_windows_path(path: &str) -> &str {
     match Os::HOST {
         Os::Windows => path,
         _ => SKIP,
     }
 }
 
-fn check_nonwindows_path(path: Option<std::path::PathBuf>) -> String {
-    match Os::HOST {
-        Os::Windows => SKIP.to_string(),
-        _ => check_path(path),
-    }
-}
-
-fn check_nonwindows_path_str(path: &str) -> &str {
+fn check_nonwindows_path(path: &str) -> &str {
     match Os::HOST {
         Os::Windows => SKIP,
         _ => path,
@@ -148,10 +130,10 @@ pub fn parse_paths(
     };
 
     let root_interpreted = root.path.interpret();
-    let data_dir = check_path(dirs::data_dir());
-    let data_local_dir = check_path(dirs::data_local_dir());
-    let config_dir = check_path(dirs::config_dir());
-    let home = check_path(dirs::home_dir());
+    let data_dir = CommonPath::Data.get_or_skip();
+    let data_local_dir = CommonPath::DataLocal.get_or_skip();
+    let config_dir = CommonPath::Config.get_or_skip();
+    let home = CommonPath::Home.get_or_skip();
 
     #[cfg(target_os = "windows")]
     let saved_games_dir = known_folders::get_known_folder_path(known_folders::KnownFolder::SavedGames)
@@ -185,17 +167,17 @@ pub fn parse_paths(
                     | Store::Other => format!("{}/{}", &root_interpreted, install_dir),
                 },
             )
-            .replace(HOME, &home)
+            .replace(HOME, home)
             .replace(STORE_USER_ID, "*")
-            .replace(OS_USER_NAME, &whoami::username())
-            .replace(WIN_APP_DATA, check_windows_path_str(&data_dir))
-            .replace(WIN_LOCAL_APP_DATA, check_windows_path_str(&data_local_dir))
-            .replace(WIN_DOCUMENTS, &check_windows_path(dirs::document_dir()))
-            .replace(WIN_PUBLIC, &check_windows_path(dirs::public_dir()))
-            .replace(WIN_PROGRAM_DATA, check_windows_path_str("C:/ProgramData"))
-            .replace(WIN_DIR, check_windows_path_str("C:/Windows"))
-            .replace(XDG_DATA, check_nonwindows_path_str(&data_dir))
-            .replace(XDG_CONFIG, check_nonwindows_path_str(&config_dir)),
+            .replace(OS_USER_NAME, &crate::prelude::OS_USERNAME)
+            .replace(WIN_APP_DATA, check_windows_path(data_dir))
+            .replace(WIN_LOCAL_APP_DATA, check_windows_path(data_local_dir))
+            .replace(WIN_DOCUMENTS, check_windows_path(CommonPath::Document.get_or_skip()))
+            .replace(WIN_PUBLIC, check_windows_path(CommonPath::Public.get_or_skip()))
+            .replace(WIN_PROGRAM_DATA, check_windows_path("C:/ProgramData"))
+            .replace(WIN_DIR, check_windows_path("C:/Windows"))
+            .replace(XDG_DATA, check_nonwindows_path(data_dir))
+            .replace(XDG_CONFIG, check_nonwindows_path(config_dir)),
         platform.is_case_sensitive(),
     ));
     if Os::HOST == Os::Windows {
@@ -215,9 +197,9 @@ pub fn parse_paths(
                 path.replace('\\', "/")
                     .replace(GAME, install_dir)
                     .replace(STORE_USER_ID, "*")
-                    .replace(OS_USER_NAME, &whoami::username())
+                    .replace(OS_USER_NAME, &crate::prelude::OS_USERNAME)
                     .replace("<home>/Saved Games/", &format!("{}/", saved_games_dir))
-                    .replace(HOME, &home),
+                    .replace(HOME, home),
                 platform.is_case_sensitive(),
             ));
         }
@@ -227,10 +209,10 @@ pub fn parse_paths(
         paths.insert((
             path.replace(GAME, install_dir)
                 .replace(STORE_USER_ID, "*")
-                .replace(OS_USER_NAME, &whoami::username())
+                .replace(OS_USER_NAME, &crate::prelude::OS_USERNAME)
                 .replace(XDG_DATA, "<home>/.local/share")
                 .replace(XDG_CONFIG, "<home>/.config")
-                .replace(HOME, &home),
+                .replace(HOME, home),
             platform.is_case_sensitive(),
         ));
     }
@@ -258,11 +240,11 @@ pub fn parse_paths(
         paths.insert((
             path.replace(
                 XDG_DATA,
-                check_nonwindows_path_str(&format!("{}/../../data", &root_interpreted)),
+                check_nonwindows_path(&format!("{}/../../data", &root_interpreted)),
             )
             .replace(
                 XDG_CONFIG,
-                check_nonwindows_path_str(&format!("{}/../../config", &root_interpreted)),
+                check_nonwindows_path(&format!("{}/../../config", &root_interpreted)),
             )
             .replace(STORE_USER_ID, "*"),
             platform.is_case_sensitive(),
@@ -274,15 +256,15 @@ pub fn parse_paths(
                 .replace(GAME, install_dir)
                 .replace(BASE, &format!("{}/{}", &root_interpreted, install_dir))
                 .replace(STORE_USER_ID, SKIP)
-                .replace(OS_USER_NAME, &whoami::username())
-                .replace(WIN_APP_DATA, check_windows_path_str("<home>/AppData/Roaming"))
-                .replace(WIN_LOCAL_APP_DATA, check_windows_path_str("<home>/AppData/Local"))
-                .replace(WIN_DOCUMENTS, check_windows_path_str("<home>/Documents"))
-                .replace(WIN_PUBLIC, &check_windows_path(dirs::public_dir()))
-                .replace(WIN_PROGRAM_DATA, check_windows_path_str("C:/ProgramData"))
-                .replace(WIN_DIR, check_windows_path_str("C:/Windows"))
-                .replace(XDG_DATA, check_nonwindows_path_str("<home>/.local/share"))
-                .replace(XDG_CONFIG, check_nonwindows_path_str("<home>/.config"))
+                .replace(OS_USER_NAME, &crate::prelude::OS_USERNAME)
+                .replace(WIN_APP_DATA, check_windows_path("<home>/AppData/Roaming"))
+                .replace(WIN_LOCAL_APP_DATA, check_windows_path("<home>/AppData/Local"))
+                .replace(WIN_DOCUMENTS, check_windows_path("<home>/Documents"))
+                .replace(WIN_PUBLIC, check_windows_path(CommonPath::Public.get_or_skip()))
+                .replace(WIN_PROGRAM_DATA, check_windows_path("C:/ProgramData"))
+                .replace(WIN_DIR, check_windows_path("C:/Windows"))
+                .replace(XDG_DATA, check_nonwindows_path("<home>/.local/share"))
+                .replace(XDG_CONFIG, check_nonwindows_path("<home>/.config"))
                 .replace(HOME, &root_interpreted),
             platform.is_case_sensitive(),
         ));
@@ -307,8 +289,8 @@ pub fn parse_paths(
                 .replace(WIN_PUBLIC, &format!("{}/users/Public", prefix))
                 .replace(WIN_PROGRAM_DATA, &format!("{}/ProgramData", prefix))
                 .replace(WIN_DIR, &format!("{}/windows", prefix))
-                .replace(XDG_DATA, &check_nonwindows_path(dirs::data_dir()))
-                .replace(XDG_CONFIG, &check_nonwindows_path(dirs::config_dir()));
+                .replace(XDG_DATA, check_nonwindows_path(data_dir))
+                .replace(XDG_CONFIG, check_nonwindows_path(config_dir));
             paths.insert((
                 path2
                     .replace(WIN_DOCUMENTS, &format!("{}/users/steamuser/Documents", prefix))
@@ -357,8 +339,8 @@ pub fn parse_paths(
             .replace(WIN_PUBLIC, &format!("{}/users/Public", prefix))
             .replace(WIN_PROGRAM_DATA, &format!("{}/ProgramData", prefix))
             .replace(WIN_DIR, &format!("{}/windows", prefix))
-            .replace(XDG_DATA, &check_nonwindows_path(dirs::data_dir()))
-            .replace(XDG_CONFIG, &check_nonwindows_path(dirs::config_dir()));
+            .replace(XDG_DATA, check_nonwindows_path(data_dir))
+            .replace(XDG_CONFIG, check_nonwindows_path(config_dir));
         paths.insert((
             path2
                 .replace(WIN_DOCUMENTS, &format!("{}/users/*/Documents", prefix))
@@ -422,7 +404,7 @@ pub fn parse_paths(
     if Os::HOST != Os::Windows {
         if let Some(flatpak_id) = ids.and_then(|x| x.flatpak.as_ref()) {
             paths.insert((
-                path.replace(HOME, &home)
+                path.replace(HOME, home)
                     .replace(STORE_USER_ID, "*")
                     .replace(OS_USER_NAME, "*")
                     .replace(XDG_DATA, &format!("{home}/.var/app/{flatpak_id}/data"))

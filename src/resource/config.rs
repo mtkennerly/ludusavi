@@ -7,6 +7,7 @@ use std::{
 use crate::{
     cloud::Remote,
     lang::{Language, TRANSLATOR},
+    path::CommonPath,
     prelude::{app_dir, Error, StrictPath, AVAILABLE_PARALELLISM},
     resource::{
         manifest::{Manifest, Store},
@@ -18,9 +19,7 @@ use crate::{
 const MANIFEST_URL: &str = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
 
 fn default_backup_dir() -> StrictPath {
-    let mut path = dirs::home_dir().unwrap();
-    path.push("ludusavi-backup");
-    StrictPath::from_std_path_buf(&path)
+    StrictPath::new(format!("{}/ludusavi-backup", CommonPath::Home.get().unwrap()))
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -1019,11 +1018,8 @@ impl Config {
             ("~/.var/app/net.lutris.Lutris/config/lutris".to_string(), Store::Lutris),
         ];
 
-        if let Some(data_dir) = dirs::data_dir() {
-            candidates.push((
-                format!("{}/heroic", crate::path::render_pathbuf(&data_dir)),
-                Store::Heroic,
-            ));
+        if let Some(data_dir) = CommonPath::Data.get() {
+            candidates.push((format!("{}/heroic", data_dir), Store::Heroic));
         }
 
         let detected_steam = match steamlocate::SteamDir::locate() {
