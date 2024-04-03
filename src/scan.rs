@@ -1070,14 +1070,16 @@ mod tests {
             path: StrictPath::new(format!("{}/tests/home", repo())),
             store: Store::OtherHome,
         }];
+        let store = Some(Store::OtherHome);
+
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH).change_new(),
-                    ScannedFile::new(format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo()), 0, EMPTY_HASH).change_new(),
-                    ScannedFile::new(format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo()), 0, EMPTY_HASH).change_new(),
-                    ScannedFile::new(format!("{}/tests/home/Documents/winDocuments.txt", repo()), 0, EMPTY_HASH).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH, store).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo()), 0, EMPTY_HASH, store).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo()), 0, EMPTY_HASH, store).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/Documents/winDocuments.txt", repo()), 0, EMPTY_HASH, store).change_new(),
                 },
                 found_registry_keys: hash_set! {},
                 ..Default::default()
