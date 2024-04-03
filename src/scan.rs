@@ -882,6 +882,10 @@ mod tests {
         testing::{repo, s, EMPTY_HASH},
     };
 
+    fn default_store() -> Option<Store> {
+        Some(Store::Other)
+    }
+
     fn config() -> Config {
         Config::load_from_string(&format!(
             r#"
@@ -947,8 +951,8 @@ mod tests {
             ScanInfo {
                 game_name: s("game1"),
                 found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080", default_store()).change_new(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", default_store()).change_new(),
                 },
                 found_registry_keys: hash_set! {},
                 ..Default::default()
@@ -973,7 +977,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game 2"),
                 found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                    ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", default_store()).change_new(),
                 },
                 found_registry_keys: hash_set! {},
                 ..Default::default()
@@ -1005,7 +1009,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game5"),
                 found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                    ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", default_store()).change_new(),
                 },
                 found_registry_keys: hash_set! {},
                 ..Default::default()
@@ -1037,7 +1041,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game 2"),
                 found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                    ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", default_store()).change_new(),
                 },
                 found_registry_keys: hash_set! {},
                 ..Default::default()
@@ -1102,13 +1106,16 @@ mod tests {
             path: StrictPath::new(format!("{}/tests/home", repo())),
             store: Store::OtherHome,
         }];
+
+        let store = Some(Store::OtherHome);
+
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH).change_new(),
-                    ScannedFile::new(format!("{}/tests/home/.config/xdgConfig.txt", repo()), 0, EMPTY_HASH).change_new(),
-                    ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0, EMPTY_HASH).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH, store).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/.config/xdgConfig.txt", repo()), 0, EMPTY_HASH, store).change_new(),
+                    ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0, EMPTY_HASH, store).change_new(),
                 },
                 found_registry_keys: hash_set! {},
                 ..Default::default()
@@ -1136,7 +1143,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game4"),
                 found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0, EMPTY_HASH).change_new(),
+                    ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0, EMPTY_HASH, Some(Store::OtherWine)).change_new(),
                 },
                 found_registry_keys: hash_set! {},
                 ..Default::default()
@@ -1164,7 +1171,7 @@ mod tests {
             ScanInfo {
                 game_name: s("fake-registry"),
                 found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0",).change_new(),
+                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0", Some(Store::OtherWine)).change_new(),
                 },
                 found_registry_keys: hash_set! {},
                 ..Default::default()
@@ -1196,7 +1203,7 @@ mod tests {
                 },
                 ToggledPaths::default(),
                 hash_set! {
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", default_store()).change_new(),
                 },
             ),
             (
@@ -1207,8 +1214,8 @@ mod tests {
                     }
                 }),
                 hash_set! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080", default_store()).change_new().ignored(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", default_store()).change_new(),
                 },
             ),
             (
@@ -1219,8 +1226,8 @@ mod tests {
                     }
                 }),
                 hash_set! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080", default_store()).change_new().ignored(),
+                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727", default_store()).change_new(),
                 },
             ),
         ];

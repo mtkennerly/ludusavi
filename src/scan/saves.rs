@@ -27,7 +27,7 @@ pub struct ScannedFile {
 
 impl ScannedFile {
     #[cfg(test)]
-    pub fn new<T: AsRef<str> + ToString, H: ToString>(path: T, size: u64, hash: H) -> Self {
+    pub fn new<T: AsRef<str> + ToString, H: ToString>(path: T, size: u64, hash: H, store: Option<Store>) -> Self {
         Self {
             path: StrictPath::new(path.to_string()),
             size,
@@ -37,7 +37,7 @@ impl ScannedFile {
             change: Default::default(),
             container: None,
             redirected: None,
-            store: None,
+            store,
         }
     }
 

@@ -543,6 +543,7 @@ mod tests {
 
     use super::*;
     use crate::{
+        resource::manifest::Store,
         scan::{registry_compat::RegistryItem, ScannedFile, ScannedRegistry},
         testing::s,
     };
@@ -621,7 +622,7 @@ Overall:
             },
             &BackupInfo {
                 failed_files: hash_set! {
-                    ScannedFile::new("/file2", 51_200, "2"),
+                    ScannedFile::new("/file2", 51_200, "2", None),
                 },
                 failed_registry: hash_set! {
                     RegistryItem::new(s("HKEY_CURRENT_USER/Key1"))
@@ -794,7 +795,7 @@ Overall:
                 &ScanInfo {
                     game_name: s(name),
                     found_files: hash_set! {
-                        ScannedFile::new("/file1", 102_400, "1").change_as(ScanChange::New),
+                        ScannedFile::new("/file1", 102_400, "1", None).change_as(ScanChange::New),
                     },
                     found_registry_keys: hash_set! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1").change_as(ScanChange::New),
@@ -810,7 +811,7 @@ Overall:
             &ScanInfo {
                 game_name: s("foo"),
                 found_files: hash_set! {
-                    ScannedFile::new("/file1", 102_400, "1"),
+                    ScannedFile::new("/file1", 102_400, "1", None),
                 },
                 found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
@@ -841,16 +842,17 @@ Overall:
     #[test]
     fn can_render_in_standard_mode_with_different_file_changes() {
         let mut reporter = Reporter::standard();
+        let store = Option::<Store>::None;
 
         reporter.add_game(
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
                 found_files: hash_set! {
-                    ScannedFile::new(s("/new"), 1, "1".to_string()).change_as(ScanChange::New),
-                    ScannedFile::new(s("/different"), 1, "1".to_string()).change_as(ScanChange::Different),
-                    ScannedFile::new(s("/same"), 1, "1".to_string()).change_as(ScanChange::Same),
-                    ScannedFile::new(s("/unknown"), 1, "1".to_string()).change_as(ScanChange::Unknown),
+                    ScannedFile::new(s("/new"), 1, "1".to_string(), store).change_as(ScanChange::New),
+                    ScannedFile::new(s("/different"), 1, "1".to_string(), store).change_as(ScanChange::Different),
+                    ScannedFile::new(s("/same"), 1, "1".to_string(), store).change_as(ScanChange::Same),
+                    ScannedFile::new(s("/unknown"), 1, "1".to_string(), store).change_as(ScanChange::Unknown),
                 },
                 found_registry_keys: hash_set! {},
                 ..Default::default()
@@ -867,7 +869,7 @@ Overall:
             &ScanInfo {
                 game_name: s("bar"),
                 found_files: hash_set! {
-                    ScannedFile::new(s("/brand-new"), 1, "1".to_string()).change_as(ScanChange::New),
+                    ScannedFile::new(s("/brand-new"), 1, "1".to_string(), None).change_as(ScanChange::New),
                 },
                 found_registry_keys: hash_set! {},
                 ..Default::default()
@@ -943,8 +945,8 @@ Overall:
             &ScanInfo {
                 game_name: s("foo"),
                 found_files: hash_set! {
-                    ScannedFile::new("/file1", 100, "1"),
-                    ScannedFile::new("/file2", 50, "2"),
+                    ScannedFile::new("/file1", 100, "1", None),
+                    ScannedFile::new("/file2", 50, "2", None),
                 },
                 found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
@@ -955,7 +957,7 @@ Overall:
             },
             &BackupInfo {
                 failed_files: hash_set! {
-                    ScannedFile::new("/file2", 50, "2"),
+                    ScannedFile::new("/file2", 50, "2", None),
                 },
                 failed_registry: hash_set! {
                     RegistryItem::new(s("HKEY_CURRENT_USER/Key1"))
@@ -1111,7 +1113,7 @@ Overall:
                 &ScanInfo {
                     game_name: s(name),
                     found_files: hash_set! {
-                        ScannedFile::new("/file1", 102_400, "1"),
+                        ScannedFile::new("/file1", 102_400, "1", None),
                     },
                     found_registry_keys: hash_set! {
                         ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
@@ -1127,7 +1129,7 @@ Overall:
             &ScanInfo {
                 game_name: s("foo"),
                 found_files: hash_set! {
-                    ScannedFile::new("/file1", 100, "2"),
+                    ScannedFile::new("/file1", 100, "2", None),
                 },
                 found_registry_keys: hash_set! {
                     ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
@@ -1186,16 +1188,17 @@ Overall:
     #[test]
     fn can_render_in_json_mode_with_different_file_changes() {
         let mut reporter = Reporter::json();
+        let store = None;
 
         reporter.add_game(
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
                 found_files: hash_set! {
-                    ScannedFile::new("/new", 1, "1").change_as(ScanChange::New),
-                    ScannedFile::new("/different", 1, "2").change_as(ScanChange::Different),
-                    ScannedFile::new("/same", 1, "2").change_as(ScanChange::Same),
-                    ScannedFile::new("/unknown", 1, "2").change_as(ScanChange::Unknown),
+                    ScannedFile::new("/new", 1, "1", store).change_as(ScanChange::New),
+                    ScannedFile::new("/different", 1, "2", store).change_as(ScanChange::Different),
+                    ScannedFile::new("/same", 1, "2", store).change_as(ScanChange::Same),
+                    ScannedFile::new("/unknown", 1, "2", store).change_as(ScanChange::Unknown),
                 },
                 found_registry_keys: hash_set! {},
                 ..Default::default()

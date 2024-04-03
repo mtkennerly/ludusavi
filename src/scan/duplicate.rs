@@ -374,16 +374,17 @@ mod tests {
     use velcro::{hash_map, hash_set};
 
     use super::*;
-    use crate::{scan::ScannedRegistry, testing::s};
+    use crate::{resource::manifest::Store, scan::ScannedRegistry, testing::s};
 
     #[test]
     fn can_add_games_in_backup_mode() {
         let mut detector = DuplicateDetector::default();
+        let store = Some(Store::Other);
 
         let game1 = s("game1");
         let game2 = s("game2");
-        let file1 = ScannedFile::new("file1.txt", 1, "1");
-        let file2 = ScannedFile::new("file2.txt", 2, "2");
+        let file1 = ScannedFile::new("file1.txt", 1, "1", store);
+        let file2 = ScannedFile::new("file2.txt", 2, "2", store);
         let reg1 = s("reg1");
         let reg2 = s("reg2");
 
