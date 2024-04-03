@@ -117,10 +117,8 @@ impl Change {
 
 impl Store {
     pub fn qualifies(&self, scan: &ScanInfo) -> bool {
-        if let Some(selection) = scan.store {
-            *self == selection
-        } else {
-            false
-        }
+        let store_match = scan.found_files.iter().any(|ff| ff.store.is_some_and(|s| s == *self));
+
+        store_match
     }
 }

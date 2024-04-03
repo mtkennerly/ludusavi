@@ -623,7 +623,6 @@ impl GameLayout {
                 found_registry_keys: Default::default(),
                 available_backups: vec![],
                 backup: None,
-                store: None,
             })
         }
     }
@@ -700,6 +699,7 @@ impl GameLayout {
                         redirected,
                         original_path: Some(original_path),
                         container: None,
+                        store: None,
                     });
                 }
                 BackupFormat::Zip => {
@@ -716,6 +716,7 @@ impl GameLayout {
                         redirected,
                         original_path: Some(original_path),
                         container: Some(self.path.joined(&backup.name)),
+                        store: None,
                     });
                 }
             }
@@ -755,6 +756,7 @@ impl GameLayout {
                         redirected,
                         original_path: Some(original_path),
                         container: None,
+                        store: None,
                     });
                 }
                 BackupFormat::Zip => {
@@ -771,6 +773,7 @@ impl GameLayout {
                         redirected,
                         original_path: Some(original_path),
                         container: Some(self.path.joined(&backup.name)),
+                        store: None,
                     });
                 }
             }
@@ -812,6 +815,7 @@ impl GameLayout {
                     ignored: false,
                     container: None,
                     redirected: None,
+                    store: None,
                 });
             }
         }
@@ -1546,7 +1550,6 @@ impl GameLayout {
             found_registry_keys,
             available_backups,
             backup,
-            store: None,
         }
     }
 
@@ -2992,6 +2995,7 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                     ScannedFile {
                         path: make_restorable_path("backup-1", "file2.txt"),
@@ -3002,6 +3006,7 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                 },
                 layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
@@ -3042,6 +3047,7 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
+                        store: None,
                     },
                     ScannedFile {
                         path: make_restorable_path_zip("file2.txt"),
@@ -3052,6 +3058,7 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
+                        store: None,
                     },
                 },
                 layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
@@ -3103,6 +3110,7 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                     ScannedFile {
                         path: make_restorable_path("backup-2", "changed.txt"),
@@ -3113,6 +3121,7 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                     ScannedFile {
                         path: make_restorable_path("backup-2", "added.txt"),
@@ -3123,6 +3132,7 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                 },
                 layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
@@ -3174,6 +3184,7 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
+                        store: None,
                     },
                     ScannedFile {
                         path: make_restorable_path_zip("changed.txt"),
@@ -3184,6 +3195,7 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-2.zip")),
                         redirected: None,
+                        store: None,
                     },
                     ScannedFile {
                         path: make_restorable_path_zip("added.txt"),
@@ -3194,6 +3206,7 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-2.zip")),
                         redirected: None,
+                        store: None,
                     },
                 },
                 layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
@@ -3283,6 +3296,7 @@ mod tests {
                             change: ScanChange::New,
                             container: None,
                             redirected: None,
+                            store: None,
                         },
                         ScannedFile {
                             path: restorable_file_simple(".", "file2.txt"),
@@ -3293,6 +3307,7 @@ mod tests {
                             change: ScanChange::New,
                             container: None,
                             redirected: None,
+                            store: None,
                         },
                     },
                     available_backups: backups.clone(),

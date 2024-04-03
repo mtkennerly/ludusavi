@@ -457,7 +457,7 @@ pub fn scan_game_for_backup(
     #[allow(unused_mut)]
     let mut found_registry_keys = HashSet::new();
 
-    let mut paths_to_check = HashSet::<(StrictPath, Option<bool>)>::new();
+    let mut paths_to_check = HashSet::<(StrictPath, Option<bool>, Option<Store>)>::new();
 
     // Add a dummy root for checking paths without `<root>`.
     let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig {
@@ -537,7 +537,7 @@ pub fn scan_game_for_backup(
                         // This covers `SKIP` and any other unmatched placeholders.
                         continue;
                     }
-                    paths_to_check.insert((candidate, Some(metadata.is_case_sensitive())));
+                    paths_to_check.insert((candidate, Some(metadata.is_case_sensitive()), root.store.into()));
                 }
             }
         }
@@ -550,6 +550,7 @@ pub fn scan_game_for_backup(
                         Some(manifest_dir_interpreted.clone()),
                     ),
                     None,
+                    Some(Store::Steam),
                 ));
 
                 // Screenshots:
@@ -560,6 +561,7 @@ pub fn scan_game_for_backup(
                             Some(manifest_dir_interpreted.clone()),
                         ),
                         None,
+                        Some(Store::Steam),
                     ));
                 }
 
@@ -569,6 +571,7 @@ pub fn scan_game_for_backup(
                     paths_to_check.insert((
                         StrictPath::relative(format!("{}/*.reg", prefix), Some(manifest_dir_interpreted.clone())),
                         None,
+                        Some(Store::Steam),
                     ));
                 }
             }
@@ -587,7 +590,7 @@ pub fn scan_game_for_backup(
         })
         .unwrap_or_default();
 
-    for (path, case_sensitive) in paths_to_check {
+    for (path, case_sensitive, store) in paths_to_check {
         log::trace!("[{name}] checking: {}", path.raw());
         if filter.is_path_ignored(&path) {
             log::debug!("[{name}] excluded: {}", path.raw());
@@ -617,6 +620,7 @@ pub fn scan_game_for_backup(
                     original_path: None,
                     ignored,
                     container: None,
+                    store,
                 });
             } else if p.is_dir() {
                 log::trace!("[{name}] looking for files in: {}", p.raw());
@@ -654,6 +658,7 @@ pub fn scan_game_for_backup(
                             original_path: None,
                             ignored,
                             container: None,
+                            store,
                         });
                     }
                 }
@@ -688,6 +693,7 @@ pub fn scan_game_for_backup(
                 original_path: None,
                 ignored: ignored_paths.is_ignored(name, previous_file),
                 container: None,
+                store: None,
             });
         }
     }
@@ -783,13 +789,14 @@ pub fn scan_game_for_backup(
         game_name: name.to_string(),
         found_files,
         found_registry_keys,
+        // TODO: Add store from root
         ..Default::default()
     }
 }
 
 fn scan_game_for_backup_add_prefix(
     roots_to_check: &mut Vec<RootsConfig>,
-    paths_to_check: &mut HashSet<(StrictPath, Option<bool>)>,
+    paths_to_check: &mut HashSet<(StrictPath, Option<bool>, Option<Store>)>,
     wp: &StrictPath,
     manifest_dir_interpreted: &str,
     has_registry: bool,
@@ -805,6 +812,7 @@ fn scan_game_for_backup_add_prefix(
                 Some(manifest_dir_interpreted.to_owned()),
             ),
             None,
+            Some(Store::OtherWine),
         ));
     }
 }

@@ -2,6 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     prelude::StrictPath,
+    resource::manifest::Store,
     scan::{registry_compat::RegistryItem, ScanChange},
 };
 
@@ -20,6 +21,8 @@ pub struct ScannedFile {
     /// An enclosing archive file, if any, depending on the `BackupFormat`.
     pub container: Option<StrictPath>,
     pub redirected: Option<StrictPath>,
+    /// Optional. The store the file originated from.
+    pub store: Option<Store>,
 }
 
 impl ScannedFile {
@@ -34,6 +37,7 @@ impl ScannedFile {
             change: Default::default(),
             container: None,
             redirected: None,
+            store: None,
         }
     }
 
@@ -56,6 +60,7 @@ impl ScannedFile {
             change,
             container: None,
             redirected: None,
+            store: None,
         }
     }
 
