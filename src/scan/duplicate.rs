@@ -462,6 +462,7 @@ mod tests {
             change: Default::default(),
             container: None,
             redirected: None,
+            store: None,
         };
         let file1b = ScannedFile {
             path: StrictPath::new(s("file1b.txt")),
@@ -472,6 +473,7 @@ mod tests {
             change: Default::default(),
             container: None,
             redirected: None,
+            store: None,
         };
 
         detector.add_game(
@@ -510,6 +512,7 @@ mod tests {
                 change: Default::default(),
                 container: None,
                 redirected: None,
+                store: None,
             })
         );
 
@@ -532,6 +535,7 @@ mod tests {
                 change: Default::default(),
                 container: None,
                 redirected: None,
+                store: None,
             })
         );
     }

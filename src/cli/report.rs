@@ -598,6 +598,7 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                     ScannedFile {
                         path: StrictPath::new(s("/file2")),
@@ -608,6 +609,7 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                 },
                 found_registry_keys: hash_set! {
@@ -667,6 +669,7 @@ Overall:
                         change: ScanChange::Same,
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                 },
                 found_registry_keys: hash_set! {},
@@ -693,6 +696,7 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                 },
                 found_registry_keys: hash_set! {},
@@ -742,6 +746,7 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                     ScannedFile {
                         path: StrictPath::new(format!("{}/backup/file2", drive())),
@@ -752,6 +757,7 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                 },
                 found_registry_keys: hash_set! {},
@@ -1035,6 +1041,7 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                     ScannedFile {
                         path: StrictPath::new(format!("{}/backup/file2", drive())),
@@ -1045,6 +1052,7 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        store: None,
                     },
                 },
                 found_registry_keys: hash_set! {},
