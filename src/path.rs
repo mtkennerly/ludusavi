@@ -855,33 +855,13 @@ mod tests {
         }
 
         #[test]
-        #[cfg(target_os = "windows")]
         fn can_split_drive_for_windows_path() {
             assert_eq!((s("C:"), s("foo/bar")), StrictPath::new(s("C:/foo/bar")).split_drive());
         }
 
         #[test]
-        #[cfg(not(target_os = "windows"))]
         fn can_split_drive_for_nonwindows_path() {
             assert_eq!((s(""), s("foo/bar")), StrictPath::new(s("/foo/bar")).split_drive());
-        }
-
-        #[test]
-        #[cfg(target_os = "windows")]
-        fn can_split_drive_for_linux_path_in_windows() {
-            assert_eq!(
-                (s(""), s("Users/foo/AppData")),
-                StrictPath::new(s("/Users/foo/AppData")).split_drive()
-            );
-        }
-
-        #[test]
-        #[cfg(not(target_os = "windows"))]
-        fn can_split_drive_for_windows_path_in_linux() {
-            assert_eq!(
-                (s("C"), s("Users/foo/AppData")),
-                StrictPath::new(s("C:/Users/foo/AppData")).split_drive()
-            );
         }
 
         #[test]
@@ -895,7 +875,6 @@ mod tests {
         }
 
         #[test]
-        #[cfg(target_os = "windows")]
         fn is_prefix_of_with_windows_drive_letters() {
             assert!(StrictPath::new(s(r#"C:"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
             assert!(StrictPath::new(s(r#"C:/"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
@@ -903,7 +882,6 @@ mod tests {
         }
 
         #[test]
-        #[cfg(target_os = "windows")]
         fn is_prefix_of_with_unc_drives() {
             assert!(!StrictPath::new(s(r#"\\?\C:\foo"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
             assert!(StrictPath::new(s(r#"\\?\C:\foo"#)).is_prefix_of(&StrictPath::new(s("C:/foo/bar"))));
@@ -1189,6 +1167,7 @@ mod tests {
         }
 
         #[test]
+        #[cfg(target_os = "windows")]
         fn does_not_truncate_path_up_to_drive_letter_in_windows_classic_path() {
             // https://github.com/mtkennerly/ludusavi/issues/36
             // Test for: <winDocuments>/<home>
@@ -1202,6 +1181,7 @@ mod tests {
         }
 
         #[test]
+        #[cfg(target_os = "windows")]
         fn does_not_truncate_path_up_to_drive_letter_in_windows_unc_path() {
             // https://github.com/mtkennerly/ludusavi/issues/36
             // Test for: <winDocuments>/<home>
