@@ -317,8 +317,9 @@ impl StrictPath {
         }
     }
 
+    // TODO: Better error reporting for incompatible UNC path variants.
     pub fn globbable(&self) -> String {
-        self.display().trim().trim_matches(['/', '\\']).replace('\\', "/")
+        self.display().trim().trim_end_matches(['/', '\\']).replace('\\', "/")
     }
 
     fn canonical(&self) -> Canonical {
