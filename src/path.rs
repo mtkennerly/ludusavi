@@ -171,49 +171,40 @@ impl StrictPath {
     }
 
     fn analyze(&self) -> (Option<Drive>, Vec<String>) {
-        use std::path::{Component, PathBuf, Prefix};
+        use typed_path::{
+            Utf8TypedComponent as Component, Utf8TypedPath as TypedPath, Utf8UnixComponent as UComponent,
+            Utf8WindowsComponent as WComponent, Utf8WindowsPrefix as WindowsPrefix,
+        };
 
         let mut drive = None;
         let mut parts = vec![];
 
-        for (i, component) in PathBuf::from(self.raw.trim()).components().enumerate() {
+        for (i, component) in TypedPath::derive(self.raw.trim()).components().enumerate() {
             match component {
-                Component::Prefix(prefix) => {
+                Component::Windows(WComponent::Prefix(prefix)) => {
                     let mapped = match prefix.kind() {
-                        Prefix::Verbatim(id) => format!(r"\\?\{}", id.to_string_lossy()),
-                        Prefix::VerbatimUNC(server, share) => {
-                            format!(r"\\?\UNC\{}\{}", server.to_string_lossy(), share.to_string_lossy())
-                        }
-                        Prefix::VerbatimDisk(id) => format!("{}:", id.to_ascii_uppercase() as char),
-                        Prefix::DeviceNS(id) => format!(r"\\.\{}", id.to_string_lossy()),
-                        Prefix::UNC(server, share) => {
-                            let server = server.to_string_lossy();
-                            let share = share.to_string_lossy();
-
-                            if server == "?" && share.len() == 2 && share.ends_with(':') {
-                                // This happens with forward slashes: `//?/C:` -> `C:`
-                                share.to_uppercase()
-                            } else {
-                                format!(r"\\{}\{}", server, share)
-                            }
-                        }
-                        Prefix::Disk(id) => format!("{}:", id.to_ascii_uppercase() as char),
+                        WindowsPrefix::Verbatim(id) => format!(r"\\?\{}", id),
+                        WindowsPrefix::VerbatimUNC(server, share) => format!(r"\\?\UNC\{}\{}", server, share),
+                        WindowsPrefix::VerbatimDisk(id) => format!("{}:", id.to_ascii_uppercase()),
+                        WindowsPrefix::DeviceNS(id) => format!(r"\\.\{}", id),
+                        WindowsPrefix::UNC(server, share) => format!(r"\\{}\{}", server, share),
+                        WindowsPrefix::Disk(id) => format!("{}:", id.to_ascii_uppercase()),
                     };
                     drive = Some(Drive::Windows(mapped));
                 }
-                Component::RootDir => {
+                Component::Unix(UComponent::RootDir) | Component::Windows(WComponent::RootDir) => {
                     if i == 0 {
                         drive = Some(Drive::Root);
                     }
                 }
-                Component::CurDir => {
+                Component::Unix(UComponent::CurDir) | Component::Windows(WComponent::CurDir) => {
                     if i == 0 {
                         if let Some(basis) = &self.basis {
                             (drive, parts) = Self::new(basis.clone()).analyze();
                         }
                     }
                 }
-                Component::ParentDir => {
+                Component::Unix(UComponent::ParentDir) | Component::Windows(WComponent::ParentDir) => {
                     if i == 0 {
                         if let Some(basis) = &self.basis {
                             (drive, parts) = Self::new(basis.clone()).analyze();
@@ -221,8 +212,8 @@ impl StrictPath {
                     }
                     parts.pop();
                 }
-                Component::Normal(part) => {
-                    let part = part.to_string_lossy().to_string();
+                Component::Unix(UComponent::Normal(part)) | Component::Windows(WComponent::Normal(part)) => {
+                    let mut part = part.to_string();
 
                     if i == 0 {
                         let mapped = match part.as_str() {
@@ -250,17 +241,23 @@ impl StrictPath {
                         continue;
                     }
 
-                    // TODO: Do we still need this?
                     if part.contains(':') {
-                        // This could happen if the user entered an invalid path like `C:\foo/C:\bar`.
-                        // It used to be possible if the manifest contained something like `<winDocuments>/<home>`,
-                        // but we only expand those placeholders in the initial position now.
+                        // This could happen if the user entered an invalid path like `C:\foo/C:\bar`
+                        // or if the manifest contained a path like `<winDocuments>/<home>`.
                         // We escape it so that it (likely) just won't be found, rather than finding something irrelevant.
-                        parts.push(part.replace(':', "_"));
-                        continue;
+                        part = part.replace(':', "_");
                     }
 
-                    parts.push(part);
+                    // On Unix, Unix-style path segments may contain a backslash.
+                    if part.contains('\\') {
+                        for part in part.split('\\') {
+                            if !part.trim().is_empty() {
+                                parts.push(part.to_string());
+                            }
+                        }
+                    } else {
+                        parts.push(part);
+                    }
                 }
             }
         }
@@ -510,17 +507,22 @@ impl StrictPath {
     }
 
     pub fn is_absolute(&self) -> bool {
-        use std::path::Component;
+        use typed_path::{
+            Utf8TypedComponent as Component, Utf8TypedPath as TypedPath, Utf8UnixComponent as UComponent,
+            Utf8WindowsComponent as WComponent,
+        };
 
-        if let Some(component) = std::path::PathBuf::from(&self.raw).components().next() {
+        if let Some(component) = TypedPath::derive(&self.raw).components().next() {
             match component {
-                Component::Prefix(_) | Component::RootDir => {
+                Component::Windows(WComponent::Prefix(_) | WComponent::RootDir)
+                | Component::Unix(UComponent::RootDir) => {
                     return true;
                 }
-                Component::CurDir | Component::ParentDir => {
+                Component::Windows(WComponent::CurDir | WComponent::ParentDir)
+                | Component::Unix(UComponent::CurDir | UComponent::ParentDir) => {
                     return false;
                 }
-                Component::Normal(_) => {}
+                Component::Windows(WComponent::Normal(_)) | Component::Unix(UComponent::Normal(_)) => {}
             }
         }
 
@@ -1110,12 +1112,21 @@ mod tests {
 
         #[test]
         fn extra_slashes() {
-            let path = StrictPath::from(r"//foo\\bar/\baz");
+            let path = StrictPath::from(r"///foo\\bar/\baz");
             assert_eq!(
                 (
                     Some(Drive::Root),
                     vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]
                 ),
+                path.analyze()
+            );
+        }
+
+        #[test]
+        fn mixed_style() {
+            let path = StrictPath::from(r"/foo\bar");
+            assert_eq!(
+                (Some(Drive::Root), vec!["foo".to_string(), "bar".to_string()]),
                 path.analyze()
             );
         }
