@@ -268,7 +268,7 @@ impl ToString for RedirectKind {
     }
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct BackupFilter {
     #[serde(default, rename = "excludeStoreScreenshots")]
     pub exclude_store_screenshots: bool,
@@ -278,6 +278,16 @@ pub struct BackupFilter {
     pub ignored_registry: Vec<RegistryItem>,
     #[serde(skip)]
     pub path_globs: Arc<Mutex<Option<globset::GlobSet>>>,
+}
+
+impl std::fmt::Debug for BackupFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BackupFilter")
+            .field("exclude_store_screenshots", &self.exclude_store_screenshots)
+            .field("ignored_paths", &self.ignored_paths)
+            .field("ignored_registry", &self.ignored_registry)
+            .finish()
+    }
 }
 
 impl Eq for BackupFilter {}
