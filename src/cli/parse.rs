@@ -20,8 +20,9 @@ fn parse_strict_path(path: &str) -> Result<StrictPath, std::io::Error> {
 }
 
 fn parse_existing_strict_path(path: &str) -> Result<StrictPath, std::io::Error> {
-    let sp = StrictPath::new(path.to_owned());
-    std::fs::canonicalize(sp.interpret())?;
+    let cwd = StrictPath::cwd();
+    let sp = StrictPath::relative(path.to_owned(), Some(cwd.raw()));
+    sp.metadata()?;
     Ok(sp)
 }
 
@@ -912,7 +913,10 @@ mod tests {
                 try_manifest_update: false,
                 sub: Some(Subcommand::Restore {
                     preview: true,
-                    path: Some(StrictPath::new(s("tests/backup"))),
+                    path: Some(StrictPath::relative(
+                        s("tests/backup"),
+                        Some(StrictPath::cwd().interpret()),
+                    )),
                     force: true,
                     api: true,
                     sort: Some(CliSort::Name),

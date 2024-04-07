@@ -2095,6 +2095,8 @@ mod tests {
     mod backup_layout {
         use pretty_assertions::assert_eq;
 
+        use crate::testing::{repo_file_raw, repo_path, repo_path_raw};
+
         use super::*;
 
         fn layout() -> BackupLayout {
@@ -2113,31 +2115,20 @@ mod tests {
         }
 
         fn drives() -> HashMap<String, String> {
-            let (drive, _) = StrictPath::new("foo".to_string()).split_drive();
+            let (drive, _) = StrictPath::cwd().split_drive();
             let folder = IndividualMapping::new_drive_folder_name(&drive);
             hash_map! { folder: drive }
         }
 
         #[test]
         fn can_find_existing_game_folder_with_matching_name() {
-            assert_eq!(
-                StrictPath::new(if cfg!(target_os = "windows") {
-                    format!("\\\\?\\{}\\tests\\backup\\game1", repo_raw())
-                } else {
-                    format!("{}/tests/backup/game1", repo_raw())
-                }),
-                layout().game_folder("game1")
-            );
+            assert_eq!(repo_path_raw("tests/backup/game1"), layout().game_folder("game1"));
         }
 
         #[test]
         fn can_find_existing_game_folder_with_rename() {
             assert_eq!(
-                StrictPath::new(if cfg!(target_os = "windows") {
-                    format!("\\\\?\\{}\\tests\\backup\\game3-renamed", repo_raw())
-                } else {
-                    format!("{}/tests/backup/game3-renamed", repo_raw())
-                }),
+                repo_path_raw("tests/backup/game3-renamed"),
                 layout().game_folder("game3")
             );
         }
@@ -2145,77 +2136,43 @@ mod tests {
         #[test]
         fn can_determine_game_folder_that_does_not_exist_without_rename() {
             assert_eq!(
-                if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\nonexistent", repo_raw()))
-                } else {
-                    StrictPath::new(format!("{}/tests/backup/nonexistent", repo_raw()))
-                },
+                repo_path("tests/backup/nonexistent"),
                 layout().game_folder("nonexistent")
             );
         }
 
         #[test]
         fn can_determine_game_folder_that_does_not_exist_with_partial_rename() {
-            assert_eq!(
-                if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\foo_bar", repo_raw()))
-                } else {
-                    StrictPath::new(format!("{}/tests/backup/foo_bar", repo_raw()))
-                },
-                layout().game_folder("foo:bar")
-            );
+            assert_eq!(repo_path("tests/backup/foo_bar"), layout().game_folder("foo:bar"));
         }
 
         #[test]
         fn can_determine_game_folder_that_does_not_exist_with_total_rename() {
             assert_eq!(
-                if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\ludusavi-renamed-Kioq", repo_raw()))
-                } else {
-                    StrictPath::new(format!("{}/tests/backup/ludusavi-renamed-Kioq", repo_raw()))
-                },
+                repo_path("tests/backup/ludusavi-renamed-Kioq"),
                 layout().game_folder("***")
             );
         }
 
         #[test]
         fn can_determine_game_folder_by_escaping_dots_at_start_and_end() {
-            assert_eq!(
-                if cfg!(target_os = "windows") {
-                    StrictPath::new(format!("\\\\?\\{}\\tests\\backup\\_._", repo_raw()))
-                } else {
-                    StrictPath::new(format!("{}/tests/backup/_._", repo_raw()))
-                },
-                layout().game_folder("...")
-            );
+            assert_eq!(repo_path("tests/backup/_._"), layout().game_folder("..."));
         }
 
         #[test]
         fn can_find_irrelevant_backup_files() {
             assert_eq!(
-                vec![if cfg!(target_os = "windows") {
-                    StrictPath::new(format!(
-                        "\\\\?\\{}\\tests\\backup\\game1\\drive-X\\file2.txt",
-                        repo_raw()
-                    ))
-                } else {
-                    StrictPath::new(format!("{}/tests/backup/game1/drive-X/file2.txt", repo_raw()))
-                }],
-                game_layout("game1", &format!("{}/tests/backup/game1", repo_raw())).find_irrelevant_backup_files(
-                    ".",
-                    &[StrictPath::new(format!(
-                        "{}/tests/backup/game1/drive-X/file1.txt",
-                        repo_raw()
-                    ))]
-                )
+                vec![repo_path_raw("tests/backup/game1/drive-X/file2.txt")],
+                game_layout("game1", &repo_file_raw("tests/backup/game1"))
+                    .find_irrelevant_backup_files(".", &[repo_path("tests/backup/game1/drive-X/file1.txt")])
             );
             assert_eq!(
                 Vec::<StrictPath>::new(),
-                game_layout("game1", &format!("{}/tests/backup/game1", repo_raw())).find_irrelevant_backup_files(
+                game_layout("game1", &repo_file("tests/backup/game1")).find_irrelevant_backup_files(
                     ".",
                     &[
-                        StrictPath::new(format!("{}/tests/backup/game1/drive-X/file1.txt", repo_raw())),
-                        StrictPath::new(format!("{}/tests/backup/game1/drive-X/file2.txt", repo_raw())),
+                        repo_path("tests/backup/game1/drive-X/file1.txt"),
+                        repo_path("tests/backup/game1/drive-X/file2.txt"),
                     ]
                 )
             );
@@ -2924,15 +2881,7 @@ mod tests {
         }
 
         fn make_path(file: &str) -> StrictPath {
-            StrictPath::new(if cfg!(target_os = "windows") {
-                format!(
-                    "\\\\?\\{}\\tests\\backup\\game1\\{}",
-                    repo_raw().replace('/', "\\"),
-                    file.replace('/', "\\")
-                )
-            } else {
-                format!("{}/tests/backup/game1/{}", repo_raw(), file)
-            })
+            repo_path(&format!("tests/backup/game1/{}", file))
         }
 
         fn make_restorable_path(backup: &str, file: &str) -> StrictPath {
@@ -2941,11 +2890,7 @@ mod tests {
                     "{backup}/drive-{}/{file}",
                     if cfg!(target_os = "windows") { "X" } else { "0" }
                 ),
-                Some(if cfg!(target_os = "windows") {
-                    format!("\\\\?\\{}\\tests\\backup\\game1", repo_raw().replace('/', "\\"))
-                } else {
-                    format!("{}/tests/backup/game1", repo_raw())
-                }),
+                Some(repo_file_raw("tests/backup/game1")),
             )
         }
 
@@ -3202,7 +3147,7 @@ mod tests {
     mod game_layout {
         use pretty_assertions::assert_eq;
 
-        use crate::testing::drives_x_always;
+        use crate::testing::{drives_x_always, repo_file_raw};
 
         use super::*;
 
@@ -3221,11 +3166,7 @@ mod tests {
                     "{backup}/drive-{}/{file}",
                     if cfg!(target_os = "windows") { "X" } else { "0" }
                 ),
-                Some(if cfg!(target_os = "windows") {
-                    format!("\\\\?\\{}\\tests\\backup\\game1", repo().replace('/', "\\"))
-                } else {
-                    format!("{}/tests/backup/game1", repo())
-                }),
+                Some(repo_file_raw("tests/backup/game1")),
             )
         }
 

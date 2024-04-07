@@ -300,12 +300,11 @@ impl BackupFilter {
 
         let mut builder = globset::GlobSetBuilder::new();
         for item in &self.ignored_paths {
-            let normalized = crate::path::parse_home(&item.raw()).replace('\\', "/");
-            let normalized = normalized.trim_end_matches('/');
+            let normalized = item.globbable();
 
             let variants = vec![
                 normalized.to_string(),
-                // If the user has specified a plain folder, we also want to ignore its children.
+                // If the user has specified a plain folder, we also want to include its children.
                 format!("{}/**", &normalized),
             ];
 

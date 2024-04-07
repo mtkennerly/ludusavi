@@ -93,7 +93,7 @@ fn scan_spec(spec: LutrisGame, spec_path: &StrictPath, title_finder: &TitleFinde
         let exe = if exe.is_absolute() {
             exe
         } else if let Some(prefix) = &prefix {
-            prefix.joined_raw(&exe.raw())
+            prefix.joined(&exe.raw())
         } else {
             log::info!(
                 "Skipping Lutris game file with relative exe and no prefix: {}",
