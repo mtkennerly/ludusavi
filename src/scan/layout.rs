@@ -389,7 +389,7 @@ impl IndividualMapping {
         let drive_folder = self.drive_folder_name(&drive);
         StrictPath::relative(
             format!("{}/{}/{}", backup, drive_folder, plain_path),
-            Some(base.interpret()),
+            base.interpret().ok(),
         )
     }
 
@@ -398,7 +398,7 @@ impl IndividualMapping {
         let drive_folder = self.drive_folder_name_immutable(&drive);
         StrictPath::relative(
             format!("{}/{}/{}", backup, drive_folder, plain_path),
-            Some(base.interpret()),
+            base.interpret().ok(),
         )
     }
 
@@ -429,7 +429,7 @@ impl IndividualMapping {
         }
 
         if file.create_parent_dir().is_ok() {
-            std::fs::write(file.interpret(), self.serialize().as_bytes()).unwrap();
+            let _ = file.write_with_content(&self.serialize());
         }
     }
 
@@ -459,7 +459,7 @@ impl IndividualMapping {
     }
 
     fn load_raw(file: &StrictPath) -> Result<String, AnyError> {
-        Ok(std::fs::read_to_string(file.interpret())?)
+        file.try_read()
     }
 
     pub fn load_from_string(content: &str) -> Result<Self, AnyError> {
@@ -487,7 +487,11 @@ impl IndividualMapping {
             irrelevant.push(base.joined("registry.yaml"));
         }
 
-        for child in walkdir::WalkDir::new(base.interpret())
+        let Ok(base) = base.interpret() else {
+            return vec![];
+        };
+
+        for child in walkdir::WalkDir::new(base)
             .max_depth(1)
             .follow_links(false)
             .into_iter()
@@ -537,7 +541,7 @@ impl GameLayout {
         Ok(Self {
             path,
             mapping: IndividualMapping::load(&mapping).map_err(|e| {
-                log::error!("Unable to load mapping: {} | {:?}", mapping.render(), e);
+                log::error!("Unable to load mapping: {:?} | {:?}", &mapping, e);
                 e
             })?,
             retention,
@@ -781,8 +785,12 @@ impl GameLayout {
     // Since this is only used for a specific migration use case,
     // we don't need to fill out all of the `ScannedFile` info.
     fn restorable_files_in_simple(&self, backup: &str) -> HashSet<ScannedFile> {
+        let Ok(path) = self.path.joined(backup).interpret() else {
+            return HashSet::new();
+        };
+
         let mut files = HashSet::new();
-        for drive_dir in walkdir::WalkDir::new(self.path.joined(backup).interpret())
+        for drive_dir in walkdir::WalkDir::new(path)
             .max_depth(1)
             .follow_links(false)
             .into_iter()
@@ -839,7 +847,7 @@ impl GameLayout {
         match format {
             BackupFormat::Simple => self.path.joined(backup).joined("registry.yaml").read(),
             BackupFormat::Zip => {
-                let handle = std::fs::File::open(self.path.joined(backup).interpret()).ok()?;
+                let handle = self.path.joined(backup).open().ok()?;
                 let mut archive = zip::ZipArchive::new(handle).ok()?;
                 let mut file = archive.by_name("registry.yaml").ok()?;
 
@@ -1129,13 +1137,13 @@ impl GameLayout {
         };
 
         let archive_path = self.path.joined(backup.name());
-        let archive_file = match std::fs::File::create(archive_path.interpret()) {
+        let archive_file = match archive_path.create() {
             Ok(x) => x,
             Err(e) => {
                 log::error!(
-                    "[{}] unable to create zip file: {} | {e}",
+                    "[{}] unable to create zip file: {:?} | {e}",
                     self.mapping.name,
-                    archive_path.raw()
+                    &archive_path
                 );
                 fail_all(&mut backup_info);
                 return backup_info;
@@ -1199,7 +1207,7 @@ impl GameLayout {
             }
 
             use std::io::Read;
-            let handle = match std::fs::File::open(file.path.interpret()) {
+            let handle = match file.path.open() {
                 Ok(x) => x,
                 Err(e) => {
                     log::error!(
@@ -1345,9 +1353,9 @@ impl GameLayout {
     fn prune_irrelevant_parents(&self) {
         for irrelevant_parent in self.mapping.irrelevant_parents(&self.path) {
             log::debug!(
-                "[{}] Removing irrelevant parent: {}",
+                "[{}] Removing irrelevant parent: {:?}",
                 &self.mapping.name,
-                irrelevant_parent.interpret()
+                &irrelevant_parent
             );
             let _ = irrelevant_parent.remove();
         }
@@ -1587,7 +1595,7 @@ impl GameLayout {
 
                 if !containers.contains_key(container) {
                     log::debug!("[{}] loading zip archive: {}", &self.mapping.name, container.raw());
-                    let handle = match std::fs::File::open(container.interpret()) {
+                    let handle = match container.open() {
                         Ok(handle) => handle,
                         Err(e) => {
                             log::error!(
@@ -1711,7 +1719,7 @@ impl GameLayout {
             );
             return Err(e);
         }
-        let mut target_handle = match std::fs::File::create(target.interpret()) {
+        let mut target_handle = match target.create() {
             Ok(x) => x,
             Err(e) => {
                 log::warn!(
@@ -1755,10 +1763,14 @@ impl GameLayout {
 
     fn find_irrelevant_backup_files(&self, backup: &str, relevant_files: &[StrictPath]) -> Vec<StrictPath> {
         #[allow(clippy::needless_collect)]
-        let relevant_files: Vec<_> = relevant_files.iter().map(|x| x.interpret()).collect();
+        let relevant_files: Vec<_> = relevant_files.iter().filter_map(|x| x.interpret().ok()).collect();
         let mut irrelevant_files = vec![];
 
-        for drive_dir in walkdir::WalkDir::new(self.path.joined(backup).interpret())
+        let Ok(walk_path) = self.path.joined(backup).interpret() else {
+            return vec![];
+        };
+
+        for drive_dir in walkdir::WalkDir::new(walk_path)
             .max_depth(1)
             .follow_links(false)
             .into_iter()
@@ -1773,7 +1785,10 @@ impl GameLayout {
                 .filter(|x| x.file_type().is_file())
             {
                 let backup_file = StrictPath::new(file.path().display().to_string());
-                if !relevant_files.contains(&backup_file.interpret()) {
+                let Ok(backup_path) = backup_file.interpret() else {
+                    continue;
+                };
+                if !relevant_files.contains(&backup_path) {
                     irrelevant_files.push(backup_file);
                 }
             }
@@ -1854,7 +1869,7 @@ impl GameLayout {
                     }
                 }
                 BackupFormat::Zip => {
-                    let Ok(handle) = std::fs::File::open(self.path.joined(&backup.name).interpret()) else {
+                    let Ok(handle) = self.path.joined(&backup.name).open() else {
                         return false;
                     };
                     let Ok(mut archive) = zip::ZipArchive::new(handle) else {
@@ -1894,7 +1909,7 @@ impl GameLayout {
                         }
                     }
                     BackupFormat::Zip => {
-                        let Ok(handle) = std::fs::File::open(self.path.joined(&backup.name).interpret()) else {
+                        let Ok(handle) = self.path.joined(&backup.name).open() else {
                             return false;
                         };
                         let Ok(mut archive) = zip::ZipArchive::new(handle) else {
@@ -1954,7 +1969,11 @@ impl BackupLayout {
     pub fn load(base: &StrictPath) -> HashMap<String, StrictPath> {
         let mut overall = HashMap::new();
 
-        for game_dir in walkdir::WalkDir::new(base.interpret())
+        let Ok(base_interpreted) = base.interpret() else {
+            return HashMap::new();
+        };
+
+        for game_dir in walkdir::WalkDir::new(base_interpreted)
             .max_depth(1)
             .follow_links(false)
             .into_iter()
@@ -1970,7 +1989,7 @@ impl BackupLayout {
                         overall.insert(mapping.name.clone(), game_dir);
                     }
                     Err(e) => {
-                        log::warn!("Ignoring unloadable mapping: {} | {:?}", mapping_file.render(), e);
+                        log::warn!("Ignoring unloadable mapping: {:?} | {:?}", &mapping_file, e);
                     }
                 }
             }

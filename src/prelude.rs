@@ -145,9 +145,9 @@ impl CommandError {
     }
 }
 
-pub fn app_dir() -> std::path::PathBuf {
+pub fn app_dir() -> StrictPath {
     if let Some(dir) = CONFIG_DIR.lock().unwrap().as_ref() {
-        return dir.clone();
+        return StrictPath::from(dir.clone());
     }
 
     if let Ok(mut flag) = std::env::current_exe() {
@@ -155,11 +155,11 @@ pub fn app_dir() -> std::path::PathBuf {
         flag.push(PORTABLE_FLAG_FILE_NAME);
         if flag.exists() {
             flag.pop();
-            return flag;
+            return StrictPath::from(flag);
         }
     }
 
-    StrictPath::new(format!("{}/{}", CommonPath::Config.get().unwrap(), APP_DIR_NAME)).as_std_path_buf()
+    StrictPath::new(format!("{}/{}", CommonPath::Config.get().unwrap(), APP_DIR_NAME))
 }
 
 pub fn filter_map_walkdir(e: Result<walkdir::DirEntry, walkdir::Error>) -> Option<walkdir::DirEntry> {

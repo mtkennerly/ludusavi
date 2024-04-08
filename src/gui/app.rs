@@ -402,7 +402,7 @@ impl App {
                                 &game,
                                 &key,
                                 &roots,
-                                &StrictPath::from(app_dir()),
+                                &app_dir(),
                                 &launchers,
                                 &filter,
                                 &None,

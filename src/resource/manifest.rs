@@ -282,11 +282,9 @@ impl Manifest {
 
     pub fn path_for(url: &str, primary: bool) -> StrictPath {
         if primary {
-            Self::path().into()
+            Self::path()
         } else {
-            let mut path = app_dir();
-            path.push(Self::file_name_for(url, primary));
-            path.into()
+            app_dir().joined(&Self::file_name_for(url, primary))
         }
     }
 
@@ -358,7 +356,7 @@ impl Manifest {
         let mut res = req.send().map_err(|_e| cannot_update())?;
         match res.status() {
             reqwest::StatusCode::OK => {
-                std::fs::create_dir_all(app_dir()).map_err(|_| cannot_update())?;
+                app_dir().create_dirs().map_err(|_| cannot_update())?;
 
                 // Ensure that the manifest data is valid before we save it.
                 let mut manifest_bytes = vec![];
@@ -371,7 +369,7 @@ impl Manifest {
                     });
                 }
 
-                std::fs::write(path.as_std_path_buf(), manifest_string).map_err(|_| cannot_update())?;
+                path.write_with_content(&manifest_string).map_err(|_| cannot_update())?;
 
                 let new_etag = res
                     .headers()

@@ -56,8 +56,8 @@ pub fn get_games(source: &StrictPath) -> Vec<Game> {
         Ok(content) => content,
         Err(e) => {
             log::debug!(
-                "In Legendary source '{}', unable to read installed.json | {:?}",
-                library.render(),
+                "In Legendary source '{:?}', unable to read installed.json | {:?}",
+                &library,
                 e,
             );
             return out;

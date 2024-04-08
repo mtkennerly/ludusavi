@@ -915,7 +915,7 @@ mod tests {
                     preview: true,
                     path: Some(StrictPath::relative(
                         s("tests/backup"),
-                        Some(StrictPath::cwd().interpret()),
+                        Some(StrictPath::cwd().interpret().unwrap()),
                     )),
                     force: true,
                     api: true,

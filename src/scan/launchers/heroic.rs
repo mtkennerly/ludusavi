@@ -76,8 +76,8 @@ pub fn get_legendary_installed_games(root: &RootsConfig, legendary: Option<&Stri
 
     let legendary_paths = match legendary {
         None => vec![
-            StrictPath::relative("../legendary".to_string(), Some(root.path.interpret())),
-            StrictPath::relative("legendaryConfig/legendary".to_string(), Some(root.path.interpret())),
+            root.path.popped().joined("legendary"),
+            root.path.joined("legendaryConfig/legendary"),
             StrictPath::new("~/.config/legendary".to_string()),
         ],
         Some(x) => vec![x.clone()],
@@ -120,10 +120,7 @@ fn detect_legendary_games(
 }
 
 pub fn get_gog_games_library(root: &RootsConfig) -> Option<Vec<GogLibraryGame>> {
-    log::trace!(
-        "get_gog_library searching for GOG information in {}",
-        root.path.interpret()
-    );
+    log::trace!("get_gog_library searching for GOG information in {:?}", &root.path);
 
     // use library.json to build map .app_name -> .title
     let libraries = [
@@ -144,17 +141,17 @@ pub fn get_gog_games_library(root: &RootsConfig) -> Option<Vec<GogLibraryGame>> 
     match serde_json::from_str::<GogLibrary>(&library_path.read().unwrap_or_default()) {
         Ok(gog_library) => {
             log::trace!(
-                "get_gog_library found {} games in {}",
+                "get_gog_library found {} games in {:?}",
                 gog_library.games.len(),
-                library_path.interpret()
+                &library_path
             );
 
             Some(gog_library.games)
         }
         Err(e) => {
             log::warn!(
-                "get_gog_library returns None since it could not read {}: {}",
-                library_path.interpret(),
+                "get_gog_library returns None since it could not read {:?}: {}",
+                &library_path,
                 e
             );
             None
@@ -165,10 +162,7 @@ pub fn get_gog_games_library(root: &RootsConfig) -> Option<Vec<GogLibraryGame>> 
 fn detect_gog_games(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
     let mut games = HashMap::new();
 
-    log::trace!(
-        "detect_gog_games searching for GOG information in {}",
-        root.path.interpret()
-    );
+    log::trace!("detect_gog_games searching for GOG information in {:?}", &root.path);
 
     let game_titles: HashMap<String, String> = match get_gog_games_library(root) {
         Some(gog_games_library) => gog_games_library

@@ -2,7 +2,7 @@ pub mod cache;
 pub mod config;
 pub mod manifest;
 
-use crate::prelude::{app_dir, AnyError};
+use crate::prelude::{app_dir, AnyError, StrictPath};
 
 pub trait ResourceFile
 where
@@ -10,10 +10,8 @@ where
 {
     const FILE_NAME: &'static str;
 
-    fn path() -> std::path::PathBuf {
-        let mut path = app_dir();
-        path.push(Self::FILE_NAME);
-        path
+    fn path() -> StrictPath {
+        app_dir().joined(Self::FILE_NAME)
     }
 
     /// If the resource file does not exist, use default data and apply these modifications.
@@ -30,7 +28,7 @@ where
         Self::load_from(&Self::path())
     }
 
-    fn load_from(path: &std::path::PathBuf) -> Result<Self, AnyError> {
+    fn load_from(path: &StrictPath) -> Result<Self, AnyError> {
         if !path.exists() {
             return Ok(Self::default().initialize());
         }
@@ -38,13 +36,13 @@ where
         Self::load_from_string(&content)
     }
 
-    fn load_from_existing(path: &std::path::PathBuf) -> Result<Self, AnyError> {
+    fn load_from_existing(path: &StrictPath) -> Result<Self, AnyError> {
         let content = Self::load_raw(path)?;
         Self::load_from_string(&content)
     }
 
-    fn load_raw(path: &std::path::PathBuf) -> Result<String, AnyError> {
-        Ok(std::fs::read_to_string(path)?)
+    fn load_raw(path: &StrictPath) -> Result<String, AnyError> {
+        path.try_read()
     }
 
     fn load_from_string(content: &str) -> Result<Self, AnyError> {
@@ -65,8 +63,8 @@ where
             }
         }
 
-        if std::fs::create_dir_all(app_dir()).is_ok() {
-            let _ = std::fs::write(Self::path(), new_content.as_bytes());
+        if Self::path().create_parent_dir().is_ok() {
+            let _ = Self::path().write_with_content(&new_content);
         }
     }
 }

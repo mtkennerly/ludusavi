@@ -151,12 +151,18 @@ impl StrictPath {
         self.invalidate_cache();
     }
 
+    pub fn equivalent(&self, other: &Self) -> bool {
+        self.interpret() == other.interpret()
+    }
+
     fn from_std_path_buf(path_buf: &std::path::Path) -> Self {
         Self::new(render_pathbuf(path_buf))
     }
 
-    pub fn as_std_path_buf(&self) -> std::path::PathBuf {
-        std::path::PathBuf::from(&self.interpret())
+    pub fn as_std_path_buf(&self) -> Result<std::path::PathBuf, std::io::Error> {
+        Ok(std::path::PathBuf::from(&self.interpret().map_err(|_| {
+            std::io::Error::other(format!("Cannot interpret path: {:?}", &self))
+        })?))
     }
 
     pub fn raw(&self) -> String {
@@ -293,7 +299,7 @@ impl StrictPath {
         }
 
         match self.analyze() {
-            (Some(Drive::Root), parts) => Ok(format!("C:\\{}", parts.join("\\"))),
+            (Some(Drive::Root), _) => Err(StrictPathError::Unsupported),
             (Some(Drive::Windows(id)), parts) => Ok(format!("{}\\{}", id, parts.join("\\"))),
             (None, parts) => match &self.basis {
                 Some(basis) => Ok(format!("{}\\{}", basis, parts.join("\\"))),
@@ -341,27 +347,34 @@ impl StrictPath {
         }
     }
 
-    pub fn interpret(&self) -> String {
+    pub fn interpret(&self) -> Result<String, StrictPathError> {
         match self.canonical() {
             Canonical::Valid(path) => match StrictPath::new(path).access() {
-                Ok(path) => path,
-                Err(_) => self.display(),
+                Ok(path) => Ok(path),
+                Err(_) => {
+                    // This shouldn't be able to fail if we already have a canonical path,
+                    // but we have a fallback just in case.
+                    Ok(self.display())
+                }
             },
-            Canonical::Unsupported => self.raw(),
-            Canonical::Inaccessible => self.display(),
+            Canonical::Unsupported => Err(StrictPathError::Unsupported),
+            Canonical::Inaccessible => self.access(),
         }
     }
 
-    pub fn interpreted(&self) -> Self {
-        Self {
-            raw: self.interpret(),
+    pub fn interpreted(&self) -> Result<Self, StrictPathError> {
+        Ok(Self {
+            raw: self.interpret()?,
             basis: self.basis.clone(),
             canonical: self.canonical.clone(),
-        }
+        })
     }
 
     pub fn render(&self) -> String {
-        self.interpreted().display()
+        match self.canonical() {
+            Canonical::Valid(path) => Self::new(path).display(),
+            Canonical::Unsupported | Canonical::Inaccessible => self.display(),
+        }
     }
 
     pub fn rendered(&self) -> Self {
@@ -385,11 +398,11 @@ impl StrictPath {
     }
 
     pub fn is_file(&self) -> bool {
-        std::path::Path::new(&self.interpret()).is_file()
+        self.as_std_path_buf().map(|x| x.is_file()).unwrap_or_default()
     }
 
     pub fn is_dir(&self) -> bool {
-        std::path::Path::new(&self.interpret()).is_dir()
+        self.as_std_path_buf().map(|x| x.is_dir()).unwrap_or_default()
     }
 
     pub fn exists(&self) -> bool {
@@ -397,7 +410,7 @@ impl StrictPath {
     }
 
     pub fn metadata(&self) -> std::io::Result<std::fs::Metadata> {
-        self.as_std_path_buf().metadata()
+        self.as_std_path_buf()?.metadata()
     }
 
     pub fn get_mtime(&self) -> std::io::Result<std::time::SystemTime> {
@@ -436,7 +449,7 @@ impl StrictPath {
     }
 
     pub fn set_mtime(&self, mtime: std::time::SystemTime) -> Result<(), std::io::Error> {
-        filetime::set_file_mtime(self.interpret(), FileTime::from_system_time(mtime))
+        filetime::set_file_mtime(self.as_std_path_buf()?, FileTime::from_system_time(mtime))
     }
 
     /// Zips don't store time zones, so we normalize to/from UTC.
@@ -453,9 +466,9 @@ impl StrictPath {
 
     pub fn remove(&self) -> Result<(), Box<dyn std::error::Error>> {
         if self.is_file() {
-            std::fs::remove_file(self.interpret())?;
+            std::fs::remove_file(self.as_std_path_buf()?)?;
         } else if self.is_dir() {
-            std::fs::remove_dir_all(self.interpret())?;
+            std::fs::remove_dir_all(self.as_std_path_buf()?)?;
         }
         Ok(())
     }
@@ -468,22 +481,70 @@ impl StrictPath {
         }
     }
 
+    pub fn popped(&self) -> Self {
+        let raw = match self.analyze() {
+            (Some(Drive::Root), mut parts) => {
+                parts.pop();
+                format!("/{}", parts.join("/"))
+            }
+            (Some(Drive::Windows(id)), mut parts) => {
+                parts.pop();
+                format!("{}/{}", id, parts.join("/"))
+            }
+            (None, mut parts) => {
+                parts.pop();
+                match &self.basis {
+                    Some(basis) => format!("{}/{}", basis, parts.join("/")),
+                    None => parts.join("/"),
+                }
+            }
+        };
+
+        Self::new(raw)
+    }
+
+    pub fn create(&self) -> std::io::Result<std::fs::File> {
+        std::fs::File::create(self.as_std_path_buf()?)
+    }
+
+    pub fn open(&self) -> std::io::Result<std::fs::File> {
+        std::fs::File::open(self.as_std_path_buf()?)
+    }
+
+    pub fn write_with_content(&self, content: &str) -> std::io::Result<()> {
+        std::fs::write(self.as_std_path_buf()?, content.as_bytes())
+    }
+
+    pub fn move_to(&self, new_path: &StrictPath) -> std::io::Result<()> {
+        std::fs::rename(self.as_std_path_buf()?, new_path.as_std_path_buf()?)
+    }
+
+    pub fn copy_to(&self, target: &StrictPath) -> std::io::Result<u64> {
+        std::fs::copy(self.as_std_path_buf()?, target.as_std_path_buf()?)
+    }
+
     pub fn create_dirs(&self) -> std::io::Result<()> {
-        std::fs::create_dir_all(self.as_std_path_buf())?;
+        std::fs::create_dir_all(self.as_std_path_buf()?)?;
         Ok(())
     }
 
     pub fn create_parent_dir(&self) -> std::io::Result<()> {
-        let mut pb = self.as_std_path_buf();
+        let mut pb = self.as_std_path_buf()?;
         pb.pop();
         std::fs::create_dir_all(&pb)?;
         Ok(())
     }
 
-    pub fn parent(&self) -> Option<Self> {
-        self.as_std_path_buf().parent().map(Self::from)
+    pub fn read_dir(&self) -> std::io::Result<std::fs::ReadDir> {
+        self.as_std_path_buf()?.read_dir()
     }
 
+    // TODO: Refactor to use `popped()`?
+    pub fn parent(&self) -> Option<Self> {
+        self.as_std_path_buf().ok()?.parent().map(Self::from)
+    }
+
+    // TODO: Refactor to use `popped()`?
     pub fn parent_if_file(&self) -> Result<Self, StrictPathError> {
         let resolved = self.try_resolve()?;
         let pathbuf = std::path::PathBuf::from(&resolved);
@@ -503,6 +564,7 @@ impl StrictPath {
 
     pub fn leaf(&self) -> Option<String> {
         self.as_std_path_buf()
+            .ok()?
             .file_name()
             .map(|x| x.to_string_lossy().to_string())
     }
@@ -531,7 +593,7 @@ impl StrictPath {
     }
 
     pub fn copy_to_path(&self, context: &str, target_file: &StrictPath) -> Result<(), std::io::Error> {
-        log::trace!("[{context}] copy {} -> {}", self.interpret(), target_file.interpret());
+        log::trace!("[{context}] copy {:?} -> {:?}", &self, &target_file);
 
         if let Err(e) = target_file.create_parent_dir() {
             log::error!(
@@ -551,7 +613,7 @@ impl StrictPath {
                 std::io::ErrorKind::Other,
                 "Failed to unset read-only",
             ));
-        } else if let Err(e) = std::fs::copy(self.interpret(), target_file.interpret()) {
+        } else if let Err(e) = self.copy_to(target_file) {
             log::error!(
                 "[{context}] unable to copy: {} -> {} | {e}",
                 self.raw(),
@@ -597,16 +659,16 @@ impl StrictPath {
     }
 
     pub fn unset_readonly(&self) -> Result<(), AnyError> {
-        let interpreted = self.interpret();
+        let subject = self.as_std_path_buf()?;
         if self.is_file() {
-            let mut perms = std::fs::metadata(&interpreted)?.permissions();
+            let mut perms = std::fs::metadata(&subject)?.permissions();
             if perms.readonly() {
                 #[allow(clippy::permissions_set_readonly_false)]
                 perms.set_readonly(false);
-                std::fs::set_permissions(&interpreted, perms)?;
+                std::fs::set_permissions(&subject, perms)?;
             }
         } else {
-            for entry in walkdir::WalkDir::new(interpreted)
+            for entry in walkdir::WalkDir::new(subject)
                 .max_depth(100)
                 .follow_links(false)
                 .into_iter()
@@ -699,9 +761,9 @@ impl StrictPath {
     pub fn try_same_content(&self, other: &StrictPath) -> Result<bool, Box<dyn std::error::Error>> {
         use std::io::Read;
 
-        let f1 = std::fs::File::open(self.interpret())?;
+        let f1 = self.open()?;
         let mut f1r = std::io::BufReader::new(f1);
-        let f2 = std::fs::File::open(other.interpret())?;
+        let f2 = other.open()?;
         let mut f2r = std::io::BufReader::new(f2);
 
         let mut f1b = [0; 1024];
@@ -725,7 +787,7 @@ impl StrictPath {
     }
 
     pub fn try_read(&self) -> Result<String, AnyError> {
-        Ok(std::fs::read_to_string(std::path::Path::new(&self.interpret()))?)
+        Ok(std::fs::read_to_string(std::path::Path::new(&self.as_std_path_buf()?))?)
     }
 
     pub fn size(&self) -> u64 {
@@ -746,7 +808,7 @@ impl StrictPath {
 
         let mut hasher = sha1::Sha1::new();
 
-        let file = std::fs::File::open(self.interpret())?;
+        let file = self.open()?;
         let mut reader = std::io::BufReader::new(file);
 
         let mut buffer = [0; 1024];
@@ -953,7 +1015,7 @@ mod tests {
 
             assert_eq!(analysis(Drive::Root), path.analyze());
             assert_eq!("/foo/bar", path.display());
-            assert_eq!(Ok(r"C:\foo\bar".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
             assert_eq!(Ok("/foo/bar".to_string()), path.access_nonwindows());
         }
 
@@ -1034,8 +1096,20 @@ mod tests {
                 path.analyze()
             );
             assert_eq!("/tmp/foo".to_string(), path.display());
-            assert_eq!(Ok(r"C:\tmp\foo".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
             assert_eq!(Ok("/tmp/foo".to_string()), path.access_nonwindows());
+
+            let path = StrictPath::relative("foo".to_string(), Some("C:/tmp".to_string()));
+            assert_eq!(
+                (
+                    Some(Drive::Windows("C:".to_string())),
+                    vec!["tmp".to_string(), "foo".to_string()]
+                ),
+                path.analyze()
+            );
+            assert_eq!("C:/tmp/foo".to_string(), path.display());
+            assert_eq!(Ok(r"C:\tmp\foo".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
         }
 
         #[test]
@@ -1052,8 +1126,20 @@ mod tests {
                 path.analyze()
             );
             assert_eq!("/tmp/foo".to_string(), path.display());
-            assert_eq!(Ok(r"C:\tmp\foo".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
             assert_eq!(Ok("/tmp/foo".to_string()), path.access_nonwindows());
+
+            let path = StrictPath::relative("./foo".to_string(), Some("C:/tmp".to_string()));
+            assert_eq!(
+                (
+                    Some(Drive::Windows("C:".to_string())),
+                    vec!["tmp".to_string(), "foo".to_string()]
+                ),
+                path.analyze()
+            );
+            assert_eq!("C:/tmp/foo".to_string(), path.display());
+            assert_eq!(Ok(r"C:\tmp\foo".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
         }
 
         #[test]
@@ -1070,8 +1156,20 @@ mod tests {
                 path.analyze()
             );
             assert_eq!("/tmp/foo".to_string(), path.display());
-            assert_eq!(Ok(r"C:\tmp\foo".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
             assert_eq!(Ok("/tmp/foo".to_string()), path.access_nonwindows());
+
+            let path = StrictPath::relative("../foo".to_string(), Some("C:/tmp/bar".to_string()));
+            assert_eq!(
+                (
+                    Some(Drive::Windows("C:".to_string())),
+                    vec!["tmp".to_string(), "foo".to_string()]
+                ),
+                path.analyze()
+            );
+            assert_eq!("C:/tmp/foo".to_string(), path.display());
+            assert_eq!(Ok(r"C:\tmp\foo".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
         }
 
         #[test]
@@ -1116,14 +1214,14 @@ mod tests {
 
             assert_eq!((Some(Drive::Root), vec![]), path.analyze());
             assert_eq!("/", path.display());
-            assert_eq!(Ok(r"C:\".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
             assert_eq!(Ok("/".to_string()), path.access_nonwindows());
 
             let path = StrictPath::from(r"\");
 
             assert_eq!((Some(Drive::Root), vec![]), path.analyze());
             assert_eq!("/", path.display());
-            assert_eq!(Ok(r"C:\".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
             assert_eq!(Ok("/".to_string()), path.access_nonwindows());
         }
 
@@ -1177,7 +1275,7 @@ mod tests {
                 r"C:\Users\Foo\Documents/C:\Users\Bar".to_string(),
                 Some(r"\\?\C:\Users\Foo\.config\ludusavi".to_string()),
             );
-            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", path.interpret());
+            assert_eq!(r"C:\Users\Foo\Documents\C_\Users\Bar", path.interpret().unwrap());
             assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", path.render());
         }
 
@@ -1191,7 +1289,7 @@ mod tests {
                 r"\\?\C:\Users\Foo\Documents\C:\Users\Bar".to_string(),
                 Some(r"\\?\C:\Users\Foo\.config\ludusavi".to_string()),
             );
-            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", path.interpret());
+            assert_eq!(r"C:\Users\Foo\Documents\C_\Users\Bar", path.interpret().unwrap());
             assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", path.render());
         }
     }
