@@ -26,7 +26,7 @@ struct GameSection {
 pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
     let mut games = HashMap::new();
 
-    log::trace!("Scanning Lutris root for games: {}", root.path.interpret());
+    log::trace!("Scanning Lutris root for games: {:?}", &root.path);
 
     for spec_path in root.path.joined("games/*.y*ml").glob() {
         log::debug!("Inspecting Lutris game file: {}", spec_path.render());
@@ -46,7 +46,7 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
         }
     }
 
-    log::trace!("Finished scanning Lutris root for games: {}", root.path.interpret());
+    log::trace!("Finished scanning Lutris root for games: {:?}", &root.path);
 
     games
 }
@@ -93,7 +93,7 @@ fn scan_spec(spec: LutrisGame, spec_path: &StrictPath, title_finder: &TitleFinde
         let exe = if exe.is_absolute() {
             exe
         } else if let Some(prefix) = &prefix {
-            prefix.joined_raw(&exe.raw())
+            prefix.joined(&exe.raw())
         } else {
             log::info!(
                 "Skipping Lutris game file with relative exe and no prefix: {}",

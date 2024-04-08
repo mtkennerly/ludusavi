@@ -2,7 +2,7 @@ use std::collections::{BTreeSet, HashMap};
 
 use crate::{
     lang::Language,
-    prelude::{app_dir, StrictPath, CANONICAL_VERSION},
+    prelude::{app_dir, CANONICAL_VERSION},
     resource::{
         config::{Config, RootsConfig},
         manifest::ManifestUpdate,
@@ -69,9 +69,7 @@ impl Cache {
         let mut updated = false;
 
         if !self.migrations.adopted_cache {
-            let _ = StrictPath::from(app_dir())
-                .joined(".flag_migrated_legacy_config")
-                .remove();
+            let _ = app_dir().joined(".flag_migrated_legacy_config").remove();
             self.migrations.adopted_cache = true;
             updated = true;
         }
@@ -114,10 +112,7 @@ impl Cache {
     pub fn add_roots(&mut self, roots: &Vec<RootsConfig>) {
         for root in roots {
             if !self.has_root(root) {
-                self.roots.insert(RootsConfig {
-                    path: root.path.interpreted(),
-                    store: root.store,
-                });
+                self.roots.insert(root.clone());
             }
         }
     }
@@ -125,6 +120,6 @@ impl Cache {
     pub fn has_root(&self, root: &RootsConfig) -> bool {
         self.roots
             .iter()
-            .any(|x| x.path.interpret() == root.path.interpret() && x.store == root.store)
+            .any(|x| x.path.equivalent(&root.path) && x.store == root.store)
     }
 }

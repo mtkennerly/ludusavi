@@ -61,7 +61,8 @@ pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> Has
     };
     let matcher = make_fuzzy_matcher();
 
-    let actual_dirs: Vec<_> = std::fs::read_dir(install_parent.interpret())
+    let actual_dirs: Vec<_> = install_parent
+        .read_dir()
         .map(|entries| {
             entries
                 .filter_map(|entry| entry.ok())

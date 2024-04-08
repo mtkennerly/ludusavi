@@ -5,23 +5,21 @@ use once_cell::sync::Lazy;
 
 use crate::{
     prelude::{AnyError, SKIP},
-    resource::manifest::Os,
+    resource::manifest::{placeholder, Os},
 };
 
-#[cfg(target_os = "windows")]
-const TYPICAL_SEPARATOR: &str = "\\";
-#[cfg(target_os = "windows")]
-const ATYPICAL_SEPARATOR: &str = "/";
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub enum Drive {
+    Root,
+    Windows(String),
+}
 
-#[cfg(not(target_os = "windows"))]
-const TYPICAL_SEPARATOR: &str = "/";
-#[cfg(not(target_os = "windows"))]
-const ATYPICAL_SEPARATOR: &str = "\\";
-
-#[allow(dead_code)]
-const UNC_PREFIX: &str = "\\\\";
-#[allow(dead_code)]
-const UNC_LOCAL_PREFIX: &str = "\\\\?\\";
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+enum Canonical {
+    Valid(String),
+    Unsupported,
+    Inaccessible,
+}
 
 pub enum CommonPath {
     Config,
@@ -59,13 +57,6 @@ impl CommonPath {
     pub fn get_or_skip(&self) -> &str {
         self.get().unwrap_or(SKIP)
     }
-
-    pub fn try_get(&self) -> Result<&str, StrictPathError> {
-        match self.get() {
-            Some(path) => Ok(path),
-            None => Err(StrictPathError::Unmappable),
-        }
-    }
 }
 
 #[derive(Debug)]
@@ -74,205 +65,16 @@ pub enum SetFileTimeError {
     InvalidTimestamp,
 }
 
-pub fn parse_home(path: &str) -> String {
-    if path == "~" || path.starts_with("~/") || path.starts_with("~\\") {
-        if let Some(home) = CommonPath::Home.get() {
-            return path.replacen('~', home, 1);
-        }
-    }
-
-    path.to_owned()
-}
-
-fn normalize(path: &str) -> String {
-    let mut path = path.trim().to_string();
-
-    #[cfg(target_os = "windows")]
-    if path.starts_with('/') {
-        let drive = &render_pathbuf(&std::env::current_dir().unwrap())[..2];
-        path = format!("{}{}", drive, path)
-    }
-
-    path = parse_home(&path).replace(ATYPICAL_SEPARATOR, TYPICAL_SEPARATOR);
-
-    // On Windows, canonicalizing "C:" or "C:/" yields the current directory,
-    // but "C:\" works.
-    #[cfg(target_os = "windows")]
-    if path.ends_with(':') {
-        path += TYPICAL_SEPARATOR;
-    }
-
-    path
-}
-
-// Based on:
-// https://github.com/rust-lang/cargo/blob/f84f3f8c630c75a1ec01b818ff469d3496228c6b/src/cargo/util/paths.rs#L61-L86
-fn parse_dots(path: &str, basis: &str) -> String {
-    let mut components = std::path::Path::new(&path).components().peekable();
-    let mut ret = if let Some(c @ std::path::Component::Prefix(..)) = components.peek().cloned() {
-        components.next();
-        std::path::PathBuf::from(c.as_os_str())
-    } else {
-        std::path::PathBuf::from(basis)
-    };
-
-    for component in components {
-        match component {
-            std::path::Component::Prefix(..) => unreachable!(),
-            std::path::Component::RootDir => {
-                ret.push(component.as_os_str());
-            }
-            std::path::Component::CurDir => {}
-            std::path::Component::ParentDir => {
-                ret.pop();
-            }
-            std::path::Component::Normal(c) => {
-                let lossy = c.to_string_lossy();
-                if lossy.contains(':') {
-                    // This can happen if the manifest contains invalid paths,
-                    // such as `<winDocuments>/<home>`. In this example, `<home>`
-                    // means we could try to push `C:` in the middle of the path,
-                    // which would truncate the rest of the path up to that point,
-                    // causing us to check the entire home folder.
-                    // We escape it so that it (likely) just won't be found,
-                    // rather than finding something irrelevant.
-                    ret.push(lossy.replace(':', "_"));
-                } else {
-                    ret.push(c);
-                }
-            }
-        }
-    }
-
-    render_pathbuf(&ret)
-}
-
-/// Convert a raw, possibly user-provided path into a suitable form for internal use.
-/// On Windows, this produces UNC paths.
-fn interpret<P: Into<String>>(path: P, basis: &Option<String>) -> String {
-    let normalized = normalize(&path.into());
-    if normalized.is_empty() {
-        return normalized;
-    }
-
-    let absolutized = if std::path::Path::new(&normalized).is_absolute() {
-        normalized
-    } else {
-        render_pathbuf(
-            &match basis {
-                None => std::env::current_dir().unwrap(),
-                Some(b) => std::path::Path::new(&normalize(b)).to_path_buf(),
-            }
-            .join(normalized),
-        )
-    };
-
-    match std::fs::canonicalize(&absolutized) {
-        Ok(x) => render_pathbuf(&x),
-        Err(_) => {
-            let dedotted = parse_dots(
-                &absolutized,
-                &render_pathbuf(&match basis {
-                    None => std::env::current_dir().unwrap(),
-                    Some(b) => std::path::Path::new(&normalize(b)).to_path_buf(),
-                }),
-            );
-            format!(
-                "{}{}",
-                if cfg!(target_os = "windows") && !dedotted.starts_with(UNC_LOCAL_PREFIX) {
-                    UNC_LOCAL_PREFIX
-                } else {
-                    ""
-                },
-                dedotted.replace(ATYPICAL_SEPARATOR, TYPICAL_SEPARATOR)
-            )
-        }
-    }
-}
-
-/// Convert a path into a nice form for display and storage.
-/// On Windows, this produces non-UNC paths.
-fn render<P: Into<String>>(path: P) -> String {
-    path.into().replace(UNC_LOCAL_PREFIX, "").replace('\\', "/")
-}
-
 pub fn render_pathbuf(value: &std::path::Path) -> String {
     value.display().to_string()
 }
 
-/// Convert a path into a format that is amenable to zipped comparison when splitting on `/`.
-/// The resulting path should not be used for actual file lookup.
-/// This relies on `render()` removing UNC prefixes when possible, so that
-/// `C:` and `\\?\C:` will end up normalizing to `C:`.
-/// For Linux-style paths, `C:` is inserted before path-initial `/` to avoid the split vec
-/// starting with `""`.
-fn splittable(path: &StrictPath) -> String {
-    let rendered = path.render();
-    let prefixed = if rendered.starts_with('/') {
-        format!("C:{}", rendered)
-    } else {
-        rendered
-    };
-    match prefixed.strip_suffix('/') {
-        Some(x) => x.to_string(),
-        _ => prefixed,
-    }
-}
-
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub enum StrictPathError {
+    Empty,
     Relative,
     Unmappable,
     Unsupported,
-}
-
-/// This is a newer alternative to `interpret`.
-/// It avoids canonicalization, because we may want to represent invalid or non-native paths,
-/// and we also want to flag relative paths as invalid rather than assume the current working directory.
-/// It also handles `~` and some manifest placeholders.
-/// For now, you should still use `interpret` in most cases, though.
-pub fn resolve(raw: impl Into<String>) -> Result<String, StrictPathError> {
-    use crate::resource::manifest::placeholder;
-
-    let mut path = parse_home(&raw.into())
-        .replace(placeholder::HOME, CommonPath::Home.try_get()?)
-        .replace(placeholder::OS_USER_NAME, &crate::prelude::OS_USERNAME);
-
-    if Os::HOST == Os::Windows {
-        path = path
-            .trim_end_matches(['/', '\\'])
-            .replace(placeholder::WIN_APP_DATA, CommonPath::Data.try_get()?)
-            .replace(placeholder::WIN_LOCAL_APP_DATA, CommonPath::DataLocal.try_get()?)
-            .replace(placeholder::WIN_DOCUMENTS, CommonPath::Document.try_get()?)
-            .replace(placeholder::WIN_PUBLIC, CommonPath::Public.try_get()?)
-            .replace(placeholder::WIN_PROGRAM_DATA, "C:/ProgramData")
-            .replace(placeholder::WIN_DIR, "C:/Windows");
-
-        // On Windows, canonicalizing "C:" or "C:/" yields the current directory,
-        // but "C:\" works.
-        #[cfg(target_os = "windows")]
-        if path.ends_with(':') {
-            path += "\\";
-        }
-
-        if !path.contains(':') && !path.starts_with("\\\\") {
-            return Err(StrictPathError::Unsupported);
-        }
-    } else {
-        path = path
-            .trim_end_matches('/')
-            .replace(placeholder::XDG_DATA, CommonPath::Data.try_get()?)
-            .replace(placeholder::XDG_CONFIG, CommonPath::Config.try_get()?);
-
-        if path.contains(':') || path.starts_with("//") || path.starts_with('\\') {
-            return Err(StrictPathError::Unsupported);
-        }
-    }
-
-    if std::path::PathBuf::from(&path).is_relative() {
-        return Err(StrictPathError::Relative);
-    }
-
-    Ok(path)
 }
 
 /// This is a wrapper around paths to make it more obvious when we're
@@ -282,7 +84,7 @@ pub fn resolve(raw: impl Into<String>) -> Result<String, StrictPathError> {
 pub struct StrictPath {
     raw: String,
     basis: Option<String>,
-    interpreted: Arc<Mutex<Option<String>>>,
+    canonical: Arc<Mutex<Option<Canonical>>>,
 }
 
 impl Eq for StrictPath {}
@@ -328,7 +130,7 @@ impl StrictPath {
         Self {
             raw,
             basis: None,
-            interpreted: Arc::new(Mutex::new(None)),
+            canonical: Arc::new(Mutex::new(None)),
         }
     }
 
@@ -336,26 +138,31 @@ impl StrictPath {
         Self {
             raw,
             basis,
-            interpreted: Arc::new(Mutex::new(None)),
+            canonical: Arc::new(Mutex::new(None)),
         }
+    }
+
+    pub fn cwd() -> Self {
+        Self::from(std::env::current_dir().unwrap())
     }
 
     pub fn reset(&mut self, raw: String) {
         self.raw = raw;
-        let mut interpreted = self.interpreted.lock().unwrap();
-        *interpreted = None;
+        self.invalidate_cache();
     }
 
-    pub fn from_std_path_buf(path_buf: &std::path::Path) -> Self {
+    pub fn equivalent(&self, other: &Self) -> bool {
+        self.interpret() == other.interpret()
+    }
+
+    fn from_std_path_buf(path_buf: &std::path::Path) -> Self {
         Self::new(render_pathbuf(path_buf))
     }
 
-    pub fn as_std_path_buf(&self) -> std::path::PathBuf {
-        std::path::PathBuf::from(&self.interpret())
-    }
-
-    pub fn as_std_path_buf_raw(&self) -> std::path::PathBuf {
-        std::path::PathBuf::from(&self.raw())
+    pub fn as_std_path_buf(&self) -> Result<std::path::PathBuf, std::io::Error> {
+        Ok(std::path::PathBuf::from(&self.interpret().map_err(|_| {
+            std::io::Error::other(format!("Cannot interpret path: {:?}", &self))
+        })?))
     }
 
     pub fn raw(&self) -> String {
@@ -365,60 +172,246 @@ impl StrictPath {
     /// For any paths that we store the entire time the GUI is running, like in the config,
     /// we sometimes want to refresh in case we have stale data.
     pub fn invalidate_cache(&self) {
-        let mut cached = self.interpreted.lock().unwrap();
+        let mut cached = self.canonical.lock().unwrap();
         *cached = None;
     }
 
-    pub fn interpret(&self) -> String {
-        let mut cached = self.interpreted.lock().unwrap();
-        match &*cached {
-            None => {
-                let computed = interpret(&self.raw, &self.basis);
-                *cached = Some(computed.clone());
-                computed
+    fn analyze(&self) -> (Option<Drive>, Vec<String>) {
+        use typed_path::{
+            Utf8TypedComponent as Component, Utf8TypedPath as TypedPath, Utf8UnixComponent as UComponent,
+            Utf8WindowsComponent as WComponent, Utf8WindowsPrefix as WindowsPrefix,
+        };
+
+        let mut drive = None;
+        let mut parts = vec![];
+
+        for (i, component) in TypedPath::derive(self.raw.trim()).components().enumerate() {
+            match component {
+                Component::Windows(WComponent::Prefix(prefix)) => {
+                    let mapped = match prefix.kind() {
+                        WindowsPrefix::Verbatim(id) => format!(r"\\?\{}", id),
+                        WindowsPrefix::VerbatimUNC(server, share) => format!(r"\\?\UNC\{}\{}", server, share),
+                        WindowsPrefix::VerbatimDisk(id) => format!("{}:", id.to_ascii_uppercase()),
+                        WindowsPrefix::DeviceNS(id) => format!(r"\\.\{}", id),
+                        WindowsPrefix::UNC(server, share) => format!(r"\\{}\{}", server, share),
+                        WindowsPrefix::Disk(id) => format!("{}:", id.to_ascii_uppercase()),
+                    };
+                    drive = Some(Drive::Windows(mapped));
+                }
+                Component::Unix(UComponent::RootDir) | Component::Windows(WComponent::RootDir) => {
+                    if i == 0 {
+                        drive = Some(Drive::Root);
+                    }
+                }
+                Component::Unix(UComponent::CurDir) | Component::Windows(WComponent::CurDir) => {
+                    if i == 0 {
+                        if let Some(basis) = &self.basis {
+                            (drive, parts) = Self::new(basis.clone()).analyze();
+                        }
+                    }
+                }
+                Component::Unix(UComponent::ParentDir) | Component::Windows(WComponent::ParentDir) => {
+                    if i == 0 {
+                        if let Some(basis) = &self.basis {
+                            (drive, parts) = Self::new(basis.clone()).analyze();
+                        }
+                    }
+                    parts.pop();
+                }
+                Component::Unix(UComponent::Normal(part)) | Component::Windows(WComponent::Normal(part)) => {
+                    let mut part = part.to_string();
+
+                    if i == 0 {
+                        let mapped = match part.as_str() {
+                            "~" | placeholder::HOME => CommonPath::Home.get(),
+                            placeholder::XDG_CONFIG => CommonPath::Config.get(),
+                            placeholder::XDG_DATA | placeholder::WIN_APP_DATA => CommonPath::Data.get(),
+                            placeholder::WIN_LOCAL_APP_DATA => CommonPath::DataLocal.get(),
+                            placeholder::WIN_DOCUMENTS => CommonPath::Document.get(),
+                            placeholder::WIN_PUBLIC => CommonPath::Public.get(),
+                            placeholder::WIN_PROGRAM_DATA => Some("C:/ProgramData"),
+                            placeholder::WIN_DIR => Some("C:/Windows"),
+                            _ => None,
+                        };
+
+                        if let Some(mapped) = mapped {
+                            (drive, parts) = Self::new(mapped.to_string()).analyze();
+                            continue;
+                        } else if let Some(basis) = &self.basis {
+                            (drive, parts) = Self::new(basis.clone()).analyze();
+                        }
+                    }
+
+                    if part == placeholder::OS_USER_NAME {
+                        parts.push(crate::prelude::OS_USERNAME.to_string());
+                        continue;
+                    }
+
+                    if part.contains(':') {
+                        // This could happen if the user entered an invalid path like `C:\foo/C:\bar`
+                        // or if the manifest contained a path like `<winDocuments>/<home>`.
+                        // We escape it so that it (likely) just won't be found, rather than finding something irrelevant.
+                        part = part.replace(':', "_");
+                    }
+
+                    // On Unix, Unix-style path segments may contain a backslash.
+                    if part.contains('\\') {
+                        for part in part.split('\\') {
+                            if !part.trim().is_empty() {
+                                parts.push(part.to_string());
+                            }
+                        }
+                    } else {
+                        parts.push(part);
+                    }
+                }
             }
-            Some(cached) => cached.clone(),
+        }
+
+        (drive, parts)
+    }
+
+    fn display(&self) -> String {
+        if self.raw.is_empty() {
+            return "".to_string();
+        }
+
+        match self.analyze() {
+            (Some(Drive::Root), parts) => format!("/{}", parts.join("/")),
+            (Some(Drive::Windows(id)), parts) => {
+                format!("{}/{}", id, parts.join("/"))
+            }
+            (None, parts) => parts.join("/"),
         }
     }
 
-    pub fn interpreted(&self) -> Self {
-        Self {
-            raw: self.interpret(),
-            basis: self.basis.clone(),
-            interpreted: Arc::new(Mutex::new(Some(self.interpret()))),
+    fn access(&self) -> Result<String, StrictPathError> {
+        if cfg!(target_os = "windows") {
+            self.access_windows()
+        } else {
+            self.access_nonwindows()
         }
+    }
+
+    fn access_windows(&self) -> Result<String, StrictPathError> {
+        if self.raw.is_empty() {
+            return Err(StrictPathError::Empty);
+        }
+
+        match self.analyze() {
+            (Some(Drive::Root), _) => Err(StrictPathError::Unsupported),
+            (Some(Drive::Windows(id)), parts) => Ok(format!("{}\\{}", id, parts.join("\\"))),
+            (None, parts) => match &self.basis {
+                Some(basis) => Ok(format!("{}\\{}", basis, parts.join("\\"))),
+                None => Err(StrictPathError::Relative),
+            },
+        }
+    }
+
+    pub fn access_nonwindows(&self) -> Result<String, StrictPathError> {
+        if self.raw.is_empty() {
+            return Err(StrictPathError::Empty);
+        }
+
+        match self.analyze() {
+            (Some(Drive::Root), parts) => Ok(format!("/{}", parts.join("/"))),
+            (Some(Drive::Windows(_)), _) => Err(StrictPathError::Unsupported),
+            (None, parts) => match &self.basis {
+                Some(basis) => Ok(format!("{}/{}", basis, parts.join("/"))),
+                None => Err(StrictPathError::Relative),
+            },
+        }
+    }
+
+    // TODO: Better error reporting for incompatible UNC path variants.
+    pub fn globbable(&self) -> String {
+        self.display().trim().trim_end_matches(['/', '\\']).replace('\\', "/")
+    }
+
+    fn canonical(&self) -> Canonical {
+        let mut cached = self.canonical.lock().unwrap();
+
+        match cached.as_ref() {
+            Some(canonical) => canonical.clone(),
+            None => match self.access() {
+                Err(_) => Canonical::Unsupported,
+                Ok(path) => match std::fs::canonicalize(path) {
+                    Err(_) => Canonical::Inaccessible,
+                    Ok(path) => {
+                        let path = path.to_string_lossy().to_string();
+                        *cached = Some(Canonical::Valid(path.clone()));
+                        Canonical::Valid(path)
+                    }
+                },
+            },
+        }
+    }
+
+    pub fn interpret(&self) -> Result<String, StrictPathError> {
+        match self.canonical() {
+            Canonical::Valid(path) => match StrictPath::new(path).access() {
+                Ok(path) => Ok(path),
+                Err(_) => {
+                    // This shouldn't be able to fail if we already have a canonical path,
+                    // but we have a fallback just in case.
+                    Ok(self.display())
+                }
+            },
+            Canonical::Unsupported => Err(StrictPathError::Unsupported),
+            Canonical::Inaccessible => self.access(),
+        }
+    }
+
+    /// This is for a special case when we're scanning a dummy root.
+    pub fn interpret_unless_skip(&self) -> Result<String, StrictPathError> {
+        if self.raw == SKIP {
+            Ok(SKIP.to_string())
+        } else {
+            self.interpret()
+        }
+    }
+
+    pub fn interpreted(&self) -> Result<Self, StrictPathError> {
+        Ok(Self {
+            raw: self.interpret()?,
+            basis: self.basis.clone(),
+            canonical: self.canonical.clone(),
+        })
     }
 
     pub fn render(&self) -> String {
-        render(self.interpret())
+        match self.canonical() {
+            Canonical::Valid(path) => Self::new(path).display(),
+            Canonical::Unsupported | Canonical::Inaccessible => self.display(),
+        }
     }
 
     pub fn rendered(&self) -> Self {
         Self {
             raw: self.render(),
             basis: self.basis.clone(),
-            interpreted: Arc::new(Mutex::new(Some(self.interpret()))),
+            canonical: self.canonical.clone(),
         }
     }
 
     pub fn resolve(&self) -> String {
-        if let Ok(resolved) = resolve(&self.raw) {
-            resolved
+        if let Ok(access) = self.access() {
+            access
         } else {
-            self.raw.clone()
+            self.raw()
         }
     }
 
     pub fn try_resolve(&self) -> Result<String, StrictPathError> {
-        resolve(&self.raw)
+        self.access()
     }
 
     pub fn is_file(&self) -> bool {
-        std::path::Path::new(&self.interpret()).is_file()
+        self.as_std_path_buf().map(|x| x.is_file()).unwrap_or_default()
     }
 
     pub fn is_dir(&self) -> bool {
-        std::path::Path::new(&self.interpret()).is_dir()
+        self.as_std_path_buf().map(|x| x.is_dir()).unwrap_or_default()
     }
 
     pub fn exists(&self) -> bool {
@@ -426,7 +419,7 @@ impl StrictPath {
     }
 
     pub fn metadata(&self) -> std::io::Result<std::fs::Metadata> {
-        self.as_std_path_buf().metadata()
+        self.as_std_path_buf()?.metadata()
     }
 
     pub fn get_mtime(&self) -> std::io::Result<std::time::SystemTime> {
@@ -465,7 +458,7 @@ impl StrictPath {
     }
 
     pub fn set_mtime(&self, mtime: std::time::SystemTime) -> Result<(), std::io::Error> {
-        filetime::set_file_mtime(self.interpret(), FileTime::from_system_time(mtime))
+        filetime::set_file_mtime(self.as_std_path_buf()?, FileTime::from_system_time(mtime))
     }
 
     /// Zips don't store time zones, so we normalize to/from UTC.
@@ -482,37 +475,85 @@ impl StrictPath {
 
     pub fn remove(&self) -> Result<(), Box<dyn std::error::Error>> {
         if self.is_file() {
-            std::fs::remove_file(self.interpret())?;
+            std::fs::remove_file(self.as_std_path_buf()?)?;
         } else if self.is_dir() {
-            std::fs::remove_dir_all(self.interpret())?;
+            std::fs::remove_dir_all(self.as_std_path_buf()?)?;
         }
         Ok(())
     }
 
     pub fn joined(&self, other: &str) -> Self {
-        Self::new(format!("{}{}{}", self.interpret(), TYPICAL_SEPARATOR, other))
+        Self {
+            raw: format!("{}/{}", &self.raw, other).replace('\\', "/"),
+            basis: self.basis.clone(),
+            canonical: Arc::new(Mutex::new(None)),
+        }
     }
 
-    pub fn joined_raw(&self, other: &str) -> Self {
-        Self::new(format!("{}/{}", self.raw(), other))
+    pub fn popped(&self) -> Self {
+        let raw = match self.analyze() {
+            (Some(Drive::Root), mut parts) => {
+                parts.pop();
+                format!("/{}", parts.join("/"))
+            }
+            (Some(Drive::Windows(id)), mut parts) => {
+                parts.pop();
+                format!("{}/{}", id, parts.join("/"))
+            }
+            (None, mut parts) => {
+                parts.pop();
+                match &self.basis {
+                    Some(basis) => format!("{}/{}", basis, parts.join("/")),
+                    None => parts.join("/"),
+                }
+            }
+        };
+
+        Self::new(raw)
+    }
+
+    pub fn create(&self) -> std::io::Result<std::fs::File> {
+        std::fs::File::create(self.as_std_path_buf()?)
+    }
+
+    pub fn open(&self) -> std::io::Result<std::fs::File> {
+        std::fs::File::open(self.as_std_path_buf()?)
+    }
+
+    pub fn write_with_content(&self, content: &str) -> std::io::Result<()> {
+        std::fs::write(self.as_std_path_buf()?, content.as_bytes())
+    }
+
+    pub fn move_to(&self, new_path: &StrictPath) -> std::io::Result<()> {
+        std::fs::rename(self.as_std_path_buf()?, new_path.as_std_path_buf()?)
+    }
+
+    pub fn copy_to(&self, target: &StrictPath) -> std::io::Result<u64> {
+        std::fs::copy(self.as_std_path_buf()?, target.as_std_path_buf()?)
     }
 
     pub fn create_dirs(&self) -> std::io::Result<()> {
-        std::fs::create_dir_all(self.as_std_path_buf())?;
+        std::fs::create_dir_all(self.as_std_path_buf()?)?;
         Ok(())
     }
 
     pub fn create_parent_dir(&self) -> std::io::Result<()> {
-        let mut pb = self.as_std_path_buf();
+        let mut pb = self.as_std_path_buf()?;
         pb.pop();
         std::fs::create_dir_all(&pb)?;
         Ok(())
     }
 
-    pub fn parent(&self) -> Option<Self> {
-        self.as_std_path_buf().parent().map(Self::from)
+    pub fn read_dir(&self) -> std::io::Result<std::fs::ReadDir> {
+        self.as_std_path_buf()?.read_dir()
     }
 
+    // TODO: Refactor to use `popped()`?
+    pub fn parent(&self) -> Option<Self> {
+        self.as_std_path_buf().ok()?.parent().map(Self::from)
+    }
+
+    // TODO: Refactor to use `popped()`?
     pub fn parent_if_file(&self) -> Result<Self, StrictPathError> {
         let resolved = self.try_resolve()?;
         let pathbuf = std::path::PathBuf::from(&resolved);
@@ -527,22 +568,41 @@ impl StrictPath {
     }
 
     pub fn parent_raw(&self) -> Option<Self> {
-        self.as_std_path_buf_raw().parent().map(Self::from)
+        std::path::PathBuf::from(&self.raw).parent().map(Self::from)
     }
 
     pub fn leaf(&self) -> Option<String> {
         self.as_std_path_buf()
+            .ok()?
             .file_name()
             .map(|x| x.to_string_lossy().to_string())
     }
 
     pub fn is_absolute(&self) -> bool {
-        // TODO: Handle `~`
-        self.as_std_path_buf_raw().is_absolute()
+        use typed_path::{
+            Utf8TypedComponent as Component, Utf8TypedPath as TypedPath, Utf8UnixComponent as UComponent,
+            Utf8WindowsComponent as WComponent,
+        };
+
+        if let Some(component) = TypedPath::derive(&self.raw).components().next() {
+            match component {
+                Component::Windows(WComponent::Prefix(_) | WComponent::RootDir)
+                | Component::Unix(UComponent::RootDir) => {
+                    return true;
+                }
+                Component::Windows(WComponent::CurDir | WComponent::ParentDir)
+                | Component::Unix(UComponent::CurDir | UComponent::ParentDir) => {
+                    return false;
+                }
+                Component::Windows(WComponent::Normal(_)) | Component::Unix(UComponent::Normal(_)) => {}
+            }
+        }
+
+        false
     }
 
     pub fn copy_to_path(&self, context: &str, target_file: &StrictPath) -> Result<(), std::io::Error> {
-        log::trace!("[{context}] copy {} -> {}", self.interpret(), target_file.interpret());
+        log::trace!("[{context}] copy {:?} -> {:?}", &self, &target_file);
 
         if let Err(e) = target_file.create_parent_dir() {
             log::error!(
@@ -562,7 +622,7 @@ impl StrictPath {
                 std::io::ErrorKind::Other,
                 "Failed to unset read-only",
             ));
-        } else if let Err(e) = std::fs::copy(self.interpret(), target_file.interpret()) {
+        } else if let Err(e) = self.copy_to(target_file) {
             log::error!(
                 "[{context}] unable to copy: {} -> {} | {e}",
                 self.raw(),
@@ -594,70 +654,30 @@ impl StrictPath {
     }
 
     /// This splits a path into a drive (e.g., `C:` or `\\?\D:`) and the remainder.
-    /// This is only used during backups to record drives in mapping.yaml, so it
-    /// only has to deal with paths that can occur on the host OS.
-    #[cfg(target_os = "windows")]
+    /// This is only used during backups to record drives in mapping.yaml,
+    /// so relative paths should have already been filtered out.
     pub fn split_drive(&self) -> (String, String) {
-        if &self.raw[0..1] == "/" && &self.raw[1..2] != "/" {
-            // Needed when restoring Linux created backups on Windows
-            (
-                "".to_owned(),
-                if self.raw.starts_with('/') {
-                    self.raw[1..].to_string()
-                } else {
-                    self.raw.to_string()
-                },
-            )
-        } else {
-            let interpreted = self.interpret();
-
-            if let Some(stripped) = interpreted.strip_prefix(UNC_LOCAL_PREFIX) {
-                // Local UNC path - simplify to a classic drive for user-friendliness:
-                let split: Vec<_> = stripped.splitn(2, '\\').collect();
-                if split.len() == 2 {
-                    return (split[0].to_owned(), split[1].replace('\\', "/"));
-                }
-            } else if let Some(stripped) = interpreted.strip_prefix(UNC_PREFIX) {
-                // Remote UNC path - can't simplify to classic drive:
-                let split: Vec<_> = stripped.splitn(2, '\\').collect();
-                if split.len() == 2 {
-                    return (format!("{}{}", UNC_PREFIX, split[0]), split[1].replace('\\', "/"));
-                }
+        match self.analyze() {
+            (Some(Drive::Root), parts) => ("".to_string(), parts.join("/")),
+            (Some(Drive::Windows(id)), parts) => (id, parts.join("/")),
+            (None, _) => {
+                log::error!("Unreachable state: unable to split drive of path: {}", &self.raw);
+                unreachable!()
             }
-
-            // This shouldn't normally happen, but we have a fallback just in case.
-            ("".to_owned(), self.raw.replace('\\', "/"))
-        }
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    pub fn split_drive(&self) -> (String, String) {
-        if &self.raw[1..3] == ":/" {
-            // Needed for the cased that a ZIP was created on Windows but we restore via Linux
-            (self.raw[0..1].to_owned(), self.raw[3..].to_owned())
-        } else {
-            (
-                "".to_owned(),
-                if self.raw.starts_with('/') {
-                    self.raw[1..].to_string()
-                } else {
-                    self.raw.to_string()
-                },
-            )
         }
     }
 
     pub fn unset_readonly(&self) -> Result<(), AnyError> {
-        let interpreted = self.interpret();
+        let subject = self.as_std_path_buf()?;
         if self.is_file() {
-            let mut perms = std::fs::metadata(&interpreted)?.permissions();
+            let mut perms = std::fs::metadata(&subject)?.permissions();
             if perms.readonly() {
                 #[allow(clippy::permissions_set_readonly_false)]
                 perms.set_readonly(false);
-                std::fs::set_permissions(&interpreted, perms)?;
+                std::fs::set_permissions(&subject, perms)?;
             }
         } else {
-            for entry in walkdir::WalkDir::new(interpreted)
+            for entry in walkdir::WalkDir::new(subject)
                 .max_depth(100)
                 .follow_links(false)
                 .into_iter()
@@ -678,36 +698,36 @@ impl StrictPath {
         Ok(())
     }
 
-    pub fn is_prefix_of(&self, other: &StrictPath) -> bool {
-        let us_rendered = splittable(self);
-        let them_rendered = splittable(other);
+    pub fn is_prefix_of(&self, other: &Self) -> bool {
+        let (us_drive, us_parts) = self.analyze();
+        let (them_drive, them_parts) = other.analyze();
 
-        let us_components = us_rendered.split('/');
-        let them_components = them_rendered.split('/');
-
-        if us_components.clone().count() >= them_components.clone().count() {
+        if us_drive != them_drive {
             return false;
         }
-        us_components.zip(them_components).all(|(us, them)| us == them)
+
+        if us_parts.len() >= them_parts.len() {
+            return false;
+        }
+
+        us_parts.iter().zip(them_parts.iter()).all(|(us, them)| us == them)
     }
 
     pub fn nearest_prefix(&self, others: Vec<StrictPath>) -> Option<StrictPath> {
-        let us_rendered = splittable(self);
-        let us_components = us_rendered.split('/');
-        let us_count = us_components.clone().count();
+        let (us_drive, us_parts) = self.analyze();
+        let us_count = us_parts.len();
 
         let mut nearest = None;
         let mut nearest_len = 0;
         for other in others {
-            let them_rendered = splittable(&other);
-            let them_components = them_rendered.split('/');
-            let them_len = them_components.clone().count();
+            let (them_drive, them_parts) = other.analyze();
+            let them_len = them_parts.len();
 
-            if us_count <= them_len {
+            if us_drive != them_drive || us_count <= them_len {
                 continue;
             }
-            if us_components.clone().zip(them_components).all(|(us, them)| us == them) && them_len > nearest_len {
-                nearest = Some(other.clone());
+            if us_parts.iter().zip(them_parts.iter()).all(|(us, them)| us == them) && them_len > nearest_len {
+                nearest = Some(other);
                 nearest_len = them_len;
             }
         }
@@ -750,9 +770,9 @@ impl StrictPath {
     pub fn try_same_content(&self, other: &StrictPath) -> Result<bool, Box<dyn std::error::Error>> {
         use std::io::Read;
 
-        let f1 = std::fs::File::open(self.interpret())?;
+        let f1 = self.open()?;
         let mut f1r = std::io::BufReader::new(f1);
-        let f2 = std::fs::File::open(other.interpret())?;
+        let f2 = other.open()?;
         let mut f2r = std::io::BufReader::new(f2);
 
         let mut f1b = [0; 1024];
@@ -776,7 +796,7 @@ impl StrictPath {
     }
 
     pub fn try_read(&self) -> Result<String, AnyError> {
-        Ok(std::fs::read_to_string(std::path::Path::new(&self.interpret()))?)
+        Ok(std::fs::read_to_string(std::path::Path::new(&self.as_std_path_buf()?))?)
     }
 
     pub fn size(&self) -> u64 {
@@ -797,7 +817,7 @@ impl StrictPath {
 
         let mut hasher = sha1::Sha1::new();
 
-        let file = std::fs::File::open(self.interpret())?;
+        let file = self.open()?;
         let mut reader = std::io::BufReader::new(file);
 
         let mut buffer = [0; 1024];
@@ -849,17 +869,12 @@ impl From<&StrictPath> for StrictPath {
     }
 }
 
-// Based on:
-// https://github.com/serde-rs/serde/issues/751#issuecomment-277580700
-#[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
-struct StrictPathSerdeHelper(String);
-
 impl serde::Serialize for StrictPath {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
     {
-        StrictPathSerdeHelper(self.raw()).serialize(serializer)
+        self.raw.serialize(serializer)
     }
 }
 
@@ -868,7 +883,7 @@ impl<'de> serde::Deserialize<'de> for StrictPath {
     where
         D: serde::Deserializer<'de>,
     {
-        serde::Deserialize::deserialize(deserializer).map(|StrictPathSerdeHelper(raw)| StrictPath::new(raw))
+        serde::Deserialize::deserialize(deserializer).map(StrictPath::new)
     }
 }
 
@@ -881,270 +896,16 @@ pub fn is_raw_path_relative(path: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::testing::{repo, repo_raw, s};
-
-    fn username() -> String {
-        (*crate::prelude::OS_USERNAME).clone()
-    }
+    use crate::testing::{repo, s};
 
     fn home() -> String {
         CommonPath::Home.get().unwrap().to_string()
-    }
-
-    fn drive() -> String {
-        if cfg!(target_os = "windows") {
-            StrictPath::new(s("foo")).render()[..2].to_string()
-        } else {
-            s("")
-        }
     }
 
     mod strict_path {
         use pretty_assertions::assert_eq;
 
         use super::*;
-
-        #[test]
-        fn can_interpret_general_paths() {
-            if cfg!(target_os = "windows") {
-                assert_eq!("".to_string(), interpret("", &Some("/foo".to_string())));
-                assert_eq!(
-                    format!(r#"\\?\{}\foo\bar"#, drive()),
-                    interpret("bar", &Some("/foo".to_string()))
-                );
-            } else {
-                assert_eq!("".to_string(), interpret("", &Some("/foo".to_string())));
-                assert_eq!("/foo/bar".to_string(), interpret("bar", &Some("/foo".to_string())));
-            }
-        }
-
-        #[test]
-        fn can_interpret_linux_style_paths() {
-            if cfg!(target_os = "windows") {
-                assert_eq!(format!(r#"\\?\{}\"#, drive()), interpret("/", &None));
-                assert_eq!(format!(r#"\\?\{}\foo"#, drive()), interpret("/foo", &None));
-                assert_eq!(format!(r#"\\?\{}\foo\bar"#, drive()), interpret("/foo/bar", &None));
-            } else {
-                assert_eq!("/".to_string(), interpret("/", &None));
-                assert_eq!("/foo".to_string(), interpret("/foo", &None));
-                assert_eq!("/foo/bar".to_string(), interpret("/foo/bar", &None));
-                assert_eq!("/foo/bar".to_string(), interpret("/foo/bar/", &None));
-            }
-        }
-
-        #[test]
-        #[cfg(target_os = "windows")]
-        fn can_interpret_windows_drive_letter() {
-            assert_eq!(r#"\\?\C:\foo"#.to_string(), interpret("C:/foo", &None));
-            assert_eq!(r#"\\?\C:\"#.to_string(), interpret("C:\\", &None));
-            assert_eq!(r#"\\?\C:\"#.to_string(), interpret("C:/", &None));
-            assert_eq!(r#"\\?\C:\"#.to_string(), interpret("C:", &None));
-        }
-
-        #[test]
-        #[cfg(target_os = "windows")]
-        fn can_interpret_unc_path() {
-            assert_eq!(r#"\\?\C:\foo"#.to_string(), interpret(r#"\\?\C:\foo"#, &None));
-            assert_eq!(r#"\\?\C:\"#.to_string(), interpret(r#"\\?\C:\"#, &None));
-            assert_eq!(r#"\\?\C:\"#.to_string(), interpret(r#"\\?\C:/"#, &None));
-            assert_eq!(r#"\\?\C:\"#.to_string(), interpret(r#"\\?\C:"#, &None));
-        }
-
-        #[test]
-        fn can_render() {
-            assert_eq!("".to_string(), render(""));
-            assert_eq!("/".to_string(), render("/"));
-            assert_eq!("/foo".to_string(), render("/foo"));
-            assert_eq!("/foo/bar".to_string(), render("/foo/bar"));
-            assert_eq!("/foo/bar/".to_string(), render("\\foo/bar/"));
-            assert_eq!("C:/foo".to_string(), render("C:/foo"));
-        }
-
-        #[test]
-        fn expands_relative_paths_from_working_dir_by_default() {
-            let sp = StrictPath::new("README.md".to_owned());
-            if cfg!(target_os = "windows") {
-                assert_eq!(format!("\\\\?\\{}\\README.md", repo_raw()), sp.interpret());
-            } else {
-                assert_eq!(format!("{}/README.md", repo()), sp.interpret());
-            }
-        }
-
-        #[test]
-        fn expands_relative_paths_from_specified_basis_dir() {
-            if cfg!(target_os = "windows") {
-                let sp = StrictPath::relative("README.md".to_owned(), Some("C:\\tmp".to_string()));
-                assert_eq!("\\\\?\\C:\\tmp\\README.md", sp.interpret());
-            } else {
-                let sp = StrictPath::relative("README.md".to_owned(), Some("/tmp".to_string()));
-                assert_eq!("/tmp/README.md", sp.interpret());
-            }
-        }
-
-        #[test]
-        fn converts_single_dot_at_start_of_real_path() {
-            assert_eq!(
-                format!("{}/README.md", repo()),
-                StrictPath::new("./README.md".to_owned()).render(),
-            );
-        }
-
-        #[test]
-        fn converts_single_dots_at_start_of_real_path() {
-            assert_eq!(
-                format!("{}/README.md", repo()),
-                StrictPath::new("./././README.md".to_owned()).render(),
-            );
-        }
-
-        #[test]
-        fn converts_single_dot_at_start_of_fake_path() {
-            assert_eq!(
-                format!("{}/fake/README.md", repo()),
-                StrictPath::relative("./README.md".to_owned(), Some(format!("{}/fake", repo()))).render(),
-            );
-        }
-
-        #[test]
-        fn converts_single_dot_within_real_path() {
-            assert_eq!(
-                format!("{}/README.md", repo()),
-                StrictPath::new(format!("{}/./README.md", repo())).render(),
-            );
-        }
-
-        #[test]
-        fn converts_single_dots_within_real_path() {
-            assert_eq!(
-                format!("{}/README.md", repo()),
-                StrictPath::new(format!("{}/./././README.md", repo())).render(),
-            );
-        }
-
-        #[test]
-        fn converts_single_dot_within_fake_path() {
-            assert_eq!(
-                format!("{}/fake/README.md", repo()),
-                StrictPath::new(format!("{}/fake/./README.md", repo())).render(),
-            );
-        }
-
-        #[test]
-        fn converts_double_dots_at_start_of_real_path() {
-            assert_eq!(
-                format!("{}/README.md", repo()),
-                StrictPath::relative("../README.md".to_owned(), Some(format!("{}/src", repo()))).render(),
-            );
-        }
-
-        #[test]
-        fn converts_double_dots_at_start_of_fake_path() {
-            assert_eq!(
-                format!("{}/fake.md", repo()),
-                StrictPath::relative("../fake.md".to_owned(), Some(format!("{}/fake", repo()))).render(),
-            );
-        }
-
-        #[test]
-        fn converts_double_dots_within_real_path() {
-            assert_eq!(
-                format!("{}/README.md", repo()),
-                StrictPath::new(format!("{}/src/../README.md", repo())).render(),
-            );
-        }
-
-        #[test]
-        fn converts_double_dots_within_fake_path() {
-            assert_eq!(
-                format!("{}/fake.md", repo()),
-                StrictPath::new(format!("{}/fake/../fake.md", repo())).render(),
-            );
-        }
-
-        #[test]
-        fn treats_absolute_paths_as_such() {
-            if cfg!(target_os = "windows") {
-                let sp = StrictPath::new("C:\\tmp\\README.md".to_owned());
-                assert_eq!("\\\\?\\C:\\tmp\\README.md", sp.interpret());
-            } else {
-                let sp = StrictPath::new("/tmp/README.md".to_owned());
-                assert_eq!("/tmp/README.md", sp.interpret());
-            }
-        }
-
-        #[test]
-        fn converts_tilde_in_isolation() {
-            let sp = StrictPath::new("~".to_owned());
-            if cfg!(target_os = "windows") {
-                assert_eq!(format!("\\\\?\\C:\\Users\\{}", username()), sp.interpret());
-                assert_eq!(format!("C:/Users/{}", username()), sp.render());
-            } else {
-                assert_eq!(home(), sp.interpret());
-                assert_eq!(home(), sp.render());
-            }
-        }
-
-        #[test]
-        fn converts_tilde_before_forward_slash() {
-            let sp = StrictPath::new("~/~".to_owned());
-            if cfg!(target_os = "windows") {
-                assert_eq!(format!("\\\\?\\C:\\Users\\{}\\~", username()), sp.interpret());
-                assert_eq!(format!("C:/Users/{}/~", username()), sp.render());
-            } else {
-                assert_eq!(format!("{}/~", home()), sp.interpret());
-                assert_eq!(format!("{}/~", home()), sp.render());
-            }
-        }
-
-        #[test]
-        fn converts_tilde_before_backslash() {
-            let sp = StrictPath::new("~\\~".to_owned());
-            if cfg!(target_os = "windows") {
-                assert_eq!(format!("\\\\?\\C:\\Users\\{}\\~", username()), sp.interpret());
-                assert_eq!(format!("C:/Users/{}/~", username()), sp.render());
-            } else {
-                assert_eq!(format!("{}/~", home()), sp.interpret());
-                assert_eq!(format!("{}/~", home()), sp.render());
-            }
-        }
-
-        #[test]
-        fn does_not_convert_tilde_before_a_nonslash_character() {
-            let sp = StrictPath::new("~a".to_owned());
-            if cfg!(target_os = "windows") {
-                assert_eq!(format!("\\\\?\\{}\\~a", repo_raw()), sp.interpret());
-            } else {
-                assert_eq!(format!("{}/~a", repo()), sp.interpret());
-            }
-        }
-
-        #[test]
-        #[cfg(target_os = "windows")]
-        fn does_not_truncate_path_up_to_drive_letter_in_classic_path() {
-            // https://github.com/mtkennerly/ludusavi/issues/36
-            // Test for: <winDocuments>/<home>
-
-            let sp = StrictPath::relative(
-                "C:\\Users\\Foo\\Documents/C:\\Users\\Bar".to_string(),
-                Some("\\\\?\\C:\\Users\\Foo\\.config\\ludusavi".to_string()),
-            );
-            assert_eq!(r#"\\?\C:\Users\Foo\Documents\C_\Users\Bar"#, sp.interpret());
-            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", sp.render());
-        }
-
-        #[test]
-        #[cfg(target_os = "windows")]
-        fn does_not_truncate_path_up_to_drive_letter_in_unc_path() {
-            // https://github.com/mtkennerly/ludusavi/issues/36
-            // Test for: <winDocuments>/<home>
-
-            let sp = StrictPath::relative(
-                "\\\\?\\C:\\Users\\Foo\\Documents\\C:\\Users\\Bar".to_string(),
-                Some("\\\\?\\C:\\Users\\Foo\\.config\\ludusavi".to_string()),
-            );
-            assert_eq!(r#"\\?\C:\Users\Foo\Documents\C_\Users\Bar"#, sp.interpret());
-            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", sp.render());
-        }
 
         #[test]
         fn can_check_if_it_is_a_file() {
@@ -1166,55 +927,13 @@ mod tests {
         }
 
         #[test]
-        #[cfg(target_os = "windows")]
         fn can_split_drive_for_windows_path() {
             assert_eq!((s("C:"), s("foo/bar")), StrictPath::new(s("C:/foo/bar")).split_drive());
         }
 
         #[test]
-        #[cfg(target_os = "windows")]
-        fn can_split_drive_for_local_unc_path() {
-            assert_eq!(
-                (s("C:"), s("foo/bar")),
-                StrictPath::new(s(r#"\\?\C:\foo\bar"#)).split_drive()
-            );
-        }
-
-        #[test]
-        #[cfg(target_os = "windows")]
-        fn can_split_drive_for_remote_unc_path() {
-            // TODO: Should be `\\remote` and `foo\bar`.
-            // Despite this, when backing up to a machine-local network share,
-            // it gets resolved to the actual local drive and therefore works.
-            // Unsure about behavior for a remote network share at this time.
-            assert_eq!(
-                (s(""), s("/remote/foo/bar")),
-                StrictPath::new(s(r#"\\remote\foo\bar"#)).split_drive()
-            );
-        }
-
-        #[test]
-        #[cfg(not(target_os = "windows"))]
         fn can_split_drive_for_nonwindows_path() {
             assert_eq!((s(""), s("foo/bar")), StrictPath::new(s("/foo/bar")).split_drive());
-        }
-
-        #[test]
-        #[cfg(target_os = "windows")]
-        fn can_split_drive_for_linux_path_in_windows() {
-            assert_eq!(
-                (s(""), s("Users/foo/AppData")),
-                StrictPath::new(s("/Users/foo/AppData")).split_drive()
-            );
-        }
-
-        #[test]
-        #[cfg(not(target_os = "windows"))]
-        fn can_split_drive_for_windows_path_in_linux() {
-            assert_eq!(
-                (s("C"), s("Users/foo/AppData")),
-                StrictPath::new(s("C:/Users/foo/AppData")).split_drive()
-            );
         }
 
         #[test]
@@ -1228,7 +947,6 @@ mod tests {
         }
 
         #[test]
-        #[cfg(target_os = "windows")]
         fn is_prefix_of_with_windows_drive_letters() {
             assert!(StrictPath::new(s(r#"C:"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
             assert!(StrictPath::new(s(r#"C:/"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
@@ -1236,7 +954,6 @@ mod tests {
         }
 
         #[test]
-        #[cfg(target_os = "windows")]
         fn is_prefix_of_with_unc_drives() {
             assert!(!StrictPath::new(s(r#"\\?\C:\foo"#)).is_prefix_of(&StrictPath::new(s("C:/foo"))));
             assert!(StrictPath::new(s(r#"\\?\C:\foo"#)).is_prefix_of(&StrictPath::new(s("C:/foo/bar"))));
@@ -1289,6 +1006,300 @@ mod tests {
             assert!(StrictPath::new(format!("{}/tests/root1/game1/file1.txt", repo()))
                 .try_same_content(&StrictPath::new(format!("{}/nonexistent.txt", repo())))
                 .is_err());
+        }
+    }
+
+    mod strict_path_display_and_access {
+        use super::*;
+
+        use pretty_assertions::assert_eq;
+
+        fn analysis(drive: Drive) -> (Option<Drive>, Vec<String>) {
+            (Some(drive), vec!["foo".to_string(), "bar".to_string()])
+        }
+
+        #[test]
+        fn linux_style() {
+            let path = StrictPath::from("/foo/bar");
+
+            assert_eq!(analysis(Drive::Root), path.analyze());
+            assert_eq!("/foo/bar", path.display());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
+            assert_eq!(Ok("/foo/bar".to_string()), path.access_nonwindows());
+        }
+
+        #[test]
+        fn windows_style_verbatim() {
+            let path = StrictPath::from(r"\\?\share\foo\bar");
+
+            assert_eq!(analysis(Drive::Windows(r"\\?\share".to_string())), path.analyze());
+            assert_eq!(r"\\?\share/foo/bar", path.display());
+            assert_eq!(Ok(r"\\?\share\foo\bar".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn windows_style_verbatim_unc() {
+            let path = StrictPath::from(r"\\?\UNC\server\share\foo\bar");
+
+            assert_eq!(
+                analysis(Drive::Windows(r"\\?\UNC\server\share".to_string())),
+                path.analyze()
+            );
+            assert_eq!(r"\\?\UNC\server\share/foo/bar", path.display());
+            assert_eq!(Ok(r"\\?\UNC\server\share\foo\bar".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn windows_style_verbatim_disk() {
+            let path = StrictPath::from(r"\\?\C:\foo\bar");
+
+            assert_eq!(analysis(Drive::Windows(r"C:".to_string())), path.analyze());
+            assert_eq!(r"C:/foo/bar", path.display());
+            assert_eq!(Ok(r"C:\foo\bar".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn windows_style_device_ns() {
+            let path = StrictPath::from(r"\\.\COM42\foo\bar");
+
+            assert_eq!(analysis(Drive::Windows(r"\\.\COM42".to_string())), path.analyze());
+            assert_eq!(r"\\.\COM42/foo/bar", path.display());
+            assert_eq!(Ok(r"\\.\COM42\foo\bar".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn windows_style_unc() {
+            let path = StrictPath::from(r"\\server\share\foo\bar");
+
+            assert_eq!(analysis(Drive::Windows(r"\\server\share".to_string())), path.analyze());
+            assert_eq!(r"\\server\share/foo/bar", path.display());
+            assert_eq!(Ok(r"\\server\share\foo\bar".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn windows_style_disk() {
+            let path = StrictPath::from(r"C:\foo\bar");
+
+            assert_eq!(analysis(Drive::Windows(r"C:".to_string())), path.analyze());
+            assert_eq!(r"C:/foo/bar", path.display());
+            assert_eq!(Ok(r"C:\foo\bar".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn relative_plain() {
+            let path = StrictPath::from("foo");
+            assert_eq!((None, vec!["foo".to_string()]), path.analyze());
+            assert_eq!("foo".to_string(), path.display());
+            assert_eq!(Err(StrictPathError::Relative), path.access_windows());
+            assert_eq!(Err(StrictPathError::Relative), path.access_nonwindows());
+
+            let path = StrictPath::relative("foo".to_string(), Some("/tmp".to_string()));
+            assert_eq!(
+                (Some(Drive::Root), vec!["tmp".to_string(), "foo".to_string()]),
+                path.analyze()
+            );
+            assert_eq!("/tmp/foo".to_string(), path.display());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
+            assert_eq!(Ok("/tmp/foo".to_string()), path.access_nonwindows());
+
+            let path = StrictPath::relative("foo".to_string(), Some("C:/tmp".to_string()));
+            assert_eq!(
+                (
+                    Some(Drive::Windows("C:".to_string())),
+                    vec!["tmp".to_string(), "foo".to_string()]
+                ),
+                path.analyze()
+            );
+            assert_eq!("C:/tmp/foo".to_string(), path.display());
+            assert_eq!(Ok(r"C:\tmp\foo".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn relative_single_dot() {
+            let path = StrictPath::from("./foo");
+            assert_eq!((None, vec!["foo".to_string()]), path.analyze());
+            assert_eq!("foo".to_string(), path.display());
+            assert_eq!(Err(StrictPathError::Relative), path.access_windows());
+            assert_eq!(Err(StrictPathError::Relative), path.access_nonwindows());
+
+            let path = StrictPath::relative("./foo".to_string(), Some("/tmp".to_string()));
+            assert_eq!(
+                (Some(Drive::Root), vec!["tmp".to_string(), "foo".to_string()]),
+                path.analyze()
+            );
+            assert_eq!("/tmp/foo".to_string(), path.display());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
+            assert_eq!(Ok("/tmp/foo".to_string()), path.access_nonwindows());
+
+            let path = StrictPath::relative("./foo".to_string(), Some("C:/tmp".to_string()));
+            assert_eq!(
+                (
+                    Some(Drive::Windows("C:".to_string())),
+                    vec!["tmp".to_string(), "foo".to_string()]
+                ),
+                path.analyze()
+            );
+            assert_eq!("C:/tmp/foo".to_string(), path.display());
+            assert_eq!(Ok(r"C:\tmp\foo".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn relative_double_dot() {
+            let path = StrictPath::from("../foo");
+            assert_eq!((None, vec!["foo".to_string()]), path.analyze());
+            assert_eq!("foo".to_string(), path.display());
+            assert_eq!(Err(StrictPathError::Relative), path.access_windows());
+            assert_eq!(Err(StrictPathError::Relative), path.access_nonwindows());
+
+            let path = StrictPath::relative("../foo".to_string(), Some("/tmp/bar".to_string()));
+            assert_eq!(
+                (Some(Drive::Root), vec!["tmp".to_string(), "foo".to_string()]),
+                path.analyze()
+            );
+            assert_eq!("/tmp/foo".to_string(), path.display());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
+            assert_eq!(Ok("/tmp/foo".to_string()), path.access_nonwindows());
+
+            let path = StrictPath::relative("../foo".to_string(), Some("C:/tmp/bar".to_string()));
+            assert_eq!(
+                (
+                    Some(Drive::Windows("C:".to_string())),
+                    vec!["tmp".to_string(), "foo".to_string()]
+                ),
+                path.analyze()
+            );
+            assert_eq!("C:/tmp/foo".to_string(), path.display());
+            assert_eq!(Ok(r"C:\tmp\foo".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn tilde() {
+            let path = StrictPath::new("~".to_owned());
+            assert_eq!(Ok(home()), path.access());
+        }
+
+        #[test]
+        fn empty() {
+            let path = StrictPath::from("");
+            assert_eq!((None, vec![]), path.analyze());
+            assert_eq!("".to_string(), path.display());
+            assert_eq!(Err(StrictPathError::Empty), path.access_windows());
+            assert_eq!(Err(StrictPathError::Empty), path.access_nonwindows());
+        }
+
+        #[test]
+        fn extra_slashes() {
+            let path = StrictPath::from(r"///foo\\bar/\baz");
+            assert_eq!(
+                (
+                    Some(Drive::Root),
+                    vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]
+                ),
+                path.analyze()
+            );
+        }
+
+        #[test]
+        fn mixed_style() {
+            let path = StrictPath::from(r"/foo\bar");
+            assert_eq!(
+                (Some(Drive::Root), vec!["foo".to_string(), "bar".to_string()]),
+                path.analyze()
+            );
+        }
+
+        #[test]
+        fn linux_root_variations() {
+            let path = StrictPath::from("/");
+
+            assert_eq!((Some(Drive::Root), vec![]), path.analyze());
+            assert_eq!("/", path.display());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
+            assert_eq!(Ok("/".to_string()), path.access_nonwindows());
+
+            let path = StrictPath::from(r"\");
+
+            assert_eq!((Some(Drive::Root), vec![]), path.analyze());
+            assert_eq!("/", path.display());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
+            assert_eq!(Ok("/".to_string()), path.access_nonwindows());
+        }
+
+        #[test]
+        fn windows_root_variations() {
+            macro_rules! check {
+                ($input:expr, $output:expr) => {
+                    let path = StrictPath::from($input);
+                    assert_eq!(
+                        (Some(Drive::Windows($output.to_string())), vec![]),
+                        path.analyze()
+                    );
+                };
+            }
+
+            // Verbatim
+            check!(r"\\?\share", r"\\?\share");
+            check!(r"//?/share", r"\\?\share");
+
+            // Verbatim UNC
+            check!(r"\\?\UNC\server\share", r"\\?\UNC\server\share");
+            // check!(r"//?/UNC/server/share", r"\\?\UNC\server\share");
+
+            // Verbatim disk
+            check!(r"\\?\C:", r"C:");
+            check!(r"\\?\C:\", r"C:");
+            check!(r"//?/C:", r"C:");
+            check!(r"//?/C:/", r"C:");
+
+            // Device NS
+            check!(r"\\.\COM42", r"\\.\COM42");
+            check!(r"//./COM42", r"\\.\COM42");
+
+            // UNC
+            check!(r"\\server\share", r"\\server\share");
+            check!(r"//server/share", r"\\server\share");
+
+            // Disk
+            check!(r"C:", r"C:");
+            check!(r"C:\", r"C:");
+            check!(r"C:/", r"C:");
+        }
+
+        #[test]
+        #[cfg(target_os = "windows")]
+        fn does_not_truncate_path_up_to_drive_letter_in_windows_classic_path() {
+            // https://github.com/mtkennerly/ludusavi/issues/36
+            // Test for: <winDocuments>/<home>
+
+            let path = StrictPath::relative(
+                r"C:\Users\Foo\Documents/C:\Users\Bar".to_string(),
+                Some(r"\\?\C:\Users\Foo\.config\ludusavi".to_string()),
+            );
+            assert_eq!(r"C:\Users\Foo\Documents\C_\Users\Bar", path.interpret().unwrap());
+            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", path.render());
+        }
+
+        #[test]
+        #[cfg(target_os = "windows")]
+        fn does_not_truncate_path_up_to_drive_letter_in_windows_unc_path() {
+            // https://github.com/mtkennerly/ludusavi/issues/36
+            // Test for: <winDocuments>/<home>
+
+            let path = StrictPath::relative(
+                r"\\?\C:\Users\Foo\Documents\C:\Users\Bar".to_string(),
+                Some(r"\\?\C:\Users\Foo\.config\ludusavi".to_string()),
+            );
+            assert_eq!(r"C:\Users\Foo\Documents\C_\Users\Bar", path.interpret().unwrap());
+            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", path.render());
         }
     }
 }

@@ -14,6 +14,26 @@ pub fn repo_raw() -> String {
     env!("CARGO_MANIFEST_DIR").to_string()
 }
 
+pub fn repo_file(path: &str) -> String {
+    repo_file_raw(path).replace('\\', "/")
+}
+
+pub fn repo_file_raw(path: &str) -> String {
+    if cfg!(target_os = "windows") {
+        format!("{}\\{}", repo_raw(), path.replace('/', "\\"))
+    } else {
+        format!("{}/{}", repo_raw(), path)
+    }
+}
+
+pub fn repo_path(path: &str) -> StrictPath {
+    StrictPath::new(repo_file(path))
+}
+
+pub fn repo_path_raw(path: &str) -> StrictPath {
+    StrictPath::new(repo_file_raw(path))
+}
+
 pub fn absolute_path(file: &str) -> StrictPath {
     if cfg!(target_os = "windows") {
         StrictPath::new(format!("X:{file}"))

@@ -129,7 +129,9 @@ pub fn parse_paths(
         None => SKIP,
     };
 
-    let root_interpreted = root.path.interpret();
+    let Ok(root_interpreted) = root.path.interpret_unless_skip() else {
+        return HashSet::new();
+    };
     let data_dir = CommonPath::Data.get_or_skip();
     let data_local_dir = CommonPath::DataLocal.get_or_skip();
     let config_dir = CommonPath::Config.get_or_skip();
@@ -149,7 +151,7 @@ pub fn parse_paths(
                 &match root.store {
                     Store::Steam => format!("{}/steamapps/common/{}", &root_interpreted, install_dir),
                     Store::Heroic | Store::Legendary | Store::Lutris => full_install_dir
-                        .map(|x| x.interpret())
+                        .and_then(|x| x.interpret().ok())
                         .unwrap_or_else(|| SKIP.to_string()),
                     Store::Ea
                     | Store::Epic
@@ -219,7 +221,7 @@ pub fn parse_paths(
     if root.store == Store::Gog && Os::HOST == Os::Linux {
         paths.insert((
             path.replace(GAME, &format!("{}/game", install_dir))
-                .replace(BASE, &format!("{}/{}/game", root.path.interpret(), install_dir)),
+                .replace(BASE, &format!("{}/{}/game", &root_interpreted, install_dir)),
             platform.is_case_sensitive(),
         ));
     }
@@ -272,7 +274,9 @@ pub fn parse_paths(
     if root.store == Store::Steam {
         if let Some(steam_shortcut) = steam_shortcut {
             if let Some(start_dir) = &steam_shortcut.start_dir {
-                paths.insert((path.replace(BASE, &start_dir.interpret()), platform.is_case_sensitive()));
+                if let Ok(start_dir) = start_dir.interpret() {
+                    paths.insert((path.replace(BASE, &start_dir), platform.is_case_sensitive()));
+                }
             }
         }
     }
@@ -428,7 +432,7 @@ pub fn parse_paths(
 
     paths
         .iter()
-        .map(|(x, y)| (StrictPath::relative(x.to_string(), Some(manifest_dir.interpret())), *y))
+        .map(|(x, y)| (StrictPath::relative(x.to_string(), manifest_dir.interpret().ok()), *y))
         .collect()
 }
 
@@ -461,7 +465,7 @@ pub fn scan_game_for_backup(
     }];
     roots_to_check.extend(roots.iter().cloned());
 
-    let manifest_dir_interpreted = manifest_dir.interpret();
+    let manifest_dir_interpreted = manifest_dir.interpret().unwrap();
     let steam_ids = steam_ids(game, steam_shortcuts.get(name));
 
     // We can add this for Wine prefixes from the CLI because they're
@@ -469,13 +473,7 @@ pub fn scan_game_for_backup(
     // For other Wine roots, it would trigger for every game.
     if let Some(wp) = wine_prefix {
         log::trace!("[{name}] adding extra Wine prefix: {}", wp.raw());
-        scan_game_for_backup_add_prefix(
-            &mut roots_to_check,
-            &mut paths_to_check,
-            wp,
-            &manifest_dir_interpreted,
-            game.registry.is_some(),
-        );
+        scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, game.registry.is_some());
     }
 
     // handle what was found for heroic
@@ -486,7 +484,6 @@ pub fn scan_game_for_backup(
                 &mut roots_to_check,
                 &mut paths_to_check,
                 if with_pfx.exists() { &with_pfx } else { wp },
-                &manifest_dir_interpreted,
                 game.registry.is_some(),
             );
         }
@@ -501,7 +498,10 @@ pub fn scan_game_for_backup(
         if root.path.raw().trim().is_empty() {
             continue;
         }
-        let root_interpreted = root.path.interpret();
+        let Ok(root_interpreted) = root.path.interpret_unless_skip() else {
+            log::error!("Invalid root: {:?}", &root.path);
+            continue;
+        };
 
         let platform = launchers.get_platform(&root, name).unwrap_or(Os::HOST);
 
@@ -615,7 +615,7 @@ pub fn scan_game_for_backup(
                 });
             } else if p.is_dir() {
                 log::trace!("[{name}] looking for files in: {}", p.raw());
-                for child in walkdir::WalkDir::new(p.as_std_path_buf())
+                for child in walkdir::WalkDir::new(p.as_std_path_buf().unwrap())
                     .max_depth(100)
                     .follow_links(true)
                     .into_iter()
@@ -786,7 +786,6 @@ fn scan_game_for_backup_add_prefix(
     roots_to_check: &mut Vec<RootsConfig>,
     paths_to_check: &mut HashSet<(StrictPath, Option<bool>)>,
     wp: &StrictPath,
-    manifest_dir_interpreted: &str,
     has_registry: bool,
 ) {
     roots_to_check.push(RootsConfig {
@@ -794,13 +793,7 @@ fn scan_game_for_backup_add_prefix(
         store: Store::OtherWine,
     });
     if has_registry {
-        paths_to_check.insert((
-            StrictPath::relative(
-                format!("{}/*.reg", wp.interpret()),
-                Some(manifest_dir_interpreted.to_owned()),
-            ),
-            None,
-        ));
+        paths_to_check.insert((wp.joined("*.reg"), None));
     }
 }
 
@@ -810,8 +803,7 @@ pub fn prepare_backup_target(target: &StrictPath) -> Result<(), Error> {
         return Err(Error::CannotPrepareBackupTarget { path: target.clone() });
     }
 
-    let p = target.as_std_path_buf();
-    std::fs::create_dir_all(p).map_err(|e| {
+    target.create_dirs().map_err(|e| {
         log::error!("Failed to prepare backup target: {target:?} | {e:?}");
         Error::CannotPrepareBackupTarget { path: target.clone() }
     })?;
@@ -1174,69 +1166,115 @@ mod tests {
     }
 
     #[test]
-    fn can_scan_game_for_backup_with_file_matches_and_ignores() {
-        let cases = [
-            (
-                BackupFilter {
-                    ignored_paths: vec![StrictPath::new(format!("{}\\tests/root1/game1/subdir", repo()))],
-                    ..Default::default()
-                },
-                ToggledPaths::default(),
-                hash_set! {
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
-                },
-            ),
-            (
-                BackupFilter::default(),
-                ToggledPaths::new(btree_map! {
-                    s("game1"): btree_map! {
-                        StrictPath::new(format!("{}\\tests/root1/game1/subdir", repo())): false
-                    }
-                }),
-                hash_set! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
-                },
-            ),
-            (
-                BackupFilter::default(),
-                ToggledPaths::new(btree_map! {
-                    s("game1"): btree_map! {
-                        StrictPath::new(format!("{}\\tests/root1/game1/subdir/file2.txt", repo())): false
-                    }
-                }),
-                hash_set! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
-                },
-            ),
-        ];
+    fn can_scan_game_for_backup_with_file_matches_and_ignored_directory() {
+        let mut filter = BackupFilter {
+            ignored_paths: vec![StrictPath::new(format!("{}\\tests/root1/game1/subdir", repo()))],
+            ..Default::default()
+        };
+        let ignored = ToggledPaths::default();
+        let found = hash_set! {
+            ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+        };
 
-        for (mut filter, ignored, found) in cases {
-            filter.build_globs();
-            assert_eq!(
-                ScanInfo {
-                    game_name: s("game1"),
-                    found_files: found,
-                    found_registry_keys: hash_set! {},
-                    ..Default::default()
-                },
-                scan_game_for_backup(
-                    &manifest().0["game1"],
-                    "game1",
-                    &config().roots,
-                    &StrictPath::new(repo()),
-                    &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
-                    &filter,
-                    &None,
-                    &ignored,
-                    &ToggledRegistry::default(),
-                    None,
-                    &[],
-                    &Default::default(),
-                ),
-            );
-        }
+        filter.build_globs();
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game1"),
+                found_files: found,
+                found_registry_keys: hash_set! {},
+                ..Default::default()
+            },
+            scan_game_for_backup(
+                &manifest().0["game1"],
+                "game1",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
+                &filter,
+                &None,
+                &ignored,
+                &ToggledRegistry::default(),
+                None,
+                &[],
+                &Default::default(),
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_file_matches_and_toggled_directory() {
+        let mut filter = BackupFilter::default();
+        let ignored = ToggledPaths::new(btree_map! {
+            s("game1"): btree_map! {
+                StrictPath::new(format!("{}\\tests/root1/game1/subdir", repo())): false
+            }
+        });
+        let found = hash_set! {
+            ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
+            ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+        };
+
+        filter.build_globs();
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game1"),
+                found_files: found,
+                found_registry_keys: hash_set! {},
+                ..Default::default()
+            },
+            scan_game_for_backup(
+                &manifest().0["game1"],
+                "game1",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
+                &filter,
+                &None,
+                &ignored,
+                &ToggledRegistry::default(),
+                None,
+                &[],
+                &Default::default(),
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_file_matches_and_toggled_file() {
+        let mut filter = BackupFilter::default();
+        let ignored = ToggledPaths::new(btree_map! {
+            s("game1"): btree_map! {
+                StrictPath::new(format!("{}\\tests/root1/game1/subdir/file2.txt", repo())): false
+            }
+        });
+        let found = hash_set! {
+            ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
+            ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+        };
+
+        filter.build_globs();
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game1"),
+                found_files: found,
+                found_registry_keys: hash_set! {},
+                ..Default::default()
+            },
+            scan_game_for_backup(
+                &manifest().0["game1"],
+                "game1",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
+                &filter,
+                &None,
+                &ignored,
+                &ToggledRegistry::default(),
+                None,
+                &[],
+                &Default::default(),
+            ),
+        );
     }
 
     #[test]

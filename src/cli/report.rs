@@ -547,14 +547,6 @@ mod tests {
         testing::s,
     };
 
-    fn drive() -> String {
-        if cfg!(target_os = "windows") {
-            StrictPath::new(s("foo")).render()[..2].to_string()
-        } else {
-            s("")
-        }
-    }
-
     #[test]
     fn can_render_in_standard_mode_with_minimal_input() {
         let mut reporter = Reporter::standard();
@@ -566,15 +558,12 @@ mod tests {
             &DuplicateDetector::default(),
         );
         assert_eq!(
-            format!(
-                r#"
+            r#"
 Overall:
   Games: 0
   Size: 0 B
-  Location: {}/dev/null
-            "#,
-                &drive()
-            )
+  Location: /dev/null
+            "#
             .trim_end(),
             reporter.render(&StrictPath::new(s("/dev/null")))
         )
@@ -631,8 +620,8 @@ Overall:
         assert_eq!(
             r#"
 foo [100.00 KiB]:
-  - <drive>/file1
-  - [FAILED] <drive>/file2
+  - /file1
+  - [FAILED] /file2
   - [FAILED] HKEY_CURRENT_USER/Key1
   - HKEY_CURRENT_USER/Key2
   - HKEY_CURRENT_USER/Key3
@@ -641,10 +630,9 @@ foo [100.00 KiB]:
 Overall:
   Games: 1
   Size: 100.00 KiB / 150.00 KiB
-  Location: <drive>/dev/null
+  Location: /dev/null
             "#
-            .trim()
-            .replace("<drive>", &drive()),
+            .trim(),
             reporter.render(&StrictPath::new(s("/dev/null")))
         );
     }
@@ -708,18 +696,17 @@ Overall:
         assert_eq!(
             r#"
 foo [1 B]:
-  - <drive>/file1
+  - /file1
 
 bar [3 B]:
-  - <drive>/file2
+  - /file2
 
 Overall:
   Games: 2
   Size: 4 B
-  Location: <drive>/dev/null
+  Location: /dev/null
             "#
-            .trim()
-            .replace("<drive>", &drive()),
+            .trim(),
             reporter.render(&StrictPath::new(s("/dev/null")))
         );
     }
@@ -734,20 +721,20 @@ Overall:
                 game_name: s("foo"),
                 found_files: hash_set! {
                     ScannedFile {
-                        path: StrictPath::new(format!("{}/backup/file1", drive())),
+                        path: StrictPath::new(s("/backup/file1")),
                         size: 102_400,
                         hash: "1".to_string(),
-                        original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
+                        original_path: Some(StrictPath::new(s("/original/file1"))),
                         ignored: false,
                         change: Default::default(),
                         container: None,
                         redirected: None,
                     },
                     ScannedFile {
-                        path: StrictPath::new(format!("{}/backup/file2", drive())),
+                        path: StrictPath::new(s("/backup/file2")),
                         size: 51_200,
                         hash: "2".to_string(),
-                        original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
+                        original_path: Some(StrictPath::new(s("/original/file2"))),
                         ignored: false,
                         change: Default::default(),
                         container: None,
@@ -764,16 +751,15 @@ Overall:
         assert_eq!(
             r#"
 foo [150.00 KiB]:
-  - <drive>/original/file1
-  - <drive>/original/file2
+  - /original/file1
+  - /original/file2
 
 Overall:
   Games: 1
   Size: 150.00 KiB
-  Location: <drive>/dev/null
+  Location: /dev/null
             "#
-            .trim()
-            .replace("<drive>", &drive()),
+            .trim(),
             reporter.render(&StrictPath::new(s("/dev/null")))
         );
     }
@@ -818,16 +804,15 @@ Overall:
         assert_eq!(
             r#"
 foo [100.00 KiB] [DUPLICATES]:
-  - [DUPLICATED] <drive>/file1
+  - [DUPLICATED] /file1
   - [DUPLICATED] HKEY_CURRENT_USER/Key1
 
 Overall:
   Games: 1
   Size: 100.00 KiB
-  Location: <drive>/dev/null
+  Location: /dev/null
             "#
-            .trim()
-            .replace("<drive>", &drive()),
+            .trim(),
             reporter.render(&StrictPath::new(s("/dev/null")))
         );
     }
@@ -876,21 +861,20 @@ Overall:
         assert_eq!(
             r#"
 foo [4 B] [Δ]:
-  - [Δ] <drive>/different
-  - [+] <drive>/new
-  - <drive>/same
-  - <drive>/unknown
+  - [Δ] /different
+  - [+] /new
+  - /same
+  - /unknown
 
 bar [1 B] [+]:
-  - [+] <drive>/brand-new
+  - [+] /brand-new
 
 Overall:
   Games: 2 [+1] [Δ1]
   Size: 5 B
-  Location: <drive>/dev/null
+  Location: /dev/null
             "#
-            .trim()
-            .replace("<drive>", &drive()),
+            .trim(),
             reporter.render(&StrictPath::new(s("/dev/null")))
         );
     }
@@ -980,11 +964,11 @@ Overall:
       "decision": "Processed",
       "change": "Same",
       "files": {
-        "<drive>/file1": {
+        "/file1": {
           "change": "Unknown",
           "bytes": 100
         },
-        "<drive>/file2": {
+        "/file2": {
           "failed": true,
           "change": "Unknown",
           "bytes": 50
@@ -1011,8 +995,7 @@ Overall:
   }
 }
             "#
-            .trim()
-            .replace("<drive>", &drive()),
+            .trim(),
             reporter.render(&StrictPath::new(s("/dev/null")))
         );
     }
@@ -1027,20 +1010,20 @@ Overall:
                 game_name: s("foo"),
                 found_files: hash_set! {
                     ScannedFile {
-                        path: StrictPath::new(format!("{}/backup/file1", drive())),
+                        path: StrictPath::new(s("/backup/file1")),
                         size: 100,
                         hash: "1".to_string(),
-                        original_path: Some(StrictPath::new(format!("{}/original/file1", drive()))),
+                        original_path: Some(StrictPath::new(s("/original/file1"))),
                         ignored: false,
                         change: Default::default(),
                         container: None,
                         redirected: None,
                     },
                     ScannedFile {
-                        path: StrictPath::new(format!("{}/backup/file2", drive())),
+                        path: StrictPath::new(s("/backup/file2")),
                         size: 50,
                         hash: "2".to_string(),
-                        original_path: Some(StrictPath::new(format!("{}/original/file2", drive()))),
+                        original_path: Some(StrictPath::new(s("/original/file2"))),
                         ignored: false,
                         change: Default::default(),
                         container: None,
@@ -1073,11 +1056,11 @@ Overall:
       "decision": "Processed",
       "change": "Same",
       "files": {
-        "<drive>/original/file1": {
+        "/original/file1": {
           "change": "Unknown",
           "bytes": 100
         },
-        "<drive>/original/file2": {
+        "/original/file2": {
           "change": "Unknown",
           "bytes": 50
         }
@@ -1087,8 +1070,7 @@ Overall:
   }
 }
             "#
-            .trim()
-            .replace("<drive>", &drive()),
+            .trim(),
             reporter.render(&StrictPath::new(s("/dev/null")))
         );
     }
@@ -1149,7 +1131,7 @@ Overall:
       "decision": "Processed",
       "change": "Same",
       "files": {
-        "<drive>/file1": {
+        "/file1": {
           "change": "Unknown",
           "bytes": 100,
           "duplicatedBy": [
@@ -1169,8 +1151,7 @@ Overall:
   }
 }
             "#
-            .trim()
-            .replace("<drive>", &drive()),
+            .trim(),
             reporter.render(&StrictPath::new(s("/dev/null")))
         );
     }
@@ -1218,19 +1199,19 @@ Overall:
       "decision": "Processed",
       "change": "Different",
       "files": {
-        "<drive>/different": {
+        "/different": {
           "change": "Different",
           "bytes": 1
         },
-        "<drive>/new": {
+        "/new": {
           "change": "New",
           "bytes": 1
         },
-        "<drive>/same": {
+        "/same": {
           "change": "Same",
           "bytes": 1
         },
-        "<drive>/unknown": {
+        "/unknown": {
           "change": "Unknown",
           "bytes": 1
         }
@@ -1240,8 +1221,7 @@ Overall:
   }
 }
             "#
-            .trim()
-            .replace("<drive>", &drive()),
+            .trim(),
             reporter.render(&StrictPath::new(s("/dev/null")))
         );
     }

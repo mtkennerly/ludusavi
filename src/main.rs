@@ -26,7 +26,7 @@ use crate::{
 fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLoggerError> {
     flexi_logger::Logger::try_with_env_or_str("ludusavi=warn")
         .unwrap()
-        .log_to_file(flexi_logger::FileSpec::default().directory(app_dir()))
+        .log_to_file(flexi_logger::FileSpec::default().directory(app_dir().as_std_path_buf().unwrap()))
         .write_mode(flexi_logger::WriteMode::Async)
         .rotate(
             flexi_logger::Criterion::Size(1024 * 1024 * 10),

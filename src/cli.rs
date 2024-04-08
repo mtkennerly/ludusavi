@@ -287,7 +287,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         game,
                         name,
                         &roots,
-                        &StrictPath::from_std_path_buf(&app_dir()),
+                        &app_dir(),
                         &launchers,
                         &filter,
                         &wine_prefix,

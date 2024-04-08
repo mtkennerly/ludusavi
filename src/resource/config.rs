@@ -75,17 +75,17 @@ impl ManifestConfig {
             .iter()
             .filter_map(|x| match x {
                 SecondaryManifestConfig::Local { path } => {
-                    let manifest = Manifest::load_from_existing(&path.as_std_path_buf());
+                    let manifest = Manifest::load_from_existing(path);
                     if let Err(e) = &manifest {
-                        log::error!("Cannot load secondary manifest: {} | {}", path.render(), e);
+                        log::error!("Cannot load secondary manifest: {:?} | {}", &path, e);
                     }
                     Some((path.clone(), manifest.ok()?))
                 }
                 SecondaryManifestConfig::Remote { url } => {
                     let path = Manifest::path_for(url, false);
-                    let manifest = Manifest::load_from(&path.as_std_path_buf());
+                    let manifest = Manifest::load_from(&path);
                     if let Err(e) = &manifest {
-                        log::error!("Cannot load manifest: {} | {}", path.render(), e);
+                        log::error!("Cannot load manifest: {:?} | {}", &path, e);
                     }
                     Some((path.clone(), manifest.ok()?))
                 }
@@ -224,7 +224,7 @@ impl RootsConfig {
             })
             .glob()
             .into_iter()
-            .filter_map(|path| match Manifest::load_from(&path.as_std_path_buf()) {
+            .filter_map(|path| match Manifest::load_from(&path) {
                 Ok(manifest) => {
                     log::info!("Loaded secondary manifest: {}", path.render());
                     log::trace!("Secondary manifest content: {:?}", &manifest);
@@ -268,7 +268,7 @@ impl ToString for RedirectKind {
     }
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 pub struct BackupFilter {
     #[serde(default, rename = "excludeStoreScreenshots")]
     pub exclude_store_screenshots: bool,
@@ -278,6 +278,16 @@ pub struct BackupFilter {
     pub ignored_registry: Vec<RegistryItem>,
     #[serde(skip)]
     pub path_globs: Arc<Mutex<Option<globset::GlobSet>>>,
+}
+
+impl std::fmt::Debug for BackupFilter {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("BackupFilter")
+            .field("exclude_store_screenshots", &self.exclude_store_screenshots)
+            .field("ignored_paths", &self.ignored_paths)
+            .field("ignored_registry", &self.ignored_registry)
+            .finish()
+    }
 }
 
 impl Eq for BackupFilter {}
@@ -300,12 +310,11 @@ impl BackupFilter {
 
         let mut builder = globset::GlobSetBuilder::new();
         for item in &self.ignored_paths {
-            let normalized = crate::path::parse_home(&item.raw()).replace('\\', "/");
-            let normalized = normalized.trim_end_matches('/');
+            let normalized = item.globbable();
 
             let variants = vec![
                 normalized.to_string(),
-                // If the user has specified a plain folder, we also want to ignore its children.
+                // If the user has specified a plain folder, we also want to include its children.
                 format!("{}/**", &normalized),
             ];
 
@@ -947,10 +956,8 @@ impl ResourceFile for Config {
 impl SaveableResourceFile for Config {}
 
 impl Config {
-    fn file_archived_invalid() -> std::path::PathBuf {
-        let mut path = app_dir();
-        path.push("config.invalid.yaml");
-        path
+    fn file_archived_invalid() -> StrictPath {
+        app_dir().joined("config.invalid.yaml")
     }
 
     pub fn load() -> Result<Self, Error> {
@@ -958,7 +965,7 @@ impl Config {
     }
 
     pub fn archive_invalid() -> Result<(), Box<dyn std::error::Error>> {
-        std::fs::rename(Self::path(), Self::file_archived_invalid())?;
+        Self::path().move_to(&Self::file_archived_invalid())?;
         Ok(())
     }
 
@@ -1075,10 +1082,10 @@ impl Config {
         let mut checked = HashSet::<StrictPath>::new();
         let mut roots = vec![];
         for (path, store) in [candidates, detected_steam, detected_epic].concat() {
-            let sp = StrictPath::new(path);
-            if self.roots.iter().any(|root| root.path.interpret() == sp.interpret())
-                || checked.contains(&sp.interpreted())
-            {
+            let Ok(sp) = StrictPath::new(path).interpreted() else {
+                continue;
+            };
+            if self.roots.iter().any(|root| root.path.equivalent(&sp)) || checked.contains(&sp) {
                 continue;
             }
             if sp.is_dir() {
@@ -1087,7 +1094,7 @@ impl Config {
                     store,
                 });
             }
-            checked.insert(sp.interpreted());
+            checked.insert(sp);
         }
 
         roots
@@ -1211,7 +1218,7 @@ impl Config {
     pub fn expanded_roots(&self) -> Vec<RootsConfig> {
         for root in &self.roots {
             log::trace!(
-                "Configured root ({:?}): {} | interpreted: {} | exists: {} | is dir: {}",
+                "Configured root ({:?}): {} | interpreted: {:?} | exists: {} | is dir: {}",
                 &root.store,
                 &root.path.raw(),
                 &root.path.interpret(),
@@ -1224,7 +1231,7 @@ impl Config {
 
         for root in &expanded {
             log::trace!(
-                "Expanded root ({:?}): {} | interpreted: {} | exists: {} | is dir: {}",
+                "Expanded root ({:?}): {} | interpreted: {:?} | exists: {} | is dir: {}",
                 &root.store,
                 &root.path.raw(),
                 &root.path.interpret(),
