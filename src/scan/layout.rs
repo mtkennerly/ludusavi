@@ -1084,10 +1084,10 @@ impl GameLayout {
             let target_file = self.mapping.game_file(&self.path, file.effective(), backup.name());
             if file.path.same_content(&target_file) {
                 log::info!(
-                    "[{}] already matches: {} -> {}",
+                    "[{}] already matches: {:?} -> {:?}",
                     self.mapping.name,
-                    file.path.raw(),
-                    target_file.raw()
+                    &file.path,
+                    &target_file
                 );
                 relevant_files.push(target_file);
                 continue;
@@ -1097,10 +1097,10 @@ impl GameLayout {
                 continue;
             }
             log::info!(
-                "[{}] backed up: {} -> {}",
+                "[{}] backed up: {:?} -> {:?}",
                 self.mapping.name,
-                file.path.raw(),
-                target_file.raw()
+                file.path,
+                target_file
             );
             relevant_files.push(target_file);
         }
@@ -1162,7 +1162,7 @@ impl GameLayout {
 
         'item: for file in &scan.found_files {
             if !backup.includes_file(file.mapping_key()) {
-                log::debug!("[{}] skipped: {}", self.mapping.name, file.path.raw());
+                log::debug!("[{}] skipped: {:?}", self.mapping.name, &file.path);
                 continue;
             }
 
@@ -1172,9 +1172,9 @@ impl GameLayout {
                 Ok(x) => x,
                 Err(e) => {
                     log::error!(
-                        "[{}] unable to get mtime: {} -> {} | {e}",
+                        "[{}] unable to get mtime: {:?} -> {} | {e}",
                         self.mapping.name,
-                        file.path.raw(),
+                        &file.path,
                         &target_file_id
                     );
                     fail_file(file, &mut backup_info);
@@ -1197,9 +1197,9 @@ impl GameLayout {
 
             if let Err(e) = zip.start_file(&target_file_id, local_options) {
                 log::error!(
-                    "[{}] unable to start zip file record: {} -> {} | {e}",
+                    "[{}] unable to start zip file record: {:?} -> {} | {e}",
                     self.mapping.name,
-                    file.path.raw(),
+                    &file.path,
                     &target_file_id
                 );
                 fail_file(file, &mut backup_info);
@@ -1210,11 +1210,7 @@ impl GameLayout {
             let handle = match file.path.open() {
                 Ok(x) => x,
                 Err(e) => {
-                    log::error!(
-                        "[{}] unable to open source: {} | {e}",
-                        self.mapping.name,
-                        file.path.raw()
-                    );
+                    log::error!("[{}] unable to open source: {:?} | {e}", self.mapping.name, &file.path);
                     fail_file(file, &mut backup_info);
                     continue;
                 }
@@ -1226,29 +1222,25 @@ impl GameLayout {
                 let read = match reader.read(&mut buffer[..]) {
                     Ok(x) => x,
                     Err(e) => {
-                        log::error!(
-                            "[{}] unable to read source: {} | {e}",
-                            self.mapping.name,
-                            file.path.raw()
-                        );
+                        log::error!("[{}] unable to read source: {:?} | {e}", self.mapping.name, &file.path);
                         fail_file(file, &mut backup_info);
                         continue 'item;
                     }
                 };
                 if read == 0 {
                     log::info!(
-                        "[{}] backed up: {} -> {}",
+                        "[{}] backed up: {:?} -> {}",
                         self.mapping.name,
-                        file.path.raw(),
+                        &file.path,
                         &target_file_id
                     );
                     break;
                 }
                 if let Err(e) = zip.write_all(&buffer[0..read]) {
                     log::error!(
-                        "[{}] unable to write target: {} -> {} | {e}",
+                        "[{}] unable to write target: {:?} -> {} | {e}",
                         self.mapping.name,
-                        file.path.raw(),
+                        &file.path,
                         &target_file_id
                     );
                     fail_file(file, &mut backup_info);
@@ -1419,9 +1411,9 @@ impl GameLayout {
         log::trace!("[{}] preparing for backup", &scan.game_name);
         if let Err(e) = prepare_backup_target(&self.path) {
             log::error!(
-                "[{}] failed to prepare backup target: {} | {e:?}",
+                "[{}] failed to prepare backup target: {:?} | {e:?}",
                 scan.game_name,
-                self.path.raw()
+                &self.path
             );
             return BackupInfo::total_failure(scan);
         }
@@ -1570,12 +1562,12 @@ impl GameLayout {
 
             if !file.change().is_changed() || file.ignored {
                 log::info!(
-                    "[{}] skipping file; change={:?}, ignored={}: {} -> {}",
+                    "[{}] skipping file; change={:?}, ignored={}: {:?} -> {:?}",
                     self.mapping.name,
                     file.change,
                     file.ignored,
-                    file.path.raw(),
-                    target.raw()
+                    &file.path,
+                    &target
                 );
                 continue;
             }
@@ -1583,25 +1575,25 @@ impl GameLayout {
             if let Some(container) = file.container.as_ref() {
                 if failed_containers.contains(container) {
                     log::warn!(
-                        "[{}] skipping file because container had failed to load: {} -> {} -> {}",
+                        "[{}] skipping file because container had failed to load: {:?} -> {:?} -> {:?}",
                         self.mapping.name,
-                        container.raw(),
-                        file.path.raw(),
-                        target.raw(),
+                        &container,
+                        &file.path,
+                        &target,
                     );
                     failed_files.insert(file.clone());
                     continue;
                 }
 
                 if !containers.contains_key(container) {
-                    log::debug!("[{}] loading zip archive: {}", &self.mapping.name, container.raw());
+                    log::debug!("[{}] loading zip archive: {:?}", &self.mapping.name, &container);
                     let handle = match container.open() {
                         Ok(handle) => handle,
                         Err(e) => {
                             log::error!(
-                                "[{}] failed to open zip archive: {} | {e:?}",
+                                "[{}] failed to open zip archive: {:?} | {e:?}",
                                 &self.mapping.name,
-                                container.raw()
+                                &container
                             );
                             failed_containers.insert(container.clone());
                             failed_files.insert(file.clone());
@@ -1612,16 +1604,16 @@ impl GameLayout {
                         Ok(archive) => archive,
                         Err(e) => {
                             log::error!(
-                                "[{}] failed to parse zip archive: {} | {e:?}",
+                                "[{}] failed to parse zip archive: {:?} | {e:?}",
                                 &self.mapping.name,
-                                container.raw()
+                                &container
                             );
                             failed_containers.insert(container.clone());
                             failed_files.insert(file.clone());
                             continue;
                         }
                     };
-                    log::debug!("[{}] loaded zip archive: {:?}", &self.mapping.name, container.raw());
+                    log::debug!("[{}] loaded zip archive: {:?}", &self.mapping.name, &container);
                     containers.insert(container.clone(), archive);
                 }
             }
@@ -1638,19 +1630,14 @@ impl GameLayout {
 
             match outcome {
                 Ok(_) => {
-                    log::info!(
-                        "[{}] restored: {} -> {}",
-                        &self.mapping.name,
-                        file.path.raw(),
-                        target.raw()
-                    );
+                    log::info!("[{}] restored: {:?} -> {:?}", &self.mapping.name, &file.path, &target);
                 }
                 Err(e) => {
                     log::error!(
-                        "[{}] failed to restore: {} -> {} | {e}",
+                        "[{}] failed to restore: {:?} -> {:?} | {e}",
                         self.mapping.name,
-                        file.path.raw(),
-                        target.raw()
+                        &file.path,
+                        &target
                     );
                     failed_files.insert(file.clone());
                 }
@@ -1681,10 +1668,10 @@ impl GameLayout {
 
     fn restore_file_from_simple(&self, target: &StrictPath, file: &ScannedFile) -> Result<(), AnyError> {
         log::trace!(
-            "[{}] about to restore (simple): {} -> {}",
+            "[{}] about to restore (simple): {:?} -> {:?}",
             self.mapping.name,
-            file.path.raw(),
-            target.raw()
+            &file.path,
+            &target
         );
 
         Ok(file.path.copy_to_path(&self.mapping.name, target)?)
@@ -1697,25 +1684,25 @@ impl GameLayout {
         archive: &mut zip::ZipArchive<std::fs::File>,
     ) -> Result<(), AnyError> {
         log::debug!(
-            "[{}] about to restore (zip): {} -> {}",
+            "[{}] about to restore (zip): {:?} -> {:?}",
             self.mapping.name,
-            file.path.raw(),
-            target.raw()
+            &file.path,
+            &target
         );
 
         if let Err(e) = target.create_parent_dir() {
             log::error!(
-                "[{}] unable to create parent directories: {} | {e}",
+                "[{}] unable to create parent directories: {:?} | {e}",
                 self.mapping.name,
-                target.raw()
+                &target
             );
             return Err(Box::new(e));
         }
         if let Err(e) = target.unset_readonly() {
             log::warn!(
-                "[{}] failed to unset read-only on target: {} | {e}",
+                "[{}] failed to unset read-only on target: {:?} | {e}",
                 self.mapping.name,
-                target.raw()
+                &target
             );
             return Err(e);
         }
@@ -1723,10 +1710,10 @@ impl GameLayout {
             Ok(x) => x,
             Err(e) => {
                 log::warn!(
-                    "[{}] failed to get handle: {} -> {} | {e}",
+                    "[{}] failed to get handle: {:?} -> {:?} | {e}",
                     self.mapping.name,
-                    file.path.raw(),
-                    target.raw()
+                    &file.path,
+                    &target
                 );
                 return Err(Box::new(e));
             }
@@ -1734,10 +1721,10 @@ impl GameLayout {
         let mut source_file = archive.by_name(&file.path.raw())?;
         if let Err(e) = std::io::copy(&mut source_file, &mut target_handle) {
             log::warn!(
-                "[{}] failed to copy to target: {} -> {} | {e}",
+                "[{}] failed to copy to target: {:?} -> {:?} | {e}",
                 self.mapping.name,
-                file.path.raw(),
-                target.raw()
+                &file.path,
+                &target,
             );
             return Err(Box::new(e));
         }
@@ -1745,10 +1732,10 @@ impl GameLayout {
         let mtime = source_file.last_modified();
         if let Err(e) = target.set_mtime_zip(mtime) {
             log::error!(
-                "[{}] unable to set modification time: {} -> {} to {:#?} | {e:?}",
+                "[{}] unable to set modification time: {:?} -> {:?} to {:#?} | {e:?}",
                 self.mapping.name,
-                file.path.raw(),
-                target.raw(),
+                &file.path,
+                &target,
                 mtime
             );
             return Err("unable to set modification time".into());
@@ -1804,11 +1791,7 @@ impl GameLayout {
             backup
         );
         for file in self.find_irrelevant_backup_files(backup, relevant_files) {
-            log::debug!(
-                "[{}] removing irrelevant backup file: {}",
-                self.mapping.name,
-                file.raw()
-            );
+            log::debug!("[{}] removing irrelevant backup file: {:?}", self.mapping.name, &file);
             let _ = file.remove();
         }
         log::trace!("[{}] done removing irrelevant backup files", self.mapping.name);
