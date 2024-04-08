@@ -362,6 +362,15 @@ impl StrictPath {
         }
     }
 
+    /// This is for a special case when we're scanning a dummy root.
+    pub fn interpret_unless_skip(&self) -> Result<String, StrictPathError> {
+        if self.raw == SKIP {
+            Ok(SKIP.to_string())
+        } else {
+            self.interpret()
+        }
+    }
+
     pub fn interpreted(&self) -> Result<Self, StrictPathError> {
         Ok(Self {
             raw: self.interpret()?,
