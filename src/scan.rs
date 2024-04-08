@@ -464,11 +464,8 @@ pub fn scan_game_for_backup(
     let mut paths_to_check = HashSet::<(StrictPath, Option<bool>)>::new();
 
     // Add a dummy root for checking paths without `<root>`.
-    let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig {
-        path: StrictPath::new(SKIP.to_string()),
-        store: Store::Other,
-    }];
-    roots_to_check.extend(roots.iter().cloned());
+    let mut roots_to_check: Vec<Option<RootsConfig>> = vec![None];
+    roots_to_check.extend(roots.iter().cloned().map(Some));
 
     let manifest_dir_interpreted = manifest_dir.interpret().unwrap();
     let steam_ids = steam_ids(game, steam_shortcuts.get(name));
@@ -495,6 +492,12 @@ pub fn scan_game_for_backup(
     }
 
     for root in roots_to_check {
+        let dummy = root.is_none();
+        let root = root.unwrap_or_else(|| RootsConfig {
+            path: StrictPath::new(SKIP.to_string()),
+            store: Store::Other,
+        });
+
         log::trace!(
             "[{name}] adding candidates from {:?} root: {}",
             root.store,
@@ -503,7 +506,11 @@ pub fn scan_game_for_backup(
         if root.path.raw().trim().is_empty() {
             continue;
         }
-        let Ok(root_interpreted) = root.path.interpret() else {
+        let Ok(root_interpreted) = (if dummy {
+            Ok(root.path.raw())
+        } else {
+            root.path.interpret()
+        }) else {
             log::error!("Invalid root: {:?}", &root.path);
             continue;
         };
@@ -788,15 +795,15 @@ pub fn scan_game_for_backup(
 }
 
 fn scan_game_for_backup_add_prefix(
-    roots_to_check: &mut Vec<RootsConfig>,
+    roots_to_check: &mut Vec<Option<RootsConfig>>,
     paths_to_check: &mut HashSet<(StrictPath, Option<bool>)>,
     wp: &StrictPath,
     has_registry: bool,
 ) {
-    roots_to_check.push(RootsConfig {
+    roots_to_check.push(Some(RootsConfig {
         path: wp.clone(),
         store: Store::OtherWine,
-    });
+    }));
     if has_registry {
         paths_to_check.insert((wp.joined("*.reg"), None));
     }
