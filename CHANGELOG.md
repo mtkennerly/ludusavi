@@ -16,7 +16,26 @@
   * GUI: After performing a cloud upload preview on the other screen,
     the very next backup preview wouldn't do anything.
   * CLI: The `wrap` command did not fail gracefully when the game launch commands were missing.
+  * If a game had more data that failed to back up than succeeded,
+    then the backup size would be reported incorrectly.
 * Changed:
+  * The way Ludusavi parses file paths internally has been overhauled.
+    The majority of the observable behavior is the same,
+    but it is now more predictable and correct when parsing Linux-style paths on Windows and vice versa.
+
+    Some behavioral changes worth noting:
+
+    * You can now configure redirects that change Windows/Linux-style paths into the other format.
+      For example, if you configure a backup redirect from `C:\games` to `/opt/games`,
+      then the backup will contain references to `/opt/games`.
+      (Previously, `/opt/games` would turn into `C:/opt/games` when parsed on Windows,
+      and `C:\games` would turn into `./C_/games` when parsed on Linux.)
+    * On Windows, you can no longer write `/games` as an alias of `C:\games`.
+      These are now treated as distinct paths.
+      (Previously, on Windows, Linux-style paths were interpreted as `C:` paths.)
+    * If you try to restore Windows-style paths on Linux or vice versa,
+      it will now produce an error,
+      unless you've configured an applicable redirect.
   * On Windows, the way Ludusavi hides its console in GUI mode has changed,
     in order to avoid a new false positive from Windows Defender.
 
