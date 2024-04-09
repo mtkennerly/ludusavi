@@ -21,7 +21,7 @@ pub struct Launchers {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct LauncherGame {
-    install_dir: StrictPath,
+    install_dir: Option<StrictPath>,
     prefix: Option<StrictPath>,
     platform: Option<Os>,
 }
@@ -36,11 +36,13 @@ impl Launchers {
     }
 
     pub fn get_install_dir_leaf(&self, root: &RootsConfig, game: &str) -> Option<String> {
-        self.get_game(root, game).and_then(|x| x.install_dir.leaf())
+        self.get_game(root, game)
+            .and_then(|x| x.install_dir.as_ref())
+            .and_then(|x| x.leaf())
     }
 
     pub fn get_install_dir(&self, root: &RootsConfig, game: &str) -> Option<&StrictPath> {
-        self.get_game(root, game).map(|x| &x.install_dir)
+        self.get_game(root, game).and_then(|x| x.install_dir.as_ref())
     }
 
     pub fn get_platform(&self, root: &RootsConfig, game: &str) -> Option<Os> {

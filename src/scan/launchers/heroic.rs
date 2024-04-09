@@ -221,7 +221,7 @@ fn memorize_game(
         games.insert(
             official,
             LauncherGame {
-                install_dir,
+                install_dir: Some(install_dir),
                 prefix,
                 platform,
             },
@@ -237,7 +237,7 @@ fn memorize_game(
         games.insert(
             heroic_title.to_string(),
             LauncherGame {
-                install_dir,
+                install_dir: Some(install_dir),
                 prefix,
                 platform,
             },
@@ -375,12 +375,12 @@ mod tests {
         assert_eq!(
             hash_map! {
                 "windows-game".to_string(): LauncherGame {
-                    install_dir: StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string()),
+                    install_dir: Some(StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string())),
                     prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string())),
                     platform: Some(Os::Windows),
                 },
                 "proton-game".to_string(): LauncherGame {
-                    install_dir: StrictPath::new("/home/root/Games/proton-game".to_string()),
+                    install_dir: Some(StrictPath::new("/home/root/Games/proton-game".to_string())),
                     prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/proton-game/pfx".to_string())),
                     platform: Some(Os::Windows),
                 },
@@ -400,12 +400,12 @@ mod tests {
         assert_eq!(
             hash_map! {
                 "windows-game".to_string(): LauncherGame {
-                    install_dir: StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string()),
+                    install_dir: Some(StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string())),
                     prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string())),
                     platform: Some(Os::Windows),
                 },
                 "proton-game".to_string(): LauncherGame {
-                    install_dir: StrictPath::new("/home/root/Games/proton-game".to_string()),
+                    install_dir: Some(StrictPath::new("/home/root/Games/proton-game".to_string())),
                     prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/proton-game/pfx".to_string())),
                     platform: Some(Os::Windows),
                 },

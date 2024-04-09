@@ -161,7 +161,7 @@ pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> Has
             Some((
                 name.clone(),
                 LauncherGame {
-                    install_dir: install_parent.joined(subdir),
+                    install_dir: Some(install_parent.joined(subdir)),
                     prefix: None,
                     platform: None,
                 },

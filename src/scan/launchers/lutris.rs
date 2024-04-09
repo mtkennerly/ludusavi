@@ -4,6 +4,7 @@ use crate::{
     prelude::{StrictPath, ENV_DEBUG},
     resource::{config::RootsConfig, manifest::Os},
     scan::{LauncherGame, TitleFinder},
+    wrap,
 };
 
 /// https://github.com/lutris/lutris/blob/e4ae3d7193da777ebb370603a9e20c435f725300/docs/installers.rst
@@ -44,6 +45,17 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
         if let Some((title, game)) = scan_spec(spec, &spec_path, title_finder) {
             games.insert(title, game);
         }
+    }
+
+    if let Some(metadata) = wrap::lutris::infer_metadata() {
+        games.insert(
+            metadata.title,
+            LauncherGame {
+                platform: metadata.prefix.is_some().then_some(Os::Windows),
+                install_dir: metadata.base,
+                prefix: metadata.prefix,
+            },
+        );
     }
 
     log::trace!("Finished scanning Lutris root for games: {:?}", &root.path);
@@ -122,7 +134,7 @@ fn scan_spec(spec: LutrisGame, spec_path: &StrictPath, title_finder: &TitleFinde
     Some((
         title,
         LauncherGame {
-            install_dir,
+            install_dir: Some(install_dir),
             prefix,
             platform,
         },
@@ -184,7 +196,7 @@ mod tests {
         assert_eq!(
             hash_map! {
                 "windows-game".to_string(): LauncherGame {
-                    install_dir: StrictPath::new("/home/deck/Games/service/windows-game/drive_c/game".to_string()),
+                    install_dir: Some(StrictPath::new("/home/deck/Games/service/windows-game/drive_c/game".to_string())),
                     prefix: Some(StrictPath::new("/home/deck/Games/service/windows-game".to_string())),
                     platform: Some(Os::Windows),
                 },
@@ -208,7 +220,7 @@ mod tests {
             Some((
                 "windows-game-with-absolute-exe".into(),
                 LauncherGame {
-                    install_dir: absolute_path("/install/drive_c/game"),
+                    install_dir: Some(absolute_path("/install/drive_c/game")),
                     prefix: Some(absolute_path("/prefix")),
                     platform: Some(Os::Windows),
                 }
@@ -232,7 +244,7 @@ mod tests {
             Some((
                 "windows-game-with-relative-exe".into(),
                 LauncherGame {
-                    install_dir: absolute_path("/prefix/drive_c/game"),
+                    install_dir: Some(absolute_path("/prefix/drive_c/game")),
                     prefix: Some(absolute_path("/prefix")),
                     platform: Some(Os::Windows),
                 }

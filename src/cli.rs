@@ -32,7 +32,7 @@ use crate::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
         OperationStepDecision, SteamShortcuts, TitleFinder,
     },
-    wrap::{heroic::infer_game_from_heroic, infer_game_from_steam, WrapGameInfo},
+    wrap,
 };
 
 const PROGRESS_BAR_REFRESH_INTERVAL: Duration = Duration::from_millis(50);
@@ -809,15 +809,16 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
             // Determine raw game identifiers
             let wrap_game_info = if let Some(name) = name_source.name.as_ref() {
-                Some(WrapGameInfo {
+                Some(wrap::WrapGameInfo {
                     name: Some(name.clone()),
                     ..Default::default()
                 })
             } else if let Some(infer) = name_source.infer {
                 let roots = config.expanded_roots();
                 match infer {
-                    parse::LauncherTypes::Heroic => infer_game_from_heroic(&roots, &commands),
-                    parse::LauncherTypes::Steam => infer_game_from_steam(&title_finder),
+                    parse::Launcher::Heroic => wrap::heroic::infer_game_from_heroic(&roots, &commands),
+                    parse::Launcher::Lutris => wrap::lutris::infer(),
+                    parse::Launcher::Steam => wrap::infer_game_from_steam(&title_finder),
                 }
             } else {
                 unreachable!();
@@ -833,15 +834,20 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             });
             log::debug!("Title finder result: {:?}", &game_name);
 
-            if game_name.is_none()
-                && !ui::confirm_with_question(
-                    gui,
-                    force.then_some(true),
-                    &TRANSLATOR.game_is_unrecognized(),
-                    &TRANSLATOR.launch_game_after_error(),
-                )?
-            {
-                return Ok(());
+            match game_name.as_ref() {
+                Some(game_name) => {
+                    wrap::lutris::save_normalized_title(game_name.clone());
+                }
+                None => {
+                    if !ui::confirm_with_question(
+                        gui,
+                        force.then_some(true),
+                        &TRANSLATOR.game_is_unrecognized(),
+                        &TRANSLATOR.launch_game_after_error(),
+                    )? {
+                        return Ok(());
+                    }
+                }
             }
 
             // Restore

@@ -114,8 +114,9 @@ impl From<CliSort> for Sort {
 
 /// Supported launchers for wrap --infer command
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
-pub enum LauncherTypes {
+pub enum Launcher {
     Heroic,
+    Lutris,
     Steam,
 }
 
@@ -540,7 +541,7 @@ pub enum CloudSetSubcommand {
 pub struct WrapSubcommand {
     /// Infer game name from commands based on launcher type
     #[clap(long, value_enum, value_name = "LAUNCHER")]
-    pub infer: Option<LauncherTypes>,
+    pub infer: Option<Launcher>,
 
     /// Directly set game name as known to Ludusavi
     #[clap(long)]

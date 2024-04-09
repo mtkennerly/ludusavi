@@ -3,6 +3,8 @@
 * Added:
   * CLI: The `wrap` command now supports some new arguments:
     * `--infer steam` to check for the `STEAMAPPID` environment variable
+    * `--infer lutris` to check for the `game_name` and `WINEPREFIX` environment variable
+      (plus `GAME_DIRECTORY`, which will be added in Lutris 0.5.18)
     * `--force` to skip confirmations
   * GUI: File sizes are now displayed for each file and directory.
     ([Contributed by JackSpagnoli](https://github.com/mtkennerly/ludusavi/pull/308))

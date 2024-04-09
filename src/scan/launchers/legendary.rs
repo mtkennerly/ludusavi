@@ -37,7 +37,7 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
         out.insert(
             official_title,
             LauncherGame {
-                install_dir: StrictPath::new(game.install_path),
+                install_dir: Some(StrictPath::new(game.install_path)),
                 prefix: None,
                 platform: Some(Os::from(game.platform.as_str())),
             },
@@ -123,7 +123,7 @@ mod tests {
         assert_eq!(
             hash_map! {
                 "windows-game".to_string(): LauncherGame {
-                    install_dir: StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string()),
+                    install_dir: Some(StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string())),
                     prefix: None,
                     platform: Some(Os::Windows),
                 },
