@@ -925,15 +925,19 @@ impl Translator {
         translate("label-alias")
     }
 
+    pub fn original_name_label(&self) -> String {
+        translate("label-original-name")
+    }
+
+    pub fn original_name_field(&self) -> String {
+        self.field(&self.original_name_label())
+    }
+
     pub fn custom_game_kind(&self, kind: &CustomGameKind) -> String {
         match kind {
             CustomGameKind::Game => self.game_label(),
             CustomGameKind::Alias => self.alias_label(),
         }
-    }
-
-    pub fn alias_field(&self) -> String {
-        self.field(&self.alias_label())
     }
 
     pub fn redirect_source_placeholder(&self) -> String {
@@ -1120,6 +1124,10 @@ impl Translator {
 
     pub fn synchronize_automatically(&self) -> String {
         translate("synchronize-automatically")
+    }
+
+    pub fn prefer_alias_display(&self) -> String {
+        translate("prefer-alias-display")
     }
 
     pub fn total_games(&self) -> String {

@@ -394,7 +394,7 @@ impl Reporter {
                     );
                 }
                 output.games.insert(
-                    name.to_string(),
+                    scan_info.game_name.clone(),
                     ApiGame::Operative {
                         decision,
                         change: scan_info.overall_change(),
@@ -411,14 +411,14 @@ impl Reporter {
         successful
     }
 
-    pub fn add_backups(&mut self, name: &str, available_backups: &[Backup]) {
+    pub fn add_backups(&mut self, name: &str, display_title: &str, available_backups: &[Backup]) {
         match self {
             Self::Standard { parts, .. } => {
                 if available_backups.is_empty() {
                     return;
                 }
 
-                parts.push(format!("{}:", name));
+                parts.push(format!("{}:", display_title));
                 for backup in available_backups {
                     let mut line = format!(
                         "  - \"{}\" ({})",

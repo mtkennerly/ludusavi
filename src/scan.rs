@@ -813,13 +813,15 @@ pub fn prepare_backup_target(target: &StrictPath) -> Result<(), Error> {
 
 pub fn compare_games(
     key: SortKey,
+    display_title1: &str,
     scan_info1: &ScanInfo,
     backup_info1: Option<&BackupInfo>,
+    display_title2: &str,
     scan_info2: &ScanInfo,
     backup_info2: Option<&BackupInfo>,
 ) -> std::cmp::Ordering {
     match key {
-        SortKey::Name => compare_games_by_name(&scan_info1.game_name, &scan_info2.game_name),
+        SortKey::Name => compare_games_by_name(display_title1, display_title2),
         SortKey::Size => compare_games_by_size(scan_info1, backup_info1, scan_info2, backup_info2),
         SortKey::Status => compare_games_by_status(scan_info1, scan_info2),
     }

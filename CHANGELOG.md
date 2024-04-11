@@ -5,6 +5,8 @@
     `--infer steam`, `--infer lutris`, and `--force` to skip confirmations
   * GUI: File sizes are now displayed for each file and directory.
     ([Contributed by JackSpagnoli](https://github.com/mtkennerly/ludusavi/pull/308))
+  * You can now set aliases to display instead of the original name.
+    This does not affect the CLI when using `--api`.
   * Updated translations, including a new in-progress Traditional Chinese translation.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:

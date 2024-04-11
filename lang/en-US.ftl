@@ -149,6 +149,7 @@ label-file = File
 label-game = Game
 # Aliases are alternative titles for the same game.
 label-alias = Alias
+label-original-name = Original name
 
 store-ea = EA
 store-epic = Epic
@@ -189,6 +190,7 @@ show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
+prefer-alias-display = Display alias instead of original name
 
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots

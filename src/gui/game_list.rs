@@ -68,6 +68,7 @@ impl GameListEntry {
         let operating = !operation.idle();
         let changes = self.scan_info.overall_change();
         let duplication = duplicate_detector.is_game_duplicated(&self.scan_info.game_name);
+        let display_name = config.display_name(&self.scan_info.game_name);
 
         Container::new(
             Column::new()
@@ -89,8 +90,7 @@ impl GameListEntry {
                         )
                         .push(
                             Button::new(
-                                text(self.scan_info.game_name.clone())
-                                    .horizontal_alignment(HorizontalAlignment::Center),
+                                text(display_name.to_string()).horizontal_alignment(HorizontalAlignment::Center),
                             )
                             .on_press_some(if self.scanned {
                                 Some(Message::ToggleGameListEntryExpanded {
@@ -158,6 +158,16 @@ impl GameListEntry {
                             || {
                                 Badge::new(&TRANSLATOR.custom_label().to_uppercase())
                                     .on_press(Message::ShowCustomGame { name: name.clone() })
+                                    .view()
+                            },
+                        )
+                        .push_if(
+                            || display_name != name,
+                            || {
+                                Badge::new(&TRANSLATOR.alias_label().to_uppercase())
+                                    .on_press(Message::ShowCustomGame {
+                                        name: display_name.to_string(),
+                                    })
                                     .view()
                             },
                         )
@@ -511,12 +521,14 @@ impl GameList {
         status
     }
 
-    pub fn sort(&mut self, sort: &Sort) {
+    pub fn sort(&mut self, sort: &Sort, config: &Config) {
         self.entries.sort_by(|x, y| {
             crate::scan::compare_games(
                 sort.key,
+                config.display_name(&x.scan_info.game_name),
                 &x.scan_info,
                 x.backup_info.as_ref(),
+                config.display_name(&y.scan_info.game_name),
                 &y.scan_info,
                 y.backup_info.as_ref(),
             )
@@ -642,7 +654,7 @@ impl GameList {
                     entry.refresh_tree(duplicate_detector, config, restoring);
                 }
                 self.entries.push(entry);
-                self.sort(sort);
+                self.sort(sort, config);
             }
         }
 

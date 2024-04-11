@@ -837,6 +837,8 @@ pub struct CustomGame {
     pub ignore: bool,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub alias: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub prefer_alias: bool,
     #[serde(default)]
     pub files: Vec<String>,
     #[serde(default)]
@@ -1186,6 +1188,7 @@ impl Config {
             name: "".to_string(),
             ignore: false,
             alias: None,
+            prefer_alias: false,
             files: vec![],
             registry: vec![],
         });
@@ -1259,6 +1262,31 @@ impl Config {
 
     pub fn set_threads(&mut self, threads: usize) {
         self.runtime.threads = NonZeroUsize::new(threads);
+    }
+
+    pub fn display_name<'a>(&'a self, official: &'a str) -> &'a str {
+        let aliases: HashMap<_, _> = self
+            .custom_games
+            .iter()
+            .filter_map(|game| {
+                let alias = game.name.as_str();
+                let target = game.alias.as_ref()?.as_str();
+                if game.ignore || !game.prefer_alias || alias.is_empty() || target.is_empty() {
+                    return None;
+                }
+                Some((target, alias))
+            })
+            .collect();
+
+        let mut query = official;
+        for _ in 0..10 {
+            match aliases.get(query) {
+                Some(mapped) => query = mapped,
+                None => break,
+            }
+        }
+
+        query
     }
 }
 
@@ -1728,6 +1756,7 @@ mod tests {
                         name: s("Custom Game 1"),
                         ignore: false,
                         alias: None,
+                        prefer_alias: false,
                         files: vec![],
                         registry: vec![],
                     },
@@ -1735,6 +1764,7 @@ mod tests {
                         name: s("Custom Game 2"),
                         ignore: false,
                         alias: None,
+                        prefer_alias: false,
                         files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
@@ -1983,6 +2013,7 @@ customGames:
                         name: s("Custom Game 1"),
                         ignore: false,
                         alias: None,
+                        prefer_alias: false,
                         files: vec![],
                         registry: vec![],
                     },
@@ -1990,6 +2021,7 @@ customGames:
                         name: s("Custom Game 2"),
                         ignore: false,
                         alias: None,
+                        prefer_alias: false,
                         files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
                     },
@@ -1997,6 +2029,7 @@ customGames:
                         name: s("Alias"),
                         ignore: false,
                         alias: Some("Other".to_string()),
+                        prefer_alias: false,
                         files: vec![],
                         registry: vec![],
                     },

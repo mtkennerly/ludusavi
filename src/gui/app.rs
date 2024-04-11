@@ -1031,6 +1031,7 @@ impl App {
                 name: name.clone(),
                 ignore: false,
                 alias: standard.alias.clone(),
+                prefer_alias: false,
                 files: standard.files.clone().unwrap_or_default().keys().cloned().collect(),
                 registry: standard.registry.clone().unwrap_or_default().keys().cloned().collect(),
             }
@@ -1039,9 +1040,27 @@ impl App {
                 name: name.clone(),
                 ignore: false,
                 alias: None,
+                prefer_alias: false,
                 files: vec![],
                 registry: vec![],
             }
+        };
+
+        self.text_histories.add_custom_game(&game);
+        self.config.custom_games.push(game);
+        self.config.save();
+
+        self.switch_screen(Screen::CustomGames)
+    }
+
+    fn customize_game_as_alias(&mut self, name: String) -> Command<Message> {
+        let game = CustomGame {
+            name: "".to_string(),
+            ignore: false,
+            alias: Some(name),
+            prefer_alias: true,
+            files: vec![],
+            registry: vec![],
         };
 
         self.text_histories.add_custom_game(&game);
@@ -1473,6 +1492,12 @@ impl Application for App {
                 self.config.save();
                 Command::none()
             }
+            Message::EditedCustomGaleAliasDisplay(index, value) => {
+                self.config.custom_games[index].prefer_alias = value;
+
+                self.config.save();
+                Command::none()
+            }
             Message::EditedCustomGameFile(game_index, action) => {
                 match action {
                     EditAction::Add => {
@@ -1801,11 +1826,11 @@ impl Application for App {
                 match screen {
                     Screen::Backup => {
                         self.config.backup.sort.key = value;
-                        self.backup_screen.log.sort(&self.config.backup.sort);
+                        self.backup_screen.log.sort(&self.config.backup.sort, &self.config);
                     }
                     Screen::Restore => {
                         self.config.restore.sort.key = value;
-                        self.restore_screen.log.sort(&self.config.restore.sort);
+                        self.restore_screen.log.sort(&self.config.restore.sort, &self.config);
                     }
                     _ => {}
                 }
@@ -1816,11 +1841,11 @@ impl Application for App {
                 match screen {
                     Screen::Backup => {
                         self.config.backup.sort.reversed = value;
-                        self.backup_screen.log.sort(&self.config.backup.sort);
+                        self.backup_screen.log.sort(&self.config.backup.sort, &self.config);
                     }
                     Screen::Restore => {
                         self.config.restore.sort.reversed = value;
-                        self.restore_screen.log.sort(&self.config.restore.sort);
+                        self.restore_screen.log.sort(&self.config.restore.sort, &self.config);
                     }
                     _ => {}
                 }
@@ -2186,6 +2211,7 @@ impl Application for App {
                     self.restore_screen.log.toggle_locked(&game);
                     Command::none()
                 }
+                GameAction::MakeAlias => self.customize_game_as_alias(game),
             },
             Message::Scrolled { subject, position } => {
                 self.scroll_offsets.insert(subject, position);

@@ -277,7 +277,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 .par_iter()
                 .enumerate()
                 .progress_with(scan_progress_bar(subjects.valid.len() as u64))
-                .map(|(i, name)| {
+                .filter_map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let game = &manifest.0[name];
 
@@ -324,7 +324,12 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                             .back_up(&scan_info, &chrono::Utc::now(), &backup_format)
                     };
                     log::trace!("step {i} completed");
-                    (name, scan_info, backup_info, decision)
+                    if !scan_info.can_report_game() {
+                        None
+                    } else {
+                        let display_title = config.display_name(name);
+                        Some((display_title, scan_info, backup_info, decision))
+                    }
                 })
                 .collect();
             log::info!("completed backup");
@@ -351,9 +356,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
 
             for (_, scan_info, _, _) in info.iter() {
-                if !scan_info.can_report_game() {
-                    continue;
-                }
                 duplicate_detector.add_game(
                     scan_info,
                     config.is_game_enabled_for_operation(&scan_info.game_name, false),
@@ -361,9 +363,19 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
 
             let sort = sort.map(From::from).unwrap_or_else(|| config.backup.sort.clone());
-            info.sort_by(|(_, scan_info1, backup_info1, ..), (_, scan_info2, backup_info2, ..)| {
-                crate::scan::compare_games(sort.key, scan_info1, Some(backup_info1), scan_info2, Some(backup_info2))
-            });
+            info.sort_by(
+                |(name1, scan_info1, backup_info1, ..), (name2, scan_info2, backup_info2, ..)| {
+                    crate::scan::compare_games(
+                        sort.key,
+                        name1,
+                        scan_info1,
+                        Some(backup_info1),
+                        name2,
+                        scan_info2,
+                        Some(backup_info2),
+                    )
+                },
+            );
             if sort.reversed {
                 info.reverse();
             }
@@ -460,7 +472,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 .par_iter()
                 .enumerate()
                 .progress_with(scan_progress_bar(subjects.valid.len() as u64))
-                .map(|(i, name)| {
+                .filter_map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", subjects.valid.len());
                     let mut layout = layout.game_layout(name);
                     let scan_info = layout.scan_for_restoration(
@@ -481,13 +493,14 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         if let Some(BackupId::Named(scanned_backup)) = scan_info.backup.as_ref().map(|x| x.id()) {
                             if backup != &scanned_backup {
                                 log::trace!("step {i} completed (backup mismatch)");
-                                return (
-                                    name,
+                                let display_title = config.display_name(name);
+                                return Some((
+                                    display_title,
                                     scan_info,
                                     Default::default(),
                                     decision,
                                     Some(Err(Error::CliInvalidBackupId)),
-                                );
+                                ));
                             }
                         }
                     }
@@ -498,15 +511,17 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         layout.restore(&scan_info, &config.restore.toggled_registry)
                     };
                     log::trace!("step {i} completed");
-                    (name, scan_info, restore_info, decision, None)
+                    if !scan_info.can_report_game() {
+                        None
+                    } else {
+                        let display_title = config.display_name(name);
+                        Some((display_title, scan_info, restore_info, decision, None))
+                    }
                 })
                 .collect();
             log::info!("completed restore");
 
             for (_, scan_info, _, _, failure) in info.iter() {
-                if !scan_info.can_report_game() {
-                    continue;
-                }
                 if let Some(failure) = failure {
                     return failure.clone();
                 }
@@ -517,9 +532,19 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
 
             let sort = sort.map(From::from).unwrap_or_else(|| config.restore.sort.clone());
-            info.sort_by(|(_, scan_info1, backup_info1, ..), (_, scan_info2, backup_info2, ..)| {
-                crate::scan::compare_games(sort.key, scan_info1, Some(backup_info1), scan_info2, Some(backup_info2))
-            });
+            info.sort_by(
+                |(name1, scan_info1, backup_info1, ..), (name2, scan_info2, backup_info2, ..)| {
+                    crate::scan::compare_games(
+                        sort.key,
+                        name1,
+                        scan_info1,
+                        Some(backup_info1),
+                        name2,
+                        scan_info2,
+                        Some(backup_info2),
+                    )
+                },
+            );
             if sort.reversed {
                 info.reverse();
             }
@@ -577,12 +602,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 .map(|name| {
                     let mut layout = layout.game_layout(name);
                     let backups = layout.get_backups();
-                    (name, backups)
+                    let display_title = config.display_name(name);
+                    (name, display_title, backups)
                 })
                 .collect();
 
-            for (name, backups) in info {
-                reporter.add_backups(name, &backups);
+            for (name, display_title, backups) in info {
+                reporter.add_backups(name, display_title, &backups);
             }
             reporter.print(&restore_dir);
         }

@@ -126,6 +126,7 @@ pub enum Message {
     EditedRedirect(EditAction, Option<RedirectEditActionField>),
     EditedCustomGame(EditAction),
     EditedCustomGameAlias(usize, String),
+    EditedCustomGaleAliasDisplay(usize, bool),
     EditedCustomGameFile(usize, EditAction),
     EditedCustomGameRegistry(usize, EditAction),
     EditedExcludeStoreScreenshots(bool),
@@ -735,6 +736,7 @@ pub enum GameAction {
     Comment,
     Lock,
     Unlock,
+    MakeAlias,
 }
 
 impl GameAction {
@@ -761,6 +763,8 @@ impl GameAction {
         if !restoring && !customized {
             options.push(Self::Customize);
         }
+
+        options.push(Self::MakeAlias);
 
         if restoring && has_backups {
             options.push(Self::Comment);
@@ -794,6 +798,7 @@ impl GameAction {
             GameAction::Comment => Icon::Comment,
             GameAction::Lock => Icon::Lock,
             GameAction::Unlock => Icon::LockOpen,
+            GameAction::MakeAlias => Icon::Edit,
         }
     }
 }
@@ -821,6 +826,7 @@ impl ToString for GameAction {
             Self::Comment => TRANSLATOR.comment_button(),
             Self::Lock => TRANSLATOR.lock_button(),
             Self::Unlock => TRANSLATOR.unlock_button(),
+            Self::MakeAlias => TRANSLATOR.alias_label(),
         }
     }
 }

@@ -1,6 +1,6 @@
 use iced::{
     keyboard,
-    widget::{tooltip, Space},
+    widget::{horizontal_space, tooltip, Space},
     Alignment, Length,
 };
 
@@ -264,10 +264,25 @@ pub fn custom_games<'a>(
                         )
                         .push_if(
                             || config.custom_games[i].kind() == CustomGameKind::Alias,
+                            move || {
+                                Row::new()
+                                    .spacing(10)
+                                    .align_items(Alignment::Center)
+                                    .push(Column::new().width(120).push(text(TRANSLATOR.original_name_field())))
+                                    .push(histories.input(UndoSubject::CustomGameAlias(i)))
+                            },
+                        )
+                        .push_if(
+                            || config.custom_games[i].kind() == CustomGameKind::Alias,
                             || {
                                 Row::new()
-                                    .push(Column::new().width(130).push(text(TRANSLATOR.alias_field())))
-                                    .push(histories.input(UndoSubject::CustomGameAlias(i)))
+                                    .spacing(10)
+                                    .push(horizontal_space().width(120))
+                                    .push(checkbox(
+                                        TRANSLATOR.prefer_alias_display(),
+                                        config.custom_games[i].prefer_alias,
+                                        move |x| Message::EditedCustomGaleAliasDisplay(i, x),
+                                    ))
                             },
                         )
                         .push_if(
