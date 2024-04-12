@@ -164,9 +164,16 @@ store-prime = Prime Gaming
 store-steam = Steam
 store-uplay = Uplay
 store-other-home = Home folder
+# This would be a folder acting as a virtual C: drive, created by Wine.
 store-other-wine = Wine prefix
+# This would be a folder with typical Windows system folders,
+# like "Program Files (x86)" and "Users".
 store-other-windows = Windows drive
+# This would be a folder with typical Linux system folders,
+# like "home" and "opt".
 store-other-linux = Linux drive
+# This would be a folder with typical Mac system folders,
+# like "Applications" and "Users".
 store-other-mac = Mac drive
 store-other = Other
 
