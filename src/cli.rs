@@ -2,12 +2,7 @@ mod parse;
 mod report;
 mod ui;
 
-use std::{
-    collections::{BTreeSet, HashMap},
-    fmt::Debug,
-    process::Command,
-    time::Duration,
-};
+use std::{collections::BTreeSet, process::Command, time::Duration};
 
 use clap::CommandFactory;
 use indicatif::{ParallelProgressIterator, ProgressBar};
@@ -36,52 +31,6 @@ use crate::{
 };
 
 const PROGRESS_BAR_REFRESH_INTERVAL: Duration = Duration::from_millis(50);
-
-#[derive(Clone, Debug, Default)]
-struct GameSubjects {
-    // TODO: Use BTreeSet
-    valid: Vec<String>,
-    invalid: Vec<String>,
-}
-
-impl GameSubjects {
-    pub fn new(known: Vec<String>, requested: Vec<String>, aliases: Option<&HashMap<String, String>>) -> Self {
-        let mut subjects = Self::default();
-
-        if requested.is_empty() {
-            subjects.valid = known;
-        } else {
-            for game in requested {
-                if known.contains(&game) {
-                    subjects.valid.push(game);
-                } else {
-                    subjects.invalid.push(game);
-                }
-            }
-        }
-
-        if let Some(aliases) = aliases.as_ref() {
-            subjects.resolve_aliases(aliases);
-        }
-
-        subjects.valid.sort();
-        subjects.invalid.sort();
-        subjects
-    }
-
-    fn resolve_aliases(&mut self, aliases: &HashMap<String, String>) {
-        let mut filtered = self.valid.iter().cloned().collect::<BTreeSet<_>>();
-
-        for (alias, target) in aliases {
-            if filtered.contains(alias) {
-                filtered.remove(alias);
-                filtered.insert(target.to_string());
-            }
-        }
-
-        self.valid = filtered.into_iter().collect();
-    }
-}
 
 fn warn_backup_deprecations(merge: bool, no_merge: bool, update: bool, try_update: bool) {
     if merge {
@@ -115,15 +64,15 @@ fn load_manifest(
     try_manifest_update: bool,
 ) -> Result<Manifest, Error> {
     if no_manifest_update {
-        Ok(Manifest::load().unwrap_or_default())
+        Ok(Manifest::load().unwrap_or_default().with_extensions(config))
     } else if try_manifest_update {
         if let Err(e) = Manifest::update_mut(config, cache, false) {
             eprintln!("{}", TRANSLATOR.handle_error(&e));
         }
-        Ok(Manifest::load().unwrap_or_default())
+        Ok(Manifest::load().unwrap_or_default().with_extensions(config))
     } else {
         Manifest::update_mut(config, cache, false)?;
-        Manifest::load()
+        Manifest::load().map(|x| x.with_extensions(config))
     }
 }
 
@@ -142,6 +91,36 @@ fn parse_games(games: Vec<String>) -> Vec<String> {
             games
         }
     }
+}
+
+pub fn evaluate_games(
+    default: BTreeSet<String>,
+    requested: Vec<String>,
+    title_finder: &TitleFinder,
+) -> Result<Vec<String>, Vec<String>> {
+    if requested.is_empty() {
+        return Ok(default.into_iter().collect());
+    }
+
+    let mut valid = BTreeSet::new();
+    let mut invalid = BTreeSet::new();
+
+    for game in requested {
+        match title_finder.find_one_primary_or_alias(&game) {
+            Some(found) => {
+                valid.insert(found);
+            }
+            None => {
+                invalid.insert(game);
+            }
+        }
+    }
+
+    if !invalid.is_empty() {
+        return Err(invalid.into_iter().collect());
+    }
+
+    Ok(valid.into_iter().collect())
 }
 
 pub fn parse() -> Cli {
@@ -188,7 +167,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
 
-            let mut manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
+            let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
 
             let backup_dir = match path {
                 None => config.backup.path.clone(),
@@ -211,18 +190,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 prepare_backup_target(&backup_dir)?;
             }
 
-            manifest.incorporate_extensions(&config);
-
-            let games_specified = !games.is_empty();
-            let subjects = GameSubjects::new(manifest.0.keys().cloned().collect(), games, Some(&manifest.aliases()));
-            if !subjects.invalid.is_empty() {
-                reporter.trip_unknown_games(subjects.invalid.clone());
-                reporter.print_failure();
-                return Err(Error::CliUnrecognizedGames {
-                    games: subjects.invalid,
-                });
-            }
-
             let mut retention = config.backup.retention.clone();
             if let Some(full_limit) = full_limit {
                 retention.full = full_limit;
@@ -233,7 +200,18 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
             let layout = BackupLayout::new(backup_dir.clone(), retention);
             let title_finder = TitleFinder::new(&manifest, &layout);
-            let launchers = Launchers::scan(&roots, &manifest, &subjects.valid, &title_finder, None);
+
+            let games_specified = !games.is_empty();
+            let games = match evaluate_games(manifest.primary_titles(), games, &title_finder) {
+                Ok(games) => games,
+                Err(games) => {
+                    reporter.trip_unknown_games(games.clone());
+                    reporter.print_failure();
+                    return Err(Error::CliUnrecognizedGames { games });
+                }
+            };
+
+            let launchers = Launchers::scan(&roots, &manifest, &games, &title_finder, None);
             let filter = config.backup.filter.clone();
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
@@ -254,7 +232,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     &config.cloud.path,
                     SyncDirection::Upload,
                     Finality::Preview,
-                    if games_specified { &subjects.valid } else { &[] },
+                    if games_specified { &games } else { &[] },
                 );
                 match changes {
                     Ok(changes) => {
@@ -270,15 +248,14 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
             }
 
-            log::info!("beginning backup with {} steps", subjects.valid.len());
+            log::info!("beginning backup with {} steps", games.len());
 
-            let mut info: Vec<_> = subjects
-                .valid
+            let mut info: Vec<_> = games
                 .par_iter()
                 .enumerate()
-                .progress_with(scan_progress_bar(subjects.valid.len() as u64))
+                .progress_with(scan_progress_bar(games.len() as u64))
                 .filter_map(|(i, name)| {
-                    log::trace!("step {i} / {}: {name}", subjects.valid.len());
+                    log::trace!("step {i} / {}: {name}", games.len());
                     let game = &manifest.0[name];
 
                     let previous = layout.latest_backup(name, false, &config.redirects, &config.restore.toggled_paths);
@@ -420,22 +397,23 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
             let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
 
-            let restorable_names = layout.restorable_games();
-
             if backup.is_some() && games.len() != 1 {
                 return Err(Error::CliBackupIdWithMultipleGames);
             }
             let backup_id = backup.as_ref().map(|x| BackupId::Named(x.clone()));
 
+            let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
+            let title_finder = TitleFinder::new(&manifest, &layout);
+
             let games_specified = !games.is_empty();
-            let subjects = GameSubjects::new(restorable_names, games, None);
-            if !subjects.invalid.is_empty() {
-                reporter.trip_unknown_games(subjects.invalid.clone());
-                reporter.print_failure();
-                return Err(Error::CliUnrecognizedGames {
-                    games: subjects.invalid,
-                });
-            }
+            let games = match evaluate_games(layout.restorable_game_set(), games, &title_finder) {
+                Ok(games) => games,
+                Err(games) => {
+                    reporter.trip_unknown_games(games.clone());
+                    reporter.print_failure();
+                    return Err(Error::CliUnrecognizedGames { games });
+                }
+            };
 
             let cloud_sync = negatable_flag(
                 cloud_sync && !preview,
@@ -451,7 +429,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     &config.cloud.path,
                     SyncDirection::Upload,
                     Finality::Preview,
-                    if games_specified { &subjects.valid } else { &[] },
+                    if games_specified { &games } else { &[] },
                 );
                 match changes {
                     Ok(changes) => {
@@ -465,15 +443,14 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
             }
 
-            log::info!("beginning restore with {} steps", subjects.valid.len());
+            log::info!("beginning restore with {} steps", games.len());
 
-            let mut info: Vec<_> = subjects
-                .valid
+            let mut info: Vec<_> = games
                 .par_iter()
                 .enumerate()
-                .progress_with(scan_progress_bar(subjects.valid.len() as u64))
+                .progress_with(scan_progress_bar(games.len() as u64))
                 .filter_map(|(i, name)| {
-                    log::trace!("step {i} / {}: {name}", subjects.valid.len());
+                    log::trace!("step {i} / {}: {name}", games.len());
                     let mut layout = layout.game_layout(name);
                     let scan_info = layout.scan_for_restoration(
                         name,
@@ -583,22 +560,21 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             };
 
             let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
+            let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
+            let title_finder = TitleFinder::new(&manifest, &layout);
 
-            let restorable_names = layout.restorable_games();
+            let games = match evaluate_games(layout.restorable_game_set(), games, &title_finder) {
+                Ok(games) => games,
+                Err(games) => {
+                    reporter.trip_unknown_games(games.clone());
+                    reporter.print_failure();
+                    return Err(Error::CliUnrecognizedGames { games });
+                }
+            };
 
-            let subjects = GameSubjects::new(restorable_names, games, None);
-            if !subjects.invalid.is_empty() {
-                reporter.trip_unknown_games(subjects.invalid.clone());
-                reporter.print_failure();
-                return Err(Error::CliUnrecognizedGames {
-                    games: subjects.invalid,
-                });
-            }
-
-            let info: Vec<_> = subjects
-                .valid
+            let info: Vec<_> = games
                 .par_iter()
-                .progress_count(subjects.valid.len() as u64)
+                .progress_count(games.len() as u64)
                 .map(|name| {
                     let mut layout = layout.game_layout(name);
                     let backups = layout.get_backups();
@@ -629,9 +605,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
             reporter.suppress_overall();
 
-            let mut manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
-
-            manifest.incorporate_extensions(&config);
+            let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
 
             let restore_dir = match path {
                 None => config.restore.path.clone(),
@@ -662,8 +636,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
         }
         Subcommand::Manifest { sub: manifest_sub } => match manifest_sub {
             ManifestSubcommand::Show { api } => {
-                let mut manifest = Manifest::load().unwrap_or_default();
-                manifest.incorporate_extensions(&config);
+                let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
 
                 if api {
                     println!("{}", serde_json::to_string(&manifest).unwrap());
@@ -784,6 +757,20 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 let finality = if preview { Finality::Preview } else { Finality::Final };
                 let direction = SyncDirection::Upload;
 
+                let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
+                let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
+                let title_finder = TitleFinder::new(&manifest, &layout);
+
+                let games = match evaluate_games(layout.restorable_game_set(), games, &title_finder) {
+                    Ok(games) => games,
+                    Err(games) => {
+                        let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
+                        reporter.trip_unknown_games(games.clone());
+                        reporter.print_failure();
+                        return Err(Error::CliUnrecognizedGames { games });
+                    }
+                };
+
                 if !ask(
                     TRANSLATOR.confirm_cloud_upload(&local.render(), &cloud),
                     finality,
@@ -810,6 +797,20 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
                 let finality = if preview { Finality::Preview } else { Finality::Final };
                 let direction = SyncDirection::Download;
+
+                let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
+                let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
+                let title_finder = TitleFinder::new(&manifest, &layout);
+
+                let games = match evaluate_games(layout.restorable_game_set(), games, &title_finder) {
+                    Ok(games) => games,
+                    Err(games) => {
+                        let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
+                        reporter.trip_unknown_games(games.clone());
+                        reporter.print_failure();
+                        return Err(Error::CliUnrecognizedGames { games });
+                    }
+                };
 
                 if !ask(
                     TRANSLATOR.confirm_cloud_download(&local.render(), &cloud),

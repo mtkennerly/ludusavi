@@ -17,6 +17,8 @@
   * GUI: After performing a cloud upload preview on the other screen,
     the very next backup preview wouldn't do anything.
   * CLI: The `wrap` command did not fail gracefully when the game launch commands were missing.
+  * CLI: Several commands did not resolve aliases.
+  * CLI: The `cloud` commands did not reject unknown game titles.
   * If a game had more data that failed to back up than succeeded,
     then the backup size would be reported incorrectly.
 * Changed:
@@ -37,13 +39,18 @@
     * If you try to restore Windows-style paths on Linux or vice versa,
       it will now produce an error,
       unless you've configured an applicable redirect.
-  * On Windows, the way Ludusavi hides its console in GUI mode has changed,
+  * GUI: On Windows, the way Ludusavi hides its console in GUI mode has changed,
     in order to avoid a new false positive from Windows Defender.
 
     Instead of relaunching itself, Ludusavi now detaches the console from the current instance.
     This reverts a change from v0.18.1,
     but care has been taken to address the problems that originally led to that change.
     If you do notice any issues related to this, please report them.
+  * CLI: Previously, the `restore` and `backups` (not `backup`) commands would return an error
+    if you specified a game that did not have any backups available to restore.
+    This was inconsistent with the `backup` command,
+    which would simply return empty data if there was nothing to back up.
+    Now, `restore` and `backups` will also return empty data if there are no backups.
   * When synchronizing to the cloud after a backup,
     Ludusavi now instructs Rclone to only check paths for games with updated saves.
     This improves the cloud sync performance.

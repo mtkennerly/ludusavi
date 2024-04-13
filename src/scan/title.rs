@@ -118,6 +118,10 @@ impl TitleFinder {
         }
     }
 
+    pub fn find_one_primary_or_alias(&self, name: &str) -> Option<String> {
+        self.find_one(&[name.to_string()], &None, &None, false)
+    }
+
     /// Lookup games based on certain criteria, returns a set of matching game
     /// names, operates in different modes depending on which parameters are
     /// set.

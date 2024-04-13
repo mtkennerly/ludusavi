@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
     io::Write,
 };
 
@@ -2071,6 +2071,10 @@ impl BackupLayout {
     }
 
     pub fn restorable_games(&self) -> Vec<String> {
+        self.games.keys().cloned().collect()
+    }
+
+    pub fn restorable_game_set(&self) -> BTreeSet<String> {
         self.games.keys().cloned().collect()
     }
 }

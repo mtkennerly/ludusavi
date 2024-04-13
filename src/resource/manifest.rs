@@ -457,6 +457,11 @@ impl Manifest {
         }
     }
 
+    pub fn with_extensions(mut self, config: &Config) -> Self {
+        self.incorporate_extensions(config);
+        self
+    }
+
     fn add_custom_game(&mut self, custom: CustomGame) {
         let name = custom.name.clone();
         let existing = self.0.get(&name);
@@ -575,6 +580,14 @@ impl Manifest {
             alias.is_none()
                 && (files.is_some() || registry.is_some() || steam.is_some() || gog.is_some() || id.is_some())
         })
+    }
+
+    pub fn primary_titles(&self) -> BTreeSet<String> {
+        self.0
+            .iter()
+            .filter_map(|(k, v)| v.alias.is_none().then_some(k))
+            .cloned()
+            .collect()
     }
 
     pub fn aliases(&self) -> HashMap<String, String> {
