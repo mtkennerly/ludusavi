@@ -7,7 +7,7 @@
     ([Contributed by JackSpagnoli](https://github.com/mtkennerly/ludusavi/pull/308))
   * You can now set aliases to display instead of the original name.
     This does not affect the CLI when using `--api`.
-  * Updated translations, including a new in-progress Traditional Chinese translation.
+  * Updated translations, including new in-progress translations for Traditional Chinese and Turkish.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:
   * Ludusavi would crash when reading a non-UTF-8 mapping.yaml file.

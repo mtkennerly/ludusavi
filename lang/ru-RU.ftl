@@ -49,9 +49,9 @@ config-is-invalid = Ошибка: неверный файл конфигурац
 manifest-is-invalid = Ошибка: неверный файл конфигурации (манифеста).
 manifest-cannot-be-updated = Ошибка: Невозможно проверить обновление файла манифеста. Подключение к Интернету отключено?
 cannot-prepare-backup-target = Ошибка: Не удается подготовить резервную копию цели (либо создание, либо очистка папки). Если папка открыта в браузере файлов, попробуйте закрыть её: { $path }
-restoration-source-is-invalid = Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: { $path }
+restoration-source-is-invalid = Ошибка: Источник восстановления недействителен (либо не существует или не является каталогом). Пожалуйста, проверьте путь: { $path }
 registry-issue = Ошибка: Некоторые записи реестра были пропущены.
-unable-to-browse-file-system = Error: Unable to browse on your system.
+unable-to-browse-file-system = Ошибка: Невозможна навигация по файловой системе.
 unable-to-open-directory = Ошибка: Не удается открыть каталог:
 unable-to-open-url = Ошибка: Не удается открыть URL:
 unable-to-configure-cloud = Не удалось настроить облако.
@@ -101,7 +101,7 @@ label-updated = Обновлено
 label-new = Новый
 label-removed = Удалено
 label-comment = Комментарий
-label-unchanged = Unchanged
+label-unchanged = Без изменений
 label-scan = Сканирование
 label-filter = Фильтр
 label-unique = Уникальный
@@ -110,11 +110,11 @@ label-partial = Частичный
 label-enabled = Включено
 label-disabled = Отключено
 # https://en.wikipedia.org/wiki/Thread_(computing)
-label-threads = Threads
+label-threads = Потоки
 label-cloud = Облачное хранилище
 # A "remote" is what Rclone calls cloud systems like Google Drive.
-label-remote = Remote
-label-remote-name = Remote name
+label-remote = Удалённый репозиторий
+label-remote-name = Имя репозитория
 label-folder = Папка
 # An executable file
 label-executable = Исполняемый файл
@@ -133,12 +133,13 @@ label-provider = Хранилище
 label-custom = Пользовательское
 label-none = Нет
 label-change-count = Изменений: { $total }
-label-unscanned = Unscanned
+label-unscanned = Непроверенные
 # This refers to a local file on the computer
-label-file = File
-label-game = Game
+label-file = Файл
+label-game = Игра
 # Aliases are alternative titles for the same game.
-label-alias = Alias
+label-alias = Псевдоним (похожее)
+label-original-name = Исходное название
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -152,16 +153,23 @@ store-prime = Prime Gaming
 store-steam = Steam
 store-uplay = Uplay
 store-other-home = Домашняя папка
+# This would be a folder acting as a virtual C: drive, created by Wine.
 store-other-wine = Wine префикс
-store-other-windows = Windows drive
-store-other-linux = Linux drive
-store-other-mac = Mac drive
+# This would be a folder with typical Windows system folders,
+# like "Program Files (x86)" and "Users".
+store-other-windows = Windows диск
+# This would be a folder with typical Linux system folders,
+# like "home" and "opt".
+store-other-linux = Linux диск
+# This would be a folder with typical Mac system folders,
+# like "Applications" and "Users".
+store-other-mac = Mac диск
 store-other = Другое
 backup-format-simple = Простой
 backup-format-zip = Zip
 compression-none = Нет
 # "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
-compression-deflate = Deflate
+compression-deflate = Дефляция
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
 theme = Тема оформления
@@ -173,6 +181,7 @@ show-unchanged-games = Показать неизменные игры
 show-unscanned-games = Показать несканированные игры
 override-max-threads = Переопределить макс. количество потоков
 synchronize-automatically = Синхронизировать автоматически
+prefer-alias-display = Отображать своё название вместо исходного
 explanation-for-exclude-store-screenshots = В резервных копиях исключить скриншоты из конкретного магазина
 consider-doing-a-preview =
     Если вы еще этого не сделали, предлагаю сначала сделать предварительный просмотр, чтобы
@@ -215,13 +224,13 @@ prefix-warning = Внимание: { $message }
 cloud-app-unavailable = Облачные резервные копии отключены, потому что { $app } недоступно.
 cloud-not-configured = Облачные резервные копии отключены, так как облачная система не настроена.
 cloud-path-invalid = Облачные резервные копии отключены, так как путь резервного копирования недействителен.
-game-is-unrecognized = Ludusavi does not recognize this game.
-game-has-nothing-to-restore = This game does not have a backup to restore.
-launch-game-after-error = Launch the game anyway?
-game-did-not-launch = Game failed to launch.
+game-is-unrecognized = Ludusavi не распознает эту игру.
+game-has-nothing-to-restore = У этой игры нет резервной копии для восстановления.
+launch-game-after-error = Все равно запустить игру?
+game-did-not-launch = Не удалось запустить игру.
 back-up-specific-game =
-    .confirm = Back up save data for { $game }?
-    .failed = Failed to back up save data for { $game }
+    .confirm = Создать резервную копию для { $game }?
+    .failed = Не удалось сохранить данные для { $game }
 restore-specific-game =
-    .confirm = Restore save data for { $game }?
-    .failed = Failed to restore save data for { $game }
+    .confirm = Восстановить сохраненные данные для { $game }?
+    .failed = Не удалось восстановить данные для { $game }

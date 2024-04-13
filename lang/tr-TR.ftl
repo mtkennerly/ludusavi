@@ -1,59 +1,59 @@
 ludusavi = Ludusavi
-language = 言語
-game-name = 名前
-total-games = ゲーム
-file-size = サイズ
-file-location = 場所
-overall = Overall
-status = Status
-cli-unrecognized-games = これらのゲームに関する情報はありません：
-cli-unable-to-request-confirmation = 確認を要求できません。
-    .winpty-workaround = Bashエミュレータ(Git Bashなど)を使用している場合は、winptyを実行してみてください。
-cli-backup-id-with-multiple-games = 複数ゲームの復元時に、バックアップIDを指定できない。
-cli-invalid-backup-id = 無効なバックアップIDです。
-badge-failed = 失敗
-badge-duplicates = DUPLICATES
-badge-duplicated = DUPLICATED
-badge-ignored = 無効
+language = Dil
+game-name = Oyun İsmi
+total-games = Oyunlar
+file-size = Boyut
+file-location = Konum
+overall = Genel
+status = Durum
+cli-unrecognized-games = Bu oyunlar hakkında bilgi bulunamadı:
+cli-unable-to-request-confirmation = Unable to request confirmation.
+    .winpty-workaround = Eğer bash emulator kullanıyorsan (Git Bash gibi), winpty'i çalıştırmayı dene.
+cli-backup-id-with-multiple-games = Oyunların yedeği geri yüklenirken backup ID belirlenemiyor.
+cli-invalid-backup-id = Geçersiz backup ID.
+badge-failed = BAŞARISIZ
+badge-duplicates = KOPYALAR
+badge-duplicated = KOPYALANMIŞ
+badge-ignored = IGNORED
 badge-redirected-from = FROM: { $path }
 badge-redirecting-to = TO: { $path }
-some-entries-failed = いくつかのエントリーは処理に失敗しました。詳細は出力にある { badge-failed } をご覧ください。これらのファイルにアクセスできるか、またはそのパスが非常に長いかどうかを再確認してください。
+some-entries-failed = Some entries failed to process; look for { badge-failed } in the output for details. Double check whether you can access those files or whether their paths are very long.
 cli-game-line-item-redirected = Redirected from: { $path }
 cli-game-line-item-redirecting = Redirecting to: { $path }
-button-backup = バックアップ
-button-preview = プレビュー
-button-restore = 復元
-button-nav-backup = バックアップモード
-button-nav-restore = 復元モード
-button-nav-custom-games = カスタムゲーム
-button-nav-other = その他
-button-add-game = ゲームを追加
-button-continue = 続ける
-button-cancel = キャンセル
-button-cancelling = キャンセル中...
-button-okay = OK
-button-select-all = すべて選択
-button-deselect-all = 選択を全て解除
-button-enable-all = 全て有効
-button-disable-all = 全て無効
-button-customize = カスタマイズ
-button-exit = 終了
-button-comment = Comment
-button-lock = Lock
-button-unlock = Unlock
+button-backup = Yedekle
+button-preview = Önizle
+button-restore = Geri Yükle
+button-nav-backup = YEDEKLEME MODU
+button-nav-restore = GERİ YÜKLEME MODU
+button-nav-custom-games = ÖZEL OYUNLAR
+button-nav-other = DİĞER
+button-add-game = Oyun ekle
+button-continue = Devam Et
+button-cancel = İptal
+button-cancelling = İptal ediliyor...
+button-okay = Tamam
+button-select-all = Tümünü seç
+button-deselect-all = Tüm seçimi kaldır
+button-enable-all = Hepsini etkinleştir
+button-disable-all = Hepsini devre dışı bırak
+button-customize = Kişiselleştir
+button-exit = Çıkış
+button-comment = Yorum Yap
+button-lock = Kilitle
+button-unlock = Kilidi aç
 # This opens a download page.
 button-get-app = Get { $app }
-button-validate = Validate
-no-roots-are-configured = いくつかのルートを追加して、さらに多くのデータをバックアップします。
-config-is-invalid = エラー：設定ファイルが無効です。
-manifest-is-invalid = エラー: マニフェストファイルが無効です。
-manifest-cannot-be-updated = エラー：マニフェストファイルの更新を確認できません。インターネット接続が切断されていますか？
-cannot-prepare-backup-target = エラー: バックアップ先の準備に失敗しました (フォルダーを作成または空にします)。 ファイル ブラウザでこのフォルダを開いている場合は、閉じてみてください: { $path }
-restoration-source-is-invalid = エラー：復元元が無効です(存在しないか、ディレクトリではありません)。場所を再確認してください： { $path }
-registry-issue = エラー: 一部のレジストリエントリがスキップされました。
-unable-to-browse-file-system = エラー: システム上で参照できません。
-unable-to-open-directory = エラー: ディレクトリを開くことができません:
-unable-to-open-url = エラー: URLを開くことができません:
+button-validate = Doğrula
+no-roots-are-configured = Add some roots to back up even more data.
+config-is-invalid = Error: The config file is invalid.
+manifest-is-invalid = Error: The manifest file is invalid.
+manifest-cannot-be-updated = Error: Unable to check for an update to the manifest file. Is your Internet connection down?
+cannot-prepare-backup-target = Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: { $path }
+restoration-source-is-invalid = Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: { $path }
+registry-issue = Error: Some registry entries were skipped.
+unable-to-browse-file-system = Error: Unable to browse on your system.
+unable-to-open-directory = Error: Unable to open directory:
+unable-to-open-url = Error: Unable to open URL:
 unable-to-configure-cloud = Unable to configure cloud.
 unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
 cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
@@ -71,33 +71,33 @@ processed-games-subset =
        *[other] games
     }
 processed-size-subset = { $processed-size } of { $total-size }
-field-backup-target = バックアップ先:
-field-restore-source = 復元元:
-field-custom-files = パス:
-field-custom-registry = レジストリ:
-field-sort = ソート:
+field-backup-target = Back up to:
+field-restore-source = Restore from:
+field-custom-files = Paths:
+field-custom-registry = Registry:
+field-sort = Sort:
 field-redirect-source =
-    .placeholder = ソース (元の場所)
+    .placeholder = Source (original location)
 field-redirect-target =
-    .placeholder = ターゲット (新しい場所)
-field-roots = ルート:
-field-backup-excluded-items = バックアップから除外:
-field-redirects = リダイレクト:
+    .placeholder = Target (new location)
+field-roots = Roots:
+field-backup-excluded-items = Backup exclusions:
+field-redirects = Redirects:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
-field-retention-full = フルバックアップ:
+field-retention-full = Full:
 # This appears next to the number of differential backups that you'd like to keep.
 # A differential backup includes only the files that have changed since the last full backup.
-field-retention-differential = 差分バックアップ:
-field-backup-format = フォーマット:
-field-backup-compression = 圧縮:
+field-retention-differential = Differential:
+field-backup-format = Format:
+field-backup-compression = Compression:
 # The compression level determines how much compresison we perform.
-field-backup-compression-level = 圧縮率:
-label-manifest = マニフェスト
+field-backup-compression-level = Level:
+label-manifest = Manifest
 # This shows the time when we checked for an update to the manifest.
-label-checked = チェック
+label-checked = Checked
 # This shows the time when we found an update to the manifest.
-label-updated = 更新日時
+label-updated = Updated
 label-new = New
 label-removed = Removed
 label-comment = Comment
@@ -165,33 +165,35 @@ store-other-linux = Linux drive
 # like "Applications" and "Users".
 store-other-mac = Mac drive
 store-other = Other
-backup-format-simple = 簡単
+backup-format-simple = Simple
 backup-format-zip = Zip
-compression-none = なし
+compression-none = Yok
 # "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
 compression-deflate = Deflate
 compression-bzip2 = Bzip2
 compression-zstd = Zstd
-theme = テーマ
-theme-light = ライト
-theme-dark = ダーク
+theme = Tema
+theme-light = Beyaz
+theme-dark = Siyah
 redirect-bidirectional = Bidirectional
-show-deselected-games = 選択されていないゲームを表示
-show-unchanged-games = 変更されていないゲームを表示
-show-unscanned-games = スキャンされていないゲームを表示
+show-deselected-games = Show deselected games
+show-unchanged-games = Show unchanged games
+show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
 prefer-alias-display = Display alias instead of original name
 explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
-consider-doing-a-preview = まだ行っていない場合は、予期しない結果を防ぐためにプレビューを行うことをおすすめします。
+consider-doing-a-preview =
+    If you haven't already, consider doing a preview first so that there
+    are no surprises.
 confirm-backup =
     Are you sure you want to proceed with the backup? { $path-action ->
         [merge] New save data will be merged into the target folder:
        *[create] The target folder will be created:
     }
 confirm-restore =
-    復元を続行してもよろしいですか？
-    現在のファイルはここから上書きされます:
+    Are you sure you want to proceed with the restoration?
+    This will overwrite any current files with the backups from here:
 confirm-cloud-upload =
     Do you want to replace your cloud files with your local files?
     Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
@@ -200,23 +202,23 @@ confirm-cloud-download =
     Do you want to replace your local files with your cloud files?
     Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
     Local files will be updated or deleted as necessary.
-confirm-add-missing-roots = このルートを追加しますか?
-no-missing-roots = 追加するルートが見つかりませんでした。
+confirm-add-missing-roots = Add these roots?
+no-missing-roots = No additional roots found.
 loading = Loading...
-preparing-backup-target = バックアップディレクトリを準備中...
-updating-manifest = マニフェストを更新中...
+preparing-backup-target = Preparing backup directory...
+updating-manifest = Updating manifest...
 no-cloud-changes = No changes to synchronize
 backups-are-valid = Your backups are valid.
 backups-are-invalid =
     These games' backups appear to be invalid.
     Do you want to create new full backups for these games?
-saves-found = セーブデータが見つかりました。
-no-saves-found = セーブデータが見つかりませんでした。
+saves-found = Kayıtlı veri mevcut.
+no-saves-found = Kayıtlı veri bulunamadı.
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
-suffix-no-confirmation = 確認なし
+suffix-no-confirmation = doğrulamasız
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
-suffix-restart-required = restart required
+suffix-restart-required = yeniden başlatma gerekli
 prefix-error = Error: { $message }
 prefix-warning = Warning: { $message }
 cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.

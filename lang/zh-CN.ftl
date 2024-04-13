@@ -93,7 +93,7 @@ label-updated = 已更新
 label-new = 新的存档
 label-removed = 删除
 label-comment = 备注
-label-unchanged = Unchanged
+label-unchanged = 未改变
 label-scan = 扫描
 label-filter = 筛选
 label-unique = 单一
@@ -125,12 +125,13 @@ label-provider = 提供方
 label-custom = 自定义
 label-none = 无
 label-change-count = 更改︰ { $total }
-label-unscanned = Unscanned
+label-unscanned = 未扫描
 # This refers to a local file on the computer
-label-file = File
-label-game = Game
+label-file = 文件
+label-game = 游戏
 # Aliases are alternative titles for the same game.
-label-alias = Alias
+label-alias = 别名
+label-original-name = Original name
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -144,10 +145,17 @@ store-prime = 亚马逊 Prime Gaming
 store-steam = Steam
 store-uplay = 育碧 Uplay
 store-other-home = 主文件夹
+# This would be a folder acting as a virtual C: drive, created by Wine.
 store-other-wine = Wine prefix
-store-other-windows = Windows drive
-store-other-linux = Linux drive
-store-other-mac = Mac drive
+# This would be a folder with typical Windows system folders,
+# like "Program Files (x86)" and "Users".
+store-other-windows = 其它Windows商店
+# This would be a folder with typical Linux system folders,
+# like "home" and "opt".
+store-other-linux = 其它Linux商店
+# This would be a folder with typical Mac system folders,
+# like "Applications" and "Users".
+store-other-mac = 其它Mac商店
 store-other = 其他
 backup-format-simple = 普通
 backup-format-zip = Zip 文件
@@ -165,6 +173,7 @@ show-unchanged-games = 显示未修改的游戏
 show-unscanned-games = 显示未扫描的游戏
 override-max-threads = 覆盖最大线程
 synchronize-automatically = 自动同步
+prefer-alias-display = Display alias instead of original name
 explanation-for-exclude-store-screenshots = 在备份中，排除特定商店的屏幕截图
 consider-doing-a-preview = 如果您还没有预览，请考虑先进行预览，防止发生任何意料之外的结果。
 confirm-backup =
@@ -205,13 +214,13 @@ prefix-warning = 警告： { $message }
 cloud-app-unavailable = 云备份已禁用，因为 { $app } 不可用。
 cloud-not-configured = 云备份已禁用，因为没有配置云远程设置。
 cloud-path-invalid = 云备份已禁用，因为备份路径无效。
-game-is-unrecognized = Ludusavi does not recognize this game.
-game-has-nothing-to-restore = This game does not have a backup to restore.
-launch-game-after-error = Launch the game anyway?
-game-did-not-launch = Game failed to launch.
+game-is-unrecognized = Ludusavi 不能识别此游戏
+game-has-nothing-to-restore = 此游戏没有备份可以恢复。
+launch-game-after-error = 仍然要启动游戏吗？
+game-did-not-launch = 游戏启动失败。
 back-up-specific-game =
-    .confirm = Back up save data for { $game }?
-    .failed = Failed to back up save data for { $game }
+    .confirm = 要备份 { $game } 的存档数据吗？
+    .failed = 备份 { $game } 的存档数据失败
 restore-specific-game =
-    .confirm = Restore save data for { $game }?
-    .failed = Failed to restore save data for { $game }
+    .confirm = 要恢复 { $game } 的存档数据吗？
+    .failed = 恢复 { $game } 的存档数据失败

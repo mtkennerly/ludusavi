@@ -139,6 +139,7 @@ label-file = 檔案
 label-game = 遊戲
 # Aliases are alternative titles for the same game.
 label-alias = Alias
+label-original-name = Original name
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -152,9 +153,16 @@ store-prime = Prime Gaming
 store-steam = Steam
 store-uplay = Uplay
 store-other-home = Home folder
+# This would be a folder acting as a virtual C: drive, created by Wine.
 store-other-wine = Wine prefix
+# This would be a folder with typical Windows system folders,
+# like "Program Files (x86)" and "Users".
 store-other-windows = Windows drive
+# This would be a folder with typical Linux system folders,
+# like "home" and "opt".
 store-other-linux = Linux drive
+# This would be a folder with typical Mac system folders,
+# like "Applications" and "Users".
 store-other-mac = Mac drive
 store-other = 其它
 backup-format-simple = 簡易
@@ -173,6 +181,7 @@ show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
+prefer-alias-display = Display alias instead of original name
 explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
 consider-doing-a-preview =
     If you haven't already, consider doing a preview first so that there
