@@ -905,7 +905,11 @@ impl GameLayout {
         {
             ".".to_string()
         } else {
-            let name = format!("backup-{}", Self::generate_file_friendly_timestamp(now));
+            let timestamp = Self::generate_file_friendly_timestamp(now);
+            let name = match *kind {
+                BackupKind::Full => format!("backup-{}", timestamp),
+                BackupKind::Differential => format!("backup-{}-diff", timestamp),
+            };
             match format.chosen {
                 BackupFormat::Simple => name,
                 BackupFormat::Zip => format!("{name}.zip"),
@@ -2518,7 +2522,7 @@ mod tests {
             };
             assert_eq!(
                 DifferentialBackup {
-                    name: format!("backup-{}", now_str()),
+                    name: format!("backup-{}-diff", now_str()),
                     when: now(),
                     os: Some(Os::HOST),
                     files: btree_map! {
@@ -2563,7 +2567,7 @@ mod tests {
             });
             assert_eq!(
                 DifferentialBackup {
-                    name: format!("backup-{}", now_str()),
+                    name: format!("backup-{}-diff", now_str()),
                     when: now(),
                     os: Some(Os::HOST),
                     registry: Some(IndividualMappingRegistry {
@@ -2610,7 +2614,7 @@ mod tests {
             });
             assert_eq!(
                 DifferentialBackup {
-                    name: format!("backup-{}", now_str()),
+                    name: format!("backup-{}-diff", now_str()),
                     when: now(),
                     os: Some(Os::HOST),
                     registry: Some(IndividualMappingRegistry {
@@ -2654,7 +2658,7 @@ mod tests {
             };
             assert_eq!(
                 DifferentialBackup {
-                    name: format!("backup-{}", now_str()),
+                    name: format!("backup-{}-diff", now_str()),
                     when: now(),
                     os: Some(Os::HOST),
                     registry: None,
@@ -2689,7 +2693,7 @@ mod tests {
             };
             assert_eq!(
                 DifferentialBackup {
-                    name: format!("backup-{}", now_str()),
+                    name: format!("backup-{}-diff", now_str()),
                     when: now(),
                     os: Some(Os::HOST),
                     registry: Some(IndividualMappingRegistry { hash: None }),

@@ -54,6 +54,8 @@
   * GUI: During a backup or restore,
     if the "synchronize automatically" cloud setting is enabled,
     then the progress bar will display "cloud" instead of "scan" during the cloud operations.
+  * Differential backup names now end with "-diff".
+    This does not affect existing backups.
 
 ## v0.22.0 (2023-12-26)
 
