@@ -158,12 +158,13 @@ where
         tree: &'b mut Tree,
         layout: Layout<'_>,
         renderer: &Renderer,
-        _translation: Vector,
+        translation: Vector,
     ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
         let state = tree.state.downcast_mut::<State<T>>();
 
         overlay(
             layout,
+            translation,
             state,
             self.padding,
             self.text_size,
@@ -321,6 +322,7 @@ pub fn mouse_interaction(layout: Layout<'_>, cursor: mouse::Cursor, usable: bool
 /// Returns the current overlay of a [`PopupMenu`].
 pub fn overlay<'a, T, Message, Theme, Renderer>(
     layout: Layout<'_>,
+    translation: Vector,
     state: &'a mut State<T>,
     padding: Padding,
     text_size: Option<f32>,
@@ -360,7 +362,7 @@ where
             menu = menu.text_size(text_size);
         }
 
-        Some(menu.overlay(layout.position(), bounds.height))
+        Some(menu.overlay(layout.position() + translation, bounds.height))
     } else {
         None
     }
