@@ -23,7 +23,7 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
     let mut out = HashMap::new();
 
     for game in get_games(&root.path) {
-        let Some(official_title) = title_finder.find_one(&[game.title.to_owned()], &None, &None, true) else {
+        let Some(official_title) = title_finder.find_one_by_normalized_name(&game.title) else {
             log::trace!("Ignoring unrecognized game: {}", &game.title);
             continue;
         };
@@ -100,7 +100,7 @@ mod tests {
     }
 
     fn title_finder() -> TitleFinder {
-        TitleFinder::new(&manifest(), &Default::default())
+        TitleFinder::new(&Default::default(), &manifest(), Default::default())
     }
 
     #[test]

@@ -53,7 +53,7 @@ fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) -> Opt
 /// HEROIC_APP_SOURCE (one of: gog, epic, amazon, sideload)
 ///
 /// We rely on HEROIC_APP_NAME and HEROIC_APP_RUNNER only.
-pub fn infer_game_from_heroic(roots: &[RootsConfig], _commands: &[String]) -> Option<WrapGameInfo> {
+pub fn infer_game_from_heroic(roots: &[RootsConfig]) -> Option<WrapGameInfo> {
     let heroic_app_name = env::var("HEROIC_APP_NAME").ok()?;
 
     let heroic_app_runner = env::var("HEROIC_APP_RUNNER").ok()?;
@@ -70,6 +70,7 @@ pub fn infer_game_from_heroic(roots: &[RootsConfig], _commands: &[String]) -> Op
             "gog" => heroic_app_name.parse().ok(),
             _ => None,
         },
+        ..Default::default()
     };
 
     if result.is_empty() {

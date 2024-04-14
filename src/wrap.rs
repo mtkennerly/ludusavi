@@ -1,11 +1,10 @@
-use crate::scan::TitleFinder;
-
 pub mod heroic;
 
 /// Returned game information with whatever we could find
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub struct WrapGameInfo {
     pub name: Option<String>,
+    pub steam_id: Option<u32>,
     pub gog_id: Option<u64>,
 }
 
@@ -15,14 +14,14 @@ impl WrapGameInfo {
     }
 }
 
-pub fn infer_game_from_steam(title_finder: &TitleFinder) -> Option<WrapGameInfo> {
+pub fn infer_game_from_steam() -> Option<WrapGameInfo> {
     let app_id = std::env::var("STEAMAPPID").ok()?.parse::<u32>().ok()?;
 
     log::debug!("Found Steam environment variable: STEAMAPPID={}", app_id);
 
     let result = WrapGameInfo {
-        name: title_finder.find_one(&[], &Some(app_id), &None, false),
-        gog_id: None,
+        steam_id: Some(app_id),
+        ..Default::default()
     };
 
     (!result.is_empty()).then_some(result)
@@ -57,7 +56,7 @@ pub mod lutris {
 
         let result = WrapGameInfo {
             name: Some(title),
-            gog_id: None,
+            ..Default::default()
         };
 
         Some(result)

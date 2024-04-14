@@ -25,7 +25,7 @@ use crate::{
     resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
     scan::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
-        OperationStepDecision, SteamShortcuts, TitleFinder,
+        OperationStepDecision, SteamShortcuts, TitleFinder, TitleQuery,
     },
     wrap,
 };
@@ -106,7 +106,7 @@ pub fn evaluate_games(
     let mut invalid = BTreeSet::new();
 
     for game in requested {
-        match title_finder.find_one_primary_or_alias(&game) {
+        match title_finder.find_one_by_name(&game) {
             Some(found) => {
                 valid.insert(found);
             }
@@ -199,7 +199,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
 
             let layout = BackupLayout::new(backup_dir.clone(), retention);
-            let title_finder = TitleFinder::new(&manifest, &layout);
+            let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
             let games_specified = !games.is_empty();
             let games = match evaluate_games(manifest.primary_titles(), games, &title_finder) {
@@ -403,7 +403,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let backup_id = backup.as_ref().map(|x| BackupId::Named(x.clone()));
 
             let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
-            let title_finder = TitleFinder::new(&manifest, &layout);
+            let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
             let games_specified = !games.is_empty();
             let games = match evaluate_games(layout.restorable_game_set(), games, &title_finder) {
@@ -561,7 +561,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
             let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
             let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
-            let title_finder = TitleFinder::new(&manifest, &layout);
+            let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
             let games = match evaluate_games(layout.restorable_game_set(), games, &title_finder) {
                 Ok(games) => games,
@@ -613,10 +613,17 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             };
             let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
 
-            let title_finder = TitleFinder::new(&manifest, &layout);
-            let found = title_finder.find(
-                &names, &config, &steam_id, &gog_id, normalized, backup, restore, disabled, partial,
-            );
+            let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
+            let found = title_finder.find(TitleQuery {
+                names: names.clone(),
+                steam_id,
+                gog_id,
+                normalized,
+                backup,
+                restore,
+                disabled,
+                partial,
+            });
             reporter.add_found_titles(&found);
 
             if found.is_empty() {
@@ -759,7 +766,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
                 let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
                 let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
-                let title_finder = TitleFinder::new(&manifest, &layout);
+                let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
                 let games = match evaluate_games(layout.restorable_game_set(), games, &title_finder) {
                     Ok(games) => games,
@@ -800,7 +807,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
                 let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
                 let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
-                let title_finder = TitleFinder::new(&manifest, &layout);
+                let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
                 let games = match evaluate_games(layout.restorable_game_set(), games, &title_finder) {
                     Ok(games) => games,
@@ -832,7 +839,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
         } => {
             let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
             let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
-            let title_finder = TitleFinder::new(&manifest, &layout);
+            let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
             // Determine raw game identifiers
             let wrap_game_info = if let Some(name) = name_source.name.as_ref() {
@@ -843,9 +850,9 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             } else if let Some(infer) = name_source.infer {
                 let roots = config.expanded_roots();
                 match infer {
-                    parse::Launcher::Heroic => wrap::heroic::infer_game_from_heroic(&roots, &commands),
+                    parse::Launcher::Heroic => wrap::heroic::infer_game_from_heroic(&roots),
                     parse::Launcher::Lutris => wrap::lutris::infer(),
-                    parse::Launcher::Steam => wrap::infer_game_from_steam(&title_finder),
+                    parse::Launcher::Steam => wrap::infer_game_from_steam(),
                 }
             } else {
                 unreachable!();
@@ -856,8 +863,15 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             //
             // e.g. "Slain: Back From Hell" from legendary to "Slain: Back from
             // Hell" as known to ludusavi
-            let game_name = wrap_game_info.as_ref().and_then(|wrap_game_info| {
-                title_finder.maybe_find_one(wrap_game_info.name.as_ref(), None, wrap_game_info.gog_id, true)
+            let game_name = wrap_game_info.clone().and_then(|info| {
+                let names = info.name.map(|x| vec![x]).unwrap_or_default();
+                title_finder.find_one(TitleQuery {
+                    names,
+                    steam_id: info.steam_id,
+                    gog_id: info.gog_id,
+                    normalized: true,
+                    ..Default::default()
+                })
             });
             log::debug!("Title finder result: {:?}", &game_name);
 

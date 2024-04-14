@@ -313,7 +313,7 @@ impl App {
 
                         let roots = config.expanded_roots();
                         let layout = BackupLayout::new(config.backup.path.clone(), retention);
-                        let title_finder = TitleFinder::new(&manifest, &layout);
+                        let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
                         let steam = SteamShortcuts::scan();
                         let launchers = Launchers::scan(&roots, &manifest, &subjects, &title_finder, None);
 

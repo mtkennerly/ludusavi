@@ -6,7 +6,7 @@ use crate::{
     resource::{config::RootsConfig, manifest::Os},
     scan::{
         launchers::{legendary, LauncherGame},
-        TitleFinder,
+        TitleFinder, TitleQuery,
     },
 };
 
@@ -103,7 +103,7 @@ fn detect_legendary_games(
             game.title,
             game.app_name
         );
-        let official_title = title_finder.find_one(&[game.title.to_owned()], &None, &None, true);
+        let official_title = title_finder.find_one_by_normalized_name(&game.title);
         // process game from GamesConfig
         let prefix = find_prefix(&root.path, &game.title, &game.platform.to_lowercase(), &game.app_name);
         memorize_game(
@@ -182,7 +182,12 @@ fn detect_gog_games(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<S
         for game in installed_games.installed {
             if let Some(game_title) = game_titles.get(&game.app_name) {
                 let gog_id: Option<u64> = game.app_name.parse().ok();
-                let official_title = title_finder.find_one(&[game_title.to_owned()], &None, &gog_id, true);
+                let official_title = title_finder.find_one(TitleQuery {
+                    names: vec![game_title.to_owned()],
+                    gog_id,
+                    normalized: true,
+                    ..Default::default()
+                });
                 let prefix = find_prefix(&root.path, game_title, &game.platform, &game.app_name);
                 memorize_game(
                     &mut games,
@@ -350,7 +355,7 @@ mod tests {
     }
 
     fn title_finder() -> TitleFinder {
-        TitleFinder::new(&manifest(), &Default::default())
+        TitleFinder::new(&Default::default(), &manifest(), Default::default())
     }
 
     #[test]
