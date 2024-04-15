@@ -92,7 +92,7 @@ impl GameListEntry {
                             Button::new(
                                 text(display_name.to_string()).horizontal_alignment(HorizontalAlignment::Center),
                             )
-                            .on_press_some(if self.scanned {
+                            .on_press_maybe(if self.scanned {
                                 Some(Message::ToggleGameListEntryExpanded {
                                     name: self.scan_info.game_name.clone(),
                                 })

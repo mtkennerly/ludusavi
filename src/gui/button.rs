@@ -8,7 +8,7 @@ use crate::{
         },
         icon::Icon,
         style,
-        widget::{text, Button, Element, IcedButtonExt, Text},
+        widget::{text, Button, Element, Text},
     },
     lang::TRANSLATOR,
     prelude::{Finality, SyncDirection},
@@ -16,14 +16,14 @@ use crate::{
 
 fn template(content: Text, action: Option<Message>, style: Option<style::Button>) -> Element {
     Button::new(content.horizontal_alignment(alignment::Horizontal::Center))
-        .on_press_some(action)
+        .on_press_maybe(action)
         .style(style.unwrap_or(style::Button::Primary))
         .into()
 }
 
 pub fn primary<'a>(content: String, action: Option<Message>) -> Element<'a> {
     Button::new(text(content).horizontal_alignment(alignment::Horizontal::Center))
-        .on_press_some(action)
+        .on_press_maybe(action)
         .style(style::Button::Primary)
         .width(125)
         .into()
@@ -31,7 +31,7 @@ pub fn primary<'a>(content: String, action: Option<Message>) -> Element<'a> {
 
 pub fn negative<'a>(content: String, action: Option<Message>) -> Element<'a> {
     Button::new(text(content).horizontal_alignment(alignment::Horizontal::Center))
-        .on_press_some(action)
+        .on_press_maybe(action)
         .style(style::Button::Negative)
         .width(125)
         .into()

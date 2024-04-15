@@ -291,7 +291,6 @@ impl<'a> IcedParentExt<'a> for Row<'a> {
 
 pub trait IcedButtonExt<'a> {
     fn on_press_if(self, condition: bool, msg: impl FnOnce() -> Message) -> Self;
-    fn on_press_some(self, msg: Option<Message>) -> Self;
 }
 
 impl<'a> IcedButtonExt<'a> for Button<'a> {
@@ -300,13 +299,6 @@ impl<'a> IcedButtonExt<'a> for Button<'a> {
             self.on_press(msg())
         } else {
             self
-        }
-    }
-
-    fn on_press_some(self, msg: Option<Message>) -> Self {
-        match msg {
-            Some(msg) => self.on_press(msg),
-            None => self,
         }
     }
 }
