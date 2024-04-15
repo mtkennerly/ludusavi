@@ -140,26 +140,6 @@ pub enum Subcommand {
         #[clap(long)]
         force: bool,
 
-        /// DEPRECATED: New backups are now always merged into the target folder.
-        /// This option will be removed in a future version.
-        #[clap(long)]
-        merge: bool,
-
-        /// DEPRECATED: New backups are now always merged into the target folder.
-        /// This option will be removed in a future version.
-        #[clap(long, conflicts_with("merge"))]
-        no_merge: bool,
-
-        /// DEPRECATED: Manifest updates are now enabled by default.
-        /// This option will be removed in a future version.
-        #[clap(long)]
-        update: bool,
-
-        /// DEPRECATED: Manifest updates are now enabled by default.
-        /// This option will be removed in a future version.
-        #[clap(long, conflicts_with("update"))]
-        try_update: bool,
-
         /// Extra Wine/Proton prefix to check for saves. This should be a folder
         /// with an immediate child folder named "drive_c" (or another letter).
         #[clap(long, value_parser = parse_strict_path)]
@@ -610,10 +590,6 @@ mod tests {
                     preview: false,
                     path: None,
                     force: false,
-                    merge: false,
-                    no_merge: false,
-                    update: false,
-                    try_update: false,
                     wine_prefix: None,
                     api: false,
                     sort: None,
@@ -640,8 +616,6 @@ mod tests {
                 "--path",
                 "tests/backup",
                 "--force",
-                "--merge",
-                "--update",
                 "--wine-prefix",
                 "tests/wine-prefix",
                 "--api",
@@ -669,10 +643,6 @@ mod tests {
                     preview: true,
                     path: Some(StrictPath::new(s("tests/backup"))),
                     force: true,
-                    merge: true,
-                    no_merge: false,
-                    update: true,
-                    try_update: false,
                     wine_prefix: Some(StrictPath::new(s("tests/wine-prefix"))),
                     api: true,
                     sort: Some(CliSort::Name),
@@ -701,10 +671,6 @@ mod tests {
                     preview: false,
                     path: Some(StrictPath::new(s("tests/fake"))),
                     force: false,
-                    merge: false,
-                    no_merge: false,
-                    update: false,
-                    try_update: false,
                     wine_prefix: None,
                     api: false,
                     sort: None,
@@ -718,78 +684,6 @@ mod tests {
                     games: vec![],
                 }),
             },
-        );
-    }
-
-    #[test]
-    fn accepts_cli_backup_with_no_merge() {
-        check_args(
-            &["ludusavi", "backup", "--no-merge"],
-            Cli {
-                config: None,
-                no_manifest_update: false,
-                try_manifest_update: false,
-                sub: Some(Subcommand::Backup {
-                    preview: false,
-                    path: None,
-                    force: false,
-                    merge: false,
-                    no_merge: true,
-                    update: false,
-                    try_update: false,
-                    wine_prefix: None,
-                    api: false,
-                    sort: None,
-                    format: None,
-                    compression: None,
-                    compression_level: None,
-                    full_limit: None,
-                    differential_limit: None,
-                    cloud_sync: false,
-                    no_cloud_sync: false,
-                    games: vec![],
-                }),
-            },
-        );
-    }
-
-    #[test]
-    fn accepts_cli_backup_with_try_update() {
-        check_args(
-            &["ludusavi", "backup", "--try-update"],
-            Cli {
-                config: None,
-                no_manifest_update: false,
-                try_manifest_update: false,
-                sub: Some(Subcommand::Backup {
-                    preview: false,
-                    path: None,
-                    force: false,
-                    merge: false,
-                    no_merge: false,
-                    update: false,
-                    try_update: true,
-                    wine_prefix: None,
-                    api: false,
-                    sort: None,
-                    format: None,
-                    compression: None,
-                    compression_level: None,
-                    full_limit: None,
-                    differential_limit: None,
-                    cloud_sync: false,
-                    no_cloud_sync: false,
-                    games: vec![],
-                }),
-            },
-        );
-    }
-
-    #[test]
-    fn rejects_cli_backup_with_update_and_try_update() {
-        check_args_err(
-            &["ludusavi", "backup", "--update", "--try-update"],
-            clap::error::ErrorKind::ArgumentConflict,
         );
     }
 
@@ -813,10 +707,6 @@ mod tests {
                         preview: false,
                         path: None,
                         force: false,
-                        merge: false,
-                        no_merge: false,
-                        update: false,
-                        try_update: false,
                         wine_prefix: None,
                         api: false,
                         sort: Some(sort),
@@ -846,10 +736,6 @@ mod tests {
                     preview: false,
                     path: None,
                     force: false,
-                    merge: false,
-                    no_merge: false,
-                    update: false,
-                    try_update: false,
                     wine_prefix: None,
                     api: false,
                     sort: None,

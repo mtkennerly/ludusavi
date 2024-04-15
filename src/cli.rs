@@ -32,21 +32,6 @@ use crate::{
 
 const PROGRESS_BAR_REFRESH_INTERVAL: Duration = Duration::from_millis(50);
 
-fn warn_backup_deprecations(merge: bool, no_merge: bool, update: bool, try_update: bool) {
-    if merge {
-        eprintln!("WARNING: `--merge` is deprecated. Merging is now always enforced.");
-    }
-    if no_merge {
-        eprintln!("WARNING: `--no-merge` is deprecated. Merging is now always enforced.");
-    }
-    if update {
-        eprintln!("WARNING: `--update` is deprecated. Updates are enabled by default, or you can use the `manifest update` command.");
-    }
-    if try_update {
-        eprintln!("WARNING: `--try-update` is deprecated. Use the `--try-manifest-update` global flag.");
-    }
-}
-
 fn negatable_flag(on: bool, off: bool, default: bool) -> bool {
     if on {
         true
@@ -146,10 +131,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             preview,
             path,
             force,
-            merge: x_merge,
-            no_merge: x_no_merge,
-            update: x_update,
-            try_update: x_try_update,
             wine_prefix,
             api,
             sort,
@@ -162,7 +143,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             no_cloud_sync,
             games,
         } => {
-            warn_backup_deprecations(x_merge, x_no_merge, x_update, x_try_update);
             let games = parse_games(games);
 
             let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
@@ -979,10 +959,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         force: true,
                         preview: Default::default(),
                         path: Default::default(),
-                        merge: Default::default(),
-                        no_merge: Default::default(),
-                        update: Default::default(),
-                        try_update: Default::default(),
                         wine_prefix: Default::default(),
                         api: Default::default(),
                         sort: Default::default(),

@@ -55,6 +55,8 @@
     This was inconsistent with the `backup` command,
     which would simply return empty data if there was nothing to back up.
     Now, `restore` and `backups` will also return empty data if there are no backups.
+  * CLI: Some deprecated flags have been removed from the `backup` command:
+    `--merge`, `--no-merge`, `--update`, and `--try-update`.
   * When synchronizing to the cloud after a backup,
     Ludusavi now instructs Rclone to only check paths for games with updated saves.
     This improves the cloud sync performance.
