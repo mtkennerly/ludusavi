@@ -119,17 +119,14 @@ impl FilterComponent {
                             game_filter::Change::ALL,
                             Message::EditedSearchFilterChange,
                         ))
-                        .push_if(
-                            || show_deselected_games,
-                            || {
-                                template(
-                                    &self.enablement,
-                                    FilterKind::Enablement,
-                                    game_filter::Enablement::ALL,
-                                    Message::EditedSearchFilterEnablement,
-                                )
-                            },
-                        ),
+                        .push_if(show_deselected_games, || {
+                            template(
+                                &self.enablement,
+                                FilterKind::Enablement,
+                                game_filter::Enablement::ALL,
+                                Message::EditedSearchFilterEnablement,
+                            )
+                        }),
                 )
                 .into(),
         )

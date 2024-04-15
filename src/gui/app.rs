@@ -2525,7 +2525,7 @@ impl Application for App {
                     m.view(&self.config, &self.text_histories)
                         .style(style::Container::Primary),
                 )
-                .push_if(|| self.progress.visible(), || self.progress.view(&self.operation))
+                .push_if(self.progress.visible(), || self.progress.view(&self.operation))
                 .into();
         }
 
@@ -2571,11 +2571,10 @@ impl Application for App {
                 ),
             })
             .push_maybe(self.timed_notification.as_ref().map(|x| x.view()))
-            .push_if(
-                || self.updating_manifest,
-                || Notification::new(TRANSLATOR.updating_manifest()).view(),
-            )
-            .push_if(|| self.progress.visible(), || self.progress.view(&self.operation));
+            .push_if(self.updating_manifest, || {
+                Notification::new(TRANSLATOR.updating_manifest()).view()
+            })
+            .push_if(self.progress.visible(), || self.progress.view(&self.operation));
 
         Container::new(content).style(style::Container::Primary).into()
     }

@@ -374,23 +374,20 @@ impl Modal {
             } => {
                 if !changes.is_empty() || !state.idle() {
                     col = col
-                        .push_if(
-                            || !state.idle(),
-                            || {
-                                Row::new()
-                                    .spacing(20)
-                                    .align_items(Alignment::Center)
-                                    .push(text(TRANSLATOR.change_count_label(changes.len())))
-                                    .push_if(|| changes.is_empty(), || text(TRANSLATOR.loading()))
-                                    .push(Space::new(Length::Fill, Length::Shrink))
-                                    .push(button::previous_page(Message::ModalChangePage, *page))
-                                    .push(button::next_page(
-                                        Message::ModalChangePage,
-                                        *page,
-                                        changes.len() / CHANGES_PER_PAGE,
-                                    ))
-                            },
-                        )
+                        .push_if(!state.idle(), || {
+                            Row::new()
+                                .spacing(20)
+                                .align_items(Alignment::Center)
+                                .push(text(TRANSLATOR.change_count_label(changes.len())))
+                                .push_if(changes.is_empty(), || text(TRANSLATOR.loading()))
+                                .push(Space::new(Length::Fill, Length::Shrink))
+                                .push(button::previous_page(Message::ModalChangePage, *page))
+                                .push(button::next_page(
+                                    Message::ModalChangePage,
+                                    *page,
+                                    changes.len() / CHANGES_PER_PAGE,
+                                ))
+                        })
                         .push(
                             changes
                                 .iter()
@@ -588,7 +585,7 @@ impl Modal {
                                 ModalVariant::Loading => Row::new(),
                                 ModalVariant::Info => Row::with_children(self.extra_controls()).push(positive_button),
                                 ModalVariant::Confirm => Row::with_children(self.extra_controls())
-                                    .push_if(|| !matches!(self, Modal::BackupValidation { .. }), || positive_button)
+                                    .push_if(!matches!(self, Modal::BackupValidation { .. }), || positive_button)
                                     .push(negative_button),
                             }
                             .padding([30, 0, 30, 0])

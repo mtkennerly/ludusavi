@@ -44,20 +44,17 @@ fn make_status_row<'a>(status: &OperationStatus, duplication: Duplication) -> Ro
         .align_items(Alignment::Center)
         .spacing(15)
         .push(text(TRANSLATOR.processed_games(status)).size(size))
-        .push_if(
-            || status.changed_games.new > 0,
-            || Badge::new_entry_with_count(status.changed_games.new).view(),
-        )
-        .push_if(
-            || status.changed_games.different > 0,
-            || Badge::changed_entry_with_count(status.changed_games.different).view(),
-        )
+        .push_if(status.changed_games.new > 0, || {
+            Badge::new_entry_with_count(status.changed_games.new).view()
+        })
+        .push_if(status.changed_games.different > 0, || {
+            Badge::changed_entry_with_count(status.changed_games.different).view()
+        })
         .push(text("|").size(size))
         .push(text(TRANSLATOR.processed_bytes(status)).size(size))
-        .push_if(
-            || !duplication.resolved(),
-            || Badge::new(&TRANSLATOR.badge_duplicates()).view(),
-        )
+        .push_if(!duplication.resolved(), || {
+            Badge::new(&TRANSLATOR.badge_duplicates()).view()
+        })
 }
 
 #[derive(Default)]
@@ -124,81 +121,72 @@ impl Backup {
                     )
                     .push(button::sort_order(screen, sort.reversed)),
             )
-            .push_if(
-                || self.show_settings,
-                || {
-                    Row::new()
-                        .padding([0, 20, 0, 20])
-                        .spacing(20)
-                        .height(30)
-                        .align_items(Alignment::Center)
-                        .push({
-                            number_input(
-                                config.backup.retention.full as i32,
-                                TRANSLATOR.full_retention(),
-                                1..=255,
-                                |x| Message::EditedFullRetention(x as u8),
-                            )
-                        })
-                        .push({
-                            number_input(
-                                config.backup.retention.differential as i32,
-                                TRANSLATOR.differential_retention(),
-                                0..=255,
-                                |x| Message::EditedDiffRetention(x as u8),
-                            )
-                        })
-                },
-            )
-            .push_if(
-                || self.show_settings,
-                || {
-                    Row::new()
-                        .padding([0, 20, 0, 20])
-                        .spacing(20)
-                        .align_items(Alignment::Center)
-                        .push(
-                            Row::new()
-                                .spacing(5)
-                                .align_items(Alignment::Center)
-                                .push(text(TRANSLATOR.backup_format_field()))
-                                .push(
-                                    pick_list(
-                                        BackupFormat::ALL,
-                                        Some(config.backup.format.chosen),
-                                        Message::SelectedBackupFormat,
-                                    )
-                                    .style(style::PickList::Primary),
-                                ),
+            .push_if(self.show_settings, || {
+                Row::new()
+                    .padding([0, 20, 0, 20])
+                    .spacing(20)
+                    .height(30)
+                    .align_items(Alignment::Center)
+                    .push({
+                        number_input(
+                            config.backup.retention.full as i32,
+                            TRANSLATOR.full_retention(),
+                            1..=255,
+                            |x| Message::EditedFullRetention(x as u8),
                         )
-                        .push_if(
-                            || config.backup.format.chosen == BackupFormat::Zip,
-                            || {
-                                Row::new()
-                                    .spacing(5)
-                                    .align_items(Alignment::Center)
-                                    .push(text(TRANSLATOR.backup_compression_field()))
-                                    .push(
-                                        pick_list(
-                                            ZipCompression::ALL,
-                                            Some(config.backup.format.zip.compression),
-                                            Message::SelectedBackupCompression,
-                                        )
-                                        .style(style::PickList::Primary),
-                                    )
-                            },
+                    })
+                    .push({
+                        number_input(
+                            config.backup.retention.differential as i32,
+                            TRANSLATOR.differential_retention(),
+                            0..=255,
+                            |x| Message::EditedDiffRetention(x as u8),
                         )
-                        .push_maybe(match (config.backup.format.level(), config.backup.format.range()) {
-                            (Some(level), Some(range)) => Some(number_input(
-                                level,
-                                TRANSLATOR.backup_compression_level_field(),
-                                range,
-                                Message::EditedCompressionLevel,
-                            )),
-                            _ => None,
-                        })
-                },
-            )
+                    })
+            })
+            .push_if(self.show_settings, || {
+                Row::new()
+                    .padding([0, 20, 0, 20])
+                    .spacing(20)
+                    .align_items(Alignment::Center)
+                    .push(
+                        Row::new()
+                            .spacing(5)
+                            .align_items(Alignment::Center)
+                            .push(text(TRANSLATOR.backup_format_field()))
+                            .push(
+                                pick_list(
+                                    BackupFormat::ALL,
+                                    Some(config.backup.format.chosen),
+                                    Message::SelectedBackupFormat,
+                                )
+                                .style(style::PickList::Primary),
+                            ),
+                    )
+                    .push_if(config.backup.format.chosen == BackupFormat::Zip, || {
+                        Row::new()
+                            .spacing(5)
+                            .align_items(Alignment::Center)
+                            .push(text(TRANSLATOR.backup_compression_field()))
+                            .push(
+                                pick_list(
+                                    ZipCompression::ALL,
+                                    Some(config.backup.format.zip.compression),
+                                    Message::SelectedBackupCompression,
+                                )
+                                .style(style::PickList::Primary),
+                            )
+                    })
+                    .push_maybe(match (config.backup.format.level(), config.backup.format.range()) {
+                        (Some(level), Some(range)) => Some(number_input(
+                            level,
+                            TRANSLATOR.backup_compression_level_field(),
+                            range,
+                            Message::EditedCompressionLevel,
+                        )),
+                        _ => None,
+                    })
+            })
             .push(self.log.view(
                 false,
                 config,
@@ -322,23 +310,20 @@ pub fn other<'a>(
     let is_cloud_path_valid = crate::cloud::validate_cloud_path(&config.cloud.path).is_ok();
 
     let content = Column::new()
-        .push_if(
-            || *STEAM_DECK,
-            || {
-                Row::new()
-                    .padding([0, 20, 0, 20])
-                    .spacing(20)
-                    .align_items(iced::Alignment::Center)
-                    .push(
-                        Button::new(
-                            text(TRANSLATOR.exit_button()).horizontal_alignment(iced::alignment::Horizontal::Center),
-                        )
-                        .on_press(Message::Exit { user: true })
-                        .width(125)
-                        .style(style::Button::Negative),
+        .push_if(*STEAM_DECK, || {
+            Row::new()
+                .padding([0, 20, 0, 20])
+                .spacing(20)
+                .align_items(iced::Alignment::Center)
+                .push(
+                    Button::new(
+                        text(TRANSLATOR.exit_button()).horizontal_alignment(iced::alignment::Horizontal::Center),
                     )
-            },
-        )
+                    .on_press(Message::Exit { user: true })
+                    .width(125)
+                    .style(style::Button::Negative),
+                )
+        })
         .push({
             let content = Column::new()
                 .spacing(20)
@@ -446,10 +431,9 @@ pub fn other<'a>(
                                         .align_items(Alignment::Center)
                                         .push(text(TRANSLATOR.rclone_label()).width(70))
                                         .push(histories.input(UndoSubject::RcloneExecutable))
-                                        .push_if(
-                                            || !is_rclone_valid,
-                                            || Icon::Error.text().width(Length::Shrink).style(style::Text::Failure),
-                                        )
+                                        .push_if(!is_rclone_valid, || {
+                                            Icon::Error.text().width(Length::Shrink).style(style::Text::Failure)
+                                        })
                                         .push(button::choose_file(BrowseFileSubject::RcloneExecutable, modifiers))
                                         .push(histories.input(UndoSubject::RcloneArguments)),
                                 );
@@ -462,24 +446,18 @@ pub fn other<'a>(
                                                 .spacing(20)
                                                 .align_items(Alignment::Center)
                                                 .push(text(TRANSLATOR.remote_label()).width(70))
-                                                .push_if(
-                                                    || !operation.idle(),
-                                                    || {
-                                                        text(choice.to_string())
-                                                            .height(30)
-                                                            .vertical_alignment(iced::alignment::Vertical::Center)
-                                                    },
-                                                )
-                                                .push_if(
-                                                    || operation.idle(),
-                                                    || {
-                                                        pick_list(
-                                                            RemoteChoice::ALL,
-                                                            Some(choice),
-                                                            Message::EditedCloudRemote,
-                                                        )
-                                                    },
-                                                );
+                                                .push_if(!operation.idle(), || {
+                                                    text(choice.to_string())
+                                                        .height(30)
+                                                        .vertical_alignment(iced::alignment::Vertical::Center)
+                                                })
+                                                .push_if(operation.idle(), || {
+                                                    pick_list(
+                                                        RemoteChoice::ALL,
+                                                        Some(choice),
+                                                        Message::EditedCloudRemote,
+                                                    )
+                                                });
 
                                             if let Some(Remote::Custom { .. }) = &config.cloud.remote {
                                                 row = row
@@ -495,48 +473,33 @@ pub fn other<'a>(
 
                                             row
                                         })
-                                        .push_if(
-                                            || choice != RemoteChoice::None,
-                                            || {
-                                                Row::new()
-                                                    .spacing(20)
-                                                    .align_items(Alignment::Center)
-                                                    .push(text(TRANSLATOR.folder_label()).width(70))
-                                                    .push(histories.input(UndoSubject::CloudPath))
-                                                    .push_if(
-                                                        || !is_cloud_path_valid,
-                                                        || {
-                                                            Icon::Error
-                                                                .text()
-                                                                .width(Length::Shrink)
-                                                                .style(style::Text::Failure)
-                                                        },
-                                                    )
-                                            },
-                                        )
-                                        .push_if(
-                                            || is_cloud_configured && is_cloud_path_valid,
-                                            || {
-                                                Row::new()
-                                                    .spacing(20)
-                                                    .align_items(Alignment::Center)
-                                                    .push(button::upload(operation))
-                                                    .push(button::download(operation))
-                                                    .push(checkbox(
-                                                        TRANSLATOR.synchronize_automatically(),
-                                                        config.cloud.synchronize,
-                                                        |_| Message::ToggleCloudSynchronize,
-                                                    ))
-                                            },
-                                        )
-                                        .push_if(|| !is_cloud_configured, || text(TRANSLATOR.cloud_not_configured()))
-                                        .push_if(
-                                            || !is_cloud_path_valid,
-                                            || {
-                                                text(TRANSLATOR.prefix_warning(&TRANSLATOR.cloud_path_invalid()))
-                                                    .style(style::Text::Failure)
-                                            },
-                                        );
+                                        .push_if(choice != RemoteChoice::None, || {
+                                            Row::new()
+                                                .spacing(20)
+                                                .align_items(Alignment::Center)
+                                                .push(text(TRANSLATOR.folder_label()).width(70))
+                                                .push(histories.input(UndoSubject::CloudPath))
+                                                .push_if(!is_cloud_path_valid, || {
+                                                    Icon::Error.text().width(Length::Shrink).style(style::Text::Failure)
+                                                })
+                                        })
+                                        .push_if(is_cloud_configured && is_cloud_path_valid, || {
+                                            Row::new()
+                                                .spacing(20)
+                                                .align_items(Alignment::Center)
+                                                .push(button::upload(operation))
+                                                .push(button::download(operation))
+                                                .push(checkbox(
+                                                    TRANSLATOR.synchronize_automatically(),
+                                                    config.cloud.synchronize,
+                                                    |_| Message::ToggleCloudSynchronize,
+                                                ))
+                                        })
+                                        .push_if(!is_cloud_configured, || text(TRANSLATOR.cloud_not_configured()))
+                                        .push_if(!is_cloud_path_valid, || {
+                                            text(TRANSLATOR.prefix_warning(&TRANSLATOR.cloud_path_invalid()))
+                                                .style(style::Text::Failure)
+                                        });
                                 } else {
                                     column = column
                                         .push(

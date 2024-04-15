@@ -131,47 +131,35 @@ impl GameListEntry {
                             ScanChange::Same => None,
                             ScanChange::Unknown => None,
                         })
-                        .push_if(
-                            || self.scan_info.any_ignored(),
-                            || {
-                                Badge::new(
-                                    &TRANSLATOR
-                                        .processed_subset(self.scan_info.total_items(), self.scan_info.enabled_items()),
-                                )
+                        .push_if(self.scan_info.any_ignored(), || {
+                            Badge::new(
+                                &TRANSLATOR
+                                    .processed_subset(self.scan_info.total_items(), self.scan_info.enabled_items()),
+                            )
+                            .view()
+                        })
+                        .push_if(!duplication.unique(), || {
+                            Badge::new(&TRANSLATOR.badge_duplicates())
+                                .faded(duplication.resolved())
+                                .on_press(Message::FilterDuplicates {
+                                    restoring,
+                                    game: (!filtering_duplicates).then_some(name_for_duplicate_toggle),
+                                })
                                 .view()
-                            },
-                        )
-                        .push_if(
-                            || !duplication.unique(),
-                            || {
-                                Badge::new(&TRANSLATOR.badge_duplicates())
-                                    .faded(duplication.resolved())
-                                    .on_press(Message::FilterDuplicates {
-                                        restoring,
-                                        game: (!filtering_duplicates).then_some(name_for_duplicate_toggle),
-                                    })
-                                    .view()
-                            },
-                        )
-                        .push_if(
-                            || customized,
-                            || {
-                                Badge::new(&TRANSLATOR.custom_label().to_uppercase())
-                                    .on_press(Message::ShowCustomGame { name: name.clone() })
-                                    .view()
-                            },
-                        )
-                        .push_if(
-                            || display_name != name,
-                            || {
-                                Badge::new(&TRANSLATOR.alias_label().to_uppercase())
-                                    .on_press(Message::ShowCustomGame {
-                                        name: display_name.to_string(),
-                                    })
-                                    .view()
-                            },
-                        )
-                        .push_if(|| !successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
+                        })
+                        .push_if(customized, || {
+                            Badge::new(&TRANSLATOR.custom_label().to_uppercase())
+                                .on_press(Message::ShowCustomGame { name: name.clone() })
+                                .view()
+                        })
+                        .push_if(display_name != name, || {
+                            Badge::new(&TRANSLATOR.alias_label().to_uppercase())
+                                .on_press(Message::ShowCustomGame {
+                                    name: display_name.to_string(),
+                                })
+                                .view()
+                        })
+                        .push_if(!successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
                         .push_maybe({
                             self.scan_info
                                 .backup
@@ -340,36 +328,33 @@ impl GameListEntry {
                                 ),
                         ),
                 )
-                .push_if(
-                    || self.show_comment_editor,
-                    || {
-                        let comment = self
-                            .scan_info
-                            .backup
-                            .as_ref()
-                            .and_then(|x| x.comment().as_ref())
-                            .map(|x| x.as_str())
-                            .unwrap_or_else(|| "");
+                .push_if(self.show_comment_editor, || {
+                    let comment = self
+                        .scan_info
+                        .backup
+                        .as_ref()
+                        .and_then(|x| x.comment().as_ref())
+                        .map(|x| x.as_str())
+                        .unwrap_or_else(|| "");
 
-                        Row::new()
-                            .align_items(Alignment::Center)
-                            .padding([0, 20])
-                            .spacing(20)
-                            .push(text(TRANSLATOR.comment_label()))
-                            .push(
-                                TextInput::new(&TRANSLATOR.comment_label(), comment).on_input(move |value| {
-                                    Message::EditedBackupComment {
-                                        game: name_for_comment.clone(),
-                                        comment: value,
-                                    }
-                                }),
-                            )
-                            .push(button::hide(Message::GameAction {
-                                action: GameAction::Comment,
-                                game: name_for_comment2,
-                            }))
-                    },
-                )
+                    Row::new()
+                        .align_items(Alignment::Center)
+                        .padding([0, 20])
+                        .spacing(20)
+                        .push(text(TRANSLATOR.comment_label()))
+                        .push(
+                            TextInput::new(&TRANSLATOR.comment_label(), comment).on_input(move |value| {
+                                Message::EditedBackupComment {
+                                    game: name_for_comment.clone(),
+                                    comment: value,
+                                }
+                            }),
+                        )
+                        .push(button::hide(Message::GameAction {
+                            action: GameAction::Comment,
+                            game: name_for_comment2,
+                        }))
+                })
                 .push_maybe({
                     expanded
                         .then(|| {

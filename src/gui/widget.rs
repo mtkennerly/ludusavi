@@ -258,17 +258,17 @@ impl Progress {
 }
 
 pub trait IcedParentExt<'a> {
-    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
+    fn push_if<E>(self, condition: bool, element: impl FnOnce() -> E) -> Self
     where
         E: Into<Element<'a>>;
 }
 
 impl<'a> IcedParentExt<'a> for Column<'a> {
-    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
+    fn push_if<E>(self, condition: bool, element: impl FnOnce() -> E) -> Self
     where
         E: Into<Element<'a>>,
     {
-        if condition() {
+        if condition {
             self.push(element().into())
         } else {
             self
@@ -277,11 +277,11 @@ impl<'a> IcedParentExt<'a> for Column<'a> {
 }
 
 impl<'a> IcedParentExt<'a> for Row<'a> {
-    fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
+    fn push_if<E>(self, condition: bool, element: impl FnOnce() -> E) -> Self
     where
         E: Into<Element<'a>>,
     {
-        if condition() {
+        if condition {
             self.push(element().into())
         } else {
             self

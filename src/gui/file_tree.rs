@@ -169,14 +169,11 @@ impl FileTreeNode {
                             ScanChange::Removed => Some(Badge::removed_entry().view()),
                         }
                     })
-                    .push_if(
-                        || !self.duplicated.unique(),
-                        || {
-                            Badge::new(&TRANSLATOR.badge_duplicated())
-                                .faded(self.duplicated.resolved())
-                                .view()
-                        },
-                    )
+                    .push_if(!self.duplicated.unique(), || {
+                        Badge::new(&TRANSLATOR.badge_duplicated())
+                            .faded(self.duplicated.resolved())
+                            .view()
+                    })
                     .push_maybe(
                         self.error
                             .as_ref()
@@ -280,10 +277,9 @@ impl FileTreeNode {
                         }),
                 ),
                 |parent, (k, v)| {
-                    parent.push_if(
-                        || expanded,
-                        || v.view(level + 1, k.raw().to_string(), game_name, _config, restoring, expansion),
-                    )
+                    parent.push_if(expanded, || {
+                        v.view(level + 1, k.raw().to_string(), game_name, _config, restoring, expansion)
+                    })
                 },
             ),
         )
