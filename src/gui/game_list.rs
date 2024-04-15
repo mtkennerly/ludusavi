@@ -702,31 +702,49 @@ impl GameList {
         }
     }
 
-    pub fn set_comment(&mut self, game: &str, comment: String) {
-        let Some(index) = self.find_game(game) else { return };
+    pub fn set_comment(&mut self, game: &str, comment: String) -> bool {
+        let Some(index) = self.find_game(game) else {
+            return false;
+        };
         let entry = &mut self.entries[index];
         let Some(backup) = &mut entry.scan_info.backup else {
-            return;
+            return false;
         };
-        let Some(layout) = &mut entry.game_layout else { return };
+        let Some(layout) = &mut entry.game_layout else {
+            return false;
+        };
 
         layout.set_backup_comment(backup.name(), &comment);
         backup.set_comment(comment);
-        layout.save();
+
+        true
     }
 
-    pub fn toggle_locked(&mut self, game: &str) {
-        let Some(index) = self.find_game(game) else { return };
+    pub fn toggle_locked(&mut self, game: &str) -> bool {
+        let Some(index) = self.find_game(game) else {
+            return false;
+        };
         let entry = &mut self.entries[index];
         let Some(backup) = &mut entry.scan_info.backup else {
-            return;
+            return false;
         };
-        let Some(layout) = &mut entry.game_layout else { return };
+        let Some(layout) = &mut entry.game_layout else {
+            return false;
+        };
 
         let new = !backup.locked();
 
         layout.set_backup_locked(backup.name(), new);
         backup.set_locked(new);
+
+        true
+    }
+
+    pub fn save_layout(&mut self, game: &str) {
+        let Some(index) = self.find_game(game) else { return };
+        let entry = &mut self.entries[index];
+        let Some(layout) = &mut entry.game_layout else { return };
+
         layout.save();
     }
 }

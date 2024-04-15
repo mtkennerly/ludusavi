@@ -51,6 +51,9 @@
     This reverts a change from v0.18.1,
     but care has been taken to address the problems that originally led to that change.
     If you do notice any issues related to this, please report them.
+  * GUI: Previously, when you changed settings, Ludusavi would save each change immediately.
+    It now waits for 1 second in case there is another change,
+    so that typing and other fast, successive edits are batched.
   * CLI: Previously, the `restore` and `backups` (not `backup`) commands would return an error
     if you specified a game that did not have any backups available to restore.
     This was inconsistent with the `backup` command,

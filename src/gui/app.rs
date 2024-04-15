@@ -1,4 +1,7 @@
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    time::{Duration, Instant},
+};
 
 use iced::{keyboard, widget::scrollable, Alignment, Application, Command, Subscription};
 
@@ -54,6 +57,13 @@ impl iced::Executor for Executor {
     }
 }
 
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum SaveKind {
+    Config,
+    Cache,
+    Backup(String),
+}
+
 #[derive(Default)]
 pub struct App {
     config: Config,
@@ -76,12 +86,14 @@ pub struct App {
     text_histories: TextHistories,
     rclone_monitor_sender: Option<iced::futures::channel::mpsc::Sender<rclone_monitor::Input>>,
     exiting: bool,
+    pending_save: HashMap<SaveKind, Instant>,
     modifiers: keyboard::Modifiers,
 }
 
 impl App {
     fn go_idle(&mut self) {
         if self.exiting {
+            self.save();
             std::process::exit(0);
         }
 
@@ -129,6 +141,38 @@ impl App {
 
     fn show_error(&mut self, error: Error) -> Command<Message> {
         self.show_modal(Modal::Error { variant: error })
+    }
+
+    fn save(&mut self) {
+        let threshold = Duration::from_secs(1);
+        let now = Instant::now();
+
+        self.pending_save.retain(|item, then| {
+            if (now - *then) < threshold {
+                return true;
+            }
+
+            match item {
+                SaveKind::Config => self.config.save(),
+                SaveKind::Cache => self.cache.save(),
+                SaveKind::Backup(game) => self.restore_screen.log.save_layout(game),
+            }
+
+            false
+        });
+    }
+
+    fn save_config(&mut self) {
+        self.pending_save.insert(SaveKind::Config, Instant::now());
+    }
+
+    fn save_cache(&mut self) {
+        self.pending_save.insert(SaveKind::Cache, Instant::now());
+    }
+
+    fn save_backup(&mut self, game: &str) {
+        self.pending_save
+            .insert(SaveKind::Backup(game.to_string()), Instant::now());
     }
 
     fn invalidate_path_caches(&self) {
@@ -359,7 +403,7 @@ impl App {
                             );
                         }
                         self.cache.backup.recent_games.retain(|x| !games.contains(x));
-                        self.cache.save();
+                        self.save_cache();
                     }
                     self.go_idle();
                     return Command::none();
@@ -391,7 +435,7 @@ impl App {
                             }
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                                 // TODO: https://github.com/hecrj/iced/issues/436
-                                std::thread::sleep(std::time::Duration::from_millis(1));
+                                std::thread::sleep(Duration::from_millis(1));
                                 return (None, None, OperationStepDecision::Cancelled);
                             }
 
@@ -575,7 +619,7 @@ impl App {
                     self.backup_screen.previewed_games.clear();
                 }
 
-                self.cache.save();
+                self.save_cache();
 
                 if failed {
                     self.operation.push_error(Error::SomeEntriesFailed);
@@ -702,7 +746,7 @@ impl App {
                             );
                         }
                         self.cache.restore.recent_games.retain(|x| !games.contains(x));
-                        self.cache.save();
+                        self.save_cache();
                     }
                     self.go_idle();
                     return Command::none();
@@ -726,7 +770,7 @@ impl App {
 
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                                 // TODO: https://github.com/hecrj/iced/issues/436
-                                std::thread::sleep(std::time::Duration::from_millis(1));
+                                std::thread::sleep(Duration::from_millis(1));
                                 return (None, None, OperationStepDecision::Cancelled, layout);
                             }
 
@@ -856,7 +900,7 @@ impl App {
                     }
                 }
 
-                self.cache.save();
+                self.save_cache();
 
                 if failed {
                     self.operation.push_error(Error::SomeEntriesFailed);
@@ -940,7 +984,7 @@ impl App {
                         async move {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                                 // TODO: https://github.com/hecrj/iced/issues/436
-                                std::thread::sleep(std::time::Duration::from_millis(1));
+                                std::thread::sleep(Duration::from_millis(1));
                                 return (name, true);
                             }
 
@@ -1054,7 +1098,7 @@ impl App {
 
         self.text_histories.add_custom_game(&game);
         self.config.custom_games.push(game);
-        self.config.save();
+        self.save_config();
 
         self.switch_screen(Screen::CustomGames)
     }
@@ -1071,7 +1115,7 @@ impl App {
 
         self.text_histories.add_custom_game(&game);
         self.config.custom_games.push(game);
-        self.config.save();
+        self.save_config();
 
         self.switch_screen(Screen::CustomGames)
     }
@@ -1252,11 +1296,16 @@ impl Application for App {
             Message::CloseModal => self.close_modal(),
             Message::Exit { user } => {
                 if self.operation.idle() || (user && self.exiting) {
+                    self.save();
                     std::process::exit(0)
                 } else {
                     self.exiting = true;
                     Command::batch([self.show_modal(Modal::Exiting), self.cancel_operation()])
                 }
+            }
+            Message::Save => {
+                self.save();
+                Command::none()
             }
             Message::UpdateTime => {
                 self.progress.update_time();
@@ -1301,7 +1350,7 @@ impl Application for App {
                     }
                 }
 
-                self.cache.save();
+                self.save_cache();
 
                 match Manifest::load() {
                     Ok(x) => {
@@ -1325,13 +1374,13 @@ impl Application for App {
             Message::EditedBackupTarget(text) => {
                 self.text_histories.backup_target.push(&text);
                 self.config.backup.path.reset(text);
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedRestoreSource(text) => {
                 self.text_histories.restore_source.push(&text);
                 self.config.restore.path.reset(text);
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::FindRoots => {
@@ -1340,7 +1389,7 @@ impl Application for App {
                     self.show_modal(Modal::NoMissingRoots)
                 } else {
                     self.cache.add_roots(&missing);
-                    self.cache.save();
+                    self.save_cache();
                     self.show_modal(Modal::ConfirmAddMissingRoots(missing))
                 }
             }
@@ -1349,7 +1398,7 @@ impl Application for App {
                     self.text_histories.roots.push(TextHistory::raw(&root.path.render()));
                     self.config.roots.push(root);
                 }
-                self.config.save();
+                self.save_config();
                 self.go_idle();
                 Command::none()
             }
@@ -1376,7 +1425,7 @@ impl Application for App {
                         self.config.roots.swap(index, offset);
                     }
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedSecondaryManifest(action) => {
@@ -1399,22 +1448,22 @@ impl Application for App {
                         self.config.manifest.secondary.swap(index, offset);
                     }
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SelectedRootStore(index, store) => {
                 self.config.roots[index].store = store;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SelectedRedirectKind(index, kind) => {
                 self.config.redirects[index].kind = kind;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SelectedSecondaryManifestKind(index, kind) => {
                 self.config.manifest.secondary[index].convert(kind);
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SelectedCustomGameKind(index, kind) => {
@@ -1425,7 +1474,7 @@ impl Application for App {
                     }
                     CustomGameKind::Alias => {}
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedRedirect(action, field) => {
@@ -1455,7 +1504,7 @@ impl Application for App {
                         self.config.redirects.swap(index, offset);
                     }
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedCustomGame(action) => {
@@ -1480,7 +1529,7 @@ impl Application for App {
                         self.config.custom_games.swap(index, offset);
                     }
                 }
-                self.config.save();
+                self.save_config();
                 if snap {
                     self.scroll_offsets.insert(
                         ScrollSubject::CustomGames,
@@ -1495,13 +1544,13 @@ impl Application for App {
                 self.text_histories.custom_games[index].alias.push(&value);
                 self.config.custom_games[index].alias = Some(value);
 
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedCustomGaleAliasDisplay(index, value) => {
                 self.config.custom_games[index].prefer_alias = value;
 
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedCustomGameFile(game_index, action) => {
@@ -1526,7 +1575,7 @@ impl Application for App {
                         self.config.custom_games[game_index].files.swap(index, offset);
                     }
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedCustomGameRegistry(game_index, action) => {
@@ -1553,12 +1602,12 @@ impl Application for App {
                         self.config.custom_games[game_index].registry.swap(index, offset);
                     }
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedExcludeStoreScreenshots(enabled) => {
                 self.config.backup.filter.exclude_store_screenshots = enabled;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedBackupFilterIgnoredPath(action) => {
@@ -1586,7 +1635,7 @@ impl Application for App {
                     }
                 }
                 self.config.backup.filter.build_globs();
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedBackupFilterIgnoredRegistry(action) => {
@@ -1615,7 +1664,7 @@ impl Application for App {
                         self.config.backup.filter.ignored_registry.swap(index, offset);
                     }
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SwitchScreen(screen) => self.switch_screen(screen),
@@ -1676,7 +1725,7 @@ impl Application for App {
                     (true, false) => self.config.disable_game_for_restore(&name),
                     (true, true) => self.config.enable_game_for_restore(&name),
                 };
-                self.config.save();
+                self.save_config();
 
                 if restoring {
                     self.restore_screen.log.refresh_game_tree(
@@ -1702,7 +1751,7 @@ impl Application for App {
                 } else {
                     self.config.disable_custom_game(index);
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::ToggleSearch { screen } => match screen {
@@ -1739,7 +1788,7 @@ impl Application for App {
                         restoring,
                     );
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::ToggleSpecificGameRegistryIgnored {
@@ -1766,7 +1815,7 @@ impl Application for App {
                         restoring,
                     );
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedSearchGameName { screen, value } => {
@@ -1840,7 +1889,7 @@ impl Application for App {
                     }
                     _ => {}
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedSortReversed { screen, value } => {
@@ -1855,7 +1904,7 @@ impl Application for App {
                     }
                     _ => {}
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::BrowseDir(subject) => Command::perform(
@@ -1912,7 +1961,7 @@ impl Application for App {
                         self.config.manifest.secondary[i].set(path.raw());
                     }
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SelectAllGames => {
@@ -1934,7 +1983,7 @@ impl Application for App {
                     }
                     _ => {}
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::DeselectAllGames => {
@@ -1956,7 +2005,7 @@ impl Application for App {
                     }
                     _ => {}
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::OpenDir { path } => {
@@ -2125,21 +2174,25 @@ impl Application for App {
                                 Shortcut::Undo => info.undo(),
                                 Shortcut::Redo => info.redo(),
                             };
-                            self.restore_screen.log.set_comment(&game, comment);
+
+                            let updated = self.restore_screen.log.set_comment(&game, comment);
+                            if updated {
+                                self.save_backup(&game);
+                            }
                         }
                     }
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedFullRetention(value) => {
                 self.config.backup.retention.full = value;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedDiffRetention(value) => {
                 self.config.backup.retention.differential = value;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SelectedBackupToRestore { game, backup } => {
@@ -2152,27 +2205,27 @@ impl Application for App {
             Message::SelectedLanguage(language) => {
                 TRANSLATOR.set_language(language);
                 self.config.language = language;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SelectedTheme(theme) => {
                 self.config.theme = theme;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SelectedBackupFormat(format) => {
                 self.config.backup.format.chosen = format;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SelectedBackupCompression(compression) => {
                 self.config.backup.format.zip.compression = compression;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedCompressionLevel(value) => {
                 self.config.backup.format.set_level(value);
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::ToggleBackupSettings => {
@@ -2181,7 +2234,7 @@ impl Application for App {
             }
             Message::ToggleCloudSynchronize => {
                 self.config.cloud.synchronize = !self.config.cloud.synchronize;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::GameAction { action, game } => match action {
@@ -2223,7 +2276,10 @@ impl Application for App {
                 GameAction::Wiki => Self::open_wiki(game),
                 GameAction::Comment => self.toggle_backup_comment_editor(game),
                 GameAction::Lock | GameAction::Unlock => {
-                    self.restore_screen.log.toggle_locked(&game);
+                    let updated = self.restore_screen.log.toggle_locked(&game);
+                    if updated {
+                        self.save_backup(&game);
+                    }
                     Command::none()
                 }
                 GameAction::MakeAlias => self.customize_game_as_alias(game),
@@ -2240,22 +2296,27 @@ impl Application for App {
                 if let Some(info) = self.text_histories.backup_comments.get_mut(&game) {
                     info.push(&comment);
                 }
-                self.restore_screen.log.set_comment(&game, comment);
+
+                let updated = self.restore_screen.log.set_comment(&game, comment);
+                if updated {
+                    self.save_backup(&game);
+                }
+
                 Command::none()
             }
             Message::SetShowDeselectedGames(value) => {
                 self.config.scan.show_deselected_games = value;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SetShowUnchangedGames(value) => {
                 self.config.scan.show_unchanged_games = value;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::SetShowUnscannedGames(value) => {
                 self.config.scan.show_unscanned_games = value;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::FilterDuplicates { restoring, game } => {
@@ -2269,24 +2330,24 @@ impl Application for App {
             }
             Message::OverrideMaxThreads(overridden) => {
                 self.config.override_threads(overridden);
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedMaxThreads(threads) => {
                 self.config.set_threads(threads);
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedRcloneExecutable(text) => {
                 self.text_histories.rclone_executable.push(&text);
                 self.config.apps.rclone.path.reset(text);
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedRcloneArguments(text) => {
                 self.text_histories.rclone_arguments.push(&text);
                 self.config.apps.rclone.arguments = text;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedCloudRemoteId(text) => {
@@ -2294,13 +2355,13 @@ impl Application for App {
                 if let Some(Remote::Custom { id }) = &mut self.config.cloud.remote {
                     *id = text;
                 }
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::EditedCloudPath(text) => {
                 self.text_histories.cloud_path.push(&text);
                 self.config.cloud.path = text;
-                self.config.save();
+                self.save_config();
                 Command::none()
             }
             Message::OpenUrl(url) => Self::open_url(url),
@@ -2310,7 +2371,7 @@ impl Application for App {
                         Remote::Custom { id } => {
                             self.text_histories.cloud_remote_id.push(id);
                             self.config.cloud.remote = Some(remote);
-                            self.config.save();
+                            self.save_config();
                             Command::none()
                         }
                         Remote::Ftp {
@@ -2361,7 +2422,7 @@ impl Application for App {
                     }
                 } else {
                     self.config.cloud.remote = None;
-                    self.config.save();
+                    self.save_config();
                     Command::none()
                 }
             }
@@ -2369,14 +2430,14 @@ impl Application for App {
                 self.text_histories.clear_modal_fields();
 
                 self.config.cloud.remote = Some(remote);
-                self.config.save();
+                self.save_config();
                 self.close_modal()
             }
             Message::ConfigureCloudFailure(error) => {
                 self.text_histories.clear_modal_fields();
 
                 self.config.cloud.remote = None;
-                self.config.save();
+                self.save_config();
                 self.show_error(Error::UnableToConfigureCloud(error))
             }
             Message::ConfirmSynchronizeCloud { direction } => {
@@ -2520,17 +2581,19 @@ impl Application for App {
         ];
 
         if self.timed_notification.is_some() {
-            subscriptions
-                .push(iced::time::every(std::time::Duration::from_millis(250)).map(|_| Message::PruneNotifications));
+            subscriptions.push(iced::time::every(Duration::from_millis(250)).map(|_| Message::PruneNotifications));
         }
 
         if self.progress.visible() {
-            subscriptions.push(iced::time::every(std::time::Duration::from_millis(100)).map(|_| Message::UpdateTime));
+            subscriptions.push(iced::time::every(Duration::from_millis(100)).map(|_| Message::UpdateTime));
+        }
+
+        if !self.pending_save.is_empty() {
+            subscriptions.push(iced::time::every(Duration::from_millis(200)).map(|_| Message::Save));
         }
 
         if self.exiting {
-            subscriptions
-                .push(iced::time::every(std::time::Duration::from_millis(50)).map(|_| Message::Exit { user: false }));
+            subscriptions.push(iced::time::every(Duration::from_millis(50)).map(|_| Message::Exit { user: false }));
         }
 
         iced::subscription::Subscription::batch(subscriptions)

@@ -104,6 +104,7 @@ pub enum Message {
     Exit {
         user: bool,
     },
+    Save,
     CloseModal,
     UpdateTime,
     PruneNotifications,
