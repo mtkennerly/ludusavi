@@ -105,8 +105,8 @@ pub fn manifest<'a>(
                 .spacing(20)
                 .align_items(Alignment::Center)
                 .push(iced::widget::TextInput::new("", &config.manifest.url).width(Length::Fill))
-                .push_some(|| get_checked(Some(&config.manifest.url), cache))
-                .push_some(|| get_updated(Some(&config.manifest.url), cache))
+                .push_maybe(get_checked(Some(&config.manifest.url), cache))
+                .push_maybe(get_updated(Some(&config.manifest.url), cache))
                 .push_if(
                     || !config.manifest.secondary.is_empty(),
                     || Space::with_width(right_offset),
@@ -139,9 +139,9 @@ pub fn manifest<'a>(
                         .width(75),
                     )
                     .push(histories.input(UndoSubject::SecondaryManifest(i)))
-                    .push_some(|| get_checked(config.manifest.secondary[i].url(), cache))
-                    .push_some(|| get_updated(config.manifest.secondary[i].url(), cache))
-                    .push_some(|| match config.manifest.secondary[i].kind() {
+                    .push_maybe(get_checked(config.manifest.secondary[i].url(), cache))
+                    .push_maybe(get_updated(config.manifest.secondary[i].url(), cache))
+                    .push_maybe(match config.manifest.secondary[i].kind() {
                         SecondaryManifestConfigKind::Local => {
                             Some(button::choose_file(BrowseFileSubject::SecondaryManifest(i), modifiers))
                         }

@@ -159,16 +159,15 @@ impl FileTreeNode {
                                 .width(25),
                         ),
                     })
-                    .push_some(make_enabler)
+                    .push_maybe(make_enabler())
                     .push(text(label))
-                    .push_some(|| {
-                        let badge = match self.change {
-                            ScanChange::Same | ScanChange::Unknown => return None,
-                            ScanChange::New => Badge::new_entry(),
-                            ScanChange::Different => Badge::changed_entry(),
-                            ScanChange::Removed => Badge::removed_entry(),
-                        };
-                        Some(badge.view())
+                    .push_maybe({
+                        match self.change {
+                            ScanChange::Same | ScanChange::Unknown => None,
+                            ScanChange::New => Some(Badge::new_entry().view()),
+                            ScanChange::Different => Some(Badge::changed_entry().view()),
+                            ScanChange::Removed => Some(Badge::removed_entry().view()),
+                        }
                     })
                     .push_if(
                         || !self.duplicated.unique(),
@@ -183,7 +182,7 @@ impl FileTreeNode {
                             .as_ref()
                             .map(|x| Badge::new(&TRANSLATOR.badge_failed()).tooltip(x.clone()).view()),
                     )
-                    .push_some(|| {
+                    .push_maybe({
                         self.scanned_file.as_ref().and_then(|scanned| {
                             let restoring = scanned.restoring();
                             scanned.alt(restoring).as_ref().map(|alt| {
@@ -196,7 +195,7 @@ impl FileTreeNode {
                             })
                         })
                     })
-                    .push_some(|| {
+                    .push_maybe({
                         self.scanned_file.as_ref().map(|f| {
                             let size = TRANSLATOR.adjusted_size(f.size);
                             Badge::new(&size).faded(f.ignored).view()
@@ -242,24 +241,22 @@ impl FileTreeNode {
                             .height(25)
                             .width(25),
                         )
-                        .push_some(make_enabler)
+                        .push_maybe(make_enabler())
                         .push(text(if label.is_empty() && self.node_type == FileTreeNodeType::File {
                             "/".to_string()
                         } else {
                             label
                         }))
-                        .push_some(|| {
-                            if let FileTreeNodePath::File(path) = &self.path {
-                                return Some(
-                                    Button::new(Icon::OpenInNew.text_small())
-                                        .on_press(Message::OpenDir { path: path.clone() })
-                                        .style(style::Button::Primary)
-                                        .height(25),
-                                );
-                            }
-                            None
+                        .push_maybe(match &self.path {
+                            FileTreeNodePath::File(path) => Some(
+                                Button::new(Icon::OpenInNew.text_small())
+                                    .on_press(Message::OpenDir { path: path.clone() })
+                                    .style(style::Button::Primary)
+                                    .height(25),
+                            ),
+                            FileTreeNodePath::RegistryKey(..) | FileTreeNodePath::RegistryValue(..) => None,
                         })
-                        .push_some(|| {
+                        .push_maybe({
                             let total_bytes = self.calculate_directory_size(true);
                             let total_size = total_bytes.map(|bytes| TRANSLATOR.adjusted_size(bytes));
 

@@ -246,10 +246,10 @@ impl Progress {
                 .spacing(5)
                 .padding([0, 5, 0, 5])
                 .align_items(Alignment::Center)
-                .push_some(|| label.map(|x| text(x).size(text_size)))
-                .push_some(|| elapsed.map(|x| text(x).size(text_size)))
+                .push_maybe(label.map(|x| text(x).size(text_size)))
+                .push_maybe(elapsed.map(|x| text(x).size(text_size)))
                 .push(ProgressBar::new(0.0..=self.max, self.current).height(8))
-                .push_some(|| count.map(|x| text(x).size(text_size))),
+                .push_maybe(count.map(|x| text(x).size(text_size))),
         )
         .height(16)
         .style(style::Container::ModalBackground)
@@ -259,10 +259,6 @@ impl Progress {
 
 pub trait IcedParentExt<'a> {
     fn push_if<E>(self, condition: impl FnOnce() -> bool, element: impl FnOnce() -> E) -> Self
-    where
-        E: Into<Element<'a>>;
-
-    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
     where
         E: Into<Element<'a>>;
 }
@@ -278,17 +274,6 @@ impl<'a> IcedParentExt<'a> for Column<'a> {
             self
         }
     }
-
-    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
-    where
-        E: Into<Element<'a>>,
-    {
-        if let Some(element) = element() {
-            self.push(element.into())
-        } else {
-            self
-        }
-    }
 }
 
 impl<'a> IcedParentExt<'a> for Row<'a> {
@@ -298,17 +283,6 @@ impl<'a> IcedParentExt<'a> for Row<'a> {
     {
         if condition() {
             self.push(element().into())
-        } else {
-            self
-        }
-    }
-
-    fn push_some<E>(self, element: impl FnOnce() -> Option<E>) -> Self
-    where
-        E: Into<Element<'a>>,
-    {
-        if let Some(element) = element() {
-            self.push(element.into())
         } else {
             self
         }

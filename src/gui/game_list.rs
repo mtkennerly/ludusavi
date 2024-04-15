@@ -124,7 +124,7 @@ impl GameListEntry {
                             .width(Length::Fill)
                             .padding(2),
                         )
-                        .push_some(|| match changes {
+                        .push_maybe(match changes {
                             ScanChange::New => Some(Badge::new_entry().view()),
                             ScanChange::Different => Some(Badge::changed_entry().view()),
                             ScanChange::Removed => None,
@@ -172,7 +172,7 @@ impl GameListEntry {
                             },
                         )
                         .push_if(|| !successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
-                        .push_some(|| {
+                        .push_maybe({
                             self.scan_info
                                 .backup
                                 .as_ref()
@@ -187,7 +187,7 @@ impl GameListEntry {
                                     .style(style::Container::Tooltip)
                                 })
                         })
-                        .push_some(|| {
+                        .push_maybe({
                             self.scan_info
                                 .backup
                                 .as_ref()
@@ -196,7 +196,7 @@ impl GameListEntry {
                                     (os != Os::HOST && os != Os::Other).then(|| Badge::new(&format!("{os:?}")).view())
                                 })
                         })
-                        .push_some(|| {
+                        .push_maybe({
                             self.scan_info
                                 .backup
                                 .as_ref()
@@ -204,7 +204,7 @@ impl GameListEntry {
                         })
                         .push(
                             Row::new()
-                                .push_some(|| {
+                                .push_maybe({
                                     if self.scan_info.available_backups.len() == 1 {
                                         self.scan_info.backup.as_ref().map(|backup| {
                                             Container::new(
@@ -221,7 +221,7 @@ impl GameListEntry {
                                         })
                                     } else if !self.scan_info.available_backups.is_empty() {
                                         if operating {
-                                            return self.scan_info.backup.as_ref().map(|backup| {
+                                            self.scan_info.backup.as_ref().map(|backup| {
                                                 Container::new(
                                                     Container::new(
                                                         text(backup.label())
@@ -236,29 +236,29 @@ impl GameListEntry {
                                                     .style(style::Container::DisabledBackup),
                                                 )
                                                 .padding([0, 2, 0, 0])
-                                            });
-                                        }
-
-                                        let game = self.scan_info.game_name.clone();
-                                        let content = Container::new(
-                                            pick_list(
-                                                self.scan_info.available_backups.clone(),
-                                                self.scan_info.backup.as_ref().cloned(),
-                                                move |backup| Message::SelectedBackupToRestore {
-                                                    game: game.clone(),
-                                                    backup,
-                                                },
+                                            })
+                                        } else {
+                                            let game = self.scan_info.game_name.clone();
+                                            let content = Container::new(
+                                                pick_list(
+                                                    self.scan_info.available_backups.clone(),
+                                                    self.scan_info.backup.as_ref().cloned(),
+                                                    move |backup| Message::SelectedBackupToRestore {
+                                                        game: game.clone(),
+                                                        backup,
+                                                    },
+                                                )
+                                                .text_size(12)
+                                                .width(Length::Fill)
+                                                .style(style::PickList::Backup),
                                             )
-                                            .text_size(12)
-                                            .width(Length::Fill)
-                                            .style(style::PickList::Backup),
-                                        )
-                                        .width(150)
-                                        .height(25)
-                                        .padding([0, 2, 0, 0])
-                                        .center_x()
-                                        .center_y();
-                                        Some(content)
+                                            .width(150)
+                                            .height(25)
+                                            .padding([0, 2, 0, 0])
+                                            .center_x()
+                                            .center_y();
+                                            Some(content)
+                                        }
                                     } else {
                                         None
                                     }
@@ -340,18 +340,17 @@ impl GameListEntry {
                                 ),
                         ),
                 )
-                .push_some(move || {
-                    if !self.show_comment_editor {
-                        return None;
-                    }
-                    let comment = self
-                        .scan_info
-                        .backup
-                        .as_ref()
-                        .and_then(|x| x.comment().as_ref())
-                        .map(|x| x.as_str())
-                        .unwrap_or_else(|| "");
-                    Some(
+                .push_if(
+                    || self.show_comment_editor,
+                    || {
+                        let comment = self
+                            .scan_info
+                            .backup
+                            .as_ref()
+                            .and_then(|x| x.comment().as_ref())
+                            .map(|x| x.as_str())
+                            .unwrap_or_else(|| "");
+
                         Row::new()
                             .align_items(Alignment::Center)
                             .padding([0, 20])
@@ -368,10 +367,10 @@ impl GameListEntry {
                             .push(button::hide(Message::GameAction {
                                 action: GameAction::Comment,
                                 game: name_for_comment2,
-                            })),
-                    )
-                })
-                .push_some(|| {
+                            }))
+                    },
+                )
+                .push_maybe({
                     expanded
                         .then(|| {
                             self.tree.as_ref().map(|tree| {
@@ -444,7 +443,7 @@ impl GameList {
 
         Container::new(
             Column::new()
-                .push_some(|| {
+                .push_maybe({
                     self.search.view(
                         if restoring { Screen::Restore } else { Screen::Backup },
                         histories,

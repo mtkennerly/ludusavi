@@ -188,7 +188,7 @@ impl Backup {
                                     )
                             },
                         )
-                        .push_some(|| match (config.backup.format.level(), config.backup.format.range()) {
+                        .push_maybe(match (config.backup.format.level(), config.backup.format.range()) {
                             (Some(level), Some(range)) => Some(number_input(
                                 level,
                                 TRANSLATOR.backup_compression_level_field(),
@@ -370,7 +370,7 @@ pub fn other<'a>(
                             Column::new()
                                 .padding(5)
                                 .spacing(10)
-                                .push_some(|| {
+                                .push_maybe({
                                     AVAILABLE_PARALELLISM.map(|max_threads| {
                                         Column::new()
                                             .spacing(5)
@@ -379,7 +379,7 @@ pub fn other<'a>(
                                                 config.runtime.threads.is_some(),
                                                 Message::OverrideMaxThreads,
                                             ))
-                                            .push_some(|| {
+                                            .push_maybe({
                                                 config.runtime.threads.map(|threads| {
                                                     Container::new(number_input(
                                                         threads.get() as i32,

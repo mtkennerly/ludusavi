@@ -2570,7 +2570,7 @@ impl Application for App {
                     &self.modifiers,
                 ),
             })
-            .push_some(|| self.timed_notification.as_ref().map(|x| x.view()))
+            .push_maybe(self.timed_notification.as_ref().map(|x| x.view()))
             .push_if(
                 || self.updating_manifest,
                 || Notification::new(TRANSLATOR.updating_manifest()).view(),
