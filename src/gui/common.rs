@@ -617,7 +617,7 @@ pub enum BrowseFileSubject {
     SecondaryManifest(usize),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub enum UndoSubject {
     BackupTarget,
     RestoreSource,
@@ -638,6 +638,7 @@ pub enum UndoSubject {
     CloudRemoteId,
     CloudPath,
     ModalField(ModalInputKind),
+    BackupComment(String),
 }
 
 impl UndoSubject {
@@ -660,7 +661,8 @@ impl UndoSubject {
             | UndoSubject::RcloneExecutable
             | UndoSubject::RcloneArguments
             | UndoSubject::CloudRemoteId
-            | UndoSubject::CloudPath => Privacy::Public,
+            | UndoSubject::CloudPath
+            | UndoSubject::BackupComment(_) => Privacy::Public,
             UndoSubject::ModalField(field) => match field {
                 ModalInputKind::Url | ModalInputKind::Host | ModalInputKind::Port | ModalInputKind::Username => {
                     Privacy::Public

@@ -95,10 +95,10 @@ impl Backup {
         }
     }
 
-    pub fn comment(&self) -> &Option<String> {
+    pub fn comment(&self) -> Option<&String> {
         match self {
-            Self::Full(x) => &x.comment,
-            Self::Differential(x) => &x.comment,
+            Self::Full(x) => x.comment.as_ref(),
+            Self::Differential(x) => x.comment.as_ref(),
         }
     }
 

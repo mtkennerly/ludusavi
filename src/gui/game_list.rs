@@ -6,15 +6,13 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{BackupPhase, GameAction, Message, Operation, RestorePhase, Screen, ScrollSubject},
+        common::{BackupPhase, GameAction, Message, Operation, RestorePhase, Screen, ScrollSubject, UndoSubject},
         file_tree::FileTree,
         icon::Icon,
         search::FilterComponent,
         shortcuts::TextHistories,
         style,
-        widget::{
-            checkbox, pick_list, text, Button, Column, Container, IcedButtonExt, IcedParentExt, Row, TextInput, Tooltip,
-        },
+        widget::{checkbox, pick_list, text, Button, Column, Container, IcedButtonExt, IcedParentExt, Row, Tooltip},
     },
     lang::TRANSLATOR,
     resource::{
@@ -50,6 +48,7 @@ impl GameListEntry {
         expanded: bool,
         modifiers: &Modifiers,
         filtering_duplicates: bool,
+        histories: &TextHistories,
     ) -> Container {
         let successful = match &self.backup_info {
             Some(x) => x.successful(),
@@ -61,10 +60,6 @@ impl GameListEntry {
         let customized = config.is_game_customized(&self.scan_info.game_name);
         let customized_pure = customized && !manifest.0.contains_key(&self.scan_info.game_name);
         let name = self.scan_info.game_name.clone();
-        let name_for_checkbox = self.scan_info.game_name.clone();
-        let name_for_comment = self.scan_info.game_name.clone();
-        let name_for_comment2 = self.scan_info.game_name.clone();
-        let name_for_duplicate_toggle = self.scan_info.game_name.clone();
         let operating = !operation.idle();
         let changes = self.scan_info.overall_change();
         let duplication = duplicate_detector.is_game_duplicated(&self.scan_info.game_name);
@@ -79,15 +74,16 @@ impl GameListEntry {
                     Row::new()
                         .spacing(15)
                         .align_items(Alignment::Center)
-                        .push(
+                        .push({
+                            let name = name.clone();
                             checkbox("", enabled, move |enabled| Message::ToggleGameListEntryEnabled {
-                                name: name_for_checkbox.clone(),
+                                name: name.clone(),
                                 enabled,
                                 restoring,
                             })
                             .spacing(0)
-                            .style(style::Checkbox),
-                        )
+                            .style(style::Checkbox)
+                        })
                         .push(
                             Button::new(
                                 text(display_name.to_string()).horizontal_alignment(HorizontalAlignment::Center),
@@ -143,7 +139,7 @@ impl GameListEntry {
                                 .faded(duplication.resolved())
                                 .on_press(Message::FilterDuplicates {
                                     restoring,
-                                    game: (!filtering_duplicates).then_some(name_for_duplicate_toggle),
+                                    game: (!filtering_duplicates).then_some(name.clone()),
                                 })
                                 .view()
                         })
@@ -164,7 +160,7 @@ impl GameListEntry {
                             self.scan_info
                                 .backup
                                 .as_ref()
-                                .and_then(|backup| backup.comment().as_ref())
+                                .and_then(|backup| backup.comment())
                                 .map(|comment| {
                                     Tooltip::new(
                                         Icon::Comment.text().width(Length::Shrink),
@@ -326,30 +322,15 @@ impl GameListEntry {
                         ),
                 )
                 .push_if(self.show_comment_editor, || {
-                    let comment = self
-                        .scan_info
-                        .backup
-                        .as_ref()
-                        .and_then(|x| x.comment().as_ref())
-                        .map(|x| x.as_str())
-                        .unwrap_or_else(|| "");
-
                     Row::new()
                         .align_items(Alignment::Center)
                         .padding([0, 20])
                         .spacing(20)
                         .push(text(TRANSLATOR.comment_label()))
-                        .push(
-                            TextInput::new(&TRANSLATOR.comment_label(), comment).on_input(move |value| {
-                                Message::EditedBackupComment {
-                                    game: name_for_comment.clone(),
-                                    comment: value,
-                                }
-                            }),
-                        )
+                        .push(histories.input(UndoSubject::BackupComment(self.scan_info.game_name.clone())))
                         .push(button::hide(Message::GameAction {
                             action: GameAction::Comment,
-                            game: name_for_comment2,
+                            game: name.clone(),
                         }))
                 })
                 .push_maybe({
@@ -471,6 +452,7 @@ impl GameList {
                                     self.expanded_games.contains(&x.scan_info.game_name),
                                     modifiers,
                                     duplicatees.is_some(),
+                                    histories,
                                 ))
                             },
                         );

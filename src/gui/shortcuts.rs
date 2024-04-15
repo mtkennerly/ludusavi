@@ -1,7 +1,7 @@
 // Iced has built-in support for some keyboard shortcuts. This module provides
 // support for implementing other shortcuts until Iced provides its own support.
 
-use std::collections::VecDeque;
+use std::collections::{HashMap, VecDeque};
 
 use iced::{widget::text_input, Length};
 
@@ -208,6 +208,7 @@ pub struct TextHistories {
     pub cloud_remote_id: TextHistory,
     pub cloud_path: TextHistory,
     pub modal: ModalHistory,
+    pub backup_comments: HashMap<String, TextHistory>,
 }
 
 impl TextHistories {
@@ -277,7 +278,7 @@ impl TextHistories {
     }
 
     pub fn input<'a>(&self, subject: UndoSubject) -> Element<'a> {
-        let current = match subject {
+        let current = match subject.clone() {
             UndoSubject::BackupTarget => self.backup_target.current(),
             UndoSubject::RestoreSource => self.restore_source.current(),
             UndoSubject::BackupSearchGameName => self.backup_search_game_name.current(),
@@ -321,9 +322,12 @@ impl TextHistories {
                 ModalInputKind::Username => self.modal.username.current(),
                 ModalInputKind::Password => self.modal.password.current(),
             },
+            UndoSubject::BackupComment(game) => {
+                self.backup_comments.get(&game).map(|x| x.current()).unwrap_or_default()
+            }
         };
 
-        let event: Box<dyn Fn(String) -> Message> = match subject {
+        let event: Box<dyn Fn(String) -> Message> = match subject.clone() {
             UndoSubject::BackupTarget => Box::new(Message::EditedBackupTarget),
             UndoSubject::RestoreSource => Box::new(Message::EditedRestoreSource),
             UndoSubject::BackupSearchGameName => Box::new(|value| Message::EditedSearchGameName {
@@ -373,9 +377,13 @@ impl TextHistories {
                     ModalInputKind::Password => ModalField::Password(value),
                 })
             }),
+            UndoSubject::BackupComment(game) => Box::new(move |comment| Message::EditedBackupComment {
+                game: game.clone(),
+                comment,
+            }),
         };
 
-        let placeholder = match subject {
+        let placeholder = match &subject {
             UndoSubject::BackupTarget => "".to_string(),
             UndoSubject::RestoreSource => "".to_string(),
             UndoSubject::BackupSearchGameName => TRANSLATOR.search_game_name_placeholder(),
@@ -395,9 +403,10 @@ impl TextHistories {
             UndoSubject::CloudRemoteId => "".to_string(),
             UndoSubject::CloudPath => "".to_string(),
             UndoSubject::ModalField(_) => "".to_string(),
+            UndoSubject::BackupComment(_) => TRANSLATOR.comment_label(),
         };
 
-        let icon = match subject {
+        let icon = match &subject {
             UndoSubject::BackupTarget
             | UndoSubject::RestoreSource
             | UndoSubject::Root(_)
@@ -422,10 +431,11 @@ impl TextHistories {
             | UndoSubject::RcloneArguments
             | UndoSubject::CloudRemoteId
             | UndoSubject::CloudPath
-            | UndoSubject::ModalField(_) => None,
+            | UndoSubject::ModalField(_)
+            | UndoSubject::BackupComment(_) => None,
         };
 
-        let id = match subject {
+        let id = match &subject {
             UndoSubject::BackupSearchGameName => Some(id::backup_search()),
             UndoSubject::RestoreSearchGameName => Some(id::restore_search()),
             _ => None,
@@ -453,7 +463,7 @@ impl TextHistories {
 
                 input
             },
-            move |action| Message::UndoRedo(action, subject),
+            move |action| Message::UndoRedo(action, subject.clone()),
         )
         .into()
     }

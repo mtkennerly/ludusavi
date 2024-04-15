@@ -780,6 +780,12 @@ impl App {
                         scan_info.game_name
                     );
                     if scan_info.can_report_game() {
+                        let comment = scan_info.backup.as_ref().and_then(|x| x.comment()).map(|x| x.as_str());
+                        self.text_histories.backup_comments.insert(
+                            scan_info.game_name.clone(),
+                            TextHistory::raw(comment.unwrap_or_default()),
+                        );
+
                         let duplicates = self.restore_screen.duplicate_detector.add_game(
                             &scan_info,
                             self.config
@@ -2113,6 +2119,15 @@ impl Application for App {
                         }
                         return Command::none();
                     }
+                    UndoSubject::BackupComment(game) => {
+                        if let Some(info) = self.text_histories.backup_comments.get_mut(&game) {
+                            let comment = match shortcut {
+                                Shortcut::Undo => info.undo(),
+                                Shortcut::Redo => info.redo(),
+                            };
+                            self.restore_screen.log.set_comment(&game, comment);
+                        }
+                    }
                 }
                 self.config.save();
                 Command::none()
@@ -2222,6 +2237,9 @@ impl Application for App {
                 scrollable::scroll_to(subject.id(), position)
             }
             Message::EditedBackupComment { game, comment } => {
+                if let Some(info) = self.text_histories.backup_comments.get_mut(&game) {
+                    info.push(&comment);
+                }
                 self.restore_screen.log.set_comment(&game, comment);
                 Command::none()
             }

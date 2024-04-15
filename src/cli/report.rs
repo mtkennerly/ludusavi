@@ -480,7 +480,7 @@ impl Reporter {
                         name: backup.name().to_string(),
                         when: *backup.when(),
                         os: backup.os(),
-                        comment: backup.comment().to_owned(),
+                        comment: backup.comment().cloned(),
                         locked: backup.locked(),
                     });
                 }

@@ -20,6 +20,7 @@
     the progress bar timer wouldn't update.
   * GUI: After performing a cloud upload preview on the other screen,
     the very next backup preview wouldn't do anything.
+  * GUI: You can now use undo/redo shortcuts for backup comments.
   * CLI: The `wrap` command did not fail gracefully when the game launch commands were missing.
   * CLI: Several commands did not resolve aliases.
   * CLI: The `cloud` commands did not reject unknown game titles.
