@@ -270,13 +270,10 @@ impl GameListEntry {
                                     };
                                     if let Some(action) = action {
                                         let button = Button::new(action.icon().text().width(45))
-                                            .on_press_if(
-                                                || !operating,
-                                                || Message::GameAction {
-                                                    action,
-                                                    game: self.scan_info.game_name.clone(),
-                                                },
-                                            )
+                                            .on_press_if(!operating, || Message::GameAction {
+                                                action,
+                                                game: self.scan_info.game_name.clone(),
+                                            })
                                             .style(style::Button::GameActionPrimary)
                                             .padding(2);
                                         Container::new(

@@ -114,12 +114,12 @@ pub fn number_input<'a>(
             .push(text(value.to_string()))
             .push({
                 Button::new(Icon::Remove.text().width(Length::Shrink))
-                    .on_press_if(|| &value > range.start(), || (change)(value - 1))
+                    .on_press_if(&value > range.start(), || (change)(value - 1))
                     .style(style::Button::Negative)
             })
             .push({
                 Button::new(Icon::Add.text().width(Length::Shrink))
-                    .on_press_if(|| &value < range.end(), || (change)(value + 1))
+                    .on_press_if(&value < range.end(), || (change)(value + 1))
                     .style(style::Button::Primary)
             }),
     )
@@ -290,13 +290,13 @@ impl<'a> IcedParentExt<'a> for Row<'a> {
 }
 
 pub trait IcedButtonExt<'a> {
-    fn on_press_if(self, condition: impl FnOnce() -> bool, msg: impl FnOnce() -> Message) -> Self;
+    fn on_press_if(self, condition: bool, msg: impl FnOnce() -> Message) -> Self;
     fn on_press_some(self, msg: Option<Message>) -> Self;
 }
 
 impl<'a> IcedButtonExt<'a> for Button<'a> {
-    fn on_press_if(self, condition: impl FnOnce() -> bool, msg: impl FnOnce() -> Message) -> Self {
-        if condition() {
+    fn on_press_if(self, condition: bool, msg: impl FnOnce() -> Message) -> Self {
+        if condition {
             self.on_press(msg())
         } else {
             self
