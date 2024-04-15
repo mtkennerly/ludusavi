@@ -1,11 +1,33 @@
-use std::collections::HashSet;
+use std::collections::HashMap;
 
-use crate::scan::{registry_compat::RegistryItem, ScanChangeCount, ScanInfo, ScannedFile};
+use crate::{
+    lang::TRANSLATOR,
+    scan::{registry_compat::RegistryItem, ScanChangeCount, ScanInfo, ScannedFile},
+};
+
+#[derive(Clone, Debug)]
+pub enum BackupError {
+    Raw(String),
+    App(crate::prelude::Error),
+    #[cfg(test)]
+    Test,
+}
+
+impl BackupError {
+    pub fn message(&self) -> String {
+        match self {
+            BackupError::Raw(error) => error.clone(),
+            BackupError::App(error) => TRANSLATOR.handle_error(error),
+            #[cfg(test)]
+            BackupError::Test => "test".to_string(),
+        }
+    }
+}
 
 #[derive(Clone, Debug, Default)]
 pub struct BackupInfo {
-    pub failed_files: HashSet<ScannedFile>,
-    pub failed_registry: HashSet<RegistryItem>,
+    pub failed_files: HashMap<ScannedFile, BackupError>,
+    pub failed_registry: HashMap<RegistryItem, BackupError>,
 }
 
 impl BackupInfo {
@@ -13,20 +35,20 @@ impl BackupInfo {
         self.failed_files.is_empty() && self.failed_registry.is_empty()
     }
 
-    pub fn total_failure(scan: &ScanInfo) -> Self {
+    pub fn total_failure(scan: &ScanInfo, error: BackupError) -> Self {
         let mut backup_info = Self::default();
 
         for file in &scan.found_files {
             if file.ignored {
                 continue;
             }
-            backup_info.failed_files.insert(file.clone());
+            backup_info.failed_files.insert(file.clone(), error.clone());
         }
         for reg_path in &scan.found_registry_keys {
             if reg_path.ignored {
                 continue;
             }
-            backup_info.failed_registry.insert(reg_path.path.clone());
+            backup_info.failed_registry.insert(reg_path.path.clone(), error.clone());
         }
 
         backup_info

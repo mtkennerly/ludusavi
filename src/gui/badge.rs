@@ -90,6 +90,11 @@ impl Badge {
         self
     }
 
+    pub fn tooltip(mut self, tooltip: String) -> Self {
+        self.tooltip = Some(tooltip);
+        self
+    }
+
     pub fn view(self) -> Container<'static> {
         Container::new({
             let content = Container::new(

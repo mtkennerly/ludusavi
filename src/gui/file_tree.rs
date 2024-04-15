@@ -14,8 +14,8 @@ use crate::{
     path::StrictPath,
     resource::config::Config,
     scan::{
-        registry_compat::RegistryItem, BackupInfo, DuplicateDetector, Duplication, ScanChange, ScanInfo, ScannedFile,
-        ScannedRegistryValues,
+        registry_compat::RegistryItem, BackupError, BackupInfo, DuplicateDetector, Duplication, ScanChange, ScanInfo,
+        ScannedFile, ScannedRegistryValues,
     },
 };
 
@@ -53,7 +53,7 @@ struct FileTreeNode {
     keys: Vec<TreeNodeKey>,
     path: FileTreeNodePath,
     nodes: BTreeMap<TreeNodeKey, FileTreeNode>,
-    successful: bool,
+    error: Option<String>,
     ignored: bool,
     duplicated: Duplication,
     change: ScanChange,
@@ -75,7 +75,7 @@ impl FileTreeNode {
             keys,
             path,
             nodes: Default::default(),
-            successful: false,
+            error: None,
             ignored,
             duplicated: Default::default(),
             change: Default::default(),
@@ -178,7 +178,11 @@ impl FileTreeNode {
                                 .view()
                         },
                     )
-                    .push_if(|| !self.successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
+                    .push_maybe(
+                        self.error
+                            .as_ref()
+                            .map(|x| Badge::new(&TRANSLATOR.badge_failed()).tooltip(x.clone()).view()),
+                    )
                     .push_some(|| {
                         self.scanned_file.as_ref().and_then(|scanned| {
                             let restoring = scanned.restoring();
@@ -293,7 +297,7 @@ impl FileTreeNode {
         game: &str,
         keys: &[TreeNodeKey],
         prefix_keys: &[TreeNodeKey],
-        successful: bool,
+        error: Option<&BackupError>,
         duplicated: Duplication,
         change: ScanChange,
         scanned_file: Option<ScannedFile>,
@@ -331,7 +335,7 @@ impl FileTreeNode {
             });
         }
 
-        node.successful = successful;
+        node.error = error.map(|x| x.message());
         node.duplicated = duplicated;
         node.change = change;
         node.scanned_file = scanned_file;
@@ -357,7 +361,7 @@ impl FileTreeNode {
                             restoring,
                         )
                     });
-                node.successful = true;
+                node.error = None;
                 node.duplicated = duplicate_detector
                     .is_registry_value_duplicated(&RegistryItem::new(raw_key_path.clone()), value_name);
                 node.change = value.change(restoring);
@@ -483,13 +487,6 @@ impl FileTree {
         let mut nodes = BTreeMap::<TreeNodeKey, FileTreeNode>::new();
 
         for item in scan_info.found_files.iter() {
-            let mut successful = true;
-            if let Some(backup_info) = &backup_info {
-                if backup_info.failed_files.contains(item) {
-                    successful = false;
-                }
-            }
-
             let rendered = item.readable(scan_info.restoring());
             let components: Vec<_> = rendered.split('/').map(|x| TreeNodeKey::File(x.to_string())).collect();
 
@@ -516,7 +513,7 @@ impl FileTree {
                     &scan_info.game_name,
                     &components[1..],
                     &[components[0].clone()],
-                    successful,
+                    backup_info.as_ref().and_then(|x| x.failed_files.get(item)),
                     duplicate_detector.is_file_duplicated(item),
                     item.change(),
                     Some(item.clone()),
@@ -527,13 +524,6 @@ impl FileTree {
                 );
         }
         for item in scan_info.found_registry_keys.iter() {
-            let mut successful = true;
-            if let Some(backup_info) = &backup_info {
-                if backup_info.failed_registry.contains(&item.path) {
-                    successful = false;
-                }
-            }
-
             let components: Vec<_> = item
                 .path
                 .split()
@@ -557,7 +547,7 @@ impl FileTree {
                     &scan_info.game_name,
                     &components[1..],
                     &components[0..1],
-                    successful,
+                    backup_info.as_ref().and_then(|x| x.failed_registry.get(&item.path)),
                     duplicate_detector.is_registry_duplicated(&item.path),
                     item.change(restoring),
                     None,

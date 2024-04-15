@@ -5,6 +5,10 @@
     `--infer steam`, `--infer lutris`, and `--force` to skip confirmations
   * GUI: File sizes are now displayed for each file and directory.
     ([Contributed by JackSpagnoli](https://github.com/mtkennerly/ludusavi/pull/308))
+  * When a save fails to back up or restore, you can now see a specific error message per save.
+    Previously, this was only available in the log file.
+    For the GUI, you can hover over the "failed" badge to view the error.
+    Note that these errors are shown as-is for troubleshooting and may not be translated.
   * You can now set aliases to display instead of the original name.
     This does not affect the CLI when using `--api`.
   * Updated translations, including new in-progress translations for Traditional Chinese and Turkish.

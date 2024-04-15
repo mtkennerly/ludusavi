@@ -12,7 +12,7 @@ use crate::{
         config::{BackupFormat, CustomGameKind, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
         manifest::Store,
     },
-    scan::{game_filter, OperationStatus, OperationStepDecision, ScanChange},
+    scan::{game_filter, BackupError, OperationStatus, OperationStepDecision, ScanChange},
 };
 
 const PATH: &str = "path";
@@ -550,6 +550,10 @@ impl Translator {
         let mut args = FluentArgs::new();
         args.set(PATH, item);
         format!("    - {}", translate_args("cli-game-line-item-redirecting", &args),)
+    }
+
+    pub fn cli_game_line_item_error(&self, error: &BackupError) -> String {
+        format!("    - {}", error.message())
     }
 
     pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {

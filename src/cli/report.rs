@@ -8,7 +8,8 @@ use crate::{
     prelude::StrictPath,
     resource::manifest::Os,
     scan::{
-        layout::Backup, BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision, ScanChange, ScanInfo,
+        layout::Backup, BackupError, BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision, ScanChange,
+        ScanInfo,
     },
 };
 
@@ -51,9 +52,24 @@ pub mod concern {
 }
 
 #[derive(Debug, Default, serde::Serialize)]
+struct SaveError {
+    message: String,
+}
+
+impl From<&BackupError> for SaveError {
+    fn from(value: &BackupError) -> Self {
+        Self {
+            message: value.message(),
+        }
+    }
+}
+
+#[derive(Debug, Default, serde::Serialize)]
 struct ApiFile {
     #[serde(skip_serializing_if = "crate::serialization::is_false")]
     failed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<SaveError>,
     #[serde(skip_serializing_if = "crate::serialization::is_false")]
     ignored: bool,
     change: ScanChange,
@@ -74,6 +90,8 @@ struct ApiFile {
 struct ApiRegistry {
     #[serde(skip_serializing_if = "crate::serialization::is_false")]
     failed: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    error: Option<SaveError>,
     #[serde(skip_serializing_if = "crate::serialization::is_false")]
     ignored: bool,
     change: ScanChange,
@@ -244,7 +262,7 @@ impl Reporter {
                     scan_info.overall_change(),
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
-                    let entry_successful = !backup_info.failed_files.contains(entry);
+                    let entry_successful = !backup_info.failed_files.contains_key(entry);
                     if !entry_successful {
                         successful = false;
                     }
@@ -264,9 +282,13 @@ impl Reporter {
                             parts.push(TRANSLATOR.cli_game_line_item_redirecting(&alt));
                         }
                     }
+
+                    if let Some(error) = backup_info.failed_files.get(entry) {
+                        parts.push(TRANSLATOR.cli_game_line_item_error(error));
+                    }
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
-                    let entry_successful = !backup_info.failed_registry.contains(&entry.path);
+                    let entry_successful = !backup_info.failed_registry.contains_key(&entry.path);
                     if !entry_successful {
                         successful = false;
                     }
@@ -278,6 +300,11 @@ impl Reporter {
                         entry.change(scan_info.restoring()),
                         false,
                     ));
+
+                    if let Some(error) = backup_info.failed_registry.get(&entry.path) {
+                        parts.push(TRANSLATOR.cli_game_line_item_error(error));
+                    }
+
                     for (value_name, value) in itertools::sorted(&entry.values) {
                         parts.push(
                             TRANSLATOR.cli_game_line_item(
@@ -313,7 +340,8 @@ impl Reporter {
                 for entry in itertools::sorted(&scan_info.found_files) {
                     let mut api_file = ApiFile {
                         bytes: entry.size,
-                        failed: backup_info.failed_files.contains(entry),
+                        failed: backup_info.failed_files.contains_key(entry),
+                        error: backup_info.failed_files.get(entry).map(SaveError::from),
                         ignored: entry.ignored,
                         change: entry.change(),
                         ..Default::default()
@@ -339,7 +367,8 @@ impl Reporter {
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
                     let mut api_registry = ApiRegistry {
-                        failed: backup_info.failed_registry.contains(&entry.path),
+                        failed: backup_info.failed_registry.contains_key(&entry.path),
+                        error: backup_info.failed_registry.get(&entry.path).map(SaveError::from),
                         ignored: entry.ignored,
                         change: entry.change(scan_info.restoring()),
                         values: entry
@@ -539,11 +568,11 @@ pub fn report_cloud_changes(changes: &[CloudChange], api: bool) {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::hash_set;
+    use velcro::{hash_map, hash_set};
 
     use super::*;
     use crate::{
-        scan::{registry_compat::RegistryItem, ScannedFile, ScannedRegistry},
+        scan::{registry_compat::RegistryItem, BackupError, ScannedFile, ScannedRegistry},
         testing::s,
     };
 
@@ -607,11 +636,11 @@ Overall:
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hash_set! {
-                    ScannedFile::new("/file2", 51_200, "2"),
+                failed_files: hash_map! {
+                    ScannedFile::new("/file2", 51_200, "2"): BackupError::Test,
                 },
-                failed_registry: hash_set! {
-                    RegistryItem::new(s("HKEY_CURRENT_USER/Key1"))
+                failed_registry: hash_map! {
+                    RegistryItem::new(s("HKEY_CURRENT_USER/Key1")): BackupError::Test
                 },
             },
             &OperationStepDecision::Processed,
@@ -622,7 +651,9 @@ Overall:
 foo [100.00 KiB]:
   - /file1
   - [FAILED] /file2
+    - test
   - [FAILED] HKEY_CURRENT_USER/Key1
+    - test
   - HKEY_CURRENT_USER/Key2
   - HKEY_CURRENT_USER/Key3
     - Value1
@@ -661,8 +692,8 @@ Overall:
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hash_set! {},
-                failed_registry: hash_set! {},
+                failed_files: hash_map! {},
+                failed_registry: hash_map! {},
             },
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
@@ -687,8 +718,8 @@ Overall:
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hash_set! {},
-                failed_registry: hash_set! {},
+                failed_files: hash_map! {},
+                failed_registry: hash_map! {},
             },
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
@@ -835,8 +866,8 @@ Overall:
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hash_set! {},
-                failed_registry: hash_set! {},
+                failed_files: hash_map! {},
+                failed_registry: hash_map! {},
             },
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
@@ -852,8 +883,8 @@ Overall:
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hash_set! {},
-                failed_registry: hash_set! {},
+                failed_files: hash_map! {},
+                failed_registry: hash_map! {},
             },
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
@@ -932,11 +963,11 @@ Overall:
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hash_set! {
-                    ScannedFile::new("/file2", 50, "2"),
+                failed_files: hash_map! {
+                    ScannedFile::new("/file2", 50, "2"): BackupError::Test,
                 },
-                failed_registry: hash_set! {
-                    RegistryItem::new(s("HKEY_CURRENT_USER/Key1"))
+                failed_registry: hash_map! {
+                    RegistryItem::new(s("HKEY_CURRENT_USER/Key1")): BackupError::Test
                 },
             },
             &OperationStepDecision::Processed,
@@ -970,6 +1001,9 @@ Overall:
         },
         "/file2": {
           "failed": true,
+          "error": {
+            "message": "test"
+          },
           "change": "Unknown",
           "bytes": 50
         }
@@ -977,6 +1011,9 @@ Overall:
       "registry": {
         "HKEY_CURRENT_USER/Key1": {
           "failed": true,
+          "error": {
+            "message": "test"
+          },
           "change": "Unknown"
         },
         "HKEY_CURRENT_USER/Key2": {
@@ -1174,8 +1211,8 @@ Overall:
                 ..Default::default()
             },
             &BackupInfo {
-                failed_files: hash_set! {},
-                failed_registry: hash_set! {},
+                failed_files: hash_map! {},
+                failed_registry: hash_map! {},
             },
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),

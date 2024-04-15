@@ -15,7 +15,7 @@ use crate::{
         manifest::Os,
     },
     scan::{
-        game_file_target, prepare_backup_target, BackupId, BackupInfo, ScanChange, ScanInfo, ScannedFile,
+        game_file_target, prepare_backup_target, BackupError, BackupId, BackupInfo, ScanChange, ScanInfo, ScannedFile,
         ScannedRegistry,
     },
 };
@@ -180,7 +180,7 @@ impl Backup {
             Self::Full(backup) => {
                 let mut failed = vec![];
                 for file in backup.files.keys() {
-                    if backup_info.failed_files.iter().any(|x| &x.path.raw() == file) {
+                    if backup_info.failed_files.keys().any(|x| &x.path.raw() == file) {
                         failed.push(file.to_string());
                     }
                 }
@@ -197,7 +197,7 @@ impl Backup {
             Self::Differential(backup) => {
                 let mut failed = vec![];
                 for file in backup.files.keys() {
-                    if backup_info.failed_files.iter().any(|x| &x.path.raw() == file) {
+                    if backup_info.failed_files.keys().any(|x| &x.path.raw() == file) {
                         failed.push(file.to_string());
                     }
                 }
@@ -1096,8 +1096,10 @@ impl GameLayout {
                 relevant_files.push(target_file);
                 continue;
             }
-            if let Err(_e) = file.path.copy_to_path(&self.mapping.name, &target_file) {
-                backup_info.failed_files.insert(file.clone());
+            if let Err(e) = file.path.copy_to_path(&self.mapping.name, &target_file) {
+                backup_info
+                    .failed_files
+                    .insert(file.clone(), BackupError::Raw(e.to_string()));
                 continue;
             }
             log::info!(
@@ -1132,11 +1134,14 @@ impl GameLayout {
     fn execute_backup_as_zip(&mut self, backup: &Backup, scan: &ScanInfo, format: &BackupFormats) -> BackupInfo {
         let mut backup_info = BackupInfo::default();
 
-        let fail_file =
-            |file: &ScannedFile, backup_info: &mut BackupInfo| backup_info.failed_files.insert(file.clone());
-        let fail_all = |backup_info: &mut BackupInfo| {
+        let fail_file = |file: &ScannedFile, backup_info: &mut BackupInfo, error: String| {
+            backup_info.failed_files.insert(file.clone(), BackupError::Raw(error))
+        };
+        let fail_all = |backup_info: &mut BackupInfo, error: String| {
             for file in &scan.found_files {
-                backup_info.failed_files.insert(file.clone());
+                backup_info
+                    .failed_files
+                    .insert(file.clone(), BackupError::Raw(error.clone()));
             }
         };
 
@@ -1149,7 +1154,7 @@ impl GameLayout {
                     self.mapping.name,
                     &archive_path
                 );
-                fail_all(&mut backup_info);
+                fail_all(&mut backup_info, e.to_string());
                 return backup_info;
             }
         };
@@ -1181,7 +1186,7 @@ impl GameLayout {
                         &file.path,
                         &target_file_id
                     );
-                    fail_file(file, &mut backup_info);
+                    fail_file(file, &mut backup_info, e.to_string());
                     continue;
                 }
             };
@@ -1206,7 +1211,7 @@ impl GameLayout {
                     &file.path,
                     &target_file_id
                 );
-                fail_file(file, &mut backup_info);
+                fail_file(file, &mut backup_info, e.to_string());
                 continue;
             }
 
@@ -1215,7 +1220,7 @@ impl GameLayout {
                 Ok(x) => x,
                 Err(e) => {
                     log::error!("[{}] unable to open source: {:?} | {e}", self.mapping.name, &file.path);
-                    fail_file(file, &mut backup_info);
+                    fail_file(file, &mut backup_info, e.to_string());
                     continue;
                 }
             };
@@ -1227,7 +1232,7 @@ impl GameLayout {
                     Ok(x) => x,
                     Err(e) => {
                         log::error!("[{}] unable to read source: {:?} | {e}", self.mapping.name, &file.path);
-                        fail_file(file, &mut backup_info);
+                        fail_file(file, &mut backup_info, e.to_string());
                         continue 'item;
                     }
                 };
@@ -1247,7 +1252,7 @@ impl GameLayout {
                         &file.path,
                         &target_file_id
                     );
-                    fail_file(file, &mut backup_info);
+                    fail_file(file, &mut backup_info, e.to_string());
                     continue 'item;
                 }
             }
@@ -1265,8 +1270,8 @@ impl GameLayout {
             }
         }
 
-        if zip.finish().is_err() {
-            fail_all(&mut backup_info);
+        if let Err(e) = zip.finish() {
+            fail_all(&mut backup_info, e.to_string());
         }
 
         backup_info
@@ -1419,7 +1424,7 @@ impl GameLayout {
                 scan.game_name,
                 &self.path
             );
-            return BackupInfo::total_failure(scan);
+            return BackupInfo::total_failure(scan, BackupError::App(e));
         }
 
         self.migrate_legacy_backup();
@@ -1555,11 +1560,11 @@ impl GameLayout {
     pub fn restore(&self, scan: &ScanInfo, #[allow(unused)] toggled: &ToggledRegistry) -> BackupInfo {
         log::trace!("[{}] beginning restore", &scan.game_name);
 
-        let mut failed_files = HashSet::new();
-        let failed_registry = HashSet::new();
+        let mut failed_files = HashMap::new();
+        let failed_registry = HashMap::new();
 
         let mut containers: HashMap<StrictPath, zip::ZipArchive<std::fs::File>> = HashMap::new();
-        let mut failed_containers: HashSet<StrictPath> = HashSet::new();
+        let mut failed_containers: HashMap<StrictPath, BackupError> = HashMap::new();
 
         for file in &scan.found_files {
             let target = file.effective();
@@ -1577,7 +1582,7 @@ impl GameLayout {
             }
 
             if let Some(container) = file.container.as_ref() {
-                if failed_containers.contains(container) {
+                if let Some(e) = failed_containers.get(container) {
                     log::warn!(
                         "[{}] skipping file because container had failed to load: {:?} -> {:?} -> {:?}",
                         self.mapping.name,
@@ -1585,7 +1590,7 @@ impl GameLayout {
                         &file.path,
                         &target,
                     );
-                    failed_files.insert(file.clone());
+                    failed_files.insert(file.clone(), e.clone());
                     continue;
                 }
 
@@ -1599,8 +1604,8 @@ impl GameLayout {
                                 &self.mapping.name,
                                 &container
                             );
-                            failed_containers.insert(container.clone());
-                            failed_files.insert(file.clone());
+                            failed_containers.insert(container.clone(), BackupError::Raw(e.to_string()));
+                            failed_files.insert(file.clone(), BackupError::Raw(e.to_string()));
                             continue;
                         }
                     };
@@ -1612,8 +1617,8 @@ impl GameLayout {
                                 &self.mapping.name,
                                 &container
                             );
-                            failed_containers.insert(container.clone());
-                            failed_files.insert(file.clone());
+                            failed_containers.insert(container.clone(), BackupError::Raw(e.to_string()));
+                            failed_files.insert(file.clone(), BackupError::Raw(e.to_string()));
                             continue;
                         }
                     };
@@ -1643,7 +1648,7 @@ impl GameLayout {
                         &file.path,
                         &target
                     );
-                    failed_files.insert(file.clone());
+                    failed_files.insert(file.clone(), BackupError::Raw(e.to_string()));
                 }
             }
         }

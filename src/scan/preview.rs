@@ -25,7 +25,7 @@ impl ScanInfo {
             .map(|x| x.size)
             .sum::<u64>();
         let failed_bytes = if let Some(backup_info) = &backup_info {
-            backup_info.failed_files.iter().map(|x| x.size).sum::<u64>()
+            backup_info.failed_files.keys().map(|x| x.size).sum::<u64>()
         } else {
             0
         };
