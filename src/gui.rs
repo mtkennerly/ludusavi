@@ -44,5 +44,10 @@ pub fn run(flags: Flags) {
         Err(_) => None,
     };
 
+    #[cfg(target_os = "linux")]
+    {
+        settings.window.platform_specific.application_id = "ludusavi".to_string();
+    }
+
     let _ = app::App::run(settings);
 }
