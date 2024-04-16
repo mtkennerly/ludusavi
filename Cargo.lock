@@ -201,12 +201,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "175571dd1d178ced59193a6fc02dde1b972eb0bc56c892cde9beeceac5bf0f6b"
 
 [[package]]
-name = "ascii"
-version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d92bec98840b8f03a5ff5413de5293bfcd8bf96467cf5452609f939ec6f5de16"
-
-[[package]]
 name = "ash"
 version = "0.37.3+1.3.251"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2518,11 +2512,10 @@ dependencies = [
 
 [[package]]
 name = "native-dialog"
-version = "0.6.4"
+version = "0.6.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1bbf55edb2747e4e4b3a9cd3989194b88aae32274b4422635dcf98aa6e84197b"
+checksum = "0ab637f328b31bd0855c43bd38a4a4455e74324d9e74e0aac6a803422f43abc6"
 dependencies = [
- "ascii",
  "block",
  "cocoa 0.24.1",
  "dirs-next",
