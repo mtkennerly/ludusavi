@@ -16,6 +16,9 @@
 * Fixed:
   * Ludusavi would crash when reading a non-UTF-8 mapping.yaml file.
     This wouldn't normally happen, but could arise from external modifications.
+  * GUI: On Linux with Wayland, the app ID property was not being set,
+    which caused some issues like not showing the window icon and not grouping the window properly.
+    ([Contributed by ReillyBrogan](https://github.com/mtkennerly/ludusavi/pull/334))
   * CLI: During slow processing (e.g., cloud upload or a game with huge saves),
     the progress bar timer wouldn't update.
   * GUI: After performing a cloud upload preview on the other screen,
