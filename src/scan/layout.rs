@@ -987,10 +987,9 @@ impl GameLayout {
         #[cfg(target_os = "windows")]
         {
             use crate::scan::registry::Hives;
-            let hives = Hives::incorporated(&scan.found_registry_keys);
-            if !hives.is_empty() {
-                registry.hash = Some(crate::prelude::sha1(hives.serialize()));
-            }
+            let mut hives = Hives::default();
+            let _ = hives.back_up(&scan.game_name, &scan.found_registry_keys);
+            registry.hash = hives.sha1();
         }
 
         FullBackup {
@@ -1036,11 +1035,10 @@ impl GameLayout {
         #[cfg(target_os = "windows")]
         {
             use crate::scan::registry::Hives;
-            let hives = Hives::incorporated(&scan.found_registry_keys);
+            let mut hives = Hives::default();
+            let _ = hives.back_up(&scan.game_name, &scan.found_registry_keys);
             if !hives.is_empty() {
-                registry = Some(IndividualMappingRegistry {
-                    hash: Some(crate::prelude::sha1(hives.serialize())),
-                });
+                registry = Some(IndividualMappingRegistry { hash: hives.sha1() });
             }
         }
 
@@ -1117,7 +1115,10 @@ impl GameLayout {
             let target_registry_file = self.registry_file_in(backup.name());
 
             if backup.includes_registry() {
-                let hives = Hives::incorporated(&scan.found_registry_keys);
+                let mut hives = Hives::default();
+                if let Err(failed) = hives.back_up(&scan.game_name, &scan.found_registry_keys) {
+                    backup_info.failed_registry.extend(failed);
+                }
                 hives.save(&target_registry_file);
             } else {
                 let _ = target_registry_file.remove();
@@ -1263,7 +1264,10 @@ impl GameLayout {
             use crate::scan::registry::Hives;
 
             if backup.includes_registry() {
-                let hives = Hives::incorporated(&scan.found_registry_keys);
+                let mut hives = Hives::default();
+                if let Err(failed) = hives.back_up(&scan.game_name, &scan.found_registry_keys) {
+                    backup_info.failed_registry.extend(failed);
+                }
                 if zip.start_file("registry.yaml", options).is_ok() {
                     let _ = zip.write_all(hives.serialize().as_bytes());
                 }
@@ -1561,7 +1565,8 @@ impl GameLayout {
         log::trace!("[{}] beginning restore", &scan.game_name);
 
         let mut failed_files = HashMap::new();
-        let failed_registry = HashMap::new();
+        #[allow(unused_mut)]
+        let mut failed_registry = HashMap::new();
 
         let mut containers: HashMap<StrictPath, zip::ZipArchive<std::fs::File>> = HashMap::new();
         let mut failed_containers: HashMap<StrictPath, BackupError> = HashMap::new();
@@ -1660,8 +1665,9 @@ impl GameLayout {
             if let Some(backup) = scan.backup.as_ref() {
                 if let Some(registry_content) = self.registry_content(&backup.id()) {
                     if let Some(hives) = Hives::deserialize(&registry_content) {
-                        // TODO: Track failed keys.
-                        let _ = hives.restore(&scan.game_name, toggled);
+                        if let Err(failed) = hives.restore(&scan.game_name, toggled) {
+                            failed_registry.extend(failed);
+                        }
                     }
                 }
             }

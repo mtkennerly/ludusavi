@@ -5,7 +5,7 @@ use winreg::types::{FromRegValue, ToRegValue};
 use crate::{
     prelude::{Error, StrictPath},
     resource::config::{BackupFilter, ToggledRegistry},
-    scan::{RegistryItem, ScanChange, ScannedRegistry, ScannedRegistryValue, ScannedRegistryValues},
+    scan::{BackupError, RegistryItem, ScanChange, ScannedRegistry, ScannedRegistryValue, ScannedRegistryValues},
 };
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -238,11 +238,18 @@ impl Hives {
         serde_yaml::from_str(content).ok()
     }
 
-    /// It can be used during backup since we know the keys exist, so we can look up the values when needed.
-    /// It should not be used during restore since the keys may not exist.
-    fn incorporate(&mut self, scan: &HashSet<ScannedRegistry>) -> (bool, HashSet<RegistryItem>) {
-        let mut failed = HashSet::new();
-        let mut found = false;
+    pub fn sha1(&self) -> Option<String> {
+        (!self.is_empty()).then(|| crate::prelude::sha1(self.serialize()))
+    }
+
+    /// Since this backs up items that we already found during the scan,
+    /// there shouldn't be any errors normally.
+    pub fn back_up(
+        &mut self,
+        game: &str,
+        scan: &HashSet<ScannedRegistry>,
+    ) -> Result<(), HashMap<RegistryItem, BackupError>> {
+        let mut failed = HashMap::new();
 
         for scanned in scan {
             if scanned.ignored && scanned.values.values().all(|x| x.ignored) {
@@ -253,130 +260,137 @@ impl Hives {
                 ScanChange::Removed | ScanChange::Unknown => continue,
             }
 
-            match self.store_key_from_full_path(&scanned.path.raw()) {
-                Err(_) => {
-                    failed.insert(scanned.path.clone());
-                }
-                Ok(_) => {
-                    found = true;
-                }
+            if let Err(e) = self.back_up_key(game, scanned) {
+                failed.insert(scanned.path.clone(), e);
             }
         }
 
-        self.prune_ignored_values(scan);
-
-        (found, failed)
-    }
-
-    pub fn incorporated(scan: &HashSet<ScannedRegistry>) -> Self {
-        let mut hives = Hives::default();
-        hives.incorporate(scan);
-        hives
-    }
-
-    fn prune_ignored_values(&mut self, scan: &HashSet<ScannedRegistry>) {
-        for scanned in scan {
-            if let Some((hive, key)) = scanned.path.split_hive() {
-                if let Some(stored) = self.get_mut(&hive, &key) {
-                    for (value_name, value) in &scanned.values {
-                        if value.ignored {
-                            stored.0.remove(value_name);
-                        }
-                    }
-                }
-            }
+        if failed.is_empty() {
+            Ok(())
+        } else {
+            Err(failed)
         }
     }
 
-    fn store_key_from_full_path(&mut self, path: &str) -> Result<(), Error> {
-        let path = RegistryItem::new(path.to_string()).interpreted();
+    fn back_up_key(&mut self, game: &str, scan: &ScannedRegistry) -> Result<(), BackupError> {
+        let Some((hive_name, key)) = scan.path.split_hive() else {
+            log::error!("[{game}] Unable to split hive: {:?}", &scan.path);
+            return Err(BackupError::Raw(format!("Unable to split hive: {}", scan.path.raw())));
+        };
 
-        let (hive_name, key) = path.split_hive().ok_or(Error::RegistryIssue)?;
-        let hive = get_hkey_from_name(&hive_name).ok_or(Error::RegistryIssue)?;
+        let Some(hive) = get_hkey_from_name(&hive_name) else {
+            log::error!("[{game}] Unable to parse hive name: {:?}", &hive_name);
+            return Err(BackupError::Raw(format!("Unable to parse hive: {}", &hive_name)));
+        };
 
-        self.store_key(hive, &hive_name, &key)?;
+        let subkey = match winreg::RegKey::predef(hive).open_subkey(&key) {
+            Ok(x) => x,
+            Err(e) => {
+                log::error!("[{game}] Unable to open subkey: {}", &key);
+                return Err(BackupError::Raw(format!("Unable to open subkey: {e:?}")));
+            }
+        };
 
-        Ok(())
-    }
-
-    fn store_key(&mut self, hive: winreg::HKEY, hive_name: &str, key: &str) -> Result<(), Error> {
-        let subkey = winreg::RegKey::predef(hive)
-            .open_subkey(key)
-            .map_err(|_| Error::RegistryIssue)?;
-
-        self.0
+        let parent = self
+            .0
             .entry(hive_name.to_string())
             .or_default()
             .0
             .entry(key.to_string())
             .or_default();
-        for (name, value) in subkey.enum_values().filter_map(|x| x.ok()) {
-            let entry = Entry::from(value);
-            if entry.is_set() {
-                self.0
-                    .entry(hive_name.to_string())
-                    .or_default()
-                    .0
-                    .entry(key.to_string())
-                    .or_default()
-                    .0
-                    .entry(name.to_string())
-                    .or_insert_with(|| entry);
+
+        for (name, value) in subkey.enum_values().filter_map(|x| match x {
+            Ok(x) => Some(x),
+            Err(e) => {
+                log::warn!("[{game}] Skipping invalid registry value: {e:?}");
+                None
+            }
+        }) {
+            let data = Entry::from(value);
+            let ignored = scan.values.get(&name).map(|x| x.ignored).unwrap_or_default();
+            if !ignored && data.is_set() {
+                parent.0.insert(name.to_string(), data);
             }
         }
 
         Ok(())
     }
 
-    pub fn restore(&self, game_name: &str, toggled: &ToggledRegistry) -> Result<(), Error> {
-        let mut failed = false;
+    pub fn restore(
+        &self,
+        game_name: &str,
+        toggled: &ToggledRegistry,
+    ) -> Result<(), HashMap<RegistryItem, BackupError>> {
+        let mut failed = HashMap::new();
 
         for (hive_name, keys) in self.0.iter() {
-            let hive = match get_hkey_from_name(hive_name) {
-                Some(x) => winreg::RegKey::predef(x),
-                None => {
-                    failed = true;
-                    continue;
-                }
-            };
+            let hive = get_hkey_from_name(hive_name).map(winreg::RegKey::predef);
+            if hive.is_none() {
+                log::error!("[{}] Registry - unknown hive: {}", game_name, hive_name);
+            }
 
             for (key_name, entries) in keys.0.iter() {
-                let path = &RegistryItem::from_hive_and_key(hive_name, key_name);
-                if toggled.is_ignored(game_name, path, None)
-                    && entries.0.keys().all(|x| toggled.is_ignored(game_name, path, Some(x)))
+                let path = RegistryItem::from_hive_and_key(hive_name, key_name);
+
+                let Some(hive) = hive.as_ref() else {
+                    failed.insert(path.clone(), BackupError::Raw(format!("Unknown hive: {}", hive_name)));
+                    continue;
+                };
+
+                if toggled.is_ignored(game_name, &path, None)
+                    && entries.0.keys().all(|x| toggled.is_ignored(game_name, &path, Some(x)))
                 {
                     continue;
                 }
 
-                let (key, _) = match hive.create_subkey(key_name) {
-                    Ok(x) => x,
-                    Err(_) => {
-                        failed = true;
+                let key = match hive.create_subkey(key_name) {
+                    Ok((key, _)) => key,
+                    Err(e) => {
+                        log::error!(
+                            "[{}] Registry - failed to create subkey: {:?} | {e:?}",
+                            game_name,
+                            &path
+                        );
+                        failed.insert(path.clone(), BackupError::Raw(e.to_string()));
                         continue;
                     }
                 };
 
                 for (entry_name, entry) in entries.0.iter() {
-                    if toggled.is_ignored(game_name, path, Some(entry_name)) {
+                    if toggled.is_ignored(game_name, &path, Some(entry_name)) {
                         continue;
                     }
 
+                    // TODO: Track errors by specific entry, rather than the parent key.
                     if let Some(value) = Option::<winreg::RegValue>::from(entry) {
-                        if key.set_raw_value(entry_name, &value).is_err() {
-                            failed = true;
+                        if let Err(e) = key.set_raw_value(entry_name, &value) {
+                            log::error!(
+                                "[{}] Registry - failed to set value: {:?} ; {} | {e:?}",
+                                game_name,
+                                &path,
+                                entry_name
+                            );
+                            failed.insert(path.clone(), BackupError::Raw(e.to_string()));
                         }
                     } else {
-                        failed = true;
+                        log::warn!(
+                            "[{}] Registry - unparsed entry: {:?} ; {} | {:?}",
+                            game_name,
+                            &path,
+                            entry_name,
+                            entry
+                        );
+                        failed.insert(path.clone(), BackupError::Raw(format!("Unparsed entry: {:?}", entry)));
                     }
                 }
             }
         }
 
-        if failed {
-            return Err(Error::RegistryIssue);
+        if failed.is_empty() {
+            Ok(())
+        } else {
+            Err(failed)
         }
-
-        Ok(())
     }
 
     pub fn is_empty(&self) -> bool {
@@ -385,10 +399,6 @@ impl Hives {
 
     fn get(&self, hive: &str, key: &str) -> Option<&Entries> {
         self.0.get(hive)?.0.get(key)
-    }
-
-    fn get_mut(&mut self, hive: &str, key: &str) -> Option<&mut Entries> {
-        self.0.get_mut(hive)?.0.get_mut(key)
     }
 
     pub fn get_path(&self, path: &RegistryItem) -> Option<&Entries> {
@@ -476,10 +486,9 @@ mod tests {
 
     #[test]
     fn can_store_key_from_full_path_of_leaf_key_with_values() {
+        let scanned = ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3");
         let mut hives = Hives::default();
-        hives
-            .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi/game3")
-            .unwrap();
+        hives.back_up_key("foo", &scanned).unwrap();
         assert_eq!(
             Hives(hash_map! {
                 s("HKEY_CURRENT_USER"): Keys(hash_map! {
@@ -498,11 +507,35 @@ mod tests {
     }
 
     #[test]
-    fn can_store_key_from_full_path_of_leaf_key_with_invalid_values() {
+    fn can_store_key_from_full_path_of_leaf_key_with_ignored_values() {
+        let scanned = ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").with_value(
+            "binary",
+            ScanChange::New,
+            true,
+        );
         let mut hives = Hives::default();
-        hives
-            .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi/invalid")
-            .unwrap();
+        hives.back_up_key("foo", &scanned).unwrap();
+        assert_eq!(
+            Hives(hash_map! {
+                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+                    s("Software\\Ludusavi\\game3"): Entries(hash_map! {
+                        s("sz"): Entry::Sz(s("foo")),
+                        s("multiSz"): Entry::MultiSz(s("bar")),
+                        s("expandSz"): Entry::ExpandSz(s("baz")),
+                        s("dword"): Entry::Dword(1),
+                        s("qword"): Entry::Qword(2),
+                    })
+                })
+            }),
+            hives,
+        );
+    }
+
+    #[test]
+    fn can_store_key_from_full_path_of_leaf_key_with_invalid_values() {
+        let scanned = ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/invalid");
+        let mut hives = Hives::default();
+        hives.back_up_key("foo", &scanned).unwrap();
         assert_eq!(
             Hives(hash_map! {
                 s("HKEY_CURRENT_USER"): Keys(hash_map! {
@@ -517,10 +550,9 @@ mod tests {
 
     #[test]
     fn can_store_key_from_full_path_of_leaf_key_without_values() {
+        let scanned = ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other");
         let mut hives = Hives::default();
-        hives
-            .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi/other")
-            .unwrap();
+        hives.back_up_key("foo", &scanned).unwrap();
         assert_eq!(
             Hives(hash_map! {
                 s("HKEY_CURRENT_USER"): Keys(hash_map! {
@@ -533,10 +565,9 @@ mod tests {
 
     #[test]
     fn can_store_key_from_full_path_of_parent_key_without_values() {
+        let scanned = ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi");
         let mut hives = Hives::default();
-        hives
-            .store_key_from_full_path("HKEY_CURRENT_USER/Software/Ludusavi")
-            .unwrap();
+        hives.back_up_key("foo", &scanned).unwrap();
         assert_eq!(
             Hives(hash_map! {
                 s("HKEY_CURRENT_USER"): Keys(hash_map! {

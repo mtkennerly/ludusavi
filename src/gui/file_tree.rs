@@ -244,6 +244,11 @@ impl FileTreeNode {
                         } else {
                             label
                         }))
+                        .push_maybe(
+                            self.error
+                                .as_ref()
+                                .map(|x| Badge::new(&TRANSLATOR.badge_failed()).tooltip(x.clone()).view()),
+                        )
                         .push_maybe(match &self.path {
                             FileTreeNodePath::File(path) => Some(
                                 Button::new(Icon::OpenInNew.text_small())
