@@ -11,6 +11,9 @@
     Note that these errors are shown as-is for troubleshooting and may not be translated.
   * You can now set aliases to display instead of the original name.
     This does not affect the CLI when using `--api`.
+  * On Linux, for Steam roots that point to a Flatpak installation,
+    Ludusavi now checks `$XDG_DATA_HOME` and `$XDG_CONFIG_HOME`
+    inside of the Flatpak installation of Steam.
   * Updated translations, including new in-progress translations for Traditional Chinese and Turkish.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:

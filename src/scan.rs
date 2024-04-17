@@ -281,6 +281,17 @@ pub fn parse_paths(
         }
     }
     if root.store == Store::Steam && Os::HOST == Os::Linux {
+        // Check XDG folders inside of Steam installation.
+        if root_interpreted.ends_with(".var/app/com.valvesoftware.Steam/.steam/steam") {
+            paths.insert((
+                path.replace(STORE_USER_ID, "*")
+                    .replace(OS_USER_NAME, &crate::prelude::OS_USERNAME)
+                    .replace(XDG_DATA, &format!("{}../../.local/share", &root_interpreted))
+                    .replace(XDG_CONFIG, &format!("{}../../.config", &root_interpreted)),
+                platform.is_case_sensitive(),
+            ));
+        }
+
         for id in steam_ids {
             let prefix = format!("{}/steamapps/compatdata/{}/pfx/drive_c", &root_interpreted, id);
             let path2 = path
