@@ -101,7 +101,7 @@ label-updated = Zaktualizowano
 label-new = Nowy
 label-removed = Usunięto
 label-comment = Komentarz
-label-unchanged = Unchanged
+label-unchanged = Bez zmian
 label-scan = Skan
 label-filter = Filtruj
 label-unique = Unikalne
@@ -113,8 +113,8 @@ label-disabled = Nieaktywny
 label-threads = Wątki
 label-cloud = Chmura
 # A "remote" is what Rclone calls cloud systems like Google Drive.
-label-remote = Remote
-label-remote-name = Remote name
+label-remote = Zdalny
+label-remote-name = Nazwa zdalnego
 label-folder = Folder
 # An executable file
 label-executable = Plik wykonywalny
@@ -133,13 +133,13 @@ label-provider = Usługodawca
 label-custom = Własny
 label-none = Brak
 label-change-count = Zmiany: { $total }
-label-unscanned = Unscanned
+label-unscanned = Nieprzeskanowane
 # This refers to a local file on the computer
-label-file = File
-label-game = Game
+label-file = Plik
+label-game = Gra
 # Aliases are alternative titles for the same game.
 label-alias = Alias
-label-original-name = Original name
+label-original-name = Oryginalna nazwa
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -157,13 +157,13 @@ store-other-home = Folder główny
 store-other-wine = Prefiks Wine
 # This would be a folder with typical Windows system folders,
 # like "Program Files (x86)" and "Users".
-store-other-windows = Windows drive
+store-other-windows = Dysk Windows
 # This would be a folder with typical Linux system folders,
 # like "home" and "opt".
-store-other-linux = Linux drive
+store-other-linux = Dysk Linux
 # This would be a folder with typical Mac system folders,
 # like "Applications" and "Users".
-store-other-mac = Mac drive
+store-other-mac = Dysk Mac
 store-other = Pozostałe
 backup-format-simple = Prosty
 backup-format-zip = Zip
@@ -181,7 +181,7 @@ show-unchanged-games = Pokaż niezmienione gry
 show-unscanned-games = Pokaż nieprzeskanowane gry
 override-max-threads = Zastąp maksymalną liczbę wątków
 synchronize-automatically = Synchronizuj automatycznie
-prefer-alias-display = Display alias instead of original name
+prefer-alias-display = Wyświetlaj alias zamiast oryginalnej nazwy
 explanation-for-exclude-store-screenshots = Nie zawieraj w kopiach zapasowych zrzutów ekranu dla konkretnego sklepu
 consider-doing-a-preview = Jeśli jeszcze tego nie zrobiono, rozważ wykonanie pierwszego testu, aby zobaczyć, czy wszystko działa.
 confirm-backup =
@@ -222,13 +222,13 @@ prefix-warning = Ostrzeżenie: { $message }
 cloud-app-unavailable = Kopie zapasowe w chmurze są wyłączone, ponieważ { $app } jest niedostępny.
 cloud-not-configured = Kopie zapasowe w chmurze są wyłączone, ponieważ nie skonfigurowano żadnego systemu w chmurze.
 cloud-path-invalid = Kopie zapasowe w chmurze są wyłączone, ponieważ ścieżka kopii zapasowej jest nieprawidłowa.
-game-is-unrecognized = Ludusavi does not recognize this game.
-game-has-nothing-to-restore = This game does not have a backup to restore.
-launch-game-after-error = Launch the game anyway?
-game-did-not-launch = Game failed to launch.
+game-is-unrecognized = Ludusavi nie rozpoznaje tej gry.
+game-has-nothing-to-restore = Ta gra nie ma kopii zapasowej do przywrócenia.
+launch-game-after-error = Czy mimo to uruchomić grę?
+game-did-not-launch = Nie udało się uruchomić gry.
 back-up-specific-game =
-    .confirm = Back up save data for { $game }?
-    .failed = Failed to back up save data for { $game }
+    .confirm = Stworzyć kopię zapisów dla { $game }?
+    .failed = Nie udało się utworzyć kopii zapisów dla { $game }
 restore-specific-game =
-    .confirm = Restore save data for { $game }?
-    .failed = Failed to restore save data for { $game }
+    .confirm = Przywrócić zapisy dla { $game }?
+    .failed = Nie udało się przywrócić zapisów dla { $game }

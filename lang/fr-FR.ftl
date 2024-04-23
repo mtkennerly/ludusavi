@@ -157,13 +157,13 @@ store-other-home = Dossier personnel
 store-other-wine = Préfixe Wine
 # This would be a folder with typical Windows system folders,
 # like "Program Files (x86)" and "Users".
-store-other-windows = Windows drive
+store-other-windows = Disque Windows
 # This would be a folder with typical Linux system folders,
 # like "home" and "opt".
-store-other-linux = Linux drive
+store-other-linux = Disque Linux
 # This would be a folder with typical Mac system folders,
 # like "Applications" and "Users".
-store-other-mac = Mac drive
+store-other-mac = Disque Mac
 store-other = Autres
 backup-format-simple = Simple
 backup-format-zip = Zip
