@@ -437,10 +437,8 @@ For the `backup`/`restore` commands:
     * `files` (map):
       * Each key is a file path, and each value is a map with these fields:
         * `failed` (optional, boolean): Whether this entry failed to process.
-        <!--
         * `error` (optional, map):
           * `message` (string): If the entry failed, then this explains why.
-        -->
         * `change` (string): Same as game-level field, but for a specific backup item.
         * `ignored` (optional, boolean): Whether this entry was ignored.
         * `bytes` (number): Size of the file.
@@ -454,10 +452,8 @@ For the `backup`/`restore` commands:
     * `registry` (map):
       * Each key is a registry path, and each value is a map with these fields:
         * `failed` (optional, boolean): Whether this entry failed to process.
-        <!--
         * `error` (optional, map):
           * `message` (string): If the entry failed, then this explains why.
-        -->
         * `change` (string): Same as game-level field, but for a specific backup item.
         * `ignored` (optional, boolean): Whether this entry was ignored.
         * `duplicatedBy` (optional, array of strings): Any other games that

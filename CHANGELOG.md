@@ -1,4 +1,4 @@
-## Unreleased
+## v0.23.0 (2024-04-27)
 
 * Added:
   * CLI: The `wrap` command now supports some new arguments:

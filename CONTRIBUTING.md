@@ -69,6 +69,7 @@ Also install the Crowdin CLI manually.
 * Run `cargo build` to update the version in Cargo.lock
 * Add the new version to `.github/ISSUE_TEMPLATE/*.yaml`.
 * Update the README if necessary for any new features.
+  Check for any new content that needs to be uncommented (`<!--`).
 
 #### Publish
 Commands assume you've set `VERSION=$(invoke version)`.
