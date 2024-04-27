@@ -12,8 +12,8 @@ license = "MIT"
 base64 = "0.22.0"
 byte-unit = "5.1.4"
 chrono = { version = "0.4.35", features = ["serde"] }
-clap = { version = "4.5.2", features = ["derive", "wrap_help"] }
-clap_complete = "4.5.1"
+clap = { version = "~4.4.18", features = ["derive", "wrap_help"] }
+clap_complete = "~4.4.7"
 dialoguer = "0.11.0"
 dirs = "5.0.1"
 filetime = "0.2.23"
