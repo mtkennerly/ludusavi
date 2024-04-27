@@ -161,7 +161,7 @@ impl StrictPath {
 
     pub fn as_std_path_buf(&self) -> Result<std::path::PathBuf, std::io::Error> {
         Ok(std::path::PathBuf::from(&self.interpret().map_err(|_| {
-            std::io::Error::other(format!("Cannot interpret path: {:?}", &self))
+            std::io::Error::new(std::io::ErrorKind::Other, format!("Cannot interpret path: {:?}", &self))
         })?))
     }
 
