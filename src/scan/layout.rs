@@ -16,9 +16,11 @@ use crate::{
     },
     scan::{
         game_file_target, prepare_backup_target, BackupError, BackupId, BackupInfo, ScanChange, ScanInfo, ScannedFile,
-        ScannedRegistry,
     },
 };
+
+#[cfg(target_os = "windows")]
+use crate::scan::ScannedRegistry;
 
 const SAFE: &str = "_";
 
