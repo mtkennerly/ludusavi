@@ -2,7 +2,7 @@ use std::env;
 
 use crate::{
     resource::{config::RootsConfig, manifest::Store},
-    scan::heroic::{get_gog_games_library, get_legendary_installed_games},
+    scan::heroic::{gog, legendary},
     wrap::WrapGameInfo,
 };
 
@@ -13,22 +13,21 @@ fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) -> Opt
         .iter()
         .filter(|root| root.store == Store::Heroic)
         .find_map(|root| {
-            log::debug!("wrap::heroic::find_in_roots: checking root {:?}", root);
+            log::debug!("Looking for game ID '{}' in root {:?}", game_id, root);
 
             match game_runner {
-                "gog" => match get_gog_games_library(root) {
-                    Some(gog_games) => gog_games.iter().find_map(|g| match g.app_name == *game_id {
+                "gog" => gog::get_library(root)
+                    .iter()
+                    .find_map(|g| match g.app_name == *game_id {
                         true => Some(g.title.clone()),
                         false => None,
                     }),
-                    None => None,
-                },
-                "legendary" => get_legendary_installed_games(root, None)
-                    .iter()
-                    .find_map(|legendary_game| match legendary_game.app_name == *game_id {
+                "legendary" => legendary::get_installed(root, None).iter().find_map(|legendary_game| {
+                    match legendary_game.app_name == *game_id {
                         true => Some(legendary_game.title.clone()),
                         false => None,
-                    }),
+                    }
+                }),
 
                 "nile" => {
                     log::debug!("Ignoring Heroic game with unsupported runner 'nile'.");

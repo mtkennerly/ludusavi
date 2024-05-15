@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::{
-    prelude::StrictPath,
+    prelude::{StrictPath, ENV_DEBUG},
     resource::{config::RootsConfig, manifest::Os},
     scan::{launchers::LauncherGame, TitleFinder},
 };
@@ -15,7 +15,7 @@ pub struct Game {
     pub install_path: String,
 }
 
-/// installed.json
+/// `installed.json`
 #[derive(serde::Deserialize)]
 struct Library(HashMap<String, Game>);
 
@@ -25,6 +25,12 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
     for game in get_games(&root.path) {
         let Some(official_title) = title_finder.find_one_by_normalized_name(&game.title) else {
             log::trace!("Ignoring unrecognized game: {}", &game.title);
+            if std::env::var(ENV_DEBUG).is_ok() {
+                eprintln!(
+                    "Ignoring unrecognized game from Legendary: {} (app = {})",
+                    &game.title, &game.app_name
+                );
+            }
             continue;
         };
 
