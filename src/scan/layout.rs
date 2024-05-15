@@ -511,13 +511,6 @@ impl IndividualMapping {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-struct BackupPlan {
-    backup: Backup,
-    files: HashSet<ScannedFile>,
-    registry: HashSet<ScannedRegistry>,
-}
-
 #[derive(Clone, Debug, Default)]
 pub struct GameLayout {
     pub path: StrictPath,
