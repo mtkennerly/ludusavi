@@ -19,7 +19,7 @@ use crate::{
     },
 };
 
-#[cfg(target_os = "windows")]
+#[allow(unused)]
 use crate::scan::ScannedRegistry;
 
 const SAFE: &str = "_";
