@@ -87,7 +87,7 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
                     &game.app_name,
                     &game_title
                 );
-                let prefix = find_prefix(&root.path, game_title, &game.platform, &game.app_name);
+                let prefix = find_prefix(&root.path, game_title, Some(&game.platform), &game.app_name);
                 games.insert(
                     official_title,
                     LauncherGame {

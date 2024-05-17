@@ -1,0 +1,15 @@
+{
+  "games": [
+    {
+      "runner": "sideload",
+      "app_name": "app-1",
+      "title": "game-1",
+      "install": {
+        "executable": "/games/game-1/game.exe",
+        "platform": "Windows",
+        "is_dlc": false
+      },
+      "folder_name": "/games/game-1"
+    }
+  ]
+}

@@ -36,7 +36,7 @@ pub fn scan(
             &game.app_name,
             &game.title
         );
-        let prefix = find_prefix(&root.path, &game.title, &game.platform.to_lowercase(), &game.app_name);
+        let prefix = find_prefix(&root.path, &game.title, Some(&game.platform), &game.app_name);
         games.insert(
             official_title,
             LauncherGame {

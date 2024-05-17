@@ -1,3 +1,8 @@
+## Unreleased
+
+* Added:
+  * Support for Amazon/sideloaded games in Heroic.
+
 ## v0.23.0 (2024-04-27)
 
 * Added:

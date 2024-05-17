@@ -1,0 +1,14 @@
+{
+  "library": [
+    {
+      "app_name": "app-1",
+      "install": {
+        "install_path": "/games/game-1",
+        "install_size": "1 MiB",
+        "version": "1",
+        "platform": "Windows"
+      },
+      "title": "game-1"
+    }
+  ]
+}

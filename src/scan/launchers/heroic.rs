@@ -1,12 +1,14 @@
 pub mod gog;
 pub mod legendary;
+pub mod nile;
+pub mod sideload;
 
 use std::collections::HashMap;
 
 use crate::prelude::StrictPath;
 
 use crate::{
-    resource::config::RootsConfig,
+    resource::{config::RootsConfig, manifest::Os},
     scan::{launchers::LauncherGame, TitleFinder},
 };
 
@@ -41,13 +43,22 @@ pub fn scan(
 
     games.extend(legendary::scan(root, title_finder, legendary));
     games.extend(gog::scan(root, title_finder));
+    games.extend(nile::scan(root, title_finder));
+    games.extend(sideload::scan(root, title_finder));
 
     games
 }
 
-fn find_prefix(heroic_path: &StrictPath, game_name: &str, platform: &str, app_name: &str) -> Option<StrictPath> {
-    match platform {
-        "windows" => {
+fn find_prefix(
+    heroic_path: &StrictPath,
+    game_name: &str,
+    platform: Option<&str>,
+    app_name: &str,
+) -> Option<StrictPath> {
+    let platform = platform?;
+
+    match Os::from(platform) {
+        Os::Windows => {
             log::trace!(
                 "Will try to find prefix for Heroic Windows game: {} ({})",
                 game_name,
@@ -105,14 +116,19 @@ fn find_prefix(heroic_path: &StrictPath, game_name: &str, platform: &str, app_na
             }
         }
 
-        "linux" => {
-            log::trace!("Found Heroic Linux game {}, ignoring", game_name);
+        Os::Linux => {
+            log::trace!("Found Heroic Linux game {}, ignoring prefix", game_name);
+            None
+        }
+
+        Os::Mac => {
+            log::trace!("Found Heroic Mac game {}, ignoring prefix", game_name);
             None
         }
 
         _ => {
             log::trace!(
-                "Found Heroic game {} with unhandled platform {}, ignoring.",
+                "Found Heroic game {} with unhandled platform {}, ignoring prefix",
                 game_name,
                 platform,
             );

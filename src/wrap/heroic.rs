@@ -2,7 +2,7 @@ use std::env;
 
 use crate::{
     resource::{config::RootsConfig, manifest::Store},
-    scan::heroic::{gog, legendary},
+    scan::heroic::{gog, legendary, nile, sideload},
     wrap::WrapGameInfo,
 };
 
@@ -29,14 +29,8 @@ fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) -> Opt
                     }
                 }),
 
-                "nile" => {
-                    log::debug!("Ignoring Heroic game with unsupported runner 'nile'.");
-                    None
-                }
-                "sideload" => {
-                    log::debug!("Ignoring Heroic game with unsupported runner 'sideload'.");
-                    None
-                }
+                "nile" => nile::get_library(&root.path).get(game_id).map(|x| x.title.clone()),
+                "sideload" => sideload::get_library(&root.path).get(game_id).map(|x| x.title.clone()),
                 value => {
                     log::debug!("Ignoring Heroic game with unknown runner '{}'.", value);
                     None
