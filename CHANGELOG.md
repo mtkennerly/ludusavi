@@ -2,6 +2,9 @@
 
 * Added:
   * Support for Amazon/sideloaded games in Heroic.
+* Changed:
+  * Title normalization now ignores apostrophes and quotation marks
+    (e.g., `ludusavi find --normalized "Mirrors Edge"` will find `Mirror's Edge`).
 
 ## v0.23.0 (2024-04-27)
 
