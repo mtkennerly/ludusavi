@@ -6,18 +6,23 @@ use crate::{
     scan::{launchers::LauncherGame, TitleFinder},
 };
 
-#[derive(Clone, serde::Deserialize)]
-pub struct Game {
-    /// This is an opaque ID, not the human-readable title.
-    pub app_name: String,
-    pub title: String,
-    pub platform: String,
-    pub install_path: String,
-}
+pub mod installed {
+    use std::collections::HashMap;
 
-/// `installed.json`
-#[derive(serde::Deserialize)]
-struct Library(HashMap<String, Game>);
+    pub const PATH: &str = "installed.json";
+
+    #[derive(serde::Deserialize)]
+    pub struct Data(pub HashMap<String, Game>);
+
+    #[derive(Clone, serde::Deserialize)]
+    pub struct Game {
+        /// This is an opaque ID, not the human-readable title.
+        pub app_name: String,
+        pub title: String,
+        pub platform: String,
+        pub install_path: String,
+    }
+}
 
 pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
     let mut out = HashMap::new();
@@ -53,10 +58,10 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
     out
 }
 
-pub fn get_games(source: &StrictPath) -> Vec<Game> {
+pub fn get_games(source: &StrictPath) -> Vec<installed::Game> {
     let mut out = vec![];
 
-    let library = source.joined("installed.json");
+    let library = source.joined(installed::PATH);
 
     let content = match library.try_read() {
         Ok(content) => content,
@@ -70,7 +75,7 @@ pub fn get_games(source: &StrictPath) -> Vec<Game> {
         }
     };
 
-    if let Ok(installed_games) = serde_json::from_str::<Library>(&content) {
+    if let Ok(installed_games) = serde_json::from_str::<installed::Data>(&content) {
         out.extend(installed_games.0.into_values());
     }
 

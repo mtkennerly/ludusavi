@@ -11,32 +11,39 @@ use crate::{
     },
 };
 
-/// `gog_store/installed.json`
-#[derive(serde::Deserialize)]
-struct Installed {
-    installed: Vec<InstalledGame>,
+pub mod installed {
+    pub const PATH: &str = "gog_store/installed.json";
+
+    #[derive(serde::Deserialize)]
+    pub struct Data {
+        pub installed: Vec<Game>,
+    }
+
+    #[derive(serde::Deserialize)]
+    pub struct Game {
+        /// This is an opaque ID, not the human-readable title.
+        #[serde(rename = "appName")]
+        pub app_name: String,
+        pub platform: String,
+        pub install_path: String,
+    }
 }
 
-#[derive(serde::Deserialize)]
-struct InstalledGame {
-    /// This is an opaque ID, not the human-readable title.
-    #[serde(rename = "appName")]
-    app_name: String,
-    platform: String,
-    install_path: String,
-}
+pub mod library {
+    pub const PATH: &str = "store_cache/gog_library.json";
+    pub const PATH_LEGACY: &str = "gog_store/library.json";
 
-/// `gog_store/library.json` or `store_cache/gog_library.json`
-#[derive(serde::Deserialize)]
-struct Library {
-    games: Vec<LibraryGame>,
-}
+    #[derive(serde::Deserialize)]
+    pub struct Data {
+        pub games: Vec<Game>,
+    }
 
-#[derive(serde::Deserialize)]
-pub struct LibraryGame {
-    /// This is an opaque ID, not the human-readable title.
-    pub app_name: String,
-    pub title: String,
+    #[derive(serde::Deserialize)]
+    pub struct Game {
+        /// This is an opaque ID, not the human-readable title.
+        pub app_name: String,
+        pub title: String,
+    }
 }
 
 pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
@@ -52,10 +59,10 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
     }
 
     // iterate over all games found in HEROCONFIGDIR/gog_store/installed.json and call find_prefix
-    let installed_path = root.path.joined("gog_store").joined("installed.json");
+    let installed_path = root.path.joined(installed::PATH);
     let content = installed_path.read();
 
-    match serde_json::from_str::<Installed>(&content.unwrap_or_default()) {
+    match serde_json::from_str::<installed::Data>(&content.unwrap_or_default()) {
         Ok(installed_games) => {
             for game in installed_games.installed {
                 let Some(game_title) = game_titles.get(&game.app_name) else {
@@ -106,11 +113,8 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
     games
 }
 
-pub fn get_library(root: &RootsConfig) -> Vec<LibraryGame> {
-    let libraries = [
-        root.path.joined("store_cache").joined("gog_library.json"),
-        root.path.joined("gog_store").joined("library.json"),
-    ];
+pub fn get_library(root: &RootsConfig) -> Vec<library::Game> {
+    let libraries = [root.path.joined(library::PATH), root.path.joined(library::PATH_LEGACY)];
 
     let library_path = 'outer: {
         for library in libraries {
@@ -122,7 +126,7 @@ pub fn get_library(root: &RootsConfig) -> Vec<LibraryGame> {
         return vec![];
     };
 
-    match serde_json::from_str::<Library>(&library_path.read().unwrap_or_default()) {
+    match serde_json::from_str::<library::Data>(&library_path.read().unwrap_or_default()) {
         Ok(gog_library) => {
             log::trace!("Found {} games in {:?}", gog_library.games.len(), &library_path);
 

@@ -50,7 +50,7 @@ pub fn scan(
     games
 }
 
-pub fn get_installed(root: &RootsConfig, legendary: Option<&StrictPath>) -> Vec<legendary_standalone::Game> {
+pub fn get_installed(root: &RootsConfig, legendary: Option<&StrictPath>) -> Vec<legendary_standalone::installed::Game> {
     let mut out = vec![];
 
     let legendary_paths = match legendary {
