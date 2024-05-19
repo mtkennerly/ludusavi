@@ -1,0 +1,40 @@
+{
+  "games": [
+    {
+      "runner": "gog",
+      "app_name": "app-1",
+      "cloud_save_enabled": true,
+      "compatible_apps": [],
+      "extra": {
+        "about": {
+          "description": "foo",
+          "shortDescription": ""
+        },
+        "reqs": []
+      },
+      "folder_name": "",
+      "install": {
+        "version": null,
+        "executable": "",
+        "install_path": "",
+        "install_size": "",
+        "is_dlc": false,
+        "platform": ""
+      },
+      "is_game": true,
+      "is_installed": false,
+      "is_ue_asset": false,
+      "is_ue_plugin": false,
+      "is_ue_project": false,
+      "namespace": "game-1-namespace",
+      "save_folder": "",
+      "title": "game-1",
+      "canRunOffline": true,
+      "is_mac_native": false,
+      "is_linux_native": false
+    }
+  ],
+  "totalGames": 1,
+  "totalMovies": 0,
+  "cloud_saves_enabled": true
+}

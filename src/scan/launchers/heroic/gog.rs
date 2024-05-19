@@ -138,3 +138,71 @@ pub fn get_library(root: &RootsConfig) -> Vec<library::Game> {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use pretty_assertions::assert_eq;
+    use velcro::hash_map;
+
+    use super::*;
+    use crate::{
+        resource::{
+            manifest::{Manifest, Os, Store},
+            ResourceFile,
+        },
+        testing::repo,
+    };
+
+    fn manifest() -> Manifest {
+        Manifest::load_from_string(
+            r#"
+            game-1:
+              files:
+                <base>/file1.txt: {}
+            "#,
+        )
+        .unwrap()
+    }
+
+    fn title_finder() -> TitleFinder {
+        TitleFinder::new(&Default::default(), &manifest(), Default::default())
+    }
+
+    #[test]
+    fn scan_finds_all_games_without_store_cache() {
+        let root = RootsConfig {
+            path: StrictPath::new(format!("{}/tests/launchers/heroic-gog-without-store-cache", repo())),
+            store: Store::Heroic,
+        };
+        let games = scan(&root, &title_finder());
+        assert_eq!(
+            hash_map! {
+                "game-1".to_string(): LauncherGame {
+                    install_dir: Some(StrictPath::new("/games/game-1".to_string())),
+                    prefix: Some(StrictPath::new("/prefixes/game-1".to_string())),
+                    platform: Some(Os::Windows),
+                },
+            },
+            games,
+        );
+    }
+
+    #[test]
+    fn scan_finds_all_games_with_store_cache() {
+        let root = RootsConfig {
+            path: StrictPath::new(format!("{}/tests/launchers/heroic-gog-with-store-cache", repo())),
+            store: Store::Heroic,
+        };
+        let games = scan(&root, &title_finder());
+        assert_eq!(
+            hash_map! {
+                "game-1".to_string(): LauncherGame {
+                    install_dir: Some(StrictPath::new("/games/game-1".to_string())),
+                    prefix: Some(StrictPath::new("/prefixes/game-1".to_string())),
+                    platform: Some(Os::Windows),
+                },
+            },
+            games,
+        );
+    }
+}

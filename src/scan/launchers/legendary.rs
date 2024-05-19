@@ -99,10 +99,7 @@ mod tests {
     fn manifest() -> Manifest {
         Manifest::load_from_string(
             r#"
-            windows-game:
-              files:
-                <base>/file1.txt: {}
-            proton-game:
+            game-1:
               files:
                 <base>/file1.txt: {}
             "#,
@@ -133,8 +130,8 @@ mod tests {
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {
-                "windows-game".to_string(): LauncherGame {
-                    install_dir: Some(StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string())),
+                "game-1".to_string(): LauncherGame {
+                    install_dir: Some(StrictPath::new("/games/game-1".to_string())),
                     prefix: None,
                     platform: Some(Os::Windows),
                 },

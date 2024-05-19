@@ -12,26 +12,33 @@ use crate::{
     scan::{launchers::LauncherGame, TitleFinder},
 };
 
-/// `GamesConfig/*.json`
-#[derive(serde::Deserialize, Debug)]
-struct GamesConfigWrapper(HashMap<String, GamesConfig>);
+mod games_config {
+    use std::collections::HashMap;
 
-#[derive(serde::Deserialize, Debug)]
-#[serde(untagged)]
-enum GamesConfig {
-    Config {
-        #[serde(rename = "winePrefix")]
-        wine_prefix: String,
-        #[serde(rename = "wineVersion")]
-        wine_version: GamesConfigWine,
-    },
-    IgnoreOther(serde::de::IgnoredAny),
-}
+    pub fn path(id: &str) -> String {
+        format!("GamesConfig/{id}.json")
+    }
 
-#[derive(serde::Deserialize, Debug)]
-struct GamesConfigWine {
-    #[serde(rename = "type")]
-    wine_type: String,
+    #[derive(serde::Deserialize, Debug)]
+    pub struct Data(pub HashMap<String, Game>);
+
+    #[derive(serde::Deserialize, Debug)]
+    #[serde(untagged)]
+    pub enum Game {
+        Config {
+            #[serde(rename = "winePrefix")]
+            wine_prefix: String,
+            #[serde(rename = "wineVersion")]
+            wine_version: Wine,
+        },
+        IgnoreOther(serde::de::IgnoredAny),
+    }
+
+    #[derive(serde::Deserialize, Debug)]
+    pub struct Wine {
+        #[serde(rename = "type")]
+        pub wine_type: String,
+    }
 }
 
 pub fn scan(
@@ -65,13 +72,13 @@ fn find_prefix(
                 app_name
             );
 
-            let games_config_path = heroic_path.joined("GamesConfig").joined(&format!("{app_name}.json"));
-            match serde_json::from_str::<GamesConfigWrapper>(&games_config_path.read().unwrap_or_default()) {
+            let games_config_path = heroic_path.joined(&games_config::path(app_name));
+            match serde_json::from_str::<games_config::Data>(&games_config_path.read().unwrap_or_default()) {
                 Ok(games_config_wrapper) => {
                     let game_config = games_config_wrapper.0.get(app_name)?;
 
                     match game_config {
-                        GamesConfig::Config {
+                        games_config::Game::Config {
                             wine_version,
                             wine_prefix,
                         } => match wine_version.wine_type.as_str() {
@@ -106,7 +113,7 @@ fn find_prefix(
                                 None
                             }
                         },
-                        GamesConfig::IgnoreOther(_) => None,
+                        games_config::Game::IgnoreOther(_) => None,
                     }
                 }
                 Err(e) => {
@@ -134,99 +141,5 @@ fn find_prefix(
             );
             None
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use pretty_assertions::assert_eq;
-    use velcro::hash_map;
-
-    use super::*;
-    use crate::{
-        resource::{
-            manifest::{Manifest, Os, Store},
-            ResourceFile,
-        },
-        testing::repo,
-    };
-
-    fn manifest() -> Manifest {
-        Manifest::load_from_string(
-            r#"
-            windows-game:
-              files:
-                <base>/file1.txt: {}
-            proton-game:
-              files:
-                <base>/file1.txt: {}
-            "#,
-        )
-        .unwrap()
-    }
-
-    fn title_finder() -> TitleFinder {
-        TitleFinder::new(&Default::default(), &manifest(), Default::default())
-    }
-
-    #[test]
-    fn scan_finds_nothing_when_folder_does_not_exist() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/nonexistent", repo())),
-            store: Store::Heroic,
-        };
-        let legendary = Some(StrictPath::new(format!("{}/tests/nonexistent", repo())));
-        let games = scan(&root, &title_finder(), legendary.as_ref());
-        assert_eq!(HashMap::new(), games);
-    }
-
-    #[test]
-    fn scan_finds_all_games_without_store_cache() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/launchers/heroic-without-store-cache", repo())),
-            store: Store::Heroic,
-        };
-        let legendary = Some(StrictPath::new(format!("{}/tests/launchers/legendary", repo())));
-        let games = scan(&root, &title_finder(), legendary.as_ref());
-        assert_eq!(
-            hash_map! {
-                "windows-game".to_string(): LauncherGame {
-                    install_dir: Some(StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string())),
-                    prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string())),
-                    platform: Some(Os::Windows),
-                },
-                "proton-game".to_string(): LauncherGame {
-                    install_dir: Some(StrictPath::new("/home/root/Games/proton-game".to_string())),
-                    prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/proton-game/pfx".to_string())),
-                    platform: Some(Os::Windows),
-                },
-            },
-            games,
-        );
-    }
-
-    #[test]
-    fn scan_finds_all_games_with_store_cache() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/launchers/heroic-with-store-cache", repo())),
-            store: Store::Heroic,
-        };
-        let legendary = Some(StrictPath::new(format!("{}/tests/launchers/legendary", repo())));
-        let games = scan(&root, &title_finder(), legendary.as_ref());
-        assert_eq!(
-            hash_map! {
-                "windows-game".to_string(): LauncherGame {
-                    install_dir: Some(StrictPath::new("C:\\Users\\me\\Games\\Heroic\\windows-game".to_string())),
-                    prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/windows-game".to_string())),
-                    platform: Some(Os::Windows),
-                },
-                "proton-game".to_string(): LauncherGame {
-                    install_dir: Some(StrictPath::new("/home/root/Games/proton-game".to_string())),
-                    prefix: Some(StrictPath::new("/home/root/Games/Heroic/Prefixes/proton-game/pfx".to_string())),
-                    platform: Some(Os::Windows),
-                },
-            },
-            games,
-        );
     }
 }

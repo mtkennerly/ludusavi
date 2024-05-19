@@ -1,13 +1,13 @@
 {
-  "100": {
-    "app_name": "100",
+  "app-1": {
+    "app_name": "app-1",
     "base_urls": [
       "https://example.com/"
     ],
     "can_run_offline": true,
     "egl_guid": "",
-    "executable": "windows-game.exe",
-    "install_path": "C:\\Users\\me\\Games\\Heroic\\windows-game",
+    "executable": "game-1.exe",
+    "install_path": "/games/game-1",
     "install_size": 123,
     "install_tags": [],
     "is_dlc": false,
@@ -18,7 +18,7 @@
     "prereq_info": null,
     "requires_ot": false,
     "save_path": null,
-    "title": "windows-game",
+    "title": "game-1",
     "version": "1.1"
   }
 }

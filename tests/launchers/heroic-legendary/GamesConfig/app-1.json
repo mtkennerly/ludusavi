@@ -1,0 +1,14 @@
+{
+  "app-1": {
+    "wineVersion": {
+      "bin": "/usr/bin/wine",
+      "name": "Wine Default - wine-ge-7.0 (Staging)",
+      "type": "wine",
+      "wineserver": "/usr/bin/wineserver",
+      "wineboot": "/usr/bin/wineboot"
+    },
+    "winePrefix": "/prefixes/game-1"
+  },
+  "version": "v0",
+  "explicit": true
+}

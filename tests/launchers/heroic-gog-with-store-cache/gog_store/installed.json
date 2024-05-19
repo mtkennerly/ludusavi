@@ -1,0 +1,17 @@
+{
+  "installed": [
+    {
+      "platform": "windows",
+      "executable": "",
+      "install_path": "/games/game-1",
+      "install_size": "22.74 MiB",
+      "is_dlc": false,
+      "version": "3.0",
+      "appName": "app-1",
+      "installedWithDLCs": false,
+      "language": "en-US",
+      "versionEtag": "\"3640869511\"",
+      "buildId": "52095636268561745"
+    }
+  ]
+}
