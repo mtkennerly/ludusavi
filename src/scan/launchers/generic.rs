@@ -78,11 +78,7 @@ pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> Has
     let scores: Vec<_> = subjects
         .into_par_iter()
         .filter_map(|name| {
-            let manifest_install_dirs: Vec<_> = manifest.0[name]
-                .install_dir
-                .as_ref()
-                .map(|x| x.keys().collect())
-                .unwrap_or_default();
+            let manifest_install_dirs: Vec<_> = manifest.0[name].install_dir.keys().collect();
             let default_install_dir = name.to_string();
             let expected_install_dirs = &[manifest_install_dirs, vec![&default_install_dir]].concat();
 

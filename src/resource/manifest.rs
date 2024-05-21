@@ -28,16 +28,14 @@ pub mod placeholder {
     pub const XDG_CONFIG: &str = "<xdgConfig>";
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Os {
-    #[serde(rename = "windows")]
     Windows,
-    #[serde(rename = "linux")]
     Linux,
-    #[serde(rename = "mac")]
     Mac,
     #[default]
-    #[serde(other, rename = "other")]
+    #[serde(other)]
     Other,
 }
 
@@ -75,43 +73,27 @@ impl From<&str> for Os {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Store {
-    #[serde(rename = "ea")]
     Ea,
-    #[serde(rename = "epic")]
     Epic,
-    #[serde(rename = "gog")]
     Gog,
-    #[serde(rename = "gogGalaxy")]
     GogGalaxy,
-    #[serde(rename = "heroic")]
     Heroic,
-    #[serde(rename = "legendary")]
     Legendary,
-    #[serde(rename = "lutris")]
     Lutris,
-    #[serde(rename = "microsoft")]
     Microsoft,
-    #[serde(rename = "origin")]
     Origin,
-    #[serde(rename = "prime")]
     Prime,
-    #[serde(rename = "steam")]
     Steam,
-    #[serde(rename = "uplay")]
     Uplay,
-    #[serde(rename = "otherHome")]
     OtherHome,
-    #[serde(rename = "otherWine")]
     OtherWine,
-    #[serde(rename = "otherWindows")]
     OtherWindows,
-    #[serde(rename = "otherLinux")]
     OtherLinux,
-    #[serde(rename = "otherMac")]
     OtherMac,
     #[default]
-    #[serde(other, rename = "other")]
+    #[serde(other)]
     Other,
 }
 
@@ -144,14 +126,13 @@ impl ToString for Store {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Tag {
-    #[serde(rename = "save")]
     Save,
-    #[serde(rename = "config")]
     Config,
     #[default]
-    #[serde(other, rename = "other")]
+    #[serde(other)]
     Other,
 }
 
@@ -159,69 +140,72 @@ pub enum Tag {
 pub struct Manifest(#[serde(serialize_with = "crate::serialization::ordered_map")] pub HashMap<String, Game>);
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct Game {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alias: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub files: Option<BTreeMap<String, GameFileEntry>>,
-    #[serde(rename = "installDir", skip_serializing_if = "Option::is_none")]
-    pub install_dir: Option<BTreeMap<String, GameInstallDirEntry>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub registry: Option<BTreeMap<String, GameRegistryEntry>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub steam: Option<SteamMetadata>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub gog: Option<GogMetadata>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub id: Option<IdMetadata>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub files: BTreeMap<String, GameFileEntry>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub install_dir: BTreeMap<String, GameInstallDirEntry>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub registry: BTreeMap<String, GameRegistryEntry>,
+    #[serde(skip_serializing_if = "SteamMetadata::is_empty")]
+    pub steam: SteamMetadata,
+    #[serde(skip_serializing_if = "GogMetadata::is_empty")]
+    pub gog: GogMetadata,
+    #[serde(skip_serializing_if = "IdMetadata::is_empty")]
+    pub id: IdMetadata,
 }
 
 impl Game {
     /// This is intended for secondary manifests.
     fn normalize_relative_paths(&mut self) {
         use placeholder::BASE;
-        if let Some(files) = self.files.as_mut() {
-            *files = files
-                .iter_mut()
-                .map(|(k, v)| {
-                    let v = v.clone();
-                    if let Some(k) = k.strip_prefix("./") {
-                        (format!("{BASE}/{k}"), v)
-                    } else if let Some(k) = k.strip_prefix(".\\") {
-                        (format!("{BASE}/{k}"), v)
-                    } else if let Some(k) = k.strip_prefix("../") {
-                        (format!("{BASE}/../{k}"), v)
-                    } else if let Some(k) = k.strip_prefix("..\\") {
-                        (format!("{BASE}/../{k}"), v)
-                    } else {
-                        (k.clone(), v)
-                    }
-                })
-                .collect();
-        }
+        self.files = self
+            .files
+            .iter_mut()
+            .map(|(k, v)| {
+                let v = v.clone();
+                if let Some(k) = k.strip_prefix("./") {
+                    (format!("{BASE}/{k}"), v)
+                } else if let Some(k) = k.strip_prefix(".\\") {
+                    (format!("{BASE}/{k}"), v)
+                } else if let Some(k) = k.strip_prefix("../") {
+                    (format!("{BASE}/../{k}"), v)
+                } else if let Some(k) = k.strip_prefix("..\\") {
+                    (format!("{BASE}/../{k}"), v)
+                } else {
+                    (k.clone(), v)
+                }
+            })
+            .collect();
     }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct GameFileEntry {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<Tag>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub when: Option<Vec<GameFileConstraint>>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub tags: BTreeSet<Tag>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub when: BTreeSet<GameFileConstraint>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct GameInstallDirEntry {}
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct GameRegistryEntry {
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub tags: Option<Vec<Tag>>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub when: Option<Vec<GameRegistryConstraint>>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub tags: BTreeSet<Tag>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    pub when: BTreeSet<GameRegistryConstraint>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct GameFileConstraint {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub os: Option<Os>,
@@ -229,26 +213,41 @@ pub struct GameFileConstraint {
     pub store: Option<Store>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct GameRegistryConstraint {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub store: Option<Store>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct SteamMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,
 }
 
+impl SteamMetadata {
+    pub fn is_empty(&self) -> bool {
+        self.id.is_none()
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct GogMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<u64>,
 }
 
+impl GogMetadata {
+    pub fn is_empty(&self) -> bool {
+        self.id.is_none()
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct IdMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub flatpak: Option<String>,
@@ -256,6 +255,12 @@ pub struct IdMetadata {
     pub gog_extra: BTreeSet<u64>,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub steam_extra: BTreeSet<u32>,
+}
+
+impl IdMetadata {
+    pub fn is_empty(&self) -> bool {
+        self.flatpak.is_none() && self.gog_extra.is_empty() && self.steam_extra.is_empty()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -421,20 +426,14 @@ impl Manifest {
     pub fn map_steam_ids_to_names(&self) -> HashMap<u32, String> {
         self.0
             .iter()
-            .filter_map(|(k, v)| match &v.steam {
-                None => None,
-                Some(steam) => steam.id.map(|id| (id, k.to_owned())),
-            })
+            .filter_map(|(k, v)| v.steam.id.as_ref().map(|id| (*id, k.to_owned())))
             .collect()
     }
 
     pub fn map_gog_ids_to_names(&self) -> HashMap<u64, String> {
         self.0
             .iter()
-            .filter_map(|(k, v)| match &v.gog {
-                None => None,
-                Some(gog) => gog.id.map(|id| (id, k.to_owned())),
-            })
+            .filter_map(|(k, v)| v.gog.id.as_ref().map(|id| (*id, k.to_owned())))
             .collect()
     }
 
@@ -468,24 +467,20 @@ impl Manifest {
 
         let game = Game {
             alias: custom.alias,
-            files: (!custom.files.is_empty()).then(|| {
-                custom
-                    .files
-                    .into_iter()
-                    .map(|x| (x, GameFileEntry::default()))
-                    .collect()
-            }),
-            install_dir: existing.and_then(|x| x.install_dir.clone()),
-            registry: (!custom.registry.is_empty()).then(|| {
-                custom
-                    .registry
-                    .into_iter()
-                    .map(|x| (x, GameRegistryEntry::default()))
-                    .collect()
-            }),
-            steam: existing.and_then(|x| x.steam.clone()),
-            gog: existing.and_then(|x| x.gog.clone()),
-            id: existing.and_then(|x| x.id.clone()),
+            files: custom
+                .files
+                .into_iter()
+                .map(|x| (x, GameFileEntry::default()))
+                .collect(),
+            install_dir: existing.map(|x| x.install_dir.clone()).unwrap_or_default(),
+            registry: custom
+                .registry
+                .into_iter()
+                .map(|x| (x, GameRegistryEntry::default()))
+                .collect(),
+            steam: existing.map(|x| x.steam.clone()).unwrap_or_default(),
+            gog: existing.map(|x| x.gog.clone()).unwrap_or_default(),
+            id: existing.map(|x| x.id.clone()).unwrap_or_default(),
         };
 
         self.0.insert(name, game);
@@ -499,62 +494,32 @@ impl Manifest {
             if let Some(standard) = self.0.get_mut(&name) {
                 log::debug!("overriding game from secondary manifest: {name}");
 
-                if let Some(secondary) = game.files {
-                    if let Some(standard) = &mut standard.files {
-                        standard.extend(secondary);
-                    } else {
-                        standard.files = Some(secondary);
-                    }
+                standard.files.extend(game.files);
+                standard.registry.extend(game.registry);
+
+                if let Some(folder) = path.parent().and_then(|x| x.leaf()) {
+                    standard.install_dir.insert(folder, GameInstallDirEntry {});
+                }
+                standard.install_dir.extend(game.install_dir);
+
+                if standard.steam.is_empty() {
+                    standard.steam = game.steam;
                 }
 
-                if let Some(secondary) = game.registry {
-                    if let Some(standard) = &mut standard.registry {
-                        standard.extend(secondary);
-                    } else {
-                        standard.registry = Some(secondary);
-                    }
+                if standard.gog.is_empty() {
+                    standard.gog = game.gog;
                 }
 
-                if let Some(mut secondary) = game.install_dir {
-                    if let Some(folder) = path.parent().and_then(|x| x.leaf()) {
-                        secondary.insert(folder, GameInstallDirEntry {});
-                    }
-
-                    if let Some(standard) = &mut standard.install_dir {
-                        standard.extend(secondary);
-                    } else {
-                        standard.install_dir = Some(secondary);
-                    }
+                if standard.id.flatpak.is_none() {
+                    standard.id.flatpak = game.id.flatpak;
                 }
-
-                if let (None, Some(secondary)) = (standard.steam.as_ref(), game.steam) {
-                    standard.steam = Some(secondary);
-                }
-
-                if let (None, Some(secondary)) = (standard.gog.as_ref(), game.gog) {
-                    standard.gog = Some(secondary);
-                }
-
-                if let Some(secondary_id) = game.id {
-                    if let Some(standard_id) = &mut standard.id {
-                        if standard_id.flatpak.is_none() {
-                            standard_id.flatpak = secondary_id.flatpak;
-                        }
-                        standard_id.gog_extra.extend(secondary_id.gog_extra);
-                        standard_id.steam_extra.extend(secondary_id.steam_extra);
-                    } else {
-                        standard.id = Some(secondary_id);
-                    }
-                }
+                standard.id.gog_extra.extend(game.id.gog_extra);
+                standard.id.steam_extra.extend(game.id.steam_extra);
             } else {
                 log::debug!("adding game from secondary manifest: {name}");
 
                 if let Some(folder) = path.parent().and_then(|x| x.leaf()) {
-                    if let Some(secondary) = &mut game.install_dir {
-                        secondary.insert(folder, GameInstallDirEntry {});
-                    } else {
-                        game.install_dir = Some(BTreeMap::from([(folder, GameInstallDirEntry {})]));
-                    }
+                    game.install_dir.insert(folder, GameInstallDirEntry {});
                 }
 
                 self.0.insert(name, game);
@@ -578,7 +543,7 @@ impl Manifest {
                 id,
             } = &v;
             alias.is_none()
-                && (files.is_some() || registry.is_some() || steam.is_some() || gog.is_some() || id.is_some())
+                && (!files.is_empty() || !registry.is_empty() || !steam.is_empty() || !gog.is_empty() || !id.is_empty())
         })
     }
 
@@ -625,7 +590,7 @@ impl Manifest {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::{btree_map, hash_map};
+    use velcro::{btree_map, btree_set, hash_map};
 
     use super::*;
     use crate::testing::s;
@@ -642,12 +607,12 @@ mod tests {
         assert_eq!(
             Game {
                 alias: None,
-                files: None,
-                install_dir: None,
-                registry: None,
-                steam: None,
-                gog: None,
-                id: None,
+                files: Default::default(),
+                install_dir: Default::default(),
+                registry: Default::default(),
+                steam: Default::default(),
+                gog: Default::default(),
+                id: Default::default(),
             },
             manifest.0["game"],
         );
@@ -689,37 +654,37 @@ mod tests {
         assert_eq!(
             Game {
                 alias: Some("other".to_string()),
-                files: Some(btree_map! {
+                files: btree_map! {
                     s("foo"): GameFileEntry {
-                        when: Some(vec![
+                        when: btree_set![
                             GameFileConstraint {
                                 os: Some(Os::Windows),
                                 store: Some(Store::Steam),
                             }
-                        ]),
-                        tags: Some(vec![Tag::Save]),
+                        ],
+                        tags: btree_set![Tag::Save],
                     }
-                }),
-                install_dir: Some(btree_map! {
+                },
+                install_dir: btree_map! {
                     s("ExampleGame"): GameInstallDirEntry {}
-                }),
-                registry: Some(btree_map! {
+                },
+                registry: btree_map! {
                     s("bar"): GameRegistryEntry {
-                        when: Some(vec![
+                        when: btree_set![
                             GameRegistryConstraint {
                                 store: Some(Store::Epic),
                             }
-                        ]),
-                        tags: Some(vec![Tag::Config])
+                        ],
+                        tags: btree_set![Tag::Config]
                     },
-                }),
-                steam: Some(SteamMetadata { id: Some(101) }),
-                gog: Some(GogMetadata { id: Some(102) }),
-                id: Some(IdMetadata {
+                },
+                steam: SteamMetadata { id: Some(101) },
+                gog: GogMetadata { id: Some(102) },
+                id: IdMetadata {
                     flatpak: Some("com.example.Game".to_string()),
                     gog_extra: vec![10, 11].into_iter().collect(),
                     steam_extra: vec![1, 2].into_iter().collect(),
-                }),
+                },
             },
             manifest.0["game"],
         );
@@ -735,7 +700,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(manifest.0["game"].files.as_ref().unwrap().is_empty());
+        assert!(manifest.0["game"].files.is_empty());
     }
 
     #[test]
@@ -750,11 +715,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(manifest.0["game"].files.as_ref().unwrap()["foo"]
-            .when
-            .as_ref()
-            .unwrap()
-            .is_empty());
+        assert!(manifest.0["game"].files["foo"].when.is_empty());
     }
 
     #[test]
@@ -771,8 +732,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            GameFileConstraint { os: None, store: None },
-            manifest.0["game"].files.as_ref().unwrap()["foo"].when.as_ref().unwrap()[0],
+            &GameFileConstraint { os: None, store: None },
+            manifest.0["game"].files["foo"].when.first().unwrap(),
         );
     }
 
@@ -788,11 +749,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(manifest.0["game"].files.as_ref().unwrap()["foo"]
-            .tags
-            .as_ref()
-            .unwrap()
-            .is_empty());
+        assert!(manifest.0["game"].files["foo"].tags.is_empty());
     }
 
     #[test]
@@ -805,7 +762,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(manifest.0["game"].install_dir.as_ref().unwrap().is_empty());
+        assert!(manifest.0["game"].install_dir.is_empty());
     }
 
     #[test]
@@ -818,7 +775,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(manifest.0["game"].registry.as_ref().unwrap().is_empty());
+        assert!(manifest.0["game"].registry.is_empty());
     }
 
     #[test]
@@ -833,11 +790,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(manifest.0["game"].registry.as_ref().unwrap()["foo"]
-            .when
-            .as_ref()
-            .unwrap()
-            .is_empty());
+        assert!(manifest.0["game"].registry["foo"].when.is_empty());
     }
 
     #[test]
@@ -854,11 +807,8 @@ mod tests {
         .unwrap();
 
         assert_eq!(
-            GameRegistryConstraint { store: None },
-            manifest.0["game"].registry.as_ref().unwrap()["foo"]
-                .when
-                .as_ref()
-                .unwrap()[0],
+            &GameRegistryConstraint { store: None },
+            manifest.0["game"].registry["foo"].when.first().unwrap(),
         );
     }
 
@@ -874,11 +824,7 @@ mod tests {
         )
         .unwrap();
 
-        assert!(manifest.0["game"].registry.as_ref().unwrap()["foo"]
-            .tags
-            .as_ref()
-            .unwrap()
-            .is_empty());
+        assert!(manifest.0["game"].registry["foo"].tags.is_empty());
     }
 
     #[test]
@@ -891,7 +837,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(&SteamMetadata { id: None }, manifest.0["game"].steam.as_ref().unwrap());
+        assert_eq!(SteamMetadata { id: None }, manifest.0["game"].steam);
     }
 
     #[test]
@@ -904,7 +850,7 @@ mod tests {
         )
         .unwrap();
 
-        assert_eq!(&GogMetadata { id: None }, manifest.0["game"].gog.as_ref().unwrap());
+        assert_eq!(GogMetadata { id: None }, manifest.0["game"].gog);
     }
 
     #[test]

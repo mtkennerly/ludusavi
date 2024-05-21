@@ -1082,8 +1082,8 @@ impl App {
                 ignore: false,
                 alias: standard.alias.clone(),
                 prefer_alias: false,
-                files: standard.files.clone().unwrap_or_default().keys().cloned().collect(),
-                registry: standard.registry.clone().unwrap_or_default().keys().cloned().collect(),
+                files: standard.files.keys().cloned().collect(),
+                registry: standard.registry.keys().cloned().collect(),
             }
         } else {
             CustomGame {

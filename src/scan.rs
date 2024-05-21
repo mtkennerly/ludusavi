@@ -88,13 +88,11 @@ fn check_nonwindows_path(path: &str) -> &str {
 
 pub fn steam_ids(game: &Game, shortcut: Option<&SteamShortcut>) -> Vec<u32> {
     let mut ids = vec![];
-    if let Some(steam_id) = game.steam.as_ref().and_then(|x| x.id) {
+    if let Some(steam_id) = game.steam.id {
         ids.push(steam_id);
     }
-    if let Some(id_section) = game.id.as_ref() {
-        for extra in &id_section.steam_extra {
-            ids.push(*extra);
-        }
+    for extra in &game.id.steam_extra {
+        ids.push(*extra);
     }
     if let Some(shortcut) = shortcut {
         ids.push(shortcut.id);
@@ -110,7 +108,7 @@ pub fn parse_paths(
     install_dir: &Option<String>,
     full_install_dir: &Option<&StrictPath>,
     steam_ids: &[u32],
-    ids: Option<&IdMetadata>,
+    ids: &IdMetadata,
     manifest_dir: &StrictPath,
     steam_shortcut: Option<&SteamShortcut>,
     platform: Os,
@@ -324,12 +322,7 @@ pub fn parse_paths(
                 false,
             ));
 
-            if data
-                .when
-                .as_ref()
-                .map(|x| x.iter().any(|x| x.store == Some(Store::Uplay)))
-                .unwrap_or_default()
-            {
+            if data.when.iter().any(|x| x.store == Some(Store::Uplay)) {
                 let ubisoft = format!("{}/Program Files (x86)/Ubisoft/Ubisoft Game Launcher", prefix);
                 paths.insert((
                     path.replace(ROOT, &ubisoft)
@@ -417,7 +410,7 @@ pub fn parse_paths(
     }
 
     if Os::HOST != Os::Windows {
-        if let Some(flatpak_id) = ids.and_then(|x| x.flatpak.as_ref()) {
+        if let Some(flatpak_id) = ids.flatpak.as_ref() {
             paths.insert((
                 path.replace(HOME, home)
                     .replace(STORE_USER_ID, "*")
@@ -484,7 +477,7 @@ pub fn scan_game_for_backup(
     // For other Wine roots, it would trigger for every game.
     if let Some(wp) = wine_prefix {
         log::trace!("[{name}] adding extra Wine prefix: {}", wp.raw());
-        scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, game.registry.is_some());
+        scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, !game.registry.is_empty());
     }
 
     // handle what was found for heroic
@@ -495,7 +488,7 @@ pub fn scan_game_for_backup(
                 &mut roots_to_check,
                 &mut paths_to_check,
                 if with_pfx.exists() { &with_pfx } else { wp },
-                game.registry.is_some(),
+                !game.registry.is_empty(),
             );
         }
     }
@@ -514,20 +507,38 @@ pub fn scan_game_for_backup(
             continue;
         };
 
-        if let Some(files) = &game.files {
-            for (raw_path, path_data) in files {
-                log::trace!("[{name}] parsing candidates from: {}", raw_path);
-                if raw_path.trim().is_empty() {
-                    continue;
-                }
+        for (raw_path, path_data) in &game.files {
+            log::trace!("[{name}] parsing candidates from: {}", raw_path);
+            if raw_path.trim().is_empty() {
+                continue;
+            }
 
-                let mut candidates = HashSet::new();
-                let mut launcher_entries = launchers.get_game(&root, name).peekable();
+            let mut candidates = HashSet::new();
+            let mut launcher_entries = launchers.get_game(&root, name).peekable();
 
-                if launcher_entries.peek().is_none() {
-                    let platform = Os::HOST;
-                    let install_dir = None;
-                    let full_install_dir = None;
+            if launcher_entries.peek().is_none() {
+                let platform = Os::HOST;
+                let install_dir = None;
+                let full_install_dir = None;
+
+                candidates.extend(parse_paths(
+                    raw_path,
+                    path_data,
+                    &root,
+                    &install_dir,
+                    &full_install_dir,
+                    &steam_ids,
+                    &game.id,
+                    manifest_dir,
+                    steam_shortcuts.get(name),
+                    platform,
+                ));
+            } else {
+                for launcher_entry in launcher_entries {
+                    log::trace!("[{name}] parsing candidates with launcher info: {:?}", &launcher_entry);
+                    let platform = launcher_entry.platform.unwrap_or(Os::HOST);
+                    let install_dir = launcher_entry.install_dir.as_ref().and_then(|x| x.leaf());
+                    let full_install_dir = launcher_entry.install_dir.as_ref();
 
                     candidates.extend(parse_paths(
                         raw_path,
@@ -536,41 +547,21 @@ pub fn scan_game_for_backup(
                         &install_dir,
                         &full_install_dir,
                         &steam_ids,
-                        game.id.as_ref(),
+                        &game.id,
                         manifest_dir,
                         steam_shortcuts.get(name),
                         platform,
                     ));
-                } else {
-                    for launcher_entry in launcher_entries {
-                        log::trace!("[{name}] parsing candidates with launcher info: {:?}", &launcher_entry);
-                        let platform = launcher_entry.platform.unwrap_or(Os::HOST);
-                        let install_dir = launcher_entry.install_dir.as_ref().and_then(|x| x.leaf());
-                        let full_install_dir = launcher_entry.install_dir.as_ref();
-
-                        candidates.extend(parse_paths(
-                            raw_path,
-                            path_data,
-                            &root,
-                            &install_dir,
-                            &full_install_dir,
-                            &steam_ids,
-                            game.id.as_ref(),
-                            manifest_dir,
-                            steam_shortcuts.get(name),
-                            platform,
-                        ));
-                    }
                 }
+            }
 
-                for (candidate, case_sensitive) in candidates {
-                    log::trace!("[{name}] parsed candidate: {}", candidate.raw());
-                    if candidate.raw().contains('<') {
-                        // This covers `SKIP` and any other unmatched placeholders.
-                        continue;
-                    }
-                    paths_to_check.insert((candidate, Some(case_sensitive)));
+            for (candidate, case_sensitive) in candidates {
+                log::trace!("[{name}] parsed candidate: {}", candidate.raw());
+                if candidate.raw().contains('<') {
+                    // This covers `SKIP` and any other unmatched placeholders.
+                    continue;
                 }
+                paths_to_check.insert((candidate, Some(case_sensitive)));
             }
         }
         if root.store == Store::Steam {
@@ -596,7 +587,7 @@ pub fn scan_game_for_backup(
                 }
 
                 // Registry:
-                if game.registry.is_some() {
+                if !game.registry.is_empty() {
                     let prefix = format!("{}/steamapps/compatdata/{}/pfx", &root_interpreted, id);
                     paths_to_check.insert((
                         StrictPath::relative(format!("{}/*.reg", prefix), Some(manifest_dir_interpreted.clone())),
@@ -731,60 +722,58 @@ pub fn scan_game_for_backup(
             _ => None,
         };
 
-        if let Some(registry) = &game.registry {
-            for key in registry.keys() {
-                if key.trim().is_empty() {
-                    continue;
-                }
+        for key in game.registry.keys() {
+            if key.trim().is_empty() {
+                continue;
+            }
 
-                log::trace!("[{name}] computing candidates for registry: {key}");
-                let mut candidates = vec![key.clone()];
-                let normalized = key.replace('\\', "/").to_lowercase();
-                if normalized.starts_with("hkey_local_machine/software/") && !normalized.contains("/wow6432node/") {
-                    let tail = &key[28..];
-                    candidates.push(format!("HKEY_LOCAL_MACHINE/SOFTWARE/Wow6432Node/{}", tail));
-                    candidates.push(format!(
-                        "HKEY_CURRENT_USER/Software/Classes/VirtualStore/MACHINE/SOFTWARE/{}",
-                        tail
-                    ));
-                    candidates.push(format!(
-                        "HKEY_CURRENT_USER/Software/Classes/VirtualStore/MACHINE/SOFTWARE/Wow6432Node/{}",
-                        tail
-                    ));
-                }
+            log::trace!("[{name}] computing candidates for registry: {key}");
+            let mut candidates = vec![key.clone()];
+            let normalized = key.replace('\\', "/").to_lowercase();
+            if normalized.starts_with("hkey_local_machine/software/") && !normalized.contains("/wow6432node/") {
+                let tail = &key[28..];
+                candidates.push(format!("HKEY_LOCAL_MACHINE/SOFTWARE/Wow6432Node/{}", tail));
+                candidates.push(format!(
+                    "HKEY_CURRENT_USER/Software/Classes/VirtualStore/MACHINE/SOFTWARE/{}",
+                    tail
+                ));
+                candidates.push(format!(
+                    "HKEY_CURRENT_USER/Software/Classes/VirtualStore/MACHINE/SOFTWARE/Wow6432Node/{}",
+                    tail
+                ));
+            }
 
-                for candidate in candidates {
-                    log::trace!("[{name}] checking registry: {candidate}");
-                    for mut scanned in
-                        registry::scan_registry(name, &candidate, filter, ignored_registry, &previous_registry)
-                            .unwrap_or_default()
-                    {
-                        log::debug!("[{name}] found registry: {}", scanned.path.raw());
+            for candidate in candidates {
+                log::trace!("[{name}] checking registry: {candidate}");
+                for mut scanned in
+                    registry::scan_registry(name, &candidate, filter, ignored_registry, &previous_registry)
+                        .unwrap_or_default()
+                {
+                    log::debug!("[{name}] found registry: {}", scanned.path.raw());
 
-                        // Mark removed registry values.
-                        let previous_values = previous_registry
-                            .as_ref()
-                            .and_then(|x| {
-                                x.get_path(&scanned.path)
-                                    .map(|y| y.0.keys().cloned().collect::<Vec<_>>())
-                            })
-                            .unwrap_or_default();
-                        for previous_value in previous_values {
-                            #[allow(clippy::map_entry)]
-                            if !scanned.values.contains_key(&previous_value) {
-                                let ignored = ignored_registry.is_ignored(name, &scanned.path, Some(&previous_value));
-                                scanned.values.insert(
-                                    previous_value,
-                                    ScannedRegistryValue {
-                                        ignored,
-                                        change: ScanChange::Removed,
-                                    },
-                                );
-                            }
+                    // Mark removed registry values.
+                    let previous_values = previous_registry
+                        .as_ref()
+                        .and_then(|x| {
+                            x.get_path(&scanned.path)
+                                .map(|y| y.0.keys().cloned().collect::<Vec<_>>())
+                        })
+                        .unwrap_or_default();
+                    for previous_value in previous_values {
+                        #[allow(clippy::map_entry)]
+                        if !scanned.values.contains_key(&previous_value) {
+                            let ignored = ignored_registry.is_ignored(name, &scanned.path, Some(&previous_value));
+                            scanned.values.insert(
+                                previous_value,
+                                ScannedRegistryValue {
+                                    ignored,
+                                    change: ScanChange::Removed,
+                                },
+                            );
                         }
-
-                        found_registry_keys.insert(scanned);
                     }
+
+                    found_registry_keys.insert(scanned);
                 }
             }
         }
