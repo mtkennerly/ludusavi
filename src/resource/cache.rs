@@ -11,50 +11,42 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Cache {
-    #[serde(default)]
     pub version: Option<(u32, u32, u32)>,
-    #[serde(default)]
     pub migrations: Migrations,
-    #[serde(default)]
     pub manifests: Manifests,
-    #[serde(default)]
     pub roots: BTreeSet<RootsConfig>,
-    #[serde(default)]
     pub backup: Backup,
-    #[serde(default)]
     pub restore: Restore,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Migrations {
-    #[serde(default)]
     pub adopted_cache: bool,
-    #[serde(default)]
     pub fixed_spanish_config: bool,
 }
 
 pub type Manifests = HashMap<String, Manifest>;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Manifest {
-    #[serde(default)]
     pub etag: Option<String>,
-    #[serde(default)]
     pub checked: Option<chrono::DateTime<chrono::Utc>>,
-    #[serde(default)]
     pub updated: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Backup {
-    #[serde(default)]
     pub recent_games: BTreeSet<String>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
 pub struct Restore {
-    #[serde(default)]
     pub recent_games: BTreeSet<String>,
 }
 
