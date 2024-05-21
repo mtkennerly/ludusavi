@@ -28,7 +28,3 @@ pub fn is_false(v: &bool) -> bool {
 pub fn is_empty_set<T>(v: &HashSet<T>) -> bool {
     v.is_empty()
 }
-
-pub const fn default_true() -> bool {
-    true
-}

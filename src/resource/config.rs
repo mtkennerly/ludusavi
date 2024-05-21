@@ -23,39 +23,33 @@ fn default_backup_dir() -> StrictPath {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct Config {
-    #[serde(default)]
     pub runtime: Runtime,
     pub manifest: ManifestConfig,
-    #[serde(default)]
     pub language: Language,
-    #[serde(default)]
     pub theme: Theme,
     pub roots: Vec<RootsConfig>,
-    #[serde(default)]
     pub redirects: Vec<RedirectConfig>,
     pub backup: BackupConfig,
     pub restore: RestoreConfig,
-    #[serde(default)]
     pub scan: Scan,
-    #[serde(default)]
     pub cloud: Cloud,
-    #[serde(default)]
     pub apps: Apps,
-    #[serde(default, rename = "customGames")]
     pub custom_games: Vec<CustomGame>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct Runtime {
-    #[serde(default)]
     pub threads: Option<NonZeroUsize>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct ManifestConfig {
     pub url: String,
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub secondary: Vec<SecondaryManifestConfig>,
 }
 
@@ -94,7 +88,7 @@ impl ManifestConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SecondaryManifestConfigKind {
     Local,
     #[default]
@@ -115,7 +109,7 @@ impl ToString for SecondaryManifestConfigKind {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(untagged, rename_all = "camelCase")]
+#[serde(untagged)]
 pub enum SecondaryManifestConfig {
     Local { path: StrictPath },
     Remote { url: String },
@@ -179,11 +173,10 @@ impl Default for SecondaryManifestConfig {
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Theme {
     #[default]
-    #[serde(rename = "light")]
     Light,
-    #[serde(rename = "dark")]
     Dark,
 }
 
@@ -198,6 +191,7 @@ impl ToString for Theme {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct RootsConfig {
     pub path: StrictPath,
     pub store: Store,
@@ -240,21 +234,19 @@ impl RootsConfig {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct RedirectConfig {
-    #[serde(default)]
     pub kind: RedirectKind,
     pub source: StrictPath,
     pub target: StrictPath,
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum RedirectKind {
-    #[serde(rename = "backup")]
     Backup,
     #[default]
-    #[serde(rename = "restore")]
     Restore,
-    #[serde(rename = "bidirectional")]
     Bidirectional,
 }
 
@@ -269,12 +261,10 @@ impl ToString for RedirectKind {
 }
 
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct BackupFilter {
-    #[serde(default, rename = "excludeStoreScreenshots")]
     pub exclude_store_screenshots: bool,
-    #[serde(default, rename = "ignoredPaths")]
     pub ignored_paths: Vec<StrictPath>,
-    #[serde(default, rename = "ignoredRegistry")]
     pub ignored_registry: Vec<RegistryItem>,
     #[serde(skip)]
     pub path_globs: Arc<Mutex<Option<globset::GlobSet>>>,
@@ -471,13 +461,11 @@ impl ToggledRegistryEntry {
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum SortKey {
-    #[serde(rename = "name")]
     Name,
-    #[serde(rename = "size")]
     Size,
     #[default]
-    #[serde(rename = "status")]
     Status,
 }
 
@@ -492,16 +480,18 @@ impl ToString for SortKey {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct Sort {
     pub key: SortKey,
     pub reversed: bool,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct Retention {
     pub full: u8,
     pub differential: u8,
-    #[serde(default, skip)]
+    #[serde(skip)]
     pub force_new_full: bool,
 }
 
@@ -516,11 +506,10 @@ impl Default for Retention {
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum BackupFormat {
     #[default]
-    #[serde(rename = "simple")]
     Simple,
-    #[serde(rename = "zip")]
     Zip,
 }
 
@@ -548,10 +537,10 @@ impl ToString for BackupFormat {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct BackupFormats {
     pub chosen: BackupFormat,
     pub zip: ZipConfig,
-    #[serde(default)]
     pub compression: Compression,
 }
 
@@ -600,20 +589,18 @@ impl BackupFormats {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct ZipConfig {
     pub compression: ZipCompression,
 }
 
 #[derive(Copy, Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum ZipCompression {
-    #[serde(rename = "none")]
     None,
     #[default]
-    #[serde(rename = "deflate")]
     Deflate,
-    #[serde(rename = "bzip2")]
     Bzip2,
-    #[serde(rename = "zstd")]
     Zstd,
 }
 
@@ -643,6 +630,7 @@ impl ToString for ZipCompression {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct Compression {
     deflate: DeflateCompression,
     bzip2: Bzip2Compression,
@@ -667,6 +655,7 @@ impl Compression {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct DeflateCompression {
     level: i32,
 }
@@ -682,6 +671,7 @@ impl DeflateCompression {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct Bzip2Compression {
     level: i32,
 }
@@ -697,6 +687,7 @@ impl Bzip2Compression {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct ZstdCompression {
     level: i32,
 }
@@ -712,53 +703,35 @@ impl ZstdCompression {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct BackupConfig {
     pub path: StrictPath,
-    #[serde(
-        default,
-        rename = "ignoredGames",
-        serialize_with = "crate::serialization::ordered_set"
-    )]
+    #[serde(serialize_with = "crate::serialization::ordered_set")]
     pub ignored_games: HashSet<String>,
-    #[serde(default)]
     pub filter: BackupFilter,
-    #[serde(default, rename = "toggledPaths")]
     pub toggled_paths: ToggledPaths,
-    #[serde(default, rename = "toggledRegistry")]
     pub toggled_registry: ToggledRegistry,
-    #[serde(default)]
     pub sort: Sort,
-    #[serde(default)]
     pub retention: Retention,
-    #[serde(default)]
     pub format: BackupFormats,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct RestoreConfig {
     pub path: StrictPath,
-    #[serde(
-        default,
-        rename = "ignoredGames",
-        serialize_with = "crate::serialization::ordered_set"
-    )]
+    #[serde(serialize_with = "crate::serialization::ordered_set")]
     pub ignored_games: HashSet<String>,
-    #[serde(default, rename = "toggledPaths")]
     pub toggled_paths: ToggledPaths,
-    #[serde(default, rename = "toggledRegistry")]
     pub toggled_registry: ToggledRegistry,
-    #[serde(default)]
     pub sort: Sort,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct Scan {
-    #[serde(default = "crate::serialization::default_true")]
     pub show_deselected_games: bool,
-    #[serde(default = "crate::serialization::default_true")]
     pub show_unchanged_games: bool,
-    #[serde(default = "crate::serialization::default_true")]
     pub show_unscanned_games: bool,
 }
 
@@ -773,13 +746,10 @@ impl Default for Scan {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct Cloud {
-    #[serde(default)]
     pub remote: Option<Remote>,
-    #[serde(default)]
     pub path: String,
-    #[serde(default = "crate::serialization::default_true")]
     pub synchronize: bool,
 }
 
@@ -794,9 +764,8 @@ impl Default for Cloud {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct Apps {
-    #[serde(default = "App::default_rclone")]
     pub rclone: App,
 }
 
@@ -809,11 +778,9 @@ impl Default for Apps {
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(default, rename_all = "camelCase")]
 pub struct App {
-    #[serde(default)]
     pub path: StrictPath,
-    #[serde(default)]
     pub arguments: String,
 }
 
@@ -830,18 +797,17 @@ impl App {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct CustomGame {
     pub name: String,
-    #[serde(default, skip_serializing_if = "crate::serialization::is_false")]
+    #[serde(skip_serializing_if = "crate::serialization::is_false")]
     pub ignore: bool,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub alias: Option<String>,
-    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub prefer_alias: bool,
-    #[serde(default)]
     pub files: Vec<String>,
-    #[serde(default)]
     pub registry: Vec<String>,
 }
 

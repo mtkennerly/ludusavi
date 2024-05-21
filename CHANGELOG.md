@@ -5,6 +5,7 @@
 * Changed:
   * Title normalization now ignores apostrophes and quotation marks
     (e.g., `ludusavi find --normalized "Mirrors Edge"` will find `Mirror's Edge`).
+  * Some additional fields in the config file have been made optional.
 * Fixed:
   * For Heroic and Lutris roots,
     if you had multiple copies of the same game,
