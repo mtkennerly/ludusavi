@@ -208,8 +208,7 @@ impl RcloneProcess {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename = "camelCase")]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RemoteChoice {
     None,
     Custom,
@@ -253,7 +252,7 @@ impl ToString for RemoteChoice {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-#[serde(rename = "camelCase")]
+#[serde(rename = "camelCase")] // Legacy: Should have been `rename_all`
 pub enum Remote {
     Custom {
         id: String,

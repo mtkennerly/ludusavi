@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, BTreeSet, HashMap, HashSet};
+use std::collections::{BTreeMap, BTreeSet};
 
 use itertools::Itertools;
 
@@ -65,69 +65,58 @@ impl From<&BackupError> for SaveError {
 }
 
 #[derive(Debug, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ApiFile {
-    #[serde(skip_serializing_if = "crate::serialization::is_false")]
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     failed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<SaveError>,
-    #[serde(skip_serializing_if = "crate::serialization::is_false")]
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     ignored: bool,
     change: ScanChange,
     bytes: u64,
-    #[serde(rename = "originalPath", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     original_path: Option<String>,
-    #[serde(rename = "redirectedPath", skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     redirected_path: Option<String>,
-    #[serde(
-        rename = "duplicatedBy",
-        serialize_with = "crate::serialization::ordered_set",
-        skip_serializing_if = "crate::serialization::is_empty_set"
-    )]
-    duplicated_by: HashSet<String>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    duplicated_by: BTreeSet<String>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ApiRegistry {
-    #[serde(skip_serializing_if = "crate::serialization::is_false")]
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     failed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<SaveError>,
-    #[serde(skip_serializing_if = "crate::serialization::is_false")]
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     ignored: bool,
     change: ScanChange,
-    #[serde(
-        rename = "duplicatedBy",
-        serialize_with = "crate::serialization::ordered_set",
-        skip_serializing_if = "crate::serialization::is_empty_set"
-    )]
-    duplicated_by: HashSet<String>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    duplicated_by: BTreeSet<String>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     values: BTreeMap<String, ApiRegistryValue>,
 }
 
 #[derive(Debug, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ApiRegistryValue {
-    #[serde(skip_serializing_if = "crate::serialization::is_false")]
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     ignored: bool,
     change: ScanChange,
-    #[serde(
-        rename = "duplicatedBy",
-        serialize_with = "crate::serialization::ordered_set",
-        skip_serializing_if = "crate::serialization::is_empty_set"
-    )]
-    duplicated_by: HashSet<String>,
+    #[serde(skip_serializing_if = "BTreeSet::is_empty")]
+    duplicated_by: BTreeSet<String>,
 }
 
 #[derive(Debug, serde::Serialize)]
-#[serde(untagged)]
+#[serde(untagged, rename_all = "camelCase")]
 enum ApiGame {
     Operative {
         decision: OperationStepDecision,
         change: ScanChange,
-        #[serde(serialize_with = "crate::serialization::ordered_map")]
-        files: HashMap<String, ApiFile>,
-        #[serde(serialize_with = "crate::serialization::ordered_map")]
-        registry: HashMap<String, ApiRegistry>,
+        files: BTreeMap<String, ApiFile>,
+        registry: BTreeMap<String, ApiRegistry>,
     },
     Stored {
         backups: Vec<ApiBackup>,
@@ -136,6 +125,7 @@ enum ApiGame {
 }
 
 #[derive(Debug, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 struct ApiBackup {
     name: String,
     when: chrono::DateTime<chrono::Utc>,
@@ -147,13 +137,13 @@ struct ApiBackup {
 }
 
 #[derive(Debug, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct JsonOutput {
     #[serde(skip_serializing_if = "Option::is_none")]
     errors: Option<ApiErrors>,
     #[serde(skip_serializing_if = "Option::is_none")]
     overall: Option<OperationStatus>,
-    #[serde(serialize_with = "crate::serialization::ordered_map")]
-    games: HashMap<String, ApiGame>,
+    games: BTreeMap<String, ApiGame>,
 }
 
 #[derive(Debug)]
@@ -334,8 +324,8 @@ impl Reporter {
             }
             Self::Json { output } => {
                 let decision = decision.clone();
-                let mut files = HashMap::new();
-                let mut registry = HashMap::new();
+                let mut files = BTreeMap::new();
+                let mut registry = BTreeMap::new();
 
                 for entry in itertools::sorted(&scan_info.found_files) {
                     let mut api_file = ApiFile {
@@ -347,7 +337,7 @@ impl Reporter {
                         ..Default::default()
                     };
                     if !duplicate_detector.is_file_duplicated(entry).resolved() {
-                        let mut duplicated_by: HashSet<_> = duplicate_detector.file(entry).into_keys().collect();
+                        let mut duplicated_by: BTreeSet<_> = duplicate_detector.file(entry).into_keys().collect();
                         duplicated_by.remove(&scan_info.game_name);
                         api_file.duplicated_by = duplicated_by;
                     }
@@ -385,14 +375,14 @@ impl Reporter {
                                                 .is_registry_value_duplicated(&entry.path, k)
                                                 .resolved()
                                             {
-                                                let mut duplicated_by: HashSet<_> = duplicate_detector
+                                                let mut duplicated_by: BTreeSet<_> = duplicate_detector
                                                     .registry_value(&entry.path, k)
                                                     .into_keys()
                                                     .collect();
                                                 duplicated_by.remove(&scan_info.game_name);
                                                 duplicated_by
                                             } else {
-                                                HashSet::new()
+                                                BTreeSet::new()
                                             }
                                         },
                                     },
@@ -402,7 +392,7 @@ impl Reporter {
                         ..Default::default()
                     };
                     if !duplicate_detector.is_registry_duplicated(&entry.path).resolved() {
-                        let mut duplicated_by: HashSet<_> =
+                        let mut duplicated_by: BTreeSet<_> =
                             duplicate_detector.registry(&entry.path).into_keys().collect();
                         duplicated_by.remove(&scan_info.game_name);
                         api_registry.duplicated_by = duplicated_by;

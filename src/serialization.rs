@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap};
 
 use serde::{Serialize, Serializer};
 
@@ -10,21 +10,4 @@ where
 {
     let ordered: BTreeMap<_, _> = value.iter().collect();
     ordered.serialize(serializer)
-}
-
-pub fn ordered_set<S>(value: &HashSet<String>, serializer: S) -> Result<S::Ok, S::Error>
-where
-    S: Serializer,
-{
-    let mut ordered: Vec<_> = value.iter().collect();
-    ordered.sort();
-    ordered.serialize(serializer)
-}
-
-pub fn is_false(v: &bool) -> bool {
-    !v
-}
-
-pub fn is_empty_set<T>(v: &HashSet<T>) -> bool {
-    v.is_empty()
 }

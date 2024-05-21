@@ -56,16 +56,12 @@ impl BackupInfo {
 }
 
 #[derive(Clone, Debug, Default, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct OperationStatus {
-    #[serde(rename = "totalGames")]
     pub total_games: usize,
-    #[serde(rename = "totalBytes")]
     pub total_bytes: u64,
-    #[serde(rename = "processedGames")]
     pub processed_games: usize,
-    #[serde(rename = "processedBytes")]
     pub processed_bytes: u64,
-    #[serde(rename = "changedGames")]
     pub changed_games: ScanChangeCount,
 }
 

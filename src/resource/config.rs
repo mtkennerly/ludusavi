@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     num::NonZeroUsize,
     sync::{Arc, Mutex},
 };
@@ -706,8 +706,7 @@ impl ZstdCompression {
 #[serde(default, rename_all = "camelCase")]
 pub struct BackupConfig {
     pub path: StrictPath,
-    #[serde(serialize_with = "crate::serialization::ordered_set")]
-    pub ignored_games: HashSet<String>,
+    pub ignored_games: BTreeSet<String>,
     pub filter: BackupFilter,
     pub toggled_paths: ToggledPaths,
     pub toggled_registry: ToggledRegistry,
@@ -720,8 +719,7 @@ pub struct BackupConfig {
 #[serde(default, rename_all = "camelCase")]
 pub struct RestoreConfig {
     pub path: StrictPath,
-    #[serde(serialize_with = "crate::serialization::ordered_set")]
-    pub ignored_games: HashSet<String>,
+    pub ignored_games: BTreeSet<String>,
     pub toggled_paths: ToggledPaths,
     pub toggled_registry: ToggledRegistry,
     pub sort: Sort,
@@ -801,7 +799,7 @@ impl App {
 #[serde(default, rename_all = "camelCase")]
 pub struct CustomGame {
     pub name: String,
-    #[serde(skip_serializing_if = "crate::serialization::is_false")]
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub ignore: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alias: Option<String>,
@@ -861,7 +859,7 @@ impl Default for BackupConfig {
     fn default() -> Self {
         Self {
             path: default_backup_dir(),
-            ignored_games: HashSet::new(),
+            ignored_games: BTreeSet::new(),
             filter: BackupFilter::default(),
             toggled_paths: Default::default(),
             toggled_registry: Default::default(),
@@ -876,7 +874,7 @@ impl Default for RestoreConfig {
     fn default() -> Self {
         Self {
             path: default_backup_dir(),
-            ignored_games: HashSet::new(),
+            ignored_games: BTreeSet::new(),
             toggled_paths: Default::default(),
             toggled_registry: Default::default(),
             sort: Default::default(),
@@ -1517,7 +1515,7 @@ impl ToggledRegistry {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::{btree_map, hash_set};
+    use velcro::{btree_map, btree_set};
 
     use super::*;
     use crate::testing::s;
@@ -1554,7 +1552,7 @@ mod tests {
                 redirects: vec![],
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
-                    ignored_games: HashSet::new(),
+                    ignored_games: BTreeSet::new(),
                     filter: BackupFilter {
                         exclude_store_screenshots: false,
                         ..Default::default()
@@ -1567,7 +1565,7 @@ mod tests {
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
-                    ignored_games: HashSet::new(),
+                    ignored_games: BTreeSet::new(),
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
@@ -1675,7 +1673,7 @@ mod tests {
                 }],
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
-                    ignored_games: hash_set! {
+                    ignored_games: btree_set! {
                         s("Backup Game 1"),
                         s("Backup Game 2"),
                     },
@@ -1691,7 +1689,7 @@ mod tests {
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
-                    ignored_games: hash_set! {
+                    ignored_games: btree_set! {
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
@@ -1780,7 +1778,7 @@ mod tests {
                 redirects: vec![],
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
-                    ignored_games: HashSet::new(),
+                    ignored_games: BTreeSet::new(),
                     filter: BackupFilter {
                         exclude_store_screenshots: false,
                         ..Default::default()
@@ -1793,7 +1791,7 @@ mod tests {
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
-                    ignored_games: HashSet::new(),
+                    ignored_games: BTreeSet::new(),
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
@@ -1930,7 +1928,7 @@ customGames:
                 }],
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
-                    ignored_games: hash_set! {
+                    ignored_games: btree_set! {
                         s("Backup Game 3"),
                         s("Backup Game 1"),
                         s("Backup Game 2"),
@@ -1947,7 +1945,7 @@ customGames:
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
-                    ignored_games: hash_set! {
+                    ignored_games: btree_set! {
                         s("Restore Game 3"),
                         s("Restore Game 1"),
                         s("Restore Game 2"),

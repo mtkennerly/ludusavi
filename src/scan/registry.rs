@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use winreg::types::{FromRegValue, ToRegValue};
 
@@ -9,30 +9,27 @@ use crate::{
 };
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Hives(#[serde(serialize_with = "crate::serialization::ordered_map")] pub HashMap<String, Keys>);
+pub struct Hives(pub BTreeMap<String, Keys>);
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Keys(#[serde(serialize_with = "crate::serialization::ordered_map")] pub HashMap<String, Entries>);
+pub struct Keys(pub BTreeMap<String, Entries>);
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
-pub struct Entries(#[serde(serialize_with = "crate::serialization::ordered_map")] pub HashMap<String, Entry>);
+pub struct Entries(pub BTreeMap<String, Entry>);
 
 #[derive(Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub enum Entry {
-    #[serde(rename = "sz")]
     Sz(String),
-    #[serde(rename = "expandSz")]
     ExpandSz(String),
-    #[serde(rename = "multiSz")]
     MultiSz(String),
-    #[serde(rename = "dword")]
     Dword(u32),
-    #[serde(rename = "qword")]
     Qword(u64),
-    #[serde(rename = "binary")]
     Binary(Vec<u8>),
-    #[serde(rename = "raw")]
-    Raw { kind: RegistryKind, data: Vec<u8> },
+    Raw {
+        kind: RegistryKind,
+        data: Vec<u8>,
+    },
     #[default]
     #[serde(other)]
     Unknown,
@@ -479,7 +476,7 @@ fn get_hkey_from_name(name: &str) -> Option<winreg::HKEY> {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::hash_map;
+    use velcro::btree_map;
 
     use super::*;
     use crate::testing::s;
@@ -490,9 +487,9 @@ mod tests {
         let mut hives = Hives::default();
         hives.back_up_key("foo", &scanned).unwrap();
         assert_eq!(
-            Hives(hash_map! {
-                s("HKEY_CURRENT_USER"): Keys(hash_map! {
-                    s("Software\\Ludusavi\\game3"): Entries(hash_map! {
+            Hives(btree_map! {
+                s("HKEY_CURRENT_USER"): Keys(btree_map! {
+                    s("Software\\Ludusavi\\game3"): Entries(btree_map! {
                         s("sz"): Entry::Sz(s("foo")),
                         s("multiSz"): Entry::MultiSz(s("bar")),
                         s("expandSz"): Entry::ExpandSz(s("baz")),
@@ -516,9 +513,9 @@ mod tests {
         let mut hives = Hives::default();
         hives.back_up_key("foo", &scanned).unwrap();
         assert_eq!(
-            Hives(hash_map! {
-                s("HKEY_CURRENT_USER"): Keys(hash_map! {
-                    s("Software\\Ludusavi\\game3"): Entries(hash_map! {
+            Hives(btree_map! {
+                s("HKEY_CURRENT_USER"): Keys(btree_map! {
+                    s("Software\\Ludusavi\\game3"): Entries(btree_map! {
                         s("sz"): Entry::Sz(s("foo")),
                         s("multiSz"): Entry::MultiSz(s("bar")),
                         s("expandSz"): Entry::ExpandSz(s("baz")),
@@ -537,9 +534,9 @@ mod tests {
         let mut hives = Hives::default();
         hives.back_up_key("foo", &scanned).unwrap();
         assert_eq!(
-            Hives(hash_map! {
-                s("HKEY_CURRENT_USER"): Keys(hash_map! {
-                    s("Software\\Ludusavi\\invalid"): Entries(hash_map! {
+            Hives(btree_map! {
+                s("HKEY_CURRENT_USER"): Keys(btree_map! {
+                    s("Software\\Ludusavi\\invalid"): Entries(btree_map! {
                         s("dword"): Entry::Raw { kind: RegistryKind::Dword, data: vec![0, 0, 0, 0, 0, 0, 0, 0] },
                     })
                 })
@@ -554,8 +551,8 @@ mod tests {
         let mut hives = Hives::default();
         hives.back_up_key("foo", &scanned).unwrap();
         assert_eq!(
-            Hives(hash_map! {
-                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+            Hives(btree_map! {
+                s("HKEY_CURRENT_USER"): Keys(btree_map! {
                     s("Software\\Ludusavi\\other"): Entries::default()
                 })
             }),
@@ -569,8 +566,8 @@ mod tests {
         let mut hives = Hives::default();
         hives.back_up_key("foo", &scanned).unwrap();
         assert_eq!(
-            Hives(hash_map! {
-                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+            Hives(btree_map! {
+                s("HKEY_CURRENT_USER"): Keys(btree_map! {
                     s("Software\\Ludusavi"): Entries::default(),
                 })
             }),
@@ -617,10 +614,10 @@ HKEY_CURRENT_USER:
   "Software\\Ludusavi\\other": {}
 "#
             .trim(),
-            serde_yaml::to_string(&Hives(hash_map! {
-                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+            serde_yaml::to_string(&Hives(btree_map! {
+                s("HKEY_CURRENT_USER"): Keys(btree_map! {
                     s("Software\\Ludusavi"): Entries::default(),
-                    s("Software\\Ludusavi\\game3"): Entries(hash_map! {
+                    s("Software\\Ludusavi\\game3"): Entries(btree_map! {
                         s("sz"): Entry::Sz(s("foo")),
                         s("multiSz"): Entry::MultiSz(s("bar")),
                         s("expandSz"): Entry::ExpandSz(s("baz")),
@@ -628,7 +625,7 @@ HKEY_CURRENT_USER:
                         s("qword"): Entry::Qword(2),
                         s("binary"): Entry::Binary(vec![1, 2, 3]),
                     }),
-                    s("Software\\Ludusavi\\invalid"): Entries(hash_map! {
+                    s("Software\\Ludusavi\\invalid"): Entries(btree_map! {
                         s("dword"): Entry::Raw {
                             kind: RegistryKind::Dword,
                             data: vec![0, 0, 0, 0, 0, 0, 0, 0],

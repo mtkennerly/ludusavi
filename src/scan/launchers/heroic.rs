@@ -25,10 +25,9 @@ mod games_config {
     #[derive(serde::Deserialize, Debug)]
     #[serde(untagged)]
     pub enum Game {
+        #[serde(rename_all = "camelCase")]
         Config {
-            #[serde(rename = "winePrefix")]
             wine_prefix: String,
-            #[serde(rename = "wineVersion")]
             wine_version: Wine,
         },
         IgnoreOther(serde::de::IgnoredAny),

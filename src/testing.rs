@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
-use velcro::hash_map;
+use velcro::btree_map;
 
 use crate::path::StrictPath;
 
@@ -50,19 +50,19 @@ pub fn mapping_file_key(file: &str) -> String {
     }
 }
 
-pub fn drives_x() -> HashMap<String, String> {
+pub fn drives_x() -> BTreeMap<String, String> {
     if cfg!(target_os = "windows") {
-        hash_map! { "drive-X".into(): "X:".into() }
+        btree_map! { "drive-X".into(): "X:".into() }
     } else {
-        hash_map! { "drive-0".into(): "".into() }
+        btree_map! { "drive-0".into(): "".into() }
     }
 }
 
-pub fn drives_x_always() -> HashMap<String, String> {
+pub fn drives_x_always() -> BTreeMap<String, String> {
     if cfg!(target_os = "windows") {
-        hash_map! { "drive-X".into(): "X:".into() }
+        btree_map! { "drive-X".into(): "X:".into() }
     } else {
-        hash_map! { "drive-X".into(): "".into() }
+        btree_map! { "drive-X".into(): "".into() }
     }
 }
 

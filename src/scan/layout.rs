@@ -230,19 +230,18 @@ impl ToString for Backup {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct FullBackup {
     pub name: String,
     pub when: chrono::DateTime<chrono::Utc>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub os: Option<Os>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     /// Locked backups do not count toward retention limits and are never deleted.
-    #[serde(default, skip_serializing_if = "crate::serialization::is_false")]
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub locked: bool,
-    #[serde(default)]
     pub files: BTreeMap<String, IndividualMappingFile>,
-    #[serde(default)]
     pub registry: IndividualMappingRegistry,
     pub children: VecDeque<DifferentialBackup>,
 }
@@ -271,19 +270,18 @@ pub enum BackupInclusion {
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct DifferentialBackup {
     pub name: String,
     pub when: chrono::DateTime<chrono::Utc>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub os: Option<Os>,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub comment: Option<String>,
     /// Locked backups do not count toward retention limits and are never deleted.
-    #[serde(default, skip_serializing_if = "crate::serialization::is_false")]
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub locked: bool,
-    #[serde(default)]
     pub files: BTreeMap<String, Option<IndividualMappingFile>>,
-    #[serde(default)]
     pub registry: Option<IndividualMappingRegistry>,
 }
 
@@ -326,23 +324,34 @@ fn default_backup_list() -> VecDeque<FullBackup> {
 }
 
 #[derive(Clone, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct IndividualMappingFile {
     pub hash: String,
     pub size: u64,
 }
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct IndividualMappingRegistry {
     pub hash: Option<String>,
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
 pub struct IndividualMapping {
     pub name: String,
-    #[serde(serialize_with = "crate::serialization::ordered_map")]
-    pub drives: HashMap<String, String>,
-    #[serde(default = "default_backup_list")]
+    pub drives: BTreeMap<String, String>,
     pub backups: VecDeque<FullBackup>,
+}
+
+impl Default for IndividualMapping {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            drives: Default::default(),
+            backups: default_backup_list(),
+        }
+    }
 }
 
 impl IndividualMapping {
@@ -2087,7 +2096,7 @@ impl BackupLayout {
 
 #[cfg(test)]
 mod tests {
-    use velcro::{btree_map, hash_map, hash_set};
+    use velcro::{btree_map, hash_set};
 
     use super::*;
     use crate::testing::{drives_x, make_original_path, mapping_file_key, repo, repo_raw, s};
@@ -2130,10 +2139,10 @@ mod tests {
             }
         }
 
-        fn drives() -> HashMap<String, String> {
+        fn drives() -> BTreeMap<String, String> {
             let (drive, _) = StrictPath::cwd().split_drive();
             let folder = IndividualMapping::new_drive_folder_name(&drive);
-            hash_map! { folder: drive }
+            btree_map! { folder: drive }
         }
 
         #[test]
@@ -2476,9 +2485,9 @@ mod tests {
                 ..Default::default()
             };
             let layout = GameLayout::default();
-            let hives = Hives(hash_map! {
-                s("HKEY_CURRENT_USER"): Keys(hash_map! {
-                    s("Software\\Ludusavi\\game3"): Entries(hash_map! {
+            let hives = Hives(btree_map! {
+                s("HKEY_CURRENT_USER"): Keys(btree_map! {
+                    s("Software\\Ludusavi\\game3"): Entries(btree_map! {
                         s("sz"): Entry::Sz("foo".into()),
                         s("multiSz"): Entry::MultiSz("bar".into()),
                         s("expandSz"): Entry::ExpandSz("baz".into()),
@@ -2570,8 +2579,8 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let hives = Hives(hash_map! {
-                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+            let hives = Hives(btree_map! {
+                s("HKEY_CURRENT_USER"): Keys(btree_map! {
                     s("Software\\Ludusavi\\other"): Entries::default()
                 })
             });
@@ -2617,8 +2626,8 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let hives = Hives(hash_map! {
-                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+            let hives = Hives(btree_map! {
+                s("HKEY_CURRENT_USER"): Keys(btree_map! {
                     s("Software\\Ludusavi\\other"): Entries::default()
                 })
             });
@@ -2647,8 +2656,8 @@ mod tests {
                 },
                 ..Default::default()
             };
-            let hives = Hives(hash_map! {
-                s("HKEY_CURRENT_USER"): Keys(hash_map! {
+            let hives = Hives(btree_map! {
+                s("HKEY_CURRENT_USER"): Keys(btree_map! {
                     s("Software\\Ludusavi\\other"): Entries::default()
                 })
             });
