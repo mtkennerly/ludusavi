@@ -53,6 +53,12 @@ pub struct DuplicateDetectorEntry {
     change: ScanChange,
 }
 
+impl DuplicateDetectorEntry {
+    pub fn is_inert(&self) -> bool {
+        !self.enabled || self.change.is_inert()
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 struct DuplicateDetectorCount {
     non_unique: u32,
@@ -287,7 +293,7 @@ impl DuplicateDetector {
         for item in self.files.values() {
             if item.contains_key(game) && item.len() > 1 {
                 tally.non_unique += 1;
-                if item.values().filter(|x| !x.change.is_inert()).count() <= 1 {
+                if item.values().filter(|x| !x.is_inert()).count() <= 1 {
                     tally.resolved += 1;
                 }
             }
@@ -295,7 +301,7 @@ impl DuplicateDetector {
         for item in self.registry.values() {
             if item.contains_key(game) && item.len() > 1 {
                 tally.non_unique += 1;
-                if item.values().filter(|x| !x.change.is_inert()).count() <= 1 {
+                if item.values().filter(|x| !x.is_inert()).count() <= 1 {
                     tally.resolved += 1;
                 }
             }
@@ -304,7 +310,7 @@ impl DuplicateDetector {
             for item in item.values() {
                 if item.contains_key(game) && item.len() > 1 {
                     tally.non_unique += 1;
-                    if item.values().filter(|x| !x.change.is_inert()).count() <= 1 {
+                    if item.values().filter(|x| !x.is_inert()).count() <= 1 {
                         tally.resolved += 1;
                     }
                 }

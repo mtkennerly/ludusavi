@@ -9,6 +9,7 @@
   * For Heroic and Lutris roots,
     if you had multiple copies of the same game,
     Ludusavi would only use the metadata from one of them.
+  * GUI: The game-level duplication badge did not always fade out when the conflicts were resolved.
 
 ## v0.23.0 (2024-04-27)
 
