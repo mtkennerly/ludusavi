@@ -489,7 +489,7 @@ pub fn scan_game_for_backup(
 
     // handle what was found for heroic
     for root in roots {
-        if let Some(wp) = launchers.get_prefix(root, name) {
+        for wp in launchers.get_game(root, name).filter_map(|x| x.prefix.as_ref()) {
             let with_pfx = wp.joined("pfx");
             scan_game_for_backup_add_prefix(
                 &mut roots_to_check,
@@ -514,29 +514,55 @@ pub fn scan_game_for_backup(
             continue;
         };
 
-        let platform = launchers.get_platform(&root, name).unwrap_or(Os::HOST);
-
         if let Some(files) = &game.files {
-            let install_dir = launchers.get_install_dir_leaf(&root, name);
-            let full_install_dir = launchers.get_install_dir(&root, name);
-
             for (raw_path, path_data) in files {
                 log::trace!("[{name}] parsing candidates from: {}", raw_path);
                 if raw_path.trim().is_empty() {
                     continue;
                 }
-                let candidates = parse_paths(
-                    raw_path,
-                    path_data,
-                    &root,
-                    &install_dir,
-                    &full_install_dir,
-                    &steam_ids,
-                    game.id.as_ref(),
-                    manifest_dir,
-                    steam_shortcuts.get(name),
-                    platform,
-                );
+
+                let mut candidates = HashSet::new();
+                let mut launcher_entries = launchers.get_game(&root, name).peekable();
+
+                if launcher_entries.peek().is_none() {
+                    let platform = Os::HOST;
+                    let install_dir = None;
+                    let full_install_dir = None;
+
+                    candidates.extend(parse_paths(
+                        raw_path,
+                        path_data,
+                        &root,
+                        &install_dir,
+                        &full_install_dir,
+                        &steam_ids,
+                        game.id.as_ref(),
+                        manifest_dir,
+                        steam_shortcuts.get(name),
+                        platform,
+                    ));
+                } else {
+                    for launcher_entry in launcher_entries {
+                        log::trace!("[{name}] parsing candidates with launcher info: {:?}", &launcher_entry);
+                        let platform = launcher_entry.platform.unwrap_or(Os::HOST);
+                        let install_dir = launcher_entry.install_dir.as_ref().and_then(|x| x.leaf());
+                        let full_install_dir = launcher_entry.install_dir.as_ref();
+
+                        candidates.extend(parse_paths(
+                            raw_path,
+                            path_data,
+                            &root,
+                            &install_dir,
+                            &full_install_dir,
+                            &steam_ids,
+                            game.id.as_ref(),
+                            manifest_dir,
+                            steam_shortcuts.get(name),
+                            platform,
+                        ));
+                    }
+                }
+
                 for (candidate, case_sensitive) in candidates {
                     log::trace!("[{name}] parsed candidate: {}", candidate.raw());
                     if candidate.raw().contains('<') {

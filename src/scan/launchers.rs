@@ -3,7 +3,7 @@ pub mod heroic;
 mod legendary;
 mod lutris;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     prelude::StrictPath,
@@ -16,37 +16,30 @@ use crate::{
 
 #[derive(Clone, Default, Debug)]
 pub struct Launchers {
-    games: HashMap<RootsConfig, HashMap<String, LauncherGame>>,
+    games: HashMap<RootsConfig, HashMap<String, HashSet<LauncherGame>>>,
+    empty: HashSet<LauncherGame>,
 }
 
-#[derive(Debug, Clone, Eq, PartialEq)]
+#[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct LauncherGame {
-    install_dir: Option<StrictPath>,
-    prefix: Option<StrictPath>,
-    platform: Option<Os>,
+    pub install_dir: Option<StrictPath>,
+    pub prefix: Option<StrictPath>,
+    pub platform: Option<Os>,
+}
+
+impl LauncherGame {
+    pub fn is_empty(&self) -> bool {
+        self.install_dir.is_none() && self.prefix.is_none() && self.platform.is_none()
+    }
 }
 
 impl Launchers {
-    fn get_game(&self, root: &RootsConfig, game: &str) -> Option<&LauncherGame> {
-        self.games.get(root).and_then(|root| root.get(game))
-    }
-
-    pub fn get_prefix(&self, root: &RootsConfig, game: &str) -> Option<&StrictPath> {
-        self.get_game(root, game).and_then(|x| x.prefix.as_ref())
-    }
-
-    pub fn get_install_dir_leaf(&self, root: &RootsConfig, game: &str) -> Option<String> {
-        self.get_game(root, game)
-            .and_then(|x| x.install_dir.as_ref())
-            .and_then(|x| x.leaf())
-    }
-
-    pub fn get_install_dir(&self, root: &RootsConfig, game: &str) -> Option<&StrictPath> {
-        self.get_game(root, game).and_then(|x| x.install_dir.as_ref())
-    }
-
-    pub fn get_platform(&self, root: &RootsConfig, game: &str) -> Option<Os> {
-        self.get_game(root, game).and_then(|x| x.platform)
+    pub fn get_game(&self, root: &RootsConfig, game: &str) -> impl Iterator<Item = &LauncherGame> {
+        self.games
+            .get(root)
+            .and_then(|root| root.get(game))
+            .unwrap_or(&self.empty)
+            .iter()
     }
 
     pub fn scan(
@@ -60,12 +53,16 @@ impl Launchers {
 
         for root in roots {
             log::debug!("Scanning launcher info: {:?} - {}", root.store, root.path.render());
-            let found = match root.store {
+            let mut found = match root.store {
                 Store::Heroic => heroic::scan(root, title_finder, legendary.as_ref()),
                 Store::Legendary => legendary::scan(root, title_finder),
                 Store::Lutris => lutris::scan(root, title_finder),
                 _ => generic::scan(root, manifest, subjects),
             };
+            found.retain(|_k, v| {
+                v.retain(|x| !x.is_empty());
+                !v.is_empty()
+            });
             log::debug!(
                 "launcher games found ({:?} - {}): {:#?}",
                 root.store,

@@ -28,7 +28,7 @@ pub mod placeholder {
     pub const XDG_CONFIG: &str = "<xdgConfig>";
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum Os {
     #[serde(rename = "windows")]
     Windows,

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use fuzzy_matcher::FuzzyMatcher;
 use rayon::prelude::*;
@@ -52,7 +52,7 @@ fn fuzzy_match(
     None
 }
 
-pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> HashMap<String, LauncherGame> {
+pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> HashMap<String, HashSet<LauncherGame>> {
     log::debug!("ranking installations for {:?}: {}", root.store, root.path.raw());
 
     let install_parent = match root.store {
@@ -160,11 +160,11 @@ pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> Has
 
             Some((
                 name.clone(),
-                LauncherGame {
+                HashSet::from_iter([LauncherGame {
                     install_dir: Some(install_parent.joined(subdir)),
                     prefix: None,
                     platform: None,
-                },
+                }]),
             ))
         })
         .collect()

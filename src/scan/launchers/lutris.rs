@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     prelude::{StrictPath, ENV_DEBUG},
@@ -24,8 +24,8 @@ struct GameSection {
     working_dir: Option<StrictPath>,
 }
 
-pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
-    let mut games = HashMap::new();
+pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
+    let mut games = HashMap::<String, HashSet<LauncherGame>>::new();
 
     log::trace!("Scanning Lutris root for games: {:?}", &root.path);
 
@@ -43,19 +43,16 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
         };
 
         if let Some((title, game)) = scan_spec(spec, &spec_path, title_finder) {
-            games.insert(title, game);
+            games.entry(title).or_default().insert(game);
         }
     }
 
     if let Some(metadata) = wrap::lutris::infer_metadata() {
-        games.insert(
-            metadata.title,
-            LauncherGame {
-                platform: metadata.prefix.is_some().then_some(Os::Windows),
-                install_dir: metadata.base,
-                prefix: metadata.prefix,
-            },
-        );
+        games.entry(metadata.title).or_default().insert(LauncherGame {
+            platform: metadata.prefix.is_some().then_some(Os::Windows),
+            install_dir: metadata.base,
+            prefix: metadata.prefix,
+        });
     }
 
     log::trace!("Finished scanning Lutris root for games: {:?}", &root.path);
@@ -144,7 +141,7 @@ fn scan_spec(spec: LutrisGame, spec_path: &StrictPath, title_finder: &TitleFinde
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::hash_map;
+    use velcro::{hash_map, hash_set};
 
     use super::*;
     use crate::{
@@ -195,11 +192,11 @@ mod tests {
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {
-                "windows-game".to_string(): LauncherGame {
+                "windows-game".to_string(): hash_set![LauncherGame {
                     install_dir: Some(StrictPath::new("/home/deck/Games/service/windows-game/drive_c/game".to_string())),
                     prefix: Some(StrictPath::new("/home/deck/Games/service/windows-game".to_string())),
                     platform: Some(Os::Windows),
-                },
+                }],
             },
             games,
         );

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::{
     prelude::{StrictPath, ENV_DEBUG},
@@ -33,8 +33,8 @@ pub mod library {
     }
 }
 
-pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
-    let mut out = HashMap::new();
+pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
+    let mut out = HashMap::<String, HashSet<LauncherGame>>::new();
 
     for (app_id, game) in get_library(&root.path) {
         let raw_title = &game.title;
@@ -58,14 +58,11 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
         );
         let platform = game.install.platform.as_deref();
         let prefix = find_prefix(&root.path, &game.title, platform, &game.app_name);
-        out.insert(
-            official_title,
-            LauncherGame {
-                install_dir: game.install.install_path,
-                prefix,
-                platform: platform.map(Os::from),
-            },
-        );
+        out.entry(official_title).or_default().insert(LauncherGame {
+            install_dir: game.install.install_path,
+            prefix,
+            platform: platform.map(Os::from),
+        });
     }
 
     out
@@ -96,7 +93,7 @@ pub fn get_library(source: &StrictPath) -> HashMap<String, library::Game> {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::hash_map;
+    use velcro::{hash_map, hash_set};
 
     use super::*;
     use crate::{
@@ -131,11 +128,11 @@ mod tests {
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {
-                "game-1".to_string(): LauncherGame {
+                "game-1".to_string(): hash_set![LauncherGame {
                     install_dir: Some(StrictPath::new("/games/game-1".to_string())),
                     prefix: Some(StrictPath::new("/prefixes/game-1".to_string())),
                     platform: Some(Os::Windows),
-                },
+                }],
             },
             games,
         );

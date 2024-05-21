@@ -3,7 +3,7 @@ pub mod legendary;
 pub mod nile;
 pub mod sideload;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::prelude::StrictPath;
 
@@ -45,13 +45,24 @@ pub fn scan(
     root: &RootsConfig,
     title_finder: &TitleFinder,
     legendary: Option<&StrictPath>,
-) -> HashMap<String, LauncherGame> {
-    let mut games = HashMap::new();
+) -> HashMap<String, HashSet<LauncherGame>> {
+    let mut games = HashMap::<String, HashSet<LauncherGame>>::new();
 
-    games.extend(legendary::scan(root, title_finder, legendary));
-    games.extend(gog::scan(root, title_finder));
-    games.extend(nile::scan(root, title_finder));
-    games.extend(sideload::scan(root, title_finder));
+    for (title, info) in legendary::scan(root, title_finder, legendary) {
+        games.entry(title).or_default().extend(info);
+    }
+
+    for (title, info) in gog::scan(root, title_finder) {
+        games.entry(title).or_default().extend(info);
+    }
+
+    for (title, info) in nile::scan(root, title_finder) {
+        games.entry(title).or_default().extend(info);
+    }
+
+    for (title, info) in sideload::scan(root, title_finder) {
+        games.entry(title).or_default().extend(info);
+    }
 
     games
 }

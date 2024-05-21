@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::prelude::StrictPath;
 
@@ -15,8 +15,8 @@ pub fn scan(
     root: &RootsConfig,
     title_finder: &TitleFinder,
     legendary: Option<&StrictPath>,
-) -> HashMap<String, LauncherGame> {
-    let mut games = HashMap::new();
+) -> HashMap<String, HashSet<LauncherGame>> {
+    let mut games = HashMap::<String, HashSet<LauncherGame>>::new();
 
     for game in get_installed(root, legendary) {
         let Some(official_title) = title_finder.find_one_by_normalized_name(&game.title) else {
@@ -37,14 +37,11 @@ pub fn scan(
             &game.title
         );
         let prefix = find_prefix(&root.path, &game.title, Some(&game.platform), &game.app_name);
-        games.insert(
-            official_title,
-            LauncherGame {
-                install_dir: Some(StrictPath::new(game.install_path.clone())),
-                prefix,
-                platform: Some(Os::from(game.platform.as_str())),
-            },
-        );
+        games.entry(official_title).or_default().insert(LauncherGame {
+            install_dir: Some(StrictPath::new(game.install_path.clone())),
+            prefix,
+            platform: Some(Os::from(game.platform.as_str())),
+        });
     }
 
     games
@@ -72,7 +69,7 @@ pub fn get_installed(root: &RootsConfig, legendary: Option<&StrictPath>) -> Vec<
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::hash_map;
+    use velcro::{hash_map, hash_set};
 
     use super::*;
     use crate::{
@@ -108,11 +105,11 @@ mod tests {
         let games = scan(&root, &title_finder(), legendary.as_ref());
         assert_eq!(
             hash_map! {
-                "game-1".to_string(): LauncherGame {
+                "game-1".to_string(): hash_set![LauncherGame {
                     install_dir: Some(StrictPath::new("/games/game-1".to_string())),
                     prefix: Some(StrictPath::new("/prefixes/game-1".to_string())),
                     platform: Some(Os::Windows),
-                },
+                }],
             },
             games,
         );

@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use crate::prelude::StrictPath;
 
@@ -46,8 +46,8 @@ pub mod library {
     }
 }
 
-pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, LauncherGame> {
-    let mut games = HashMap::new();
+pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
+    let mut games = HashMap::<String, HashSet<LauncherGame>>::new();
 
     let game_titles: HashMap<String, String> = get_library(root)
         .iter()
@@ -95,14 +95,11 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, L
                     &game_title
                 );
                 let prefix = find_prefix(&root.path, game_title, Some(&game.platform), &game.app_name);
-                games.insert(
-                    official_title,
-                    LauncherGame {
-                        install_dir: Some(StrictPath::new(game.install_path.clone())),
-                        prefix,
-                        platform: Some(Os::from(game.platform.as_str())),
-                    },
-                );
+                games.entry(official_title).or_default().insert(LauncherGame {
+                    install_dir: Some(StrictPath::new(game.install_path.clone())),
+                    prefix,
+                    platform: Some(Os::from(game.platform.as_str())),
+                });
             }
         }
         Err(e) => {
@@ -142,7 +139,7 @@ pub fn get_library(root: &RootsConfig) -> Vec<library::Game> {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::hash_map;
+    use velcro::{hash_map, hash_set};
 
     use super::*;
     use crate::{
@@ -177,11 +174,11 @@ mod tests {
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {
-                "game-1".to_string(): LauncherGame {
+                "game-1".to_string(): hash_set![LauncherGame {
                     install_dir: Some(StrictPath::new("/games/game-1".to_string())),
                     prefix: Some(StrictPath::new("/prefixes/game-1".to_string())),
                     platform: Some(Os::Windows),
-                },
+                }],
             },
             games,
         );
@@ -196,11 +193,11 @@ mod tests {
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {
-                "game-1".to_string(): LauncherGame {
+                "game-1".to_string(): hash_set![LauncherGame {
                     install_dir: Some(StrictPath::new("/games/game-1".to_string())),
                     prefix: Some(StrictPath::new("/prefixes/game-1".to_string())),
                     platform: Some(Os::Windows),
-                },
+                }],
             },
             games,
         );
