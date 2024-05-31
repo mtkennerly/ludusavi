@@ -680,6 +680,20 @@ Environment variables can be used to tweak some additional behavior:
 
 </details>
 
+## Community
+
+The community has created some additional resources you may find useful.
+Please note that this is not an exhaustive list
+and that these projects are not officially affiliated with Ludusavi itself:
+
+* Secondary manifests:
+  * https://github.com/BloodShed-Oni/ludusavi-extra-manifests
+  * https://github.com/hblamo/ludusavi-emudeck-manifest
+* Plugins for Decky Loader on Steam Deck:
+  * https://github.com/GedasFX/decky-ludusavi
+* Plugins for VS Code:
+  * https://marketplace.visualstudio.com/items?itemName=claui.ludusavi
+
 ## Comparison with other tools
 There are other excellent backup tools available, but not a singular
 cross-platform and cross-store solution:
