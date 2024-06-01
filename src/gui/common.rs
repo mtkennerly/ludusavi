@@ -12,8 +12,8 @@ use crate::{
     prelude::{CommandError, Error, Finality, Privacy, StrictPath, SyncDirection},
     resource::{
         config::{
-            BackupFormat, CustomGameKind, RedirectKind, RootsConfig, SecondaryManifestConfigKind, SortKey, Theme,
-            ZipCompression,
+            BackupFormat, CloudFilter, CustomGameKind, RedirectKind, RootsConfig, SecondaryManifestConfigKind, SortKey,
+            Theme, ZipCompression,
         },
         manifest::{Manifest, ManifestUpdate, Store},
     },
@@ -131,6 +131,7 @@ pub enum Message {
     EditedCustomGameFile(usize, EditAction),
     EditedCustomGameRegistry(usize, EditAction),
     EditedExcludeStoreScreenshots(bool),
+    EditedCloudFilter(CloudFilter),
     EditedBackupFilterIgnoredPath(EditAction),
     EditedBackupFilterIgnoredRegistry(EditAction),
     SwitchScreen(Screen),

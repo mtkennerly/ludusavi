@@ -1610,6 +1610,11 @@ impl Application for App {
                 self.save_config();
                 Command::none()
             }
+            Message::EditedCloudFilter(filter) => {
+                self.config.backup.filter.cloud = filter;
+                self.save_config();
+                Command::none()
+            }
             Message::EditedBackupFilterIgnoredPath(action) => {
                 match action {
                     EditAction::Add => {

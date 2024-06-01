@@ -1,6 +1,10 @@
 ## Unreleased
 
 * Added:
+  * On the "other" screen,
+    you can choose not to back up games with cloud support on certain stores.
+    If a game is customized or already has local backups,
+    then Ludusavi will continue backing it up regardless.
   * Support for Amazon/sideloaded games in Heroic.
 * Changed:
   * Title normalization now ignores apostrophes and quotation marks

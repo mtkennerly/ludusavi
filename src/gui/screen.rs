@@ -19,8 +19,8 @@ use crate::{
     prelude::{AVAILABLE_PARALELLISM, STEAM_DECK},
     resource::{
         cache::Cache,
-        config::{BackupFormat, Config, SortKey, Theme, ZipCompression},
-        manifest::Manifest,
+        config::{BackupFormat, CloudFilter, Config, SortKey, Theme, ZipCompression},
+        manifest::{Manifest, Store},
     },
     scan::{DuplicateDetector, Duplication, OperationStatus},
 };
@@ -399,7 +399,91 @@ pub fn other<'a>(
                                     TRANSLATOR.show_unscanned_games(),
                                     config.scan.show_unscanned_games,
                                     Message::SetShowUnscannedGames,
-                                )),
+                                ))
+                                .push(checkbox(
+                                    TRANSLATOR.field(&TRANSLATOR.explanation_for_exclude_cloud_games()),
+                                    config.backup.filter.cloud.exclude,
+                                    |exclude| {
+                                        Message::EditedCloudFilter(CloudFilter {
+                                            exclude,
+                                            ..config.backup.filter.cloud
+                                        })
+                                    },
+                                ))
+                                .push(
+                                    Row::new()
+                                        .padding([0, 0, 0, 35])
+                                        .spacing(10)
+                                        .push(
+                                            checkbox(
+                                                TRANSLATOR.store(&Store::Epic),
+                                                config.backup.filter.cloud.epic,
+                                                |epic| {
+                                                    Message::EditedCloudFilter(CloudFilter {
+                                                        epic,
+                                                        ..config.backup.filter.cloud
+                                                    })
+                                                },
+                                            )
+                                            .style(style::Checkbox),
+                                        )
+                                        .push(
+                                            checkbox(
+                                                TRANSLATOR.store(&Store::Gog),
+                                                config.backup.filter.cloud.gog,
+                                                |gog| {
+                                                    Message::EditedCloudFilter(CloudFilter {
+                                                        gog,
+                                                        ..config.backup.filter.cloud
+                                                    })
+                                                },
+                                            )
+                                            .style(style::Checkbox),
+                                        )
+                                        .push(
+                                            checkbox(
+                                                format!(
+                                                    "{} / {}",
+                                                    TRANSLATOR.store(&Store::Origin),
+                                                    TRANSLATOR.store(&Store::Ea)
+                                                ),
+                                                config.backup.filter.cloud.origin,
+                                                |origin| {
+                                                    Message::EditedCloudFilter(CloudFilter {
+                                                        origin,
+                                                        ..config.backup.filter.cloud
+                                                    })
+                                                },
+                                            )
+                                            .style(style::Checkbox),
+                                        )
+                                        .push(
+                                            checkbox(
+                                                TRANSLATOR.store(&Store::Steam),
+                                                config.backup.filter.cloud.steam,
+                                                |steam| {
+                                                    Message::EditedCloudFilter(CloudFilter {
+                                                        steam,
+                                                        ..config.backup.filter.cloud
+                                                    })
+                                                },
+                                            )
+                                            .style(style::Checkbox),
+                                        )
+                                        .push(
+                                            checkbox(
+                                                TRANSLATOR.store(&Store::Uplay),
+                                                config.backup.filter.cloud.uplay,
+                                                |uplay| {
+                                                    Message::EditedCloudFilter(CloudFilter {
+                                                        uplay,
+                                                        ..config.backup.filter.cloud
+                                                    })
+                                                },
+                                            )
+                                            .style(style::Checkbox),
+                                        ),
+                                ),
                         )
                         .style(style::Container::GameListEntry),
                     ),

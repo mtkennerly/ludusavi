@@ -10,7 +10,7 @@ use crate::{
     path::CommonPath,
     prelude::{app_dir, Error, StrictPath, AVAILABLE_PARALELLISM},
     resource::{
-        manifest::{Manifest, Store},
+        manifest::{CloudMetadata, Manifest, Store},
         ResourceFile, SaveableResourceFile,
     },
     scan::registry_compat::RegistryItem,
@@ -260,10 +260,45 @@ impl ToString for RedirectKind {
     }
 }
 
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CloudFilter {
+    pub exclude: bool,
+    pub epic: bool,
+    pub gog: bool,
+    pub origin: bool,
+    pub steam: bool,
+    pub uplay: bool,
+}
+
+impl CloudFilter {
+    pub fn excludes(&self, info: &CloudMetadata) -> bool {
+        let CloudFilter {
+            exclude,
+            epic,
+            gog,
+            origin,
+            steam,
+            uplay,
+        } = self;
+
+        if !exclude {
+            return false;
+        }
+
+        (*epic && info.epic)
+            || (*gog && info.gog)
+            || (*origin && info.origin)
+            || (*steam && info.steam)
+            || (*uplay && info.uplay)
+    }
+}
+
 #[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct BackupFilter {
     pub exclude_store_screenshots: bool,
+    pub cloud: CloudFilter,
     pub ignored_paths: Vec<StrictPath>,
     pub ignored_registry: Vec<RegistryItem>,
     #[serde(skip)]
@@ -274,6 +309,7 @@ impl std::fmt::Debug for BackupFilter {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("BackupFilter")
             .field("exclude_store_screenshots", &self.exclude_store_screenshots)
+            .field("cloud", &self.cloud)
             .field("ignored_paths", &self.ignored_paths)
             .field("ignored_registry", &self.ignored_registry)
             .finish()
@@ -344,6 +380,10 @@ impl BackupFilter {
         self.ignored_registry
             .iter()
             .any(|x| x.is_prefix_of(item) || x.interpret() == interpreted)
+    }
+
+    pub fn excludes(&self, has_backup: bool, info: &CloudMetadata) -> bool {
+        self.cloud.excludes(info) && !has_backup
     }
 }
 
@@ -1838,6 +1878,13 @@ backup:
     - Backup Game 3
   filter:
     excludeStoreScreenshots: true
+    cloud:
+      exclude: false
+      epic: false
+      gog: false
+      origin: false
+      steam: false
+      uplay: false
     ignoredPaths: []
     ignoredRegistry: []
   toggledPaths: {}

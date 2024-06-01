@@ -990,6 +990,10 @@ impl Translator {
         translate("explanation-for-exclude-store-screenshots")
     }
 
+    pub fn explanation_for_exclude_cloud_games(&self) -> String {
+        translate("explanation-for-exclude-cloud-games")
+    }
+
     pub fn roots_label(&self) -> String {
         translate("field-roots")
     }

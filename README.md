@@ -584,6 +584,22 @@ Here are the available settings in `config.yaml` (all are required unless otherw
   * `filter` (optional, map):
     * `excludeStoreScreenshots` (optional, boolean): If true, then the backup
       should exclude screenshots from stores like Steam. Default: false.
+    <!--
+    * `cloud` (map):
+      * `exclude` (boolean):
+        If true, don't back up games with cloud support
+        on the stores indicated in the other options below.
+      * `epic` (boolean):
+        If this and `exclude` are true, don't back up games with cloud support on Epic.
+      * `gog` (boolean):
+        If this and `exclude` are true, don't back up games with cloud support on GOG.
+      * `origin` (boolean):
+        If this and `exclude` are true, don't back up games with cloud support on Origin / EA App.
+      * `steam` (boolean):
+        If this and `exclude` are true, don't back up games with cloud support on Steam.
+      * `uplay` (boolean):
+        If this and `exclude` are true, don't back up games with cloud support on Uplay / Ubisoft Connect.
+    -->
     * `ignoredPaths` (list of strings): Globally ignored paths.
     * `ignoredRegistry` (list of strings): Globally ignored registry keys.
   * `toggledPaths` (map): Paths overridden for inclusion/exclusion in the backup.

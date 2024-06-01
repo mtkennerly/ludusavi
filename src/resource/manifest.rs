@@ -156,6 +156,8 @@ pub struct Game {
     pub gog: GogMetadata,
     #[serde(skip_serializing_if = "IdMetadata::is_empty")]
     pub id: IdMetadata,
+    #[serde(skip_serializing_if = "CloudMetadata::is_empty")]
+    pub cloud: CloudMetadata,
 }
 
 impl Game {
@@ -260,6 +262,35 @@ pub struct IdMetadata {
 impl IdMetadata {
     pub fn is_empty(&self) -> bool {
         self.flatpak.is_none() && self.gog_extra.is_empty() && self.steam_extra.is_empty()
+    }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct CloudMetadata {
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub epic: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub gog: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub origin: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub steam: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub uplay: bool,
+}
+
+impl CloudMetadata {
+    pub fn is_empty(&self) -> bool {
+        let Self {
+            epic,
+            gog,
+            origin,
+            steam,
+            uplay,
+        } = self;
+
+        !epic && !gog && !origin && !steam && !uplay
     }
 }
 
@@ -481,6 +512,10 @@ impl Manifest {
             steam: existing.map(|x| x.steam.clone()).unwrap_or_default(),
             gog: existing.map(|x| x.gog.clone()).unwrap_or_default(),
             id: existing.map(|x| x.id.clone()).unwrap_or_default(),
+            // We intentionally don't carry over the cloud info for custom games.
+            // If you choose not to back up games with cloud support,
+            // you probably still want to back up your customized versions of such games.
+            cloud: CloudMetadata::default(),
         };
 
         self.0.insert(name, game);
@@ -541,6 +576,7 @@ impl Manifest {
                 steam,
                 gog,
                 id,
+                cloud: _,
             } = &v;
             alias.is_none()
                 && (!files.is_empty() || !registry.is_empty() || !steam.is_empty() || !gog.is_empty() || !id.is_empty())
@@ -613,6 +649,7 @@ mod tests {
                 steam: Default::default(),
                 gog: Default::default(),
                 id: Default::default(),
+                cloud: Default::default(),
             },
             manifest.0["game"],
         );
@@ -647,6 +684,12 @@ mod tests {
                 flatpak: com.example.Game
                 gogExtra: [10, 11]
                 steamExtra: [1, 2]
+              cloud:
+                epic: true
+                gog: true
+                origin: true
+                steam: true
+                uplay: true
             "#,
         )
         .unwrap();
@@ -684,6 +727,13 @@ mod tests {
                     flatpak: Some("com.example.Game".to_string()),
                     gog_extra: vec![10, 11].into_iter().collect(),
                     steam_extra: vec![1, 2].into_iter().collect(),
+                },
+                cloud: CloudMetadata {
+                    epic: true,
+                    gog: true,
+                    origin: true,
+                    steam: true,
+                    uplay: true
                 },
             },
             manifest.0["game"],
