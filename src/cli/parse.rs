@@ -272,7 +272,7 @@ pub enum Subcommand {
     },
     /// Find game titles
     ///
-    /// Precedence: Steam ID -> GOG ID -> exact names -> normalized names.
+    /// Precedence: Steam ID -> GOG ID -> Lutris ID -> exact names -> normalized names.
     /// Once a match is found for one of these options,
     /// Ludusavi will stop looking and return that match.
     ///
@@ -308,6 +308,10 @@ pub enum Subcommand {
         /// Look up game by a GOG ID.
         #[clap(long)]
         gog_id: Option<u64>,
+
+        /// Look up game by a Lutris slug.
+        #[clap(long)]
+        lutris_id: Option<String>,
 
         /// Look up game by an approximation of the title.
         /// Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols.
@@ -988,6 +992,7 @@ mod tests {
                     restore: false,
                     steam_id: None,
                     gog_id: None,
+                    lutris_id: None,
                     normalized: false,
                     disabled: false,
                     partial: false,
@@ -1012,6 +1017,8 @@ mod tests {
                 "101",
                 "--gog-id",
                 "102",
+                "--lutris-id",
+                "slug",
                 "--normalized",
                 "--disabled",
                 "--partial",
@@ -1029,6 +1036,7 @@ mod tests {
                     restore: true,
                     steam_id: Some(101),
                     gog_id: Some(102),
+                    lutris_id: Some("slug".to_string()),
                     normalized: true,
                     disabled: true,
                     partial: true,

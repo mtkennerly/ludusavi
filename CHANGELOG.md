@@ -5,7 +5,11 @@
     you can choose not to back up games with cloud support on certain stores.
     If a game is customized or already has local backups,
     then Ludusavi will continue backing it up regardless.
-  * Support for Amazon/sideloaded games in Heroic.
+  * For Heroic roots, Ludusavi now supports Amazon and sideloaded games.
+  * For Lutris roots,
+    Ludusavi now scans `pga.db` in addition to `games/*.yml`
+    in case the YAML files do not contain all of the necessary information.
+  * CLI: The `find` command now accepts a `--lutris-id` option.
 * Changed:
   * Title normalization now ignores apostrophes and quotation marks
     (e.g., `ludusavi find --normalized "Mirrors Edge"` will find `Mirror's Edge`).

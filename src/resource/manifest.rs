@@ -255,13 +255,22 @@ pub struct IdMetadata {
     pub flatpak: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub gog_extra: BTreeSet<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lutris: Option<String>,
     #[serde(default, skip_serializing_if = "BTreeSet::is_empty")]
     pub steam_extra: BTreeSet<u32>,
 }
 
 impl IdMetadata {
     pub fn is_empty(&self) -> bool {
-        self.flatpak.is_none() && self.gog_extra.is_empty() && self.steam_extra.is_empty()
+        let Self {
+            flatpak,
+            gog_extra,
+            lutris,
+            steam_extra,
+        } = self;
+
+        flatpak.is_none() && gog_extra.is_empty() && lutris.is_none() && steam_extra.is_empty()
     }
 }
 
@@ -465,6 +474,13 @@ impl Manifest {
         self.0
             .iter()
             .filter_map(|(k, v)| v.gog.id.as_ref().map(|id| (*id, k.to_owned())))
+            .collect()
+    }
+
+    pub fn map_lutris_ids_to_names(&self) -> HashMap<String, String> {
+        self.0
+            .iter()
+            .filter_map(|(k, v)| v.id.lutris.as_ref().map(|id| (id.to_string(), k.to_owned())))
             .collect()
     }
 
@@ -683,6 +699,7 @@ mod tests {
               id:
                 flatpak: com.example.Game
                 gogExtra: [10, 11]
+                lutris: slug
                 steamExtra: [1, 2]
               cloud:
                 epic: true
@@ -726,6 +743,7 @@ mod tests {
                 id: IdMetadata {
                     flatpak: Some("com.example.Game".to_string()),
                     gog_extra: vec![10, 11].into_iter().collect(),
+                    lutris: Some("slug".to_string()),
                     steam_extra: vec![1, 2].into_iter().collect(),
                 },
                 cloud: CloudMetadata {

@@ -47,6 +47,7 @@ pub struct TitleFinder {
     games: HashMap<String, TitleGameInfo>,
     steam_ids: HashMap<u32, String>,
     gog_ids: HashMap<u64, String>,
+    lutris_ids: HashMap<String, String>,
     normalized: HashMap<String, String>,
     aliases: HashMap<String, String>,
 }
@@ -73,6 +74,7 @@ impl TitleFinder {
 
         let steam_ids = manifest.map_steam_ids_to_names();
         let gog_ids = manifest.map_gog_ids_to_names();
+        let lutris_ids = manifest.map_lutris_ids_to_names();
         let normalized: HashMap<_, _> = games
             .keys()
             .map(|title| (normalize_title(title), title.to_owned()))
@@ -83,6 +85,7 @@ impl TitleFinder {
             games,
             steam_ids,
             gog_ids,
+            lutris_ids,
             normalized,
             aliases,
         }
@@ -137,6 +140,7 @@ impl TitleFinder {
             names,
             steam_id,
             gog_id,
+            lutris_id,
             normalized,
             backup,
             restore,
@@ -145,7 +149,7 @@ impl TitleFinder {
         } = query;
 
         let mut output = BTreeSet::new();
-        let singular = !names.is_empty() || steam_id.is_some() || gog_id.is_some();
+        let singular = !names.is_empty() || steam_id.is_some() || gog_id.is_some() || lutris_id.is_some();
 
         'outer: {
             if singular {
@@ -160,6 +164,15 @@ impl TitleFinder {
 
                 if let Some(gog_id) = gog_id {
                     if let Some(found) = self.gog_ids.get(&gog_id) {
+                        if self.eligible(found, backup, restore) {
+                            output.insert(found.to_owned());
+                            break 'outer;
+                        }
+                    }
+                }
+
+                if let Some(lutris_id) = lutris_id {
+                    if let Some(found) = self.lutris_ids.get(&lutris_id) {
                         if self.eligible(found, backup, restore) {
                             output.insert(found.to_owned());
                             break 'outer;
@@ -242,6 +255,9 @@ pub struct TitleQuery {
     /// Search for a GOG ID.
     /// This will cause only one result to be returned.
     pub gog_id: Option<u64>,
+    // Search for a Lutris slug.
+    /// This will cause only one result to be returned.
+    pub lutris_id: Option<String>,
     /// Search by normalizing the `names`.
     pub normalized: bool,
     /// Only return games that are possible to back up.
@@ -307,6 +323,9 @@ mod tests {
             by-gog:
                 gog:
                     id: 2
+            by-lutris:
+                id:
+                    lutris: slug
             "#,
         )
         .unwrap();
@@ -338,6 +357,13 @@ mod tests {
             btree_set!["by-gog".to_string()],
             finder.find(TitleQuery {
                 gog_id: Some(2),
+                ..Default::default()
+            }),
+        );
+        assert_eq!(
+            btree_set!["by-lutris".to_string()],
+            finder.find(TitleQuery {
+                lutris_id: Some("slug".to_string()),
                 ..Default::default()
             }),
         );
