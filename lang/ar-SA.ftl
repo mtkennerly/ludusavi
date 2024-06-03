@@ -101,7 +101,7 @@ label-updated = محدث
 label-new = جديد
 label-removed = أُزيل
 label-comment = تعليق
-label-unchanged = Unchanged
+label-unchanged = غير مغيّر
 label-scan = نسخ
 label-filter = تصفية
 label-unique = فريد
@@ -119,8 +119,8 @@ label-folder = المجلد
 # An executable file
 label-executable = مِلَفّ تنفيذي
 # Options given to a command line program
-label-arguments = Arguments
-label-url = URL
+label-arguments = الاختيارات
+label-url = الرابط
 # https://en.wikipedia.org/wiki/Host_(network)
 label-host = المضيف
 # https://en.wikipedia.org/wiki/Port_(computer_networking)
@@ -133,13 +133,13 @@ label-provider = المزود
 label-custom = مُخصّص
 label-none = لا شيء
 label-change-count = التغييرات: { $total }
-label-unscanned = Unscanned
+label-unscanned = غير مفحوص
 # This refers to a local file on the computer
-label-file = File
-label-game = Game
+label-file = الملف
+label-game = اللعبة
 # Aliases are alternative titles for the same game.
-label-alias = Alias
-label-original-name = Original name
+label-alias = الاسم المستعار
+label-original-name = الاسم الأصلي
 store-ea = EA
 store-epic = متجر Epic
 store-gog = متجر GOG
@@ -166,7 +166,7 @@ store-other-linux = Linux drive
 store-other-mac = Mac drive
 store-other = أخرى
 backup-format-simple = بسيط
-backup-format-zip = Zip
+backup-format-zip = ملف مضغوط بصيغة Zip
 compression-none = لا شيء
 # "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
 compression-deflate = Deflate
@@ -181,8 +181,9 @@ show-unchanged-games = إظهار الألعاب التي لم تتغير
 show-unscanned-games = إظهار الألعاب الغير منسوخة
 override-max-threads = تجاوز الحد الأقصى للموضوعات
 synchronize-automatically = المزامنة تلقائياً
-prefer-alias-display = Display alias instead of original name
+prefer-alias-display = عرض الاسم المستعار بدلاً من الاسم الأصلي
 explanation-for-exclude-store-screenshots = في النسخ الاحتياطية، استبعاد لقطات الشاشة الخاصة بالمتجر
+explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
 consider-doing-a-preview =
     إذا لم تكن قد قمت بالفعل ، فكر في إجراء معاينة أولاً حتى لا يكون هناك
     مفاجآت.
@@ -224,13 +225,13 @@ prefix-warning = تحذير: { $message }
 cloud-app-unavailable = النسخ الاحتياطي السحابي معطل لأن { $app } غير متوفر.
 cloud-not-configured = النسخ الاحتياطي السحابي معطل لأنه لم يُنشأ أي نظام سحابي.
 cloud-path-invalid = النسخ الاحتياطي السحابي معطل لأن مسار النسخ الاحتياطي غير صالح.
-game-is-unrecognized = Ludusavi does not recognize this game.
-game-has-nothing-to-restore = This game does not have a backup to restore.
-launch-game-after-error = Launch the game anyway?
-game-did-not-launch = Game failed to launch.
+game-is-unrecognized = لودوسافي لا يتعرف على هذه اللعبة.
+game-has-nothing-to-restore = هذه اللعبة ليست لديها نسخة احتياطية لاستعادتها.
+launch-game-after-error = هل ترغب في تشغيل اللعبة على أي حال؟
+game-did-not-launch = فشل تشغيل اللعبة.
 back-up-specific-game =
-    .confirm = Back up save data for { $game }?
-    .failed = Failed to back up save data for { $game }
+    .confirm = هل ترغب في عمل نسخة احتياطية لبيانات الحفظ ل { $game }؟
+    .failed = فشل في عمل نسخة احتياطية لبيانات الحفظ ل { $game }
 restore-specific-game =
-    .confirm = Restore save data for { $game }?
-    .failed = Failed to restore save data for { $game }
+    .confirm = هل تريد استعادة بيانات الحفظ ل { $game }؟
+    .failed = فشل في استعادة بيانات الحفظ ل { $game }

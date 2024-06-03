@@ -74,10 +74,10 @@ pub enum Language {
     Japanese,
     #[serde(rename = "ko-KR")]
     Korean,
-    #[serde(rename = "pt-BR")]
-    PortugueseBrazilian,
     #[serde(rename = "pl-PL")]
     Polish,
+    #[serde(rename = "pt-BR")]
+    PortugueseBrazilian,
     #[serde(rename = "ru-RU")]
     Russian,
     #[serde(rename = "es-ES")]
@@ -139,33 +139,64 @@ impl Language {
         };
         id.parse().unwrap()
     }
+
+    fn name(&self) -> &'static str {
+        match self {
+            Language::Arabic => "العربية",
+            Language::ChineseSimplified => "中文（简体）",
+            Language::ChineseTraditional => "中文（繁體）",
+            Language::Czech => "Čeština",
+            Language::Dutch => "Nederlands",
+            Language::English => "English",
+            Language::Esperanto => "Esperanto",
+            Language::Filipino => "Filipino",
+            Language::French => "Français",
+            Language::German => "Deutsch",
+            Language::Italian => "Italiano",
+            Language::Japanese => "日本語",
+            Language::Korean => "한국어",
+            Language::Polish => "Polski",
+            Language::PortugueseBrazilian => "Português brasileiro",
+            Language::Russian => "Русский язык",
+            Language::Spanish => "Español",
+            Language::Thai => "ภาษาไทย",
+            Language::Turkish => "Türkçe",
+            Language::Ukrainian => "Украї́нська мо́ва",
+        }
+    }
+
+    fn completion(&self) -> u8 {
+        match self {
+            Language::Arabic => 97,
+            Language::ChineseSimplified => 97,
+            Language::ChineseTraditional => 15,
+            Language::Czech => 4,
+            Language::Dutch => 21,
+            Language::English => 100,
+            Language::Esperanto => 19,
+            Language::Filipino => 35,
+            Language::French => 98,
+            Language::German => 97,
+            Language::Italian => 100,
+            Language::Japanese => 46,
+            Language::Korean => 28,
+            Language::Polish => 98,
+            Language::PortugueseBrazilian => 94,
+            Language::Russian => 100,
+            Language::Spanish => 98,
+            Language::Thai => 24,
+            Language::Turkish => 14,
+            Language::Ukrainian => 42,
+        }
+    }
 }
 
 impl ToString for Language {
     fn to_string(&self) -> String {
         match self {
-            Self::Arabic => "العربية (88%)",
-            Self::ChineseSimplified => "中文（简体） (98%)",
-            Self::ChineseTraditional => "中文（繁體） (15%)",
-            Self::Czech => "Čeština (4%)",
-            Self::Dutch => "Nederlands (21%)",
-            Self::English => "English",
-            Self::Esperanto => "Esperanto (19%)",
-            Self::Filipino => "Filipino (35%)",
-            Self::French => "Français (100%)",
-            Self::German => "Deutsch (98%)",
-            Self::Italian => "Italiano (100%)",
-            Self::Japanese => "日本語 (47%)",
-            Self::Korean => "한국어 (29%)",
-            Self::Polish => "Polski (100%)",
-            Self::PortugueseBrazilian => "Português brasileiro (96%)",
-            Self::Russian => "Русский язык (100%)",
-            Self::Spanish => "Español (100%)",
-            Self::Thai => "ภาษาไทย (25%)",
-            Self::Turkish => "Türkçe (14%)",
-            Self::Ukrainian => "Украї́нська мо́ва (42%)",
+            Self::English => self.name().to_string(),
+            _ => format!("{} ({}%)", self.name(), self.completion()),
         }
-        .to_string()
     }
 }
 

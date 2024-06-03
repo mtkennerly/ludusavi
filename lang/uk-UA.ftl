@@ -183,6 +183,7 @@ override-max-threads = Перевизначити максимальну кіл�
 synchronize-automatically = Автоматична синхронізація
 prefer-alias-display = Display alias instead of original name
 explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
+explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
 consider-doing-a-preview =
     If you haven't already, consider doing a preview first so that there
     are no surprises.

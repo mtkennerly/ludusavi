@@ -183,6 +183,7 @@ override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
 prefer-alias-display = Display alias instead of original name
 explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
+explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
 consider-doing-a-preview = まだ行っていない場合は、予期しない結果を防ぐためにプレビューを行うことをおすすめします。
 confirm-backup =
     Are you sure you want to proceed with the backup? { $path-action ->

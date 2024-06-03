@@ -183,6 +183,7 @@ override-max-threads = Переопределить макс. количеств
 synchronize-automatically = Синхронизировать автоматически
 prefer-alias-display = Отображать своё название вместо исходного
 explanation-for-exclude-store-screenshots = В резервных копиях исключить скриншоты из конкретного магазина
+explanation-for-exclude-cloud-games = Не создавать резервные копии игр с поддержкой облака на этих платформах
 consider-doing-a-preview =
     Если вы еще этого не сделали, предлагаю сначала сделать предварительный просмотр, чтобы
     не было сюрпризов.

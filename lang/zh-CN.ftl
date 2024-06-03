@@ -175,6 +175,7 @@ override-max-threads = 覆盖最大线程
 synchronize-automatically = 自动同步
 prefer-alias-display = Display alias instead of original name
 explanation-for-exclude-store-screenshots = 在备份中，排除特定商店的屏幕截图
+explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
 consider-doing-a-preview = 如果您还没有预览，请考虑先进行预览，防止发生任何意料之外的结果。
 confirm-backup =
     确定要继续备份吗？ { $path-action ->

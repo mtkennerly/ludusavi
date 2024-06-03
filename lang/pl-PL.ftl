@@ -183,6 +183,7 @@ override-max-threads = Zastąp maksymalną liczbę wątków
 synchronize-automatically = Synchronizuj automatycznie
 prefer-alias-display = Wyświetlaj alias zamiast oryginalnej nazwy
 explanation-for-exclude-store-screenshots = Nie zawieraj w kopiach zapasowych zrzutów ekranu dla konkretnego sklepu
+explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
 consider-doing-a-preview = Jeśli jeszcze tego nie zrobiono, rozważ wykonanie pierwszego testu, aby zobaczyć, czy wszystko działa.
 confirm-backup =
     Czy na pewno chcesz kontynuować z kopią zapasową? { $path-action ->

@@ -183,6 +183,7 @@ override-max-threads = Sovrascrivi numero massimo thread
 synchronize-automatically = Sincronizza automaticamente
 prefer-alias-display = Mostra alias invece del nome originale
 explanation-for-exclude-store-screenshots = Nei backup, escludi screenshot specifici dello store
+explanation-for-exclude-cloud-games = Non eseguire il backup dei giochi con supporto cloud su queste piattaforme
 consider-doing-a-preview =
     Se non lo hai già fatto, prendi in considerazione di fare un'anteprima prima in modo che non ci siano
     sorprese.
