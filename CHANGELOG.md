@@ -10,6 +10,7 @@
     Ludusavi now scans `pga.db` in addition to `games/*.yml`
     in case the YAML files do not contain all of the necessary information.
   * CLI: The `find` command now accepts a `--lutris-id` option.
+  * CLI: The `backups` command output now includes each game's backup directory.
 * Changed:
   * Title normalization now ignores apostrophes and quotation marks
     (e.g., `ludusavi find --normalized "Mirrors Edge"` will find `Mirror's Edge`).

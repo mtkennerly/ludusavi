@@ -559,12 +559,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     let mut layout = layout.game_layout(name);
                     let backups = layout.get_backups();
                     let display_title = config.display_name(name);
-                    (name, display_title, backups)
+                    let backup_dir = layout.path;
+                    (name, display_title, backup_dir, backups)
                 })
                 .collect();
 
-            for (name, display_title, backups) in info {
-                reporter.add_backups(name, display_title, &backups);
+            for (name, display_title, backup_dir, backups) in info {
+                reporter.add_backups(name, display_title, backup_dir, &backups);
             }
             reporter.print(&restore_dir);
         }

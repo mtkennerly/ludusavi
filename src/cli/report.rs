@@ -119,6 +119,8 @@ enum ApiGame {
         registry: BTreeMap<String, ApiRegistry>,
     },
     Stored {
+        #[serde(rename = "backupDir")]
+        backup_dir: String,
         backups: Vec<ApiBackup>,
     },
     Found {},
@@ -430,7 +432,13 @@ impl Reporter {
         successful
     }
 
-    pub fn add_backups(&mut self, name: &str, display_title: &str, available_backups: &[Backup]) {
+    pub fn add_backups(
+        &mut self,
+        name: &str,
+        display_title: &str,
+        backup_dir: StrictPath,
+        available_backups: &[Backup],
+    ) {
         match self {
             Self::Standard { parts, .. } => {
                 if available_backups.is_empty() {
@@ -438,6 +446,7 @@ impl Reporter {
                 }
 
                 parts.push(format!("{}:", display_title));
+                parts.push(format!("  {} {}", TRANSLATOR.folder_label(), backup_dir.render()));
                 for backup in available_backups {
                     let mut line = format!(
                         "  - \"{}\" ({})",
@@ -475,7 +484,13 @@ impl Reporter {
                     });
                 }
 
-                output.games.insert(name.to_string(), ApiGame::Stored { backups });
+                output.games.insert(
+                    name.to_string(),
+                    ApiGame::Stored {
+                        backup_dir: backup_dir.render(),
+                        backups,
+                    },
+                );
             }
         }
     }
