@@ -1,3 +1,4 @@
+mod api;
 mod parse;
 mod report;
 mod ui;
@@ -17,7 +18,7 @@ use crate::{
         report::{report_cloud_changes, Reporter},
     },
     cloud::{CloudChange, Rclone, Remote},
-    lang::TRANSLATOR,
+    lang::{Language, TRANSLATOR},
     prelude::{
         app_dir, get_threads_from_env, initialize_rayon, register_sigint, unregister_sigint, Error, Finality,
         StrictPath, SyncDirection,
@@ -981,6 +982,39 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     return Err(err);
                 }
             }
+        }
+        Subcommand::Api { input } => {
+            TRANSLATOR.set_language(Language::English);
+
+            let manifest = match load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update) {
+                Ok(x) => x,
+                Err(e) => {
+                    api::abort_error(e);
+                }
+            };
+
+            match api::process(input, &config, &manifest) {
+                Ok(data) => {
+                    let output = serde_json::to_string_pretty(&data).unwrap();
+                    println!("{output}");
+                }
+                Err(e) => {
+                    api::abort_message(e);
+                }
+            }
+        }
+        Subcommand::Schema { format, kind } => {
+            let format = format.unwrap_or_default();
+            let schema = match kind {
+                parse::SchemaSubcommand::ApiInput => schemars::schema_for!(api::Input),
+                parse::SchemaSubcommand::ApiOutput => schemars::schema_for!(api::Output),
+            };
+
+            let serialized = match format {
+                parse::SerializationFormat::Json => serde_json::to_string_pretty(&schema).unwrap(),
+                parse::SerializationFormat::Yaml => serde_yaml::to_string(&schema).unwrap(),
+            };
+            println!("{serialized}");
         }
     }
     if failed {

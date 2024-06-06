@@ -887,6 +887,20 @@ impl<'de> serde::Deserialize<'de> for StrictPath {
     }
 }
 
+impl schemars::JsonSchema for StrictPath {
+    fn schema_name() -> String {
+        "FilePath".to_string()
+    }
+
+    fn json_schema(gen: &mut schemars::gen::SchemaGenerator) -> schemars::schema::Schema {
+        String::json_schema(gen)
+    }
+
+    fn is_referenceable() -> bool {
+        true
+    }
+}
+
 #[allow(dead_code)]
 pub fn is_raw_path_relative(path: &str) -> bool {
     let path = path.replace('\\', "/");

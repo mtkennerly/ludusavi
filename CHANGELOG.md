@@ -9,6 +9,9 @@
   * For Lutris roots,
     Ludusavi now scans `pga.db` in addition to `games/*.yml`
     in case the YAML files do not contain all of the necessary information.
+  * CLI: There is a new `api` command that can be used for bulk queries.
+    Right now, it only supports looking up titles (analogous to the `find` command).
+  * CLI: There is a new `schema` command to display some of Ludusavi's schemas.
   * CLI: The `find` command now accepts a `--lutris-id` option.
   * CLI: The `backups` command output now includes each game's backup directory.
 * Changed:

@@ -120,6 +120,14 @@ pub enum Launcher {
     Steam,
 }
 
+/// Serialization format
+#[derive(Debug, Default, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
+pub enum SerializationFormat {
+    #[default]
+    Json,
+    Yaml,
+}
+
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
 pub enum Subcommand {
     /// Back up data
@@ -362,6 +370,33 @@ pub enum Subcommand {
         #[clap(required = true)]
         commands: Vec<String>,
     },
+    /// Execute bulk requests using JSON input.
+    ///
+    /// If there is a problem with the entire input
+    /// (e.g., malformed JSON or an invalid top-level setting),
+    /// then this will return a non-zero exit code.
+    /// However, if the problem occurs while processing an individual request,
+    /// then the exit code will be zero,
+    /// and the request's associated response will indicate its error.
+    ///
+    /// Some top-level errors, like an invalid CLI invocation,
+    /// may result in a non-JSON output.
+    /// However, exit code zero will always use JSON output.
+    ///
+    /// Use the `schema` command to see the input and output format.
+    Api {
+        /// JSON data - may also be passed via stdin
+        #[clap()]
+        input: Option<String>,
+    },
+    /// Display schemas that Ludusavi uses
+    Schema {
+        #[clap(long, value_enum, value_name = "FORMAT")]
+        format: Option<SerializationFormat>,
+
+        #[clap(subcommand)]
+        kind: SchemaSubcommand,
+    },
 }
 
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
@@ -530,6 +565,14 @@ pub struct WrapSubcommand {
     /// Directly set game name as known to Ludusavi
     #[clap(long)]
     pub name: Option<String>,
+}
+
+#[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
+pub enum SchemaSubcommand {
+    #[clap(about = "Schema for `api` command input")]
+    ApiInput,
+    #[clap(about = "Schema for `api` command output")]
+    ApiOutput,
 }
 
 /// Back up and restore PC game saves
