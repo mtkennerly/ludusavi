@@ -1,0 +1,371 @@
+This is the raw help text for the command line interface.
+
+## `--help`
+```
+Back up and restore PC game saves
+
+Usage: ludusavi.exe [OPTIONS] [COMMAND]
+
+Commands:
+  backup
+          Back up data
+  restore
+          Restore data
+  complete
+          Generate shell completion scripts
+  backups
+          Show backups
+  find
+          Find game titles
+  manifest
+          Options for Ludusavi's data set
+  cloud
+          Cloud sync
+  wrap
+          Wrap restore/backup around game execution
+  api
+          Execute bulk requests using JSON input
+  schema
+          Display schemas that Ludusavi uses
+  help
+          Print this message or the help of the given subcommand(s)
+
+Options:
+      --config <DIRECTORY>
+          Use configuration found in DIRECTORY
+      --no-manifest-update
+          Disable automatic/implicit manifest update checks
+      --try-manifest-update
+          Ignore any errors during automatic/implicit manifest update checks
+  -h, --help
+          Print help
+  -V, --version
+          Print version
+```
+
+## `backup --help`
+```
+Back up data
+
+This command automatically updates the manifest if necessary.
+
+Usage: ludusavi.exe backup [OPTIONS] [GAMES]...
+
+Arguments:
+  [GAMES]...
+          Only back up these specific games. Alternatively supports stdin (one value per line)
+
+Options:
+      --preview
+          List out what would be included, but don't actually perform the operation
+
+      --path <PATH>
+          Directory in which to store the backup. It will be created if it does not already exist.
+          When not specified, this defers to the config file
+
+      --force
+          Don't ask for confirmation
+
+      --wine-prefix <WINE_PREFIX>
+          Extra Wine/Proton prefix to check for saves. This should be a folder with an immediate
+          child folder named "drive_c" (or another letter)
+
+      --api
+          Print information to stdout in machine-readable JSON. This replaces the default,
+          human-readable output
+
+      --sort <SORT>
+          Sort the game list by different criteria. When not specified, this defers to the config
+          file
+
+          [possible values: name, name-rev, size, size-rev, status, status-rev]
+
+      --format <FORMAT>
+          Format in which to store new backups. When not specified, this defers to the config file
+
+          [possible values: simple, zip]
+
+      --compression <COMPRESSION>
+          Compression method to use for new zip backups. When not specified, this defers to the
+          config file
+
+          [possible values: none, deflate, bzip2, zstd]
+
+      --compression-level <COMPRESSION_LEVEL>
+          Compression level to use for new zip backups. When not specified, this defers to the
+          config file. Valid ranges: 1 to 9 for deflate/bzip2, -7 to 22 for zstd
+
+      --full-limit <FULL_LIMIT>
+          Maximum number of full backups to retain per game. Must be between 1 and 255 (inclusive).
+          When not specified, this defers to the config file
+
+      --differential-limit <DIFFERENTIAL_LIMIT>
+          Maximum number of differential backups to retain per full backup. Must be between 0 and
+          255 (inclusive). When not specified, this defers to the config file
+
+      --cloud-sync
+          Upload any changes to the cloud when the backup is complete. If the local and cloud
+          backups are not in sync to begin with, then nothing will be uploaded. This has no effect
+          on previews. When not specified, this defers to the config file
+
+      --no-cloud-sync
+          Don't perform any cloud checks or synchronization. When not specified, this defers to the
+          config file
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## `restore --help`
+```
+Restore data
+
+Usage: ludusavi.exe restore [OPTIONS] [GAMES]...
+
+Arguments:
+  [GAMES]...
+          Only restore these specific games. Alternatively supports stdin (one value per line)
+
+Options:
+      --preview
+          List out what would be included, but don't actually perform the operation
+      --path <PATH>
+          Directory containing a Ludusavi backup. When not specified, this defers to the config file
+      --force
+          Don't ask for confirmation
+      --api
+          Print information to stdout in machine-readable JSON. This replaces the default,
+          human-readable output
+      --sort <SORT>
+          Sort the game list by different criteria. When not specified, this defers to Ludusavi's
+          config file [possible values: name, name-rev, size, size-rev, status, status-rev]
+      --backup <BACKUP>
+          Restore a specific backup, using an ID returned by the `backups` command. This is only
+          valid when restoring a single game
+      --cloud-sync
+          Warn if the local and cloud backups are out of sync. The restore will still proceed
+          regardless. This has no effect on previews. When not specified, this defers to the config
+          file
+      --no-cloud-sync
+          Don't perform any cloud checks or synchronization. When not specified, this defers to the
+          config file
+  -h, --help
+          Print help
+```
+
+## `complete --help`
+```
+Generate shell completion scripts
+
+Usage: ludusavi.exe complete <COMMAND>
+
+Commands:
+  bash
+          Completions for Bash
+  fish
+          Completions for Fish
+  zsh
+          Completions for Zsh
+  powershell
+          Completions for PowerShell
+  elvish
+          Completions for Elvish
+  help
+          Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help
+```
+
+## `backups --help`
+```
+Show backups
+
+Usage: ludusavi.exe backups [OPTIONS] [GAMES]...
+
+Arguments:
+  [GAMES]...
+          Only report these specific games. Alternatively supports stdin (one value per line)
+
+Options:
+      --path <PATH>
+          Directory in which to find backups. When unset, this defaults to the restore path from the
+          config file
+      --api
+          Print information to stdout in machine-readable JSON. This replaces the default,
+          human-readable output
+  -h, --help
+          Print help
+```
+
+## `find --help`
+```
+Find game titles
+
+Precedence: Steam ID -> GOG ID -> Lutris ID -> exact names -> normalized names. Once a match is
+found for one of these options, Ludusavi will stop looking and return that match.
+
+If there are no matches, Ludusavi will exit with an error. Depending on the options chosen, there
+may be multiple matches, but the default is a single match.
+
+Aliases will be resolved to the target title.
+
+This command automatically updates the manifest if necessary.
+
+Usage: ludusavi.exe find [OPTIONS] [NAMES]...
+
+Arguments:
+  [NAMES]...
+          Look up game by an exact title. With multiple values, they will be checked in the order
+          given. Alternatively supports stdin (one value per line)
+
+Options:
+      --api
+          Print information to stdout in machine-readable JSON. This replaces the default,
+          human-readable output
+
+      --path <PATH>
+          Directory in which to find backups. When unset, this defaults to the restore path from the
+          config file
+
+      --backup
+          Ensure the game is recognized in a backup context
+
+      --restore
+          Ensure the game is recognized in a restore context
+
+      --steam-id <STEAM_ID>
+          Look up game by a Steam ID
+
+      --gog-id <GOG_ID>
+          Look up game by a GOG ID
+
+      --lutris-id <LUTRIS_ID>
+          Look up game by a Lutris slug
+
+      --normalized
+          Look up game by an approximation of the title. Ignores capitalization, "edition" suffixes,
+          year suffixes, and some special symbols. This may find multiple games for a single input
+
+      --disabled
+          Select games that are disabled
+
+      --partial
+          Select games that have some saves disabled
+
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## `manifest --help`
+```
+Options for Ludusavi's data set
+
+Usage: ludusavi.exe manifest <COMMAND>
+
+Commands:
+  show
+          Print the content of the manifest, including any custom entries
+  update
+          Check for any manifest updates and download if available. By default, does nothing if the
+          most recent check was within the last 24 hours
+  help
+          Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help
+```
+
+## `cloud --help`
+```
+Cloud sync
+
+Usage: ludusavi.exe cloud <COMMAND>
+
+Commands:
+  set
+          Configure the cloud system to use
+  upload
+          Upload your local backups to the cloud, overwriting any existing cloud backups
+  download
+          Download your cloud backups, overwriting any existing local backups
+  help
+          Print this message or the help of the given subcommand(s)
+
+Options:
+  -h, --help
+          Print help
+```
+
+## `wrap --help`
+```
+Wrap restore/backup around game execution
+
+Usage: ludusavi.exe wrap [OPTIONS] <--infer <LAUNCHER>|--name <NAME>> <COMMANDS>...
+
+Arguments:
+  <COMMANDS>...
+          Commands to launch the game. Use `--` first to separate these from the `wrap` options;
+          e.g., `ludusavi wrap --name foo -- foo.exe --windowed`
+
+Options:
+      --infer <LAUNCHER>
+          Infer game name from commands based on launcher type [possible values: heroic, lutris,
+          steam]
+      --name <NAME>
+          Directly set game name as known to Ludusavi
+      --force
+          Don't ask for confirmation
+      --gui
+          Show a GUI notification during restore/backup
+  -h, --help
+          Print help
+```
+
+## `api --help`
+```
+Execute bulk requests using JSON input.
+
+If there is a problem with the entire input (e.g., malformed JSON or an invalid top-level setting),
+then this will return a non-zero exit code. However, if the problem occurs while processing an
+individual request, then the exit code will be zero, and the request's associated response will
+indicate its error.
+
+Some top-level errors, like an invalid CLI invocation, may result in a non-JSON output. However,
+exit code zero will always use JSON output.
+
+Use the `schema` command to see the input and output format.
+
+Usage: ludusavi.exe api [INPUT]
+
+Arguments:
+  [INPUT]
+          JSON data - may also be passed via stdin
+
+Options:
+  -h, --help
+          Print help (see a summary with '-h')
+```
+
+## `schema --help`
+```
+Display schemas that Ludusavi uses
+
+Usage: ludusavi.exe schema [OPTIONS] <COMMAND>
+
+Commands:
+  api-input
+          Schema for `api` command input
+  api-output
+          Schema for `api` command output
+  help
+          Print this message or the help of the given subcommand(s)
+
+Options:
+      --format <FORMAT>
+          [possible values: json, yaml]
+  -h, --help
+          Print help
+```

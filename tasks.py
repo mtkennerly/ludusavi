@@ -64,9 +64,81 @@ def clean(ctx):
 
 
 @task
+def docs(ctx):
+    docs_cli(ctx)
+    docs_schema(ctx)
+
+
+@task
+def docs_cli(ctx):
+    docs = Path(__file__).parent / "docs"
+    doc = docs / "cli.md"
+
+    commands = [
+        "--help",
+        "backup --help",
+        "restore --help",
+        "complete --help",
+        "backups --help",
+        "find --help",
+        "manifest --help",
+        "cloud --help",
+        "wrap --help",
+        "api --help",
+        "schema --help",
+    ]
+
+    lines = [
+        "This is the raw help text for the command line interface.",
+    ]
+    for command in commands:
+        print(f"cli.md: {command}")
+        output = ctx.run(f"cargo run -- {command}", hide=True)
+        lines.append("")
+        lines.append(f"## `{command}`")
+        lines.append("```")
+        for line in output.stdout.splitlines():
+            lines.append(line.rstrip())
+        lines.append("```")
+
+    with doc.open("w") as f:
+        for line in lines:
+            f.write(line + "\n")
+
+
+@task
+def docs_schema(ctx):
+    docs = Path(__file__).parent / "docs"
+    doc = docs / "schema.md"
+
+    commands = [
+        ("api-input", "`api` command input"),
+        ("api-output", "`api` command output"),
+    ]
+
+    lines = [
+        "These are the schemas produced by the `schema` command.",
+    ]
+    for (command, label) in commands:
+        print(f"schema.md: {command}")
+        output = ctx.run(f"cargo run -- schema --format yaml {command}", hide=True)
+        lines.append("")
+        lines.append(f"## {label}")
+        lines.append("```yaml")
+        for line in output.stdout.splitlines():
+            lines.append(line.rstrip())
+        lines.append("```")
+
+    with doc.open("w") as f:
+        for line in lines:
+            f.write(line + "\n")
+
+
+@task
 def prerelease(ctx, update_lang=True):
     clean(ctx)
     legal(ctx)
     flatpak(ctx)
+    docs(ctx)
     if update_lang:
         lang(ctx)

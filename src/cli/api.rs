@@ -12,10 +12,18 @@ use crate::{
 #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct Input {
-    /// Override the configured backup directory.
-    pub backup_dir: Option<StrictPath>,
+    /// Override configuration.
+    #[serde(default)]
+    pub config: ConfigOverride,
     /// The order of the requests here will match the order of responses in the output.
     pub requests: Vec<Request>,
+}
+
+/// Overridden configuration.
+#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct ConfigOverride {
+    pub backup_dir: Option<StrictPath>,
 }
 
 /// The full output of the `api` command.
@@ -144,7 +152,7 @@ pub fn process(input: Option<String>, config: &Config, manifest: &Manifest) -> R
     let input = parse_input(input)?;
     let mut responses = vec![];
 
-    let restore_dir = input.backup_dir.unwrap_or_else(|| config.restore.path.clone());
+    let restore_dir = input.config.backup_dir.unwrap_or_else(|| config.restore.path.clone());
     let layout = BackupLayout::new(restore_dir, config.backup.retention.clone());
 
     let title_finder = TitleFinder::new(config, manifest, layout.restorable_game_set());
@@ -193,7 +201,9 @@ mod tests {
     pub fn deserialize_input() {
         let serialized = r#"
         {
-          "backupDir": "/tmp",
+          "config": {
+            "backupDir": "/tmp"
+          },
           "requests": [
             {
               "findTitle": {
@@ -207,7 +217,9 @@ mod tests {
         let deserialized = serde_json::from_str::<Input>(&serialized).unwrap();
 
         let expected = Input {
-            backup_dir: Some(StrictPath::new("/tmp".to_string())),
+            config: ConfigOverride {
+                backup_dir: Some(StrictPath::new("/tmp".to_string())),
+            },
             requests: vec![Request::FindTitle(request::FindTitle {
                 steam_id: Some(10),
                 ..Default::default()
