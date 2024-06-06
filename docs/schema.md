@@ -13,7 +13,7 @@ properties:
   config:
     description: Override configuration.
     default:
-      backupDir: ~
+      backupPath: ~
     allOf:
       - $ref: "#/definitions/ConfigOverride"
   requests:
@@ -26,7 +26,8 @@ definitions:
     description: Overridden configuration.
     type: object
     properties:
-      backupDir:
+      backupPath:
+        description: Directory where Ludusavi stores backups.
         anyOf:
           - $ref: "#/definitions/FilePath"
           - type: "null"
