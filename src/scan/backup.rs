@@ -55,13 +55,20 @@ impl BackupInfo {
     }
 }
 
-#[derive(Clone, Debug, Default, serde::Serialize)]
+#[derive(Clone, Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct OperationStatus {
+    /// How many games were found.
     pub total_games: usize,
+    /// How many bytes are used by files associated with found games.
     pub total_bytes: u64,
+    /// How many games were processed.
+    /// This excludes ignored, failed, and cancelled games.
     pub processed_games: usize,
+    /// How many bytes were processed.
+    /// This excludes ignored, failed, and cancelled games.
     pub processed_bytes: u64,
+    /// Total count of `new`, `same`, and `different` games.
     pub changed_games: ScanChangeCount,
 }
 
@@ -93,7 +100,7 @@ impl OperationStatus {
     }
 }
 
-#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize)]
+#[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, schemars::JsonSchema)]
 pub enum OperationStepDecision {
     #[default]
     Processed,

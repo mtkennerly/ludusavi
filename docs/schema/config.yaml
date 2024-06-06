@@ -1,0 +1,823 @@
+---
+$schema: "http://json-schema.org/draft-07/schema#"
+title: Config
+description: "Settings for `config.yaml`"
+type: object
+properties:
+  apps:
+    default:
+      rclone:
+        arguments: "--fast-list --ignore-checksum"
+        path: "C:\\opt\\rclone.exe"
+    allOf:
+      - $ref: "#/definitions/Apps"
+  backup:
+    default:
+      filter:
+        cloud:
+          epic: false
+          exclude: false
+          gog: false
+          origin: false
+          steam: false
+          uplay: false
+        excludeStoreScreenshots: false
+        ignoredPaths: []
+        ignoredRegistry: []
+      format:
+        chosen: simple
+        compression:
+          bzip2:
+            level: 6
+          deflate:
+            level: 6
+          zstd:
+            level: 10
+        zip:
+          compression: deflate
+      ignoredGames: []
+      path: "C:\\Users\\mtken/ludusavi-backup"
+      retention:
+        differential: 0
+        full: 1
+      sort:
+        key: status
+        reversed: false
+      toggledPaths: {}
+      toggledRegistry: {}
+    allOf:
+      - $ref: "#/definitions/BackupConfig"
+  cloud:
+    default:
+      path: ludusavi-backup
+      remote: ~
+      synchronize: true
+    allOf:
+      - $ref: "#/definitions/Cloud"
+  customGames:
+    default: []
+    type: array
+    items:
+      $ref: "#/definitions/CustomGame"
+  language:
+    default: en-US
+    allOf:
+      - $ref: "#/definitions/Language"
+  manifest:
+    default:
+      url: "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"
+    allOf:
+      - $ref: "#/definitions/ManifestConfig"
+  redirects:
+    default: []
+    type: array
+    items:
+      $ref: "#/definitions/RedirectConfig"
+  restore:
+    default:
+      ignoredGames: []
+      path: "C:\\Users\\mtken/ludusavi-backup"
+      sort:
+        key: status
+        reversed: false
+      toggledPaths: {}
+      toggledRegistry: {}
+    allOf:
+      - $ref: "#/definitions/RestoreConfig"
+  roots:
+    default: []
+    type: array
+    items:
+      $ref: "#/definitions/RootsConfig"
+  runtime:
+    default:
+      threads: ~
+    allOf:
+      - $ref: "#/definitions/Runtime"
+  scan:
+    default:
+      showDeselectedGames: true
+      showUnchangedGames: true
+      showUnscannedGames: true
+    allOf:
+      - $ref: "#/definitions/Scan"
+  theme:
+    default: light
+    allOf:
+      - $ref: "#/definitions/Theme"
+definitions:
+  App:
+    type: object
+    properties:
+      arguments:
+        description: Any global flags (space-separated) to include in Rclone commands.
+        default: ""
+        type: string
+      path:
+        description: "Path to `rclone.exe`."
+        default: ""
+        allOf:
+          - $ref: "#/definitions/FilePath"
+  Apps:
+    type: object
+    properties:
+      rclone:
+        description: Settings for  Rclone.
+        default:
+          arguments: "--fast-list --ignore-checksum"
+          path: "C:\\opt\\rclone.exe"
+        allOf:
+          - $ref: "#/definitions/App"
+  BackupConfig:
+    type: object
+    properties:
+      filter:
+        default:
+          cloud:
+            epic: false
+            exclude: false
+            gog: false
+            origin: false
+            steam: false
+            uplay: false
+          excludeStoreScreenshots: false
+          ignoredPaths: []
+          ignoredRegistry: []
+        allOf:
+          - $ref: "#/definitions/BackupFilter"
+      format:
+        default:
+          chosen: simple
+          compression:
+            bzip2:
+              level: 6
+            deflate:
+              level: 6
+            zstd:
+              level: 10
+          zip:
+            compression: deflate
+        allOf:
+          - $ref: "#/definitions/BackupFormats"
+      ignoredGames:
+        description: Names of games to skip when backing up.
+        default: []
+        type: array
+        items:
+          type: string
+        uniqueItems: true
+      path:
+        description: Full path to a directory in which to save backups.
+        default: "C:\\Users\\mtken/ludusavi-backup"
+        allOf:
+          - $ref: "#/definitions/FilePath"
+      retention:
+        default:
+          differential: 0
+          full: 1
+        allOf:
+          - $ref: "#/definitions/Retention"
+      sort:
+        default:
+          key: status
+          reversed: false
+        allOf:
+          - $ref: "#/definitions/Sort"
+      toggledPaths:
+        default: {}
+        allOf:
+          - $ref: "#/definitions/ToggledPaths"
+      toggledRegistry:
+        default: {}
+        allOf:
+          - $ref: "#/definitions/ToggledRegistry"
+  BackupFilter:
+    type: object
+    properties:
+      cloud:
+        default:
+          epic: false
+          exclude: false
+          gog: false
+          origin: false
+          steam: false
+          uplay: false
+        allOf:
+          - $ref: "#/definitions/CloudFilter"
+      excludeStoreScreenshots:
+        description: "If true, then the backup should exclude screenshots from stores like Steam."
+        default: false
+        type: boolean
+      ignoredPaths:
+        description: Globally ignored paths.
+        default: []
+        type: array
+        items:
+          $ref: "#/definitions/FilePath"
+      ignoredRegistry:
+        description: Globally ignored registry keys.
+        default: []
+        type: array
+        items:
+          $ref: "#/definitions/RegistryItem"
+  BackupFormat:
+    type: string
+    enum:
+      - simple
+      - zip
+  BackupFormats:
+    type: object
+    properties:
+      chosen:
+        description: Active format.
+        default: simple
+        allOf:
+          - $ref: "#/definitions/BackupFormat"
+      compression:
+        description: "Settings for specific compression methods. In compression levels, higher numbers are slower, but save more space."
+        default:
+          bzip2:
+            level: 6
+          deflate:
+            level: 6
+          zstd:
+            level: 10
+        allOf:
+          - $ref: "#/definitions/Compression"
+      zip:
+        description: Settings for the zip format.
+        default:
+          compression: deflate
+        allOf:
+          - $ref: "#/definitions/ZipConfig"
+  Bzip2Compression:
+    type: object
+    properties:
+      level:
+        description: "Range: 1 to 9."
+        default: 6
+        type: integer
+        format: int32
+  Cloud:
+    type: object
+    properties:
+      path:
+        description: Cloud folder to use for backups.
+        default: ludusavi-backup
+        type: string
+      remote:
+        description: "Rclone remote. You should use the GUI or the `cloud set` command to modify this, since any changes need to be synchronized with Rclone to take effect."
+        default: ~
+        anyOf:
+          - $ref: "#/definitions/camelCase"
+          - type: "null"
+      synchronize:
+        description: "If true, upload changes automatically after backing up, as long as there aren't any conflicts."
+        default: true
+        type: boolean
+  CloudFilter:
+    type: object
+    properties:
+      epic:
+        description: "If this and `exclude` are true, don't back up games with cloud support on Epic."
+        default: false
+        type: boolean
+      exclude:
+        description: "If true, don't back up games with cloud support on the stores indicated in the other options here."
+        default: false
+        type: boolean
+      gog:
+        description: "If this and `exclude` are true, don't back up games with cloud support on GOG."
+        default: false
+        type: boolean
+      origin:
+        description: "If this and `exclude` are true, don't back up games with cloud support on Origin / EA App."
+        default: false
+        type: boolean
+      steam:
+        description: "If this and `exclude` are true, don't back up games with cloud support on Steam."
+        default: false
+        type: boolean
+      uplay:
+        description: "If this and `exclude` are true, don't back up games with cloud support on Uplay / Ubisoft Connect."
+        default: false
+        type: boolean
+  Compression:
+    type: object
+    properties:
+      bzip2:
+        description: Preferences when using bzip2 compression.
+        default:
+          level: 6
+        allOf:
+          - $ref: "#/definitions/Bzip2Compression"
+      deflate:
+        description: Preferences when using deflate compression.
+        default:
+          level: 6
+        allOf:
+          - $ref: "#/definitions/DeflateCompression"
+      zstd:
+        description: Preferences when using zstd compression.
+        default:
+          level: 10
+        allOf:
+          - $ref: "#/definitions/ZstdCompression"
+  CustomGame:
+    type: object
+    properties:
+      alias:
+        description: "If set to the title of another game, then when Ludusavi displays that other game, Ludusavi will display this custom game's `name` instead."
+        type:
+          - string
+          - "null"
+      files:
+        description: Any files or directories you want to back up.
+        default: []
+        type: array
+        items:
+          type: string
+      ignore:
+        description: Whether to disable this game.
+        type: boolean
+      name:
+        description: Name of the game.
+        default: ""
+        type: string
+      preferAlias:
+        type: boolean
+      registry:
+        description: Any registry keys you want to back up.
+        default: []
+        type: array
+        items:
+          type: string
+  DeflateCompression:
+    type: object
+    properties:
+      level:
+        description: "Range: 1 to 9."
+        default: 6
+        type: integer
+        format: int32
+  FilePath:
+    type: string
+  Language:
+    description: Display language.
+    oneOf:
+      - description: Arabic (experimental - currently has graphical display issues)
+        type: string
+        enum:
+          - ar-SA
+      - description: Simplified Chinese
+        type: string
+        enum:
+          - zh-Hans
+      - description: Traditional Chinese
+        type: string
+        enum:
+          - zh-Hant
+      - description: Czech
+        type: string
+        enum:
+          - cs-CZ
+      - description: Dutch
+        type: string
+        enum:
+          - nl-NL
+      - description: English
+        type: string
+        enum:
+          - en-US
+      - description: Esperanto
+        type: string
+        enum:
+          - eo
+      - description: Filipino
+        type: string
+        enum:
+          - fil-PH
+      - description: French
+        type: string
+        enum:
+          - fr-FR
+      - description: German
+        type: string
+        enum:
+          - de-DE
+      - description: Italian
+        type: string
+        enum:
+          - it-IT
+      - description: Japanese
+        type: string
+        enum:
+          - ja-JP
+      - description: Korean
+        type: string
+        enum:
+          - ko-KR
+      - description: Polish
+        type: string
+        enum:
+          - pl-PL
+      - description: Brazilian Portuguese
+        type: string
+        enum:
+          - pt-BR
+      - description: Russian
+        type: string
+        enum:
+          - ru-RU
+      - description: Spanish
+        type: string
+        enum:
+          - es-ES
+      - description: Thai
+        type: string
+        enum:
+          - th-TH
+      - description: Turkish
+        type: string
+        enum:
+          - tr-TR
+      - description: Ukrainian
+        type: string
+        enum:
+          - uk-UA
+  ManifestConfig:
+    type: object
+    properties:
+      secondary:
+        description: Where to download the primary manifest.
+        type: array
+        items:
+          $ref: "#/definitions/SecondaryManifestConfig"
+      url:
+        default: "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"
+        type: string
+  RedirectConfig:
+    type: object
+    properties:
+      kind:
+        description: When and how to apply the redirect.
+        default: restore
+        allOf:
+          - $ref: "#/definitions/RedirectKind"
+      source:
+        description: The original location when the backup was performed.
+        default: ""
+        allOf:
+          - $ref: "#/definitions/FilePath"
+      target:
+        description: The new location.
+        default: ""
+        allOf:
+          - $ref: "#/definitions/FilePath"
+  RedirectKind:
+    type: string
+    enum:
+      - backup
+      - restore
+      - bidirectional
+  RegistryItem:
+    type: object
+    required:
+      - raw
+    properties:
+      raw:
+        type: string
+  RestoreConfig:
+    type: object
+    properties:
+      ignoredGames:
+        description: Names of games to skip when restoring.
+        default: []
+        type: array
+        items:
+          type: string
+        uniqueItems: true
+      path:
+        description: Full path to a directory from which to restore data.
+        default: "C:\\Users\\mtken/ludusavi-backup"
+        allOf:
+          - $ref: "#/definitions/FilePath"
+      sort:
+        default:
+          key: status
+          reversed: false
+        allOf:
+          - $ref: "#/definitions/Sort"
+      toggledPaths:
+        default: {}
+        allOf:
+          - $ref: "#/definitions/ToggledPaths"
+      toggledRegistry:
+        default: {}
+        allOf:
+          - $ref: "#/definitions/ToggledRegistry"
+  Retention:
+    type: object
+    properties:
+      differential:
+        description: "Differential backups to keep. Range: 0-255."
+        default: 0
+        type: integer
+        format: uint8
+        minimum: 0.0
+      full:
+        description: "Full backups to keep. Range: 1-255."
+        default: 1
+        type: integer
+        format: uint8
+        minimum: 0.0
+  RootsConfig:
+    type: object
+    properties:
+      path:
+        description: Where the root is located on your system.
+        default: ""
+        allOf:
+          - $ref: "#/definitions/FilePath"
+      store:
+        description: Game store associated with the root.
+        default: other
+        allOf:
+          - $ref: "#/definitions/Store"
+  Runtime:
+    type: object
+    properties:
+      threads:
+        description: How many threads to use for parallel scanning.
+        default: ~
+        type:
+          - integer
+          - "null"
+        format: uint
+        minimum: 1.0
+  Scan:
+    type: object
+    properties:
+      showDeselectedGames:
+        description: "In the GUI, show games that have been deselected."
+        default: true
+        type: boolean
+      showUnchangedGames:
+        description: "In the GUI, show games that have been scanned, but do not have any changed saves."
+        default: true
+        type: boolean
+      showUnscannedGames:
+        description: "In the GUI, show recent games that have not been scanned yet."
+        default: true
+        type: boolean
+  SecondaryManifestConfig:
+    anyOf:
+      - type: object
+        required:
+          - path
+        properties:
+          path:
+            $ref: "#/definitions/FilePath"
+      - type: object
+        required:
+          - url
+        properties:
+          url:
+            type: string
+  Sort:
+    type: object
+    properties:
+      key:
+        description: Main sorting criteria.
+        default: status
+        allOf:
+          - $ref: "#/definitions/SortKey"
+      reversed:
+        description: "If true, sort reverse alphabetical or from the largest size."
+        default: false
+        type: boolean
+  SortKey:
+    type: string
+    enum:
+      - name
+      - size
+      - status
+  Store:
+    type: string
+    enum:
+      - ea
+      - epic
+      - gog
+      - gogGalaxy
+      - heroic
+      - legendary
+      - lutris
+      - microsoft
+      - origin
+      - prime
+      - steam
+      - uplay
+      - otherHome
+      - otherWine
+      - otherWindows
+      - otherLinux
+      - otherMac
+      - other
+  Theme:
+    description: Visual theme.
+    type: string
+    enum:
+      - light
+      - dark
+  ToggledPaths:
+    description: "Allows including/excluding specific file paths. Each outer key is a game name, and each nested key is a file path. Boolean true means that a file should be included. Settings on child paths override settings on parent paths."
+    type: object
+    additionalProperties:
+      type: object
+      additionalProperties:
+        type: boolean
+  ToggledRegistry:
+    description: "Allows including/excluding specific registry keys. Each outer key is a game name, and each nested key is a registry key path. Settings on child paths override settings on parent paths."
+    type: object
+    additionalProperties:
+      type: object
+      additionalProperties:
+        $ref: "#/definitions/ToggledRegistryEntry"
+  ToggledRegistryEntry:
+    description: Whether an individual registry key and its values should be included/excluded.
+    anyOf:
+      - description: Follow default behavior.
+        type: "null"
+      - description: Control inclusion of a key and all of its values.
+        type: boolean
+      - description: Control inclusion of specific values.
+        type: object
+        required:
+          - values
+        properties:
+          key:
+            type:
+              - boolean
+              - "null"
+          values:
+            type: object
+            additionalProperties:
+              type: boolean
+  WebDavProvider:
+    type: string
+    enum:
+      - Other
+      - Nextcloud
+      - Owncloud
+      - Sharepoint
+      - SharepointNtlm
+  ZipCompression:
+    type: string
+    enum:
+      - none
+      - deflate
+      - bzip2
+      - zstd
+  ZipConfig:
+    type: object
+    properties:
+      compression:
+        description: Preferred compression method.
+        default: deflate
+        allOf:
+          - $ref: "#/definitions/ZipCompression"
+  ZstdCompression:
+    type: object
+    properties:
+      level:
+        description: "Range: -7 to 22."
+        default: 10
+        type: integer
+        format: int32
+  camelCase:
+    oneOf:
+      - type: object
+        required:
+          - Custom
+        properties:
+          Custom:
+            type: object
+            required:
+              - id
+            properties:
+              id:
+                type: string
+        additionalProperties: false
+      - type: object
+        required:
+          - Box
+        properties:
+          Box:
+            type: object
+            required:
+              - id
+            properties:
+              id:
+                type: string
+        additionalProperties: false
+      - type: object
+        required:
+          - Dropbox
+        properties:
+          Dropbox:
+            type: object
+            required:
+              - id
+            properties:
+              id:
+                type: string
+        additionalProperties: false
+      - type: object
+        required:
+          - GoogleDrive
+        properties:
+          GoogleDrive:
+            type: object
+            required:
+              - id
+            properties:
+              id:
+                type: string
+        additionalProperties: false
+      - type: object
+        required:
+          - OneDrive
+        properties:
+          OneDrive:
+            type: object
+            required:
+              - id
+            properties:
+              id:
+                type: string
+        additionalProperties: false
+      - type: object
+        required:
+          - Ftp
+        properties:
+          Ftp:
+            type: object
+            required:
+              - host
+              - id
+              - port
+              - username
+            properties:
+              host:
+                type: string
+              id:
+                type: string
+              port:
+                type: integer
+                format: int32
+              username:
+                type: string
+        additionalProperties: false
+      - type: object
+        required:
+          - Smb
+        properties:
+          Smb:
+            type: object
+            required:
+              - host
+              - id
+              - port
+              - username
+            properties:
+              host:
+                type: string
+              id:
+                type: string
+              port:
+                type: integer
+                format: int32
+              username:
+                type: string
+        additionalProperties: false
+      - type: object
+        required:
+          - WebDav
+        properties:
+          WebDav:
+            type: object
+            required:
+              - id
+              - provider
+              - url
+              - username
+            properties:
+              id:
+                type: string
+              provider:
+                $ref: "#/definitions/WebDavProvider"
+              url:
+                type: string
+              username:
+                type: string
+        additionalProperties: false

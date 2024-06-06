@@ -72,6 +72,8 @@ def docs(ctx):
 @task
 def docs_cli(ctx):
     docs = Path(__file__).parent / "docs"
+    if not docs.exists():
+        docs.mkdir(parents=True)
     doc = docs / "cli.md"
 
     commands = [
@@ -108,30 +110,24 @@ def docs_cli(ctx):
 
 @task
 def docs_schema(ctx):
-    docs = Path(__file__).parent / "docs"
-    doc = docs / "schema.md"
+    docs = Path(__file__).parent / "docs" / "schema"
+    if not docs.exists():
+        docs.mkdir(parents=True)
 
     commands = [
-        ("api-input", "`api` command input"),
-        ("api-output", "`api` command output"),
+        "api-input",
+        "api-output",
+        "config",
+        "general-output",
     ]
 
-    lines = [
-        "These are the schemas produced by the `schema` command.",
-    ]
-    for (command, label) in commands:
-        print(f"schema.md: {command}")
+    for command in commands:
+        doc = docs / f"{command}.yaml"
+        print(f"schema: {command}")
         output = ctx.run(f"cargo run -- schema --format yaml {command}", hide=True)
-        lines.append("")
-        lines.append(f"## {label}")
-        lines.append("```yaml")
-        for line in output.stdout.splitlines():
-            lines.append(line.rstrip())
-        lines.append("```")
 
-    with doc.open("w") as f:
-        for line in lines:
-            f.write(line + "\n")
+        with doc.open("w") as f:
+            f.write(output.stdout.strip() + "\n")
 
 
 @task

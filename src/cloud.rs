@@ -251,7 +251,7 @@ impl ToString for RemoteChoice {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename = "camelCase")] // Legacy: Should have been `rename_all`
 pub enum Remote {
     Custom {
@@ -468,7 +468,7 @@ impl TryFrom<RemoteChoice> for Remote {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum WebDavProvider {
     #[default]
     Other,

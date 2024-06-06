@@ -1008,6 +1008,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let schema = match kind {
                 parse::SchemaSubcommand::ApiInput => schemars::schema_for!(api::Input),
                 parse::SchemaSubcommand::ApiOutput => schemars::schema_for!(api::Output),
+                parse::SchemaSubcommand::GeneralOutput => schemars::schema_for!(report::JsonOutput),
+                parse::SchemaSubcommand::Config => schemars::schema_for!(Config),
             };
 
             let serialized = match format {

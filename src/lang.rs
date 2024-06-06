@@ -45,47 +45,68 @@ fn title_case(text: &str) -> String {
 }
 
 // TODO: Some are blocked by https://github.com/mtkennerly/ludusavi/issues/9.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+/// Display language.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum Language {
+    /// Arabic (experimental - currently has graphical display issues)
     #[serde(rename = "ar-SA")]
     Arabic,
+    /// Simplified Chinese
     #[serde(rename = "zh-Hans")]
     ChineseSimplified,
+    /// Traditional Chinese
     #[serde(rename = "zh-Hant")]
     ChineseTraditional,
+    /// Czech
     #[serde(rename = "cs-CZ")]
     Czech,
+    /// Dutch
     #[serde(rename = "nl-NL")]
     Dutch,
+    /// English
     #[default]
     #[serde(rename = "en-US")]
     English,
+    /// Esperanto
     #[serde(rename = "eo")]
     Esperanto,
+    /// Filipino
     #[serde(rename = "fil-PH")]
     Filipino,
+    /// French
     #[serde(rename = "fr-FR")]
     French,
+    /// German
     #[serde(rename = "de-DE")]
     German,
+    /// Italian
     #[serde(rename = "it-IT")]
     Italian,
+    /// Japanese
     #[serde(rename = "ja-JP")]
     Japanese,
+    /// Korean
     #[serde(rename = "ko-KR")]
     Korean,
+    /// Polish
     #[serde(rename = "pl-PL")]
     Polish,
+    /// Brazilian Portuguese
     #[serde(rename = "pt-BR")]
     PortugueseBrazilian,
+    /// Russian
     #[serde(rename = "ru-RU")]
     Russian,
+    /// Spanish
     #[serde(rename = "es-ES")]
     Spanish,
+    /// Thai
     #[serde(rename = "th-TH")]
     Thai,
+    /// Turkish
     #[serde(rename = "tr-TR")]
     Turkish,
+    /// Ukrainian
     #[serde(rename = "uk-UA")]
     Ukrainian,
 }

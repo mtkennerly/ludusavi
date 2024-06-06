@@ -3,7 +3,7 @@ use crate::{
     prelude::StrictPath,
 };
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, schemars::JsonSchema)]
 pub enum ScanChange {
     New,
     Different,
@@ -70,7 +70,7 @@ impl ScanChange {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, schemars::JsonSchema)]
 pub struct ScanChangeCount {
     pub new: usize,
     pub different: usize,

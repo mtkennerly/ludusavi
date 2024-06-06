@@ -22,7 +22,8 @@ fn default_backup_dir() -> StrictPath {
     StrictPath::new(format!("{}/ludusavi-backup", CommonPath::Home.get().unwrap()))
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Settings for `config.yaml`
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Config {
     pub runtime: Runtime,
@@ -39,16 +40,18 @@ pub struct Config {
     pub custom_games: Vec<CustomGame>,
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Runtime {
+    /// How many threads to use for parallel scanning.
     pub threads: Option<NonZeroUsize>,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ManifestConfig {
     pub url: String,
+    /// Where to download the primary manifest.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub secondary: Vec<SecondaryManifestConfig>,
 }
@@ -108,7 +111,7 @@ impl ToString for SecondaryManifestConfigKind {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum SecondaryManifestConfig {
     Local { path: StrictPath },
@@ -172,7 +175,8 @@ impl Default for SecondaryManifestConfig {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Visual theme.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum Theme {
     #[default]
@@ -190,10 +194,24 @@ impl ToString for Theme {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Clone,
+    Debug,
+    Default,
+    Eq,
+    PartialEq,
+    Ord,
+    PartialOrd,
+    Hash,
+    serde::Serialize,
+    serde::Deserialize,
+    schemars::JsonSchema,
+)]
 #[serde(default, rename_all = "camelCase")]
 pub struct RootsConfig {
+    /// Where the root is located on your system.
     pub path: StrictPath,
+    /// Game store associated with the root.
     pub store: Store,
 }
 
@@ -233,15 +251,18 @@ impl RootsConfig {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct RedirectConfig {
+    /// When and how to apply the redirect.
     pub kind: RedirectKind,
+    /// The original location when the backup was performed.
     pub source: StrictPath,
+    /// The new location.
     pub target: StrictPath,
 }
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum RedirectKind {
     Backup,
@@ -260,14 +281,21 @@ impl ToString for RedirectKind {
     }
 }
 
-#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Default, Clone, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CloudFilter {
+    /// If true, don't back up games with cloud support
+    /// on the stores indicated in the other options here.
     pub exclude: bool,
+    /// If this and `exclude` are true, don't back up games with cloud support on Epic.
     pub epic: bool,
+    /// If this and `exclude` are true, don't back up games with cloud support on GOG.
     pub gog: bool,
+    /// If this and `exclude` are true, don't back up games with cloud support on Origin / EA App.
     pub origin: bool,
+    /// If this and `exclude` are true, don't back up games with cloud support on Steam.
     pub steam: bool,
+    /// If this and `exclude` are true, don't back up games with cloud support on Uplay / Ubisoft Connect.
     pub uplay: bool,
 }
 
@@ -294,12 +322,15 @@ impl CloudFilter {
     }
 }
 
-#[derive(Clone, Default, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Default, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct BackupFilter {
+    /// If true, then the backup should exclude screenshots from stores like Steam.
     pub exclude_store_screenshots: bool,
     pub cloud: CloudFilter,
+    /// Globally ignored paths.
     pub ignored_paths: Vec<StrictPath>,
+    /// Globally ignored registry keys.
     pub ignored_registry: Vec<RegistryItem>,
     #[serde(skip)]
     pub path_globs: Arc<Mutex<Option<globset::GlobSet>>>,
@@ -387,17 +418,30 @@ impl BackupFilter {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Allows including/excluding specific file paths.
+/// Each outer key is a game name,
+/// and each nested key is a file path.
+/// Boolean true means that a file should be included.
+/// Settings on child paths override settings on parent paths.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ToggledPaths(BTreeMap<String, BTreeMap<StrictPath, bool>>);
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Allows including/excluding specific registry keys.
+/// Each outer key is a game name,
+/// and each nested key is a registry key path.
+/// Settings on child paths override settings on parent paths.
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub struct ToggledRegistry(BTreeMap<String, BTreeMap<RegistryItem, ToggledRegistryEntry>>);
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+/// Whether an individual registry key and its values should be included/excluded.
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum ToggledRegistryEntry {
+    /// Follow default behavior.
     Unset,
+    /// Control inclusion of a key and all of its values.
     Key(bool),
+    /// Control inclusion of specific values.
     Complex {
         #[serde(skip_serializing_if = "Option::is_none")]
         key: Option<bool>,
@@ -500,7 +544,7 @@ impl ToggledRegistryEntry {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum SortKey {
     Name,
@@ -519,17 +563,21 @@ impl ToString for SortKey {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Sort {
+    /// Main sorting criteria.
     pub key: SortKey,
+    /// If true, sort reverse alphabetical or from the largest size.
     pub reversed: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Retention {
+    /// Full backups to keep. Range: 1-255.
     pub full: u8,
+    /// Differential backups to keep. Range: 0-255.
     pub differential: u8,
     #[serde(skip)]
     pub force_new_full: bool,
@@ -545,7 +593,7 @@ impl Default for Retention {
     }
 }
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum BackupFormat {
     #[default]
@@ -576,11 +624,15 @@ impl ToString for BackupFormat {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct BackupFormats {
+    /// Active format.
     pub chosen: BackupFormat,
+    /// Settings for the zip format.
     pub zip: ZipConfig,
+    /// Settings for specific compression methods.
+    /// In compression levels, higher numbers are slower, but save more space.
     pub compression: Compression,
 }
 
@@ -628,13 +680,14 @@ impl BackupFormats {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ZipConfig {
+    /// Preferred compression method.
     pub compression: ZipCompression,
 }
 
-#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Copy, Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub enum ZipCompression {
     None,
@@ -669,11 +722,14 @@ impl ToString for ZipCompression {
     }
 }
 
-#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Compression {
+    /// Preferences when using deflate compression.
     deflate: DeflateCompression,
+    /// Preferences when using bzip2 compression.
     bzip2: Bzip2Compression,
+    /// Preferences when using zstd compression.
     zstd: ZstdCompression,
 }
 
@@ -694,9 +750,10 @@ impl Compression {
     }
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct DeflateCompression {
+    /// Range: 1 to 9.
     level: i32,
 }
 
@@ -710,9 +767,10 @@ impl DeflateCompression {
     pub const RANGE: std::ops::RangeInclusive<i32> = 1..=9;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Bzip2Compression {
+    /// Range: 1 to 9.
     level: i32,
 }
 
@@ -726,9 +784,10 @@ impl Bzip2Compression {
     pub const RANGE: std::ops::RangeInclusive<i32> = 1..=9;
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ZstdCompression {
+    /// Range: -7 to 22.
     level: i32,
 }
 
@@ -742,10 +801,12 @@ impl ZstdCompression {
     pub const RANGE: std::ops::RangeInclusive<i32> = -7..=22;
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct BackupConfig {
+    /// Full path to a directory in which to save backups.
     pub path: StrictPath,
+    /// Names of games to skip when backing up.
     pub ignored_games: BTreeSet<String>,
     pub filter: BackupFilter,
     pub toggled_paths: ToggledPaths,
@@ -755,21 +816,26 @@ pub struct BackupConfig {
     pub format: BackupFormats,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct RestoreConfig {
+    /// Full path to a directory from which to restore data.
     pub path: StrictPath,
+    /// Names of games to skip when restoring.
     pub ignored_games: BTreeSet<String>,
     pub toggled_paths: ToggledPaths,
     pub toggled_registry: ToggledRegistry,
     pub sort: Sort,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Scan {
+    /// In the GUI, show games that have been deselected.
     pub show_deselected_games: bool,
+    /// In the GUI, show games that have been scanned, but do not have any changed saves.
     pub show_unchanged_games: bool,
+    /// In the GUI, show recent games that have not been scanned yet.
     pub show_unscanned_games: bool,
 }
 
@@ -783,11 +849,17 @@ impl Default for Scan {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Cloud {
+    /// Rclone remote.
+    /// You should use the GUI or the `cloud set` command to modify this,
+    /// since any changes need to be synchronized with Rclone to take effect.
     pub remote: Option<Remote>,
+    /// Cloud folder to use for backups.
     pub path: String,
+    /// If true, upload changes automatically after backing up,
+    /// as long as there aren't any conflicts.
     pub synchronize: bool,
 }
 
@@ -801,9 +873,10 @@ impl Default for Cloud {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Apps {
+    /// Settings for  Rclone.
     pub rclone: App,
 }
 
@@ -815,10 +888,12 @@ impl Default for Apps {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct App {
+    /// Path to `rclone.exe`.
     pub path: StrictPath,
+    /// Any global flags (space-separated) to include in Rclone commands.
     pub arguments: String,
 }
 
@@ -835,17 +910,24 @@ impl App {
     }
 }
 
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct CustomGame {
+    /// Name of the game.
     pub name: String,
+    /// Whether to disable this game.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub ignore: bool,
+    /// If set to the title of another game,
+    /// then when Ludusavi displays that other game,
+    /// Ludusavi will display this custom game's `name` instead.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub alias: Option<String>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub prefer_alias: bool,
+    /// Any files or directories you want to back up.
     pub files: Vec<String>,
+    /// Any registry keys you want to back up.
     pub registry: Vec<String>,
 }
 

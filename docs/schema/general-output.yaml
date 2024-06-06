@@ -1,0 +1,310 @@
+---
+$schema: "http://json-schema.org/draft-07/schema#"
+title: JsonOutput
+description: "General output used by commands in `--api` mode"
+type: object
+required:
+  - games
+properties:
+  cloud:
+    description: "Each key is the path of a file relative to the cloud folder. Populated by the `cloud` commands."
+    type: object
+    additionalProperties:
+      $ref: "#/definitions/CloudEntry"
+  errors:
+    description: Any errors.
+    anyOf:
+      - $ref: "#/definitions/ApiErrors"
+      - type: "null"
+  games:
+    description: Each key is the name of a game.
+    type: object
+    additionalProperties:
+      $ref: "#/definitions/ApiGame"
+  overall:
+    description: "Overall stats, populated by the `backup` and `restore` commands."
+    anyOf:
+      - $ref: "#/definitions/OperationStatus"
+      - type: "null"
+definitions:
+  ApiBackup:
+    type: object
+    required:
+      - locked
+      - name
+      - when
+    properties:
+      comment:
+        type:
+          - string
+          - "null"
+      locked:
+        type: boolean
+      name:
+        type: string
+      os:
+        anyOf:
+          - $ref: "#/definitions/Os"
+          - type: "null"
+      when:
+        type: string
+        format: date-time
+  ApiErrors:
+    type: object
+    properties:
+      cloudConflict:
+        description: "When this field is present, Ludusavi could not automatically synchronize with the cloud because of conflicting data."
+        anyOf:
+          - $ref: "#/definitions/CloudConflict"
+          - type: "null"
+      cloudSyncFailed:
+        description: "When this field is present, Ludusavi tried and failed to automatically synchronize with the cloud."
+        anyOf:
+          - $ref: "#/definitions/CloudSyncFailed"
+          - type: "null"
+      someGamesFailed:
+        description: Whether any games failed.
+        type:
+          - boolean
+          - "null"
+      unknownGames:
+        description: "Names of unknown games, if any."
+        type:
+          - array
+          - "null"
+        items:
+          type: string
+  ApiFile:
+    type: object
+    required:
+      - bytes
+      - change
+      - duplicatedBy
+      - failed
+      - ignored
+    properties:
+      bytes:
+        description: Size of the file.
+        type: integer
+        format: uint64
+        minimum: 0.0
+      change:
+        description: How this item compares to its previous backup (if doing a new backup) or how its previous backup compares to the current system state (if doing a restore).
+        allOf:
+          - $ref: "#/definitions/ScanChange"
+      duplicatedBy:
+        description: Any other games that also have the same file path.
+        type: array
+        items:
+          type: string
+        uniqueItems: true
+      error:
+        anyOf:
+          - $ref: "#/definitions/SaveError"
+          - type: "null"
+      failed:
+        description: Whether this entry failed to process.
+        type: boolean
+      ignored:
+        description: Whether this entry was ignored.
+        type: boolean
+      originalPath:
+        description: "If the file was restored to a redirected location, then this is its original path."
+        type:
+          - string
+          - "null"
+      redirectedPath:
+        description: "If the file was backed up to a redirected location, then this is its location within the backup."
+        type:
+          - string
+          - "null"
+  ApiGame:
+    anyOf:
+      - description: "Used by the `backup` and `restore` commands."
+        type: object
+        required:
+          - change
+          - decision
+          - files
+          - registry
+        properties:
+          change:
+            description: How this game compares to its previous backup (if doing a new backup) or how its previous backup compares to the current system state (if doing a restore).
+            allOf:
+              - $ref: "#/definitions/ScanChange"
+          decision:
+            description: How Ludusavi decided to handle this game.
+            allOf:
+              - $ref: "#/definitions/OperationStepDecision"
+          files:
+            description: Each key is a file path.
+            type: object
+            additionalProperties:
+              $ref: "#/definitions/ApiFile"
+          registry:
+            description: Each key is a registry path.
+            type: object
+            additionalProperties:
+              $ref: "#/definitions/ApiRegistry"
+      - description: "Used by the `backups` command."
+        type: object
+        required:
+          - backupDir
+          - backups
+        properties:
+          backupDir:
+            type: string
+          backups:
+            type: array
+            items:
+              $ref: "#/definitions/ApiBackup"
+      - description: "Used by the `find` command."
+        type: object
+  ApiRegistry:
+    type: object
+    required:
+      - change
+      - duplicatedBy
+      - failed
+      - ignored
+      - values
+    properties:
+      change:
+        description: How this item compares to its previous backup (if doing a new backup) or how its previous backup compares to the current system state (if doing a restore).
+        allOf:
+          - $ref: "#/definitions/ScanChange"
+      duplicatedBy:
+        description: Any other games that also have the same registry path.
+        type: array
+        items:
+          type: string
+        uniqueItems: true
+      error:
+        anyOf:
+          - $ref: "#/definitions/SaveError"
+          - type: "null"
+      failed:
+        description: Whether this entry failed to process.
+        type: boolean
+      ignored:
+        description: Whether this entry was ignored.
+        type: boolean
+      values:
+        description: Any registry values inside of the registry key.
+        type: object
+        additionalProperties:
+          $ref: "#/definitions/ApiRegistryValue"
+  ApiRegistryValue:
+    type: object
+    required:
+      - change
+      - duplicatedBy
+      - ignored
+    properties:
+      change:
+        description: How this item compares to its previous backup (if doing a new backup) or how its previous backup compares to the current system state (if doing a restore).
+        allOf:
+          - $ref: "#/definitions/ScanChange"
+      duplicatedBy:
+        description: Any other games that also have the same registry key+value.
+        type: array
+        items:
+          type: string
+        uniqueItems: true
+      ignored:
+        description: Whether this entry was ignored.
+        type: boolean
+  CloudConflict:
+    type: object
+  CloudEntry:
+    type: object
+    required:
+      - change
+    properties:
+      change:
+        description: How this file compares to the cloud version (if doing an upload) or the local version (if doing a download).
+        allOf:
+          - $ref: "#/definitions/ScanChange"
+  CloudSyncFailed:
+    type: object
+  OperationStatus:
+    type: object
+    required:
+      - changedGames
+      - processedBytes
+      - processedGames
+      - totalBytes
+      - totalGames
+    properties:
+      changedGames:
+        description: "Total count of `new`, `same`, and `different` games."
+        allOf:
+          - $ref: "#/definitions/ScanChangeCount"
+      processedBytes:
+        description: "How many bytes were processed. This excludes ignored, failed, and cancelled games."
+        type: integer
+        format: uint64
+        minimum: 0.0
+      processedGames:
+        description: "How many games were processed. This excludes ignored, failed, and cancelled games."
+        type: integer
+        format: uint
+        minimum: 0.0
+      totalBytes:
+        description: How many bytes are used by files associated with found games.
+        type: integer
+        format: uint64
+        minimum: 0.0
+      totalGames:
+        description: How many games were found.
+        type: integer
+        format: uint
+        minimum: 0.0
+  OperationStepDecision:
+    type: string
+    enum:
+      - Processed
+      - Cancelled
+      - Ignored
+  Os:
+    type: string
+    enum:
+      - windows
+      - linux
+      - mac
+      - other
+  SaveError:
+    type: object
+    required:
+      - message
+    properties:
+      message:
+        description: "If the entry failed, then this explains why."
+        type: string
+  ScanChange:
+    type: string
+    enum:
+      - New
+      - Different
+      - Removed
+      - Same
+      - Unknown
+  ScanChangeCount:
+    type: object
+    required:
+      - different
+      - new
+      - same
+    properties:
+      different:
+        type: integer
+        format: uint
+        minimum: 0.0
+      new:
+        type: integer
+        format: uint
+        minimum: 0.0
+      same:
+        type: integer
+        format: uint
+        minimum: 0.0

@@ -13,15 +13,21 @@ use crate::{
     },
 };
 
-#[derive(Debug, Default, serde::Serialize)]
+#[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct ApiErrors {
+    /// Whether any games failed.
     #[serde(skip_serializing_if = "Option::is_none")]
     some_games_failed: Option<bool>,
+    /// Names of unknown games, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
     unknown_games: Option<Vec<String>>,
+    /// When this field is present,
+    /// Ludusavi could not automatically synchronize with the cloud because of conflicting data.
     #[serde(skip_serializing_if = "Option::is_none")]
     cloud_conflict: Option<concern::CloudConflict>,
+    /// When this field is present,
+    /// Ludusavi tried and failed to automatically synchronize with the cloud.
     #[serde(skip_serializing_if = "Option::is_none")]
     cloud_sync_failed: Option<concern::CloudSyncFailed>,
 }
@@ -44,15 +50,16 @@ impl ApiErrors {
 }
 
 pub mod concern {
-    #[derive(Debug, Default, serde::Serialize)]
+    #[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
     pub struct CloudConflict {}
 
-    #[derive(Debug, Default, serde::Serialize)]
+    #[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
     pub struct CloudSyncFailed {}
 }
 
-#[derive(Debug, Default, serde::Serialize)]
+#[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 struct SaveError {
+    /// If the entry failed, then this explains why.
     message: String,
 }
 
@@ -64,69 +71,97 @@ impl From<&BackupError> for SaveError {
     }
 }
 
-#[derive(Debug, Default, serde::Serialize)]
+#[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ApiFile {
+    /// Whether this entry failed to process.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     failed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<SaveError>,
+    /// Whether this entry was ignored.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     ignored: bool,
+    /// How this item compares to its previous backup (if doing a new backup)
+    /// or how its previous backup compares to the current system state (if doing a restore).
     change: ScanChange,
+    /// Size of the file.
     bytes: u64,
+    /// If the file was restored to a
+    /// redirected location, then this is its original path.
     #[serde(skip_serializing_if = "Option::is_none")]
     original_path: Option<String>,
+    /// If the file was backed up to a redirected location,
+    /// then this is its location within the backup.
     #[serde(skip_serializing_if = "Option::is_none")]
     redirected_path: Option<String>,
+    /// Any other games that also have the same file path.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
     duplicated_by: BTreeSet<String>,
 }
 
-#[derive(Debug, Default, serde::Serialize)]
+#[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ApiRegistry {
+    /// Whether this entry failed to process.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     failed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     error: Option<SaveError>,
+    /// Whether this entry was ignored.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     ignored: bool,
+    /// How this item compares to its previous backup (if doing a new backup)
+    /// or how its previous backup compares to the current system state (if doing a restore).
     change: ScanChange,
+    /// Any other games that also have the same registry path.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
     duplicated_by: BTreeSet<String>,
+    /// Any registry values inside of the registry key.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     values: BTreeMap<String, ApiRegistryValue>,
 }
 
-#[derive(Debug, Default, serde::Serialize)]
+#[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ApiRegistryValue {
+    /// Whether this entry was ignored.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     ignored: bool,
+    /// How this item compares to its previous backup (if doing a new backup)
+    /// or how its previous backup compares to the current system state (if doing a restore).
     change: ScanChange,
+    /// Any other games that also have the same registry key+value.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
     duplicated_by: BTreeSet<String>,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, schemars::JsonSchema)]
 #[serde(untagged, rename_all = "camelCase")]
 enum ApiGame {
+    /// Used by the `backup` and `restore` commands.
     Operative {
+        /// How Ludusavi decided to handle this game.
         decision: OperationStepDecision,
+        /// How this game compares to its previous backup (if doing a new backup)
+        /// or how its previous backup compares to the current system state (if doing a restore).
         change: ScanChange,
+        /// Each key is a file path.
         files: BTreeMap<String, ApiFile>,
+        /// Each key is a registry path.
         registry: BTreeMap<String, ApiRegistry>,
     },
+    /// Used by the `backups` command.
     Stored {
         #[serde(rename = "backupDir")]
         backup_dir: String,
         backups: Vec<ApiBackup>,
     },
+    /// Used by the `find` command.
     Found {},
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 struct ApiBackup {
     name: String,
@@ -138,14 +173,30 @@ struct ApiBackup {
     pub locked: bool,
 }
 
-#[derive(Debug, Default, serde::Serialize)]
+/// General output used by commands in `--api` mode
+#[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct JsonOutput {
+    /// Any errors.
     #[serde(skip_serializing_if = "Option::is_none")]
     errors: Option<ApiErrors>,
+    /// Overall stats, populated by the `backup` and `restore` commands.
     #[serde(skip_serializing_if = "Option::is_none")]
     overall: Option<OperationStatus>,
+    /// Each key is the name of a game.
     games: BTreeMap<String, ApiGame>,
+    /// Each key is the path of a file relative to the cloud folder.
+    /// Populated by the `cloud` commands.
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
+    cloud: BTreeMap<String, CloudEntry>,
+}
+
+#[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct CloudEntry {
+    /// How this file compares to the cloud version (if doing an upload)
+    /// or the local version (if doing a download).
+    change: ScanChange,
 }
 
 #[derive(Debug)]
@@ -175,6 +226,7 @@ impl Reporter {
                 errors: Default::default(),
                 overall: Some(Default::default()),
                 games: Default::default(),
+                cloud: Default::default(),
             },
         }
     }
@@ -541,23 +593,18 @@ impl Reporter {
 
 pub fn report_cloud_changes(changes: &[CloudChange], api: bool) {
     if api {
-        #[derive(serde::Serialize)]
-        struct Output {
-            cloud: BTreeMap<String, Entry>,
-        }
-
-        #[derive(serde::Serialize)]
-        struct Entry {
-            change: ScanChange,
-        }
-
-        let changes = Output {
-            cloud: changes
-                .iter()
-                .map(|x| (x.path.clone(), Entry { change: x.change }))
-                .collect(),
+        let mut output = JsonOutput {
+            errors: None,
+            overall: None,
+            games: Default::default(),
+            cloud: Default::default(),
         };
-        eprintln!("{}", serde_json::to_string_pretty(&changes).unwrap());
+
+        output.cloud = changes
+            .iter()
+            .map(|x| (x.path.clone(), CloudEntry { change: x.change }))
+            .collect();
+        eprintln!("{}", serde_json::to_string_pretty(&output).unwrap());
         return;
     }
 

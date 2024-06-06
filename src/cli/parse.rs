@@ -573,6 +573,12 @@ pub enum SchemaSubcommand {
     ApiInput,
     #[clap(about = "Schema for `api` command output")]
     ApiOutput,
+    #[clap(about = "Schema for config.yaml")]
+    Config,
+    #[clap(
+        about = "Schema for general command output in --api mode (`backup`, `restore`, `backups`, `find`, `cloud upload`, `cloud download`)"
+    )]
+    GeneralOutput,
 }
 
 /// Back up and restore PC game saves

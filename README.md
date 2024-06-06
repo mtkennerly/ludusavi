@@ -395,85 +395,13 @@ which would otherwise prevent Ludusavi from finding its configuration.
 
 ## Interfaces
 ### CLI API
-CLI mode defaults to a human-readable format, but you can switch to a
-machine-readable JSON format with the `--api` flag.
+You can view the help text in [the CLI docs](docs/cli.md).
 
 <details>
 <summary>Click to expand</summary>
 
-For the `backup`/`restore` commands:
-
-* `errors` (optional, map):
-  * `someGamesFailed` (optional, boolean): Whether any games failed.
-  * `unknownGames` (optional, list of strings): Names of unknown games, if any.
-  * `cloudConflict` (optional, empty map): When this field is present,
-    Ludusavi could not automatically synchronize with the cloud because of conflicting data.
-  * `cloudSyncFailed` (optional, empty map): When this field is present,
-    Ludusavi tried and failed to automatically synchronize with the cloud.
-* `overall` (map):
-  * `totalGames` (number): How many games were found.
-  * `totalBytes` (number): How many bytes are used by files associated with
-    found games.
-  * `processedGames` (number): How many games were processed.
-    This excludes ignored, failed, and cancelled games.
-  * `processedBytes` (number): How many bytes were processed.
-    This excludes ignored, failed, and cancelled games.
-  * `changedGames` (object): Total count of `new`, `same`, and `different` games.
-* `games` (map):
-  * Each key is the name of a game, and the value is a map with these fields:
-    * `decision` (string): How Ludusavi decided to handle this game.
-
-      Possible values:
-      * `Processed`
-      * `Ignored`
-      * `Cancelled`
-    * `change` (string): How this game compares to its previous backup (if doing a new backup)
-      or how its previous backup compares to the current system state (if doing a restore).
-
-      Possible values:
-      * `New`
-      * `Same`
-      * `Different`
-    * `files` (map):
-      * Each key is a file path, and each value is a map with these fields:
-        * `failed` (optional, boolean): Whether this entry failed to process.
-        * `error` (optional, map):
-          * `message` (string): If the entry failed, then this explains why.
-        * `change` (string): Same as game-level field, but for a specific backup item.
-        * `ignored` (optional, boolean): Whether this entry was ignored.
-        * `bytes` (number): Size of the file.
-        * `redirectedPath` (optional, string):
-          If the file was backed up to a redirected location,
-          then this is its location within the backup.
-        * `originalPath` (optional, string): If the file was restored to a
-          redirected location, then this is its original path.
-        * `duplicatedBy` (optional, array of strings): Any other games that
-          also have the same file path.
-    * `registry` (map):
-      * Each key is a registry path, and each value is a map with these fields:
-        * `failed` (optional, boolean): Whether this entry failed to process.
-        * `error` (optional, map):
-          * `message` (string): If the entry failed, then this explains why.
-        * `change` (string): Same as game-level field, but for a specific backup item.
-        * `ignored` (optional, boolean): Whether this entry was ignored.
-        * `duplicatedBy` (optional, array of strings): Any other games that
-          also have the same registry path.
-        * `values` (optional, map): Any registry values inside of the registry key.
-          * `change` (string): Same as game-level field, but for a specific backup item.
-          * `ignored` (optional, boolean): Whether this entry was ignored.
-          * `duplicatedBy` (optional, array of strings): Any other games that
-            also have the same registry key+value.
-
-The `backups` command is similar, but without `overall`, and with each game containing
-`{"backups": [ {"name": <string>, "when": <string>, "comment": <string>} ]}`.
-The `find` command also does not have `overall`, and each game object is empty.
-
-For the `cloud upload` and `cloud download` commands:
-
-* `cloud` (map):
-  * Each key is the path of a file relative to the cloud folder,
-    and the value is a map with these fields:
-    * `change` (string): Same as the `change` fields for the `backup` command.
+CLI mode defaults to a human-readable format, but you can switch to a
+machine-readable JSON format with the `--api` flag.
 
 Note that, in some error conditions, there may not be any JSON output,
 so you should check if stdout was blank before trying to parse it.
@@ -527,141 +455,10 @@ Example:
 </details>
 
 ### Configuration file
-Here are the available settings in `config.yaml` (all are required unless otherwise noted):
+Schema: [docs/schema/config.yaml](docs/schema/config.yaml)
 
 <details>
 <summary>Click to expand</summary>
-
-* `runtime` (map):
-  * `threads` (integer): How many threads to use for parallel scanning.
-    Must be greater than 0.
-* `manifest` (map):
-  * `url` (string): Where to download the primary manifest.
-* `language` (string, optional): Display language. Valid options:
-  `en-US` (English, default),
-  `cs-CZ` (Czech),
-  `de-DE` (German),
-  `eo-UY` (Esperanto),
-  `es-ES` (Spanish),
-  `fil-PH` (Filipino),
-  `fr-FR` (French),
-  `it-IT` (Italian),
-  `ja-JP` (Japanese),
-  `ko-KR` (Korean),
-  `nl-NL` (Dutch),
-  `pl-PL` (Polish),
-  `pt-BR` (Brazilian Portuguese),
-  `ru-RU` (Russian),
-  `th-TH` (Thai),
-  `uk-UA` (Ukrainian),
-  `zh-Hans` (Simplified Chinese).
-
-  Experimental options that currently have graphical display issues:
-  `ar-SA` (Arabic).
-* `theme` (string, optional): Visual theme. Valid options:
-  `light` (default), `dark`.
-* `roots` (list):
-  * Each entry in the list should be a map with these fields:
-    * `path` (string): Where the root is located on your system.
-    * `store` (string): Game store associated with the root. Valid options:
-      `ea`, `epic`, `gog`, `gogGalaxy`, `heroic`, `legendary`, `lutris`, `microsoft`, `origin`, `prime`,
-      `steam`, `uplay`, `otherHome`, `otherWine`, `otherWindows`, `otherLinux`, `otherMac`, `other`
-* `redirects` (optional, list):
-  * Each entry in the list should be a map with these fields:
-    * `kind` (string): When and how to apply the redirect.
-
-      Possible values:
-      * `backup`
-      * `restore`
-      * `bidirectional`
-    * `source` (string): The original location when the backup was performed.
-    * `target` (string): The new location.
-* `backup` (map):
-  * `path` (string): Full path to a directory in which to save backups.
-    This can be overridden in the CLI with `--path`.
-  * `ignoredGames` (optional, array of strings): Names of games to skip when backing up.
-    This can be overridden in the CLI by passing a list of games.
-  * `filter` (optional, map):
-    * `excludeStoreScreenshots` (optional, boolean): If true, then the backup
-      should exclude screenshots from stores like Steam. Default: false.
-    <!--
-    * `cloud` (map):
-      * `exclude` (boolean):
-        If true, don't back up games with cloud support
-        on the stores indicated in the other options below.
-      * `epic` (boolean):
-        If this and `exclude` are true, don't back up games with cloud support on Epic.
-      * `gog` (boolean):
-        If this and `exclude` are true, don't back up games with cloud support on GOG.
-      * `origin` (boolean):
-        If this and `exclude` are true, don't back up games with cloud support on Origin / EA App.
-      * `steam` (boolean):
-        If this and `exclude` are true, don't back up games with cloud support on Steam.
-      * `uplay` (boolean):
-        If this and `exclude` are true, don't back up games with cloud support on Uplay / Ubisoft Connect.
-    -->
-    * `ignoredPaths` (list of strings): Globally ignored paths.
-    * `ignoredRegistry` (list of strings): Globally ignored registry keys.
-  * `toggledPaths` (map): Paths overridden for inclusion/exclusion in the backup.
-    Each key is a game name, and the value is another map. In the inner map,
-    each key is a path, and the value is a boolean (true = included).
-    Settings on child paths override settings on parent paths.
-  * `toggledRegistry` (map): Registry overridden for inclusion/exclusion in the backup.
-    Each map key is a game name, and the map value is another map. In the inner map,
-    each key is a path, and the value is a boolean (true = included).
-    each map key is a registry key path, and the map value is boolean (true = included).
-    Instead of a plain boolean, you can specify `{ key: boolean, values: { value_name: boolean } }`
-    to control individual registry values as well.
-    Settings on child paths override settings on parent paths.
-  * `sort` (map):
-    * `key` (string): One of `name`, `size`, `status`.
-    * `reversed` (boolean): If true, sort reverse alphabetical or from the largest size.
-  * `retention` (map):
-    * `full` (integer): Full backups to keep. Range: 1-255.
-    * `differential` (integer): Full backups to keep. Range: 0-255.
-  * `format` (map):
-    * `chosen` (string): One of `simple`, `zip`.
-    * `zip` (map): Settings for the zip format.
-      * `compression` (string): One of `none`, `deflate`, `bzip2`, `zstd`.
-    * `compression` (map): Settings for specific compression methods.
-      In compression levels, higher numbers are slower, but save more space.
-      * `deflate` (object):
-        * `level` (integer): 1 to 9.
-      * `bzip2` (object):
-        * `level` (integer): 1 to 9.
-      * `zstd` (object):
-        * `level` (integer): -7 to 22.
-* `restore` (map):
-  * `path` (string): Full path to a directory from which to restore data.
-    This can be overridden in the CLI with `--path`.
-  * `ignoredGames` (optional, list of strings): Names of games to skip when restoring.
-    This can be overridden in the CLI by passing a list of games.
-  * `toggledPaths` (map): Same as the equivalent field in the `backup` section.
-  * `toggledRegistry` (map): Same as the equivalent field in the `backup` section.
-  * `sort` (map):
-    * `key` (string): One of `name`, `size`.
-    * `reversed` (boolean): If true, sort reverse alphabetical or from the largest size.
-* `scan` (map):
-  * `showDeselectedGames` (boolean): In the GUI, show games that have been deselected.
-  * `showUnchangedGames` (boolean): In the GUI, show games that have been scanned, but do not have any changed saves.
-  * `showUnscannedGames` (boolean): In the GUI, show recent games that have not been scanned yet.
-* `cloud` (map):
-  * `remote`: Rclone remote.
-    You should use the GUI or the `cloud set` command to modify this,
-    since any changes need to be synchronized with Rclone to take effect.
-  * `path` (string): Cloud folder to use for backups.
-  * `synchronize` (boolean): If true, upload changes automatically after backing up,
-    as long as there aren't any conflicts.
-* `apps` (map):
-  * `rclone` (map):
-    * `path` (string): Path to `rclone.exe`.
-    * `arguments` (string): Any global flags (space-separated) to include in Rclone commands.
-* `customGames` (optional, list):
-  * Each entry in the list should be a map with these fields:
-    * `name` (string): Name of the game.
-    * `files` (optional, list of strings): Any files or directories you want
-      to back up.
-    * `registry` (optional, list of strings): Any registry keys you want to back up.
 
 Example:
 

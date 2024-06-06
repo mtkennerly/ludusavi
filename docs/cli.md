@@ -360,6 +360,11 @@ Commands:
           Schema for `api` command input
   api-output
           Schema for `api` command output
+  config
+          Schema for config.yaml
+  general-output
+          Schema for general command output in --api mode (`backup`, `restore`, `backups`, `find`,
+          `cloud upload`, `cloud download`)
   help
           Print this message or the help of the given subcommand(s)
 

@@ -1,4 +1,4 @@
-#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, schemars::JsonSchema)]
 pub struct RegistryItem {
     raw: String,
 }
