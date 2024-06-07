@@ -153,8 +153,8 @@ enum ApiGame {
     },
     /// Used by the `backups` command.
     Stored {
-        #[serde(rename = "backupDir")]
-        backup_dir: String,
+        #[serde(rename = "backupPath")]
+        backup_path: String,
         backups: Vec<ApiBackup>,
     },
     /// Used by the `find` command.
@@ -539,7 +539,7 @@ impl Reporter {
                 output.games.insert(
                     name.to_string(),
                     ApiGame::Stored {
-                        backup_dir: backup_dir.render(),
+                        backup_path: backup_dir.render(),
                         backups,
                     },
                 );

@@ -149,10 +149,10 @@ definitions:
       - description: "Used by the `backups` command."
         type: object
         required:
-          - backupDir
+          - backupPath
           - backups
         properties:
-          backupDir:
+          backupPath:
             type: string
           backups:
             type: array
