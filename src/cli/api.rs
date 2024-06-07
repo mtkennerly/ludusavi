@@ -122,10 +122,10 @@ fn parse_input(input: Option<String>) -> Result<Input, String> {
         if stdin.is_terminal() {
             Ok(Input::default())
         } else {
-            let mut raw = String::new();
-            let _ = stdin.read_to_string(&mut raw);
+            let mut bytes = vec![];
+            let _ = stdin.read_to_end(&mut bytes);
+            let raw = String::from_utf8_lossy(&bytes);
             let input = serde_json::from_str::<Input>(&raw).map_err(|e| e.to_string())?;
-            log::debug!("API input from stdin: {:?}", &raw);
             Ok(input)
         }
     }
@@ -137,7 +137,7 @@ pub fn abort_error(error: Error) -> ! {
             message: TRANSLATOR.handle_error(&error),
         },
     };
-    eprintln!("{}", serde_json::to_string_pretty(&output).unwrap());
+    println!("{}", serde_json::to_string_pretty(&output).unwrap());
     std::process::exit(1);
 }
 
@@ -145,12 +145,13 @@ pub fn abort_message(message: String) -> ! {
     let output = Output::Failure {
         error: response::Error { message },
     };
-    eprintln!("{}", serde_json::to_string_pretty(&output).unwrap());
+    println!("{}", serde_json::to_string_pretty(&output).unwrap());
     std::process::exit(1);
 }
 
 pub fn process(input: Option<String>, config: &Config, manifest: &Manifest) -> Result<Output, String> {
     let input = parse_input(input)?;
+    log::debug!("API input: {input:?}");
     let mut responses = vec![];
 
     let backup_path = input.config.backup_path.unwrap_or_else(|| config.restore.path.clone());
