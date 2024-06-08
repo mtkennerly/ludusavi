@@ -452,8 +452,14 @@ impl IndividualMapping {
         if !file.is_file() {
             return Err("File does not exist".into());
         }
-        let content = Self::load_raw(file)?;
-        let mut parsed = Self::load_from_string(&content)?;
+        let content = Self::load_raw(file).map_err(|e| {
+            log::error!("Unable to read mapping: {:?} | {:?}", &file, e);
+            e
+        })?;
+        let mut parsed = Self::load_from_string(&content).map_err(|e| {
+            log::error!("Unable to parse mapping: {:?} | {:?}", &file, e);
+            e
+        })?;
 
         // Handle legacy files without backup timestamps.
         for full in parsed.backups.iter_mut() {
@@ -544,10 +550,7 @@ impl GameLayout {
         let mapping = Self::mapping_file(&path);
         Ok(Self {
             path,
-            mapping: IndividualMapping::load(&mapping).map_err(|e| {
-                log::error!("Unable to load mapping: {:?} | {:?}", &mapping, e);
-                e
-            })?,
+            mapping: IndividualMapping::load(&mapping)?,
             retention,
         })
     }
