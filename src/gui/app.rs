@@ -418,6 +418,7 @@ impl App {
                 let launchers = std::sync::Arc::new(launchers);
                 let filter = std::sync::Arc::new(self.config.backup.filter.clone());
                 let steam_shortcuts = std::sync::Arc::new(steam);
+                let games_specified = self.operation.games_specified();
 
                 for key in subjects {
                     let game = manifest.0[&key].clone();
@@ -441,6 +442,11 @@ impl App {
 
                             let previous =
                                 layout.latest_backup(&key, false, &config.redirects, &config.restore.toggled_paths);
+
+                            if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
+                                log::trace!("[{key}] excluded by backup filter");
+                                return (None, None, OperationStepDecision::Ignored);
+                            }
 
                             let scan_info = scan_game_for_backup(
                                 &game,

@@ -381,6 +381,16 @@ impl Operation {
         }
     }
 
+    pub fn games_specified(&self) -> bool {
+        match self {
+            Operation::Idle => false,
+            Operation::Backup { games, .. } => games.as_ref().is_some_and(|xs| !xs.is_empty()),
+            Operation::Restore { games, .. } => games.as_ref().is_some_and(|xs| !xs.is_empty()),
+            Operation::ValidateBackups { .. } => false,
+            Operation::Cloud { .. } => false,
+        }
+    }
+
     pub fn flag_cancel(&mut self) {
         match self {
             Operation::Idle => (),

@@ -413,8 +413,8 @@ impl BackupFilter {
             .any(|x| x.is_prefix_of(item) || x.interpret() == interpreted)
     }
 
-    pub fn excludes(&self, has_backup: bool, info: &CloudMetadata) -> bool {
-        self.cloud.excludes(info) && !has_backup
+    pub fn excludes(&self, explicit: bool, has_backup: bool, info: &CloudMetadata) -> bool {
+        !explicit && self.cloud.excludes(info) && !has_backup
     }
 }
 

@@ -241,6 +241,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
                     let previous = layout.latest_backup(name, false, &config.redirects, &config.restore.toggled_paths);
 
+                    if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
+                        log::trace!("[{name}] excluded by backup filter");
+                        return None;
+                    }
+
                     let scan_info = scan_game_for_backup(
                         game,
                         name,

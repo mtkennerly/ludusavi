@@ -460,16 +460,6 @@ pub fn scan_game_for_backup(
     #[allow(unused_mut)]
     let mut found_registry_keys = HashSet::new();
 
-    if filter.excludes(previous.is_some(), &game.cloud) {
-        log::trace!("[{name}] excluded by backup filter");
-        return ScanInfo {
-            game_name: name.to_string(),
-            found_files,
-            found_registry_keys,
-            ..Default::default()
-        };
-    }
-
     let mut paths_to_check = HashSet::<(StrictPath, Option<bool>)>::new();
 
     // Add a dummy root for checking paths without `<root>`.
