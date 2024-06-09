@@ -70,6 +70,18 @@ Also install the Crowdin CLI manually.
 * Add the new version to `.github/ISSUE_TEMPLATE/*.yaml`.
 * Update the README if necessary for any new features.
   Check for any new content that needs to be uncommented (`<!--`).
+* Run:
+  ```
+  export VERSION=$(invoke version)
+  git add .
+  git commit -m Release
+  git tag v${VERSION} -m Release
+  git push
+  git push --tags
+  ```
+* Run: `cargo publish`
+* Create a release on GitHub and attach the workflow build artifacts
+  (plus a zipped copy of `dist/*-legal.txt`).
 
 #### Publish
 Commands assume you've set `VERSION=$(invoke version)`.

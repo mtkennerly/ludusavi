@@ -4,7 +4,7 @@ written in [Rust](https://www.rust-lang.org).
 It is cross-platform and supports multiple game stores.
 
 ## Features
-* Ability to back up data from more than 10,000 games plus your own custom entries.
+* Ability to back up data from more than 19,000 games plus your own custom entries.
 * Backup and restore for Steam as well as other game libraries.
 * Both a graphical interface and command line interface for scripting.
   Tab completion is available for Bash, Fish, Zsh, PowerShell, and Elvish.

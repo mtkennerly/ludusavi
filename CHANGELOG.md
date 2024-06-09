@@ -1,4 +1,4 @@
-## Unreleased
+## v0.24.0 (2024-06-08)
 
 * Added:
   * On the "other" screen,
@@ -18,6 +18,8 @@
   * Title normalization now ignores apostrophes and quotation marks
     (e.g., `ludusavi find --normalized "Mirrors Edge"` will find `Mirror's Edge`).
   * Some additional fields in the config file have been made optional.
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:
   * For Heroic and Lutris roots,
     if you had multiple copies of the same game,
