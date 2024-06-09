@@ -183,7 +183,7 @@ override-max-threads = Anular hilos máximos
 synchronize-automatically = Sincronizar automáticamente
 prefer-alias-display = Mostrar alias en lugar del nombre original
 explanation-for-exclude-store-screenshots = En las copias de seguridad, excluye las capturas de pantalla específicas de la tienda
-explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
+explanation-for-exclude-cloud-games = No hacer copias de seguridad de juegos con soporte en la nube en estas plataformas
 consider-doing-a-preview =
     Si aún no lo has hecho, considera hacer una vista previa primero para que
     no haya sorpresas.

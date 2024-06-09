@@ -139,7 +139,7 @@ label-file = Datei
 label-game = Spiel
 # Aliases are alternative titles for the same game.
 label-alias = Alias
-label-original-name = Original name
+label-original-name = Originalname
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -181,9 +181,9 @@ show-unchanged-games = Unveränderte Spiele anzeigen
 show-unscanned-games = Ungescannte Spiele anzeigen
 override-max-threads = Max. Threads übergehen
 synchronize-automatically = Automatisch synchronisieren
-prefer-alias-display = Display alias instead of original name
+prefer-alias-display = Alias statt Originalnamen anzeigen
 explanation-for-exclude-store-screenshots = Storespezifische Bildschirmfotos aus Datensicherungen ausschießen
-explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
+explanation-for-exclude-cloud-games = Auf diesen Plattformen keine Spiele mit Cloud-Unterstützung sichern
 consider-doing-a-preview =
     Falls du es noch nicht getan hast, erwäge zuerst eine Vorschau zu machen, damit
     keine Überraschungen gibt.

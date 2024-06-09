@@ -183,7 +183,7 @@ override-max-threads = Outrepasser les threads max
 synchronize-automatically = Synchroniser automatiquement
 prefer-alias-display = Afficher l'alias au lieu du nom d'origine
 explanation-for-exclude-store-screenshots = Dans les sauvegardes, excluez les captures d'écran spécifiques à la boutique
-explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
+explanation-for-exclude-cloud-games = Ne pas sauvegarder les jeux avec la prise en charge du cloud sur ces plateformes
 consider-doing-a-preview = Si vous ne l'avez pas déjà fait, pensez d'abord à faire un aperçu afin qu'il n'y ait pas de surprises.
 confirm-backup =
     Êtes-vous sûr de vouloir procéder à la sauvegarde ? { $path-action ->
