@@ -85,413 +85,46 @@ If you are on Mac:
   specifically the section on `How to open an app [...] from an unidentified developer`.
 
 ## Usage
-### Roots
-Roots are folders that Ludusavi can check for additional game data. When you
-first run Ludusavi, it will try to find some common roots on your system, but
-you may end up without any configured. These are listed on the "other" screen,
-where you can use the plus button in the roots section to configure as many as you need,
-along with the root's type:
-
-* For a Steam root, this should be the folder containing the `steamapps` and
-  `userdata` subdirectories. Here are some common/standard locations:
-  * Windows: `C:/Program Files (x86)/Steam`
-  * Linux: `~/.steam/steam`
-
-  On Linux, for games that use Proton, Ludusavi will back up the `*.reg` files
-  if the game is known to have registry-based saves.
-
-  On Linux, if you've used Steam's "add a non-Steam game" feature,
-  then Ludusavi will also back up any Proton save data for those games.
-  This requires the shortcut name in Steam to match the title by which Ludusavi knows the game
-  (i.e., the title of its PCGamingWiki article).
-* For a Heroic root, this should be the folder containing the `gog_store`
-  and `GamesConfig` subdirectories.
-
-  Ludusavi can find GOG/Epic saves in Heroic's game install folders.
-  On Linux, Ludusavi can also find saves in Heroic's Wine, Proton, and Lutris prefixes.
-  However, Ludusavi does not yet support Heroic's Amazon or sideloaded games.
-
-  When using Wine prefixes with Heroic, Ludusavi will back up the `*.reg` files
-  if the game is known to have registry-based saves.
-* For a Legendary root, this should be the folder containing `installed.json`.
-  Currently, Ludusavi cannot detect Wine prefixes for Legendary roots.
-* For a Lutris root, this should be the folder containing the `games` subdirectory.
-
-  Ludusavi expects the game YAML files to contain a few fields,
-  particularly `name` and either `game.working_dir` or `game.exe`.
-  Games will be skipped if they don't have the necessary fields.
-* For the "other" root type and the remaining store-specific roots,
-  this should be a folder whose direct children are individual games.
-  For example, in the Epic Games store, this would be what you choose as the
-  "install location" for your games (e.g., if you choose `D:/Epic` and it
-  creates a subfolder for `D:/Epic/Celeste`, then the root would be `D:/Epic`).
-* For a home folder root, you may specify any folder. Whenever Ludusavi
-  normally checks your standard home folder (Windows: `%USERPROFILE%`,
-  Linux/Mac: `~`), it will additionally check this root. This is useful if
-  you set a custom `HOME` to manipulate the location of save data.
-* For a Wine prefix root, this should be the folder containing `drive_c`.
-  Currently, Ludusavi does not back up registry-based saves from the prefix,
-  but will back up any file-based saves.
-* The Windows, Linux, and Mac drive roots can be used
-  to make Ludusavi scan external hard drives with a separate OS installation.
-  For example, let's say you had a Windows laptop that broke,
-  but you recovered the hard drive and turned it into an external drive.
-  You could add it as a Windows drive root to make Ludusavi scan it.
-
-  In this case, Ludusavi can only look for normal/default locations of system folders.
-  Ludusavi will not be able to use the Windows API or check `XDG` environment variables
-  to detect alternative folder locations (e.g., if you've moved the `Documents` folder).
-
-You may use [globs] in root paths to identify multiple roots at once.
-If you have a folder name that contains a special glob character,
-you can escape it by wrapping it in brackets (e.g., `[` becomes `[[]`).
-
-The order of the configured roots is not significant.
-The only case where it may make a difference is if Ludusavi finds secondary manifests (`.ludusavi.yaml` files)
-*and* those manfiests contain overlapping entries for the same game,
-in which case Ludusavi will merge the data together in the order that it finds them.
-
-### Backup retention
-You can configure how many backups to keep by pressing the gear icon on the backup screen.
-A full backup contains all save data for a game,
-while a differential backup contains just the data that has changed since the last full backup.
-
-When Ludusavi makes a new backup for a game, it will also remove any excess backups for that specific game.
-When a full backup is deleted, its associated differential backups are deleted as well.
-
-For example, if you configure a retention limit of 2 full and 2 differential,
-then Ludusavi will create 2 differential backups for each full backup, like so:
-
-* Backup #1: full
-  * Backup #2: differential
-  * Backup #3: differential
-* Backup #4: full
-  * Backup #5: differential
-  * Backup #6: differential
-
-When backup #7 is created, because the full retention is set to 2,
-Ludusavi will delete backups 1 through 3.
-
-If your full retention is only 1 and your differential retention is 1+,
-then Ludusavi will keep the full backup and just delete the oldest differential as needed.
-
-On the restore screen, you can use the three-dot menu next to a game to lock any of its backups.
-Locked backups do not count toward the retention limits and are retained indefinitely.
-
-### Cloud backup
-Ludusavi integrates with [Rclone](https://rclone.org) to provide cloud backups.
-You can configure this on the "other" screen.
-Any Rclone remote is supported, but Ludusavi can help you configure some of the more common ones:
-Google Drive, OneDrive, Dropbox, Box, FTP servers, SMB servers, and WebDAV servers.
-Support is verified for Rclone 1.62.2, but other versions should work as well.
-
-If you turn on automtic synchronization,
-then Ludusavi will check if your local and cloud saves are already in sync at the start of a backup.
-If so, then any changes will be uploaded once the backup is done.
-If they weren't in sync to begin with, then Ludusavi will warn you about the conflict and leave the cloud data alone.
-You can perform an upload or download at any time on the "other" screen to resolve such a conflict.
-
-Bear in mind that many factors can affect cloud sync performance,
-including network speed, outages on the cloud side, and any limitations of Rclone itself.
-You can try setting custom Rclone arguments if you find that it is too slow.
-For example, `--fast-list` and/or `--ignore-checksum` can speed things up,
-while `--transfers=1` can help to avoid rate-limiting but may slow things down.
-The "other" screen has a field to configure custom arguments,
-and you can find documentation for them here: https://rclone.org/flags
-
-You can also use other cloud backup tools of your choice,
-as long as they can make the storage available as what looks like a normal folder.
-For example:
-
-* If you use something like [Google Drive for Desktop](https://www.google.com/drive/download),
-  which creates a special drive (`G:`) to stream from/to the cloud,
-  then you can set Ludusavi's backup target to a folder in that drive.
-* If you use something like [Syncthing](https://syncthing.net),
-  which continuously synchronizes a local folder across systems,
-  then you can set Ludusavi's backup target to that local folder.
-* If you use Rclone's mounting functionality,
-  then you can set Ludusavi's backup target to the mount folder.
-
-### Selective scanning
-Once you've done at least one full scan (via the preview/backup buttons),
-Ludusavi will remember the games it found and show them to you the next time you run the program.
-That way, you can selectively preview or back up a single game without doing a full scan.
-Use the three-dot menu next to each game's title to operate on just that one game.
-
-You can also use keyboard shortcuts to swap the three-dot menu with some specific buttons:
-
-* preview: shift
-* backup/restore: ctrl (Mac: cmd)
-* backup/restore without confirmation: ctrl + alt (Mac: cmd + option)
-
-### Backup structure
-* Within the target folder, for every game with data to back up, a subfolder
-  will be created based on the game's name, where some invalid characters are
-  replaced by `_`. In rare cases, if the whole name is invalid characters,
-  then it will be renamed to `ludusavi-renamed-<ENCODED_NAME>`.
-* Within each game's subfolder, there will be a `mapping.yaml` file that
-  Ludusavi needs to identify the game.
-
-  When using the simple backup format, there will be some drive folders
-  (e.g., `drive-C` on Windows or `drive-0` on Linux and Mac) containing the
-  backup files, matching the normal file locations on your computer.
-  When using the zip backup format, there will be zip files instead.
-* If the game has save data in the registry and you are using Windows, then
-  the game's subfolder will also contain a `registry.yaml` file (or it will
-  be placed in each backup's zip file).
-  If you are using Steam and Proton instead of Windows, then the Proton `*.reg`
-  files will be backed up along with the other game files instead.
-
-During a restore, Ludusavi only considers folders with a `mapping.yaml` file.
-
-### Filter
-You can click the filter icon at the top of the backup/restore screens to use some filters.
-Note that this only affects which games you see in the list,
-but Ludusavi will still back up the full set of games.
-
-You can apply filters for the following:
-
-* Whether the game title matches a search.
-* Whether multiple games have the same save files:
-  * `Unique` (no conflicts)
-  * `Duplicated` (conflicts exist)
-* Whether all save files for a game are enabled for processing:
-  * `Complete` (all saves enabled)
-  * `Partial` (some saves disabled)
-* Whether the game itself is enabled for processing:
-  * `Enabled` (checkbox next to game is checked)
-  * `Disabled` (checkbox next to game is unchecked)
-
-### Duplicates
-You may see a "duplicates" badge next to some games. This means that some of
-the same files were also backed up for another game. That could be intentional
-(e.g., an HD remaster may reuse the original save locations), but it could
-also be a sign of an issue in the manifest data. You can expand the game's
-file list to see which exact entries are duplicated.
-
-You can resolve conflicts by disabling certain save files from being backed up.
-Once a conflict is resolved, the badge will become faded.
-You can also click on the badge to view just the conflicting games.
-
-### Redirects
-You can use redirects to back up or restore to a different location than the original file.
-These are listed on the "other" screen, where you can click the plus button to add more
-and then enter both the old location (source) and new location (target).
-
-There are multiple types of redirects:
-
-* `Backup`: Applies only for backup mode.
-* `Restore`: Applies only for restore mode.
-* `Bidirectional`: Uses source -> target in backup mode and target -> source in restore mode.
-
-For example:
-
-* Let's say you backed up some saves from `C:/Games`, but then you decided to move it to `D:/Games`.
-  You could create a restore redirect with `C:/Games` as the source and `D:/Games` as the target.
-* Let's say you play on two computers with different usernames ("A" and "B"),
-  but you know that the saves are otherwise the same,
-  so you'd like them to share backups.
-  You could create two bidirectional redirects:
-
-  * On Computer A, set source to `C:/Users/A` and target to `C:/Users/main`
-  * On computer B, set source to `C:/Users/B` and target to `C:/Users/main`
-
-  Both computers' backups would reference the fake user "main",
-  but then they would be restored to the original location for that computer.
-
-Tip: As you're editing your redirects, try running a preview and expanding some
-games' file lists. This will show you what effect your redirects
-will have when you perform the restore for real.
-
-### Custom games
-You can create your own game save definitions on the `custom games` screen.
-If the game name exactly matches a known game, then your custom entry will override it.
-
-For file paths, you can click the browse button to quickly select a folder.
-The path can be a file too, but the browse button only lets you choose
-folders at this time. You can just type in the file name afterwards.
-You can also use [globs]
-(e.g., `C:/example/*.txt` selects all TXT files in that folder)
-and the placeholders defined in the
-[Ludusavi Manifest format](https://github.com/mtkennerly/ludusavi-manifest).
-If you have a folder name that contains a special glob character,
-you can escape it by wrapping it in brackets (e.g., `[` becomes `[[]`).
-
-### Backup exclusions
-Backup exclusions let you set paths and registry keys to completely ignore
-from all games. They will not be shown at all during backup scans.
-
-Configure exclusions on the "other" screen.
-
-For excluded file paths, you can use glob syntax.
-For example, to exclude all files named `remotecache.vdf`, you would specify `**/remotecache.vdf`.
-
-### Backup validation
-On the restore screen, there is a "validate" button that will check the integrity
-of the latest backup (full + differential, if any) for each game.
-You won't normally need to use this, but it exists for troubleshooting purposes.
-
-Specifically, this checks the following:
-
-* Is mapping.yaml malformed?
-* Is any file declared in mapping.yaml, but missing from the actual backup?
-
-If it finds problems, then it will prompt you to create new full backups for the games in question.
-At this time, it will not remove the invalid backups, outside of your normal retention settings.
-
-### Command line
-Run `ludusavi --help` for the CLI usage information.
-You can also view info for specific subcommands, such as `ludusavi manifest update --help`.
-
-### Configuration
-Ludusavi stores its configuration in the following locations:
-
-* Windows: `%APPDATA%/ludusavi`
-* Linux: `$XDG_CONFIG_HOME/ludusavi` or `~/.config/ludusavi`
-  * Flatpak: `~/.var/app/com.github.mtkennerly.ludusavi/config/ludusavi`
-* Mac: `~/Library/Application Support/ludusavi`
-
-Alternatively, if you'd like Ludusavi to store its configuration in the same
-place as the executable, then simply create a file called `ludusavi.portable`
-in the directory that contains the executable file. You might want to do that
-if you're going to run Ludusavi from a flash drive on multiple computers.
-
-If you're using the GUI, then it will automatically update the config file
-as needed, so you don't need to worry about its content. However, if you're
-using the CLI exclusively, then you'll need to edit `config.yaml` yourself.
-
-Ludusavi also stores `manifest.yaml` (info on what to back up) here.
-You should not modify that file, because Ludusavi will overwrite your changes
-whenever it downloads a new copy.
-
-### Logging
-Log files are stored in the config folder (see above).
-By default, only warnings and errors are logged,
-but you can customize this by setting the `RUST_LOG` environment variable
-(e.g., `RUST_LOG=ludusavi=debug`).
-The most recent 5 log files are kept, rotating on app launch or when a log reaches 10 MiB.
-
-### Game launch wrapping
-The CLI has a `wrap` command that can be used as a wrapper around launching a game.
-When wrapped, Ludusavi will restore data for the game first, launch it, and back up after playing.
-If you want to use this feature, you must manually configure your game launcher app to use this command.
-
-If you use Heroic 2.9.2 or newer, you can run `wrap --infer heroic -- GAME_INVOCATION` to automatically check the game name.
-For other launcher apps, you can run `wrap --name GAME_NAME -- GAME_INVOCATION`.
-
-#### Example with Heroic 2.9.2 on Linux
-Create a file named `ludusavi-wrap.sh` with this content:
-
-```
-$!/bin/sh
-ludusavi --try-manifest-update --config $HOME/.config/ludusavi wrap --gui --infer heroic -- "$@"
-```
-
-Mark the file as executable and set it as a wrapper within Heroic.
-You must set it as a wrapper for each game already installed individually.
-
-Note that the `--config` option is required because Heroic overrides the `XDG_CONFIG_HOME` environment variable,
-which would otherwise prevent Ludusavi from finding its configuration.
-
-## Interfaces
-### CLI API
-You can view the help text in [the CLI docs](docs/cli.md).
-
-<details>
-<summary>Click to expand</summary>
-
-CLI mode defaults to a human-readable format, but you can switch to a
-machine-readable JSON format with the `--api` flag.
-
-Note that, in some error conditions, there may not be any JSON output,
-so you should check if stdout was blank before trying to parse it.
-If the command line input cannot be parsed, then the output will not be
-in a stable format.
-
-API output goes on stdout, but stderr may still be used for human-readable warnings/errors.
-If stderr is not empty, you may want to log it,
-since not all human-readable warnings have an API equivalent.
-
-Example:
-
-```json
-{
-  "errors": {
-    "someGamesFailed": true,
-  },
-  "overall": {
-    "totalGames": 2,
-    "totalBytes": 150,
-    "processedGames": 1,
-    "processedBytes": 100,
-  },
-  "games": {
-    "Game 1": {
-      "decision": "Processed",
-      "files": {
-        "/games/game1/save.json": {
-          "bytes": 100
-        }
-      },
-      "registry": {
-        "HKEY_CURRENT_USER/Software/Game1": {
-          "failed": true
-        }
-      }
-    },
-    "Game 2": {
-      "decision": "Ignored",
-      "files": {
-        "/games/game2/save.json": {
-          "bytes": 50
-        }
-      },
-      "registry": {}
-    }
-  }
-}
-```
-
-</details>
-
-### Configuration file
-Schema: [docs/schema/config.yaml](docs/schema/config.yaml)
-
-<details>
-<summary>Click to expand</summary>
-
-Example:
-
-```yaml
-manifest:
-  url: "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"
-roots:
-  - path: "D:/Steam"
-    store: steam
-backup:
-  path: ~/ludusavi-backup
-restore:
-  path: ~/ludusavi-backup
-```
-
-</details>
-
-### Environment variables
-Environment variables can be used to tweak some additional behavior:
-
-<details>
-<summary>Click to expand</summary>
-
-* `RUST_LOG`: Configure logging.
-  Example: `RUST_LOG=ludusavi=debug`
-* `LUDUSAVI_DEBUG`: If this is set to any value,
-  then Ludusavi will not detach from the console on Windows in GUI mode.
-  It will also print some debug messages in certain cases.
-  Example: `LUDUSAVI_DEBUG=1`
-* `LUDUSAVI_THREADS`: Overrive the `runtime.threads` value from the config file.
-  Example: `LUDUSAVI_THREADS=8`
-
-</details>
+<a name="backup-exclusions"></a>
+<a name="backup-retention"></a>
+<a name="backup-structure"></a>
+<a name="backup-validation"></a>
+<a name="cli-api"></a>
+<a name="cloud-backup"></a>
+<a name="command-line"></a>
+<a name="configuration"></a>
+<a name="configuration-file"></a>
+<a name="custom-games"></a>
+<a name="duplicates"></a>
+<a name="environment-variables"></a>
+<a name="filter"></a>
+<a name="game-launch-wrapping"></a>
+<a name="logging"></a>
+<a name="redirects"></a>
+<a name="roots"></a>
+<a name="selective-scanning"></a>
+
+Detailed help documentation is available for several topics.
+
+### General
+* [Backup exclusions](/docs/help/backup-exclusions.md)
+* [Backup retention](/docs/help/backup-retention.md)
+* [Backup validation](/docs/help/backup-validation.md)
+* [Cloud backup](/docs/help/cloud-backup.md)
+* [Custom games](/docs/help/custom-games.md)
+* [Duplicates](/docs/help/duplicates.md)
+* [Filter](/docs/help/filter.md)
+* [Game launch wrapping](/docs/help/game-launch-wrapping.md)
+* [Redirects](/docs/help/redirects.md)
+* [Roots](/docs/help/roots.md)
+* [Selective scanning](/docs/help/selective-scanning.md)
+
+### Interfaces
+* [Backup structure](/docs/help/backup-structure.md)
+* [Command line](/docs/help/command-line.md)
+* [Configuration file](/docs/help/configuration-file.md)
+* [Environment variables](/docs/help/environment-variables.md)
+* [Logging](/docs/help/logging.md)
 
 ## Community
 
@@ -558,5 +191,3 @@ cross-platform and cross-store solution:
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
-
-[globs]: https://en.wikipedia.org/wiki/Glob_(programming)
