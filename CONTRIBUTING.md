@@ -74,8 +74,8 @@ Also install the Crowdin CLI manually.
   ```
   export VERSION=$(invoke version)
   git add .
-  git commit -m Release
-  git tag v${VERSION} -m Release
+  git commit -m "Release v${VERSION}"
+  git tag v${VERSION} -m "Release"
   git push
   git push --tags
   ```
