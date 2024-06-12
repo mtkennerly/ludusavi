@@ -219,10 +219,8 @@ impl StrictPath {
                     parts.pop();
                 }
                 Component::Unix(UComponent::Normal(part)) | Component::Windows(WComponent::Normal(part)) => {
-                    let mut part = part.to_string();
-
                     if i == 0 {
-                        let mapped = match part.as_str() {
+                        let mapped = match part {
                             "~" | placeholder::HOME => CommonPath::Home.get(),
                             placeholder::XDG_CONFIG => CommonPath::Config.get(),
                             placeholder::XDG_DATA | placeholder::WIN_APP_DATA => CommonPath::Data.get(),
@@ -247,13 +245,6 @@ impl StrictPath {
                         continue;
                     }
 
-                    if part.contains(':') {
-                        // This could happen if the user entered an invalid path like `C:\foo/C:\bar`
-                        // or if the manifest contained a path like `<winDocuments>/<home>`.
-                        // We escape it so that it (likely) just won't be found, rather than finding something irrelevant.
-                        part = part.replace(':', "_");
-                    }
-
                     // On Unix, Unix-style path segments may contain a backslash.
                     if part.contains('\\') {
                         for part in part.split('\\') {
@@ -262,7 +253,7 @@ impl StrictPath {
                             }
                         }
                     } else {
-                        parts.push(part);
+                        parts.push(part.to_string());
                     }
                 }
             }
@@ -298,7 +289,12 @@ impl StrictPath {
             return Err(StrictPathError::Empty);
         }
 
-        match self.analyze() {
+        let analysis = self.analyze();
+        if analysis.1.iter().any(|x| x.contains(':')) {
+            return Err(StrictPathError::Unsupported);
+        }
+
+        match analysis {
             (Some(Drive::Root), _) => Err(StrictPathError::Unsupported),
             (Some(Drive::Windows(id)), parts) => Ok(format!("{}\\{}", id, parts.join("\\"))),
             (None, parts) => match &self.basis {
@@ -1289,8 +1285,7 @@ mod tests {
         }
 
         #[test]
-        #[cfg(target_os = "windows")]
-        fn does_not_truncate_path_up_to_drive_letter_in_windows_classic_path() {
+        fn handles_windows_classic_path_with_extra_colon() {
             // https://github.com/mtkennerly/ludusavi/issues/36
             // Test for: <winDocuments>/<home>
 
@@ -1298,13 +1293,13 @@ mod tests {
                 r"C:\Users\Foo\Documents/C:\Users\Bar".to_string(),
                 Some(r"\\?\C:\Users\Foo\.config\ludusavi".to_string()),
             );
-            assert_eq!(r"C:\Users\Foo\Documents\C_\Users\Bar", path.interpret().unwrap());
-            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", path.render());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+            assert_eq!("C:/Users/Foo/Documents/C:/Users/Bar", path.display());
         }
 
         #[test]
-        #[cfg(target_os = "windows")]
-        fn does_not_truncate_path_up_to_drive_letter_in_windows_unc_path() {
+        fn handles_windows_unc_path_with_extra_colon() {
             // https://github.com/mtkennerly/ludusavi/issues/36
             // Test for: <winDocuments>/<home>
 
@@ -1312,8 +1307,19 @@ mod tests {
                 r"\\?\C:\Users\Foo\Documents\C:\Users\Bar".to_string(),
                 Some(r"\\?\C:\Users\Foo\.config\ludusavi".to_string()),
             );
-            assert_eq!(r"C:\Users\Foo\Documents\C_\Users\Bar", path.interpret().unwrap());
-            assert_eq!("C:/Users/Foo/Documents/C_/Users/Bar", path.render());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+            assert_eq!("C:/Users/Foo/Documents/C:/Users/Bar", path.display());
+        }
+
+        #[test]
+        fn handles_nonwindows_path_with_extra_colon() {
+            // https://github.com/mtkennerly/ludusavi/issues/351
+
+            let path = StrictPath::new(r"/tmp/foo: bar.baz".to_string());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
+            assert_eq!("/tmp/foo: bar.baz", path.access_nonwindows().unwrap());
+            assert_eq!("/tmp/foo: bar.baz", path.display());
         }
     }
 }

@@ -1,3 +1,9 @@
+## Unreleased
+
+* Fixed:
+  * On Linux, if a file name contained a colon (`:`),
+    it would fail to back up.
+
 ## v0.24.0 (2024-06-08)
 
 * Added:
