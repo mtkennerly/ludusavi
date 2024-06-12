@@ -85,6 +85,7 @@ If you are on Mac:
   specifically the section on `How to open an app [...] from an unidentified developer`.
 
 ## Usage
+<!-- These anchors are kept for compatibility with old section headers. -->
 <a name="backup-exclusions"></a>
 <a name="backup-retention"></a>
 <a name="backup-structure"></a>
@@ -107,6 +108,7 @@ If you are on Mac:
 Detailed help documentation is available for several topics.
 
 ### General
+* [Backup automation](/docs/help/backup-automation.md)
 * [Backup exclusions](/docs/help/backup-exclusions.md)
 * [Backup retention](/docs/help/backup-retention.md)
 * [Backup validation](/docs/help/backup-validation.md)
