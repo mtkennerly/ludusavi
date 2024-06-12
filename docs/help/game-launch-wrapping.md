@@ -1,17 +1,27 @@
-## Game launch wrapping
-The CLI has a `wrap` command that can be used as a wrapper around launching a game.
+# Game launch wrapping
+The [CLI](/docs/help/command-line.md) has a `wrap` command that can be used as a wrapper around launching a game.
 When wrapped, Ludusavi will restore data for the game first, launch it, and back up after playing.
 If you want to use this feature, you must manually configure your game launcher app to use this command.
 
-If you use Heroic 2.9.2 or newer, you can run `wrap --infer heroic -- GAME_INVOCATION` to automatically check the game name.
-For other launcher apps, you can run `wrap --name GAME_NAME -- GAME_INVOCATION`.
+In general, you can set your launcher to run `ludusavi wrap --name "GAME_NAME" -- GAME_INVOCATION`.
+Some specific launchers have built-in support (see below) to make this easier.
 
-### Example with Heroic 2.9.2 on Linux
+## Steam
+* Right click on a game in your Steam library and click `properties`.
+* In the popup window, set the launch options like so:
+
+  `C:\ludusavi.exe wrap --infer steam --gui -- %command%`
+
+  (Use the actual path to your copy of `ludusavi.exe` instead of `C:\ludusavi.exe`)
+
+You must do this for each game individually.
+
+## Heroic 2.9.2+ (Linux example)
 Create a file named `ludusavi-wrap.sh` with this content:
 
 ```
 $!/bin/sh
-ludusavi --try-manifest-update --config $HOME/.config/ludusavi wrap --gui --infer heroic -- "$@"
+ludusavi --config $HOME/.config/ludusavi wrap --gui --infer heroic -- "$@"
 ```
 
 Mark the file as executable and set it as a wrapper within Heroic.
