@@ -1,4 +1,4 @@
-## Command line
+# Command line
 Ludusavi provides a [command line interface](https://en.wikipedia.org/wiki/Command-line_interface),
 which you can use for automating tasks.
 
@@ -7,7 +7,7 @@ or view info for specific subcommands, such as `ludusavi manifest update --help`
 
 You can also view the help text in [the CLI docs](/docs/cli.md).
 
-### JSON output
+## JSON output
 CLI mode defaults to a human-readable format, but you can switch to a
 machine-readable JSON format with the `--api` flag.
 
@@ -22,12 +22,12 @@ since not all human-readable warnings have an API equivalent.
 
 There is also an `api` command that supports using JSON for the input as well.
 
-### Schemas
+## Schemas
 * [`--api` mode](/docs/schema/general-output.yaml)
 * [`api` command input](/docs/schema/api-input.yaml)
 * [`api` command output](/docs/schema/api-output.yaml)
 
-### Example
+## Example
 Output for `backup --force --api`:
 
 ```json

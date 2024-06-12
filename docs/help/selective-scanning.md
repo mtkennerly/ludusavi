@@ -1,4 +1,4 @@
-## Selective scanning
+# Selective scanning
 Once you've done at least one full scan (via the preview/backup buttons),
 Ludusavi will remember the games it found and show them to you the next time you run the program.
 That way, you can selectively preview or back up a single game without doing a full scan.

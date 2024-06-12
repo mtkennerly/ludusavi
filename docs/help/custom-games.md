@@ -1,4 +1,4 @@
-## Custom games
+# Custom games
 You can create your own game save definitions on the `custom games` screen.
 If the game name exactly matches a known game, then your custom entry will override it.
 

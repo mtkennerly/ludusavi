@@ -1,4 +1,4 @@
-## Cloud backup
+# Cloud backup
 Ludusavi integrates with [Rclone](https://rclone.org) to provide cloud backups.
 You can configure this on the "other" screen.
 Any Rclone remote is supported, but Ludusavi can help you configure some of the more common ones:

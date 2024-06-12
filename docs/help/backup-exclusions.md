@@ -1,4 +1,4 @@
-## Backup exclusions
+# Backup exclusions
 Backup exclusions let you set paths and registry keys to completely ignore
 from all games. They will not be shown at all during backup scans.
 

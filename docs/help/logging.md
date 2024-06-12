@@ -1,4 +1,4 @@
-## Logging
+# Logging
 Log files are stored in the config folder (see above).
 By default, only warnings and errors are logged,
 but you can customize this by setting the `RUST_LOG` environment variable

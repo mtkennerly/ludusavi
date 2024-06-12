@@ -1,4 +1,4 @@
-## Environment variables
+# Environment variables
 Environment variables can be used to tweak some additional behavior:
 
 * `RUST_LOG`: Configure logging.

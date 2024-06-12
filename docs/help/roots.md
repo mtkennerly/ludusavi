@@ -1,4 +1,4 @@
-## Roots
+# Roots
 Roots are folders that Ludusavi can check for additional game data. When you
 first run Ludusavi, it will try to find some common roots on your system, but
 you may end up without any configured. These are listed on the "other" screen,

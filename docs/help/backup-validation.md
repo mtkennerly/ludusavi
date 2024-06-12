@@ -1,4 +1,4 @@
-## Backup validation
+# Backup validation
 On the restore screen, there is a "validate" button that will check the integrity
 of the latest backup (full + differential, if any) for each game.
 You won't normally need to use this, but it exists for troubleshooting purposes.

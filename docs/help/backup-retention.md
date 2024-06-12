@@ -1,4 +1,4 @@
-## Backup retention
+# Backup retention
 You can configure how many backups to keep by pressing the gear icon on the backup screen.
 A full backup contains all save data for a game,
 while a differential backup contains just the data that has changed since the last full backup.

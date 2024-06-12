@@ -1,4 +1,4 @@
-## Redirects
+# Redirects
 You can use redirects to back up or restore to a different location than the original file.
 These are listed on the "other" screen, where you can click the plus button to add more
 and then enter both the old location (source) and new location (target).

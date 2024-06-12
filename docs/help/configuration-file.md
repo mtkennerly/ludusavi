@@ -1,4 +1,4 @@
-## Configuration
+# Configuration
 Ludusavi stores its configuration in the following locations:
 
 * Windows: `%APPDATA%/ludusavi`
@@ -19,10 +19,10 @@ Ludusavi also stores `manifest.yaml` (info on what to back up) here.
 You should not modify that file, because Ludusavi will overwrite your changes
 whenever it downloads a new copy.
 
-### Schema
+## Schema
 [docs/schema/config.yaml](/docs/schema/config.yaml)
 
-### Example
+## Example
 ```yaml
 manifest:
   url: "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"

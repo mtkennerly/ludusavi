@@ -1,4 +1,4 @@
-## Filter
+# Filter
 You can click the filter icon at the top of the backup/restore screens to use some filters.
 Note that this only affects which games you see in the list,
 but Ludusavi will still back up the full set of games.

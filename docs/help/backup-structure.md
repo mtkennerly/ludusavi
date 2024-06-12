@@ -1,4 +1,4 @@
-## Backup structure
+# Backup structure
 * Within the target folder, for every game with data to back up, a subfolder
   will be created based on the game's name, where some invalid characters are
   replaced by `_`. In rare cases, if the whole name is invalid characters,
