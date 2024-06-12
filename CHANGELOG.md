@@ -3,6 +3,9 @@
 * Fixed:
   * On Linux, if a file name contained a colon (`:`),
     it would fail to back up.
+* Changed:
+  * Updated translations, including a new translation for Finnish.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
 ## v0.24.0 (2024-06-08)
 

@@ -73,6 +73,9 @@ pub enum Language {
     /// Filipino
     #[serde(rename = "fil-PH")]
     Filipino,
+    /// Finnish
+    #[serde(rename = "fi-FI")]
+    Finnish,
     /// French
     #[serde(rename = "fr-FR")]
     French,
@@ -125,6 +128,7 @@ impl Language {
         Self::Polish,
         Self::PortugueseBrazilian,
         Self::Russian,
+        Self::Finnish,
         Self::Turkish,
         Self::Ukrainian,
         // Self::Arabic,
@@ -145,6 +149,7 @@ impl Language {
             Self::English => "en-US",
             Self::Esperanto => "eo",
             Self::Filipino => "fil-PH",
+            Self::Finnish => "fi-FI",
             Self::French => "fr-FR",
             Self::German => "de-DE",
             Self::Italian => "it-IT",
@@ -171,6 +176,7 @@ impl Language {
             Language::English => "English",
             Language::Esperanto => "Esperanto",
             Language::Filipino => "Filipino",
+            Language::Finnish => "Suomi",
             Language::French => "Français",
             Language::German => "Deutsch",
             Language::Italian => "Italiano",
@@ -196,6 +202,7 @@ impl Language {
             Language::English => 100,
             Language::Esperanto => 19,
             Language::Filipino => 35,
+            Language::Finnish => 48,
             Language::French => 100,
             Language::German => 100,
             Language::Italian => 100,
@@ -206,7 +213,7 @@ impl Language {
             Language::Russian => 100,
             Language::Spanish => 100,
             Language::Thai => 24,
-            Language::Turkish => 14,
+            Language::Turkish => 20,
             Language::Ukrainian => 42,
         }
     }
@@ -252,6 +259,7 @@ fn set_language(language: Language) {
         Language::English => include_str!("../lang/en-US.ftl"),
         Language::Esperanto => include_str!("../lang/eo-UY.ftl"),
         Language::Filipino => include_str!("../lang/fil-PH.ftl"),
+        Language::Finnish => include_str!("../lang/fi-FI.ftl"),
         Language::French => include_str!("../lang/fr-FR.ftl"),
         Language::German => include_str!("../lang/de-DE.ftl"),
         Language::Italian => include_str!("../lang/it-IT.ftl"),
