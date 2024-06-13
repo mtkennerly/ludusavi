@@ -27,7 +27,7 @@ use crate::{
     },
     scan::{
         layout::BackupLayout, prepare_backup_target, registry_compat::RegistryItem, scan_game_for_backup, BackupId,
-        Launchers, OperationStepDecision, SteamShortcuts, TitleFinder,
+        Launchers, SteamShortcuts, TitleFinder,
     },
 };
 
@@ -432,12 +432,12 @@ impl App {
                     self.operation_steps.push(Command::perform(
                         async move {
                             if key.trim().is_empty() {
-                                return (None, None, OperationStepDecision::Ignored);
+                                return (None, None);
                             }
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                                 // TODO: https://github.com/hecrj/iced/issues/436
                                 std::thread::sleep(Duration::from_millis(1));
-                                return (None, None, OperationStepDecision::Cancelled);
+                                return (None, None);
                             }
 
                             let previous =
@@ -445,7 +445,7 @@ impl App {
 
                             if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
                                 log::trace!("[{key}] excluded by backup filter");
-                                return (None, None, OperationStepDecision::Ignored);
+                                return (None, None);
                             }
 
                             let scan_info = scan_game_for_backup(
@@ -464,7 +464,7 @@ impl App {
                                 &steam_shortcuts,
                             );
                             if !config.is_game_enabled_for_backup(&key) && full {
-                                return (Some(scan_info), None, OperationStepDecision::Ignored);
+                                return (Some(scan_info), None);
                             }
 
                             let backup_info = if !preview {
@@ -476,14 +476,10 @@ impl App {
                             } else {
                                 None
                             };
-                            (Some(scan_info), backup_info, OperationStepDecision::Processed)
+                            (Some(scan_info), backup_info)
                         },
-                        move |(scan_info, backup_info, decision)| {
-                            Message::Backup(BackupPhase::GameScanned {
-                                scan_info,
-                                backup_info,
-                                decision,
-                            })
+                        move |(scan_info, backup_info)| {
+                            Message::Backup(BackupPhase::GameScanned { scan_info, backup_info })
                         },
                     ));
                 }
@@ -491,11 +487,7 @@ impl App {
                 self.operation_steps_active = 100.min(self.operation_steps.len());
                 Command::batch(self.operation_steps.drain(..self.operation_steps_active))
             }
-            BackupPhase::GameScanned {
-                scan_info,
-                backup_info,
-                decision: _,
-            } => {
+            BackupPhase::GameScanned { scan_info, backup_info } => {
                 self.progress.step();
                 let restoring = false;
                 let full = self.operation.full();
@@ -777,7 +769,7 @@ impl App {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                                 // TODO: https://github.com/hecrj/iced/issues/436
                                 std::thread::sleep(Duration::from_millis(1));
-                                return (None, None, OperationStepDecision::Cancelled, layout);
+                                return (None, None, layout);
                             }
 
                             let scan_info = layout.scan_for_restoration(
@@ -788,7 +780,7 @@ impl App {
                                 &config.restore.toggled_registry,
                             );
                             if !config.is_game_enabled_for_restore(&name) && full {
-                                return (Some(scan_info), None, OperationStepDecision::Ignored, layout);
+                                return (Some(scan_info), None, layout);
                             }
 
                             let backup_info = if scan_info.backup.is_some() && !preview {
@@ -796,13 +788,12 @@ impl App {
                             } else {
                                 None
                             };
-                            (Some(scan_info), backup_info, OperationStepDecision::Processed, layout)
+                            (Some(scan_info), backup_info, layout)
                         },
-                        move |(scan_info, backup_info, decision, game_layout)| {
+                        move |(scan_info, backup_info, game_layout)| {
                             Message::Restore(RestorePhase::GameScanned {
                                 scan_info,
                                 backup_info,
-                                decision,
                                 game_layout: Box::new(game_layout),
                             })
                         },
@@ -815,7 +806,6 @@ impl App {
             RestorePhase::GameScanned {
                 scan_info,
                 backup_info,
-                decision: _,
                 game_layout,
             } => {
                 self.progress.step();
@@ -1776,12 +1766,7 @@ impl Application for App {
                 }
                 _ => Command::none(),
             },
-            Message::ToggleSpecificGamePathIgnored {
-                name,
-                path,
-                enabled: _,
-                restoring,
-            } => {
+            Message::ToggleSpecificGamePathIgnored { name, path, restoring } => {
                 if restoring {
                     self.config.restore.toggled_paths.toggle(&name, &path);
                     self.restore_screen.log.refresh_game_tree(
@@ -1806,7 +1791,6 @@ impl Application for App {
                 name,
                 path,
                 value,
-                enabled: _,
                 restoring,
             } => {
                 if restoring {

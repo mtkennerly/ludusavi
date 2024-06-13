@@ -202,8 +202,10 @@ pub fn initialize_rayon(threads: NonZeroUsize) {
 }
 
 pub struct CommandOutput {
+    #[allow(unused)]
     pub code: i32,
     pub stdout: String,
+    #[allow(unused)]
     pub stderr: String,
 }
 

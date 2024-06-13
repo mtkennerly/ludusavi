@@ -62,6 +62,7 @@ pub fn escape_folder_name(name: &str) -> String {
 
 pub struct LatestBackup {
     pub scan: ScanInfo,
+    #[allow(unused)]
     pub registry_content: Option<String>,
 }
 

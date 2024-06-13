@@ -27,9 +27,7 @@ use crate::{
 pub struct GameListEntry {
     pub scan_info: ScanInfo,
     pub backup_info: Option<BackupInfo>,
-    pub selected_backup: Option<String>,
     pub tree: Option<FileTree>,
-    pub popup_menu: crate::gui::popup_menu::State<GameAction>,
     pub show_comment_editor: bool,
     pub game_layout: Option<GameLayout>,
     /// The `scan_info` gets mutated in response to things like toggling saves off,

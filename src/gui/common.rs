@@ -21,7 +21,7 @@ use crate::{
         game_filter,
         layout::{Backup, BackupLayout, GameLayout},
         registry_compat::RegistryItem,
-        BackupInfo, Launchers, OperationStepDecision, ScanInfo, SteamShortcuts,
+        BackupInfo, Launchers, ScanInfo, SteamShortcuts,
     },
 };
 
@@ -53,7 +53,6 @@ pub enum BackupPhase {
     GameScanned {
         scan_info: Option<ScanInfo>,
         backup_info: Option<BackupInfo>,
-        decision: OperationStepDecision,
     },
     CloudSync,
     Done,
@@ -77,7 +76,6 @@ pub enum RestorePhase {
     GameScanned {
         scan_info: Option<ScanInfo>,
         backup_info: Option<BackupInfo>,
-        decision: OperationStepDecision,
         game_layout: Box<GameLayout>,
     },
     Done,
@@ -153,14 +151,12 @@ pub enum Message {
     ToggleSpecificGamePathIgnored {
         name: String,
         path: StrictPath,
-        enabled: bool,
         restoring: bool,
     },
     ToggleSpecificGameRegistryIgnored {
         name: String,
         path: RegistryItem,
         value: Option<String>,
-        enabled: bool,
         restoring: bool,
     },
     ToggleCustomGameEnabled {

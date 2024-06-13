@@ -104,6 +104,7 @@ impl OperationStatus {
 pub enum OperationStepDecision {
     #[default]
     Processed,
+    #[allow(unused)]
     Cancelled,
     Ignored,
 }

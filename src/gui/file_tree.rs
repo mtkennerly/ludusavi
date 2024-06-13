@@ -112,25 +112,22 @@ impl FileTreeNode {
             let path = self.path.clone();
             Some(
                 Container::new(
-                    checkbox("", !self.ignored, move |enabled| match &path {
+                    checkbox("", !self.ignored, move |_| match &path {
                         FileTreeNodePath::File(path) => Message::ToggleSpecificGamePathIgnored {
                             name: game_name.clone(),
                             path: path.clone(),
-                            enabled,
                             restoring,
                         },
                         FileTreeNodePath::RegistryKey(path) => Message::ToggleSpecificGameRegistryIgnored {
                             name: game_name.clone(),
                             path: path.clone(),
                             value: None,
-                            enabled,
                             restoring,
                         },
                         FileTreeNodePath::RegistryValue(path, name) => Message::ToggleSpecificGameRegistryIgnored {
                             name: game_name.clone(),
                             path: path.clone(),
                             value: Some(name.clone()),
-                            enabled,
                             restoring,
                         },
                     })
