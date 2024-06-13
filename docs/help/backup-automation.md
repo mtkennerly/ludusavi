@@ -68,4 +68,4 @@ For example, create two files:
   WantedBy=timers.target
   ```
 
-Then run `systemctl --user enable ~/.config/systemd/user/ludusavi-backup.time` in your terminal.
+Then run `systemctl --user enable ~/.config/systemd/user/ludusavi-backup.timer` in your terminal.
