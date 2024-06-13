@@ -77,6 +77,19 @@ pub enum StrictPathError {
     Unsupported,
 }
 
+#[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord)]
+struct Analysis {
+    drive: Option<Drive>,
+    parts: Vec<String>,
+}
+
+impl Analysis {
+    #[cfg(test)]
+    fn new(drive: Option<Drive>, parts: Vec<String>) -> Self {
+        Self { drive, parts }
+    }
+}
+
 /// This is a wrapper around paths to make it more obvious when we're
 /// converting between different representations. This also handles
 /// things like `~`.
@@ -176,14 +189,13 @@ impl StrictPath {
         *cached = None;
     }
 
-    fn analyze(&self) -> (Option<Drive>, Vec<String>) {
+    fn analyze(&self) -> Analysis {
         use typed_path::{
             Utf8TypedComponent as Component, Utf8TypedPath as TypedPath, Utf8UnixComponent as UComponent,
             Utf8WindowsComponent as WComponent, Utf8WindowsPrefix as WindowsPrefix,
         };
 
-        let mut drive = None;
-        let mut parts = vec![];
+        let mut analysis = Analysis::default();
 
         for (i, component) in TypedPath::derive(self.raw.trim()).components().enumerate() {
             match component {
@@ -196,27 +208,27 @@ impl StrictPath {
                         WindowsPrefix::UNC(server, share) => format!(r"\\{}\{}", server, share),
                         WindowsPrefix::Disk(id) => format!("{}:", id.to_ascii_uppercase()),
                     };
-                    drive = Some(Drive::Windows(mapped));
+                    analysis.drive = Some(Drive::Windows(mapped));
                 }
                 Component::Unix(UComponent::RootDir) | Component::Windows(WComponent::RootDir) => {
                     if i == 0 {
-                        drive = Some(Drive::Root);
+                        analysis.drive = Some(Drive::Root);
                     }
                 }
                 Component::Unix(UComponent::CurDir) | Component::Windows(WComponent::CurDir) => {
                     if i == 0 {
                         if let Some(basis) = &self.basis {
-                            (drive, parts) = Self::new(basis.clone()).analyze();
+                            analysis = Self::new(basis.clone()).analyze();
                         }
                     }
                 }
                 Component::Unix(UComponent::ParentDir) | Component::Windows(WComponent::ParentDir) => {
                     if i == 0 {
                         if let Some(basis) = &self.basis {
-                            (drive, parts) = Self::new(basis.clone()).analyze();
+                            analysis = Self::new(basis.clone()).analyze();
                         }
                     }
-                    parts.pop();
+                    analysis.parts.pop();
                 }
                 Component::Unix(UComponent::Normal(part)) | Component::Windows(WComponent::Normal(part)) => {
                     if i == 0 {
@@ -233,15 +245,15 @@ impl StrictPath {
                         };
 
                         if let Some(mapped) = mapped {
-                            (drive, parts) = Self::new(mapped.to_string()).analyze();
+                            analysis = Self::new(mapped.to_string()).analyze();
                             continue;
                         } else if let Some(basis) = &self.basis {
-                            (drive, parts) = Self::new(basis.clone()).analyze();
+                            analysis = Self::new(basis.clone()).analyze();
                         }
                     }
 
                     if part == placeholder::OS_USER_NAME {
-                        parts.push(crate::prelude::OS_USERNAME.to_string());
+                        analysis.parts.push(crate::prelude::OS_USERNAME.to_string());
                         continue;
                     }
 
@@ -249,17 +261,17 @@ impl StrictPath {
                     if part.contains('\\') {
                         for part in part.split('\\') {
                             if !part.trim().is_empty() {
-                                parts.push(part.to_string());
+                                analysis.parts.push(part.to_string());
                             }
                         }
                     } else {
-                        parts.push(part.to_string());
+                        analysis.parts.push(part.to_string());
                     }
                 }
             }
         }
 
-        (drive, parts)
+        analysis
     }
 
     fn display(&self) -> String {
@@ -268,11 +280,17 @@ impl StrictPath {
         }
 
         match self.analyze() {
-            (Some(Drive::Root), parts) => format!("/{}", parts.join("/")),
-            (Some(Drive::Windows(id)), parts) => {
+            Analysis {
+                drive: Some(Drive::Root),
+                parts,
+            } => format!("/{}", parts.join("/")),
+            Analysis {
+                drive: Some(Drive::Windows(id)),
+                parts,
+            } => {
                 format!("{}/{}", id, parts.join("/"))
             }
-            (None, parts) => parts.join("/"),
+            Analysis { drive: None, parts } => parts.join("/"),
         }
     }
 
@@ -290,14 +308,20 @@ impl StrictPath {
         }
 
         let analysis = self.analyze();
-        if analysis.1.iter().any(|x| x.contains(':')) {
+        if analysis.parts.iter().any(|x| x.contains(':')) {
             return Err(StrictPathError::Unsupported);
         }
 
         match analysis {
-            (Some(Drive::Root), _) => Err(StrictPathError::Unsupported),
-            (Some(Drive::Windows(id)), parts) => Ok(format!("{}\\{}", id, parts.join("\\"))),
-            (None, parts) => match &self.basis {
+            Analysis {
+                drive: Some(Drive::Root),
+                ..
+            } => Err(StrictPathError::Unsupported),
+            Analysis {
+                drive: Some(Drive::Windows(id)),
+                parts,
+            } => Ok(format!("{}\\{}", id, parts.join("\\"))),
+            Analysis { drive: None, parts } => match &self.basis {
                 Some(basis) => Ok(format!("{}\\{}", basis, parts.join("\\"))),
                 None => Err(StrictPathError::Relative),
             },
@@ -310,9 +334,15 @@ impl StrictPath {
         }
 
         match self.analyze() {
-            (Some(Drive::Root), parts) => Ok(format!("/{}", parts.join("/"))),
-            (Some(Drive::Windows(_)), _) => Err(StrictPathError::Unsupported),
-            (None, parts) => match &self.basis {
+            Analysis {
+                drive: Some(Drive::Root),
+                parts,
+            } => Ok(format!("/{}", parts.join("/"))),
+            Analysis {
+                drive: Some(Drive::Windows(_)),
+                ..
+            } => Err(StrictPathError::Unsupported),
+            Analysis { drive: None, parts } => match &self.basis {
                 Some(basis) => Ok(format!("{}/{}", basis, parts.join("/"))),
                 None => Err(StrictPathError::Relative),
             },
@@ -488,15 +518,21 @@ impl StrictPath {
 
     pub fn popped(&self) -> Self {
         let raw = match self.analyze() {
-            (Some(Drive::Root), mut parts) => {
+            Analysis {
+                drive: Some(Drive::Root),
+                mut parts,
+            } => {
                 parts.pop();
                 format!("/{}", parts.join("/"))
             }
-            (Some(Drive::Windows(id)), mut parts) => {
+            Analysis {
+                drive: Some(Drive::Windows(id)),
+                mut parts,
+            } => {
                 parts.pop();
                 format!("{}/{}", id, parts.join("/"))
             }
-            (None, mut parts) => {
+            Analysis { drive: None, mut parts } => {
                 parts.pop();
                 match &self.basis {
                     Some(basis) => format!("{}/{}", basis, parts.join("/")),
@@ -654,9 +690,15 @@ impl StrictPath {
     /// so relative paths should have already been filtered out.
     pub fn split_drive(&self) -> (String, String) {
         match self.analyze() {
-            (Some(Drive::Root), parts) => ("".to_string(), parts.join("/")),
-            (Some(Drive::Windows(id)), parts) => (id, parts.join("/")),
-            (None, _) => {
+            Analysis {
+                drive: Some(Drive::Root),
+                parts,
+            } => ("".to_string(), parts.join("/")),
+            Analysis {
+                drive: Some(Drive::Windows(id)),
+                parts,
+            } => (id, parts.join("/")),
+            Analysis { drive: None, .. } => {
                 log::error!("Unreachable state: unable to split drive of path: {}", &self.raw);
                 unreachable!()
             }
@@ -695,34 +737,34 @@ impl StrictPath {
     }
 
     pub fn is_prefix_of(&self, other: &Self) -> bool {
-        let (us_drive, us_parts) = self.analyze();
-        let (them_drive, them_parts) = other.analyze();
+        let us = self.analyze();
+        let them = other.analyze();
 
-        if us_drive != them_drive {
+        if us.drive != them.drive {
             return false;
         }
 
-        if us_parts.len() >= them_parts.len() {
+        if us.parts.len() >= them.parts.len() {
             return false;
         }
 
-        us_parts.iter().zip(them_parts.iter()).all(|(us, them)| us == them)
+        us.parts.iter().zip(them.parts.iter()).all(|(us, them)| us == them)
     }
 
     pub fn nearest_prefix(&self, others: Vec<StrictPath>) -> Option<StrictPath> {
-        let (us_drive, us_parts) = self.analyze();
-        let us_count = us_parts.len();
+        let us = self.analyze();
+        let us_count = us.parts.len();
 
         let mut nearest = None;
         let mut nearest_len = 0;
         for other in others {
-            let (them_drive, them_parts) = other.analyze();
-            let them_len = them_parts.len();
+            let them = other.analyze();
+            let them_len = them.parts.len();
 
-            if us_drive != them_drive || us_count <= them_len {
+            if us.drive != them.drive || us_count <= them_len {
                 continue;
             }
-            if us_parts.iter().zip(them_parts.iter()).all(|(us, them)| us == them) && them_len > nearest_len {
+            if us.parts.iter().zip(them.parts.iter()).all(|(us, them)| us == them) && them_len > nearest_len {
                 nearest = Some(other);
                 nearest_len = them_len;
             }
@@ -1024,8 +1066,11 @@ mod tests {
 
         use pretty_assertions::assert_eq;
 
-        fn analysis(drive: Drive) -> (Option<Drive>, Vec<String>) {
-            (Some(drive), vec!["foo".to_string(), "bar".to_string()])
+        fn analysis(drive: Drive) -> Analysis {
+            Analysis {
+                drive: Some(drive),
+                parts: vec!["foo".to_string(), "bar".to_string()],
+            }
         }
 
         #[test]
@@ -1104,14 +1149,14 @@ mod tests {
         #[test]
         fn relative_plain() {
             let path = StrictPath::from("foo");
-            assert_eq!((None, vec!["foo".to_string()]), path.analyze());
+            assert_eq!(Analysis::new(None, vec!["foo".to_string()]), path.analyze());
             assert_eq!("foo".to_string(), path.display());
             assert_eq!(Err(StrictPathError::Relative), path.access_windows());
             assert_eq!(Err(StrictPathError::Relative), path.access_nonwindows());
 
             let path = StrictPath::relative("foo".to_string(), Some("/tmp".to_string()));
             assert_eq!(
-                (Some(Drive::Root), vec!["tmp".to_string(), "foo".to_string()]),
+                Analysis::new(Some(Drive::Root), vec!["tmp".to_string(), "foo".to_string()]),
                 path.analyze()
             );
             assert_eq!("/tmp/foo".to_string(), path.display());
@@ -1120,7 +1165,7 @@ mod tests {
 
             let path = StrictPath::relative("foo".to_string(), Some("C:/tmp".to_string()));
             assert_eq!(
-                (
+                Analysis::new(
                     Some(Drive::Windows("C:".to_string())),
                     vec!["tmp".to_string(), "foo".to_string()]
                 ),
@@ -1134,14 +1179,14 @@ mod tests {
         #[test]
         fn relative_single_dot() {
             let path = StrictPath::from("./foo");
-            assert_eq!((None, vec!["foo".to_string()]), path.analyze());
+            assert_eq!(Analysis::new(None, vec!["foo".to_string()]), path.analyze());
             assert_eq!("foo".to_string(), path.display());
             assert_eq!(Err(StrictPathError::Relative), path.access_windows());
             assert_eq!(Err(StrictPathError::Relative), path.access_nonwindows());
 
             let path = StrictPath::relative("./foo".to_string(), Some("/tmp".to_string()));
             assert_eq!(
-                (Some(Drive::Root), vec!["tmp".to_string(), "foo".to_string()]),
+                Analysis::new(Some(Drive::Root), vec!["tmp".to_string(), "foo".to_string()]),
                 path.analyze()
             );
             assert_eq!("/tmp/foo".to_string(), path.display());
@@ -1150,7 +1195,7 @@ mod tests {
 
             let path = StrictPath::relative("./foo".to_string(), Some("C:/tmp".to_string()));
             assert_eq!(
-                (
+                Analysis::new(
                     Some(Drive::Windows("C:".to_string())),
                     vec!["tmp".to_string(), "foo".to_string()]
                 ),
@@ -1164,14 +1209,14 @@ mod tests {
         #[test]
         fn relative_double_dot() {
             let path = StrictPath::from("../foo");
-            assert_eq!((None, vec!["foo".to_string()]), path.analyze());
+            assert_eq!(Analysis::new(None, vec!["foo".to_string()]), path.analyze());
             assert_eq!("foo".to_string(), path.display());
             assert_eq!(Err(StrictPathError::Relative), path.access_windows());
             assert_eq!(Err(StrictPathError::Relative), path.access_nonwindows());
 
             let path = StrictPath::relative("../foo".to_string(), Some("/tmp/bar".to_string()));
             assert_eq!(
-                (Some(Drive::Root), vec!["tmp".to_string(), "foo".to_string()]),
+                Analysis::new(Some(Drive::Root), vec!["tmp".to_string(), "foo".to_string()]),
                 path.analyze()
             );
             assert_eq!("/tmp/foo".to_string(), path.display());
@@ -1180,7 +1225,7 @@ mod tests {
 
             let path = StrictPath::relative("../foo".to_string(), Some("C:/tmp/bar".to_string()));
             assert_eq!(
-                (
+                Analysis::new(
                     Some(Drive::Windows("C:".to_string())),
                     vec!["tmp".to_string(), "foo".to_string()]
                 ),
@@ -1200,7 +1245,7 @@ mod tests {
         #[test]
         fn empty() {
             let path = StrictPath::from("");
-            assert_eq!((None, vec![]), path.analyze());
+            assert_eq!(Analysis::new(None, vec![]), path.analyze());
             assert_eq!("".to_string(), path.display());
             assert_eq!(Err(StrictPathError::Empty), path.access_windows());
             assert_eq!(Err(StrictPathError::Empty), path.access_nonwindows());
@@ -1210,7 +1255,7 @@ mod tests {
         fn extra_slashes() {
             let path = StrictPath::from(r"///foo\\bar/\baz");
             assert_eq!(
-                (
+                Analysis::new(
                     Some(Drive::Root),
                     vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]
                 ),
@@ -1222,7 +1267,7 @@ mod tests {
         fn mixed_style() {
             let path = StrictPath::from(r"/foo\bar");
             assert_eq!(
-                (Some(Drive::Root), vec!["foo".to_string(), "bar".to_string()]),
+                Analysis::new(Some(Drive::Root), vec!["foo".to_string(), "bar".to_string()]),
                 path.analyze()
             );
         }
@@ -1231,14 +1276,14 @@ mod tests {
         fn linux_root_variations() {
             let path = StrictPath::from("/");
 
-            assert_eq!((Some(Drive::Root), vec![]), path.analyze());
+            assert_eq!(Analysis::new(Some(Drive::Root), vec![]), path.analyze());
             assert_eq!("/", path.display());
             assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
             assert_eq!(Ok("/".to_string()), path.access_nonwindows());
 
             let path = StrictPath::from(r"\");
 
-            assert_eq!((Some(Drive::Root), vec![]), path.analyze());
+            assert_eq!(Analysis::new(Some(Drive::Root), vec![]), path.analyze());
             assert_eq!("/", path.display());
             assert_eq!(Err(StrictPathError::Unsupported), path.access_windows());
             assert_eq!(Ok("/".to_string()), path.access_nonwindows());
@@ -1250,7 +1295,7 @@ mod tests {
                 ($input:expr, $output:expr) => {
                     let path = StrictPath::from($input);
                     assert_eq!(
-                        (Some(Drive::Windows($output.to_string())), vec![]),
+                        Analysis::new(Some(Drive::Windows($output.to_string())), vec![]),
                         path.analyze()
                     );
                 };
@@ -1262,6 +1307,7 @@ mod tests {
 
             // Verbatim UNC
             check!(r"\\?\UNC\server\share", r"\\?\UNC\server\share");
+            // TODO: Fix or remove this case?
             // check!(r"//?/UNC/server/share", r"\\?\UNC\server\share");
 
             // Verbatim disk
