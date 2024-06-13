@@ -1,6 +1,10 @@
 ## Unreleased
 
 * Fixed:
+  * Symlinks were incorrectly traversed when applying redirects.
+    For example, if you had a backup-type redirect from `/old` to `/new`,
+    but `/new` happened to be a symlink to `/newer` on your system,
+    then the backup would incorrectly contain a reference to `/newer`.
   * On Linux, if a file name contained a colon (`:`),
     it would fail to back up.
 * Changed:

@@ -406,10 +406,9 @@ impl StrictPath {
     }
 
     pub fn render(&self) -> String {
-        match self.canonical() {
-            Canonical::Valid(path) => Self::new(path).display(),
-            Canonical::Unsupported | Canonical::Inaccessible => self.display(),
-        }
+        // We don't want to use `interpret` or `canonical` internally here,
+        // because we may need to display a symlink path without traversing it.
+        self.display()
     }
 
     pub fn rendered(&self) -> Self {

@@ -476,7 +476,7 @@ pub fn scan_game_for_backup(
     // typically going to be used for only one or a few games at a time.
     // For other Wine roots, it would trigger for every game.
     if let Some(wp) = wine_prefix {
-        log::trace!("[{name}] adding extra Wine prefix: {}", wp.raw());
+        log::trace!("[{name}] adding extra Wine prefix: {wp:?}");
         scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, !game.registry.is_empty());
     }
 
@@ -495,9 +495,9 @@ pub fn scan_game_for_backup(
 
     for root in roots_to_check {
         log::trace!(
-            "[{name}] adding candidates from {:?} root: {}",
+            "[{name}] adding candidates from {:?} root: {:?}",
             root.store,
-            root.path.raw()
+            &root.path
         );
         if root.path.raw().trim().is_empty() {
             continue;
@@ -556,7 +556,7 @@ pub fn scan_game_for_backup(
             }
 
             for (candidate, case_sensitive) in candidates {
-                log::trace!("[{name}] parsed candidate: {}", candidate.raw());
+                log::trace!("[{name}] parsed candidate: {candidate:?}");
                 if candidate.raw().contains('<') {
                     // This covers `SKIP` and any other unmatched placeholders.
                     continue;
@@ -611,9 +611,9 @@ pub fn scan_game_for_backup(
         .unwrap_or_default();
 
     for (path, case_sensitive) in paths_to_check {
-        log::trace!("[{name}] checking: {}", path.raw());
+        log::trace!("[{name}] checking: {path:?}");
         if filter.is_path_ignored(&path) {
-            log::debug!("[{name}] excluded: {}", path.raw());
+            log::debug!("[{name}] excluded: {path:?}");
             continue;
         }
         let paths = match case_sensitive {
@@ -621,14 +621,16 @@ pub fn scan_game_for_backup(
             Some(cs) => path.glob_case_sensitive(cs),
         };
         for p in paths {
-            let p = p.rendered();
             if p.is_file() {
+                let Ok(p) = p.interpreted().map(|x| x.rendered()) else {
+                    continue;
+                };
                 if filter.is_path_ignored(&p) {
-                    log::debug!("[{name}] excluded: {}", p.raw());
+                    log::debug!("[{name}] excluded: {p:?}");
                     continue;
                 }
                 let ignored = ignored_paths.is_ignored(name, &p);
-                log::debug!("[{name}] found: {}", p.raw());
+                log::debug!("[{name}] found: {p:?}");
                 let hash = p.sha1();
                 let redirected = game_file_target(&p, redirects, false);
                 found_files.insert(ScannedFile {
@@ -642,7 +644,7 @@ pub fn scan_game_for_backup(
                     container: None,
                 });
             } else if p.is_dir() {
-                log::trace!("[{name}] looking for files in: {}", p.raw());
+                log::trace!("[{name}] looking for files in: {p:?}");
                 for child in walkdir::WalkDir::new(p.as_std_path_buf().unwrap())
                     .max_depth(100)
                     .follow_links(true)
@@ -656,13 +658,16 @@ pub fn scan_game_for_backup(
                     }
 
                     if child.file_type().is_file() {
-                        let child = StrictPath::from(&child).rendered();
+                        let Ok(child) = StrictPath::from(&child).interpreted().map(|x| x.rendered()) else {
+                            continue;
+                        };
+
                         if filter.is_path_ignored(&child) {
-                            log::debug!("[{name}] excluded: {}", child.raw());
+                            log::debug!("[{name}] excluded: {child:?}");
                             continue;
                         }
                         let ignored = ignored_paths.is_ignored(name, &child);
-                        log::debug!("[{name}] found: {}", child.raw());
+                        log::debug!("[{name}] found: {child:?}");
                         let hash = child.sha1();
                         let redirected = game_file_target(&child, redirects, false);
                         found_files.insert(ScannedFile {
@@ -1029,6 +1034,51 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                &Default::default(),
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_redirect_to_symlink() {
+        let roots = &[RootsConfig {
+            path: StrictPath::new(format!("{}/tests/root3", repo())),
+            store: Store::Other,
+        }];
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game5"),
+                found_files: hash_set! {
+                    ScannedFile {
+                        path: StrictPath::new(format!("{}/tests/root3/game5/data/file1.txt", repo())),
+                        size: 1,
+                        hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".to_string(),
+                        original_path: None,
+                        ignored: false,
+                        change: ScanChange::New,
+                        container: None,
+                        redirected: Some(StrictPath::new(format!("{}/tests/root3/game5/data-symlink/file1.txt", repo()))),
+                    },
+                },
+                found_registry_keys: hash_set! {},
+                ..Default::default()
+            },
+            scan_game_for_backup(
+                &manifest().0["game5"],
+                "game5",
+                roots,
+                &StrictPath::new(repo()),
+                &Launchers::scan_dirs(roots, &manifest(), &["game5".to_string()]),
+                &BackupFilter::default(),
+                &None,
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
+                None,
+                &[RedirectConfig {
+                    kind: RedirectKind::Bidirectional,
+                    source: StrictPath::new(format!("{}/tests/root3/game5/data", repo())),
+                    target: StrictPath::new(format!("{}/tests/root3/game5/data-symlink", repo())),
+                }],
                 &Default::default(),
             ),
         );
