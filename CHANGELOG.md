@@ -5,6 +5,9 @@
     For example, if you had a backup-type redirect from `/old` to `/new`,
     but `/new` happened to be a symlink to `/newer` on your system,
     then the backup would incorrectly contain a reference to `/newer`.
+  * Redirects could match a partial folder/file name.
+    For example, a restore-type redirect from `C:/old` to `C:/new`
+    would *also* redirect `C:/older` to `C:/newer` (`C:/[old -> new]er`).
   * On Linux, if a file name contained a colon (`:`),
     it would fail to back up.
   * GUI: When using a game's context menu to create a custom entry,

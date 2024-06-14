@@ -31,45 +31,32 @@ use crate::{
 use crate::scan::registry_compat::RegistryItem;
 
 /// Returns the effective target, if different from the original
-pub fn game_file_target(
-    original_target: &StrictPath,
-    redirects: &[RedirectConfig],
-    restoring: bool,
-) -> Option<StrictPath> {
+pub fn game_file_target(original: &StrictPath, redirects: &[RedirectConfig], restoring: bool) -> Option<StrictPath> {
     if redirects.is_empty() {
         return None;
     }
 
-    let mut redirected_target = original_target.render();
+    let mut redirected = original.clone();
     for redirect in redirects {
         if redirect.source.raw().trim().is_empty() || redirect.target.raw().trim().is_empty() {
             continue;
         }
         let (source, target) = if !restoring {
             match redirect.kind {
-                RedirectKind::Backup | RedirectKind::Bidirectional => {
-                    (redirect.source.render(), redirect.target.render())
-                }
+                RedirectKind::Backup | RedirectKind::Bidirectional => (&redirect.source, &redirect.target),
                 RedirectKind::Restore => continue,
             }
         } else {
             match redirect.kind {
                 RedirectKind::Backup => continue,
-                RedirectKind::Restore => (redirect.source.render(), redirect.target.render()),
-                RedirectKind::Bidirectional => (redirect.target.render(), redirect.source.render()),
+                RedirectKind::Restore => (&redirect.source, &redirect.target),
+                RedirectKind::Bidirectional => (&redirect.target, &redirect.source),
             }
         };
-        if !source.is_empty() && !target.is_empty() && redirected_target.starts_with(&source) {
-            redirected_target = redirected_target.replacen(&source, &target, 1);
-        }
+        redirected = redirected.replace(source, target);
     }
 
-    let redirected_target = StrictPath::new(redirected_target);
-    if original_target.render() != redirected_target.render() {
-        Some(redirected_target)
-    } else {
-        None
-    }
+    (original != &redirected).then_some(redirected)
 }
 
 fn check_windows_path(path: &str) -> &str {
@@ -951,6 +938,78 @@ mod tests {
             "#,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn can_compute_game_file_target() {
+        // No redirects
+        assert_eq!(None, game_file_target(&StrictPath::new("/foo".into()), &[], false));
+
+        // Match - backup
+        assert_eq!(
+            Some(StrictPath::new("/quux".into())),
+            game_file_target(
+                &StrictPath::new("/foo".into()),
+                &[
+                    RedirectConfig {
+                        kind: RedirectKind::Backup,
+                        source: StrictPath::new("/foo".into()),
+                        target: StrictPath::new("/bar".into()),
+                    },
+                    RedirectConfig {
+                        kind: RedirectKind::Restore,
+                        source: StrictPath::new("/bar".into()),
+                        target: StrictPath::new("/baz".into()),
+                    },
+                    RedirectConfig {
+                        kind: RedirectKind::Bidirectional,
+                        source: StrictPath::new("/bar".into()),
+                        target: StrictPath::new("/quux".into()),
+                    },
+                ],
+                false,
+            ),
+        );
+
+        // Match - restore
+        assert_eq!(
+            Some(StrictPath::new("/foo".into())),
+            game_file_target(
+                &StrictPath::new("/quux".into()),
+                &[
+                    RedirectConfig {
+                        kind: RedirectKind::Bidirectional,
+                        source: StrictPath::new("/bar".into()),
+                        target: StrictPath::new("/quux".into()),
+                    },
+                    RedirectConfig {
+                        kind: RedirectKind::Restore,
+                        source: StrictPath::new("/bar".into()),
+                        target: StrictPath::new("/foo".into()),
+                    },
+                    RedirectConfig {
+                        kind: RedirectKind::Backup,
+                        source: StrictPath::new("/foo".into()),
+                        target: StrictPath::new("/baz".into()),
+                    },
+                ],
+                true,
+            ),
+        );
+
+        // Mismatch - partial name
+        assert_eq!(
+            None,
+            game_file_target(
+                &StrictPath::new("/foo".into()),
+                &[RedirectConfig {
+                    kind: RedirectKind::Backup,
+                    source: StrictPath::new("/f".into()),
+                    target: StrictPath::new("/b".into()),
+                },],
+                false,
+            ),
+        );
     }
 
     #[test]

@@ -1,6 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use filetime::FileTime;
+use itertools::Itertools;
 use once_cell::sync::Lazy;
 
 use crate::{
@@ -543,6 +544,40 @@ impl StrictPath {
         Self::new(raw)
     }
 
+    pub fn replace(&self, find: &Self, new: &Self) -> Self {
+        if find.raw.trim().is_empty() || new.raw.trim().is_empty() {
+            return self.clone();
+        }
+
+        let us = self.analyze();
+        let find = find.analyze();
+
+        if us.drive != find.drive {
+            return self.clone();
+        }
+
+        let mut tail = vec![];
+        for pair in us.parts.into_iter().zip_longest(find.parts.into_iter()) {
+            match pair {
+                itertools::EitherOrBoth::Both(old, find) => {
+                    if old != find {
+                        return self.clone();
+                    }
+                }
+                itertools::EitherOrBoth::Left(old) => {
+                    tail.push(old);
+                }
+                itertools::EitherOrBoth::Right(..) => {
+                    return self.clone();
+                }
+            }
+        }
+
+        let mut new = new.analyze();
+        new.parts.extend(tail);
+        new.into()
+    }
+
     pub fn create(&self) -> std::io::Result<std::fs::File> {
         std::fs::File::create(self.as_std_path_buf()?)
     }
@@ -906,6 +941,26 @@ impl From<&StrictPath> for StrictPath {
     }
 }
 
+impl From<Analysis> for StrictPath {
+    fn from(value: Analysis) -> Self {
+        let raw = match value {
+            Analysis {
+                drive: Some(Drive::Root),
+                parts,
+            } => format!("/{}", parts.join("/")),
+            Analysis {
+                drive: Some(Drive::Windows(id)),
+                parts,
+            } => {
+                format!("{}/{}", id, parts.join("/"))
+            }
+            Analysis { drive: None, parts } => parts.join("/"),
+        };
+
+        Self::new(raw)
+    }
+}
+
 impl serde::Serialize for StrictPath {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -1057,6 +1112,59 @@ mod tests {
             assert!(StrictPath::new(format!("{}/tests/root1/game1/file1.txt", repo()))
                 .try_same_content(&StrictPath::new(format!("{}/nonexistent.txt", repo())))
                 .is_err());
+        }
+
+        #[test]
+        fn can_replace() {
+            // Identical
+            assert_eq!(
+                StrictPath::new("/foo".into()),
+                StrictPath::new("/foo".into())
+                    .replace(&StrictPath::new("/foo".into()), &StrictPath::new("/foo".into())),
+            );
+
+            // Match
+            assert_eq!(
+                StrictPath::new("/baz/bar".into()),
+                StrictPath::new("/foo/bar".into())
+                    .replace(&StrictPath::new("/foo".into()), &StrictPath::new("/baz".into())),
+            );
+
+            // Mismatch
+            assert_eq!(
+                StrictPath::new("/a".into()),
+                StrictPath::new("/a".into()).replace(&StrictPath::new("/ab".into()), &StrictPath::new("/ac".into())),
+            );
+
+            // Linux to Windows
+            assert_eq!(
+                StrictPath::new("C:/foo".into()),
+                StrictPath::new("/foo".into()).replace(&StrictPath::new("/".into()), &StrictPath::new("C:".into())),
+            );
+
+            // Windows to Linux
+            assert_eq!(
+                StrictPath::new("/foo".into()),
+                StrictPath::new("C:/foo".into()).replace(&StrictPath::new("C:/".into()), &StrictPath::new("/".into())),
+            );
+
+            // Empty - original
+            assert_eq!(
+                StrictPath::new("".into()),
+                StrictPath::new("".into()).replace(&StrictPath::new("/foo".into()), &StrictPath::new("/bar".into())),
+            );
+
+            // Empty - find
+            assert_eq!(
+                StrictPath::new("/foo".into()),
+                StrictPath::new("/foo".into()).replace(&StrictPath::new("".into()), &StrictPath::new("/bar".into())),
+            );
+
+            // Empty - new
+            assert_eq!(
+                StrictPath::new("/foo".into()),
+                StrictPath::new("/foo".into()).replace(&StrictPath::new("/foo".into()), &StrictPath::new("".into())),
+            );
         }
     }
 
