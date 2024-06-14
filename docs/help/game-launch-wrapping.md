@@ -16,7 +16,8 @@ Some specific launchers have built-in support (see below) to make this easier.
 
 You must do this for each game individually.
 
-## Heroic 2.9.2+ (Linux example)
+## Heroic
+### Heroic 2.9.2+ (Linux example)
 Create a file named `ludusavi-wrap.sh` with this content:
 
 ```
@@ -29,3 +30,27 @@ You must set it as a wrapper for each game already installed individually.
 
 Note that the `--config` option is required because Heroic overrides the `XDG_CONFIG_HOME` environment variable,
 which would otherwise prevent Ludusavi from finding its configuration.
+
+## Playnite
+For Playnite, you should use the [official plugin](https://github.com/mtkennerly/ludusavi-playnite),
+which provides deeper integration between Playnite and Ludusavi.
+
+That being said, you *can* set up a wrapper script instead if you prefer.
+You have to configure two scripts:
+one when the game starts, and one when the game stops.
+
+In Playnite, navigate to settings -> scripts -> game scripts,
+and configure the following:
+
+* Execute before starting a game
+  (if you want Ludusavi to restore your latest backup):
+  ```
+  C:\ludusavi.exe restore --force "$game"
+  ```
+* Execute after exiting a game
+  (if you want Ludusavi to make a new backup):
+  ```
+  C:\ludusavi.exe backup --force "$game"
+  ```
+
+(Use the actual path to your copy of `ludusavi.exe` instead of `C:\ludusavi.exe`)
