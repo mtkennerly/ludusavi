@@ -7,6 +7,8 @@
     then the backup would incorrectly contain a reference to `/newer`.
   * On Linux, if a file name contained a colon (`:`),
     it would fail to back up.
+  * GUI: When using a game's context menu to create a custom entry,
+    Ludusavi did not scroll down to the new entry.
 * Changed:
   * Updated translations, including a new translation for Finnish.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))

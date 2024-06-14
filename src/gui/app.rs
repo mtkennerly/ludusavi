@@ -1096,6 +1096,10 @@ impl App {
         self.config.custom_games.push(game);
         self.save_config();
 
+        self.scroll_offsets.insert(
+            ScrollSubject::CustomGames,
+            scrollable::AbsoluteOffset { x: 0.0, y: f32::MAX },
+        );
         self.switch_screen(Screen::CustomGames)
     }
 
@@ -1113,6 +1117,10 @@ impl App {
         self.config.custom_games.push(game);
         self.save_config();
 
+        self.scroll_offsets.insert(
+            ScrollSubject::CustomGames,
+            scrollable::AbsoluteOffset { x: 0.0, y: f32::MAX },
+        );
         self.switch_screen(Screen::CustomGames)
     }
 
