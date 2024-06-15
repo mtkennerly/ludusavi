@@ -122,6 +122,7 @@ Detailed help documentation is available for several topics.
 * [Selective scanning](/docs/help/selective-scanning.md)
 
 ### Interfaces
+* [Application folder](/docs/help/application-folder.md)
 * [Backup structure](/docs/help/backup-structure.md)
 * [Command line](/docs/help/command-line.md)
 * [Configuration file](/docs/help/configuration-file.md)
