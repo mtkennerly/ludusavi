@@ -1,4 +1,4 @@
-## Unreleased
+## v0.24.1 (2024-06-15)
 
 * Fixed:
   * Symlinks were incorrectly traversed when applying redirects.

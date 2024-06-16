@@ -397,6 +397,10 @@ definitions:
         type: string
         enum:
           - fil-PH
+      - description: Finnish
+        type: string
+        enum:
+          - fi-FI
       - description: French
         type: string
         enum:

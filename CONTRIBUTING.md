@@ -68,7 +68,7 @@ Also install the Crowdin CLI manually.
 * Update the translation percentages in src/lang.rs
 * Run `cargo build` to update the version in Cargo.lock
 * Add the new version to `.github/ISSUE_TEMPLATE/*.yaml`.
-* Update the README if necessary for any new features.
+* Update the documentation if necessary for any new features.
   Check for any new content that needs to be uncommented (`<!--`).
 * Run:
   ```
@@ -81,7 +81,7 @@ Also install the Crowdin CLI manually.
   ```
 * Run: `cargo publish`
 * Create a release on GitHub and attach the workflow build artifacts
-  (plus a zipped copy of `dist/*-legal.txt`).
+  (plus `dist/*-legal.zip`).
 
 #### Publish
 Commands assume you've set `VERSION=$(invoke version)`.

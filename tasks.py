@@ -1,6 +1,7 @@
 import os
 import re
 import shutil
+import zipfile
 from pathlib import Path
 
 from invoke import task
@@ -22,14 +23,19 @@ def version(ctx):
 @task
 def legal(ctx):
     version = get_version(ctx)
-    legal_path = ROOT / "dist" / f"ludusavi-v{version}-legal.txt"
+    txt_name = f"ludusavi-v{version}-legal.txt"
+    txt_path = ROOT / "dist" / txt_name
     try:
-        ctx.run(f'cargo lichking bundle --file "{legal_path}"', hide=True)
+        ctx.run(f'cargo lichking bundle --file "{txt_path}"', hide=True)
     except Exception:
         pass
-    legal_content = legal_path.read_text("utf8")
-    normalized = re.sub(r"C:\\Users\\[^\\]+", "~", legal_content)
-    legal_path.write_text(normalized, "utf8")
+    raw = txt_path.read_text("utf8")
+    normalized = re.sub(r"C:\\Users\\[^\\]+", "~", raw)
+    txt_path.write_text(normalized, "utf8")
+
+    zip_path = ROOT / "dist" / f"ludusavi-v{version}-legal.zip"
+    with zipfile.ZipFile(zip_path, "w", zipfile.ZIP_DEFLATED) as zip:
+        zip.write(txt_path, txt_name)
 
 
 @task
