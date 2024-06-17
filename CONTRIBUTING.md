@@ -55,7 +55,7 @@ curl -o /c/opt/flatpak-cargo-generator.py https://raw.githubusercontent.com/flat
 pip install aiohttp toml
 ```
 
-Also install the Crowdin CLI manually.
+Also install the Crowdin and `yq` CLI tools manually.
 
 #### Process
 * Update version in CHANGELOG.md
@@ -70,44 +70,27 @@ Also install the Crowdin CLI manually.
 * Add the new version to `.github/ISSUE_TEMPLATE/*.yaml`.
 * Update the documentation if necessary for any new features.
   Check for any new content that needs to be uncommented (`<!--`).
-* Run:
-  ```
-  export VERSION=$(invoke version)
-  git add .
-  git commit -m "Release v${VERSION}"
-  git tag v${VERSION} -m "Release"
-  git push
-  git push --tags
-  ```
-* Run: `cargo publish`
-* Create a release on GitHub and attach the workflow build artifacts
-  (plus `dist/*-legal.zip`).
-
-#### Publish
-Commands assume you've set `VERSION=$(invoke version)`.
-
-* Flatpak:
-  * Use fork of https://github.com/flathub/com.github.mtkennerly.ludusavi .
-  * From master, create a new branch (`release/v${VERSION}`).
-  * Update `com.github.mtkennerly.ludusavi.yaml` to reference the new tag.
-  * Replace `generated-sources.json` (new file produced by `invoke prerelease` earlier).
-  * Open a pull request.
-    * Recommended commit message and PR title:
-      `Update for v${VERSION}`
+* Run `git add` for all relevant changes
+* Run `invoke release`
+  * This will create a new commit/tag and push them.
+  * Manually create a release on GitHub and attach the workflow build artifacts
+    (plus `dist/*-legal.zip`).
+* Run `cargo publish`
+* Run `invoke release-flatpak`
+  * This will automatically push a branch to https://github.com/flathub/com.github.mtkennerly.ludusavi .
+  * Manually open a PR for that branch.
   * After the PR is merged, publish via https://buildbot.flathub.org/#/apps/com.github.mtkennerly.ludusavi .
-* winget:
-  * Use fork of https://github.com/microsoft/winget-pkgs .
-  * From master, create a new branch (`mtkennerly.ludusavi-${VERSION}`).
-  * Run `wingetcreate update mtkennerly.ludusavi --version ${VERSION} --urls https://github.com/mtkennerly/ludusavi/releases/download/v${VERSION}/ludusavi-v${VERSION}-win64.zip https://github.com/mtkennerly/ludusavi/releases/download/v${VERSION}/ludusavi-v${VERSION}-win32.zip`
-  * In the generated `manifests/m/mtkennerly/ludusavi/${VERSION}/mtkennerly.ludusavi.locale.en-US.yaml` file,
-    add the `ReleaseNotes` and `ReleaseNotesUrl` fields:
+* Run `invoke release-winget`
+  * When the script opens VSCode and pauses,
+    manually edit `manifests/m/mtkennerly/ludusavi/${VERSION}/mtkennerly.ludusavi.locale.en-US.yaml`
+    to add the `ReleaseNotes` and `ReleaseNotesUrl` fields:
 
     ```yaml
     ReleaseNotes: |-
       <copy/paste from CHANGELOG.md>
     ReleaseNotesUrl: https://github.com/mtkennerly/ludusavi/releases/tag/v${VERSION}
     ```
-  * Run `winget validate --manifest manifests/m/mtkennerly/ludusavi/${VERSION}`
-  * Open a pull request.
-    * Recommended commit message and PR title:
-      `mtkennerly.ludusavi version ${VERSION}`
+
+    Close the file, and the script will continue.
+  * This will automatically push a branch to a fork of https://github.com/microsoft/winget-pkgs .
+  * Manually open a pull request for that branch.
