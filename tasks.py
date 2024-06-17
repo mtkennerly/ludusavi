@@ -1,4 +1,3 @@
-import os
 import re
 import shutil
 import zipfile
@@ -164,16 +163,14 @@ def release_flatpak(ctx, target="/git/com.github.mtkennerly.ludusavi"):
     target = Path(target)
     version = get_version()
 
-    os.chdir(target)
-    ctx.run("git checkout master")
-    ctx.run("git pull")
-    ctx.run(f"git checkout -b release/v{version}")
-    shutil.copy(DIST / "generated-sources.json", target / "generated-sources.json")
-    ctx.run(f"yq -i '.modules.0.sources.0.tag = \"v{version}\"' com.github.mtkennerly.ludusavi.yaml")
-    ctx.run(f'git commit -m "Update for v{version}"')
-    ctx.run("git push origin HEAD")
-
-    os.chdir(ROOT)
+    with ctx.cd(target):
+        ctx.run("git checkout master")
+        ctx.run("git pull")
+        ctx.run(f"git checkout -b release/v{version}")
+        shutil.copy(DIST / "generated-sources.json", target / "generated-sources.json")
+        ctx.run(f"yq -i '.modules.0.sources.0.tag = \"v{version}\"' com.github.mtkennerly.ludusavi.yaml")
+        ctx.run(f'git commit -m "Update for v{version}"')
+        ctx.run("git push origin HEAD")
 
 
 @task
@@ -181,15 +178,13 @@ def release_winget(ctx, target="/git/_forks/winget-pkgs"):
     target = Path(target)
     version = get_version()
 
-    os.chdir(target)
-    ctx.run("git checkout master")
-    ctx.run("git pull upstream master")
-    ctx.run(f"git checkout -b mtkennerly.ludusavi-{version}")
-    ctx.run(f"wingetcreate update mtkennerly.ludusavi --version {version} --urls https://github.com/mtkennerly/ludusavi/releases/download/v{version}/ludusavi-v{version}-win64.zip https://github.com/mtkennerly/ludusavi/releases/download/v{version}/ludusavi-v{version}-win32.zip")
-    ctx.run(f"code --wait manifests/m/mtkennerly/ludusavi/{version}/mtkennerly.ludusavi.locale.en-US.yaml")
-    ctx.run(f"winget validate --manifest manifests/m/mtkennerly/ludusavi/{version}")
-    ctx.run("git add .")
-    ctx.run(f'git commit -m "mtkennerly.ludusavi version {version}"')
-    ctx.run("git push origin HEAD")
-
-    os.chdir(ROOT)
+    with ctx.cd(target):
+        ctx.run("git checkout master")
+        ctx.run("git pull upstream master")
+        ctx.run(f"git checkout -b mtkennerly.ludusavi-{version}")
+        ctx.run(f"wingetcreate update mtkennerly.ludusavi --version {version} --urls https://github.com/mtkennerly/ludusavi/releases/download/v{version}/ludusavi-v{version}-win64.zip https://github.com/mtkennerly/ludusavi/releases/download/v{version}/ludusavi-v{version}-win32.zip")
+        ctx.run(f"code --wait manifests/m/mtkennerly/ludusavi/{version}/mtkennerly.ludusavi.locale.en-US.yaml")
+        ctx.run(f"winget validate --manifest manifests/m/mtkennerly/ludusavi/{version}")
+        ctx.run("git add .")
+        ctx.run(f'git commit -m "mtkennerly.ludusavi version {version}"')
+        ctx.run("git push origin HEAD")
