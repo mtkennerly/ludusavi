@@ -1,3 +1,9 @@
+## Unreleased
+
+* Fixed:
+  * For Lutris roots, after reading `pga.db`,
+    Ludusavi did not properly combine that data with the data from the `games/*.yml` files.
+
 ## v0.24.1 (2024-06-15)
 
 * Fixed:

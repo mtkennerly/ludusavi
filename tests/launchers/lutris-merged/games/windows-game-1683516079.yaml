@@ -1,0 +1,5 @@
+game:
+  exe: /home/deck/Games/service/game.exe
+  prefix: /home/deck/Games/service/windows-game-2
+system: {}
+wine: {}

@@ -24,6 +24,16 @@ impl From<rusqlite::Error> for Error {
 mod spec {
     use super::*;
 
+    /// For `games/foo.yml`, this would be `foo`.
+    #[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct BareName(pub String);
+
+    impl std::fmt::Display for BareName {
+        fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+            write!(f, "{}", &self.0)
+        }
+    }
+
     #[derive(serde::Deserialize)]
     pub struct Data {
         pub game: Game,
@@ -105,8 +115,10 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, H
     match scan_db(root) {
         Ok(db_games) => {
             for (spec, db_pending) in db_games {
-                let spec_pending = read_spec(&spec);
-                log::trace!("Evaluating game from DB: {db_pending:?} + from spec: {spec_pending:?}");
+                let spec_pending = find_spec(&spec, &root.path);
+                log::trace!(
+                    "Evaluating game, bare name: {spec}, from DB: {db_pending:?} + from spec: {spec_pending:?}"
+                );
 
                 if let Some((title, game)) = db_pending.merge(spec_pending).evaluate(title_finder) {
                     log::trace!("Evaluated to '{title}': {game:?}");
@@ -148,7 +160,7 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, H
     games
 }
 
-fn scan_db(root: &RootsConfig) -> Result<HashMap<StrictPath, Pending>, Error> {
+fn scan_db(root: &RootsConfig) -> Result<HashMap<spec::BareName, Pending>, Error> {
     #[derive(Debug)]
     struct Row {
         name: Option<String>,
@@ -164,7 +176,7 @@ fn scan_db(root: &RootsConfig) -> Result<HashMap<StrictPath, Pending>, Error> {
         return Err(Error::NoDatabase);
     }
 
-    let mut games = HashMap::<StrictPath, Pending>::new();
+    let mut games = HashMap::<spec::BareName, Pending>::new();
 
     let Ok(file) = db_file.as_std_path_buf() else {
         return Ok(games);
@@ -189,7 +201,11 @@ fn scan_db(root: &RootsConfig) -> Result<HashMap<StrictPath, Pending>, Error> {
                 log::trace!("Row = {row:?}");
 
                 let spec = if let Some(spec) = row.configpath {
-                    StrictPath::new(spec)
+                    if spec.trim().is_empty() {
+                        log::warn!("Ignoring row with empty `configpath`");
+                        continue;
+                    }
+                    spec::BareName(spec)
                 } else {
                     log::warn!("Ignoring row without `configpath`");
                     continue;
@@ -205,7 +221,9 @@ fn scan_db(root: &RootsConfig) -> Result<HashMap<StrictPath, Pending>, Error> {
 
                 if pending.platform.is_some_and(|x| x == Os::Windows) && row.runner.is_some_and(|x| x == "wine") {
                     if let Some(directory) = row.directory {
-                        pending.prefix = Some(StrictPath::new(directory));
+                        if !directory.trim().is_empty() {
+                            pending.prefix = Some(StrictPath::new(directory));
+                        }
                     }
                 }
 
@@ -218,6 +236,16 @@ fn scan_db(root: &RootsConfig) -> Result<HashMap<StrictPath, Pending>, Error> {
     }
 
     Ok(games)
+}
+
+fn find_spec(name: &spec::BareName, root: &StrictPath) -> Option<Pending> {
+    for candidate in root.joined(&format!("games/{name}.y*ml")).glob() {
+        if candidate.is_file() {
+            return read_spec(&candidate);
+        }
+    }
+
+    None
 }
 
 fn read_spec(file: &StrictPath) -> Option<Pending> {
@@ -300,6 +328,12 @@ mod tests {
             windows-game:
               files:
                 <base>/file1.txt: {}
+            Windows Game 1:
+              files:
+                <base>/file1.txt: {}
+            Windows Game 2:
+              files:
+                <base>/file1.txt: {}
             windows-game-with-absolute-exe:
               files:
                   <base>/file1.txt: {}
@@ -356,6 +390,30 @@ mod tests {
                 "windows-game".to_string(): hash_set![LauncherGame {
                     install_dir: None,
                     prefix: Some(StrictPath::new("/home/deck/Games/service/windows-game".to_string())),
+                    platform: Some(Os::Windows),
+                }],
+            },
+            games,
+        );
+    }
+
+    #[test]
+    fn scan_finds_all_games_with_spec_and_database_merged() {
+        let root = RootsConfig {
+            path: StrictPath::new(format!("{}/tests/launchers/lutris-merged", repo())),
+            store: Store::Lutris,
+        };
+        let games = scan(&root, &title_finder());
+        assert_eq!(
+            hash_map! {
+                "Windows Game 1".to_string(): hash_set![LauncherGame {
+                    install_dir: Some(StrictPath::new("/home/deck/Games/service/windows-game/drive_c/game".to_string())),
+                    prefix: Some(StrictPath::new("/home/deck/Games/service/windows-game-1".to_string())),
+                    platform: Some(Os::Windows),
+                }],
+                "Windows Game 2".to_string(): hash_set![LauncherGame {
+                    install_dir: Some(StrictPath::new("/home/deck/Games/service".to_string())),
+                    prefix: Some(StrictPath::new("/home/deck/Games/service/windows-game-2".to_string())),
                     platform: Some(Os::Windows),
                 }],
             },
