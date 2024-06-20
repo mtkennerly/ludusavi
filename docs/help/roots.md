@@ -20,9 +20,8 @@ along with the root's type:
 * For a Heroic root, this should be the folder containing the `gog_store`
   and `GamesConfig` subdirectories.
 
-  Ludusavi can find GOG/Epic saves in Heroic's game install folders.
+  Ludusavi can find GOG, Epic, Amazon, and sideloaded game saves in Heroic's game install folders.
   On Linux, Ludusavi can also find saves in Heroic's Wine, Proton, and Lutris prefixes.
-  However, Ludusavi does not yet support Heroic's Amazon or sideloaded games.
 
   When using Wine prefixes with Heroic, Ludusavi will back up the `*.reg` files
   if the game is known to have registry-based saves.
