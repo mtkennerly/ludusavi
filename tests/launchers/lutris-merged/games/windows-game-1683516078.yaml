@@ -1,7 +1,7 @@
 game:
   args: ''
   exe: /home/deck/Games/service/windows-game/drive_c/game/YookaLaylee64.exe
-  prefix: /home/deck/Games/service/windows-game
+  prefix: /home/deck/Games/service/windows-game-1b
   working_dir: /home/deck/Games/service/windows-game/drive_c/game
 game_slug: windows-game
 name: Windows Game

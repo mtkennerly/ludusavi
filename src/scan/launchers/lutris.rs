@@ -26,9 +26,9 @@ mod spec {
 
     /// For `games/foo.yml`, this would be `foo`.
     #[derive(Debug, Default, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-    pub struct BareName(pub String);
+    pub struct Id(pub String);
 
-    impl std::fmt::Display for BareName {
+    impl std::fmt::Display for Id {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
             write!(f, "{}", &self.0)
         }
@@ -61,17 +61,23 @@ struct Pending {
 }
 
 impl Pending {
-    fn merge(self, other: Option<Self>) -> Self {
-        let Some(other) = other else {
-            return self;
-        };
-
-        Self {
-            name: self.name.or(other.name),
-            slug: self.slug.or(other.slug),
-            prefix: self.prefix.or(other.prefix),
-            platform: self.platform.or(other.platform),
-            install_dir: self.install_dir.or(other.install_dir),
+    fn merge(db: Option<Self>, spec: Option<Self>) -> Self {
+        match (db, spec) {
+            (None, None) => Self::default(),
+            (None, Some(spec)) => spec,
+            (Some(db), None) => db,
+            (Some(db), Some(spec)) => {
+                Self {
+                    name: db.name.or(spec.name),
+                    slug: db.slug.or(spec.slug),
+                    // Apparently, if you change the prefix in the Lutris GUI,
+                    // Lutris updates the spec, but not the database,
+                    // so we prefer the spec version.
+                    prefix: spec.prefix.or(db.prefix),
+                    platform: spec.platform.or(db.platform),
+                    install_dir: db.install_dir.or(spec.install_dir),
+                }
+            }
         }
     }
 
@@ -107,43 +113,45 @@ impl Pending {
     }
 }
 
-pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
-    let mut games = HashMap::<String, HashSet<LauncherGame>>::new();
+#[derive(Debug, Default, Clone)]
+struct PendingGroup {
+    db: Option<Pending>,
+    spec: Option<Pending>,
+}
 
+pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
     log::trace!("Scanning Lutris root for games: {:?}", &root.path);
 
+    let mut groups = HashMap::<spec::Id, PendingGroup>::new();
     match scan_db(root) {
         Ok(db_games) => {
-            for (spec, db_pending) in db_games {
-                let spec_pending = find_spec(&spec, &root.path);
-                log::trace!(
-                    "Evaluating game, bare name: {spec}, from DB: {db_pending:?} + from spec: {spec_pending:?}"
-                );
-
-                if let Some((title, game)) = db_pending.merge(spec_pending).evaluate(title_finder) {
-                    log::trace!("Evaluated to '{title}': {game:?}");
-                    games.entry(title).or_default().insert(game);
-                } else {
-                    log::trace!("Unable to determine game");
-                }
+            for (spec_id, pending) in db_games {
+                groups.entry(spec_id).or_default().db = Some(pending);
             }
         }
         Err(e) => {
             log::error!("Failed to read database: {e:?}");
+        }
+    }
+    for spec_path in root.path.joined("games/*.y*ml").glob() {
+        let Some(pending) = read_spec(&spec_path) else {
+            continue;
+        };
+        let Some(id) = spec_path.file_stem() else {
+            continue;
+        };
+        groups.entry(spec::Id(id)).or_default().spec = Some(pending);
+    }
 
-            for spec_path in root.path.joined("games/*.y*ml").glob() {
-                let Some(spec_pending) = read_spec(&spec_path) else {
-                    continue;
-                };
-                log::trace!("Evaluating game from spec only: {spec_pending:?}");
+    let mut games = HashMap::<String, HashSet<LauncherGame>>::new();
+    for (id, PendingGroup { db, spec }) in groups {
+        log::debug!("Evaluating game, bare name: {id}, from DB: {db:?} + from spec: {spec:?}");
 
-                if let Some((title, game)) = spec_pending.evaluate(title_finder) {
-                    log::trace!("Evaluated to '{title}': {game:?}");
-                    games.entry(title).or_default().insert(game);
-                } else {
-                    log::trace!("Unable to determine game");
-                }
-            }
+        if let Some((title, game)) = Pending::merge(db, spec).evaluate(title_finder) {
+            log::debug!("Evaluated to '{title}': {game:?}");
+            games.entry(title).or_default().insert(game);
+        } else {
+            log::trace!("Unable to determine game");
         }
     }
 
@@ -160,7 +168,7 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, H
     games
 }
 
-fn scan_db(root: &RootsConfig) -> Result<HashMap<spec::BareName, Pending>, Error> {
+fn scan_db(root: &RootsConfig) -> Result<HashMap<spec::Id, Pending>, Error> {
     #[derive(Debug)]
     struct Row {
         name: Option<String>,
@@ -176,7 +184,7 @@ fn scan_db(root: &RootsConfig) -> Result<HashMap<spec::BareName, Pending>, Error
         return Err(Error::NoDatabase);
     }
 
-    let mut games = HashMap::<spec::BareName, Pending>::new();
+    let mut games = HashMap::<spec::Id, Pending>::new();
 
     let Ok(file) = db_file.as_std_path_buf() else {
         return Ok(games);
@@ -205,7 +213,7 @@ fn scan_db(root: &RootsConfig) -> Result<HashMap<spec::BareName, Pending>, Error
                         log::warn!("Ignoring row with empty `configpath`");
                         continue;
                     }
-                    spec::BareName(spec)
+                    spec::Id(spec)
                 } else {
                     log::warn!("Ignoring row without `configpath`");
                     continue;
@@ -236,16 +244,6 @@ fn scan_db(root: &RootsConfig) -> Result<HashMap<spec::BareName, Pending>, Error
     }
 
     Ok(games)
-}
-
-fn find_spec(name: &spec::BareName, root: &StrictPath) -> Option<Pending> {
-    for candidate in root.joined(&format!("games/{name}.y*ml")).glob() {
-        if candidate.is_file() {
-            return read_spec(&candidate);
-        }
-    }
-
-    None
 }
 
 fn read_spec(file: &StrictPath) -> Option<Pending> {
@@ -408,7 +406,7 @@ mod tests {
             hash_map! {
                 "Windows Game 1".to_string(): hash_set![LauncherGame {
                     install_dir: Some(StrictPath::new("/home/deck/Games/service/windows-game/drive_c/game".to_string())),
-                    prefix: Some(StrictPath::new("/home/deck/Games/service/windows-game-1".to_string())),
+                    prefix: Some(StrictPath::new("/home/deck/Games/service/windows-game-1b".to_string())),
                     platform: Some(Os::Windows),
                 }],
                 "Windows Game 2".to_string(): hash_set![LauncherGame {
