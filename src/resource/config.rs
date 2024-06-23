@@ -32,7 +32,7 @@ pub struct Config {
     pub manifest: ManifestConfig,
     pub language: Language,
     pub theme: Theme,
-    pub roots: Vec<RootsConfig>,
+    pub roots: Vec<Root>,
     pub redirects: Vec<RedirectConfig>,
     pub backup: BackupConfig,
     pub restore: RestoreConfig,
@@ -200,7 +200,7 @@ impl ToString for Theme {
     Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
 #[serde(tag = "store", rename_all = "camelCase")]
-pub enum RootsConfig {
+pub enum Root {
     Ea(root::Ea),
     Epic(root::Epic),
     Gog(root::Gog),
@@ -221,13 +221,13 @@ pub enum RootsConfig {
     Other(root::Other),
 }
 
-impl Default for RootsConfig {
+impl Default for Root {
     fn default() -> Self {
         Self::Other(Default::default())
     }
 }
 
-impl RootsConfig {
+impl Root {
     pub fn new(path: impl Into<StrictPath>, store: Store) -> Self {
         match store {
             Store::Ea => Self::Ea(root::Ea { path: path.into() }),
@@ -341,7 +341,7 @@ impl RootsConfig {
             .glob()
             .iter()
             .cloned()
-            .map(|path| RootsConfig::new(path, self.store()))
+            .map(|path| Root::new(path, self.store()))
             .collect()
     }
 
@@ -1174,7 +1174,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn find_missing_roots(&self) -> Vec<RootsConfig> {
+    pub fn find_missing_roots(&self) -> Vec<Root> {
         let mut pf32 = "C:/Program Files (x86)".to_string();
         let mut pf64 = "C:/Program Files".to_string();
         if let Ok(x) = std::env::var("ProgramFiles(x86)") {
@@ -1291,7 +1291,7 @@ impl Config {
                 continue;
             }
             if sp.is_dir() {
-                roots.push(RootsConfig::new(sp.rendered(), store));
+                roots.push(Root::new(sp.rendered(), store));
             }
             checked.insert(sp);
         }
@@ -1327,7 +1327,7 @@ impl Config {
             };
 
             if self.roots.iter().any(|root| match root {
-                RootsConfig::Lutris(stored) => {
+                Root::Lutris(stored) => {
                     stored.path.equivalent(&path) && (stored.database.is_some() || database.is_none())
                 }
                 _ => true,
@@ -1336,7 +1336,7 @@ impl Config {
                 continue;
             }
 
-            roots.push(RootsConfig::Lutris(root::Lutris {
+            roots.push(Root::Lutris(root::Lutris {
                 path: path.clone(),
                 database,
             }));
@@ -1350,10 +1350,10 @@ impl Config {
         self.roots.extend(self.find_missing_roots());
     }
 
-    pub fn merge_root(&mut self, candidate: &RootsConfig) -> Option<usize> {
+    pub fn merge_root(&mut self, candidate: &Root) -> Option<usize> {
         for (i, root) in self.roots.iter_mut().enumerate() {
             match (root, candidate) {
-                (RootsConfig::Lutris(root), RootsConfig::Lutris(candidate)) => {
+                (Root::Lutris(root), Root::Lutris(candidate)) => {
                     if root.path.equivalent(&candidate.path) && root.database.is_none() && candidate.database.is_some()
                     {
                         root.database.clone_from(&candidate.database);
@@ -1479,7 +1479,7 @@ impl Config {
         self.custom_games.iter().all(|x| !x.ignore)
     }
 
-    pub fn expanded_roots(&self) -> Vec<RootsConfig> {
+    pub fn expanded_roots(&self) -> Vec<Root> {
         for root in &self.roots {
             log::trace!(
                 "Configured root: {:?} | interpreted: {:?} | exists: {} | is dir: {}",
@@ -1490,7 +1490,7 @@ impl Config {
             );
         }
 
-        let expanded: Vec<RootsConfig> = self.roots.iter().flat_map(|x| x.glob()).collect();
+        let expanded: Vec<Root> = self.roots.iter().flat_map(|x| x.glob()).collect();
 
         for root in &expanded {
             log::trace!(
@@ -1951,10 +1951,7 @@ mod tests {
                 },
                 language: Language::English,
                 theme: Theme::Light,
-                roots: vec![
-                    RootsConfig::new("~/steam", Store::Steam),
-                    RootsConfig::new("~/other", Store::Other),
-                ],
+                roots: vec![Root::new("~/steam", Store::Steam), Root::new("~/other", Store::Other),],
                 redirects: vec![RedirectConfig {
                     kind: RedirectKind::Restore,
                     source: StrictPath::new(s("~/old")),
@@ -2135,10 +2132,7 @@ customGames:
                 },
                 language: Language::English,
                 theme: Theme::Light,
-                roots: vec![
-                    RootsConfig::new("~/steam", Store::Steam),
-                    RootsConfig::new("~/other", Store::Other),
-                ],
+                roots: vec![Root::new("~/steam", Store::Steam), Root::new("~/other", Store::Other),],
                 redirects: vec![RedirectConfig {
                     kind: RedirectKind::Restore,
                     source: StrictPath::new(s("~/old")),

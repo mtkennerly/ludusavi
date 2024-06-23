@@ -15,7 +15,7 @@ use crate::{
     },
     lang::TRANSLATOR,
     prelude::{Error, Finality, SyncDirection},
-    resource::config::{Config, RootsConfig},
+    resource::config::{Config, Root},
 };
 
 const CHANGES_PER_PAGE: usize = 500;
@@ -127,7 +127,7 @@ pub enum Modal {
         games: Option<Vec<String>>,
     },
     NoMissingRoots,
-    ConfirmAddMissingRoots(Vec<RootsConfig>),
+    ConfirmAddMissingRoots(Vec<Root>),
     BackupValidation {
         games: BTreeSet<String>,
     },

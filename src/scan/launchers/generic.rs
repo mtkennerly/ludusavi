@@ -7,7 +7,7 @@ use crate::prelude::INVALID_FILE_CHARS;
 
 use crate::{
     resource::{
-        config::RootsConfig,
+        config::Root,
         manifest::{Manifest, Store},
     },
     scan::launchers::LauncherGame,
@@ -52,7 +52,7 @@ fn fuzzy_match(
     None
 }
 
-pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> HashMap<String, HashSet<LauncherGame>> {
+pub fn scan(root: &Root, manifest: &Manifest, subjects: &[String]) -> HashMap<String, HashSet<LauncherGame>> {
     log::debug!("ranking installations for root: {:?}", &root);
 
     let install_parent = match root.store() {

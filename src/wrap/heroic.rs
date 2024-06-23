@@ -1,18 +1,18 @@
 use std::env;
 
 use crate::{
-    resource::config::RootsConfig,
+    resource::config::Root,
     scan::heroic::{gog, legendary, nile, sideload},
     wrap::WrapGameInfo,
 };
 
 /// Tries to find a game with ID `game_id` in the given game roots, actual
 /// search algorithm used varies with `game_runner`.  Returns game name or None.
-fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) -> Option<String> {
+fn find_in_roots(roots: &[Root], game_id: &str, game_runner: &str) -> Option<String> {
     roots
         .iter()
         .filter_map(|root| match root {
-            RootsConfig::Heroic(root) => Some(root),
+            Root::Heroic(root) => Some(root),
             _ => None,
         })
         .find_map(|root| {
@@ -49,7 +49,7 @@ fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) -> Opt
 /// HEROIC_APP_SOURCE (one of: gog, epic, amazon, sideload)
 ///
 /// We rely on HEROIC_APP_NAME and HEROIC_APP_RUNNER only.
-pub fn infer_game_from_heroic(roots: &[RootsConfig]) -> Option<WrapGameInfo> {
+pub fn infer_game_from_heroic(roots: &[Root]) -> Option<WrapGameInfo> {
     let heroic_app_name = env::var("HEROIC_APP_NAME").ok()?;
 
     let heroic_app_runner = env::var("HEROIC_APP_RUNNER").ok()?;

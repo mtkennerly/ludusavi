@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use crate::{
     prelude::StrictPath,
     resource::{
-        config::RootsConfig,
+        config::Root,
         manifest::{Manifest, Os},
     },
     scan::TitleFinder,
@@ -16,7 +16,7 @@ use crate::{
 
 #[derive(Clone, Default, Debug)]
 pub struct Launchers {
-    games: HashMap<RootsConfig, HashMap<String, HashSet<LauncherGame>>>,
+    games: HashMap<Root, HashMap<String, HashSet<LauncherGame>>>,
     empty: HashSet<LauncherGame>,
 }
 
@@ -34,7 +34,7 @@ impl LauncherGame {
 }
 
 impl Launchers {
-    pub fn get_game(&self, root: &RootsConfig, game: &str) -> impl Iterator<Item = &LauncherGame> {
+    pub fn get_game(&self, root: &Root, game: &str) -> impl Iterator<Item = &LauncherGame> {
         self.games
             .get(root)
             .and_then(|root| root.get(game))
@@ -43,7 +43,7 @@ impl Launchers {
     }
 
     pub fn scan(
-        roots: &[RootsConfig],
+        roots: &[Root],
         manifest: &Manifest,
         subjects: &[String],
         title_finder: &TitleFinder,
@@ -54,9 +54,9 @@ impl Launchers {
         for root in roots {
             log::debug!("Scanning launcher info: {:?}", &root);
             let mut found = match root {
-                RootsConfig::Heroic(root) => heroic::scan(root, title_finder, legendary.as_ref()),
-                RootsConfig::Legendary(root) => legendary::scan(root, title_finder),
-                RootsConfig::Lutris(root) => lutris::scan(root, title_finder),
+                Root::Heroic(root) => heroic::scan(root, title_finder, legendary.as_ref()),
+                Root::Legendary(root) => legendary::scan(root, title_finder),
+                Root::Lutris(root) => lutris::scan(root, title_finder),
                 _ => generic::scan(root, manifest, subjects),
             };
             found.retain(|_k, v| {
@@ -73,7 +73,7 @@ impl Launchers {
     }
 
     #[cfg(test)]
-    pub fn scan_dirs(roots: &[RootsConfig], manifest: &Manifest, subjects: &[String]) -> Self {
+    pub fn scan_dirs(roots: &[Root], manifest: &Manifest, subjects: &[String]) -> Self {
         Self::scan(roots, manifest, subjects, &TitleFinder::default(), None)
     }
 }

@@ -21,7 +21,7 @@ use crate::{
     path::{CommonPath, StrictPath},
     prelude::{filter_map_walkdir, Error, SKIP},
     resource::{
-        config::{BackupFilter, RedirectConfig, RedirectKind, RootsConfig, SortKey, ToggledPaths, ToggledRegistry},
+        config::{BackupFilter, RedirectConfig, RedirectKind, Root, SortKey, ToggledPaths, ToggledRegistry},
         manifest::{Game, GameFileEntry, IdMetadata, Os, Store},
     },
     scan::layout::LatestBackup,
@@ -91,7 +91,7 @@ pub fn steam_ids(game: &Game, shortcut: Option<&SteamShortcut>) -> Vec<u32> {
 pub fn parse_paths(
     path: &str,
     data: &GameFileEntry,
-    root: &RootsConfig,
+    root: &Root,
     install_dir: &Option<String>,
     full_install_dir: &Option<&StrictPath>,
     steam_ids: &[u32],
@@ -430,7 +430,7 @@ pub fn parse_paths(
 pub fn scan_game_for_backup(
     game: &Game,
     name: &str,
-    roots: &[RootsConfig],
+    roots: &[Root],
     manifest_dir: &StrictPath,
     launchers: &Launchers,
     filter: &BackupFilter,
@@ -450,7 +450,7 @@ pub fn scan_game_for_backup(
     let mut paths_to_check = HashSet::<(StrictPath, Option<bool>)>::new();
 
     // Add a dummy root for checking paths without `<root>`.
-    let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig::new(SKIP, Store::Other)];
+    let mut roots_to_check: Vec<Root> = vec![Root::new(SKIP, Store::Other)];
     roots_to_check.extend(roots.iter().cloned());
 
     let manifest_dir_interpreted = manifest_dir.interpret().unwrap();
@@ -794,12 +794,12 @@ pub fn scan_game_for_backup(
 }
 
 fn scan_game_for_backup_add_prefix(
-    roots_to_check: &mut Vec<RootsConfig>,
+    roots_to_check: &mut Vec<Root>,
     paths_to_check: &mut HashSet<(StrictPath, Option<bool>)>,
     wp: &StrictPath,
     has_registry: bool,
 ) {
-    roots_to_check.push(RootsConfig::new(wp.clone(), Store::OtherWine));
+    roots_to_check.push(Root::new(wp.clone(), Store::OtherWine));
     if has_registry {
         paths_to_check.insert((wp.joined("*.reg"), None));
     }
@@ -1058,7 +1058,7 @@ mod tests {
 
     #[test]
     fn can_scan_game_for_backup_deduplicating_symlinks() {
-        let roots = &[RootsConfig::new(format!("{}/tests/root3", repo()), Store::Other)];
+        let roots = &[Root::new(format!("{}/tests/root3", repo()), Store::Other)];
         assert_eq!(
             ScanInfo {
                 game_name: s("game5"),
@@ -1087,7 +1087,7 @@ mod tests {
 
     #[test]
     fn can_scan_game_for_backup_with_redirect_to_symlink() {
-        let roots = &[RootsConfig::new(format!("{}/tests/root3", repo()), Store::Other)];
+        let roots = &[Root::new(format!("{}/tests/root3", repo()), Store::Other)];
         assert_eq!(
             ScanInfo {
                 game_name: s("game5"),
@@ -1129,7 +1129,7 @@ mod tests {
 
     #[test]
     fn can_scan_game_for_backup_with_fuzzy_matched_install_dir() {
-        let roots = &[RootsConfig::new(format!("{}/tests/root3", repo()), Store::Other)];
+        let roots = &[Root::new(format!("{}/tests/root3", repo()), Store::Other)];
         assert_eq!(
             ScanInfo {
                 game_name: s("game 2"),
@@ -1159,7 +1159,7 @@ mod tests {
     #[test]
     #[cfg(target_os = "windows")]
     fn can_scan_game_for_backup_with_file_matches_in_custom_home_folder() {
-        let roots = &[RootsConfig::new(format!("{}/tests/home", repo()), Store::OtherHome)];
+        let roots = &[Root::new(format!("{}/tests/home", repo()), Store::OtherHome)];
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
@@ -1192,7 +1192,7 @@ mod tests {
     #[test]
     #[cfg(not(target_os = "windows"))]
     fn can_scan_game_for_backup_with_file_matches_in_custom_home_folder() {
-        let roots = &[RootsConfig::new(format!("{}/tests/home", repo()), Store::OtherHome)];
+        let roots = &[Root::new(format!("{}/tests/home", repo()), Store::OtherHome)];
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),

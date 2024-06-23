@@ -12,8 +12,8 @@ use crate::{
     prelude::{CommandError, Error, Finality, Privacy, StrictPath, SyncDirection},
     resource::{
         config::{
-            BackupFormat, CloudFilter, CustomGameKind, RedirectKind, RootsConfig, SecondaryManifestConfigKind, SortKey,
-            Theme, ZipCompression,
+            BackupFormat, CloudFilter, CustomGameKind, RedirectKind, Root, SecondaryManifestConfigKind, SortKey, Theme,
+            ZipCompression,
         },
         manifest::{Manifest, ManifestUpdate, Store},
     },
@@ -115,7 +115,7 @@ pub enum Message {
     EditedBackupTarget(String),
     EditedRestoreSource(String),
     FindRoots,
-    ConfirmAddMissingRoots(Vec<RootsConfig>),
+    ConfirmAddMissingRoots(Vec<Root>),
     EditedRoot(EditAction),
     EditedRootLutrisDatabase(usize, String),
     EditedSecondaryManifest(EditAction),

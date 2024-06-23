@@ -9,7 +9,7 @@ use unic_langid::LanguageIdentifier;
 use crate::{
     prelude::{CommandError, Error, StrictPath, VARIANT, VERSION},
     resource::{
-        config::{BackupFormat, CustomGameKind, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
+        config::{BackupFormat, CustomGameKind, RedirectKind, Root, SortKey, Theme, ZipCompression},
         manifest::Store,
     },
     scan::{game_filter, BackupError, OperationStatus, OperationStepDecision, ScanChange},
@@ -718,13 +718,13 @@ impl Translator {
         translate("backups-are-invalid")
     }
 
-    pub fn confirm_add_missing_roots(&self, roots: &[RootsConfig]) -> String {
+    pub fn confirm_add_missing_roots(&self, roots: &[Root]) -> String {
         use std::fmt::Write;
         let mut msg = translate("confirm-add-missing-roots") + "\n";
 
         for root in roots {
             let path2 = match &root {
-                RootsConfig::Lutris(root) => root
+                Root::Lutris(root) => root
                     .database
                     .as_ref()
                     .map(|x| format!(" + {}", x.render()))

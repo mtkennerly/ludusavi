@@ -4,7 +4,7 @@ use crate::{
     lang::Language,
     prelude::{app_dir, CANONICAL_VERSION},
     resource::{
-        config::{Config, RootsConfig},
+        config::{Config, Root},
         manifest::ManifestUpdate,
         ResourceFile, SaveableResourceFile,
     },
@@ -16,7 +16,7 @@ pub struct Cache {
     pub version: Option<(u32, u32, u32)>,
     pub migrations: Migrations,
     pub manifests: Manifests,
-    pub roots: BTreeSet<RootsConfig>,
+    pub roots: BTreeSet<Root>,
     pub backup: Backup,
     pub restore: Restore,
 }
@@ -101,7 +101,7 @@ impl Cache {
         }
     }
 
-    pub fn add_roots(&mut self, roots: &Vec<RootsConfig>) {
+    pub fn add_roots(&mut self, roots: &Vec<Root>) {
         for root in roots {
             if !self.has_root(root) {
                 self.roots.insert(root.clone());
@@ -109,11 +109,11 @@ impl Cache {
         }
     }
 
-    pub fn has_root(&self, candidate: &RootsConfig) -> bool {
+    pub fn has_root(&self, candidate: &Root) -> bool {
         self.roots.iter().any(|root| {
             let primary = root.path().equivalent(candidate.path()) && root.store() == candidate.store();
             match (root, candidate) {
-                (RootsConfig::Lutris(root), RootsConfig::Lutris(candidate)) => {
+                (Root::Lutris(root), Root::Lutris(candidate)) => {
                     primary && (root.database.is_some() || candidate.database.is_none())
                 }
                 _ => primary,

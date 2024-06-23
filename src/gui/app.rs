@@ -21,7 +21,7 @@ use crate::{
     prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
     resource::{
         cache::Cache,
-        config::{Config, CustomGame, CustomGameKind, RootsConfig},
+        config::{Config, CustomGame, CustomGameKind, Root},
         manifest::Manifest,
         ResourceFile, SaveableResourceFile,
     },
@@ -1423,7 +1423,7 @@ impl Application for App {
                 match action {
                     EditAction::Add => {
                         self.text_histories.roots.push(Default::default());
-                        self.config.roots.push(RootsConfig::default());
+                        self.config.roots.push(Root::default());
                     }
                     EditAction::Change(index, value) => {
                         self.text_histories.roots[index].path.push(&value);
@@ -1444,7 +1444,7 @@ impl Application for App {
             }
             Message::EditedRootLutrisDatabase(index, value) => {
                 self.text_histories.roots[index].lutris_database.push(&value);
-                if let RootsConfig::Lutris(root) = &mut self.config.roots[index] {
+                if let Root::Lutris(root) = &mut self.config.roots[index] {
                     root.database = if value.is_empty() { None } else { Some(value.into()) };
                 }
 
@@ -1981,7 +1981,7 @@ impl Application for App {
                     }
                     BrowseFileSubject::RootLutrisDatabase(i) => {
                         self.text_histories.roots[i].lutris_database.push(&path.raw());
-                        if let RootsConfig::Lutris(root) = &mut self.config.roots[i] {
+                        if let Root::Lutris(root) = &mut self.config.roots[i] {
                             root.database = Some(path);
                         }
                     }
@@ -2069,7 +2069,7 @@ impl Application for App {
                 let path = match subject {
                     BrowseFileSubject::RcloneExecutable => self.config.apps.rclone.path.clone(),
                     BrowseFileSubject::RootLutrisDatabase(i) => {
-                        let RootsConfig::Lutris(root) = &self.config.roots[i] else {
+                        let Root::Lutris(root) = &self.config.roots[i] else {
                             return Command::none();
                         };
                         let Some(database) = root.database.as_ref() else {
@@ -2139,7 +2139,7 @@ impl Application for App {
                         &mut self.text_histories.roots[i].path,
                     ),
                     UndoSubject::RootLutrisDatabase(i) => {
-                        if let RootsConfig::Lutris(root) = &mut self.config.roots[i] {
+                        if let Root::Lutris(root) = &mut self.config.roots[i] {
                             shortcut.apply_to_option_strict_path_field(
                                 &mut root.database,
                                 &mut self.text_histories.roots[i].lutris_database,
