@@ -25,21 +25,47 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
     if config.roots.is_empty() {
         content = content.push(text(TRANSLATOR.no_roots_are_configured()));
     } else {
-        content = config.roots.iter().enumerate().fold(content, |parent, (i, root)| {
-            parent.push(
-                Row::new()
-                    .spacing(20)
-                    .push(button::move_up(Message::EditedRoot, i))
-                    .push(button::move_down(Message::EditedRoot, i, config.roots.len()))
-                    .push(histories.input(UndoSubject::Root(i)))
+        content = config
+            .roots
+            .iter()
+            .enumerate()
+            .fold(content, |parent, (i, root)| match root.store {
+                Store::Lutris => parent
                     .push(
-                        pick_list(Store::ALL, Some(root.store), move |v| Message::SelectedRootStore(i, v))
-                            .style(style::PickList::Primary),
+                        Row::new()
+                            .spacing(20)
+                            .push(button::move_up(Message::EditedRoot, i))
+                            .push(button::move_down(Message::EditedRoot, i, config.roots.len()))
+                            .push(histories.input(UndoSubject::RootPath(i)))
+                            .push(
+                                pick_list(Store::ALL, Some(root.store), move |v| Message::SelectedRootStore(i, v))
+                                    .style(style::PickList::Primary),
+                            )
+                            .push(button::choose_folder(BrowseSubject::Root(i), modifiers))
+                            .push(button::remove(Message::EditedRoot, i)),
                     )
-                    .push(button::choose_folder(BrowseSubject::Root(i), modifiers))
-                    .push(button::remove(Message::EditedRoot, i)),
-            )
-        });
+                    .push(
+                        Row::new()
+                            .spacing(20)
+                            .align_items(Alignment::Center)
+                            .push(horizontal_space().width(70))
+                            .push(text(TRANSLATOR.field("pga.db")))
+                            .push(histories.input(UndoSubject::RootLutrisDatabase(i))),
+                    ),
+                _ => parent.push(
+                    Row::new()
+                        .spacing(20)
+                        .push(button::move_up(Message::EditedRoot, i))
+                        .push(button::move_down(Message::EditedRoot, i, config.roots.len()))
+                        .push(histories.input(UndoSubject::RootPath(i)))
+                        .push(
+                            pick_list(Store::ALL, Some(root.store), move |v| Message::SelectedRootStore(i, v))
+                                .style(style::PickList::Primary),
+                        )
+                        .push(button::choose_folder(BrowseSubject::Root(i), modifiers))
+                        .push(button::remove(Message::EditedRoot, i)),
+                ),
+            });
     };
 
     content = content.push(

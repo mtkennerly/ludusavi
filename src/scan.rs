@@ -450,10 +450,7 @@ pub fn scan_game_for_backup(
     let mut paths_to_check = HashSet::<(StrictPath, Option<bool>)>::new();
 
     // Add a dummy root for checking paths without `<root>`.
-    let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig {
-        path: StrictPath::new(SKIP.to_string()),
-        store: Store::Other,
-    }];
+    let mut roots_to_check: Vec<RootsConfig> = vec![RootsConfig::new(SKIP, Store::Other)];
     roots_to_check.extend(roots.iter().cloned());
 
     let manifest_dir_interpreted = manifest_dir.interpret().unwrap();
@@ -806,10 +803,7 @@ fn scan_game_for_backup_add_prefix(
     wp: &StrictPath,
     has_registry: bool,
 ) {
-    roots_to_check.push(RootsConfig {
-        path: wp.clone(),
-        store: Store::OtherWine,
-    });
+    roots_to_check.push(RootsConfig::new(wp.clone(), Store::OtherWine));
     if has_registry {
         paths_to_check.insert((wp.joined("*.reg"), None));
     }
@@ -1068,10 +1062,7 @@ mod tests {
 
     #[test]
     fn can_scan_game_for_backup_deduplicating_symlinks() {
-        let roots = &[RootsConfig {
-            path: StrictPath::new(format!("{}/tests/root3", repo())),
-            store: Store::Other,
-        }];
+        let roots = &[RootsConfig::new(format!("{}/tests/root3", repo()), Store::Other)];
         assert_eq!(
             ScanInfo {
                 game_name: s("game5"),
@@ -1100,10 +1091,7 @@ mod tests {
 
     #[test]
     fn can_scan_game_for_backup_with_redirect_to_symlink() {
-        let roots = &[RootsConfig {
-            path: StrictPath::new(format!("{}/tests/root3", repo())),
-            store: Store::Other,
-        }];
+        let roots = &[RootsConfig::new(format!("{}/tests/root3", repo()), Store::Other)];
         assert_eq!(
             ScanInfo {
                 game_name: s("game5"),
@@ -1145,10 +1133,7 @@ mod tests {
 
     #[test]
     fn can_scan_game_for_backup_with_fuzzy_matched_install_dir() {
-        let roots = &[RootsConfig {
-            path: StrictPath::new(format!("{}/tests/root3", repo())),
-            store: Store::Other,
-        }];
+        let roots = &[RootsConfig::new(format!("{}/tests/root3", repo()), Store::Other)];
         assert_eq!(
             ScanInfo {
                 game_name: s("game 2"),
@@ -1178,10 +1163,7 @@ mod tests {
     #[test]
     #[cfg(target_os = "windows")]
     fn can_scan_game_for_backup_with_file_matches_in_custom_home_folder() {
-        let roots = &[RootsConfig {
-            path: StrictPath::new(format!("{}/tests/home", repo())),
-            store: Store::OtherHome,
-        }];
+        let roots = &[RootsConfig::new(format!("{}/tests/home", repo()), Store::OtherHome)];
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
@@ -1214,10 +1196,7 @@ mod tests {
     #[test]
     #[cfg(not(target_os = "windows"))]
     fn can_scan_game_for_backup_with_file_matches_in_custom_home_folder() {
-        let roots = &[RootsConfig {
-            path: StrictPath::new(format!("{}/tests/home", repo())),
-            store: Store::OtherHome,
-        }];
+        let roots = &[RootsConfig::new(format!("{}/tests/home", repo()), Store::OtherHome)];
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),

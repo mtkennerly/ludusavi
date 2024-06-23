@@ -167,10 +167,10 @@ mod tests {
 
     #[test]
     fn scan_finds_all_games_without_store_cache() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/launchers/heroic-gog-without-store-cache", repo())),
-            store: Store::Heroic,
-        };
+        let root = RootsConfig::new(
+            format!("{}/tests/launchers/heroic-gog-without-store-cache", repo()),
+            Store::Heroic,
+        );
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {
@@ -186,10 +186,10 @@ mod tests {
 
     #[test]
     fn scan_finds_all_games_with_store_cache() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/launchers/heroic-gog-with-store-cache", repo())),
-            store: Store::Heroic,
-        };
+        let root = RootsConfig::new(
+            format!("{}/tests/launchers/heroic-gog-with-store-cache", repo()),
+            Store::Heroic,
+        );
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {

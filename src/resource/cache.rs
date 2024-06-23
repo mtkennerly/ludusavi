@@ -110,8 +110,8 @@ impl Cache {
     }
 
     pub fn has_root(&self, root: &RootsConfig) -> bool {
-        self.roots
-            .iter()
-            .any(|x| x.path.equivalent(&root.path) && x.store == root.store)
+        self.roots.iter().any(|x| {
+            x.path.equivalent(&root.path) && x.store == root.store && (x.extra.is_some() || root.extra.is_none())
+        })
     }
 }

@@ -2,7 +2,10 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     prelude::StrictPath,
-    resource::{config::RootsConfig, manifest::Os},
+    resource::{
+        config::{RootExtra, RootsConfig},
+        manifest::Os,
+    },
     scan::{LauncherGame, TitleFinder, TitleQuery},
     wrap,
 };
@@ -179,7 +182,13 @@ fn scan_db(root: &RootsConfig) -> Result<HashMap<spec::Id, Pending>, Error> {
         configpath: Option<String>,
     }
 
-    let db_file = root.path.joined("pga.db");
+    let db_file = root
+        .extra
+        .as_ref()
+        .map(|extra| match extra {
+            RootExtra::Lutris { database } => database.clone(),
+        })
+        .unwrap_or_else(|| root.path.joined("pga.db"));
     if !db_file.is_file() {
         return Err(Error::NoDatabase);
     }
@@ -314,6 +323,7 @@ mod tests {
     use super::*;
     use crate::{
         resource::{
+            config::RootExtra,
             manifest::{Manifest, Store},
             ResourceFile,
         },
@@ -349,20 +359,14 @@ mod tests {
 
     #[test]
     fn scan_finds_nothing_when_folder_does_not_exist() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/nonexistent", repo())),
-            store: Store::Lutris,
-        };
+        let root = RootsConfig::new(format!("{}/tests/nonexistent", repo()), Store::Lutris);
         let games = scan(&root, &title_finder());
         assert_eq!(HashMap::new(), games);
     }
 
     #[test]
     fn scan_finds_all_games_with_spec_files() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/launchers/lutris-spec", repo())),
-            store: Store::Lutris,
-        };
+        let root = RootsConfig::new(format!("{}/tests/launchers/lutris-spec", repo()), Store::Lutris);
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {
@@ -378,10 +382,7 @@ mod tests {
 
     #[test]
     fn scan_finds_all_games_with_database() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/launchers/lutris-db", repo())),
-            store: Store::Lutris,
-        };
+        let root = RootsConfig::new(format!("{}/tests/launchers/lutris-db", repo()), Store::Lutris);
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {
@@ -397,9 +398,33 @@ mod tests {
 
     #[test]
     fn scan_finds_all_games_with_spec_and_database_merged() {
+        let root = RootsConfig::new(format!("{}/tests/launchers/lutris-merged", repo()), Store::Lutris);
+        let games = scan(&root, &title_finder());
+        assert_eq!(
+            hash_map! {
+                "Windows Game 1".to_string(): hash_set![LauncherGame {
+                    install_dir: Some(StrictPath::new("/home/deck/Games/service/windows-game/drive_c/game".to_string())),
+                    prefix: Some(StrictPath::new("/home/deck/Games/service/windows-game-1b".to_string())),
+                    platform: Some(Os::Windows),
+                }],
+                "Windows Game 2".to_string(): hash_set![LauncherGame {
+                    install_dir: Some(StrictPath::new("/home/deck/Games/service".to_string())),
+                    prefix: Some(StrictPath::new("/home/deck/Games/service/windows-game-2".to_string())),
+                    platform: Some(Os::Windows),
+                }],
+            },
+            games,
+        );
+    }
+
+    #[test]
+    fn scan_finds_all_games_with_spec_and_database_in_split_folders() {
         let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/launchers/lutris-merged", repo())),
+            path: format!("{}/tests/launchers/lutris-split/config", repo()).into(),
             store: Store::Lutris,
+            extra: Some(RootExtra::Lutris {
+                database: format!("{}/tests/launchers/lutris-split/data/pga.db", repo()).into(),
+            }),
         };
         let games = scan(&root, &title_finder());
         assert_eq!(

@@ -15,7 +15,7 @@ use crate::{
     },
     lang::TRANSLATOR,
     prelude::StrictPath,
-    resource::config::{Config, CustomGame},
+    resource::config::{Config, CustomGame, RootExtra},
     scan::registry_compat::RegistryItem,
 };
 
@@ -169,6 +169,12 @@ impl TextHistory {
 }
 
 #[derive(Default)]
+pub struct RootHistory {
+    pub path: TextHistory,
+    pub lutris_database: TextHistory,
+}
+
+#[derive(Default)]
 pub struct RedirectHistory {
     pub source: TextHistory,
     pub target: TextHistory,
@@ -197,7 +203,7 @@ pub struct TextHistories {
     pub restore_source: TextHistory,
     pub backup_search_game_name: TextHistory,
     pub restore_search_game_name: TextHistory,
-    pub roots: Vec<TextHistory>,
+    pub roots: Vec<RootHistory>,
     pub secondary_manifests: Vec<TextHistory>,
     pub redirects: Vec<RedirectHistory>,
     pub custom_games: Vec<CustomGameHistory>,
@@ -225,7 +231,13 @@ impl TextHistories {
         };
 
         for x in &config.roots {
-            histories.roots.push(TextHistory::path(&x.path));
+            histories.roots.push(RootHistory {
+                path: TextHistory::path(&x.path),
+                lutris_database: match &x.extra {
+                    Some(RootExtra::Lutris { database }) => TextHistory::path(database),
+                    None => TextHistory::path(&StrictPath::new("".to_string())),
+                },
+            });
         }
 
         for x in &config.manifest.secondary {
@@ -283,7 +295,12 @@ impl TextHistories {
             UndoSubject::RestoreSource => self.restore_source.current(),
             UndoSubject::BackupSearchGameName => self.backup_search_game_name.current(),
             UndoSubject::RestoreSearchGameName => self.restore_search_game_name.current(),
-            UndoSubject::Root(i) => self.roots.get(i).map(|x| x.current()).unwrap_or_default(),
+            UndoSubject::RootPath(i) => self.roots.get(i).map(|x| x.path.current()).unwrap_or_default(),
+            UndoSubject::RootLutrisDatabase(i) => self
+                .roots
+                .get(i)
+                .map(|x| x.lutris_database.current())
+                .unwrap_or_default(),
             UndoSubject::SecondaryManifest(i) => {
                 self.secondary_manifests.get(i).map(|x| x.current()).unwrap_or_default()
             }
@@ -338,7 +355,8 @@ impl TextHistories {
                 screen: Screen::Restore,
                 value,
             }),
-            UndoSubject::Root(i) => Box::new(move |value| Message::EditedRoot(EditAction::Change(i, value))),
+            UndoSubject::RootPath(i) => Box::new(move |value| Message::EditedRoot(EditAction::Change(i, value))),
+            UndoSubject::RootLutrisDatabase(i) => Box::new(move |value| Message::EditedRootLutrisDatabase(i, value)),
             UndoSubject::SecondaryManifest(i) => {
                 Box::new(move |value| Message::EditedSecondaryManifest(EditAction::Change(i, value)))
             }
@@ -388,7 +406,8 @@ impl TextHistories {
             UndoSubject::RestoreSource => "".to_string(),
             UndoSubject::BackupSearchGameName => TRANSLATOR.search_game_name_placeholder(),
             UndoSubject::RestoreSearchGameName => TRANSLATOR.search_game_name_placeholder(),
-            UndoSubject::Root(_) => "".to_string(),
+            UndoSubject::RootPath(_) => "".to_string(),
+            UndoSubject::RootLutrisDatabase(_) => "".to_string(),
             UndoSubject::SecondaryManifest(_) => "".to_string(),
             UndoSubject::RedirectSource(_) => TRANSLATOR.redirect_source_placeholder(),
             UndoSubject::RedirectTarget(_) => TRANSLATOR.redirect_target_placeholder(),
@@ -409,7 +428,8 @@ impl TextHistories {
         let icon = match &subject {
             UndoSubject::BackupTarget
             | UndoSubject::RestoreSource
-            | UndoSubject::Root(_)
+            | UndoSubject::RootPath(_)
+            | UndoSubject::RootLutrisDatabase(_)
             | UndoSubject::RedirectSource(_)
             | UndoSubject::RedirectTarget(_)
             | UndoSubject::CustomGameFile(_, _)

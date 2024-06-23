@@ -213,18 +213,33 @@ pub struct RootsConfig {
     pub path: StrictPath,
     /// Game store associated with the root.
     pub store: Store,
+    /// Extra store-specific information.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub extra: Option<RootExtra>,
 }
 
 impl RootsConfig {
+    pub fn new(path: impl Into<StrictPath>, store: Store) -> Self {
+        Self {
+            path: path.into(),
+            store,
+            extra: None,
+        }
+    }
+
+    pub fn set_store(&mut self, store: Store) {
+        if self.store != store {
+            self.extra = None;
+            self.store = store;
+        }
+    }
+
     pub fn glob(&self) -> Vec<Self> {
         self.path
             .glob()
             .iter()
             .cloned()
-            .map(|path| RootsConfig {
-                path,
-                store: self.store,
-            })
+            .map(|path| RootsConfig::new(path, self.store))
             .collect()
     }
 
@@ -249,6 +264,18 @@ impl RootsConfig {
             })
             .collect()
     }
+}
+
+#[derive(
+    Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
+)]
+#[serde(rename_all = "camelCase")]
+pub enum RootExtra {
+    Lutris {
+        /// Full path to the Lutris `pga.db` file, if not contained within the main `path`.
+        #[serde(default)]
+        database: StrictPath,
+    },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -1108,9 +1135,6 @@ impl Config {
             // EA app:
             (format!("{}/EA Games", pf32), Store::Ea),
             (format!("{}/EA Games", pf64), Store::Ea),
-            // Lutris:
-            ("~/.config/lutris".to_string(), Store::Lutris),
-            ("~/.var/app/net.lutris.Lutris/config/lutris".to_string(), Store::Lutris),
         ];
 
         if let Some(data_dir) = CommonPath::Data.get() {
@@ -1177,12 +1201,55 @@ impl Config {
                 continue;
             }
             if sp.is_dir() {
-                roots.push(RootsConfig {
-                    path: sp.rendered(),
-                    store,
-                });
+                roots.push(RootsConfig::new(sp.rendered(), store));
             }
             checked.insert(sp);
+        }
+
+        let lutris = vec![
+            ("~/.config/lutris", "~/.local/share/lutris"),
+            (
+                "~/.var/app/net.lutris.Lutris/config/lutris",
+                "~/.var/app/net.lutris.Lutris/data/lutris",
+            ),
+        ];
+        'lutris: for (config_dir, data_dir) in lutris {
+            let store = Store::Lutris;
+            let config_dir = StrictPath::new(config_dir.to_string());
+            let data_dir = StrictPath::new(data_dir.to_string());
+
+            let path = 'inner: {
+                for candidate in [&config_dir, &data_dir] {
+                    if !candidate.joined("games/*.y*ml").glob().is_empty() {
+                        break 'inner candidate.rendered();
+                    }
+                }
+                continue 'lutris;
+            };
+
+            let database = 'inner: {
+                for (candidate, include) in [(&path, false), (&config_dir, true), (&data_dir, true)] {
+                    let candidate = candidate.joined("pga.db");
+                    if candidate.is_file() {
+                        break 'inner include.then_some(candidate.rendered());
+                    }
+                }
+                None
+            };
+
+            if self.roots.iter().any(|root| {
+                root.store == store && root.path.equivalent(&path) && (root.extra.is_some() || database.is_none())
+            }) || checked.contains(&path)
+            {
+                continue;
+            }
+
+            roots.push(RootsConfig {
+                path: path.clone(),
+                store,
+                extra: database.map(|database| RootExtra::Lutris { database }),
+            });
+            checked.insert(path);
         }
 
         roots
@@ -1190,6 +1257,21 @@ impl Config {
 
     pub fn add_common_roots(&mut self) {
         self.roots.extend(self.find_missing_roots());
+    }
+
+    pub fn merge_root(&mut self, candidate: &RootsConfig) -> Option<usize> {
+        for (i, root) in self.roots.iter_mut().enumerate() {
+            if root.store == candidate.store
+                && root.path.equivalent(&candidate.path)
+                && root.extra.is_none()
+                && candidate.extra.is_some()
+            {
+                root.extra.clone_from(&candidate.extra);
+                return Some(i);
+            }
+        }
+
+        None
     }
 
     pub fn is_game_enabled_for_operation(&self, name: &str, restoring: bool) -> bool {
@@ -1779,14 +1861,8 @@ mod tests {
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![
-                    RootsConfig {
-                        path: StrictPath::new(s("~/steam")),
-                        store: Store::Steam,
-                    },
-                    RootsConfig {
-                        path: StrictPath::new(s("~/other")),
-                        store: Store::Other,
-                    },
+                    RootsConfig::new("~/steam", Store::Steam),
+                    RootsConfig::new("~/other", Store::Other),
                 ],
                 redirects: vec![RedirectConfig {
                     kind: RedirectKind::Restore,
@@ -1893,10 +1969,7 @@ mod tests {
                 },
                 language: Language::English,
                 theme: Theme::Light,
-                roots: vec![RootsConfig {
-                    path: StrictPath::new(s("~/other")),
-                    store: Store::Other,
-                }],
+                roots: vec![RootsConfig::new("~/other", Store::Other)],
                 redirects: vec![],
                 backup: BackupConfig {
                     path: StrictPath::new(s("~/backup")),
@@ -2041,14 +2114,8 @@ customGames:
                 language: Language::English,
                 theme: Theme::Light,
                 roots: vec![
-                    RootsConfig {
-                        path: StrictPath::new(s("~/steam")),
-                        store: Store::Steam,
-                    },
-                    RootsConfig {
-                        path: StrictPath::new(s("~/other")),
-                        store: Store::Other,
-                    },
+                    RootsConfig::new("~/steam", Store::Steam),
+                    RootsConfig::new("~/other", Store::Other),
                 ],
                 redirects: vec![RedirectConfig {
                     kind: RedirectKind::Restore,

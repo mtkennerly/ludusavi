@@ -9,7 +9,7 @@ use unic_langid::LanguageIdentifier;
 use crate::{
     prelude::{CommandError, Error, StrictPath, VARIANT, VERSION},
     resource::{
-        config::{BackupFormat, CustomGameKind, RedirectKind, RootsConfig, SortKey, Theme, ZipCompression},
+        config::{BackupFormat, CustomGameKind, RedirectKind, RootExtra, RootsConfig, SortKey, Theme, ZipCompression},
         manifest::Store,
     },
     scan::{game_filter, BackupError, OperationStatus, OperationStepDecision, ScanChange},
@@ -723,7 +723,11 @@ impl Translator {
         let mut msg = translate("confirm-add-missing-roots") + "\n";
 
         for root in roots {
-            let _ = &write!(msg, "\n[{}] {}", self.store(&root.store), root.path.render());
+            let path2 = match root.extra.as_ref() {
+                Some(RootExtra::Lutris { database }) => format!(" + {}", database.render()),
+                None => "".to_string(),
+            };
+            let _ = &write!(msg, "\n[{}] {} {}", self.store(&root.store), root.path.render(), path2);
         }
 
         msg

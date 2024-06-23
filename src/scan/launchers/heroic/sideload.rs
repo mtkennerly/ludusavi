@@ -121,10 +121,7 @@ mod tests {
 
     #[test]
     fn scan_finds_all_games() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/launchers/heroic-sideload", repo())),
-            store: Store::Heroic,
-        };
+        let root = RootsConfig::new(format!("{}/tests/launchers/heroic-sideload", repo()), Store::Heroic);
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {

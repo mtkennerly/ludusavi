@@ -97,10 +97,10 @@ mod tests {
 
     #[test]
     fn scan_finds_all_games() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/launchers/heroic-gog-without-store-cache", repo())),
-            store: Store::Heroic,
-        };
+        let root = RootsConfig::new(
+            format!("{}/tests/launchers/heroic-gog-without-store-cache", repo()),
+            Store::Heroic,
+        );
         let legendary = Some(StrictPath::new(format!("{}/tests/launchers/legendary", repo())));
         let games = scan(&root, &title_finder(), legendary.as_ref());
         assert_eq!(

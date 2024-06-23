@@ -110,20 +110,14 @@ mod tests {
 
     #[test]
     fn scan_finds_nothing_when_folder_does_not_exist() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/nonexistent", repo())),
-            store: Store::Legendary,
-        };
+        let root = RootsConfig::new(format!("{}/tests/nonexistent", repo()), Store::Legendary);
         let games = scan(&root, &title_finder());
         assert_eq!(HashMap::new(), games);
     }
 
     #[test]
     fn scan_finds_all_games() {
-        let root = RootsConfig {
-            path: StrictPath::new(format!("{}/tests/launchers/legendary", repo())),
-            store: Store::Legendary,
-        };
+        let root = RootsConfig::new(format!("{}/tests/launchers/legendary", repo()), Store::Legendary);
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {

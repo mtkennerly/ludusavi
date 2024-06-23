@@ -3,6 +3,12 @@
 * Fixed:
   * For Lutris roots, after reading `pga.db`,
     Ludusavi did not properly combine that data with the data from the `games/*.yml` files.
+  * Ludusavi assumed that a Lutris root would contain both `games/` and `pga.db` together.
+    That's true for new installations of Lutris,
+    but older/existing installations would store them separately
+    (e.g., `~/.config/lutris/games` and `~/.local/share/lutris/pga.db`).
+    To fix this, you can now specify a different `pga.db` path explicitly.
+    In some cases, Ludusavi can prompt you to update the root automatically.
 
 ## v0.24.1 (2024-06-15)
 

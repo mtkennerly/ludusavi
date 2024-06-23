@@ -117,6 +117,7 @@ pub enum Message {
     FindRoots,
     ConfirmAddMissingRoots(Vec<RootsConfig>),
     EditedRoot(EditAction),
+    EditedRootLutrisDatabase(usize, String),
     EditedSecondaryManifest(EditAction),
     SelectedRootStore(usize, Store),
     SelectedRedirectKind(usize, RedirectKind),
@@ -631,7 +632,8 @@ pub enum UndoSubject {
     RestoreSource,
     BackupSearchGameName,
     RestoreSearchGameName,
-    Root(usize),
+    RootPath(usize),
+    RootLutrisDatabase(usize),
     SecondaryManifest(usize),
     RedirectSource(usize),
     RedirectTarget(usize),
@@ -656,7 +658,8 @@ impl UndoSubject {
             | UndoSubject::RestoreSource
             | UndoSubject::BackupSearchGameName
             | UndoSubject::RestoreSearchGameName
-            | UndoSubject::Root(_)
+            | UndoSubject::RootPath(_)
+            | UndoSubject::RootLutrisDatabase(_)
             | UndoSubject::SecondaryManifest(_)
             | UndoSubject::RedirectSource(_)
             | UndoSubject::RedirectTarget(_)

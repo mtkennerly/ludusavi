@@ -13,7 +13,7 @@ use crate::{
         modal::{CloudModalState, Modal, ModalField, ModalInputKind},
         notification::Notification,
         screen,
-        shortcuts::{Shortcut, TextHistories, TextHistory},
+        shortcuts::{RootHistory, Shortcut, TextHistories, TextHistory},
         style,
         widget::{id, Column, Container, Element, IcedParentExt, Progress, Row},
     },
@@ -21,7 +21,7 @@ use crate::{
     prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
     resource::{
         cache::Cache,
-        config::{Config, CustomGame, CustomGameKind, RootsConfig},
+        config::{Config, CustomGame, CustomGameKind, RootExtra, RootsConfig},
         manifest::{Manifest, Store},
         ResourceFile, SaveableResourceFile,
     },
@@ -1399,8 +1399,24 @@ impl Application for App {
             }
             Message::ConfirmAddMissingRoots(missing) => {
                 for root in missing {
-                    self.text_histories.roots.push(TextHistory::raw(&root.path.render()));
-                    self.config.roots.push(root);
+                    let path = root.path.render();
+                    let lutris_database = match &root.extra {
+                        Some(RootExtra::Lutris { database }) => database.render(),
+                        None => "".to_string(),
+                    };
+
+                    if let Some(updated) = self.config.merge_root(&root) {
+                        self.text_histories.roots[updated].path.push(&path);
+                        self.text_histories.roots[updated]
+                            .lutris_database
+                            .push(&lutris_database);
+                    } else {
+                        self.text_histories.roots.push(RootHistory {
+                            path: TextHistory::raw(&path),
+                            lutris_database: TextHistory::raw(&lutris_database),
+                        });
+                        self.config.roots.push(root);
+                    }
                 }
                 self.save_config();
                 self.go_idle();
@@ -1410,13 +1426,10 @@ impl Application for App {
                 match action {
                     EditAction::Add => {
                         self.text_histories.roots.push(Default::default());
-                        self.config.roots.push(RootsConfig {
-                            path: StrictPath::default(),
-                            store: Store::Other,
-                        });
+                        self.config.roots.push(RootsConfig::default());
                     }
                     EditAction::Change(index, value) => {
-                        self.text_histories.roots[index].push(&value);
+                        self.text_histories.roots[index].path.push(&value);
                         self.config.roots[index].path.reset(value);
                     }
                     EditAction::Remove(index) => {
@@ -1429,6 +1442,17 @@ impl Application for App {
                         self.config.roots.swap(index, offset);
                     }
                 }
+                self.save_config();
+                Command::none()
+            }
+            Message::EditedRootLutrisDatabase(index, value) => {
+                self.text_histories.roots[index].lutris_database.push(&value);
+                self.config.roots[index].extra = match (self.config.roots[index].store, value.is_empty()) {
+                    (Store::Lutris, true) => None,
+                    (Store::Lutris, false) => Some(RootExtra::Lutris { database: value.into() }),
+                    _ => None,
+                };
+
                 self.save_config();
                 Command::none()
             }
@@ -1456,7 +1480,7 @@ impl Application for App {
                 Command::none()
             }
             Message::SelectedRootStore(index, store) => {
-                self.config.roots[index].store = store;
+                self.config.roots[index].set_store(store);
                 self.save_config();
                 Command::none()
             }
@@ -2099,8 +2123,20 @@ impl Application for App {
                         &mut self.restore_screen.log.search.game_name,
                         &mut self.text_histories.restore_search_game_name,
                     ),
-                    UndoSubject::Root(i) => shortcut
-                        .apply_to_strict_path_field(&mut self.config.roots[i].path, &mut self.text_histories.roots[i]),
+                    UndoSubject::RootPath(i) => shortcut.apply_to_strict_path_field(
+                        &mut self.config.roots[i].path,
+                        &mut self.text_histories.roots[i].path,
+                    ),
+                    UndoSubject::RootLutrisDatabase(i) => {
+                        if let Some(extra) = self.config.roots[i].extra.as_mut() {
+                            match extra {
+                                RootExtra::Lutris { database } => shortcut.apply_to_strict_path_field(
+                                    database,
+                                    &mut self.text_histories.roots[i].lutris_database,
+                                ),
+                            }
+                        }
+                    }
                     UndoSubject::SecondaryManifest(i) => {
                         let history = &mut self.text_histories.secondary_manifests[i];
                         match shortcut {

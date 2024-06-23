@@ -918,6 +918,12 @@ impl From<&str> for StrictPath {
     }
 }
 
+impl From<String> for StrictPath {
+    fn from(source: String) -> Self {
+        StrictPath::new(source)
+    }
+}
+
 impl From<&String> for StrictPath {
     fn from(source: &String) -> Self {
         StrictPath::new(source.clone())
