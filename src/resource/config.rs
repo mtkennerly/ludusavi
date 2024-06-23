@@ -1307,24 +1307,19 @@ impl Config {
             let config_dir = StrictPath::new(config_dir.to_string());
             let data_dir = StrictPath::new(data_dir.to_string());
 
-            let path = 'inner: {
-                for candidate in [&config_dir, &data_dir] {
+            let (path, db_candidate) = 'inner: {
+                for (candidate, db_candidate) in [(&config_dir, Some(&data_dir)), (&data_dir, None)] {
                     if !candidate.joined("games/*.y*ml").glob().is_empty() {
-                        break 'inner candidate.rendered();
+                        break 'inner (candidate.rendered(), db_candidate);
                     }
                 }
                 continue 'lutris;
             };
 
-            let database = 'inner: {
-                for (candidate, include) in [(&path, false), (&config_dir, true), (&data_dir, true)] {
-                    let candidate = candidate.joined("pga.db");
-                    if candidate.is_file() {
-                        break 'inner include.then_some(candidate.rendered());
-                    }
-                }
-                None
-            };
+            let database = db_candidate.and_then(|candidate| {
+                let candidate = candidate.joined("pga.db");
+                candidate.is_file().then(|| candidate.rendered())
+            });
 
             for root in &self.roots {
                 if let Root::Lutris(stored) = root {
