@@ -1326,14 +1326,12 @@ impl Config {
                 None
             };
 
-            if self.roots.iter().any(|root| match root {
-                Root::Lutris(stored) => {
-                    stored.path.equivalent(&path) && (stored.database.is_some() || database.is_none())
+            for root in &self.roots {
+                if let Root::Lutris(stored) = root {
+                    if stored.path.equivalent(&path) && (stored.database.is_some() || database.is_none()) {
+                        continue 'lutris;
+                    }
                 }
-                _ => true,
-            }) || checked.contains(&path)
-            {
-                continue;
             }
 
             roots.push(Root::Lutris(root::Lutris {
