@@ -1,7 +1,7 @@
 use std::env;
 
 use crate::{
-    resource::{config::RootsConfig, manifest::Store},
+    resource::config::RootsConfig,
     scan::heroic::{gog, legendary, nile, sideload},
     wrap::WrapGameInfo,
 };
@@ -11,7 +11,10 @@ use crate::{
 fn find_in_roots(roots: &[RootsConfig], game_id: &str, game_runner: &str) -> Option<String> {
     roots
         .iter()
-        .filter(|root| root.store == Store::Heroic)
+        .filter_map(|root| match root {
+            RootsConfig::Heroic(root) => Some(root),
+            _ => None,
+        })
         .find_map(|root| {
             log::debug!("Looking for game ID '{}' in root {:?}", game_id, root);
 

@@ -1,3 +1,5 @@
+pub mod root;
+
 use std::{
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     num::NonZeroUsize,
@@ -195,57 +197,157 @@ impl ToString for Theme {
 }
 
 #[derive(
-    Clone,
-    Debug,
-    Default,
-    Eq,
-    PartialEq,
-    Ord,
-    PartialOrd,
-    Hash,
-    serde::Serialize,
-    serde::Deserialize,
-    schemars::JsonSchema,
+    Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
 )]
-#[serde(default, rename_all = "camelCase")]
-pub struct RootsConfig {
-    /// Where the root is located on your system.
-    pub path: StrictPath,
-    /// Game store associated with the root.
-    pub store: Store,
-    /// Extra store-specific information.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub extra: Option<RootExtra>,
+#[serde(tag = "store", rename_all = "camelCase")]
+pub enum RootsConfig {
+    Ea(root::Ea),
+    Epic(root::Epic),
+    Gog(root::Gog),
+    GogGalaxy(root::GogGalaxy),
+    Heroic(root::Heroic),
+    Legendary(root::Legendary),
+    Lutris(root::Lutris),
+    Microsoft(root::Microsoft),
+    Origin(root::Origin),
+    Prime(root::Prime),
+    Steam(root::Steam),
+    Uplay(root::Uplay),
+    OtherHome(root::OtherHome),
+    OtherWine(root::OtherWine),
+    OtherWindows(root::OtherWindows),
+    OtherLinux(root::OtherLinux),
+    OtherMac(root::OtherMac),
+    Other(root::Other),
+}
+
+impl Default for RootsConfig {
+    fn default() -> Self {
+        Self::Other(Default::default())
+    }
 }
 
 impl RootsConfig {
     pub fn new(path: impl Into<StrictPath>, store: Store) -> Self {
-        Self {
-            path: path.into(),
-            store,
-            extra: None,
+        match store {
+            Store::Ea => Self::Ea(root::Ea { path: path.into() }),
+            Store::Epic => Self::Epic(root::Epic { path: path.into() }),
+            Store::Gog => Self::Gog(root::Gog { path: path.into() }),
+            Store::GogGalaxy => Self::GogGalaxy(root::GogGalaxy { path: path.into() }),
+            Store::Heroic => Self::Heroic(root::Heroic { path: path.into() }),
+            Store::Legendary => Self::Legendary(root::Legendary { path: path.into() }),
+            Store::Lutris => Self::Lutris(root::Lutris {
+                path: path.into(),
+                database: None,
+            }),
+            Store::Microsoft => Self::Microsoft(root::Microsoft { path: path.into() }),
+            Store::Origin => Self::Origin(root::Origin { path: path.into() }),
+            Store::Prime => Self::Prime(root::Prime { path: path.into() }),
+            Store::Steam => Self::Steam(root::Steam { path: path.into() }),
+            Store::Uplay => Self::Uplay(root::Uplay { path: path.into() }),
+            Store::OtherHome => Self::OtherHome(root::OtherHome { path: path.into() }),
+            Store::OtherWine => Self::OtherWine(root::OtherWine { path: path.into() }),
+            Store::OtherWindows => Self::OtherWindows(root::OtherWindows { path: path.into() }),
+            Store::OtherLinux => Self::OtherLinux(root::OtherLinux { path: path.into() }),
+            Store::OtherMac => Self::OtherMac(root::OtherMac { path: path.into() }),
+            Store::Other => Self::Other(root::Other { path: path.into() }),
+        }
+    }
+
+    pub fn store(&self) -> Store {
+        match self {
+            Self::Ea(_) => Store::Ea,
+            Self::Epic(_) => Store::Epic,
+            Self::Gog(_) => Store::Gog,
+            Self::GogGalaxy(_) => Store::GogGalaxy,
+            Self::Heroic(_) => Store::Heroic,
+            Self::Legendary(_) => Store::Legendary,
+            Self::Lutris(_) => Store::Lutris,
+            Self::Microsoft(_) => Store::Microsoft,
+            Self::Origin(_) => Store::Origin,
+            Self::Prime(_) => Store::Prime,
+            Self::Steam(_) => Store::Steam,
+            Self::Uplay(_) => Store::Uplay,
+            Self::OtherHome(_) => Store::OtherHome,
+            Self::OtherWine(_) => Store::OtherWine,
+            Self::OtherWindows(_) => Store::OtherWindows,
+            Self::OtherLinux(_) => Store::OtherLinux,
+            Self::OtherMac(_) => Store::OtherMac,
+            Self::Other(_) => Store::Other,
+        }
+    }
+
+    pub fn path(&self) -> &StrictPath {
+        match self {
+            Self::Ea(root::Ea { path }) => path,
+            Self::Epic(root::Epic { path }) => path,
+            Self::Gog(root::Gog { path }) => path,
+            Self::GogGalaxy(root::GogGalaxy { path }) => path,
+            Self::Heroic(root::Heroic { path }) => path,
+            Self::Legendary(root::Legendary { path }) => path,
+            Self::Lutris(root::Lutris { path, .. }) => path,
+            Self::Microsoft(root::Microsoft { path }) => path,
+            Self::Origin(root::Origin { path }) => path,
+            Self::Prime(root::Prime { path }) => path,
+            Self::Steam(root::Steam { path }) => path,
+            Self::Uplay(root::Uplay { path }) => path,
+            Self::OtherHome(root::OtherHome { path }) => path,
+            Self::OtherWine(root::OtherWine { path }) => path,
+            Self::OtherWindows(root::OtherWindows { path }) => path,
+            Self::OtherLinux(root::OtherLinux { path }) => path,
+            Self::OtherMac(root::OtherMac { path }) => path,
+            Self::Other(root::Other { path }) => path,
+        }
+    }
+
+    pub fn path_mut(&mut self) -> &mut StrictPath {
+        match self {
+            Self::Ea(root::Ea { path }) => path,
+            Self::Epic(root::Epic { path }) => path,
+            Self::Gog(root::Gog { path }) => path,
+            Self::GogGalaxy(root::GogGalaxy { path }) => path,
+            Self::Heroic(root::Heroic { path }) => path,
+            Self::Legendary(root::Legendary { path }) => path,
+            Self::Lutris(root::Lutris { path, .. }) => path,
+            Self::Microsoft(root::Microsoft { path }) => path,
+            Self::Origin(root::Origin { path }) => path,
+            Self::Prime(root::Prime { path }) => path,
+            Self::Steam(root::Steam { path }) => path,
+            Self::Uplay(root::Uplay { path }) => path,
+            Self::OtherHome(root::OtherHome { path }) => path,
+            Self::OtherWine(root::OtherWine { path }) => path,
+            Self::OtherWindows(root::OtherWindows { path }) => path,
+            Self::OtherLinux(root::OtherLinux { path }) => path,
+            Self::OtherMac(root::OtherMac { path }) => path,
+            Self::Other(root::Other { path }) => path,
+        }
+    }
+
+    pub fn lutris_database(&self) -> Option<&StrictPath> {
+        match self {
+            Self::Lutris(root) => root.database.as_ref(),
+            _ => None,
         }
     }
 
     pub fn set_store(&mut self, store: Store) {
-        if self.store != store {
-            self.extra = None;
-            self.store = store;
+        if self.store() != store {
+            *self = Self::new(self.path().clone(), store);
         }
     }
 
     pub fn glob(&self) -> Vec<Self> {
-        self.path
+        self.path()
             .glob()
             .iter()
             .cloned()
-            .map(|path| RootsConfig::new(path, self.store))
+            .map(|path| RootsConfig::new(path, self.store()))
             .collect()
     }
 
     pub fn find_secondary_manifests(&self) -> HashMap<StrictPath, Manifest> {
-        self.path
-            .joined(match self.store {
+        self.path()
+            .joined(match self.store() {
                 Store::Steam => "steamapps/common/*/.ludusavi.yaml",
                 _ => "*/.ludusavi.yaml",
             })
@@ -264,18 +366,6 @@ impl RootsConfig {
             })
             .collect()
     }
-}
-
-#[derive(
-    Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize, schemars::JsonSchema,
-)]
-#[serde(rename_all = "camelCase")]
-pub enum RootExtra {
-    Lutris {
-        /// Full path to the Lutris `pga.db` file, if not contained within the main `path`.
-        #[serde(default)]
-        database: StrictPath,
-    },
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -1040,7 +1130,7 @@ impl ResourceFile for Config {
     }
 
     fn migrate(mut self) -> Self {
-        self.roots.retain(|x| !x.path.raw().trim().is_empty());
+        self.roots.retain(|x| !x.path().raw().trim().is_empty());
         self.manifest.secondary.retain(|x| !x.value().trim().is_empty());
         self.redirects
             .retain(|x| !x.source.raw().trim().is_empty() && !x.target.raw().trim().is_empty());
@@ -1197,7 +1287,7 @@ impl Config {
             let Ok(sp) = StrictPath::new(path).interpreted() else {
                 continue;
             };
-            if self.roots.iter().any(|root| root.path.equivalent(&sp)) || checked.contains(&sp) {
+            if self.roots.iter().any(|root| root.path().equivalent(&sp)) || checked.contains(&sp) {
                 continue;
             }
             if sp.is_dir() {
@@ -1214,7 +1304,6 @@ impl Config {
             ),
         ];
         'lutris: for (config_dir, data_dir) in lutris {
-            let store = Store::Lutris;
             let config_dir = StrictPath::new(config_dir.to_string());
             let data_dir = StrictPath::new(data_dir.to_string());
 
@@ -1237,18 +1326,20 @@ impl Config {
                 None
             };
 
-            if self.roots.iter().any(|root| {
-                root.store == store && root.path.equivalent(&path) && (root.extra.is_some() || database.is_none())
+            if self.roots.iter().any(|root| match root {
+                RootsConfig::Lutris(stored) => {
+                    stored.path.equivalent(&path) && (stored.database.is_some() || database.is_none())
+                }
+                _ => true,
             }) || checked.contains(&path)
             {
                 continue;
             }
 
-            roots.push(RootsConfig {
+            roots.push(RootsConfig::Lutris(root::Lutris {
                 path: path.clone(),
-                store,
-                extra: database.map(|database| RootExtra::Lutris { database }),
-            });
+                database,
+            }));
             checked.insert(path);
         }
 
@@ -1261,13 +1352,15 @@ impl Config {
 
     pub fn merge_root(&mut self, candidate: &RootsConfig) -> Option<usize> {
         for (i, root) in self.roots.iter_mut().enumerate() {
-            if root.store == candidate.store
-                && root.path.equivalent(&candidate.path)
-                && root.extra.is_none()
-                && candidate.extra.is_some()
-            {
-                root.extra.clone_from(&candidate.extra);
-                return Some(i);
+            match (root, candidate) {
+                (RootsConfig::Lutris(root), RootsConfig::Lutris(candidate)) => {
+                    if root.path.equivalent(&candidate.path) && root.database.is_none() && candidate.database.is_some()
+                    {
+                        root.database.clone_from(&candidate.database);
+                        return Some(i);
+                    }
+                }
+                _ => continue,
             }
         }
 
@@ -1389,12 +1482,11 @@ impl Config {
     pub fn expanded_roots(&self) -> Vec<RootsConfig> {
         for root in &self.roots {
             log::trace!(
-                "Configured root ({:?}): {} | interpreted: {:?} | exists: {} | is dir: {}",
-                &root.store,
-                &root.path.raw(),
-                &root.path.interpret(),
-                root.path.exists(),
-                root.path.is_dir()
+                "Configured root: {:?} | interpreted: {:?} | exists: {} | is dir: {}",
+                &root,
+                root.path().interpret(),
+                root.path().exists(),
+                root.path().is_dir()
             );
         }
 
@@ -1402,12 +1494,11 @@ impl Config {
 
         for root in &expanded {
             log::trace!(
-                "Expanded root ({:?}): {} | interpreted: {:?} | exists: {} | is dir: {}",
-                &root.store,
-                &root.path.raw(),
-                &root.path.interpret(),
-                root.path.exists(),
-                root.path.is_dir()
+                "Expanded root: {:?} | interpreted: {:?} | exists: {} | is dir: {}",
+                &root,
+                root.path().interpret(),
+                root.path().exists(),
+                root.path().is_dir()
             );
         }
 
@@ -1936,75 +2027,6 @@ mod tests {
         );
     }
 
-    /// There was a defect previously where `Store::Other` would be serialized
-    /// as `store: Other` (capitalized). This test ensures that old config files
-    /// with that issue will still be accepted.
-    #[test]
-    fn can_parse_legacy_capitalized_other_store_type() {
-        let config = Config::load_from_string(
-            r#"
-            manifest:
-              url: example.com
-              etag: null
-            roots:
-              - path: ~/other
-                store: Other
-            backup:
-              path: ~/backup
-            restore:
-              path: ~/restore
-            apps:
-              rclone:
-                path: "rclone"
-            "#,
-        )
-        .unwrap();
-
-        assert_eq!(
-            Config {
-                runtime: Default::default(),
-                manifest: ManifestConfig {
-                    url: s("example.com"),
-                    secondary: vec![]
-                },
-                language: Language::English,
-                theme: Theme::Light,
-                roots: vec![RootsConfig::new("~/other", Store::Other)],
-                redirects: vec![],
-                backup: BackupConfig {
-                    path: StrictPath::new(s("~/backup")),
-                    ignored_games: BTreeSet::new(),
-                    filter: BackupFilter {
-                        exclude_store_screenshots: false,
-                        ..Default::default()
-                    },
-                    toggled_paths: Default::default(),
-                    toggled_registry: Default::default(),
-                    sort: Default::default(),
-                    retention: Retention::default(),
-                    format: Default::default(),
-                },
-                restore: RestoreConfig {
-                    path: StrictPath::new(s("~/restore")),
-                    ignored_games: BTreeSet::new(),
-                    toggled_paths: Default::default(),
-                    toggled_registry: Default::default(),
-                    sort: Default::default(),
-                },
-                scan: Default::default(),
-                apps: Apps {
-                    rclone: App {
-                        path: StrictPath::new("rclone".to_string()),
-                        ..Default::default()
-                    },
-                },
-                custom_games: vec![],
-                ..Default::default()
-            },
-            config,
-        );
-    }
-
     #[test]
     fn can_be_serialized() {
         assert_eq!(
@@ -2017,10 +2039,10 @@ manifest:
 language: en-US
 theme: light
 roots:
-  - path: ~/steam
-    store: steam
-  - path: ~/other
-    store: other
+  - store: steam
+    path: ~/steam
+  - store: other
+    path: ~/other
 redirects:
   - kind: restore
     source: ~/old

@@ -15,7 +15,7 @@ use crate::{
     },
     lang::TRANSLATOR,
     prelude::StrictPath,
-    resource::config::{Config, CustomGame, RootExtra},
+    resource::config::{Config, CustomGame},
     scan::registry_compat::RegistryItem,
 };
 
@@ -36,6 +36,22 @@ impl Shortcut {
             }
             Shortcut::Redo => {
                 config.reset(history.redo());
+            }
+        }
+    }
+
+    pub fn apply_to_option_strict_path_field(&self, config: &mut Option<StrictPath>, history: &mut TextHistory) {
+        let value = match self {
+            Shortcut::Undo => history.undo(),
+            Shortcut::Redo => history.redo(),
+        };
+
+        if value.is_empty() {
+            *config = None;
+        } else {
+            match config {
+                Some(config) => config.reset(value),
+                None => *config = Some(value.into()),
             }
         }
     }
@@ -232,11 +248,8 @@ impl TextHistories {
 
         for x in &config.roots {
             histories.roots.push(RootHistory {
-                path: TextHistory::path(&x.path),
-                lutris_database: match &x.extra {
-                    Some(RootExtra::Lutris { database }) => TextHistory::path(database),
-                    None => TextHistory::path(&StrictPath::new("".to_string())),
-                },
+                path: TextHistory::path(x.path()),
+                lutris_database: x.lutris_database().map(TextHistory::path).unwrap_or_default(),
             });
         }
 

@@ -114,7 +114,7 @@ pub fn parse_paths(
         None => SKIP,
     };
 
-    let Ok(root_interpreted) = root.path.interpret_unless_skip() else {
+    let Ok(root_interpreted) = root.path().interpret_unless_skip() else {
         return HashSet::new();
     };
     let data_dir = CommonPath::Data.get_or_skip();
@@ -133,7 +133,7 @@ pub fn parse_paths(
             .replace(GAME, install_dir)
             .replace(
                 BASE,
-                &match root.store {
+                &match root.store() {
                     Store::Steam => format!("{}/steamapps/common/{}", &root_interpreted, install_dir),
                     Store::Heroic | Store::Legendary | Store::Lutris => full_install_dir
                         .and_then(|x| x.interpret().ok())
@@ -203,7 +203,7 @@ pub fn parse_paths(
             platform.is_case_sensitive(),
         ));
     }
-    if root.store == Store::Gog && Os::HOST == Os::Linux {
+    if root.store() == Store::Gog && Os::HOST == Os::Linux {
         paths.insert((
             path.replace(GAME, &format!("{}/game", install_dir))
                 .replace(BASE, &format!("{}/{}/game", &root_interpreted, install_dir)),
@@ -220,7 +220,7 @@ pub fn parse_paths(
     // $HOME/.var/app/$FLATPAK_ID, so we cat detect a flatpak installed heroic
     // by looking at the `root_interpreted` and check for
     // ".var/app/com.heroicgameslauncher.hgl/config/heroic"
-    if root.store == Store::Heroic
+    if root.store() == Store::Heroic
         && Os::HOST == Os::Linux
         && root_interpreted.ends_with(".var/app/com.heroicgameslauncher.hgl/config/heroic")
     {
@@ -237,7 +237,7 @@ pub fn parse_paths(
             platform.is_case_sensitive(),
         ));
     }
-    if root.store == Store::OtherHome {
+    if root.store() == Store::OtherHome {
         paths.insert((
             path.replace(ROOT, &root_interpreted)
                 .replace(GAME, install_dir)
@@ -256,7 +256,7 @@ pub fn parse_paths(
             platform.is_case_sensitive(),
         ));
     }
-    if root.store == Store::Steam {
+    if root.store() == Store::Steam {
         if let Some(steam_shortcut) = steam_shortcut {
             if let Some(start_dir) = &steam_shortcut.start_dir {
                 if let Ok(start_dir) = start_dir.interpret() {
@@ -265,7 +265,7 @@ pub fn parse_paths(
             }
         }
     }
-    if root.store == Store::Steam && Os::HOST == Os::Linux {
+    if root.store() == Store::Steam && Os::HOST == Os::Linux {
         // Check XDG folders inside of Steam installation.
         if root_interpreted.ends_with(".var/app/com.valvesoftware.Steam/.steam/steam") {
             paths.insert((
@@ -322,7 +322,7 @@ pub fn parse_paths(
             }
         }
     }
-    if root.store == Store::OtherWine {
+    if root.store() == Store::OtherWine {
         let prefix = format!("{}/drive_*", &root_interpreted);
         let path2 = path
             .replace(ROOT, &root_interpreted)
@@ -355,7 +355,7 @@ pub fn parse_paths(
         ));
     }
 
-    if root.store == Store::OtherWindows {
+    if root.store() == Store::OtherWindows {
         paths.insert((
             path.replace(HOME, &format!("{}/Users/*", &root_interpreted))
                 .replace(STORE_USER_ID, "*")
@@ -372,7 +372,7 @@ pub fn parse_paths(
             platform.is_case_sensitive(),
         ));
     }
-    if root.store == Store::OtherLinux {
+    if root.store() == Store::OtherLinux {
         paths.insert((
             path.replace(HOME, &format!("{}/home/*", &root_interpreted))
                 .replace(STORE_USER_ID, "*")
@@ -382,7 +382,7 @@ pub fn parse_paths(
             platform.is_case_sensitive(),
         ));
     }
-    if root.store == Store::OtherMac {
+    if root.store() == Store::OtherMac {
         paths.insert((
             path.replace(HOME, &format!("{}/Users/*", &root_interpreted))
                 .replace(STORE_USER_ID, "*")
@@ -407,7 +407,7 @@ pub fn parse_paths(
                 platform.is_case_sensitive(),
             ));
 
-            if root.store == Store::OtherHome {
+            if root.store() == Store::OtherHome {
                 let home = &root_interpreted;
                 paths.insert((
                     path.replace(HOME, home)
@@ -478,16 +478,12 @@ pub fn scan_game_for_backup(
     }
 
     for root in roots_to_check {
-        log::trace!(
-            "[{name}] adding candidates from {:?} root: {:?}",
-            root.store,
-            &root.path
-        );
-        if root.path.raw().trim().is_empty() {
+        log::trace!("[{name}] adding candidates from root: {:?}", &root,);
+        if root.path().raw().trim().is_empty() {
             continue;
         }
-        let Ok(root_interpreted) = root.path.interpret_unless_skip() else {
-            log::error!("Invalid root: {:?}", &root.path);
+        let Ok(root_interpreted) = root.path().interpret_unless_skip() else {
+            log::error!("Invalid root path: {:?}", &root);
             continue;
         };
 
@@ -548,7 +544,7 @@ pub fn scan_game_for_backup(
                 paths_to_check.insert((candidate, Some(case_sensitive)));
             }
         }
-        if root.store == Store::Steam {
+        if root.store() == Store::Steam {
             for id in &steam_ids {
                 // Cloud saves:
                 paths_to_check.insert((

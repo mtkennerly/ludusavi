@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     prelude::{StrictPath, ENV_DEBUG},
-    resource::{config::RootsConfig, manifest::Os},
+    resource::{config::root, manifest::Os},
     scan::{
         launchers::{heroic::find_prefix, LauncherGame},
         TitleFinder,
@@ -33,7 +33,7 @@ pub mod library {
     }
 }
 
-pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
+pub fn scan(root: &root::Heroic, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
     let mut out = HashMap::<String, HashSet<LauncherGame>>::new();
 
     for (app_id, game) in get_library(&root.path) {
@@ -98,7 +98,7 @@ mod tests {
     use super::*;
     use crate::{
         resource::{
-            manifest::{Manifest, Os, Store},
+            manifest::{Manifest, Os},
             ResourceFile,
         },
         testing::repo,
@@ -121,7 +121,9 @@ mod tests {
 
     #[test]
     fn scan_finds_all_games() {
-        let root = RootsConfig::new(format!("{}/tests/launchers/heroic-nile", repo()), Store::Heroic);
+        let root = root::Heroic {
+            path: format!("{}/tests/launchers/heroic-nile", repo()).into(),
+        };
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {

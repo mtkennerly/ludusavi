@@ -109,9 +109,15 @@ impl Cache {
         }
     }
 
-    pub fn has_root(&self, root: &RootsConfig) -> bool {
-        self.roots.iter().any(|x| {
-            x.path.equivalent(&root.path) && x.store == root.store && (x.extra.is_some() || root.extra.is_none())
+    pub fn has_root(&self, candidate: &RootsConfig) -> bool {
+        self.roots.iter().any(|root| {
+            let primary = root.path().equivalent(candidate.path()) && root.store() == candidate.store();
+            match (root, candidate) {
+                (RootsConfig::Lutris(root), RootsConfig::Lutris(candidate)) => {
+                    primary && (root.database.is_some() || candidate.database.is_none())
+                }
+                _ => primary,
+            }
         })
     }
 }

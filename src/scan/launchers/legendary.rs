@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     prelude::{StrictPath, ENV_DEBUG},
-    resource::{config::RootsConfig, manifest::Os},
+    resource::{config::root, manifest::Os},
     scan::{launchers::LauncherGame, TitleFinder},
 };
 
@@ -24,7 +24,7 @@ pub mod installed {
     }
 }
 
-pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
+pub fn scan(root: &root::Legendary, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
     let mut out = HashMap::<String, HashSet<LauncherGame>>::new();
 
     for game in get_games(&root.path) {
@@ -86,10 +86,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        resource::{
-            manifest::{Manifest, Store},
-            ResourceFile,
-        },
+        resource::{manifest::Manifest, ResourceFile},
         testing::repo,
     };
 
@@ -110,14 +107,18 @@ mod tests {
 
     #[test]
     fn scan_finds_nothing_when_folder_does_not_exist() {
-        let root = RootsConfig::new(format!("{}/tests/nonexistent", repo()), Store::Legendary);
+        let root = root::Legendary {
+            path: format!("{}/tests/nonexistent", repo()).into(),
+        };
         let games = scan(&root, &title_finder());
         assert_eq!(HashMap::new(), games);
     }
 
     #[test]
     fn scan_finds_all_games() {
-        let root = RootsConfig::new(format!("{}/tests/launchers/legendary", repo()), Store::Legendary);
+        let root = root::Legendary {
+            path: format!("{}/tests/launchers/legendary", repo()).into(),
+        };
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {

@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use crate::prelude::StrictPath;
 
 use crate::{
-    resource::{config::RootsConfig, manifest::Os},
+    resource::{config::root, manifest::Os},
     scan::{launchers::LauncherGame, TitleFinder},
 };
 
@@ -41,7 +41,7 @@ mod games_config {
 }
 
 pub fn scan(
-    root: &RootsConfig,
+    root: &root::Heroic,
     title_finder: &TitleFinder,
     legendary: Option<&StrictPath>,
 ) -> HashMap<String, HashSet<LauncherGame>> {

@@ -9,7 +9,7 @@ use crate::{
     prelude::StrictPath,
     resource::{
         config::RootsConfig,
-        manifest::{Manifest, Os, Store},
+        manifest::{Manifest, Os},
     },
     scan::TitleFinder,
 };
@@ -52,23 +52,18 @@ impl Launchers {
         let mut instance = Self::default();
 
         for root in roots {
-            log::debug!("Scanning launcher info: {:?} - {}", root.store, root.path.render());
-            let mut found = match root.store {
-                Store::Heroic => heroic::scan(root, title_finder, legendary.as_ref()),
-                Store::Legendary => legendary::scan(root, title_finder),
-                Store::Lutris => lutris::scan(root, title_finder),
+            log::debug!("Scanning launcher info: {:?}", &root);
+            let mut found = match root {
+                RootsConfig::Heroic(root) => heroic::scan(root, title_finder, legendary.as_ref()),
+                RootsConfig::Legendary(root) => legendary::scan(root, title_finder),
+                RootsConfig::Lutris(root) => lutris::scan(root, title_finder),
                 _ => generic::scan(root, manifest, subjects),
             };
             found.retain(|_k, v| {
                 v.retain(|x| !x.is_empty());
                 !v.is_empty()
             });
-            log::debug!(
-                "launcher games found ({:?} - {}): {:#?}",
-                root.store,
-                root.path.raw(),
-                &found
-            );
+            log::debug!("launcher games found ({:?}): {:#?}", &root, &found);
             if !found.is_empty() {
                 instance.games.entry(root.clone()).or_default().extend(found);
             }

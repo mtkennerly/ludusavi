@@ -21,8 +21,8 @@ use crate::{
     prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
     resource::{
         cache::Cache,
-        config::{Config, CustomGame, CustomGameKind, RootExtra, RootsConfig},
-        manifest::{Manifest, Store},
+        config::{Config, CustomGame, CustomGameKind, RootsConfig},
+        manifest::Manifest,
         ResourceFile, SaveableResourceFile,
     },
     scan::{
@@ -177,7 +177,7 @@ impl App {
 
     fn invalidate_path_caches(&self) {
         for x in &self.config.roots {
-            x.path.invalidate_cache();
+            x.path().invalidate_cache();
         }
         for x in &self.config.redirects {
             x.source.invalidate_cache();
@@ -1399,11 +1399,8 @@ impl Application for App {
             }
             Message::ConfirmAddMissingRoots(missing) => {
                 for root in missing {
-                    let path = root.path.render();
-                    let lutris_database = match &root.extra {
-                        Some(RootExtra::Lutris { database }) => database.render(),
-                        None => "".to_string(),
-                    };
+                    let path = root.path().render();
+                    let lutris_database = root.lutris_database().map(|x| x.render()).unwrap_or_default();
 
                     if let Some(updated) = self.config.merge_root(&root) {
                         self.text_histories.roots[updated].path.push(&path);
@@ -1430,7 +1427,7 @@ impl Application for App {
                     }
                     EditAction::Change(index, value) => {
                         self.text_histories.roots[index].path.push(&value);
-                        self.config.roots[index].path.reset(value);
+                        self.config.roots[index].path_mut().reset(value);
                     }
                     EditAction::Remove(index) => {
                         self.text_histories.roots.remove(index);
@@ -1447,11 +1444,9 @@ impl Application for App {
             }
             Message::EditedRootLutrisDatabase(index, value) => {
                 self.text_histories.roots[index].lutris_database.push(&value);
-                self.config.roots[index].extra = match (self.config.roots[index].store, value.is_empty()) {
-                    (Store::Lutris, true) => None,
-                    (Store::Lutris, false) => Some(RootExtra::Lutris { database: value.into() }),
-                    _ => None,
-                };
+                if let RootsConfig::Lutris(root) = &mut self.config.roots[index] {
+                    root.database = if value.is_empty() { None } else { Some(value.into()) };
+                }
 
                 self.save_config();
                 Command::none()
@@ -2049,7 +2044,7 @@ impl Application for App {
                 let path = match subject {
                     BrowseSubject::BackupTarget => self.config.backup.path.clone(),
                     BrowseSubject::RestoreSource => self.config.restore.path.clone(),
-                    BrowseSubject::Root(i) => self.config.roots[i].path.clone(),
+                    BrowseSubject::Root(i) => self.config.roots[i].path().clone(),
                     BrowseSubject::RedirectSource(i) => self.config.redirects[i].source.clone(),
                     BrowseSubject::RedirectTarget(i) => self.config.redirects[i].target.clone(),
                     BrowseSubject::CustomGameFile(i, j) => {
@@ -2124,17 +2119,15 @@ impl Application for App {
                         &mut self.text_histories.restore_search_game_name,
                     ),
                     UndoSubject::RootPath(i) => shortcut.apply_to_strict_path_field(
-                        &mut self.config.roots[i].path,
+                        self.config.roots[i].path_mut(),
                         &mut self.text_histories.roots[i].path,
                     ),
                     UndoSubject::RootLutrisDatabase(i) => {
-                        if let Some(extra) = self.config.roots[i].extra.as_mut() {
-                            match extra {
-                                RootExtra::Lutris { database } => shortcut.apply_to_strict_path_field(
-                                    database,
-                                    &mut self.text_histories.roots[i].lutris_database,
-                                ),
-                            }
+                        if let RootsConfig::Lutris(root) = &mut self.config.roots[i] {
+                            shortcut.apply_to_option_strict_path_field(
+                                &mut root.database,
+                                &mut self.text_histories.roots[i].lutris_database,
+                            )
                         }
                     }
                     UndoSubject::SecondaryManifest(i) => {

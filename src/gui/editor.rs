@@ -29,7 +29,7 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
             .roots
             .iter()
             .enumerate()
-            .fold(content, |parent, (i, root)| match root.store {
+            .fold(content, |parent, (i, root)| match root.store() {
                 Store::Lutris => parent
                     .push(
                         Row::new()
@@ -38,8 +38,10 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
                             .push(button::move_down(Message::EditedRoot, i, config.roots.len()))
                             .push(histories.input(UndoSubject::RootPath(i)))
                             .push(
-                                pick_list(Store::ALL, Some(root.store), move |v| Message::SelectedRootStore(i, v))
-                                    .style(style::PickList::Primary),
+                                pick_list(Store::ALL, Some(root.store()), move |v| {
+                                    Message::SelectedRootStore(i, v)
+                                })
+                                .style(style::PickList::Primary),
                             )
                             .push(button::choose_folder(BrowseSubject::Root(i), modifiers))
                             .push(button::remove(Message::EditedRoot, i)),
@@ -59,8 +61,10 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
                         .push(button::move_down(Message::EditedRoot, i, config.roots.len()))
                         .push(histories.input(UndoSubject::RootPath(i)))
                         .push(
-                            pick_list(Store::ALL, Some(root.store), move |v| Message::SelectedRootStore(i, v))
-                                .style(style::PickList::Primary),
+                            pick_list(Store::ALL, Some(root.store()), move |v| {
+                                Message::SelectedRootStore(i, v)
+                            })
+                            .style(style::PickList::Primary),
                         )
                         .push(button::choose_folder(BrowseSubject::Root(i), modifiers))
                         .push(button::remove(Message::EditedRoot, i)),

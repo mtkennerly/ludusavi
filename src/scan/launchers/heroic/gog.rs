@@ -4,7 +4,7 @@ use crate::prelude::StrictPath;
 
 use crate::{
     prelude::ENV_DEBUG,
-    resource::{config::RootsConfig, manifest::Os},
+    resource::{config::root, manifest::Os},
     scan::{
         launchers::{heroic::find_prefix, LauncherGame},
         TitleFinder, TitleQuery,
@@ -46,7 +46,7 @@ pub mod library {
     }
 }
 
-pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
+pub fn scan(root: &root::Heroic, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
     let mut games = HashMap::<String, HashSet<LauncherGame>>::new();
 
     let game_titles: HashMap<String, String> = get_library(root)
@@ -110,7 +110,7 @@ pub fn scan(root: &RootsConfig, title_finder: &TitleFinder) -> HashMap<String, H
     games
 }
 
-pub fn get_library(root: &RootsConfig) -> Vec<library::Game> {
+pub fn get_library(root: &root::Heroic) -> Vec<library::Game> {
     let libraries = [root.path.joined(library::PATH), root.path.joined(library::PATH_LEGACY)];
 
     let library_path = 'outer: {
@@ -144,7 +144,7 @@ mod tests {
     use super::*;
     use crate::{
         resource::{
-            manifest::{Manifest, Os, Store},
+            manifest::{Manifest, Os},
             ResourceFile,
         },
         testing::repo,
@@ -167,10 +167,9 @@ mod tests {
 
     #[test]
     fn scan_finds_all_games_without_store_cache() {
-        let root = RootsConfig::new(
-            format!("{}/tests/launchers/heroic-gog-without-store-cache", repo()),
-            Store::Heroic,
-        );
+        let root = root::Heroic {
+            path: format!("{}/tests/launchers/heroic-gog-without-store-cache", repo()).into(),
+        };
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {
@@ -186,10 +185,9 @@ mod tests {
 
     #[test]
     fn scan_finds_all_games_with_store_cache() {
-        let root = RootsConfig::new(
-            format!("{}/tests/launchers/heroic-gog-with-store-cache", repo()),
-            Store::Heroic,
-        );
+        let root = root::Heroic {
+            path: format!("{}/tests/launchers/heroic-gog-with-store-cache", repo()).into(),
+        };
         let games = scan(&root, &title_finder());
         assert_eq!(
             hash_map! {

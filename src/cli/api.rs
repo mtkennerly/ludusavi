@@ -216,7 +216,7 @@ mod tests {
         }
                 "#
         .trim();
-        let deserialized = serde_json::from_str::<Input>(&serialized).unwrap();
+        let deserialized = serde_json::from_str::<Input>(serialized).unwrap();
 
         let expected = Input {
             config: ConfigOverride {

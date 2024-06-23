@@ -4,7 +4,7 @@ use crate::prelude::StrictPath;
 
 use crate::{
     prelude::ENV_DEBUG,
-    resource::{config::RootsConfig, manifest::Os},
+    resource::{config::root, manifest::Os},
     scan::{
         launchers::{heroic::find_prefix, legendary as legendary_standalone, LauncherGame},
         TitleFinder,
@@ -12,7 +12,7 @@ use crate::{
 };
 
 pub fn scan(
-    root: &RootsConfig,
+    root: &root::Heroic,
     title_finder: &TitleFinder,
     legendary: Option<&StrictPath>,
 ) -> HashMap<String, HashSet<LauncherGame>> {
@@ -47,7 +47,10 @@ pub fn scan(
     games
 }
 
-pub fn get_installed(root: &RootsConfig, legendary: Option<&StrictPath>) -> Vec<legendary_standalone::installed::Game> {
+pub fn get_installed(
+    root: &root::Heroic,
+    legendary: Option<&StrictPath>,
+) -> Vec<legendary_standalone::installed::Game> {
     let mut out = vec![];
 
     let legendary_paths = match legendary {
@@ -74,7 +77,7 @@ mod tests {
     use super::*;
     use crate::{
         resource::{
-            manifest::{Manifest, Os, Store},
+            manifest::{Manifest, Os},
             ResourceFile,
         },
         testing::repo,
@@ -97,10 +100,9 @@ mod tests {
 
     #[test]
     fn scan_finds_all_games() {
-        let root = RootsConfig::new(
-            format!("{}/tests/launchers/heroic-gog-without-store-cache", repo()),
-            Store::Heroic,
-        );
+        let root = root::Heroic {
+            path: format!("{}/tests/launchers/heroic-gog-without-store-cache", repo()).into(),
+        };
         let legendary = Some(StrictPath::new(format!("{}/tests/launchers/legendary", repo())));
         let games = scan(&root, &title_finder(), legendary.as_ref());
         assert_eq!(

@@ -53,11 +53,11 @@ fn fuzzy_match(
 }
 
 pub fn scan(root: &RootsConfig, manifest: &Manifest, subjects: &[String]) -> HashMap<String, HashSet<LauncherGame>> {
-    log::debug!("ranking installations for {:?}: {}", root.store, root.path.raw());
+    log::debug!("ranking installations for root: {:?}", &root);
 
-    let install_parent = match root.store {
-        Store::Steam => root.path.joined("steamapps/common"),
-        _ => root.path.clone(),
+    let install_parent = match root.store() {
+        Store::Steam => root.path().joined("steamapps/common"),
+        _ => root.path().clone(),
     };
     let matcher = make_fuzzy_matcher();
 
