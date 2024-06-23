@@ -52,7 +52,8 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
                             .align_items(Alignment::Center)
                             .push(horizontal_space().width(70))
                             .push(text(TRANSLATOR.field("pga.db")))
-                            .push(histories.input(UndoSubject::RootLutrisDatabase(i))),
+                            .push(histories.input(UndoSubject::RootLutrisDatabase(i)))
+                            .push(button::choose_file(BrowseFileSubject::RootLutrisDatabase(i), modifiers)),
                     ),
                 _ => parent.push(
                     Row::new()

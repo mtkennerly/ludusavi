@@ -623,6 +623,7 @@ pub enum BrowseSubject {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BrowseFileSubject {
     RcloneExecutable,
+    RootLutrisDatabase(usize),
     SecondaryManifest(usize),
 }
 

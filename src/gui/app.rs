@@ -1475,6 +1475,7 @@ impl Application for App {
                 Command::none()
             }
             Message::SelectedRootStore(index, store) => {
+                self.text_histories.roots[index].clear_secondary();
                 self.config.roots[index].set_store(store);
                 self.save_config();
                 Command::none()
@@ -1978,6 +1979,12 @@ impl Application for App {
                         self.text_histories.rclone_executable.push(&path.raw());
                         self.config.apps.rclone.path = path;
                     }
+                    BrowseFileSubject::RootLutrisDatabase(i) => {
+                        self.text_histories.roots[i].lutris_database.push(&path.raw());
+                        if let RootsConfig::Lutris(root) = &mut self.config.roots[i] {
+                            root.database = Some(path);
+                        }
+                    }
                     BrowseFileSubject::SecondaryManifest(i) => {
                         self.text_histories.secondary_manifests[i].push(&path.raw());
                         self.config.manifest.secondary[i].set(path.raw());
@@ -2061,6 +2068,15 @@ impl Application for App {
             Message::OpenFileSubject(subject) => {
                 let path = match subject {
                     BrowseFileSubject::RcloneExecutable => self.config.apps.rclone.path.clone(),
+                    BrowseFileSubject::RootLutrisDatabase(i) => {
+                        let RootsConfig::Lutris(root) = &self.config.roots[i] else {
+                            return Command::none();
+                        };
+                        let Some(database) = root.database.as_ref() else {
+                            return Command::none();
+                        };
+                        database.clone()
+                    }
                     BrowseFileSubject::SecondaryManifest(i) => {
                         let Some(path) = self.config.manifest.secondary[i].path() else {
                             return Command::none();

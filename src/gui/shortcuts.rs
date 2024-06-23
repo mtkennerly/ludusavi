@@ -190,6 +190,12 @@ pub struct RootHistory {
     pub lutris_database: TextHistory,
 }
 
+impl RootHistory {
+    pub fn clear_secondary(&mut self) {
+        self.lutris_database.clear();
+    }
+}
+
 #[derive(Default)]
 pub struct RedirectHistory {
     pub source: TextHistory,
