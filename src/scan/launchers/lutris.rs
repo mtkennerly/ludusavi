@@ -74,8 +74,8 @@ impl Pending {
                     // Lutris updates the spec, but not the database,
                     // so we prefer the spec version.
                     prefix: spec.prefix.or(db.prefix),
-                    platform: spec.platform.or(db.platform),
-                    install_dir: db.install_dir.or(spec.install_dir),
+                    platform: db.platform.or(spec.platform),
+                    install_dir: spec.install_dir.or(db.install_dir),
                 }
             }
         }
