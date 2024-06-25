@@ -323,6 +323,16 @@ impl Root {
         }
     }
 
+    pub fn with_path(&self, path: StrictPath) -> Self {
+        match self {
+            Self::Lutris(root::Lutris { database, .. }) => Self::Lutris(root::Lutris {
+                path,
+                database: database.clone(),
+            }),
+            _ => Self::new(path, self.store()),
+        }
+    }
+
     pub fn lutris_database(&self) -> Option<&StrictPath> {
         match self {
             Self::Lutris(root) => root.database.as_ref(),
@@ -339,9 +349,8 @@ impl Root {
     pub fn glob(&self) -> Vec<Self> {
         self.path()
             .glob()
-            .iter()
-            .cloned()
-            .map(|path| Root::new(path, self.store()))
+            .into_iter()
+            .map(|path| self.with_path(path))
             .collect()
     }
 
