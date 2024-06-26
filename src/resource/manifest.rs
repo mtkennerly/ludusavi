@@ -490,17 +490,33 @@ impl Manifest {
     }
 
     pub fn map_steam_ids_to_names(&self) -> HashMap<u32, String> {
-        self.0
-            .iter()
-            .filter_map(|(k, v)| v.steam.id.as_ref().map(|id| (*id, k.to_owned())))
-            .collect()
+        let mut out = HashMap::new();
+
+        for (k, v) in &self.0 {
+            if let Some(id) = v.steam.id {
+                out.insert(id, k.to_string());
+            }
+            for id in &v.id.steam_extra {
+                out.insert(*id, k.to_string());
+            }
+        }
+
+        out
     }
 
     pub fn map_gog_ids_to_names(&self) -> HashMap<u64, String> {
-        self.0
-            .iter()
-            .filter_map(|(k, v)| v.gog.id.as_ref().map(|id| (*id, k.to_owned())))
-            .collect()
+        let mut out = HashMap::new();
+
+        for (k, v) in &self.0 {
+            if let Some(id) = v.gog.id {
+                out.insert(id, k.to_string());
+            }
+            for id in &v.id.gog_extra {
+                out.insert(*id, k.to_string());
+            }
+        }
+
+        out
     }
 
     pub fn map_lutris_ids_to_names(&self) -> HashMap<String, String> {

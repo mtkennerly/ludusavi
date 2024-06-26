@@ -19,6 +19,9 @@
     (e.g., `~/.config/lutris/games` and `~/.local/share/lutris/pga.db`).
     To fix this, you can now specify a different `pga.db` path explicitly.
     In some cases, Ludusavi can prompt you to update the root automatically.
+  * CLI: The `find` command's `--steam-id` and `--gog-id` options
+    only considered primary IDs from the manifest.
+    They will now also consider secondary IDs (e.g., for DLC or different editions).
 
 ## v0.24.1 (2024-06-15)
 

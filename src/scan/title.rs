@@ -323,6 +323,12 @@ mod tests {
             by-gog:
                 gog:
                     id: 2
+            by-steam-extra:
+                id:
+                    steamExtra: [3]
+            by-gog-extra:
+                id:
+                    gogExtra: [4]
             by-lutris:
                 id:
                     lutris: slug
@@ -357,6 +363,20 @@ mod tests {
             btree_set!["by-gog".to_string()],
             finder.find(TitleQuery {
                 gog_id: Some(2),
+                ..Default::default()
+            }),
+        );
+        assert_eq!(
+            btree_set!["by-steam-extra".to_string()],
+            finder.find(TitleQuery {
+                steam_id: Some(3),
+                ..Default::default()
+            }),
+        );
+        assert_eq!(
+            btree_set!["by-gog-extra".to_string()],
+            finder.find(TitleQuery {
+                gog_id: Some(4),
                 ..Default::default()
             }),
         );
