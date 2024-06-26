@@ -66,6 +66,10 @@ pub fn drives_x_always() -> BTreeMap<String, String> {
     }
 }
 
+pub fn drives_x_static() -> BTreeMap<String, String> {
+    btree_map! { "drive-X".into(): "X:".into() }
+}
+
 pub fn make_original_path(file: &str) -> StrictPath {
     StrictPath::new(format!("{}{file}", if cfg!(target_os = "windows") { "X:" } else { "" }))
 }

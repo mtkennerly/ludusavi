@@ -3196,7 +3196,7 @@ mod tests {
     mod game_layout {
         use pretty_assertions::assert_eq;
 
-        use crate::testing::{drives_x_always, repo_file_raw};
+        use crate::testing::{drives_x_always, drives_x_static, repo_file_raw};
 
         use super::*;
 
@@ -3581,12 +3581,12 @@ mod tests {
 
             let before = IndividualMapping {
                 name: "migrate-legacy-backup".to_string(),
-                drives: drives_x_always(),
+                drives: drives_x_static(),
                 ..Default::default()
             };
             let after = IndividualMapping {
                 name: "migrate-legacy-backup".to_string(),
-                drives: drives_x_always(),
+                drives: drives_x_static(),
                 backups: VecDeque::from(vec![FullBackup {
                     name: ".".into(),
                     files: btree_map! {
@@ -3617,7 +3617,7 @@ mod tests {
         fn can_migrate_initial_empty_backup() {
             let before = IndividualMapping {
                 name: "migrate-initial-empty-backup".to_string(),
-                drives: drives_x_always(),
+                drives: drives_x_static(),
                 backups: VecDeque::from(vec![FullBackup {
                     name: ".".into(),
                     children: VecDeque::from(vec![DifferentialBackup {
@@ -3639,7 +3639,7 @@ mod tests {
             };
             let after = IndividualMapping {
                 name: "migrate-initial-empty-backup".to_string(),
-                drives: drives_x_always(),
+                drives: drives_x_static(),
                 backups: VecDeque::from(vec![FullBackup {
                     name: "backup-20240626T100614Z-diff".into(),
                     when: chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339("2024-06-26T10:06:14.120957700Z")
