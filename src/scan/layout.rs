@@ -3590,7 +3590,7 @@ mod tests {
                 backups: VecDeque::from(vec![FullBackup {
                     name: ".".into(),
                     files: btree_map! {
-                        mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                        "X:/file1.txt".into(): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
                     },
                     ..Default::default()
                 }]),
@@ -3629,7 +3629,7 @@ mod tests {
                         .to_utc(),
                         os: Some(Os::Windows),
                         files: btree_map! {
-                            mapping_file_key("/file1.txt"): Some(IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 }),
+                            "X:/file1.txt".into(): Some(IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 }),
                         },
                         ..Default::default()
                     }]),
@@ -3647,7 +3647,7 @@ mod tests {
                         .to_utc(),
                     os: Some(Os::Windows),
                     files: btree_map! {
-                        mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                        "X:/file1.txt".into(): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
                     },
                     ..Default::default()
                 }]),
