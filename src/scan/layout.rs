@@ -317,13 +317,6 @@ impl DifferentialBackup {
     }
 }
 
-fn default_backup_list() -> VecDeque<FullBackup> {
-    VecDeque::from(vec![FullBackup {
-        name: ".".to_string(),
-        ..Default::default()
-    }])
-}
-
 #[derive(Clone, Default, Debug, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct IndividualMappingFile {
@@ -337,22 +330,12 @@ pub struct IndividualMappingRegistry {
     pub hash: Option<String>,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct IndividualMapping {
     pub name: String,
     pub drives: BTreeMap<String, String>,
     pub backups: VecDeque<FullBackup>,
-}
-
-impl Default for IndividualMapping {
-    fn default() -> Self {
-        Self {
-            name: Default::default(),
-            drives: Default::default(),
-            backups: default_backup_list(),
-        }
-    }
 }
 
 impl IndividualMapping {
@@ -1374,26 +1357,29 @@ impl GameLayout {
         }
     }
 
+    /// Handle legacy/irregular backups.
+    pub fn migrate_backups(&mut self, save: bool) {
+        self.migrate_legacy_backup(save);
+        self.migrate_initial_empty_backup(save);
+    }
+
     /// Handle legacy backups from before multi-backup support.
-    /// In this case, a default backup with name "." has already been inserted.
-    pub fn migrate_legacy_backup(&mut self) {
-        if self.mapping.backups.len() != 1 {
+    pub fn migrate_legacy_backup(&mut self, save: bool) {
+        if !self.mapping.backups.is_empty() || self.mapping.drives.is_empty() {
+            // If `backups` are not empty, then we've already migrated and have backups.
+            // If `drives` is empty, then this is a brand new mapping and there are no backups yet.
             return;
         }
 
-        let backup = self.mapping.backups.back().unwrap();
-        if backup.name != "." || !backup.files.is_empty() || backup.registry.hash.is_some() {
-            return;
-        }
-
-        let mut files = BTreeMap::new();
-        #[allow(unused_mut)]
-        let mut registry = IndividualMappingRegistry::default();
+        let mut backup = FullBackup {
+            name: ".".to_string(),
+            ..Default::default()
+        };
 
         log::info!("[{}] migrating legacy backup", &self.mapping.name);
 
         for file in self.restorable_files_in_simple(&backup.name) {
-            files.insert(
+            backup.files.insert(
                 file.mapping_key(),
                 IndividualMappingFile {
                     hash: file.path.sha1(),
@@ -1404,18 +1390,52 @@ impl GameLayout {
         #[cfg(target_os = "windows")]
         {
             if let Some(content) = self.registry_content_in(&backup.name, &BackupFormat::Simple) {
-                registry = IndividualMappingRegistry {
+                backup.registry = IndividualMappingRegistry {
                     hash: Some(crate::prelude::sha1(content)),
                 };
             }
         }
 
-        if !files.is_empty() || registry.hash.is_some() {
-            let backup = self.mapping.backups.back_mut().unwrap();
-            backup.files = files;
-            backup.registry = registry;
+        if !backup.files.is_empty() || backup.registry.hash.is_some() {
+            self.mapping.backups.push_back(backup);
+            if save {
+                self.save();
+            }
+        }
+    }
+
+    /// See: https://github.com/mtkennerly/ludusavi/issues/360
+    fn migrate_initial_empty_backup(&mut self, save: bool) -> Option<()> {
+        let initial = self.mapping.backups.front_mut()?;
+        if !initial.files.is_empty() || initial.registry.hash.is_some() {
+            // Initial backup is not empty.
+            return None;
+        }
+        let DifferentialBackup {
+            name,
+            when,
+            os,
+            comment,
+            locked,
+            files,
+            registry,
+        } = initial.children.pop_front()?;
+
+        initial.name = name;
+        initial.when = when;
+        initial.os = os;
+        initial.comment = comment;
+        initial.locked = initial.locked || locked;
+        initial.files = files.into_iter().filter_map(|(k, v)| Some((k, v?))).collect();
+        if let Some(registry) = registry {
+            initial.registry = registry;
+        }
+
+        if save {
             self.save();
         }
+
+        Some(())
     }
 
     pub fn back_up(
@@ -1439,7 +1459,7 @@ impl GameLayout {
             return BackupInfo::total_failure(scan, BackupError::App(e));
         }
 
-        self.migrate_legacy_backup();
+        self.migrate_backups(true);
         match self.plan_backup(scan, now, format) {
             None => {
                 log::info!("[{}] no need for new backup", &scan.game_name);
@@ -1469,7 +1489,7 @@ impl GameLayout {
         let mut available_backups = vec![];
 
         if self.path.is_dir() {
-            self.migrate_legacy_backup();
+            self.migrate_backups(true);
             available_backups = self.restorable_backups_flattened();
         }
 
@@ -1500,7 +1520,7 @@ impl GameLayout {
         let id = self.verify_id(id);
 
         if self.path.is_dir() {
-            self.migrate_legacy_backup();
+            self.migrate_backups(true);
             found_files = self.restorable_files(&id, true, redirects, toggled_paths);
             available_backups = self.restorable_backups_flattened();
             backup = self.find_by_id_flattened(&id);
@@ -3550,6 +3570,108 @@ mod tests {
                 ..Default::default()
             };
             assert!(!layout.validate(BackupId::Latest));
+        }
+
+        #[test]
+        fn can_migrate_legacy_backup() {
+            let layout = BackupLayout::new(
+                StrictPath::new(format!("{}/tests/backup", repo_raw())),
+                Retention::default(),
+            );
+
+            let before = IndividualMapping {
+                name: "migrate-legacy-backup".to_string(),
+                drives: drives_x_always(),
+                ..Default::default()
+            };
+            let after = IndividualMapping {
+                name: "migrate-legacy-backup".to_string(),
+                drives: drives_x_always(),
+                backups: VecDeque::from(vec![FullBackup {
+                    name: ".".into(),
+                    files: btree_map! {
+                        mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                    },
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            };
+
+            let mut game_layout = layout.game_layout("migrate-legacy-backup");
+            assert_eq!(before, game_layout.mapping);
+
+            game_layout.migrate_legacy_backup(false);
+            assert_eq!(after, game_layout.mapping);
+
+            // Idempotent:
+            game_layout.migrate_legacy_backup(false);
+            assert_eq!(after, game_layout.mapping);
+
+            // No-op with default data:
+            let mut game_layout = GameLayout::default();
+            game_layout.migrate_legacy_backup(false);
+            assert_eq!(GameLayout::default().mapping, game_layout.mapping);
+        }
+
+        #[test]
+        fn can_migrate_initial_empty_backup() {
+            let before = IndividualMapping {
+                name: "migrate-initial-empty-backup".to_string(),
+                drives: drives_x_always(),
+                backups: VecDeque::from(vec![FullBackup {
+                    name: ".".into(),
+                    children: VecDeque::from(vec![DifferentialBackup {
+                        name: "backup-20240626T100614Z-diff".to_string(),
+                        when: chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(
+                            "2024-06-26T10:06:14.120957700Z",
+                        )
+                        .unwrap()
+                        .to_utc(),
+                        os: Some(Os::Windows),
+                        files: btree_map! {
+                            mapping_file_key("/file1.txt"): Some(IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 }),
+                        },
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            };
+            let after = IndividualMapping {
+                name: "migrate-initial-empty-backup".to_string(),
+                drives: drives_x_always(),
+                backups: VecDeque::from(vec![FullBackup {
+                    name: "backup-20240626T100614Z-diff".into(),
+                    when: chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339("2024-06-26T10:06:14.120957700Z")
+                        .unwrap()
+                        .to_utc(),
+                    os: Some(Os::Windows),
+                    files: btree_map! {
+                        mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                    },
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            };
+
+            let mut game_layout = GameLayout {
+                path: format!("{}/tests/backup/migrate-initial-empty-backup/mapping.yaml", repo_raw()).into(),
+                mapping: before.clone(),
+                ..Default::default()
+            };
+            assert_eq!(before, game_layout.mapping);
+
+            game_layout.migrate_initial_empty_backup(false);
+            assert_eq!(after, game_layout.mapping);
+
+            // Idempotent:
+            game_layout.migrate_initial_empty_backup(false);
+            assert_eq!(after, game_layout.mapping);
+
+            // No-op with default data:
+            let mut game_layout = GameLayout::default();
+            game_layout.migrate_initial_empty_backup(false);
+            assert_eq!(GameLayout::default().mapping, game_layout.mapping);
         }
     }
 }

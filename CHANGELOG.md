@@ -1,6 +1,16 @@
 ## Unreleased
 
 * Fixed:
+  * When differential backups are enabled,
+    the very first backup for a game should always be a full backup.
+    However, Ludusavi would incorrectly create a differential backup and attach it to a dummy full backup.
+    All of the save data itself would still be backed up safely, just in an inefficient way.
+    Ludusavi will automatically detect this and promote the first differential backup to a full backup.
+
+    **If you use Ludusavi's cloud sync feature,**
+    please run a preview in restore mode,
+    which will automatically fix any of these incorrect initial backups,
+    and then perform a full cloud upload on the "other" screen.
   * For Lutris roots, after reading `pga.db`,
     Ludusavi did not properly combine that data with the data from the `games/*.yml` files.
   * Ludusavi assumed that a Lutris root would contain both `games/` and `pga.db` together.
