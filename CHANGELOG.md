@@ -13,6 +13,7 @@
     and then perform a full cloud upload on the "other" screen.
   * For Lutris roots, after reading `pga.db`,
     Ludusavi did not properly combine that data with the data from the `games/*.yml` files.
+    ([Verified by nihaals](https://github.com/mtkennerly/ludusavi/pull/359))
   * Ludusavi assumed that a Lutris root would contain both `games/` and `pga.db` together.
     That's true for new installations of Lutris,
     but older/existing installations would store them separately
