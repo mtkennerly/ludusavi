@@ -1,11 +1,16 @@
 ## Unreleased
 
 * Fixed:
-  * When differential backups are enabled,
-    the very first backup for a game should always be a full backup.
-    However, Ludusavi would incorrectly create a differential backup and attach it to a dummy full backup.
-    All of the save data itself would still be backed up safely, just in an inefficient way.
-    Ludusavi will automatically detect this and promote the first differential backup to a full backup.
+  * When multi-backup was enabled and Ludusavi backed up a game for the first time,
+    it would first insert an empty backup in that game's `mapping.yaml`
+    and then insert the real backup after.
+    This behavior was meant for updating old backups from before multi-backup was added,
+    but it was mistakenly being applied to brand new backups as well.
+
+    Ludusavi will automatically detect and fix this.
+    If the empty backup has a differential backup associated,
+    then the oldest differential backup will replace the empty full backup.
+    Otherwise, Ludusavi will remove the entry for the empty backup.
 
     **If you use Ludusavi's cloud sync feature,**
     please run a preview in restore mode,
