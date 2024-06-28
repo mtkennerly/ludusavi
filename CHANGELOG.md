@@ -22,6 +22,9 @@
   * CLI: The `find` command's `--steam-id` and `--gog-id` options
     only considered primary IDs from the manifest.
     They will now also consider secondary IDs (e.g., for DLC or different editions).
+* Changed:
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
 ## v0.24.1 (2024-06-15)
 
