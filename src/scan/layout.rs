@@ -1414,6 +1414,9 @@ impl GameLayout {
 
         if initial.children.is_empty() {
             self.mapping.backups.pop_front();
+            if save {
+                self.save();
+            }
             return Some(());
         }
 
