@@ -1411,6 +1411,12 @@ impl GameLayout {
             // Initial backup is not empty.
             return None;
         }
+
+        if initial.children.is_empty() {
+            self.mapping.backups.pop_front();
+            return Some(());
+        }
+
         let DifferentialBackup {
             name,
             when,
@@ -3614,7 +3620,70 @@ mod tests {
         }
 
         #[test]
-        fn can_migrate_initial_empty_backup() {
+        fn can_migrate_initial_empty_backup_without_children() {
+            let before = IndividualMapping {
+                name: "migrate-initial-empty-backup".to_string(),
+                drives: drives_x_static(),
+                backups: VecDeque::from(vec![
+                    FullBackup {
+                        name: ".".into(),
+                        ..Default::default()
+                    },
+                    FullBackup {
+                        name: "backup-20240626T100614Z-diff".into(),
+                        when: chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(
+                            "2024-06-26T10:06:14.120957700Z",
+                        )
+                        .unwrap()
+                        .to_utc(),
+                        os: Some(Os::Windows),
+                        files: btree_map! {
+                            "X:/file1.txt".into(): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                        },
+                        ..Default::default()
+                    },
+                ]),
+                ..Default::default()
+            };
+            let after = IndividualMapping {
+                name: "migrate-initial-empty-backup".to_string(),
+                drives: drives_x_static(),
+                backups: VecDeque::from(vec![FullBackup {
+                    name: "backup-20240626T100614Z-diff".into(),
+                    when: chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339("2024-06-26T10:06:14.120957700Z")
+                        .unwrap()
+                        .to_utc(),
+                    os: Some(Os::Windows),
+                    files: btree_map! {
+                        "X:/file1.txt".into(): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
+                    },
+                    ..Default::default()
+                }]),
+                ..Default::default()
+            };
+
+            let mut game_layout = GameLayout {
+                path: format!("{}/tests/backup/migrate-initial-empty-backup/mapping.yaml", repo_raw()).into(),
+                mapping: before.clone(),
+                ..Default::default()
+            };
+            assert_eq!(before, game_layout.mapping);
+
+            game_layout.migrate_initial_empty_backup(false);
+            assert_eq!(after, game_layout.mapping);
+
+            // Idempotent:
+            game_layout.migrate_initial_empty_backup(false);
+            assert_eq!(after, game_layout.mapping);
+
+            // No-op with default data:
+            let mut game_layout = GameLayout::default();
+            game_layout.migrate_initial_empty_backup(false);
+            assert_eq!(GameLayout::default().mapping, game_layout.mapping);
+        }
+
+        #[test]
+        fn can_migrate_initial_empty_backup_with_children() {
             let before = IndividualMapping {
                 name: "migrate-initial-empty-backup".to_string(),
                 drives: drives_x_static(),
