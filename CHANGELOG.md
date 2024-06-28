@@ -1,4 +1,4 @@
-## Unreleased
+## v0.24.2 (2024-06-28)
 
 * Fixed:
   * When multi-backup was enabled and Ludusavi backed up a game for the first time,

@@ -88,7 +88,7 @@ properties:
     default: []
     type: array
     items:
-      $ref: "#/definitions/RootsConfig"
+      $ref: "#/definitions/Root"
   runtime:
     default:
       threads: ~
@@ -535,19 +535,248 @@ definitions:
         type: integer
         format: uint8
         minimum: 0.0
-  RootsConfig:
-    type: object
-    properties:
-      path:
-        description: Where the root is located on your system.
-        default: ""
-        allOf:
-          - $ref: "#/definitions/FilePath"
-      store:
-        description: Game store associated with the root.
-        default: other
-        allOf:
-          - $ref: "#/definitions/Store"
+  Root:
+    oneOf:
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - ea
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - epic
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - gog
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - gogGalaxy
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - heroic
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - legendary
+      - type: object
+        required:
+          - store
+        properties:
+          database:
+            description: "Full path to the Lutris `pga.db` file, if not contained within the main `path`."
+            default: ~
+            anyOf:
+              - $ref: "#/definitions/FilePath"
+              - type: "null"
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - lutris
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - microsoft
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - origin
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - prime
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - steam
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - uplay
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - otherHome
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - otherWine
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - otherWindows
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - otherLinux
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - otherMac
+      - type: object
+        required:
+          - store
+        properties:
+          path:
+            description: Where the root is located on your system.
+            default: ""
+            allOf:
+              - $ref: "#/definitions/FilePath"
+          store:
+            type: string
+            enum:
+              - other
   Runtime:
     type: object
     properties:
@@ -606,27 +835,6 @@ definitions:
       - name
       - size
       - status
-  Store:
-    type: string
-    enum:
-      - ea
-      - epic
-      - gog
-      - gogGalaxy
-      - heroic
-      - legendary
-      - lutris
-      - microsoft
-      - origin
-      - prime
-      - steam
-      - uplay
-      - otherHome
-      - otherWine
-      - otherWindows
-      - otherLinux
-      - otherMac
-      - other
   Theme:
     description: Visual theme.
     type: string

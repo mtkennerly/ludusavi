@@ -196,7 +196,7 @@ impl Language {
         match self {
             Language::Arabic => 97,
             Language::ChineseSimplified => 97,
-            Language::ChineseTraditional => 15,
+            Language::ChineseTraditional => 25,
             Language::Czech => 4,
             Language::Dutch => 98,
             Language::English => 100,
@@ -213,7 +213,7 @@ impl Language {
             Language::Russian => 100,
             Language::Spanish => 100,
             Language::Thai => 24,
-            Language::Turkish => 20,
+            Language::Turkish => 21,
             Language::Ukrainian => 42,
         }
     }
