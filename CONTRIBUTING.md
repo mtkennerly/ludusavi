@@ -55,7 +55,7 @@ curl -o /c/opt/flatpak-cargo-generator.py https://raw.githubusercontent.com/flat
 pip install aiohttp toml
 ```
 
-Also install the Crowdin and `yq` CLI tools manually.
+Also install the Crowdin CLI tool manually.
 
 #### Process
 * Update version in CHANGELOG.md

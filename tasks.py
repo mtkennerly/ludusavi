@@ -161,14 +161,20 @@ def release(ctx):
 @task
 def release_flatpak(ctx, target="/git/com.github.mtkennerly.ludusavi"):
     target = Path(target)
+    spec = target / "com.github.mtkennerly.ludusavi.yaml"
     version = get_version()
 
     with ctx.cd(target):
         ctx.run("git checkout master")
         ctx.run("git pull")
         ctx.run(f"git checkout -b release/v{version}")
+
         shutil.copy(DIST / "generated-sources.json", target / "generated-sources.json")
-        ctx.run(f"yq -i '.modules.0.sources.0.tag = \"v{version}\"' com.github.mtkennerly.ludusavi.yaml")
+        spec_content = spec.read_bytes().decode("utf-8")
+        spec_content = re.sub(r"(        tag:) (.*)", fr"\1 v{version}", spec_content)
+        spec.write_bytes(spec_content.encode("utf-8"))
+
+        ctx.run("git add .")
         ctx.run(f'git commit -m "Update for v{version}"')
         ctx.run("git push origin HEAD")
 
