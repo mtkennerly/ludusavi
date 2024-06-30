@@ -3420,6 +3420,8 @@ mod tests {
                 assert_eq!(
                     ScanInfo {
                         game_name: s("game3"),
+                        found_files: Default::default(),
+                        found_registry_keys: Default::default(),
                         available_backups: vec![Backup::Full(FullBackup {
                             name: ".".to_string(),
                             when: now(),
@@ -3436,7 +3438,7 @@ mod tests {
                             },
                             ..Default::default()
                         })),
-                        ..Default::default()
+                        has_backups: true,
                     },
                     layout.scan_for_restoration(
                         "game3",
