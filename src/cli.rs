@@ -881,9 +881,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
 
             // Restore
-            //
-            // TODO.2023-07-12 detect if there are differences between backed up
-            // and actual saves and skip the question if there is none
+            // TODO: Detect if saves are unchanged and skip the question?
             'restore: {
                 let Some(game_name) = game_name.as_ref() else {
                     break 'restore;
@@ -933,12 +931,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
 
             // Launch game
-            //
-            // TODO.2023-07-12 legendary returns immediately, handle this!
+            // TODO: Legendary returns immediately. Can we handle that?
             let result = Command::new(&commands[0]).args(&commands[1..]).status();
             match result {
                 Ok(status) => {
-                    // TODO.2023-07-14 handle return status which indicate an error condition, e.g. != 0
                     log::debug!("WRAP::execute: Game command executed, returning status: {:#?}", status);
                 }
                 Err(err) => {

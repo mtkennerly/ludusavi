@@ -1841,6 +1841,7 @@ impl GameLayout {
     }
 
     pub fn remove_irrelevant_backup_files(&self, backup: &str, relevant_files: &[StrictPath]) {
+        // TODO: Remove empty directories as well.
         log::trace!(
             "[{}] looking for irrelevant backup files in {}",
             self.mapping.name,
@@ -1889,8 +1890,7 @@ impl GameLayout {
         }
     }
 
-    /// Checks the latest backup (full + diff) only.
-    /// Returns whether backup is valid.
+    /// Returns whether the backup is valid.
     pub fn validate(&self, backup_id: BackupId) -> bool {
         if let Some((backup, diff)) = self.find_by_id(&backup_id) {
             match backup.format() {

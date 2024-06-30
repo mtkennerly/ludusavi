@@ -988,6 +988,7 @@ impl App {
                                 return (name, false);
                             };
 
+                            // TODO: Add an option to validate all backups at once.
                             let valid = layout.validate(backup_id);
                             (name, valid)
                         },
@@ -1502,6 +1503,7 @@ impl Application for App {
                 Command::none()
             }
             Message::EditedRedirect(action, field) => {
+                // TODO: Automatically refresh redirected paths in the game list.
                 match action {
                     EditAction::Add => {
                         self.text_histories.redirects.push(Default::default());

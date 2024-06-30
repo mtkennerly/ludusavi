@@ -194,6 +194,7 @@ pub fn try_read_registry_key(hive_name: &str, key: &str) -> Option<Entries> {
 fn read_registry_key(key: &winreg::RegKey) -> Entries {
     let mut entries = Entries::default();
     for (name, value) in key.enum_values().filter_map(|x| x.ok()) {
+        // TODO: The default value has an empty name. How should we represent it?
         let entry = Entry::from(value);
         if entry.is_set() {
             entries.0.insert(name, entry);
