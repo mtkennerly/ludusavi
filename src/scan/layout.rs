@@ -1010,7 +1010,7 @@ impl GameLayout {
                 ScanChange::New | ScanChange::Different | ScanChange::Same => {
                     files.insert(
                         file.mapping_key(),
-                        Some(IndividualMappingFile {
+                        (!file.ignored).then(|| IndividualMappingFile {
                             hash: file.hash.clone(),
                             size: file.size,
                         }),
@@ -2581,6 +2581,64 @@ mod tests {
                         StrictPath::new(repo_file("new")).render(): Some(IndividualMappingFile { hash: "n".into(), size: 1 }),
                         StrictPath::new(repo_file("different")).render(): Some(IndividualMappingFile { hash: "d+".into(), size: 2 }),
                         StrictPath::new(repo_file("removed")).render(): None,
+                    },
+                    registry: None,
+                    ..Default::default()
+                },
+                layout.plan_differential_backup(&scan, &now(), &BackupFormats::default()),
+            );
+        }
+
+        #[test]
+        fn can_plan_second_differential_backup_with_different_ignored_files() {
+            let scan = ScanInfo {
+                found_files: hash_set! {
+                    // Ignored in first differential backup:
+                    ScannedFile::with_change(repo_file("file1"), 1, "1", ScanChange::New).ignored(),
+                    // Newly ignored:
+                    ScannedFile::with_change(repo_file("file2"), 2, "2", ScanChange::Same).ignored(),
+                    // Just here to keep the backup from being inert (all ignores):
+                    ScannedFile::with_change(repo_file("file3"), 3, "3", ScanChange::Same),
+                },
+                ..Default::default()
+            };
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    drives: drives(),
+                    backups: VecDeque::from_iter(vec![FullBackup {
+                        name: ".".to_string(),
+                        when: past(),
+                        files: btree_map! {
+                            StrictPath::new(repo_file("file1")).render(): IndividualMappingFile { hash: "1".into(), size: 1 },
+                            StrictPath::new(repo_file("file2")).render(): IndividualMappingFile { hash: "2".into(), size: 2 },
+                            StrictPath::new(repo_file("file3")).render(): IndividualMappingFile { hash: "3".into(), size: 3 },
+                        },
+                        children: VecDeque::from([DifferentialBackup {
+                            name: format!("backup-{}-diff", now_str()),
+                            when: now(),
+                            os: Some(Os::HOST),
+                            files: btree_map! {
+                                StrictPath::new(repo_file("file1")).render(): None,
+                            },
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            assert_eq!(
+                DifferentialBackup {
+                    name: format!("backup-{}-diff", now_str()),
+                    when: now(),
+                    os: Some(Os::HOST),
+                    files: btree_map! {
+                        // This matches the latest composite,
+                        // but we have to reiterate this in the new differential:
+                        StrictPath::new(repo_file("file1")).render(): None,
+                        // New ignore:
+                        StrictPath::new(repo_file("file2")).render(): None,
                     },
                     registry: None,
                     ..Default::default()
