@@ -446,6 +446,7 @@ pub fn scan_game_for_backup(
     let mut found_files = HashSet::new();
     #[allow(unused_mut)]
     let mut found_registry_keys = HashSet::new();
+    let has_backups = previous.is_some();
 
     let mut paths_to_check = HashSet::<(StrictPath, Option<bool>)>::new();
 
@@ -789,7 +790,9 @@ pub fn scan_game_for_backup(
         game_name: name.to_string(),
         found_files,
         found_registry_keys,
-        ..Default::default()
+        available_backups: vec![],
+        backup: None,
+        has_backups,
     }
 }
 

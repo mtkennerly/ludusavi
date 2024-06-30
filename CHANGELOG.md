@@ -5,6 +5,8 @@
     *and* none of those files were ignored in the associated full backup,
     then the second differential backup would fail to redeclare
     the first differential backup's ignored saves.
+  * If you redirected all of the saves for a game that already had a backup,
+    then the next scan would list the game as new instead of updated.
   * GUI: On Mac, the file/folder selector would cause the app to crash.
 
 ## v0.24.2 (2024-06-28)

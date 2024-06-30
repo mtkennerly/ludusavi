@@ -14,6 +14,8 @@ pub struct ScanInfo {
     pub available_backups: Vec<Backup>,
     /// Only populated by a restoration scan.
     pub backup: Option<Backup>,
+    /// Cheaper version of `!available_backups.is_empty()`, always populated.
+    pub has_backups: bool,
 }
 
 impl ScanInfo {
@@ -206,6 +208,9 @@ impl ScanInfo {
         } else if self.is_brand_new() {
             if self.all_ignored() {
                 ScanChange::Same
+            } else if self.has_backups {
+                // This can happen when all of the paths are affected by a new redirect.
+                ScanChange::Different
             } else {
                 ScanChange::New
             }
@@ -349,6 +354,39 @@ mod tests {
         };
 
         assert_eq!(ScanChange::Same, scan.overall_change());
+    }
+
+    #[test]
+    fn overall_change_when_game_is_fully_redirected() {
+        let scan = ScanInfo {
+            found_files: hash_set! {
+                ScannedFile {
+                    path: StrictPath::new("/new".into()),
+                    redirected: Some(StrictPath::new("/old".into())),
+                    change: ScanChange::New,
+                    ..Default::default()
+                },
+            },
+            has_backups: false,
+            ..Default::default()
+        };
+
+        assert_eq!(ScanChange::New, scan.overall_change());
+
+        let scan = ScanInfo {
+            found_files: hash_set! {
+                ScannedFile {
+                    path: StrictPath::new("/new".into()),
+                    redirected: Some(StrictPath::new("/old".into())),
+                    change: ScanChange::New,
+                    ..Default::default()
+                },
+            },
+            has_backups: true,
+            ..Default::default()
+        };
+
+        assert_eq!(ScanChange::Different, scan.overall_change());
     }
 
     #[test]

@@ -618,6 +618,7 @@ impl GameLayout {
                 found_registry_keys: Default::default(),
                 available_backups: vec![],
                 backup: None,
+                has_backups: true,
             })
         }
     }
@@ -1587,6 +1588,8 @@ impl GameLayout {
             }
         }
 
+        let has_backups = !available_backups.is_empty();
+
         log::trace!("[{name}] completed scan for restore");
 
         ScanInfo {
@@ -1595,6 +1598,7 @@ impl GameLayout {
             found_registry_keys,
             available_backups,
             backup,
+            has_backups,
         }
     }
 
@@ -3350,9 +3354,10 @@ mod tests {
                             redirected: None,
                         },
                     },
+                    found_registry_keys: Default::default(),
                     available_backups: backups.clone(),
                     backup: Some(backups[0].clone()),
-                    ..Default::default()
+                    has_backups: true,
                 },
                 layout.scan_for_restoration(
                     "game1",
@@ -3375,6 +3380,7 @@ mod tests {
                 assert_eq!(
                     ScanInfo {
                         game_name: s("game3"),
+                        found_files: Default::default(),
                         found_registry_keys: hash_set! {
                             ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::Same)
                                 .with_value_same("binary")
@@ -3400,7 +3406,7 @@ mod tests {
                             },
                             ..Default::default()
                         })),
-                        ..Default::default()
+                        has_backups: true,
                     },
                     layout.scan_for_restoration(
                         "game3",
