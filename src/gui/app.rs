@@ -1930,46 +1930,30 @@ impl Application for App {
                 self.save_config();
                 Command::none()
             }
-            Message::BrowseDir(subject) => Command::perform(
-                async move { native_dialog::FileDialog::new().show_open_single_dir() },
-                move |choice| match choice {
-                    Ok(Some(path)) => match subject {
-                        BrowseSubject::BackupTarget => Message::EditedBackupTarget(crate::path::render_pathbuf(&path)),
-                        BrowseSubject::RestoreSource => {
-                            Message::EditedRestoreSource(crate::path::render_pathbuf(&path))
-                        }
-                        BrowseSubject::Root(i) => Message::EditedRoot(EditAction::Change(
-                            i,
-                            globetter::Pattern::escape(&crate::path::render_pathbuf(&path)),
-                        )),
-                        BrowseSubject::RedirectSource(i) => Message::EditedRedirect(
-                            EditAction::Change(i, crate::path::render_pathbuf(&path)),
-                            Some(RedirectEditActionField::Source),
-                        ),
-                        BrowseSubject::RedirectTarget(i) => Message::EditedRedirect(
-                            EditAction::Change(i, crate::path::render_pathbuf(&path)),
-                            Some(RedirectEditActionField::Target),
-                        ),
-                        BrowseSubject::CustomGameFile(i, j) => Message::EditedCustomGameFile(
-                            i,
-                            EditAction::Change(j, globetter::Pattern::escape(&crate::path::render_pathbuf(&path))),
-                        ),
-                        BrowseSubject::BackupFilterIgnoredPath(i) => Message::EditedBackupFilterIgnoredPath(
-                            EditAction::Change(i, crate::path::render_pathbuf(&path)),
-                        ),
-                    },
-                    Ok(None) => Message::Ignore,
-                    Err(_) => Message::BrowseDirFailure,
-                },
-            ),
-            Message::BrowseFile(subject) => Command::perform(
-                async move { native_dialog::FileDialog::new().show_open_single_file() },
-                move |choice| match choice {
-                    Ok(Some(path)) => Message::SelectedFile(subject, StrictPath::from(path)),
-                    Ok(None) => Message::Ignore,
-                    Err(_) => Message::BrowseDirFailure,
-                },
-            ),
+            Message::BrowseDir(subject) => {
+                if cfg!(target_os = "macos") {
+                    // On Mac, this must be on the main thread, or it will panic.
+                    let choice = native_dialog::FileDialog::new().show_open_single_dir();
+                    Command::perform(async {}, |_| Message::browsed_dir(subject, choice))
+                } else {
+                    Command::perform(
+                        async move { native_dialog::FileDialog::new().show_open_single_dir() },
+                        move |choice| Message::browsed_dir(subject, choice),
+                    )
+                }
+            }
+            Message::BrowseFile(subject) => {
+                if cfg!(target_os = "macos") {
+                    // On Mac, this must be on the main thread, or it will panic.
+                    let choice = native_dialog::FileDialog::new().show_open_single_file();
+                    Command::perform(async {}, |_| Message::browsed_file(subject, choice))
+                } else {
+                    Command::perform(
+                        async move { native_dialog::FileDialog::new().show_open_single_file() },
+                        move |choice| Message::browsed_file(subject, choice),
+                    )
+                }
+            }
             Message::BrowseDirFailure => self.show_modal(Modal::Error {
                 variant: Error::UnableToBrowseFileSystem,
             }),

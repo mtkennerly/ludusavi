@@ -1,3 +1,8 @@
+## Unreleased
+
+* Fixed:
+  * GUI: On Mac, the file/folder selector would cause the app to crash.
+
 ## v0.24.2 (2024-06-28)
 
 * Fixed:

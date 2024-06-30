@@ -265,6 +265,52 @@ pub enum Message {
     },
 }
 
+impl Message {
+    pub fn browsed_dir(
+        subject: BrowseSubject,
+        choice: Result<Option<std::path::PathBuf>, native_dialog::Error>,
+    ) -> Self {
+        match choice {
+            Ok(Some(path)) => match subject {
+                BrowseSubject::BackupTarget => Message::EditedBackupTarget(crate::path::render_pathbuf(&path)),
+                BrowseSubject::RestoreSource => Message::EditedRestoreSource(crate::path::render_pathbuf(&path)),
+                BrowseSubject::Root(i) => Message::EditedRoot(EditAction::Change(
+                    i,
+                    globetter::Pattern::escape(&crate::path::render_pathbuf(&path)),
+                )),
+                BrowseSubject::RedirectSource(i) => Message::EditedRedirect(
+                    EditAction::Change(i, crate::path::render_pathbuf(&path)),
+                    Some(RedirectEditActionField::Source),
+                ),
+                BrowseSubject::RedirectTarget(i) => Message::EditedRedirect(
+                    EditAction::Change(i, crate::path::render_pathbuf(&path)),
+                    Some(RedirectEditActionField::Target),
+                ),
+                BrowseSubject::CustomGameFile(i, j) => Message::EditedCustomGameFile(
+                    i,
+                    EditAction::Change(j, globetter::Pattern::escape(&crate::path::render_pathbuf(&path))),
+                ),
+                BrowseSubject::BackupFilterIgnoredPath(i) => {
+                    Message::EditedBackupFilterIgnoredPath(EditAction::Change(i, crate::path::render_pathbuf(&path)))
+                }
+            },
+            Ok(None) => Message::Ignore,
+            Err(_) => Message::BrowseDirFailure,
+        }
+    }
+
+    pub fn browsed_file(
+        subject: BrowseFileSubject,
+        choice: Result<Option<std::path::PathBuf>, native_dialog::Error>,
+    ) -> Self {
+        match choice {
+            Ok(Some(path)) => Message::SelectedFile(subject, StrictPath::from(path)),
+            Ok(None) => Message::Ignore,
+            Err(_) => Message::BrowseDirFailure,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Operation {
     #[default]
