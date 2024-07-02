@@ -7,6 +7,7 @@ body:
       label: Ludusavi version
       description: If you're not using the latest version, please update and make sure the problem still occurs.
       options:
+        - v0.24.3
         - v0.24.2
         - v0.24.1
         - v0.24.0
@@ -16,7 +17,6 @@ body:
         - v0.20.0
         - v0.19.0
         - v0.18.2
-        - v0.18.1
         - Other
     validations:
       required: true

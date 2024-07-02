@@ -1,4 +1,4 @@
-## Unreleased
+## v0.24.3 (2024-07-01)
 
 * Fixed:
   * If two consecutive differential backups both ignored *different* save files
