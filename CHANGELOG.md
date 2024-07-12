@@ -1,3 +1,8 @@
+## Unreleased
+
+* Fixed:
+  * CLI: Some commands would fail with relative path arguments.
+
 ## v0.24.3 (2024-07-01)
 
 * Fixed:

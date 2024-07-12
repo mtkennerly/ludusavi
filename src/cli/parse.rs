@@ -16,7 +16,8 @@ macro_rules! possible_values {
 }
 
 fn parse_strict_path(path: &str) -> Result<StrictPath, std::io::Error> {
-    Ok(StrictPath::new(path.to_owned()))
+    let cwd = StrictPath::cwd();
+    Ok(StrictPath::relative(path.to_owned(), Some(cwd.raw())))
 }
 
 fn parse_existing_strict_path(path: &str) -> Result<StrictPath, std::io::Error> {
@@ -606,7 +607,7 @@ mod tests {
     use clap::Parser;
 
     use super::*;
-    use crate::testing::s;
+    use crate::testing::{repo_raw, s};
 
     fn check_args(args: &[&str], expected: Cli) {
         assert_eq!(expected, Cli::parse_from(args));
@@ -694,9 +695,9 @@ mod tests {
                 try_manifest_update: false,
                 sub: Some(Subcommand::Backup {
                     preview: true,
-                    path: Some(StrictPath::new(s("tests/backup"))),
+                    path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
                     force: true,
-                    wine_prefix: Some(StrictPath::new(s("tests/wine-prefix"))),
+                    wine_prefix: Some(StrictPath::relative(s("tests/wine-prefix"), Some(repo_raw()))),
                     api: true,
                     sort: Some(CliSort::Name),
                     format: Some(BackupFormat::Zip),
@@ -722,7 +723,7 @@ mod tests {
                 try_manifest_update: false,
                 sub: Some(Subcommand::Backup {
                     preview: false,
-                    path: Some(StrictPath::new(s("tests/fake"))),
+                    path: Some(StrictPath::relative(s("tests/fake"), Some(repo_raw()))),
                     force: false,
                     wine_prefix: None,
                     api: false,
@@ -1018,7 +1019,7 @@ mod tests {
                 no_manifest_update: false,
                 try_manifest_update: false,
                 sub: Some(Subcommand::Backups {
-                    path: Some(StrictPath::new(s("tests/backup"))),
+                    path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
                     api: true,
                     games: vec![s("game1"), s("game2")],
                 }),
@@ -1080,7 +1081,7 @@ mod tests {
                 try_manifest_update: false,
                 sub: Some(Subcommand::Find {
                     api: true,
-                    path: Some(StrictPath::new(s("tests/backup"))),
+                    path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
                     backup: true,
                     restore: true,
                     steam_id: Some(101),
