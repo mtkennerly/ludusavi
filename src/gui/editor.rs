@@ -134,6 +134,13 @@ pub fn manifest<'a>(
             Row::new()
                 .spacing(20)
                 .align_items(Alignment::Center)
+                .push(
+                    checkbox("", config.manifest.enable, move |enabled| {
+                        Message::TogglePrimaryManifestEnabled { enabled }
+                    })
+                    .spacing(0)
+                    .style(style::Checkbox),
+                )
                 .push(iced::widget::TextInput::new("", &config.manifest.url).width(Length::Fill))
                 .push_maybe(get_checked(Some(&config.manifest.url), cache))
                 .push_maybe(get_updated(Some(&config.manifest.url), cache))
@@ -152,6 +159,13 @@ pub fn manifest<'a>(
                 Row::new()
                     .spacing(20)
                     .align_items(Alignment::Center)
+                    .push(
+                        checkbox("", config.manifest.secondary[i].enabled(), move |enabled| {
+                            Message::ToggleSecondaryManifestEnabled { index: i, enabled }
+                        })
+                        .spacing(0)
+                        .style(style::Checkbox),
+                    )
                     .push(button::move_up(Message::EditedSecondaryManifest, i))
                     .push(button::move_down(
                         Message::EditedSecondaryManifest,

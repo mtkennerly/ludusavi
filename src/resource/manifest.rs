@@ -527,6 +527,10 @@ impl Manifest {
     }
 
     pub fn incorporate_extensions(&mut self, config: &Config) {
+        if !config.manifest.enable {
+            self.0.clear();
+        }
+
         for (path, secondary) in config.manifest.load_secondary_manifests() {
             self.incorporate_secondary_manifest(path, secondary);
         }

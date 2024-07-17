@@ -11,3 +11,7 @@ where
     let ordered: BTreeMap<_, _> = value.iter().collect();
     ordered.serialize(serializer)
 }
+
+pub const fn default_true() -> bool {
+    true
+}

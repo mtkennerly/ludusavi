@@ -1,5 +1,9 @@
 ## Unreleased
 
+* Added:
+  * You can now ignore specific manifests during scans.
+    For example, if you only want to back up custom games,
+    you can now disable the primary manifest's entries.
 * Fixed:
   * CLI: Some commands would fail with relative path arguments.
 

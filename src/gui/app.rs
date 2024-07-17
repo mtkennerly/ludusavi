@@ -1785,6 +1785,16 @@ impl Application for App {
                 self.save_config();
                 Command::none()
             }
+            Message::TogglePrimaryManifestEnabled { enabled } => {
+                self.config.manifest.enable = enabled;
+                self.save_config();
+                Command::none()
+            }
+            Message::ToggleSecondaryManifestEnabled { index, enabled } => {
+                self.config.manifest.secondary[index].enable(enabled);
+                self.save_config();
+                Command::none()
+            }
             Message::ToggleSearch { screen } => match screen {
                 Screen::Backup => {
                     self.backup_screen.log.search.show = !self.backup_screen.log.search.show;

@@ -53,6 +53,7 @@ pub struct Runtime {
 #[serde(default, rename_all = "camelCase")]
 pub struct ManifestConfig {
     pub url: String,
+    pub enable: bool,
     /// Where to download the primary manifest.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub secondary: Vec<SecondaryManifestConfig>,
@@ -64,7 +65,7 @@ impl ManifestConfig {
             .iter()
             .filter_map(|x| match x {
                 SecondaryManifestConfig::Local { .. } => None,
-                SecondaryManifestConfig::Remote { url } => Some(url.as_str()),
+                SecondaryManifestConfig::Remote { url, .. } => Some(url.as_str()),
             })
             .collect()
     }
@@ -73,14 +74,22 @@ impl ManifestConfig {
         self.secondary
             .iter()
             .filter_map(|x| match x {
-                SecondaryManifestConfig::Local { path } => {
+                SecondaryManifestConfig::Local { path, enable } => {
+                    if !enable {
+                        return None;
+                    }
+
                     let manifest = Manifest::load_from_existing(path);
                     if let Err(e) = &manifest {
                         log::error!("Cannot load secondary manifest: {:?} | {}", &path, e);
                     }
                     Some((path.clone(), manifest.ok()?))
                 }
-                SecondaryManifestConfig::Remote { url } => {
+                SecondaryManifestConfig::Remote { url, enable } => {
+                    if !enable {
+                        return None;
+                    }
+
                     let path = Manifest::path_for(url, false);
                     let manifest = Manifest::load_from(&path);
                     if let Err(e) = &manifest {
@@ -116,36 +125,58 @@ impl ToString for SecondaryManifestConfigKind {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(untagged)]
 pub enum SecondaryManifestConfig {
-    Local { path: StrictPath },
-    Remote { url: String },
+    Local {
+        path: StrictPath,
+        #[serde(default = "crate::serialization::default_true")]
+        enable: bool,
+    },
+    Remote {
+        url: String,
+        #[serde(default = "crate::serialization::default_true")]
+        enable: bool,
+    },
 }
 
 impl SecondaryManifestConfig {
     pub fn url(&self) -> Option<&str> {
         match self {
             Self::Local { .. } => None,
-            Self::Remote { url } => Some(url.as_str()),
+            Self::Remote { url, .. } => Some(url.as_str()),
         }
     }
 
     pub fn path(&self) -> Option<&StrictPath> {
         match self {
-            Self::Local { path } => Some(path),
+            Self::Local { path, .. } => Some(path),
             Self::Remote { .. } => None,
         }
     }
 
     pub fn value(&self) -> String {
         match self {
-            Self::Local { path } => path.raw(),
-            Self::Remote { url } => url.to_string(),
+            Self::Local { path, .. } => path.raw(),
+            Self::Remote { url, .. } => url.to_string(),
+        }
+    }
+
+    pub fn enabled(&self) -> bool {
+        match self {
+            Self::Local { enable, .. } => *enable,
+            Self::Remote { enable, .. } => *enable,
         }
     }
 
     pub fn set(&mut self, value: String) {
         match self {
-            Self::Local { path } => *path = StrictPath::new(value),
-            Self::Remote { url } => *url = value,
+            Self::Local { path, .. } => *path = StrictPath::new(value),
+            Self::Remote { url, .. } => *url = value,
+        }
+    }
+
+    pub fn enable(&mut self, enabled: bool) {
+        match self {
+            Self::Local { enable, .. } => *enable = enabled,
+            Self::Remote { enable, .. } => *enable = enabled,
         }
     }
 
@@ -158,12 +189,16 @@ impl SecondaryManifestConfig {
 
     pub fn convert(&mut self, kind: SecondaryManifestConfigKind) {
         match (&self, kind) {
-            (Self::Local { path }, SecondaryManifestConfigKind::Remote) => {
-                *self = Self::Remote { url: path.raw() };
+            (Self::Local { path, enable }, SecondaryManifestConfigKind::Remote) => {
+                *self = Self::Remote {
+                    url: path.raw(),
+                    enable: *enable,
+                };
             }
-            (Self::Remote { url }, SecondaryManifestConfigKind::Local) => {
+            (Self::Remote { url, enable }, SecondaryManifestConfigKind::Local) => {
                 *self = Self::Local {
                     path: StrictPath::new(url.clone()),
+                    enable: *enable,
                 };
             }
             _ => {}
@@ -173,7 +208,10 @@ impl SecondaryManifestConfig {
 
 impl Default for SecondaryManifestConfig {
     fn default() -> Self {
-        Self::Remote { url: "".to_string() }
+        Self::Remote {
+            url: "".to_string(),
+            enable: true,
+        }
     }
 }
 
@@ -1098,6 +1136,7 @@ impl Default for ManifestConfig {
     fn default() -> Self {
         Self {
             url: MANIFEST_URL.to_string(),
+            enable: true,
             secondary: vec![],
         }
     }
@@ -1841,6 +1880,7 @@ mod tests {
                 runtime: Default::default(),
                 manifest: ManifestConfig {
                     url: s("example.com"),
+                    enable: true,
                     secondary: vec![]
                 },
                 language: Language::English,
@@ -1947,8 +1987,10 @@ mod tests {
                 runtime: Default::default(),
                 manifest: ManifestConfig {
                     url: s("example.com"),
+                    enable: true,
                     secondary: vec![SecondaryManifestConfig::Remote {
-                        url: s("example.com/2")
+                        url: s("example.com/2"),
+                        enable: true,
                     }]
                 },
                 language: Language::English,
@@ -2035,6 +2077,7 @@ runtime:
   threads: ~
 manifest:
   url: example.com
+  enable: true
 language: en-US
 theme: light
 roots:
@@ -2130,6 +2173,7 @@ customGames:
                 runtime: Default::default(),
                 manifest: ManifestConfig {
                     url: s("example.com"),
+                    enable: true,
                     secondary: vec![]
                 },
                 language: Language::English,

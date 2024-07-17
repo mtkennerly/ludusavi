@@ -164,6 +164,13 @@ pub enum Message {
         index: usize,
         enabled: bool,
     },
+    TogglePrimaryManifestEnabled {
+        enabled: bool,
+    },
+    ToggleSecondaryManifestEnabled {
+        index: usize,
+        enabled: bool,
+    },
     EditedSearchGameName {
         screen: Screen,
         value: String,
