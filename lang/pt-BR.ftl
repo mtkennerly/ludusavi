@@ -99,18 +99,18 @@ label-checked = Verificado
 # This shows the time when we found an update to the manifest.
 label-updated = Atualizado
 label-new = Novo
-label-removed = Removed
+label-removed = Removido
 label-comment = Comentário
 label-unchanged = Inalterada
-label-scan = Scan
-label-filter = Filter
-label-unique = Unique
-label-complete = Complete
-label-partial = Partial
-label-enabled = Enabled
-label-disabled = Disabled
+label-scan = Escanear
+label-filter = Filtro
+label-unique = Único
+label-complete = Concluído
+label-partial = Parcial
+label-enabled = Ativado
+label-disabled = Desativado
 # https://en.wikipedia.org/wiki/Thread_(computing)
-label-threads = Threads
+label-threads = Tópicos
 label-cloud = Nuvem
 # A "remote" is what Rclone calls cloud systems like Google Drive.
 label-remote = Remoto
@@ -176,14 +176,14 @@ theme = Tema
 theme-light = Claro
 theme-dark = Escuro
 redirect-bidirectional = Bidirecional
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
-override-max-threads = Override max threads
+show-deselected-games = Mostrar jogos desmarcados
+show-unchanged-games = Mostrar jogos inalterados
+show-unscanned-games = Mostrar jogos não escaneados
+override-max-threads = Substituir o número máximo de threads
 synchronize-automatically = Sincronizar automaticamente
 prefer-alias-display = Exibir apelido ao invés do nome original
 explanation-for-exclude-store-screenshots = Nos backups, exclui capturas de tela específicas de armazenamento
-explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
+explanation-for-exclude-cloud-games = Não faça backup de jogos com suporte à nuvem nessas plataformas
 consider-doing-a-preview =
     Se você ainda não fez, considere fazer uma pré-visualização primeiro, então
     não há surpresas.
@@ -219,7 +219,7 @@ no-saves-found = Não foram encontrados dados salvos.
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = sem confirmação
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
-suffix-restart-required = restart required
+suffix-restart-required = é necessário reiniciar
 prefix-error = Erro: { $message }
 prefix-warning = Aviso: { $message }
 cloud-app-unavailable = Backups na nuvem estão desativados porque { $app } não está disponível.

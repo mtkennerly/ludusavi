@@ -50,15 +50,15 @@ manifest-is-invalid = Virhe: manifestitiedosto on virheellinen.
 manifest-cannot-be-updated = Error: Unable to check for an update to the manifest file. Is your Internet connection down?
 cannot-prepare-backup-target = Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: { $path }
 restoration-source-is-invalid = Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: { $path }
-registry-issue = Error: Some registry entries were skipped.
-unable-to-browse-file-system = Error: Unable to browse on your system.
+registry-issue = Virhe: Jotkut rekisterimerkinnät ohitettiin.
+unable-to-browse-file-system = Virhe: Järjestelmää ei voi selata.
 unable-to-open-directory = Virhe: Kansiota ei voitu avata:
 unable-to-open-url = Virhe: URL-osoitetta ei voitu avata:
 unable-to-configure-cloud = Pilveä ei voi määrittää.
 unable-to-synchronize-with-cloud = Ei voitu synkronoida pilven kanssa.
-cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
+cloud-synchronize-conflict = Paikalliset ja pilvipalvelun varmuuskopiot ovat ristiriidassa. Lähetä tai lataa ratkaistaksesi tämän.
 command-unlaunched = Komento ei käynnistynyt: { $command }
-command-terminated = Command terminated abruptly: { $command }
+command-terminated = Komento keskeytyi yllättäen: { $command }
 command-failed = Komento epäonnistui koodilla { $code }: { $command }
 processed-games =
     { $total-games } { $total-games ->
@@ -82,7 +82,7 @@ field-redirect-target =
     .placeholder = Kohde (uusi sijainti)
 field-roots = Juuret:
 field-backup-excluded-items = Varmuuskopioinnin ohitukset:
-field-redirects = Redirects:
+field-redirects = Uudelleenohjaukset:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
 field-retention-full = Täysi:
@@ -102,7 +102,7 @@ label-new = Uusi
 label-removed = Poistettu
 label-comment = Kommentti
 label-unchanged = Muuttumaton
-label-scan = Scan
+label-scan = Skannaus
 label-filter = Suodatin
 label-unique = Yksilöllinen
 label-complete = Kokonainen
@@ -133,7 +133,7 @@ label-provider = Provider
 label-custom = Custom
 label-none = None
 label-change-count = Muutokset: { $total }
-label-unscanned = Unscanned
+label-unscanned = Skannamaton
 # This refers to a local file on the computer
 label-file = Tiedosto
 label-game = Peli
@@ -175,18 +175,18 @@ compression-zstd = Zstd
 theme = Teema
 theme-light = Vaalea
 theme-dark = Tumma
-redirect-bidirectional = Bidirectional
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
-override-max-threads = Override max threads
-synchronize-automatically = Synchronize automatically
-prefer-alias-display = Display alias instead of original name
-explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
-explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
+redirect-bidirectional = Kaksisuuntainen
+show-deselected-games = Näytä valitsematta olevat pelit
+show-unchanged-games = Näytä muuttumattomat pelit
+show-unscanned-games = Näytä skannaamattomat pelit
+override-max-threads = Ohita säikeiden enimmäismäärä
+synchronize-automatically = Synkronoi automaattisesti
+prefer-alias-display = Näytä alias alkuperäisen nimen sijaan
+explanation-for-exclude-store-screenshots = Jätä kauppakohtaiset kuvakaappaukset pois varmuuskopiosta
+explanation-for-exclude-cloud-games = Älä varmuuskopioi pelejä, joissa on pilvituki näillä alustoilla
 consider-doing-a-preview =
-    If you haven't already, consider doing a preview first so that there
-    are no surprises.
+    Jos et ole vielä esikatsellut, niin nyt on vielä mahdollisuus,
+    jotta vältyt yllätyksiltä.
 confirm-backup =
     Are you sure you want to proceed with the backup? { $path-action ->
         [merge] New save data will be merged into the target folder:

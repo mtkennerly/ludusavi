@@ -8,6 +8,9 @@
     This happens at most once per 7 days.
 * Fixed:
   * CLI: Some commands would fail with relative path arguments.
+* Changed:
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
 ## v0.24.3 (2024-07-01)
 
