@@ -507,7 +507,10 @@ pub fn other<'a>(
                             Row::new()
                                 .align_items(iced::Alignment::Center)
                                 .push(text(TRANSLATOR.manifest_label()).width(100))
-                                .push(button::refresh(Message::UpdateManifest, updating_manifest)),
+                                .push(button::refresh(
+                                    Message::UpdateManifest { force: true },
+                                    updating_manifest,
+                                )),
                         )
                         .push(editor::manifest(config, cache, histories, modifiers).padding([10, 0, 0, 0])),
                 )

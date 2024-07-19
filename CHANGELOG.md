@@ -6,6 +6,9 @@
     you can now disable the primary manifest's entries.
   * GUI: On startup, Ludusavi will check if a new version is available and notify you.
     This happens at most once per 7 days.
+  * GUI: When left open,
+    Ludusavi will automatically check for manifest updates once every 24 hours.
+    Previously, this check only occurred when the app started.
 * Fixed:
   * CLI: Some commands would fail with relative path arguments.
 * Changed:

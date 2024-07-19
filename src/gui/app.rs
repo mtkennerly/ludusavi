@@ -20,8 +20,8 @@ use crate::{
     lang::TRANSLATOR,
     prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
     resource::{
-        cache::Cache,
-        config::{Config, CustomGame, CustomGameKind, Root},
+        cache::{self, Cache},
+        config::{self, Config, CustomGame, CustomGameKind, Root},
         manifest::Manifest,
         ResourceFile, SaveableResourceFile,
     },
@@ -66,6 +66,7 @@ pub enum SaveKind {
 
 #[derive(Default)]
 pub struct App {
+    flags: Flags,
     config: Config,
     manifest: Manifest,
     cache: Cache,
@@ -1125,6 +1126,16 @@ impl App {
         self.switch_screen(Screen::CustomGames)
     }
 
+    fn update_manifest(config: config::ManifestConfig, cache: cache::Manifests, force: bool) -> Command<Message> {
+        Command::perform(
+            async move { tokio::task::spawn_blocking(move || Manifest::update(config, cache, force)).await },
+            |join| match join {
+                Ok(x) => Message::ManifestUpdated(x),
+                Err(_) => Message::Ignore,
+            },
+        )
+    }
+
     fn open_url(url: String) -> Command<Message> {
         let url2 = url.clone();
         Command::perform(async { opener::open(url) }, move |res| match res {
@@ -1249,8 +1260,6 @@ impl Application for App {
             }
         }
 
-        let manifest_config = config.manifest.clone();
-        let manifest_cache = cache.manifests.clone();
         let text_histories = TextHistories::new(&config);
 
         log::debug!("Config on startup: {config:?}");
@@ -1260,14 +1269,10 @@ impl Application for App {
             iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::ICONS_DATA)).map(|_| Message::Ignore),
         ];
         if flags.update_manifest {
-            commands.push(Command::perform(
-                async move {
-                    tokio::task::spawn_blocking(move || Manifest::update(manifest_config, manifest_cache, false)).await
-                },
-                |join| match join {
-                    Ok(x) => Message::ManifestUpdated(x),
-                    Err(_) => Message::Ignore,
-                },
+            commands.push(Self::update_manifest(
+                config.manifest.clone(),
+                cache.manifests.clone(),
+                false,
             ));
         }
 
@@ -1288,6 +1293,7 @@ impl Application for App {
                 modal,
                 updating_manifest: flags.update_manifest,
                 text_histories,
+                flags,
                 ..Self::default()
             },
             Command::batch(commands),
@@ -1361,20 +1367,13 @@ impl Application for App {
 
                 Command::none()
             }
-            Message::UpdateManifest => {
+            Message::UpdateManifest { force } => {
+                if self.updating_manifest {
+                    return Command::none();
+                }
+
                 self.updating_manifest = true;
-                let manifest_config = self.config.manifest.clone();
-                let manifest_cache = self.cache.manifests.clone();
-                Command::perform(
-                    async move {
-                        tokio::task::spawn_blocking(move || Manifest::update(manifest_config, manifest_cache, true))
-                            .await
-                    },
-                    |join| match join {
-                        Ok(x) => Message::ManifestUpdated(x),
-                        Err(_) => Message::Ignore,
-                    },
-                )
+                Self::update_manifest(self.config.manifest.clone(), self.cache.manifests.clone(), force)
             }
             Message::ManifestUpdated(updates) => {
                 self.updating_manifest = false;
@@ -2672,6 +2671,12 @@ impl Application for App {
 
         if !self.pending_save.is_empty() {
             subscriptions.push(iced::time::every(Duration::from_millis(200)).map(|_| Message::Save));
+        }
+
+        if self.flags.update_manifest {
+            subscriptions.push(
+                iced::time::every(Duration::from_secs(60 * 60 * 24)).map(|_| Message::UpdateManifest { force: false }),
+            );
         }
 
         if self.exiting {

@@ -75,12 +75,12 @@ pub struct ManifestConfig {
 }
 
 impl ManifestConfig {
-    pub fn secondary_manifest_urls(&self) -> Vec<&str> {
+    pub fn secondary_manifest_urls(&self, force: bool) -> Vec<&str> {
         self.secondary
             .iter()
             .filter_map(|x| match x {
                 SecondaryManifestConfig::Local { .. } => None,
-                SecondaryManifestConfig::Remote { url, .. } => Some(url.as_str()),
+                SecondaryManifestConfig::Remote { url, enable } => (*enable || force).then_some(url.as_str()),
             })
             .collect()
     }

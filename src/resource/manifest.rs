@@ -391,9 +391,11 @@ impl Manifest {
     ) -> Vec<Result<Option<ManifestUpdate>, Error>> {
         let mut out = vec![];
 
-        out.push(Self::update_one(&config.url, &cache, force, true));
+        if config.enable || force {
+            out.push(Self::update_one(&config.url, &cache, force, true));
+        }
 
-        for secondary in config.secondary_manifest_urls() {
+        for secondary in config.secondary_manifest_urls(force) {
             out.push(Self::update_one(secondary, &cache, force, false));
         }
 

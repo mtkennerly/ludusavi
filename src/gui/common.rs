@@ -108,7 +108,9 @@ pub enum Message {
     PruneNotifications,
     AppReleaseToggle(bool),
     AppReleaseChecked(Result<crate::metadata::Release, String>),
-    UpdateManifest,
+    UpdateManifest {
+        force: bool,
+    },
     ManifestUpdated(Vec<Result<Option<ManifestUpdate>, Error>>),
     Backup(BackupPhase),
     Restore(RestorePhase),
