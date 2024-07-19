@@ -419,7 +419,9 @@ impl Manifest {
 
         let path = Self::path_for(url, primary);
 
-        let mut req = reqwest::blocking::Client::new().get(url);
+        let mut req = reqwest::blocking::Client::new()
+            .get(url)
+            .header(reqwest::header::USER_AGENT, &*crate::prelude::USER_AGENT);
         let old_etag = cache.get(url).and_then(|x| x.etag.clone());
         if let Some(etag) = old_etag.as_ref() {
             if path.exists() {
