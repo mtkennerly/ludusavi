@@ -4,6 +4,8 @@
   * You can now ignore specific manifests during scans.
     For example, if you only want to back up custom games,
     you can now disable the primary manifest's entries.
+  * GUI: On startup, Ludusavi will check if a new version is available and notify you.
+    This happens at most once per 7 days.
 * Fixed:
   * CLI: Some commands would fail with relative path arguments.
 

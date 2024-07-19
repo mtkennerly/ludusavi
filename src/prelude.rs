@@ -11,6 +11,7 @@ use crate::{path::CommonPath, resource::manifest::Os};
 
 pub static VERSION: Lazy<&'static str> =
     Lazy::new(|| option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")));
+pub static USER_AGENT: Lazy<String> = Lazy::new(|| format!("ludusavi/{}", *VERSION));
 pub static VARIANT: Option<&'static str> = option_env!("LUDUSAVI_VARIANT");
 pub static CANONICAL_VERSION: Lazy<(u32, u32, u32)> = Lazy::new(|| {
     let version_parts: Vec<u32> = env!("CARGO_PKG_VERSION")

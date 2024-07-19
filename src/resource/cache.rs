@@ -14,11 +14,19 @@ use crate::{
 #[serde(default)]
 pub struct Cache {
     pub version: Option<(u32, u32, u32)>,
+    pub release: Release,
     pub migrations: Migrations,
     pub manifests: Manifests,
     pub roots: BTreeSet<Root>,
     pub backup: Backup,
     pub restore: Restore,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default)]
+pub struct Release {
+    pub checked: chrono::DateTime<chrono::Utc>,
+    pub latest: Option<semver::Version>,
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -119,5 +127,10 @@ impl Cache {
                 _ => primary,
             }
         })
+    }
+
+    pub fn should_check_app_update(&self) -> bool {
+        let now = chrono::offset::Utc::now();
+        now.signed_duration_since(self.release.checked).num_days() >= 7
     }
 }

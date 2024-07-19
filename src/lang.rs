@@ -7,7 +7,7 @@ use regex::Regex;
 use unic_langid::LanguageIdentifier;
 
 use crate::{
-    prelude::{CommandError, Error, StrictPath, VARIANT, VERSION},
+    prelude::{CommandError, Error, StrictPath, VARIANT},
     resource::{
         config::{BackupFormat, CustomGameKind, RedirectKind, Root, SortKey, Theme, ZipCompression},
         manifest::Store,
@@ -29,6 +29,7 @@ const CODE: &str = "code";
 const MESSAGE: &str = "message";
 const APP: &str = "app";
 const GAME: &str = "game";
+const VERSION: &str = "version";
 
 pub const TRANSLATOR: Translator = Translator {};
 pub const ADD_SYMBOL: &str = "+";
@@ -346,8 +347,8 @@ impl Translator {
     pub fn window_title(&self) -> String {
         let name = self.app_name();
         match VARIANT {
-            Some(variant) => format!("{} v{} ({})", name, *VERSION, variant),
-            None => format!("{} v{}", name, *VERSION),
+            Some(variant) => format!("{} v{} ({})", name, *crate::prelude::VERSION, variant),
+            None => format!("{} v{}", name, *crate::prelude::VERSION),
         }
     }
 
@@ -1368,6 +1369,16 @@ impl Translator {
         let mut args = FluentArgs::new();
         args.set(GAME, game);
         translate_args("restore-specific-game.failed", &args)
+    }
+
+    pub fn new_version_check(&self) -> String {
+        translate("new-version-check")
+    }
+
+    pub fn new_version_available(&self, version: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(VERSION, version);
+        translate_args("new-version-available", &args)
     }
 }
 

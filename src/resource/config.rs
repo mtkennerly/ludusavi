@@ -29,6 +29,7 @@ fn default_backup_dir() -> StrictPath {
 #[serde(default, rename_all = "camelCase")]
 pub struct Config {
     pub runtime: Runtime,
+    pub release: Release,
     pub manifest: ManifestConfig,
     pub language: Language,
     pub theme: Theme,
@@ -47,6 +48,20 @@ pub struct Config {
 pub struct Runtime {
     /// How many threads to use for parallel scanning.
     pub threads: Option<NonZeroUsize>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Release {
+    /// Whether to check for new releases.
+    /// If enabled, Ludusavi will check at most once every 7 days.
+    pub check: bool,
+}
+
+impl Default for Release {
+    fn default() -> Self {
+        Self { check: true }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -1925,6 +1940,8 @@ mod tests {
     fn can_parse_optional_fields_when_present_in_config() {
         let config = Config::load_from_string(
             r#"
+            release:
+              check: true
             manifest:
               url: example.com
               etag: "foo"
@@ -1985,6 +2002,7 @@ mod tests {
         assert_eq!(
             Config {
                 runtime: Default::default(),
+                release: Release { check: true },
                 manifest: ManifestConfig {
                     url: s("example.com"),
                     enable: true,
@@ -2075,6 +2093,8 @@ mod tests {
 ---
 runtime:
   threads: ~
+release:
+  check: true
 manifest:
   url: example.com
   enable: true
@@ -2171,6 +2191,7 @@ customGames:
             .trim(),
             serde_yaml::to_string(&Config {
                 runtime: Default::default(),
+                release: Default::default(),
                 manifest: ManifestConfig {
                     url: s("example.com"),
                     enable: true,

@@ -26,6 +26,7 @@ use crate::{
 };
 
 const RCLONE_URL: &str = "https://rclone.org/downloads";
+const RELEASE_URL: &str = "https://github.com/mtkennerly/ludusavi/releases";
 
 fn template(content: Column) -> Element {
     Container::new(content.spacing(15).align_items(Alignment::Center))
@@ -348,6 +349,17 @@ pub fn other<'a>(
                             pick_list(Theme::ALL, Some(config.theme), Message::SelectedTheme)
                                 .style(style::PickList::Primary),
                         ),
+                )
+                .push(
+                    Row::new()
+                        .align_items(iced::Alignment::Center)
+                        .spacing(20)
+                        .push(checkbox(
+                            TRANSLATOR.new_version_check(),
+                            config.release.check,
+                            Message::AppReleaseToggle,
+                        ))
+                        .push(button::open_url_icon(RELEASE_URL.to_string())),
                 )
                 .push(
                     Column::new().spacing(5).push(text(TRANSLATOR.scan_field())).push(

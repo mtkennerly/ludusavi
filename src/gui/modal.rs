@@ -131,6 +131,9 @@ pub enum Modal {
     BackupValidation {
         games: BTreeSet<String>,
     },
+    AppUpdate {
+        release: crate::metadata::Release,
+    },
     UpdatingManifest,
     ConfirmCloudSync {
         local: String,
@@ -157,7 +160,8 @@ impl Modal {
             | Self::ConfirmAddMissingRoots(..)
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
-            | Self::ConfigureWebDavRemote { .. } => ModalVariant::Confirm,
+            | Self::ConfigureWebDavRemote { .. }
+            | Self::AppUpdate { .. } => ModalVariant::Confirm,
             Self::BackupValidation { games } => {
                 if games.is_empty() {
                     ModalVariant::Info
@@ -189,6 +193,7 @@ impl Modal {
             Self::ConfirmRestore { .. } => TRANSLATOR.confirm_restore(&config.restore.path, true),
             Self::NoMissingRoots => TRANSLATOR.no_missing_roots(),
             Self::ConfirmAddMissingRoots(missing) => TRANSLATOR.confirm_add_missing_roots(missing),
+            Self::AppUpdate { release } => TRANSLATOR.new_version_available(release.version.to_string().as_str()),
             Self::UpdatingManifest => TRANSLATOR.updating_manifest(),
             Self::BackupValidation { games } => {
                 if games.is_empty() {
@@ -235,6 +240,7 @@ impl Modal {
                 games: games.clone(),
             })),
             Self::ConfirmAddMissingRoots(missing) => Some(Message::ConfirmAddMissingRoots(missing.clone())),
+            Self::AppUpdate { release } => Some(Message::OpenUrlAndCloseModal(release.url.clone())),
             Self::UpdatingManifest => None,
             Self::ConfirmCloudSync { direction, state, .. } => {
                 if state.done() {
@@ -341,6 +347,7 @@ impl Modal {
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
             | Self::UpdatingManifest
+            | Self::AppUpdate { .. }
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. } => vec![],
@@ -363,6 +370,7 @@ impl Modal {
             | Self::ConfirmRestore { .. }
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
+            | Self::AppUpdate { .. }
             | Self::UpdatingManifest => (),
             Self::BackupValidation { games } => {
                 for game in games.iter().sorted() {
@@ -448,6 +456,7 @@ impl Modal {
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
             | Self::BackupValidation { .. }
+            | Self::AppUpdate { .. }
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -484,6 +493,7 @@ impl Modal {
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
             | Self::BackupValidation { .. }
+            | Self::AppUpdate { .. }
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -504,6 +514,7 @@ impl Modal {
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
             | Self::BackupValidation { .. }
+            | Self::AppUpdate { .. }
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -522,6 +533,7 @@ impl Modal {
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
             | Self::BackupValidation { .. }
+            | Self::AppUpdate { .. }
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
@@ -540,6 +552,7 @@ impl Modal {
             | Self::NoMissingRoots
             | Self::ConfirmAddMissingRoots(_)
             | Self::BackupValidation { .. }
+            | Self::AppUpdate { .. }
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }

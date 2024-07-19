@@ -4,6 +4,7 @@ mod cli;
 mod cloud;
 mod gui;
 mod lang;
+mod metadata;
 mod path;
 mod prelude;
 mod resource;

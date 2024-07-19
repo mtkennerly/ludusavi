@@ -1271,6 +1271,13 @@ impl Application for App {
             ));
         }
 
+        if config.release.check && cache.should_check_app_update() {
+            commands.push(Command::perform(
+                async move { crate::metadata::Release::fetch().await },
+                |join| Message::AppReleaseChecked(join.map_err(|x| x.to_string())),
+            ));
+        }
+
         (
             Self {
                 backup_screen: screen::Backup::new(&config, &cache),
@@ -1322,6 +1329,36 @@ impl Application for App {
                         self.timed_notification = None;
                     }
                 }
+                Command::none()
+            }
+            Message::AppReleaseToggle(enabled) => {
+                self.config.release.check = enabled;
+                self.save_config();
+                Command::none()
+            }
+            Message::AppReleaseChecked(outcome) => {
+                self.save_cache();
+                self.cache.release.checked = chrono::offset::Utc::now();
+
+                match outcome {
+                    Ok(release) => {
+                        let previous_latest = self.cache.release.latest.clone();
+                        self.cache.release.latest = Some(release.version.clone());
+
+                        if previous_latest.as_ref() != Some(&release.version) {
+                            // The latest available version has changed (or this is our first time checking)
+                            if let Ok(current) = semver::Version::parse(*crate::VERSION) {
+                                if release.version > current {
+                                    return self.show_modal(Modal::AppUpdate { release });
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        log::warn!("App update check failed: {e:?}");
+                    }
+                }
+
                 Command::none()
             }
             Message::UpdateManifest => {
@@ -2409,6 +2446,7 @@ impl Application for App {
                 Command::none()
             }
             Message::OpenUrl(url) => Self::open_url(url),
+            Message::OpenUrlAndCloseModal(url) => Command::batch([Self::open_url(url), self.close_modal()]),
             Message::EditedCloudRemote(choice) => {
                 if let Ok(remote) = Remote::try_from(choice) {
                     match &remote {
