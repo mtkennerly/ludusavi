@@ -25,15 +25,10 @@ use crate::{
 /// We should also avoid doing this if we're just going to relaunch into detached mode anyway.
 /// https://docs.rs/flexi_logger/0.23.1/flexi_logger/error_info/index.html#write
 fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLoggerError> {
-    flexi_logger::Logger::try_with_env_or_str("ludusavi=warn")
+    flexi_logger::Logger::try_with_env_or_str("ludusavi=trace")
         .unwrap()
         .log_to_file(flexi_logger::FileSpec::default().directory(app_dir().as_std_path_buf().unwrap()))
-        .write_mode(flexi_logger::WriteMode::Async)
-        .rotate(
-            flexi_logger::Criterion::Size(1024 * 1024 * 10),
-            flexi_logger::Naming::Timestamps,
-            flexi_logger::Cleanup::KeepLogFiles(4),
-        )
+        .write_mode(flexi_logger::WriteMode::Direct)
         .use_utc()
         .format_for_files(|w, now, record| {
             write!(

@@ -232,9 +232,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             log::info!("beginning backup with {} steps", games.len());
 
             let mut info: Vec<_> = games
-                .par_iter()
+                .iter()
                 .enumerate()
-                .progress_with(scan_progress_bar(games.len() as u64))
                 .filter_map(|(i, name)| {
                     log::trace!("step {i} / {}: {name}", games.len());
                     let game = &manifest.0[name];
