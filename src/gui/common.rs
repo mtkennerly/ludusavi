@@ -107,6 +107,7 @@ pub enum Message {
     UpdateTime,
     PruneNotifications,
     AppReleaseToggle(bool),
+    CheckAppRelease,
     AppReleaseChecked(Result<crate::metadata::Release, String>),
     UpdateManifest {
         force: bool,

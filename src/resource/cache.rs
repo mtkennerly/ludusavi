@@ -131,6 +131,6 @@ impl Cache {
 
     pub fn should_check_app_update(&self) -> bool {
         let now = chrono::offset::Utc::now();
-        now.signed_duration_since(self.release.checked).num_days() >= 7
+        now.signed_duration_since(self.release.checked).num_hours() >= 24
     }
 }

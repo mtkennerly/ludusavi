@@ -4,8 +4,8 @@
   * You can now ignore specific manifests during scans.
     For example, if you only want to back up custom games,
     you can now disable the primary manifest's entries.
-  * GUI: On startup, Ludusavi will check if a new version is available and notify you.
-    This happens at most once per 7 days.
+  * GUI: On startup and once every 24 hours,
+    Ludusavi will check if a new version is available and notify you.
   * GUI: When left open,
     Ludusavi will automatically check for manifest updates once every 24 hours.
     Previously, this check only occurred when the app started.

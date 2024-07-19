@@ -1342,6 +1342,15 @@ impl Application for App {
                 self.save_config();
                 Command::none()
             }
+            Message::CheckAppRelease => {
+                if !self.cache.should_check_app_update() {
+                    return Command::none();
+                }
+
+                Command::perform(async move { crate::metadata::Release::fetch().await }, |join| {
+                    Message::AppReleaseChecked(join.map_err(|x| x.to_string()))
+                })
+            }
             Message::AppReleaseChecked(outcome) => {
                 self.save_cache();
                 self.cache.release.checked = chrono::offset::Utc::now();
@@ -2677,6 +2686,10 @@ impl Application for App {
             subscriptions.push(
                 iced::time::every(Duration::from_secs(60 * 60 * 24)).map(|_| Message::UpdateManifest { force: false }),
             );
+        }
+
+        if self.config.release.check {
+            subscriptions.push(iced::time::every(Duration::from_secs(60 * 60 * 24)).map(|_| Message::CheckAppRelease));
         }
 
         if self.exiting {
