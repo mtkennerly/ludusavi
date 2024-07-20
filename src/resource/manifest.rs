@@ -392,7 +392,7 @@ impl Manifest {
         let mut out = vec![];
 
         if config.enable || force {
-            out.push(Self::update_one(&config.url, &cache, force, true));
+            out.push(Self::update_one(config.url(), &cache, force, true));
         }
 
         for secondary in config.secondary_manifest_urls(force) {

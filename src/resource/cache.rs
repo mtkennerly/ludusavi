@@ -4,7 +4,7 @@ use crate::{
     lang::Language,
     prelude::{app_dir, CANONICAL_VERSION},
     resource::{
-        config::{Config, Root},
+        config::{self, Config, Root},
         manifest::ManifestUpdate,
         ResourceFile, SaveableResourceFile,
     },
@@ -34,6 +34,7 @@ pub struct Release {
 pub struct Migrations {
     pub adopted_cache: bool,
     pub fixed_spanish_config: bool,
+    pub set_default_manifest_url_to_null: bool,
 }
 
 pub type Manifests = HashMap<String, Manifest>;
@@ -79,6 +80,19 @@ impl Cache {
                 config.language = Language::Spanish;
             }
             self.migrations.fixed_spanish_config = true;
+            updated = true;
+        }
+
+        if !self.migrations.set_default_manifest_url_to_null {
+            if config
+                .manifest
+                .url
+                .as_ref()
+                .is_some_and(|url| url == config::MANIFEST_URL)
+            {
+                config.manifest.url = None;
+            }
+            self.migrations.set_default_manifest_url_to_null = true;
             updated = true;
         }
 

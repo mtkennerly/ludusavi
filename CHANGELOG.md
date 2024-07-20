@@ -12,6 +12,9 @@
 * Fixed:
   * CLI: Some commands would fail with relative path arguments.
 * Changed:
+  * In the config file, `manifest.url` is now set to `null` by default
+    to indicate that the default URL should be used,
+    rather than explicitly putting the default URL in the file.
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 

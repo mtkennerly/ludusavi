@@ -18,7 +18,8 @@ use crate::{
     scan::registry_compat::RegistryItem,
 };
 
-const MANIFEST_URL: &str = "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
+pub const MANIFEST_URL: &str =
+    "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
 
 fn default_backup_dir() -> StrictPath {
     StrictPath::new(format!("{}/ludusavi-backup", CommonPath::Home.get().unwrap()))
@@ -67,14 +68,20 @@ impl Default for Release {
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct ManifestConfig {
-    pub url: String,
-    pub enable: bool,
     /// Where to download the primary manifest.
+    /// Default: https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub url: Option<String>,
+    pub enable: bool,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub secondary: Vec<SecondaryManifestConfig>,
 }
 
 impl ManifestConfig {
+    pub fn url(&self) -> &str {
+        self.url.as_deref().unwrap_or(MANIFEST_URL)
+    }
+
     pub fn secondary_manifest_urls(&self, force: bool) -> Vec<&str> {
         self.secondary
             .iter()
@@ -1150,7 +1157,7 @@ impl ToString for CustomGameKind {
 impl Default for ManifestConfig {
     fn default() -> Self {
         Self {
-            url: MANIFEST_URL.to_string(),
+            url: None,
             enable: true,
             secondary: vec![],
         }
@@ -1894,7 +1901,7 @@ mod tests {
             Config {
                 runtime: Default::default(),
                 manifest: ManifestConfig {
-                    url: s("example.com"),
+                    url: Some(s("example.com")),
                     enable: true,
                     secondary: vec![]
                 },
@@ -2004,7 +2011,7 @@ mod tests {
                 runtime: Default::default(),
                 release: Release { check: true },
                 manifest: ManifestConfig {
-                    url: s("example.com"),
+                    url: Some(s("example.com")),
                     enable: true,
                     secondary: vec![SecondaryManifestConfig::Remote {
                         url: s("example.com/2"),
@@ -2193,7 +2200,7 @@ customGames:
                 runtime: Default::default(),
                 release: Default::default(),
                 manifest: ManifestConfig {
-                    url: s("example.com"),
+                    url: Some(s("example.com")),
                     enable: true,
                     secondary: vec![]
                 },

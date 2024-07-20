@@ -141,9 +141,9 @@ pub fn manifest<'a>(
                     .spacing(0)
                     .style(style::Checkbox),
                 )
-                .push(iced::widget::TextInput::new("", &config.manifest.url).width(Length::Fill))
-                .push_maybe(get_checked(Some(&config.manifest.url), cache))
-                .push_maybe(get_updated(Some(&config.manifest.url), cache))
+                .push(iced::widget::TextInput::new("", config.manifest.url()).width(Length::Fill))
+                .push_maybe(get_checked(Some(config.manifest.url()), cache))
+                .push_maybe(get_updated(Some(config.manifest.url()), cache))
                 .push_if(!config.manifest.secondary.is_empty(), || {
                     Space::with_width(right_offset)
                 }),
