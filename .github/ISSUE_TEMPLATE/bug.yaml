@@ -54,5 +54,5 @@ body:
       description: >-
         Please provide any relevant screenshots, CLI output, or log files.
         Refer to the documentation to
-        [find your config file](https://github.com/mtkennerly/ludusavi/#configuration)
-        and/or [enable verbose logging](https://github.com/mtkennerly/ludusavi/#logging).
+        [find your config file](https://github.com/mtkennerly/ludusavi/blob/master/docs/help/configuration-file.md)
+        and/or [enable verbose logging](https://github.com/mtkennerly/ludusavi/blob/master/docs/help/logging.md).
