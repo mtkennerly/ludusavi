@@ -5,7 +5,7 @@ It is cross-platform and supports multiple game stores.
 
 ## Features
 * Ability to back up data from more than 19,000 games plus your own custom entries.
-* Backup and restore for Steam as well as other game libraries.
+* Backup and restore for Steam, GOG, Epic, Heroic, Lutris, and other game libraries.
 * Both a graphical interface and command line interface for scripting.
   Tab completion is available for Bash, Fish, Zsh, PowerShell, and Elvish.
 * Support for:
@@ -17,16 +17,18 @@ It is cross-platform and supports multiple game stores.
 * Works on the Steam Deck.
 
 This tool uses the [Ludusavi Manifest](https://github.com/mtkennerly/ludusavi-manifest)
-for info on what to back up, and it will automatically download the latest version of
-the primary manifest. The data is ultimately sourced from [PCGamingWiki](https://www.pcgamingwiki.com/wiki/Home),
-so please contribute any new or fixed data back to the wiki itself, and your
-improvements will be incorporated into Ludusavi's data as well.
+for info on what to back up for each game.
+The data is primarily sourced from [PCGamingWiki](https://www.pcgamingwiki.com/wiki/Home),
+so please contribute any new or fixed data back to the wiki itself,
+and your improvements will be incorporated into Ludusavi's data as well.
 
 If you'd like to help translate Ludusavi into other languages,
 [check out the Crowdin project](https://crowdin.com/project/ludusavi).
 
 ## Demo
-### GUI
+<!-- These anchors are kept for compatibility with old section headers. -->
+<a name="gui"></a>
+
 > ![GUI demo of previewing a backup](docs/demo-gui.gif)
 
 ## Installation
