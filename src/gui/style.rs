@@ -149,6 +149,7 @@ pub enum Button {
     NavButtonActive,
     NavButtonInactive,
     Badge,
+    Bare,
 }
 impl button::StyleSheet for Theme {
     type Style = Button;
@@ -165,6 +166,7 @@ impl button::StyleSheet for Theme {
                 Self::Style::NavButtonActive => Some(self.navigation.alpha(0.9).into()),
                 Self::Style::NavButtonInactive => None,
                 Self::Style::Badge => None,
+                Self::Style::Bare => None,
             },
             border: Border {
                 color: match style {
@@ -193,7 +195,7 @@ impl button::StyleSheet for Theme {
             text_color: match style {
                 Self::Style::GameListEntryTitleDisabled => self.text_skipped.alpha(0.8),
                 Self::Style::GameListEntryTitleUnscanned => self.text.alpha(0.8),
-                Self::Style::NavButtonInactive => self.text,
+                Self::Style::NavButtonInactive | Self::Style::Bare => self.text,
                 _ => self.text_button.alpha(0.8),
             },
             shadow: Shadow::default(),
@@ -225,6 +227,7 @@ impl button::StyleSheet for Theme {
             text_color: match style {
                 Self::Style::GameListEntryTitleDisabled => self.text_skipped,
                 Self::Style::GameListEntryTitleUnscanned | Self::Style::NavButtonInactive => self.text,
+                Self::Style::Bare => self.text.alpha(0.9),
                 _ => self.text_button,
             },
             shadow_offset: match style {

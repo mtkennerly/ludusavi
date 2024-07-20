@@ -9,13 +9,17 @@ use crate::{
         badge::Badge,
         button,
         common::{BackupPhase, Message, RestorePhase, ScrollSubject, UndoSubject},
+        icon::Icon,
         shortcuts::TextHistories,
         style,
         widget::{pick_list, text, Column, Container, Element, IcedParentExt, Row, Space},
     },
     lang::TRANSLATOR,
     prelude::{Error, Finality, SyncDirection},
-    resource::config::{Config, Root},
+    resource::{
+        config::{Config, Root},
+        manifest,
+    },
 };
 
 const CHANGES_PER_PAGE: usize = 500;
@@ -148,13 +152,19 @@ pub enum Modal {
     ConfigureWebDavRemote {
         provider: WebDavProvider,
     },
+    GameNotes {
+        game: String,
+        notes: Vec<manifest::Note>,
+    },
 }
 
 impl Modal {
     pub fn variant(&self) -> ModalVariant {
         match self {
             Self::Exiting | Self::UpdatingManifest => ModalVariant::Loading,
-            Self::Error { .. } | Self::Errors { .. } | Self::NoMissingRoots => ModalVariant::Info,
+            Self::Error { .. } | Self::Errors { .. } | Self::NoMissingRoots | Self::GameNotes { .. } => {
+                ModalVariant::Info
+            }
             Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
             | Self::ConfirmAddMissingRoots(..)
@@ -221,14 +231,17 @@ impl Modal {
             Self::ConfigureFtpRemote { .. } => RemoteChoice::Ftp.to_string(),
             Self::ConfigureSmbRemote { .. } => RemoteChoice::Smb.to_string(),
             Self::ConfigureWebDavRemote { .. } => RemoteChoice::WebDav.to_string(),
+            Self::GameNotes { game, .. } => game.clone(),
         }
     }
 
     pub fn message(&self, histories: &TextHistories) -> Option<Message> {
         match self {
-            Self::Error { .. } | Self::Errors { .. } | Self::NoMissingRoots | Self::BackupValidation { .. } => {
-                Some(Message::CloseModal)
-            }
+            Self::Error { .. }
+            | Self::Errors { .. }
+            | Self::NoMissingRoots
+            | Self::BackupValidation { .. }
+            | Self::GameNotes { .. } => Some(Message::CloseModal),
             Self::Exiting => None,
             Self::ConfirmBackup { games } => Some(Message::Backup(BackupPhase::Start {
                 preview: false,
@@ -350,7 +363,8 @@ impl Modal {
             | Self::AppUpdate { .. }
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
-            | Self::ConfigureWebDavRemote { .. } => vec![],
+            | Self::ConfigureWebDavRemote { .. }
+            | Self::GameNotes { .. } => vec![],
         }
     }
 
@@ -437,6 +451,20 @@ impl Modal {
                         ModalField::WebDavProvider,
                     ));
             }
+            Self::GameNotes { notes, .. } => {
+                col = notes.iter().fold(col, |parent, note| {
+                    parent.push(
+                        Row::new()
+                            .push(Container::new(Icon::Info.text_narrow()).padding([2, 10, 0, 5]))
+                            .push(
+                                Column::new()
+                                    .spacing(5)
+                                    .push(text(&note.message).size(16))
+                                    .push_maybe(note.source.as_ref().map(|source| text(source).size(12))),
+                            ),
+                    )
+                });
+            }
         }
 
         col
@@ -460,7 +488,8 @@ impl Modal {
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
-            | Self::ConfigureWebDavRemote { .. } => (),
+            | Self::ConfigureWebDavRemote { .. }
+            | Self::GameNotes { .. } => (),
         }
     }
 
@@ -497,7 +526,8 @@ impl Modal {
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
-            | Self::ConfigureWebDavRemote { .. } => (),
+            | Self::ConfigureWebDavRemote { .. }
+            | Self::GameNotes { .. } => (),
         }
     }
 
@@ -518,7 +548,8 @@ impl Modal {
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
-            | Self::ConfigureWebDavRemote { .. } => (),
+            | Self::ConfigureWebDavRemote { .. }
+            | Self::GameNotes { .. } => (),
         }
     }
 
@@ -537,7 +568,8 @@ impl Modal {
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
-            | Self::ConfigureWebDavRemote { .. } => false,
+            | Self::ConfigureWebDavRemote { .. }
+            | Self::GameNotes { .. } => false,
         }
     }
 
@@ -556,7 +588,8 @@ impl Modal {
             | Self::UpdatingManifest
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
-            | Self::ConfigureWebDavRemote { .. } => 2,
+            | Self::ConfigureWebDavRemote { .. }
+            | Self::GameNotes { .. } => 2,
         }
     }
 

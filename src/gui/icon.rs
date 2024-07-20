@@ -1,4 +1,4 @@
-use iced::alignment;
+use iced::{alignment, Length};
 
 use crate::gui::{
     font,
@@ -20,6 +20,7 @@ pub enum Icon {
     FastForward,
     Filter,
     FolderOpen,
+    Info,
     KeyboardArrowDown,
     KeyboardArrowRight,
     Language,
@@ -56,6 +57,7 @@ impl Icon {
             Self::FastForward => '\u{E01F}',
             Self::Filter => '\u{ef4f}',
             Self::FolderOpen => '\u{E2C8}',
+            Self::Info => '\u{e88e}',
             Self::KeyboardArrowDown => '\u{E313}',
             Self::KeyboardArrowRight => '\u{E315}',
             Self::Language => '\u{E894}',
@@ -85,6 +87,10 @@ impl Icon {
             .horizontal_alignment(alignment::Horizontal::Center)
             .vertical_alignment(iced::alignment::Vertical::Center)
             .line_height(1.0)
+    }
+
+    pub fn text_narrow(self) -> Text<'static> {
+        self.text().width(Length::Shrink)
     }
 
     pub fn text_small(self) -> Text<'static> {

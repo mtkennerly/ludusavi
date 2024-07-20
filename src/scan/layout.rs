@@ -619,6 +619,7 @@ impl GameLayout {
                 available_backups: vec![],
                 backup: None,
                 has_backups: true,
+                notes: vec![],
             })
         }
     }
@@ -1599,6 +1600,7 @@ impl GameLayout {
             available_backups,
             backup,
             has_backups,
+            notes: vec![],
         }
     }
 
@@ -3358,6 +3360,7 @@ mod tests {
                     available_backups: backups.clone(),
                     backup: Some(backups[0].clone()),
                     has_backups: true,
+                    notes: vec![],
                 },
                 layout.scan_for_restoration(
                     "game1",
@@ -3407,6 +3410,7 @@ mod tests {
                             ..Default::default()
                         })),
                         has_backups: true,
+                        notes: vec![],
                     },
                     layout.scan_for_restoration(
                         "game3",
@@ -3439,6 +3443,7 @@ mod tests {
                             ..Default::default()
                         })),
                         has_backups: true,
+                        notes: vec![],
                     },
                     layout.scan_for_restoration(
                         "game3",

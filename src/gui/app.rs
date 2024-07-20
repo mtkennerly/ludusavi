@@ -1421,6 +1421,7 @@ impl Application for App {
             Message::Restore(phase) => self.handle_restore(phase),
             Message::ValidateBackups(phase) => self.handle_validation(phase),
             Message::CancelOperation => self.cancel_operation(),
+            Message::ShowGameNotes { game, notes } => self.show_modal(Modal::GameNotes { game, notes }),
             Message::EditedBackupTarget(text) => {
                 self.text_histories.backup_target.push(&text);
                 self.config.backup.path.reset(text);

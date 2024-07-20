@@ -9,6 +9,12 @@
   * GUI: When left open,
     Ludusavi will automatically check for manifest updates once every 24 hours.
     Previously, this check only occurred when the app started.
+  * Manifests may now include a `notes` field.
+    If a game has notes and is found during a backup scan,
+    then the backup screen will show an info icon next to the game,
+    and you can click the icon to display the notes.
+    The primary manifest does not (yet) contain any notes,
+    so this mainly applies to secondary manifest authors.
 * Fixed:
   * CLI: Some commands would fail with relative path arguments.
 * Changed:

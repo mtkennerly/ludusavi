@@ -12,7 +12,7 @@ use crate::{
     path::CommonPath,
     prelude::{app_dir, Error, StrictPath, AVAILABLE_PARALELLISM},
     resource::{
-        manifest::{CloudMetadata, Manifest, Store},
+        manifest::{self, CloudMetadata, Manifest, Store},
         ResourceFile, SaveableResourceFile,
     },
     scan::registry_compat::RegistryItem,
@@ -92,7 +92,7 @@ impl ManifestConfig {
             .collect()
     }
 
-    pub fn load_secondary_manifests(&self) -> Vec<(StrictPath, Manifest)> {
+    pub fn load_secondary_manifests(&self) -> Vec<manifest::Secondary> {
         self.secondary
             .iter()
             .filter_map(|x| match x {
@@ -105,7 +105,11 @@ impl ManifestConfig {
                     if let Err(e) = &manifest {
                         log::error!("Cannot load secondary manifest: {:?} | {}", &path, e);
                     }
-                    Some((path.clone(), manifest.ok()?))
+                    Some(manifest::Secondary {
+                        id: path.render(),
+                        path: path.clone(),
+                        data: manifest.ok()?,
+                    })
                 }
                 SecondaryManifestConfig::Remote { url, enable } => {
                     if !enable {
@@ -117,7 +121,11 @@ impl ManifestConfig {
                     if let Err(e) = &manifest {
                         log::error!("Cannot load manifest: {:?} | {}", &path, e);
                     }
-                    Some((path.clone(), manifest.ok()?))
+                    Some(manifest::Secondary {
+                        id: url.to_string(),
+                        path: path.clone(),
+                        data: manifest.ok()?,
+                    })
                 }
             })
             .collect()

@@ -162,6 +162,13 @@ pub enum Tag {
     Other,
 }
 
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Secondary {
+    pub id: String,
+    pub path: StrictPath,
+    pub data: Manifest,
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Manifest(#[serde(serialize_with = "crate::serialization::ordered_map")] pub HashMap<String, Game>);
 
@@ -184,6 +191,8 @@ pub struct Game {
     pub id: IdMetadata,
     #[serde(skip_serializing_if = "CloudMetadata::is_empty")]
     pub cloud: CloudMetadata,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub notes: Vec<Note>,
 }
 
 impl Game {
@@ -327,6 +336,14 @@ impl CloudMetadata {
 
         !epic && !gog && !origin && !steam && !uplay
     }
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct Note {
+    pub message: String,
+    #[serde(skip)]
+    pub source: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -535,13 +552,17 @@ impl Manifest {
             self.0.clear();
         }
 
-        for (path, secondary) in config.manifest.load_secondary_manifests() {
-            self.incorporate_secondary_manifest(path, secondary);
+        for secondary in config.manifest.load_secondary_manifests() {
+            self.incorporate_secondary_manifest(secondary);
         }
 
         for root in &config.roots {
             for (path, secondary) in root.find_secondary_manifests() {
-                self.incorporate_secondary_manifest(path, secondary);
+                self.incorporate_secondary_manifest(Secondary {
+                    id: path.render(),
+                    path,
+                    data: secondary,
+                });
             }
         }
 
@@ -582,14 +603,17 @@ impl Manifest {
             // If you choose not to back up games with cloud support,
             // you probably still want to back up your customized versions of such games.
             cloud: CloudMetadata::default(),
+            notes: Default::default(),
         };
 
         self.0.insert(name, game);
     }
 
-    fn incorporate_secondary_manifest(&mut self, path: StrictPath, secondary: Manifest) {
-        log::debug!("incorporating secondary manifest: {}", path.render());
-        for (name, mut game) in secondary.0 {
+    fn incorporate_secondary_manifest(&mut self, secondary: Secondary) {
+        log::debug!("incorporating secondary manifest: {}", &secondary.id);
+        let manifest = secondary.data.0;
+
+        for (name, mut game) in manifest {
             game.normalize_relative_paths();
 
             if let Some(standard) = self.0.get_mut(&name) {
@@ -598,7 +622,7 @@ impl Manifest {
                 standard.files.extend(game.files);
                 standard.registry.extend(game.registry);
 
-                if let Some(folder) = path.parent().and_then(|x| x.leaf()) {
+                if let Some(folder) = secondary.path.parent().and_then(|x| x.leaf()) {
                     standard.install_dir.insert(folder, GameInstallDirEntry {});
                 }
                 standard.install_dir.extend(game.install_dir);
@@ -616,11 +640,20 @@ impl Manifest {
                 }
                 standard.id.gog_extra.extend(game.id.gog_extra);
                 standard.id.steam_extra.extend(game.id.steam_extra);
+
+                for note in &mut game.notes {
+                    note.source = Some(secondary.id.clone());
+                }
+                standard.notes.extend(game.notes);
             } else {
                 log::debug!("adding game from secondary manifest: {name}");
 
-                if let Some(folder) = path.parent().and_then(|x| x.leaf()) {
+                if let Some(folder) = secondary.path.parent().and_then(|x| x.leaf()) {
                     game.install_dir.insert(folder, GameInstallDirEntry {});
+                }
+
+                for note in &mut game.notes {
+                    note.source = Some(secondary.id.clone());
                 }
 
                 self.0.insert(name, game);
@@ -643,6 +676,7 @@ impl Manifest {
                 gog,
                 id,
                 cloud: _,
+                notes: _,
             } = &v;
             alias.is_none()
                 && (!files.is_empty() || !registry.is_empty() || !steam.is_empty() || !gog.is_empty() || !id.is_empty())
@@ -716,6 +750,7 @@ mod tests {
                 gog: Default::default(),
                 id: Default::default(),
                 cloud: Default::default(),
+                notes: Default::default(),
             },
             manifest.0["game"],
         );
@@ -803,6 +838,7 @@ mod tests {
                     steam: true,
                     uplay: true
                 },
+                notes: Default::default(),
             },
             manifest.0["game"],
         );

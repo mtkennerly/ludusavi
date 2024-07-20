@@ -12,6 +12,7 @@ use crate::{
     },
     lang::TRANSLATOR,
     prelude::{Finality, SyncDirection},
+    resource::manifest,
 };
 
 fn template(content: Text, action: Option<Message>, style: Option<style::Button>) -> Element {
@@ -465,5 +466,13 @@ pub fn validate_backups<'a>(ongoing: &Operation) -> Element<'a> {
             _ => None,
         },
         matches!(ongoing, Operation::ValidateBackups { .. }).then_some(style::Button::Negative),
+    )
+}
+
+pub fn show_game_notes<'a>(game: String, notes: Vec<manifest::Note>) -> Element<'a> {
+    template(
+        Icon::Info.text_narrow(),
+        Some(Message::ShowGameNotes { game, notes }),
+        Some(style::Button::Bare),
     )
 }

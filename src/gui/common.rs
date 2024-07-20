@@ -15,7 +15,7 @@ use crate::{
             BackupFormat, CloudFilter, CustomGameKind, RedirectKind, Root, SecondaryManifestConfigKind, SortKey, Theme,
             ZipCompression,
         },
-        manifest::{Manifest, ManifestUpdate, Store},
+        manifest::{self, Manifest, ManifestUpdate, Store},
     },
     scan::{
         game_filter,
@@ -239,6 +239,10 @@ pub enum Message {
     Scroll {
         subject: ScrollSubject,
         position: iced::widget::scrollable::AbsoluteOffset,
+    },
+    ShowGameNotes {
+        game: String,
+        notes: Vec<manifest::Note>,
     },
     EditedBackupComment {
         game: String,

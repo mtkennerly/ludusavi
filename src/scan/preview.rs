@@ -1,7 +1,10 @@
 use std::collections::HashSet;
 
 use crate::{
-    resource::config::{ToggledPaths, ToggledRegistry},
+    resource::{
+        config::{ToggledPaths, ToggledRegistry},
+        manifest,
+    },
     scan::{layout::Backup, BackupInfo, ScanChange, ScanChangeCount, ScannedFile, ScannedRegistry},
 };
 
@@ -16,6 +19,7 @@ pub struct ScanInfo {
     pub backup: Option<Backup>,
     /// Cheaper version of `!available_backups.is_empty()`, always populated.
     pub has_backups: bool,
+    pub notes: Vec<manifest::Note>,
 }
 
 impl ScanInfo {
