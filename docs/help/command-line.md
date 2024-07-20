@@ -7,6 +7,9 @@ or view info for specific subcommands, such as `ludusavi manifest update --help`
 
 You can also view the help text in [the CLI docs](/docs/cli.md).
 
+## Demo
+> ![CLI demo of previewing a backup](/docs/demo-cli.gif)
+
 ## JSON output
 CLI mode defaults to a human-readable format, but you can switch to a
 machine-readable JSON format with the `--api` flag.
