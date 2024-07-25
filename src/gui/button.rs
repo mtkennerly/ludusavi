@@ -22,6 +22,14 @@ fn template(content: Text, action: Option<Message>, style: Option<style::Button>
         .into()
 }
 
+fn template_bare(content: Text, action: Option<Message>, style: Option<style::Button>) -> Element {
+    Button::new(content.horizontal_alignment(alignment::Horizontal::Center))
+        .on_press_maybe(action)
+        .style(style.unwrap_or(style::Button::Primary))
+        .padding(0)
+        .into()
+}
+
 pub fn primary<'a>(content: String, action: Option<Message>) -> Element<'a> {
     Button::new(text(content).horizontal_alignment(alignment::Horizontal::Center))
         .on_press_maybe(action)
@@ -470,7 +478,7 @@ pub fn validate_backups<'a>(ongoing: &Operation) -> Element<'a> {
 }
 
 pub fn show_game_notes<'a>(game: String, notes: Vec<manifest::Note>) -> Element<'a> {
-    template(
+    template_bare(
         Icon::Info.text_narrow(),
         Some(Message::ShowGameNotes { game, notes }),
         Some(style::Button::Bare),
