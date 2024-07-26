@@ -764,7 +764,7 @@ impl StrictPath {
                 .filter_map(crate::prelude::filter_map_walkdir)
                 .filter(|x| x.file_type().is_file())
             {
-                let file = &mut entry.path().display().to_string();
+                let file = entry.path().display().to_string();
                 let mut perms = std::fs::metadata(&file)?.permissions();
                 if perms.readonly() {
                     #[allow(clippy::permissions_set_readonly_false)]
