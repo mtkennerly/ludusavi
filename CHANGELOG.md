@@ -15,6 +15,7 @@
     and you can click the icon to display the notes.
     The primary manifest does not (yet) contain any notes,
     so this mainly applies to secondary manifest authors.
+  * CLI: The `api` command now supports a `checkAppUpdate` message.
 * Fixed:
   * CLI: Some commands would fail with relative path arguments.
 * Changed:

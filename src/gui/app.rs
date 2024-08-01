@@ -1362,10 +1362,8 @@ impl Application for App {
 
                         if previous_latest.as_ref() != Some(&release.version) {
                             // The latest available version has changed (or this is our first time checking)
-                            if let Ok(current) = semver::Version::parse(*crate::VERSION) {
-                                if release.version > current {
-                                    return self.show_modal(Modal::AppUpdate { release });
-                                }
+                            if release.is_update() {
+                                return self.show_modal(Modal::AppUpdate { release });
                             }
                         }
                     }

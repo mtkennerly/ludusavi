@@ -33,4 +33,39 @@ impl Release {
             code => Err(format!("status code: {code:?}").into()),
         }
     }
+
+    pub fn fetch_sync() -> Result<Self, crate::prelude::AnyError> {
+        #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
+        pub struct Response {
+            pub html_url: String,
+            pub tag_name: String,
+        }
+
+        let req = reqwest::blocking::Client::new()
+            .get(Self::URL)
+            .header(reqwest::header::USER_AGENT, &*crate::prelude::USER_AGENT);
+        let res = req.send()?;
+
+        match res.status() {
+            reqwest::StatusCode::OK => {
+                let bytes = res.bytes()?.to_vec();
+                let raw = String::from_utf8(bytes)?;
+                let parsed = serde_json::from_str::<Response>(&raw)?;
+
+                Ok(Self {
+                    version: semver::Version::parse(parsed.tag_name.trim_start_matches('v'))?,
+                    url: parsed.html_url,
+                })
+            }
+            code => Err(format!("status code: {code:?}").into()),
+        }
+    }
+
+    pub fn is_update(&self) -> bool {
+        if let Ok(current) = semver::Version::parse(*crate::VERSION) {
+            self.version > current
+        } else {
+            false
+        }
+    }
 }
