@@ -235,3 +235,5 @@ back-up-specific-game =
 restore-specific-game =
     .confirm = Palautetaanko pelin { $game } tallennustiedot?
     .failed = Pelin { $game } tallennustietojen palautus epäonnistui
+new-version-check = Tarkista sovelluksen päivitykset automaattisesti
+new-version-available = Sovelluspäivitys saatavilla: { $version }. Haluatko nähdä julkaisutiedot?

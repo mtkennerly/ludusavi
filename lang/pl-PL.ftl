@@ -233,3 +233,5 @@ back-up-specific-game =
 restore-specific-game =
     .confirm = Przywrócić zapisy dla { $game }?
     .failed = Nie udało się przywrócić zapisów dla { $game }
+new-version-check = Check for application updates automatically
+new-version-available = An application update is available: { $version }. Would you like to view the release notes?

@@ -235,3 +235,5 @@ back-up-specific-game =
 restore-specific-game =
     .confirm = Восстановить сохраненные данные для { $game }?
     .failed = Не удалось восстановить данные для { $game }
+new-version-check = Автоматически проверять обновления приложения
+new-version-available = Доступно обновление приложения: { $version }. Хотите просмотреть список изменений (патчноут)?

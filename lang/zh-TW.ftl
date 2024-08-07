@@ -12,8 +12,8 @@ cli-unable-to-request-confirmation = 無法請求確認。
 cli-backup-id-with-multiple-games = 恢復多個遊戲時無法指定備份ID。
 cli-invalid-backup-id = 無效的備份ID。
 badge-failed = 已失敗
-badge-duplicates = DUPLICATES
-badge-duplicated = DUPLICATED
+badge-duplicates = 重複項目
+badge-duplicated = 已重複
 badge-ignored = 忽略
 badge-redirected-from = 來自： { $path }
 badge-redirecting-to = 到： { $path }
@@ -46,85 +46,85 @@ button-get-app = 取得 { $app }
 button-validate = 驗證
 no-roots-are-configured = 增加其他根目錄，可以備份更多資料。
 config-is-invalid = 錯誤：設定檔無效。
-manifest-is-invalid = Error: The manifest file is invalid.
-manifest-cannot-be-updated = Error: Unable to check for an update to the manifest file. Is your Internet connection down?
-cannot-prepare-backup-target = Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: { $path }
-restoration-source-is-invalid = Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: { $path }
-registry-issue = Error: Some registry entries were skipped.
-unable-to-browse-file-system = Error: Unable to browse on your system.
-unable-to-open-directory = Error: Unable to open directory:
-unable-to-open-url = Error: Unable to open URL:
-unable-to-configure-cloud = Unable to configure cloud.
-unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
-cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
-command-unlaunched = Command did not launch: { $command }
-command-terminated = Command terminated abruptly: { $command }
-command-failed = Command failed with code { $code }: { $command }
+manifest-is-invalid = 錯誤：manifest 清單檔無效。
+manifest-cannot-be-updated = 錯誤：無法檢查 manifest 清單文件的更新。您的網路是否已斷線？
+cannot-prepare-backup-target = 錯誤：無法準備備份目標（無法新增或清空資料夾）。如果您打開了該資料夾，請嘗試關閉它：{ $path }
+restoration-source-is-invalid = 錯誤：還原來源無效（路徑不存在或不是目錄）。請重新檢查位置：{ $path }
+registry-issue = 錯誤：某些註冊表被跳過。
+unable-to-browse-file-system = 錯誤：無法在您的系統上瀏覽。
+unable-to-open-directory = 錯誤：無法打開資料夾：
+unable-to-open-url = 錯誤：無法打開網址：
+unable-to-configure-cloud = 無法設定雲端。
+unable-to-synchronize-with-cloud = 無法同步至雲端。
+cloud-synchronize-conflict = 您的本地備份和雲端備份有衝突。請進行上傳或下載以解決此問題。
+command-unlaunched = 命令未啟動：{ $command }
+command-terminated = 命令已中斷：{ $command }
+command-failed = 命令失敗，錯誤碼 { $code }：{ $command }
 processed-games =
     { $total-games } { $total-games ->
-        [one] game
-       *[other] games
+        [one] 遊戲
+       *[other] 遊戲
     }
 processed-games-subset =
-    { $processed-games } of { $total-games } { $total-games ->
-        [one] game
-       *[other] games
+    { $processed-games } / { $total-games } { $total-games ->
+        [one] 遊戲
+       *[other] 遊戲
     }
-processed-size-subset = { $processed-size } of { $total-size }
+processed-size-subset = { $processed-size } / { $total-size }
 field-backup-target = 備份至:
-field-restore-source = Restore from:
-field-custom-files = Paths:
-field-custom-registry = Registry:
+field-restore-source = 還原自：
+field-custom-files = 路徑：
+field-custom-registry = 註冊表：
 field-sort = 排序：
 field-redirect-source =
-    .placeholder = Source (original location)
+    .placeholder = 來源（原始位置）
 field-redirect-target =
-    .placeholder = Target (new location)
-field-roots = Roots:
-field-backup-excluded-items = Backup exclusions:
-field-redirects = Redirects:
+    .placeholder = 目標（新位置）
+field-roots = 根目錄：
+field-backup-excluded-items = 備份排除：
+field-redirects = 路徑重定向：
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
-field-retention-full = Full:
+field-retention-full = 完整備份：
 # This appears next to the number of differential backups that you'd like to keep.
 # A differential backup includes only the files that have changed since the last full backup.
-field-retention-differential = Differential:
-field-backup-format = Format:
-field-backup-compression = Compression:
+field-retention-differential = 差異備份：
+field-backup-format = 格式：
+field-backup-compression = 壓縮：
 # The compression level determines how much compresison we perform.
-field-backup-compression-level = Level:
+field-backup-compression-level = 壓縮等級：
 label-manifest = Manifest
 # This shows the time when we checked for an update to the manifest.
-label-checked = Checked
+label-checked = 已檢查
 # This shows the time when we found an update to the manifest.
 label-updated = 已更新
 label-new = 最新
 label-removed = 已移除
-label-comment = Comment
-label-unchanged = Unchanged
+label-comment = 註釋
+label-unchanged = 未變更
 label-scan = 掃描
 label-filter = 篩選
-label-unique = Unique
+label-unique = 唯一
 label-complete = 已完成
-label-partial = Partial
+label-partial = 部分
 label-enabled = 已啟用
 label-disabled = 已停用
 # https://en.wikipedia.org/wiki/Thread_(computing)
-label-threads = Threads
+label-threads = 執行緒
 label-cloud = 雲端備份
 # A "remote" is what Rclone calls cloud systems like Google Drive.
 label-remote = 遠端
 label-remote-name = 遠端名稱
-label-folder = Folder
+label-folder = 資料夾
 # An executable file
-label-executable = Executable
+label-executable = 可執行文件
 # Options given to a command line program
-label-arguments = Arguments
+label-arguments = 參數
 label-url = URL
 # https://en.wikipedia.org/wiki/Host_(network)
-label-host = Host
+label-host = 主機
 # https://en.wikipedia.org/wiki/Port_(computer_networking)
-label-port = Port
+label-port = 端口
 label-username = 使用者名稱
 label-password = 密碼
 # This is a specific website or service that provides some cloud functionality.
@@ -132,14 +132,14 @@ label-password = 密碼
 label-provider = 供應商
 label-custom = 自定義
 label-none = 無
-label-change-count = Changes: { $total }
-label-unscanned = Unscanned
+label-change-count = 變更：{ $total }
+label-unscanned = 未掃描
 # This refers to a local file on the computer
 label-file = 檔案
 label-game = 遊戲
 # Aliases are alternative titles for the same game.
-label-alias = Alias
-label-original-name = Original name
+label-alias = 別名
+label-original-name = 原始名稱
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -149,10 +149,10 @@ store-legendary = Legendary
 store-lutris = Lutris
 store-microsoft = 微軟
 store-origin = Origin
-store-prime = Prime Gaming
+store-prime = Amazon Prime Gaming
 store-steam = Steam
 store-uplay = Uplay
-store-other-home = Home folder
+store-other-home = 主要資料夾
 # This would be a folder acting as a virtual C: drive, created by Wine.
 store-other-wine = Wine prefix
 # This would be a folder with typical Windows system folders,
@@ -166,7 +166,7 @@ store-other-linux = Linux drive
 store-other-mac = Mac drive
 store-other = 其它
 backup-format-simple = 簡易
-backup-format-zip = Zip
+backup-format-zip = Zip檔
 compression-none = 無
 # "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
 compression-deflate = Deflate
@@ -175,63 +175,63 @@ compression-zstd = Zstd
 theme = 外觀主題
 theme-light = 亮色主題
 theme-dark = 暗色主題
-redirect-bidirectional = Bidirectional
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
-override-max-threads = Override max threads
-synchronize-automatically = Synchronize automatically
-prefer-alias-display = Display alias instead of original name
-explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
-explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
-consider-doing-a-preview =
-    If you haven't already, consider doing a preview first so that there
-    are no surprises.
+redirect-bidirectional = 雙向
+show-deselected-games = 顯示未選中的遊戲
+show-unchanged-games = 顯示未變更的遊戲
+show-unscanned-games = 顯示未掃描的遊戲
+override-max-threads = 覆蓋最大執行緒數
+synchronize-automatically = 自動同步
+prefer-alias-display = 顯示別名而非原始名稱
+explanation-for-exclude-store-screenshots = 在備份中，排除特定的商店截圖
+explanation-for-exclude-cloud-games = 不備份這些平台上內建雲端儲存的遊戲
+consider-doing-a-preview = 如果尚未進行預覽，建議先做一次預覽，以免有意外情況。
 confirm-backup =
-    Are you sure you want to proceed with the backup? { $path-action ->
-        [merge] New save data will be merged into the target folder:
-       *[create] The target folder will be created:
+    您確定要繼續備份嗎？ { $path-action ->
+        [merge] 新的存檔將合併到目標資料夾中：
+       *[create] 目標資料夾將被創建：
     }
 confirm-restore =
-    Are you sure you want to proceed with the restoration?
-    This will overwrite any current files with the backups from here:
+    您確定要繼續還原嗎？
+    這將會用來自以下位置的備份覆蓋當前的檔案：
 confirm-cloud-upload =
-    Do you want to replace your cloud files with your local files?
-    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
-    Files in the cloud will be updated or deleted as necessary.
+    您是否要用本地文件替換雲端存檔？
+    您的雲端存檔（{ $cloud-path }）將成為本地存檔（{ $local-path }）的副本。
+    雲端中的檔案將會在需要的時候進行更新或刪除。
 confirm-cloud-download =
-    Do you want to replace your local files with your cloud files?
-    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
-    Local files will be updated or deleted as necessary.
-confirm-add-missing-roots = Add these roots?
-no-missing-roots = No additional roots found.
-loading = Loading...
-preparing-backup-target = Preparing backup directory...
-updating-manifest = Updating manifest...
-no-cloud-changes = No changes to synchronize
-backups-are-valid = Your backups are valid.
+    您是否要用雲端存檔替換本地存檔？
+    您的本地存檔（{ $local-path }）將成為雲端存檔（{ $cloud-path }）的副本。
+    本地檔案將會在需要的時候進行更新或刪除。
+confirm-add-missing-roots = 增加這些根目錄嗎？
+no-missing-roots = 未找到其他根目錄。
+loading = 讀取中...
+preparing-backup-target = 正在準備備份資料夾...
+updating-manifest = 正在更新 manifest 清單檔...
+no-cloud-changes = 沒有需要同步的修改
+backups-are-valid = 您的備份是有效的。
 backups-are-invalid =
-    These games' backups appear to be invalid.
-    Do you want to create new full backups for these games?
-saves-found = Save data found.
-no-saves-found = No save data found.
+    這些遊戲的備份似乎無效。
+    您是否要為這些遊戲創建新的完整備份？
+saves-found = 已找到存檔資料。
+no-saves-found = 沒有找到任何存檔。
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
-suffix-no-confirmation = no confirmation
+suffix-no-confirmation = 不進行確認
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
-suffix-restart-required = restart required
-prefix-error = Error: { $message }
-prefix-warning = Warning: { $message }
-cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
-cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
-cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.
-game-is-unrecognized = Ludusavi does not recognize this game.
-game-has-nothing-to-restore = This game does not have a backup to restore.
-launch-game-after-error = Launch the game anyway?
-game-did-not-launch = Game failed to launch.
+suffix-restart-required = 需要重新啟動
+prefix-error = 錯誤：{ $message }
+prefix-warning = 警告：{ $message }
+cloud-app-unavailable = 雲端備份已禁用，因為 { $app } 不可用。
+cloud-not-configured = 雲端備份已被禁用，因為沒有設定任何雲端系統。
+cloud-path-invalid = 雲端備份已被禁用，因為備份路徑無效。
+game-is-unrecognized = Ludusavi 無法識別此遊戲。
+game-has-nothing-to-restore = 此遊戲沒有可還原的備份。
+launch-game-after-error = 仍要啟動遊戲嗎？
+game-did-not-launch = 遊戲啟動失敗。
 back-up-specific-game =
-    .confirm = Back up save data for { $game }?
-    .failed = Failed to back up save data for { $game }
+    .confirm = 要備份 { $game } 的存檔資料嗎？
+    .failed = 無法備份 { $game } 的存檔資料
 restore-specific-game =
-    .confirm = Restore save data for { $game }?
-    .failed = Failed to restore save data for { $game }
+    .confirm = 還原 { $game } 的存檔資料嗎？
+    .failed = 無法還原 { $game } 的存檔資料
+new-version-check = 自動檢查程式更新
+new-version-available = 可用的更新：{ $version }。您要查看更新說明嗎？

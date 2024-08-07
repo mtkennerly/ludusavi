@@ -235,3 +235,5 @@ back-up-specific-game =
 restore-specific-game =
     .confirm = Ripristina i dati di salvataggio per { $game }?
     .failed = Ripristino dei dati di salvataggio per { $game } non riuscito
+new-version-check = Controlla automaticamente gli aggiornamenti dell'applicazione
+new-version-available = Un aggiornamento dell'applicazione è disponibile: { $version }. Vuoi visualizzare le note di rilascio?

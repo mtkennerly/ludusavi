@@ -183,7 +183,7 @@ override-max-threads = Overschrijf maximale threads
 synchronize-automatically = Synchroniseer automatisch
 prefer-alias-display = Toon alias in plaats van originele naam
 explanation-for-exclude-store-screenshots = Sluit winkel-specifieke schermafdrukken uit van back-up
-explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
+explanation-for-exclude-cloud-games = Maak geen back-ups van spellen met cloud-ondersteuning op deze platforms
 consider-doing-a-preview = Als je dat nog niet gedaan hebt, bekijk dan eerst een vooruitzicht zodat er geen verrassingen zijn.
 confirm-backup =
     Weet je zeker dat je verder wil gaan met de back-up? { $path-action ->
@@ -233,3 +233,5 @@ back-up-specific-game =
 restore-specific-game =
     .confirm = Herstel savedata voor { $game }?
     .failed = Savedata voor { $game } kon niet hersteld worden
+new-version-check = Controleer automatisch op applicatie-updates
+new-version-available = Een applicatie-update is beschikbaar: { $version }. Wil je de uitgaveopmerkingen bekijken?

@@ -44,7 +44,7 @@ button-unlock = Kilidi aç
 # This opens a download page.
 button-get-app = İndir { $app }
 button-validate = Doğrula
-no-roots-are-configured = Add some roots to back up even more data.
+no-roots-are-configured = Daha fazla veri yedeklemek için daha fazla kök dizin ekleyin.
 config-is-invalid = Hata: Seçenekler dosyası geçersiz.
 manifest-is-invalid = Error: The manifest file is invalid.
 manifest-cannot-be-updated = Error: Unable to check for an update to the manifest file. Is your Internet connection down?
@@ -54,33 +54,33 @@ registry-issue = Error: Some registry entries were skipped.
 unable-to-browse-file-system = Error: Unable to browse on your system.
 unable-to-open-directory = Error: Unable to open directory:
 unable-to-open-url = Error: Unable to open URL:
-unable-to-configure-cloud = Unable to configure cloud.
-unable-to-synchronize-with-cloud = Unable to synchronize with cloud.
-cloud-synchronize-conflict = Your local and cloud backups are in conflict. Perform an upload or download to resolve this.
-command-unlaunched = Command did not launch: { $command }
-command-terminated = Command terminated abruptly: { $command }
-command-failed = Command failed with code { $code }: { $command }
+unable-to-configure-cloud = Bulut yapılandırılamıyor.
+unable-to-synchronize-with-cloud = Bulut eşitlemesi yapılamıyor.
+cloud-synchronize-conflict = Yerel ve bulut yedeklemeleriniz çakışıyor. Bir yükleme ya da indirme yaparak çözüm sağlayın.
+command-unlaunched = Komut yürütülemedi: { $command }
+command-terminated = Komut ani şekilde sonlandı: { $command }
+command-failed = Komut şu kodla başarısız oldu { $code }: { $command }
 processed-games =
     { $total-games } { $total-games ->
-        [one] game
-       *[other] games
+        [bir] oyun
+       *[diger] oyunlar
     }
 processed-games-subset =
-    { $processed-games } of { $total-games } { $total-games ->
-        [one] game
-       *[other] games
+    { $total-games } { $total-games} içinden { $processed-games   ->
+        [bir] oyun
+       *[diger] oyunlar
     }
-processed-size-subset = { $processed-size } of { $total-size }
-field-backup-target = Back up to:
-field-restore-source = Restore from:
-field-custom-files = Paths:
-field-custom-registry = Registry:
-field-sort = Sort:
+processed-size-subset = { $total-size } içinden { $processed-size }
+field-backup-target = Şuraya yedekle:
+field-restore-source = Şuradan geri yükle:
+field-custom-files = Yollar:
+field-custom-registry = Kayıt Defteri:
+field-sort = Sırala:
 field-redirect-source =
-    .placeholder = Source (original location)
+    .placeholder = Kaynak (orjinal yer)
 field-redirect-target =
-    .placeholder = Target (new location)
-field-roots = Roots:
+    .placeholder = Hedef (yeni yer)
+field-roots = Kök dizinler:
 field-backup-excluded-items = Backup exclusions:
 field-redirects = Redirects:
 # This appears next to the number of full backups that you'd like to keep.
@@ -235,3 +235,5 @@ back-up-specific-game =
 restore-specific-game =
     .confirm = Restore save data for { $game }?
     .failed = Failed to restore save data for { $game }
+new-version-check = Check for application updates automatically
+new-version-available = An application update is available: { $version }. Would you like to view the release notes?

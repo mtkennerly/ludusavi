@@ -235,3 +235,5 @@ back-up-specific-game =
 restore-specific-game =
     .confirm = Spielstanddaten für { $game } wiederherstellen?
     .failed = Spielstanddaten für { $game } konnten nicht wiederhergestellt werden.
+new-version-check = Automatisch nach Aktualisierungen der Anwendung suchen
+new-version-available = Eine Anwendungsaktualisierung ist verfügbar: { $version }. Möchtest du die Versionshinweise ansehen?

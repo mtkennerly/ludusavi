@@ -225,3 +225,5 @@ back-up-specific-game =
 restore-specific-game =
     .confirm = 要恢复 { $game } 的存档数据吗？
     .failed = 恢复 { $game } 的存档数据失败
+new-version-check = Check for application updates automatically
+new-version-available = An application update is available: { $version }. Would you like to view the release notes?
