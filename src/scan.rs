@@ -793,7 +793,6 @@ pub fn scan_game_for_backup(
         available_backups: vec![],
         backup: None,
         has_backups,
-        notes: game.notes.clone(),
     }
 }
 

@@ -170,8 +170,9 @@ impl GameListEntry {
                                 })
                         })
                         .push_maybe({
-                            (!self.scan_info.notes.is_empty()).then(|| {
-                                button::show_game_notes(self.scan_info.game_name.clone(), self.scan_info.notes.clone())
+                            manifest.0.get(&name).and_then(|data| {
+                                (!restoring && !data.notes.is_empty())
+                                    .then(|| button::show_game_notes(name.clone(), data.notes.clone()))
                             })
                         })
                         .push_maybe({

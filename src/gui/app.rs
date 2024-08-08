@@ -1230,7 +1230,7 @@ impl Application for App {
         let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
         TRANSLATOR.set_language(config.language);
         let manifest = if Manifest::path().exists() {
-            match Manifest::load() {
+            match Manifest::load_with_secondary(&config) {
                 Ok(y) => y,
                 Err(e) => {
                     errors.push(e);
@@ -1400,7 +1400,7 @@ impl Application for App {
 
                 self.save_cache();
 
-                match Manifest::load() {
+                match Manifest::load_with_secondary(&self.config) {
                     Ok(x) => {
                         self.manifest = x;
                     }

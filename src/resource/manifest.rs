@@ -383,6 +383,13 @@ impl Manifest {
         })
     }
 
+    pub fn load_with_secondary(config: &Config) -> Result<Self, Error> {
+        Self::load().map(|mut manifest| {
+            manifest.load_secondary_manifests(config);
+            manifest
+        })
+    }
+
     pub fn should_update(url: &str, cache: &cache::Manifests, force: bool, primary: bool) -> bool {
         if force {
             return true;
@@ -552,31 +559,22 @@ impl Manifest {
             self.0.clear();
         }
 
-        for secondary in config.manifest.load_secondary_manifests() {
-            self.incorporate_secondary_manifest(secondary);
-        }
+        self.load_secondary_manifests(config);
+        self.add_custom_games(config);
+    }
 
-        for root in &config.roots {
-            for (path, secondary) in root.find_secondary_manifests() {
-                self.incorporate_secondary_manifest(Secondary {
-                    id: path.render(),
-                    path,
-                    data: secondary,
-                });
-            }
-        }
+    pub fn with_extensions(mut self, config: &Config) -> Self {
+        self.incorporate_extensions(config);
+        self
+    }
 
+    fn add_custom_games(&mut self, config: &Config) {
         for custom_game in &config.custom_games {
             if custom_game.ignore {
                 continue;
             }
             self.add_custom_game(custom_game.clone());
         }
-    }
-
-    pub fn with_extensions(mut self, config: &Config) -> Self {
-        self.incorporate_extensions(config);
-        self
     }
 
     fn add_custom_game(&mut self, custom: CustomGame) {
@@ -607,6 +605,22 @@ impl Manifest {
         };
 
         self.0.insert(name, game);
+    }
+
+    fn load_secondary_manifests(&mut self, config: &Config) {
+        for secondary in config.manifest.load_secondary_manifests() {
+            self.incorporate_secondary_manifest(secondary);
+        }
+
+        for root in &config.roots {
+            for (path, secondary) in root.find_secondary_manifests() {
+                self.incorporate_secondary_manifest(Secondary {
+                    id: path.render(),
+                    path,
+                    data: secondary,
+                });
+            }
+        }
     }
 
     fn incorporate_secondary_manifest(&mut self, secondary: Secondary) {
