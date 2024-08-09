@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{BTreeSet, HashSet};
 
 use iced::{alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, widget::tooltip, Alignment, Length};
 
@@ -18,9 +18,9 @@ use crate::{
     resource::{
         cache::Cache,
         config::{Config, Sort},
-        manifest::{Manifest, Os},
+        manifest::{self, Manifest, Os},
     },
-    scan::{layout::GameLayout, BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo},
+    scan::{game_filter, layout::GameLayout, BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo},
 };
 
 #[derive(Default)]
@@ -415,6 +415,7 @@ impl GameList {
                         if restoring { Screen::Restore } else { Screen::Backup },
                         histories,
                         config.scan.show_deselected_games,
+                        self.manifests(manifest),
                     )
                 })
                 .push({
@@ -433,6 +434,7 @@ impl GameList {
                             !self.search.show
                                 || self.search.qualifies(
                                     &x.scan_info,
+                                    manifest,
                                     config.is_game_enabled_for_operation(&x.scan_info.game_name, restoring),
                                     duplicate_detector.is_game_duplicated(&x.scan_info.game_name),
                                     config.scan.show_deselected_games,
@@ -750,5 +752,21 @@ impl GameList {
         let Some(layout) = &mut entry.game_layout else { return };
 
         layout.save();
+    }
+
+    fn manifests(&self, manifest: &Manifest) -> Vec<game_filter::Manifest> {
+        let mut manifests = BTreeSet::new();
+        manifests.insert(&manifest::Source::Primary);
+
+        for entry in &self.entries {
+            if let Some(data) = manifest.0.get(&entry.scan_info.game_name) {
+                manifests.extend(data.sources.iter());
+            }
+        }
+
+        manifests
+            .into_iter()
+            .map(|x| game_filter::Manifest::new(x.clone()))
+            .collect::<Vec<_>>()
     }
 }

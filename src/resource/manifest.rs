@@ -169,6 +169,13 @@ pub struct Secondary {
     pub data: Manifest,
 }
 
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum Source {
+    #[default]
+    Primary,
+    Secondary(String),
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct Manifest(#[serde(serialize_with = "crate::serialization::ordered_map")] pub HashMap<String, Game>);
 
@@ -193,6 +200,8 @@ pub struct Game {
     pub cloud: CloudMetadata,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub notes: Vec<Note>,
+    #[serde(skip)]
+    pub sources: BTreeSet<Source>,
 }
 
 impl Game {
@@ -377,10 +386,17 @@ impl Manifest {
     }
 
     pub fn load() -> Result<Self, Error> {
-        ResourceFile::load().map_err(|e| Error::ManifestInvalid {
-            why: format!("{}", e),
-            identifier: None,
-        })
+        ResourceFile::load()
+            .map(|mut manifest: Self| {
+                for game in manifest.0.values_mut() {
+                    game.sources.insert(Source::Primary);
+                }
+                manifest
+            })
+            .map_err(|e| Error::ManifestInvalid {
+                why: format!("{}", e),
+                identifier: None,
+            })
     }
 
     pub fn load_with_secondary(config: &Config) -> Result<Self, Error> {
@@ -602,6 +618,7 @@ impl Manifest {
             // you probably still want to back up your customized versions of such games.
             cloud: CloudMetadata::default(),
             notes: Default::default(),
+            sources: Default::default(),
         };
 
         self.0.insert(name, game);
@@ -659,6 +676,8 @@ impl Manifest {
                     note.source = Some(secondary.id.clone());
                 }
                 standard.notes.extend(game.notes);
+
+                standard.sources.insert(Source::Secondary(secondary.id.clone()));
             } else {
                 log::debug!("adding game from secondary manifest: {name}");
 
@@ -669,6 +688,8 @@ impl Manifest {
                 for note in &mut game.notes {
                     note.source = Some(secondary.id.clone());
                 }
+
+                game.sources.insert(Source::Secondary(secondary.id.clone()));
 
                 self.0.insert(name, game);
             }
@@ -691,6 +712,7 @@ impl Manifest {
                 id,
                 cloud: _,
                 notes: _,
+                sources: _,
             } = &v;
             alias.is_none()
                 && (!files.is_empty() || !registry.is_empty() || !steam.is_empty() || !gog.is_empty() || !id.is_empty())
@@ -765,6 +787,7 @@ mod tests {
                 id: Default::default(),
                 cloud: Default::default(),
                 notes: Default::default(),
+                sources: Default::default(),
             },
             manifest.0["game"],
         );
@@ -853,6 +876,7 @@ mod tests {
                     uplay: true
                 },
                 notes: Default::default(),
+                sources: Default::default(),
             },
             manifest.0["game"],
         );

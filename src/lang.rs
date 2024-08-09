@@ -1018,6 +1018,18 @@ impl Translator {
         self.field(&self.original_name_label())
     }
 
+    pub fn source_label(&self) -> String {
+        translate("label-source")
+    }
+
+    pub fn source_field(&self) -> String {
+        self.field(&self.source_label())
+    }
+
+    pub fn primary_manifest_label(&self) -> String {
+        translate("label-primary-manifest")
+    }
+
     pub fn custom_game_kind(&self, kind: &CustomGameKind) -> String {
         match kind {
             CustomGameKind::Game => self.game_label(),

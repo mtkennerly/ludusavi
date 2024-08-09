@@ -1,5 +1,6 @@
 use crate::{
     lang::TRANSLATOR,
+    resource::manifest,
     scan::{Duplication, ScanInfo},
 };
 
@@ -11,6 +12,7 @@ pub enum FilterKind {
     Completeness,
     Enablement,
     Change,
+    Manifest,
 }
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -110,5 +112,31 @@ impl Change {
             Change::Unchanged => scan.overall_change() == ScanChange::Same,
             Change::Unscanned => scan.overall_change() == ScanChange::Unknown,
         }
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct Manifest {
+    source: manifest::Source,
+}
+
+impl Manifest {
+    pub fn new(source: manifest::Source) -> Self {
+        Self { source }
+    }
+}
+
+impl ToString for Manifest {
+    fn to_string(&self) -> String {
+        match &self.source {
+            manifest::Source::Primary => TRANSLATOR.primary_manifest_label(),
+            manifest::Source::Secondary(id) => id.to_string(),
+        }
+    }
+}
+
+impl Manifest {
+    pub fn qualifies(&self, game: &manifest::Game) -> bool {
+        game.sources.contains(&self.source)
     }
 }
