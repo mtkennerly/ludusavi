@@ -140,6 +140,10 @@ label-game = 遊戲
 # Aliases are alternative titles for the same game.
 label-alias = 別名
 label-original-name = 原始名稱
+# Which manifest a game's data came from
+label-source = Source
+# This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
+label-primary-manifest = Primary manifest
 store-ea = EA
 store-epic = Epic
 store-gog = GOG

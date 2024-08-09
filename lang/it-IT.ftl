@@ -140,6 +140,10 @@ label-game = Gioco
 # Aliases are alternative titles for the same game.
 label-alias = Pseudonimo
 label-original-name = Nome originale
+# Which manifest a game's data came from
+label-source = Sorgente
+# This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
+label-primary-manifest = Manifesto primario
 store-ea = EA
 store-epic = Epic
 store-gog = GOG

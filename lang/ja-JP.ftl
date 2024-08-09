@@ -98,12 +98,12 @@ label-manifest = マニフェスト
 label-checked = チェック
 # This shows the time when we found an update to the manifest.
 label-updated = 更新日時
-label-new = New
-label-removed = Removed
-label-comment = Comment
-label-unchanged = Unchanged
-label-scan = Scan
-label-filter = Filter
+label-new = 新しい
+label-removed = 削除済み
+label-comment = コメント
+label-unchanged = 未変更
+label-scan = スキャン
+label-filter = 絞り込み
 label-unique = Unique
 label-complete = Complete
 label-partial = Partial
@@ -135,11 +135,15 @@ label-none = None
 label-change-count = Changes: { $total }
 label-unscanned = Unscanned
 # This refers to a local file on the computer
-label-file = File
-label-game = Game
+label-file = ファイル
+label-game = ゲーム
 # Aliases are alternative titles for the same game.
-label-alias = Alias
-label-original-name = Original name
+label-alias = エイリアス
+label-original-name = 元の名前
+# Which manifest a game's data came from
+label-source = Source
+# This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
+label-primary-manifest = Primary manifest
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -175,7 +179,7 @@ compression-zstd = Zstd
 theme = テーマ
 theme-light = ライト
 theme-dark = ダーク
-redirect-bidirectional = Bidirectional
+redirect-bidirectional = 双方向
 show-deselected-games = 選択されていないゲームを表示
 show-unchanged-games = 変更されていないゲームを表示
 show-unscanned-games = スキャンされていないゲームを表示
@@ -203,7 +207,7 @@ confirm-cloud-download =
     Local files will be updated or deleted as necessary.
 confirm-add-missing-roots = このルートを追加しますか?
 no-missing-roots = 追加するルートが見つかりませんでした。
-loading = Loading...
+loading = ロード中...
 preparing-backup-target = バックアップディレクトリを準備中...
 updating-manifest = マニフェストを更新中...
 no-cloud-changes = No changes to synchronize
@@ -218,7 +222,7 @@ no-saves-found = セーブデータが見つかりませんでした。
 suffix-no-confirmation = 確認なし
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
 suffix-restart-required = restart required
-prefix-error = Error: { $message }
+prefix-error = エラー： { $message }
 prefix-warning = Warning: { $message }
 cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
 cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
