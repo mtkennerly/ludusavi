@@ -173,6 +173,7 @@ pub struct Secondary {
 pub enum Source {
     #[default]
     Primary,
+    Custom,
     Secondary(String),
 }
 

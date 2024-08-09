@@ -130,13 +130,15 @@ impl ToString for Manifest {
     fn to_string(&self) -> String {
         match &self.source {
             manifest::Source::Primary => TRANSLATOR.primary_manifest_label(),
+            manifest::Source::Custom => TRANSLATOR.custom_games_label(),
             manifest::Source::Secondary(id) => id.to_string(),
         }
     }
 }
 
 impl Manifest {
-    pub fn qualifies(&self, game: &manifest::Game) -> bool {
-        game.sources.contains(&self.source)
+    pub fn qualifies(&self, game: Option<&manifest::Game>, customized: bool) -> bool {
+        game.map(|game| game.sources.contains(&self.source)).unwrap_or_default()
+            || (self.source == manifest::Source::Custom && customized)
     }
 }

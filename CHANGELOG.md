@@ -15,7 +15,8 @@
     and you can click the icon to display the notes.
     The primary manifest does not (yet) contain any notes,
     so this mainly applies to secondary manifest authors.
-  * GUI: You can now filter games by which secondary manifest defined them.
+  * GUI: You can now filter scan results by which secondary manifest defined each game.
+    You can also filter to display custom games only.
   * CLI: The `api` command now supports a `checkAppUpdate` message.
 * Fixed:
   * CLI: Some commands would fail with relative path arguments.

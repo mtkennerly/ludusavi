@@ -52,6 +52,26 @@ fn template<'a, T: 'static + Default + Copy + Eq + PartialEq + ToString>(
         .into()
 }
 
+fn template_noncopy<T: 'static + Default + Clone + Eq + PartialEq + ToString>(
+    filter: &Filter<T>,
+    kind: FilterKind,
+    options: Vec<T>,
+    message: fn(T) -> Message,
+) -> Element {
+    Row::new()
+        .spacing(10)
+        .align_items(Alignment::Center)
+        .push(
+            checkbox("", filter.active, move |enabled| Message::ToggledSearchFilter {
+                filter: kind,
+                enabled,
+            })
+            .spacing(0),
+        )
+        .push(pick_list(options, Some(filter.choice.clone()), message))
+        .into()
+}
+
 fn template_with_label<T: 'static + Default + Clone + Eq + PartialEq + ToString>(
     filter: &Filter<T>,
     label: String,
@@ -75,6 +95,7 @@ impl FilterComponent {
         scan: &ScanInfo,
         manifest: &Manifest,
         enabled: bool,
+        customized: bool,
         duplicated: Duplication,
         show_deselected_games: bool,
     ) -> bool {
@@ -87,11 +108,10 @@ impl FilterComponent {
         let enable = !show_deselected_games || !self.enablement.active || self.enablement.choice.qualifies(enabled);
         let changed = !self.change.active || self.change.choice.qualifies(scan);
         let manifest = !self.manifest.active
-            || manifest
-                .0
-                .get(&scan.game_name)
-                .map(|game| self.manifest.choice.qualifies(game))
-                .unwrap_or_default();
+            || self
+                .manifest
+                .choice
+                .qualifies(manifest.0.get(&scan.game_name), customized);
 
         fuzzy && unique && complete && changed && enable && manifest
     }
@@ -159,9 +179,17 @@ impl FilterComponent {
                                 game_filter::Enablement::ALL,
                                 Message::EditedSearchFilterEnablement,
                             )
+                        })
+                        .push_if(manifests.len() == 2, || {
+                            template_noncopy(
+                                &self.manifest,
+                                FilterKind::Manifest,
+                                manifests.clone(),
+                                Message::EditedSearchFilterManifest,
+                            )
                         }),
                 )
-                .push_if(manifests.len() > 1, || {
+                .push_if(manifests.len() > 2, || {
                     Row::new()
                         .padding([0, 20, 20, 20])
                         .spacing(20)

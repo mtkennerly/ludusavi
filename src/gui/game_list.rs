@@ -436,6 +436,7 @@ impl GameList {
                                     &x.scan_info,
                                     manifest,
                                     config.is_game_enabled_for_operation(&x.scan_info.game_name, restoring),
+                                    config.is_game_customized(&x.scan_info.game_name),
                                     duplicate_detector.is_game_duplicated(&x.scan_info.game_name),
                                     config.scan.show_deselected_games,
                                 )
@@ -757,6 +758,7 @@ impl GameList {
     fn manifests(&self, manifest: &Manifest) -> Vec<game_filter::Manifest> {
         let mut manifests = BTreeSet::new();
         manifests.insert(&manifest::Source::Primary);
+        manifests.insert(&manifest::Source::Custom);
 
         for entry in &self.entries {
             if let Some(data) = manifest.0.get(&entry.scan_info.game_name) {

@@ -691,6 +691,10 @@ impl Translator {
         translate("button-nav-custom-games")
     }
 
+    pub fn custom_games_label(&self) -> String {
+        title_case(&self.nav_custom_games_button())
+    }
+
     pub fn nav_other_button(&self) -> String {
         translate("button-nav-other")
     }
