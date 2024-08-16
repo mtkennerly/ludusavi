@@ -400,13 +400,6 @@ impl Manifest {
             })
     }
 
-    pub fn load_with_secondary(config: &Config) -> Result<Self, Error> {
-        Self::load().map(|mut manifest| {
-            manifest.load_secondary_manifests(config);
-            manifest
-        })
-    }
-
     pub fn should_update(url: &str, cache: &cache::Manifests, force: bool, primary: bool) -> bool {
         if force {
             return true;
