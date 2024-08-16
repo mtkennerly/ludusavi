@@ -64,11 +64,17 @@ pub enum SaveKind {
     Backup(String),
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct LoadedManifest {
+    pub primary: Manifest,
+    pub extended: Manifest,
+}
+
 #[derive(Default)]
 pub struct App {
     flags: Flags,
     config: Config,
-    manifest: Manifest,
+    manifest: LoadedManifest,
     cache: Cache,
     operation: Operation,
     screen: Screen,
@@ -332,7 +338,7 @@ impl App {
                 }
                 self.progress.start();
 
-                let mut manifest = self.manifest.clone();
+                let mut manifest = self.manifest.primary.clone();
                 let config = self.config.clone();
                 let previewed_games = self.backup_screen.previewed_games.clone();
                 let should_force_new_full_backups = self.operation.should_force_new_full_backups();
@@ -1074,7 +1080,7 @@ impl App {
     }
 
     fn customize_game(&mut self, name: String) -> Command<Message> {
-        let game = if let Some(standard) = self.manifest.0.get(&name) {
+        let game = if let Some(standard) = self.manifest.extended.0.get(&name) {
             CustomGame {
                 name: name.clone(),
                 ignore: false,
@@ -1230,18 +1236,21 @@ impl Application for App {
         let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
         TRANSLATOR.set_language(config.language);
         let manifest = if Manifest::path().exists() {
-            match Manifest::load_with_secondary(&config) {
-                Ok(y) => y,
+            match Manifest::load() {
+                Ok(y) => LoadedManifest {
+                    primary: y.clone(),
+                    extended: y.with_extensions(&config),
+                },
                 Err(e) => {
                     errors.push(e);
-                    Manifest::default()
+                    LoadedManifest::default()
                 }
             }
         } else {
             if flags.update_manifest {
                 modal = Some(Modal::UpdatingManifest);
             }
-            Manifest::default()
+            LoadedManifest::default()
         };
 
         if !errors.is_empty() {
@@ -1400,9 +1409,12 @@ impl Application for App {
 
                 self.save_cache();
 
-                match Manifest::load_with_secondary(&self.config) {
+                match Manifest::load() {
                     Ok(x) => {
-                        self.manifest = x;
+                        self.manifest = LoadedManifest {
+                            primary: x.clone(),
+                            extended: x.with_extensions(&self.config),
+                        };
                     }
                     Err(e) => {
                         errors.push(e);
@@ -2732,14 +2744,14 @@ impl Application for App {
             .push(match self.screen {
                 Screen::Backup => self.backup_screen.view(
                     &self.config,
-                    &self.manifest,
+                    &self.manifest.extended,
                     &self.operation,
                     &self.text_histories,
                     &self.modifiers,
                 ),
                 Screen::Restore => self.restore_screen.view(
                     &self.config,
-                    &self.manifest,
+                    &self.manifest.extended,
                     &self.operation,
                     &self.text_histories,
                     &self.modifiers,
