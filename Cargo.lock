@@ -2403,7 +2403,7 @@ dependencies = [
 
 [[package]]
 name = "ludusavi"
-version = "0.24.3"
+version = "0.25.0"
 dependencies = [
  "base64 0.22.0",
  "byte-unit",

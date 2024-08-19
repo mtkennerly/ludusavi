@@ -65,7 +65,7 @@ properties:
       - $ref: "#/definitions/Language"
   manifest:
     default:
-      url: "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"
+      enable: true
     allOf:
       - $ref: "#/definitions/ManifestConfig"
   redirects:
@@ -73,6 +73,11 @@ properties:
     type: array
     items:
       $ref: "#/definitions/RedirectConfig"
+  release:
+    default:
+      check: true
+    allOf:
+      - $ref: "#/definitions/Release"
   restore:
     default:
       ignoredGames: []
@@ -452,14 +457,18 @@ definitions:
   ManifestConfig:
     type: object
     properties:
+      enable:
+        default: true
+        type: boolean
       secondary:
-        description: Where to download the primary manifest.
         type: array
         items:
           $ref: "#/definitions/SecondaryManifestConfig"
       url:
-        default: "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"
-        type: string
+        description: "Where to download the primary manifest. Default: https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml"
+        type:
+          - string
+          - "null"
   RedirectConfig:
     type: object
     properties:
@@ -491,6 +500,13 @@ definitions:
     properties:
       raw:
         type: string
+  Release:
+    type: object
+    properties:
+      check:
+        description: "Whether to check for new releases. If enabled, Ludusavi will check at most once every 24 hours."
+        default: true
+        type: boolean
   RestoreConfig:
     type: object
     properties:
@@ -809,12 +825,18 @@ definitions:
         required:
           - path
         properties:
+          enable:
+            default: true
+            type: boolean
           path:
             $ref: "#/definitions/FilePath"
       - type: object
         required:
           - url
         properties:
+          enable:
+            default: true
+            type: boolean
           url:
             type: string
   Sort:

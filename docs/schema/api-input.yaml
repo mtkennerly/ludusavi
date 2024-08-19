@@ -18,6 +18,9 @@ properties:
     items:
       $ref: "#/definitions/Request"
 definitions:
+  CheckAppUpdate:
+    description: Check whether an application update is available.
+    type: object
   ConfigOverride:
     description: Overridden configuration.
     type: object
@@ -90,4 +93,11 @@ definitions:
         properties:
           findTitle:
             $ref: "#/definitions/FindTitle"
+        additionalProperties: false
+      - type: object
+        required:
+          - checkAppUpdate
+        properties:
+          checkAppUpdate:
+            $ref: "#/definitions/CheckAppUpdate"
         additionalProperties: false

@@ -1,4 +1,4 @@
-## Unreleased
+## v0.25.0 (2024-08-18)
 
 * Added:
   * You can now ignore specific manifests during scans.

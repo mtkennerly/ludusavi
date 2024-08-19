@@ -55,7 +55,7 @@ pub struct Runtime {
 #[serde(default, rename_all = "camelCase")]
 pub struct Release {
     /// Whether to check for new releases.
-    /// If enabled, Ludusavi will check at most once every 7 days.
+    /// If enabled, Ludusavi will check at most once every 24 hours.
     pub check: bool,
 }
 

@@ -21,6 +21,26 @@ anyOf:
         allOf:
           - $ref: "#/definitions/Error"
 definitions:
+  AppUpdate:
+    type: object
+    properties:
+      url:
+        description: Release URL to open in browser.
+        default: ""
+        type: string
+      version:
+        description: New version number.
+        default: ""
+        type: string
+  CheckAppUpdate:
+    type: object
+    properties:
+      update:
+        description: An available update.
+        default: ~
+        anyOf:
+          - $ref: "#/definitions/AppUpdate"
+          - type: "null"
   Error:
     type: object
     properties:
@@ -54,4 +74,11 @@ definitions:
         properties:
           findTitle:
             $ref: "#/definitions/FindTitle"
+        additionalProperties: false
+      - type: object
+        required:
+          - checkAppUpdate
+        properties:
+          checkAppUpdate:
+            $ref: "#/definitions/CheckAppUpdate"
         additionalProperties: false
