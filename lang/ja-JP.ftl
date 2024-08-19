@@ -12,8 +12,8 @@ cli-unable-to-request-confirmation = 確認を要求できません。
 cli-backup-id-with-multiple-games = 複数ゲームの復元時に、バックアップIDを指定できない。
 cli-invalid-backup-id = 無効なバックアップIDです。
 badge-failed = 失敗
-badge-duplicates = DUPLICATES
-badge-duplicated = DUPLICATED
+badge-duplicates = 重複している
+badge-duplicated = 重複済み
 badge-ignored = 無効
 badge-redirected-from = FROM: { $path }
 badge-redirecting-to = TO: { $path }
@@ -43,7 +43,7 @@ button-lock = Lock
 button-unlock = Unlock
 # This opens a download page.
 button-get-app = Get { $app }
-button-validate = Validate
+button-validate = 検証
 no-roots-are-configured = いくつかのルートを追加して、さらに多くのデータをバックアップします。
 config-is-invalid = エラー：設定ファイルが無効です。
 manifest-is-invalid = エラー: マニフェストファイルが無効です。
@@ -104,7 +104,7 @@ label-comment = コメント
 label-unchanged = 未変更
 label-scan = スキャン
 label-filter = 絞り込み
-label-unique = Unique
+label-unique = 単一
 label-complete = Complete
 label-partial = Partial
 label-enabled = Enabled
@@ -183,11 +183,11 @@ redirect-bidirectional = 双方向
 show-deselected-games = 選択されていないゲームを表示
 show-unchanged-games = 変更されていないゲームを表示
 show-unscanned-games = スキャンされていないゲームを表示
-override-max-threads = Override max threads
+override-max-threads = 使用するCPUの最大スレッド数を上書き
 synchronize-automatically = Synchronize automatically
 prefer-alias-display = Display alias instead of original name
 explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
-explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
+explanation-for-exclude-cloud-games = 以下のプラットフォームでは、クラウドゲームのバックアップを行いません
 consider-doing-a-preview = まだ行っていない場合は、予期しない結果を防ぐためにプレビューを行うことをおすすめします。
 confirm-backup =
     Are you sure you want to proceed with the backup? { $path-action ->
@@ -211,17 +211,17 @@ loading = ロード中...
 preparing-backup-target = バックアップディレクトリを準備中...
 updating-manifest = マニフェストを更新中...
 no-cloud-changes = No changes to synchronize
-backups-are-valid = Your backups are valid.
+backups-are-valid = バックアップは正常です。
 backups-are-invalid =
-    These games' backups appear to be invalid.
-    Do you want to create new full backups for these games?
+    これらゲームのバックアップは無効のようです。
+    フルバックアップを新規作成しますか？
 saves-found = セーブデータが見つかりました。
 no-saves-found = セーブデータが見つかりませんでした。
 # This is tacked on to form something like "Back up (no confirmation)",
 # meaning we would perform an action without asking the user if they're sure.
 suffix-no-confirmation = 確認なし
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
-suffix-restart-required = restart required
+suffix-restart-required = 再起動が必要
 prefix-error = エラー： { $message }
 prefix-warning = Warning: { $message }
 cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.

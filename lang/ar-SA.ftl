@@ -141,7 +141,7 @@ label-game = اللعبة
 label-alias = الاسم المستعار
 label-original-name = الاسم الأصلي
 # Which manifest a game's data came from
-label-source = Source
+label-source = المصدر
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
 label-primary-manifest = Primary manifest
 store-ea = EA
@@ -187,7 +187,7 @@ override-max-threads = تجاوز الحد الأقصى للموضوعات
 synchronize-automatically = المزامنة تلقائياً
 prefer-alias-display = عرض الاسم المستعار بدلاً من الاسم الأصلي
 explanation-for-exclude-store-screenshots = في النسخ الاحتياطية، استبعاد لقطات الشاشة الخاصة بالمتجر
-explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
+explanation-for-exclude-cloud-games = لا تقم بعمل نسخة احتياطية للألعاب التي تدعم السحابة على هذه المنصات
 consider-doing-a-preview =
     إذا لم تكن قد قمت بالفعل ، فكر في إجراء معاينة أولاً حتى لا يكون هناك
     مفاجآت.
@@ -239,5 +239,5 @@ back-up-specific-game =
 restore-specific-game =
     .confirm = هل تريد استعادة بيانات الحفظ ل { $game }؟
     .failed = فشل في استعادة بيانات الحفظ ل { $game }
-new-version-check = Check for application updates automatically
-new-version-available = An application update is available: { $version }. Would you like to view the release notes?
+new-version-check = التحقق من وجود تحديثات التطبيق تلقائيا
+new-version-available = يتوفر تحديث للتطبيق: { $version }. هل ترغب في عرض ملاحظات الإصدار؟

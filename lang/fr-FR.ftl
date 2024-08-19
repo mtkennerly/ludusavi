@@ -143,7 +143,7 @@ label-original-name = Nom d'origine
 # Which manifest a game's data came from
 label-source = Source
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
-label-primary-manifest = Primary manifest
+label-primary-manifest = Manifeste principal
 store-ea = EA
 store-epic = Epic Games
 store-gog = GOG
