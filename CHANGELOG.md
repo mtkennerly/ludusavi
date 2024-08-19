@@ -18,6 +18,8 @@
   * GUI: You can now filter scan results by which secondary manifest defined each game.
     You can also filter to display custom games only.
   * CLI: The `api` command now supports a `checkAppUpdate` message.
+  * Linux: Added keywords to the `.desktop` file.
+    ([Contributed by Merrit](https://github.com/mtkennerly/ludusavi/pull/377))
 * Fixed:
   * CLI: Some commands would fail with relative path arguments.
 * Changed:
