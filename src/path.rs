@@ -198,15 +198,33 @@ impl StrictPath {
 
         let mut analysis = Analysis::default();
 
+        // `\\?\UNC\server\share/foo` will end up with `share/foo` as the share name.
+        macro_rules! correct_windows_slashes {
+            ($start:expr, $server:expr, $share:expr) => {{
+                let mut share_parts: Vec<_> = $share.split('/').collect();
+                while share_parts.len() > 1 {
+                    analysis.parts.push(share_parts.remove(1).to_string());
+                }
+
+                let share = share_parts.pop().unwrap_or($share);
+                match $server {
+                    Some(server) => format!(r"{}{}\{}", $start, server, share),
+                    None => format!(r"{}{}", $start, share),
+                }
+            }};
+        }
+
         for (i, component) in TypedPath::derive(self.raw.trim()).components().enumerate() {
             match component {
                 Component::Windows(WComponent::Prefix(prefix)) => {
                     let mapped = match prefix.kind() {
-                        WindowsPrefix::Verbatim(id) => format!(r"\\?\{}", id),
-                        WindowsPrefix::VerbatimUNC(server, share) => format!(r"\\?\UNC\{}\{}", server, share),
+                        WindowsPrefix::Verbatim(id) => correct_windows_slashes!(r"\\?\", None::<&str>, id),
+                        WindowsPrefix::VerbatimUNC(server, share) => {
+                            correct_windows_slashes!(r"\\?\UNC\", Some(server), share)
+                        }
                         WindowsPrefix::VerbatimDisk(id) => format!("{}:", id.to_ascii_uppercase()),
                         WindowsPrefix::DeviceNS(id) => format!(r"\\.\{}", id),
-                        WindowsPrefix::UNC(server, share) => format!(r"\\{}\{}", server, share),
+                        WindowsPrefix::UNC(server, share) => correct_windows_slashes!(r"\\", Some(server), share),
                         WindowsPrefix::Disk(id) => format!("{}:", id.to_ascii_uppercase()),
                     };
                     analysis.drive = Some(Drive::Windows(mapped));
@@ -259,8 +277,9 @@ impl StrictPath {
                     }
 
                     // On Unix, Unix-style path segments may contain a backslash.
-                    if part.contains('\\') {
-                        for part in part.split('\\') {
+                    // On Windows, verbatim paths can end up with internal forward slashes.
+                    if part.contains(['/', '\\']) {
+                        for part in part.split(['/', '\\']) {
                             if !part.trim().is_empty() {
                                 analysis.parts.push(part.to_string());
                             }
@@ -1193,6 +1212,13 @@ mod tests {
             }
         }
 
+        fn analysis_3(drive: Drive) -> Analysis {
+            Analysis {
+                drive: Some(drive),
+                parts: vec!["foo".to_string(), "bar".to_string(), "baz".to_string()],
+            }
+        }
+
         #[test]
         fn linux_style() {
             let path = StrictPath::from("/foo/bar");
@@ -1214,6 +1240,16 @@ mod tests {
         }
 
         #[test]
+        fn windows_style_verbatim_with_forward_slash() {
+            let path = StrictPath::from(r"\\?\share/foo\bar/baz");
+
+            assert_eq!(analysis_3(Drive::Windows(r"\\?\share".to_string())), path.analyze());
+            assert_eq!(r"\\?\share/foo/bar/baz", path.display());
+            assert_eq!(Ok(r"\\?\share\foo\bar\baz".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
         fn windows_style_verbatim_unc() {
             let path = StrictPath::from(r"\\?\UNC\server\share\foo\bar");
 
@@ -1223,6 +1259,22 @@ mod tests {
             );
             assert_eq!(r"\\?\UNC\server\share/foo/bar", path.display());
             assert_eq!(Ok(r"\\?\UNC\server\share\foo\bar".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn windows_style_verbatim_unc_with_forward_slash() {
+            let path = StrictPath::from(r"\\?\UNC\server\share/foo\bar/baz");
+
+            assert_eq!(
+                analysis_3(Drive::Windows(r"\\?\UNC\server\share".to_string())),
+                path.analyze()
+            );
+            assert_eq!(r"\\?\UNC\server\share/foo/bar/baz", path.display());
+            assert_eq!(
+                Ok(r"\\?\UNC\server\share\foo\bar\baz".to_string()),
+                path.access_windows()
+            );
             assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
         }
 
@@ -1237,12 +1289,32 @@ mod tests {
         }
 
         #[test]
+        fn windows_style_verbatim_disk_with_forward_slash() {
+            let path = StrictPath::from(r"\\?\C:/foo\bar/baz");
+
+            assert_eq!(analysis_3(Drive::Windows(r"C:".to_string())), path.analyze());
+            assert_eq!(r"C:/foo/bar/baz", path.display());
+            assert_eq!(Ok(r"C:\foo\bar\baz".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
         fn windows_style_device_ns() {
             let path = StrictPath::from(r"\\.\COM42\foo\bar");
 
             assert_eq!(analysis(Drive::Windows(r"\\.\COM42".to_string())), path.analyze());
             assert_eq!(r"\\.\COM42/foo/bar", path.display());
             assert_eq!(Ok(r"\\.\COM42\foo\bar".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn windows_style_device_ns_with_forward_slash() {
+            let path = StrictPath::from(r"\\.\COM42/foo\bar/baz");
+
+            assert_eq!(analysis_3(Drive::Windows(r"\\.\COM42".to_string())), path.analyze());
+            assert_eq!(r"\\.\COM42/foo/bar/baz", path.display());
+            assert_eq!(Ok(r"\\.\COM42\foo\bar\baz".to_string()), path.access_windows());
             assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
         }
 
@@ -1257,12 +1329,35 @@ mod tests {
         }
 
         #[test]
+        fn windows_style_unc_with_forward_slash() {
+            let path = StrictPath::from(r"\\server\share/foo\bar/baz");
+
+            assert_eq!(
+                analysis_3(Drive::Windows(r"\\server\share".to_string())),
+                path.analyze()
+            );
+            assert_eq!(r"\\server\share/foo/bar/baz", path.display());
+            assert_eq!(Ok(r"\\server\share\foo\bar\baz".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
         fn windows_style_disk() {
             let path = StrictPath::from(r"C:\foo\bar");
 
             assert_eq!(analysis(Drive::Windows(r"C:".to_string())), path.analyze());
             assert_eq!(r"C:/foo/bar", path.display());
             assert_eq!(Ok(r"C:\foo\bar".to_string()), path.access_windows());
+            assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
+        }
+
+        #[test]
+        fn windows_style_disk_with_forward_slash() {
+            let path = StrictPath::from(r"C:/foo\bar/baz");
+
+            assert_eq!(analysis_3(Drive::Windows(r"C:".to_string())), path.analyze());
+            assert_eq!(r"C:/foo/bar/baz", path.display());
+            assert_eq!(Ok(r"C:\foo\bar\baz".to_string()), path.access_windows());
             assert_eq!(Err(StrictPathError::Unsupported), path.access_nonwindows());
         }
 

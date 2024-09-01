@@ -1,3 +1,11 @@
+## Unreleased
+
+* Fixed:
+  * Files on Windows network shares were not backed up correctly.
+    For example, a file identified as `\\localhost\share\test.txt`
+    would be backed up as `<game>/drive-____UNC_localhost_share_test.txt`
+    instead of the intended `<game>/drive-____UNC_localhost_share/test.txt`.
+
 ## v0.25.0 (2024-08-18)
 
 * Added:
