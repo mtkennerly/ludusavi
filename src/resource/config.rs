@@ -1321,7 +1321,7 @@ impl Config {
                 }
             },
             Err(e) => {
-                log::warn!("Unable to locate Steam directory: {:?}", e);
+                log::info!("Unable to locate Steam directory: {:?}", e);
                 vec![]
             }
         };

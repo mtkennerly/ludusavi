@@ -18,7 +18,7 @@ impl SteamShortcuts {
         let mut steam = match steamlocate::SteamDir::locate() {
             Ok(x) => x,
             Err(e) => {
-                log::warn!("Unable to locate Steam directory: {:?}", e);
+                log::info!("Unable to locate Steam directory: {:?}", e);
                 return instance;
             }
         };
