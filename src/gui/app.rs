@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use iced::{keyboard, padding, widget::scrollable, Alignment, Subscription, Task};
+use iced::{keyboard, padding, widget::scrollable, Alignment, Length, Subscription, Task};
 
 use crate::{
     cloud::{rclone_monitor, Rclone, Remote},
@@ -15,7 +15,7 @@ use crate::{
         screen,
         shortcuts::{RootHistory, Shortcut, TextHistories, TextHistory},
         style,
-        widget::{id, Column, Container, Element, IcedParentExt, Progress, Row},
+        widget::{id, Column, Container, Element, IcedParentExt, Progress, Row, Stack},
     },
     lang::TRANSLATOR,
     prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
@@ -2729,16 +2729,6 @@ impl App {
     }
 
     pub fn view(&self) -> Element {
-        if let Some(m) = &self.modal {
-            return Column::new()
-                .push(
-                    m.view(&self.config, &self.text_histories)
-                        .class(style::Container::Primary),
-                )
-                .push_if(self.progress.visible(), || self.progress.view(&self.operation))
-                .into();
-        }
-
         let content = Column::new()
             .align_x(Alignment::Center)
             .push(
@@ -2781,9 +2771,21 @@ impl App {
                 ),
             })
             .push_maybe(self.timed_notification.as_ref().map(|x| x.view()))
-            .push_maybe(self.manifest_notification.as_ref().map(|x| x.view()))
-            .push_if(self.progress.visible(), || self.progress.view(&self.operation));
+            .push_maybe(self.manifest_notification.as_ref().map(|x| x.view()));
 
-        Container::new(content).class(style::Container::Primary).into()
+        let stack = Stack::new()
+            .push(Container::new(content).class(style::Container::Primary))
+            .push_maybe(
+                self.modal
+                    .as_ref()
+                    .map(|modal| modal.view(&self.config, &self.text_histories)),
+            );
+
+        Column::new()
+            .width(Length::Fill)
+            .height(Length::Fill)
+            .push(stack)
+            .push_if(self.progress.visible(), || self.progress.view(&self.operation))
+            .into()
     }
 }

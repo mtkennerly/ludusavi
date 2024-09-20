@@ -274,6 +274,7 @@ pub enum Container {
     #[default]
     Wrapper,
     Primary,
+    ModalForeground,
     ModalBackground,
     GameListEntry,
     Badge,
@@ -296,7 +297,8 @@ impl container::Catalog for Theme {
             background: Some(match class {
                 Container::Wrapper => Color::TRANSPARENT.into(),
                 Container::GameListEntry => self.field.alpha(0.15).into(),
-                Container::ModalBackground | Container::Notification | Container::Tooltip => self.field.into(),
+                Container::ModalBackground => self.field.alpha(0.75).into(),
+                Container::Notification | Container::Tooltip => self.field.alpha(0.5).into(),
                 Container::DisabledBackup => self.disabled.into(),
                 Container::BadgeActivated => self.negative.into(),
                 _ => self.background.into(),
@@ -312,11 +314,12 @@ impl container::Catalog for Theme {
                         ScanChange::Same | ScanChange::Unknown => self.disabled,
                     },
                     Container::BadgeActivated => self.negative,
-                    Container::BadgeFaded => self.disabled,
+                    Container::ModalForeground | Container::BadgeFaded => self.disabled,
                     _ => self.text,
                 },
                 width: match class {
                     Container::GameListEntry
+                    | Container::ModalForeground
                     | Container::Badge
                     | Container::BadgeActivated
                     | Container::BadgeFaded
@@ -325,7 +328,8 @@ impl container::Catalog for Theme {
                     _ => 0.0,
                 },
                 radius: match class {
-                    Container::GameListEntry
+                    Container::ModalForeground
+                    | Container::GameListEntry
                     | Container::Badge
                     | Container::BadgeActivated
                     | Container::BadgeFaded

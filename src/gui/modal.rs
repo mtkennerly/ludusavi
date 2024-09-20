@@ -1,6 +1,10 @@
 use std::collections::BTreeSet;
 
-use iced::{padding, Alignment, Length};
+use iced::{
+    padding,
+    widget::{mouse_area, opaque},
+    Alignment, Length,
+};
 use itertools::Itertools;
 
 use crate::{
@@ -467,6 +471,50 @@ impl Modal {
         col
     }
 
+    fn content(&self, config: &Config, histories: &TextHistories) -> Container {
+        let positive_button = button::primary(
+            match self.variant() {
+                ModalVariant::Loading => TRANSLATOR.okay_button(), // dummy
+                ModalVariant::Info => TRANSLATOR.okay_button(),
+                ModalVariant::Confirm => TRANSLATOR.continue_button(),
+            },
+            self.message(histories),
+        );
+
+        let negative_button = button::negative(TRANSLATOR.cancel_button(), Some(Message::CloseModal));
+
+        Container::new(
+            Column::new()
+                .width(Length::Fill)
+                .height(Length::Fill)
+                .push(
+                    Container::new(ScrollSubject::Modal.into_widget(self.body(config, histories).padding([0, 30])))
+                        .padding(padding::top(30).right(5))
+                        .width(Length::Fill)
+                        .height(Length::Fill),
+                )
+                .push(
+                    Container::new(
+                        match self.variant() {
+                            ModalVariant::Loading => Row::new(),
+                            ModalVariant::Info => Row::with_children(self.extra_controls()).push(positive_button),
+                            ModalVariant::Confirm => Row::with_children(self.extra_controls())
+                                .push_if(!matches!(self, Modal::BackupValidation { .. }), || positive_button)
+                                .push(negative_button),
+                        }
+                        .padding([30, 0])
+                        .spacing(20)
+                        .align_y(Alignment::Center),
+                    )
+                    .width(Length::Fill)
+                    .center_x(Length::Fill),
+                ),
+        )
+        .class(style::Container::ModalForeground)
+        .center_x(Length::Fill)
+        .height(Length::Fill)
+    }
+
     pub fn add_cloud_change(&mut self, change: CloudChange) {
         match self {
             Self::ConfirmCloudSync { changes, .. } => {
@@ -590,61 +638,49 @@ impl Modal {
         }
     }
 
-    pub fn view(&self, config: &Config, histories: &TextHistories) -> Container {
-        let positive_button = button::primary(
-            match self.variant() {
-                ModalVariant::Loading => TRANSLATOR.okay_button(), // dummy
-                ModalVariant::Info => TRANSLATOR.okay_button(),
-                ModalVariant::Confirm => TRANSLATOR.continue_button(),
-            },
-            self.message(histories),
-        );
+    pub fn view(&self, config: &Config, histories: &TextHistories) -> Element {
+        let horizontal = || {
+            Container::new(Space::new(Length::FillPortion(1), Length::Fill)).class(style::Container::ModalBackground)
+        };
 
-        let negative_button = button::negative(TRANSLATOR.cancel_button(), Some(Message::CloseModal));
-
-        Container::new(
-            Column::new()
+        let vertical = || {
+            Container::new(Space::new(Length::Shrink, Length::Shrink))
                 .width(Length::Fill)
-                .align_x(Alignment::Center)
-                .push(
-                    Container::new(Space::new(Length::Shrink, Length::Shrink))
-                        .width(Length::Fill)
-                        .height(Length::FillPortion(1))
-                        .class(style::Container::ModalBackground),
-                )
+                .height(Length::FillPortion(1))
+                .class(style::Container::ModalBackground)
+        };
+
+        let modal = Container::new(
+            Row::new()
+                .push(horizontal())
                 .push(
                     Column::new()
-                        .height(Length::FillPortion(self.body_height_portion()))
-                        .align_x(Alignment::Center)
+                        .width(Length::FillPortion(8))
+                        .push(vertical())
                         .push(
-                            Container::new(
-                                ScrollSubject::Modal.into_widget(self.body(config, histories).padding([0, 30])),
-                            )
-                            .padding(padding::top(30).right(5))
-                            .height(Length::Fill),
+                            Container::new(opaque(self.content(config, histories)))
+                                .class(style::Container::ModalBackground)
+                                .width(Length::Fill)
+                                .height(Length::FillPortion(self.body_height_portion())),
                         )
-                        .push(
-                            match self.variant() {
-                                ModalVariant::Loading => Row::new(),
-                                ModalVariant::Info => Row::with_children(self.extra_controls()).push(positive_button),
-                                ModalVariant::Confirm => Row::with_children(self.extra_controls())
-                                    .push_if(!matches!(self, Modal::BackupValidation { .. }), || positive_button)
-                                    .push(negative_button),
-                            }
-                            .padding([30, 0])
-                            .spacing(20)
-                            .height(Length::Shrink)
-                            .align_y(Alignment::Center),
-                        ),
+                        .push(vertical()),
                 )
-                .push(
-                    Container::new(Space::new(Length::Shrink, Length::Shrink))
-                        .width(Length::Fill)
-                        .height(Length::FillPortion(1))
-                        .class(style::Container::ModalBackground),
-                ),
+                .push(horizontal()),
         )
-        .height(Length::Fill)
-        .center_x(Length::Fill)
+        .width(Length::Fill)
+        .height(Length::Fill);
+
+        opaque({
+            let mut area = mouse_area(modal);
+
+            match self.variant() {
+                ModalVariant::Loading => {}
+                ModalVariant::Info | ModalVariant::Confirm => {
+                    area = area.on_press(Message::CloseModal);
+                }
+            }
+
+            area
+        })
     }
 }

@@ -10,6 +10,7 @@
 * Changed:
   * GUI: Updated to the latest version of [Iced](https://github.com/iced-rs/iced).
     If the GUI fails to load, Ludusavi will log the error info.
+  * GUI: Modals now display on top of the app with a transparent background.
 
 ## v0.25.0 (2024-08-18)
 

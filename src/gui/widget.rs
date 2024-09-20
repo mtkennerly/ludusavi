@@ -23,6 +23,7 @@ pub type PickList<'a, T, L, V> = w::PickList<'a, T, L, V, Message, Theme, Render
 pub type ProgressBar<'a> = w::ProgressBar<'a, Theme>;
 pub type Row<'a> = w::Row<'a, Message, Theme, Renderer>;
 pub type Scrollable<'a> = w::Scrollable<'a, Message, Theme, Renderer>;
+pub type Stack<'a> = w::Stack<'a, Message, Theme, Renderer>;
 pub type Text<'a> = w::Text<'a, Theme, Renderer>;
 pub type TextInput<'a> = w::TextInput<'a, Message, Theme, Renderer>;
 pub type Tooltip<'a> = w::Tooltip<'a, Message, Theme, Renderer>;
