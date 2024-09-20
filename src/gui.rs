@@ -17,37 +17,54 @@ mod style;
 mod undoable;
 mod widget;
 
-use iced::{Application, Size};
+use iced::Size;
 
+use self::app::App;
 pub use crate::gui::common::Flags;
 
 pub fn run(flags: Flags) {
-    let mut settings = iced::Settings {
-        flags,
-        ..Default::default()
-    };
-
-    settings.window.min_size = Some(Size::new(800.0, 600.0));
-    settings.window.exit_on_close_request = false;
-    settings.default_font = font::TEXT;
-    settings.window.icon = match image::load_from_memory(include_bytes!("../assets/icon.png")) {
-        Ok(buffer) => {
-            let buffer = buffer.to_rgba8();
-            let width = buffer.width();
-            let height = buffer.height();
-            let dynamic_image = image::DynamicImage::ImageRgba8(buffer);
-            match iced::window::icon::from_rgba(dynamic_image.into_bytes(), width, height) {
-                Ok(icon) => Some(icon),
+    let app = iced::application(App::title, App::update, App::view)
+        .subscription(App::subscription)
+        .theme(App::theme)
+        .executor::<app::Executor>()
+        .settings(iced::Settings {
+            default_font: font::TEXT,
+            ..Default::default()
+        })
+        .window(iced::window::Settings {
+            min_size: Some(Size::new(800.0, 600.0)),
+            exit_on_close_request: false,
+            #[cfg(target_os = "linux")]
+            platform_specific: iced::window::settings::PlatformSpecific {
+                application_id: "ludusavi".to_string(),
+                ..Default::default()
+            },
+            icon: match image::load_from_memory(include_bytes!("../assets/icon.png")) {
+                Ok(buffer) => {
+                    let buffer = buffer.to_rgba8();
+                    let width = buffer.width();
+                    let height = buffer.height();
+                    let dynamic_image = image::DynamicImage::ImageRgba8(buffer);
+                    match iced::window::icon::from_rgba(dynamic_image.into_bytes(), width, height) {
+                        Ok(icon) => Some(icon),
+                        Err(_) => None,
+                    }
+                }
                 Err(_) => None,
-            }
+            },
+            ..Default::default()
+        });
+
+    if let Err(e) = app.run_with(move || app::App::new(flags)) {
+        log::error!("Failed to initialize GUI: {e:?}");
+        eprintln!("Failed to initialize GUI: {e:?}");
+
+        if let Err(e) = native_dialog::MessageDialog::new()
+            .set_type(native_dialog::MessageType::Error)
+            .set_text(e.to_string().as_str())
+            .show_alert()
+        {
+            log::error!("Failed to display error dialog: {e:?}");
         }
-        Err(_) => None,
-    };
-
-    #[cfg(target_os = "linux")]
-    {
-        settings.window.platform_specific.application_id = "ludusavi".to_string();
     }
-
-    let _ = app::App::run(settings);
 }

@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use iced::{keyboard, widget::scrollable, Alignment, Application, Command, Subscription};
+use iced::{keyboard, padding, widget::scrollable, Alignment, Subscription, Task};
 
 use crate::{
     cloud::{rclone_monitor, Rclone, Remote},
@@ -82,12 +82,13 @@ pub struct App {
     backup_screen: screen::Backup,
     restore_screen: screen::Restore,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
-    operation_steps: Vec<Command<Message>>,
+    operation_steps: Vec<Task<Message>>,
     operation_steps_active: usize,
     progress: Progress,
     backups_to_restore: HashMap<String, BackupId>,
     updating_manifest: bool,
     notify_on_single_game_scanned: Option<(String, Screen)>,
+    manifest_notification: Option<Notification>,
     timed_notification: Option<Notification>,
     scroll_offsets: HashMap<ScrollSubject, scrollable::AbsoluteOffset>,
     text_histories: TextHistories,
@@ -114,39 +115,39 @@ impl App {
         self.notify_on_single_game_scanned = None;
     }
 
-    fn show_modal(&mut self, modal: Modal) -> Command<Message> {
+    fn show_modal(&mut self, modal: Modal) -> Task<Message> {
         self.modal = Some(modal);
         self.reset_scroll_position(ScrollSubject::Modal);
         self.refresh_scroll_position()
     }
 
-    fn close_modal(&mut self) -> Command<Message> {
+    fn close_modal(&mut self) -> Task<Message> {
         if self.modal.is_some() {
             self.reset_scroll_position(ScrollSubject::Modal);
             let need_cancel_cloud = self.modal.as_ref().map(|x| x.is_cloud_active()).unwrap_or_default();
             self.modal = None;
-            Command::batch([
+            Task::batch([
                 self.refresh_scroll_position(),
                 if need_cancel_cloud {
                     self.cancel_operation()
                 } else {
-                    Command::none()
+                    Task::none()
                 },
             ])
         } else {
-            Command::none()
+            Task::none()
         }
     }
 
-    fn close_specific_modal(&mut self, modal: Modal) -> Command<Message> {
+    fn close_specific_modal(&mut self, modal: Modal) -> Task<Message> {
         if self.modal == Some(modal) {
             self.close_modal()
         } else {
-            Command::none()
+            Task::none()
         }
     }
 
-    fn show_error(&mut self, error: Error) -> Command<Message> {
+    fn show_error(&mut self, error: Error) -> Task<Message> {
         self.show_modal(Modal::Error { variant: error })
     }
 
@@ -261,12 +262,12 @@ impl App {
         Ok(())
     }
 
-    fn handle_backup(&mut self, phase: BackupPhase) -> Command<Message> {
+    fn handle_backup(&mut self, phase: BackupPhase) -> Task<Message> {
         match phase {
             BackupPhase::Confirm { games } => self.show_modal(Modal::ConfirmBackup { games }),
             BackupPhase::Start { preview, repair, games } => {
                 if !self.operation.idle() {
-                    return Command::none();
+                    return Task::none();
                 }
 
                 let mut cleared_log = false;
@@ -287,12 +288,12 @@ impl App {
                     }
                 }
 
-                Command::batch([
+                Task::batch([
                     self.close_modal(),
                     if repair {
                         self.switch_screen(Screen::Backup)
                     } else {
-                        Command::none()
+                        Task::none()
                     },
                     self.refresh_scroll_position_on_log(cleared_log),
                     self.handle_backup(BackupPhase::CloudCheck),
@@ -312,7 +313,7 @@ impl App {
                 match self.start_sync_cloud(&local, SyncDirection::Upload, Finality::Preview, games.as_ref(), false) {
                     Ok(_) => {
                         // deferring to `transition_from_cloud_step`
-                        Command::none()
+                        Task::none()
                     }
                     Err(e) => {
                         self.operation.push_error(e);
@@ -343,7 +344,7 @@ impl App {
                 let previewed_games = self.backup_screen.previewed_games.clone();
                 let should_force_new_full_backups = self.operation.should_force_new_full_backups();
 
-                Command::perform(
+                Task::perform(
                     async move {
                         manifest.incorporate_extensions(&config);
                         let subjects: Vec<_> = if let Some(games) = &games {
@@ -394,7 +395,7 @@ impl App {
 
                 if self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed) {
                     self.go_idle();
-                    return Command::none();
+                    return Task::none();
                 }
 
                 if subjects.is_empty() {
@@ -413,7 +414,7 @@ impl App {
                         self.save_cache();
                     }
                     self.go_idle();
-                    return Command::none();
+                    return Task::none();
                 }
 
                 self.progress.set_max(subjects.len() as f32);
@@ -436,7 +437,7 @@ impl App {
                     let filter = filter.clone();
                     let steam_shortcuts = steam_shortcuts.clone();
                     let cancel_flag = self.operation_should_cancel.clone();
-                    self.operation_steps.push(Command::perform(
+                    self.operation_steps.push(Task::perform(
                         async move {
                             if key.trim().is_empty() {
                                 return (None, None);
@@ -492,7 +493,7 @@ impl App {
                 }
 
                 self.operation_steps_active = 100.min(self.operation_steps.len());
-                Command::batch(self.operation_steps.drain(..self.operation_steps_active))
+                Task::batch(self.operation_steps.drain(..self.operation_steps_active))
             }
             BackupPhase::GameScanned { scan_info, backup_info } => {
                 self.progress.step();
@@ -550,7 +551,7 @@ impl App {
                         if self.operation_steps_active == 0 {
                             self.handle_backup(BackupPhase::CloudSync)
                         } else {
-                            Command::none()
+                            Task::none()
                         }
                     }
                 }
@@ -591,7 +592,7 @@ impl App {
                 ) {
                     Ok(_) => {
                         // deferring to `transition_from_cloud_step`
-                        Command::none()
+                        Task::none()
                     }
                     Err(e) => {
                         self.operation.push_error(e);
@@ -639,17 +640,17 @@ impl App {
                     }
                 }
 
-                Command::none()
+                Task::none()
             }
         }
     }
 
-    fn handle_restore(&mut self, phase: RestorePhase) -> Command<Message> {
+    fn handle_restore(&mut self, phase: RestorePhase) -> Task<Message> {
         match phase {
             RestorePhase::Confirm { games } => self.show_modal(Modal::ConfirmRestore { games }),
             RestorePhase::Start { preview, games } => {
                 if !self.operation.idle() {
-                    return Command::none();
+                    return Task::none();
                 }
 
                 let path = self.config.restore.path.clone();
@@ -673,7 +674,7 @@ impl App {
                 self.invalidate_path_caches();
                 self.timed_notification = None;
 
-                Command::batch([
+                Task::batch([
                     self.close_modal(),
                     self.refresh_scroll_position_on_log(cleared_log),
                     self.handle_restore(RestorePhase::CloudCheck),
@@ -693,7 +694,7 @@ impl App {
                 match self.start_sync_cloud(&local, SyncDirection::Upload, Finality::Preview, games.as_ref(), false) {
                     Ok(_) => {
                         // waiting for background thread
-                        Command::none()
+                        Task::none()
                     }
                     Err(e) => {
                         self.operation.push_error(e);
@@ -708,7 +709,7 @@ impl App {
 
                 self.progress.start();
 
-                Command::perform(
+                Task::perform(
                     async move {
                         let layout = BackupLayout::new(restore_path, config.backup.retention.clone());
                         let restorables = layout.restorable_games();
@@ -730,7 +731,7 @@ impl App {
 
                 if self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed) {
                     self.go_idle();
-                    return Command::none();
+                    return Task::none();
                 }
 
                 if let Some(games) = &games {
@@ -754,7 +755,7 @@ impl App {
                         self.save_cache();
                     }
                     self.go_idle();
-                    return Command::none();
+                    return Task::none();
                 }
 
                 self.progress.set_max(restorables.len() as f32);
@@ -769,7 +770,7 @@ impl App {
                     let layout = layout.clone();
                     let cancel_flag = self.operation_should_cancel.clone();
                     let backup_id = self.backups_to_restore.get(&name).cloned().unwrap_or(BackupId::Latest);
-                    self.operation_steps.push(Command::perform(
+                    self.operation_steps.push(Task::perform(
                         async move {
                             let mut layout = layout.game_layout(&name);
 
@@ -808,7 +809,7 @@ impl App {
                 }
 
                 self.operation_steps_active = 100.min(self.operation_steps.len());
-                Command::batch(self.operation_steps.drain(..self.operation_steps_active))
+                Task::batch(self.operation_steps.drain(..self.operation_steps_active))
             }
             RestorePhase::GameScanned {
                 scan_info,
@@ -875,7 +876,7 @@ impl App {
                         if self.operation_steps_active == 0 {
                             self.handle_restore(RestorePhase::Done)
                         } else {
-                            Command::none()
+                            Task::none()
                         }
                     }
                 }
@@ -918,16 +919,16 @@ impl App {
                     }
                 }
 
-                Command::none()
+                Task::none()
             }
         }
     }
 
-    fn handle_validation(&mut self, phase: ValidatePhase) -> Command<Message> {
+    fn handle_validation(&mut self, phase: ValidatePhase) -> Task<Message> {
         match phase {
             ValidatePhase::Start => {
                 if !self.operation.idle() {
-                    return Command::none();
+                    return Task::none();
                 }
 
                 let path = self.config.restore.path.clone();
@@ -942,7 +943,7 @@ impl App {
                 self.invalidate_path_caches();
                 self.timed_notification = None;
 
-                Command::batch([self.close_modal(), self.handle_validation(ValidatePhase::Load)])
+                Task::batch([self.close_modal(), self.handle_validation(ValidatePhase::Load)])
             }
             ValidatePhase::Load => {
                 let restore_path = self.config.restore.path.clone();
@@ -951,7 +952,7 @@ impl App {
 
                 self.progress.start();
 
-                Command::perform(
+                Task::perform(
                     async move {
                         let layout = BackupLayout::new(restore_path, config.backup.retention.clone());
                         let subjects = layout.restorable_games();
@@ -967,12 +968,12 @@ impl App {
 
                 if self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed) {
                     self.go_idle();
-                    return Command::none();
+                    return Task::none();
                 }
 
                 if subjects.is_empty() {
                     self.go_idle();
-                    return Command::none();
+                    return Task::none();
                 }
 
                 self.progress.set_max(subjects.len() as f32);
@@ -983,7 +984,7 @@ impl App {
                     let layout = layout.clone();
                     let cancel_flag = self.operation_should_cancel.clone();
                     let backup_id = self.backups_to_restore.get(&name).cloned().unwrap_or(BackupId::Latest);
-                    self.operation_steps.push(Command::perform(
+                    self.operation_steps.push(Task::perform(
                         async move {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
                                 // TODO: https://github.com/hecrj/iced/issues/436
@@ -1004,7 +1005,7 @@ impl App {
                 }
 
                 self.operation_steps_active = 100.min(self.operation_steps.len());
-                Command::batch(self.operation_steps.drain(..self.operation_steps_active))
+                Task::batch(self.operation_steps.drain(..self.operation_steps_active))
             }
             ValidatePhase::GameScanned { game, valid } => {
                 self.progress.step();
@@ -1023,7 +1024,7 @@ impl App {
                         if self.operation_steps_active == 0 {
                             self.handle_validation(ValidatePhase::Done)
                         } else {
-                            Command::none()
+                            Task::none()
                         }
                     }
                 }
@@ -1041,7 +1042,7 @@ impl App {
         }
     }
 
-    fn transition_from_cloud_step(&mut self) -> Option<Command<Message>> {
+    fn transition_from_cloud_step(&mut self) -> Option<Task<Message>> {
         let synced = self.operation.cloud_changes() == 0;
 
         if self.operation.integrated_checking_cloud() {
@@ -1066,7 +1067,7 @@ impl App {
         }
     }
 
-    fn cancel_operation(&mut self) -> Command<Message> {
+    fn cancel_operation(&mut self) -> Task<Message> {
         self.operation_should_cancel
             .swap(true, std::sync::atomic::Ordering::Relaxed);
         self.operation_steps.clear();
@@ -1076,10 +1077,10 @@ impl App {
                 let _ = sender.try_send(rclone_monitor::Input::Cancel);
             }
         }
-        Command::none()
+        Task::none()
     }
 
-    fn customize_game(&mut self, name: String) -> Command<Message> {
+    fn customize_game(&mut self, name: String) -> Task<Message> {
         let game = if let Some(standard) = self.manifest.extended.0.get(&name) {
             CustomGame {
                 name: name.clone(),
@@ -1111,7 +1112,7 @@ impl App {
         self.switch_screen(Screen::CustomGames)
     }
 
-    fn customize_game_as_alias(&mut self, name: String) -> Command<Message> {
+    fn customize_game_as_alias(&mut self, name: String) -> Task<Message> {
         let game = CustomGame {
             name: "".to_string(),
             ignore: false,
@@ -1132,8 +1133,8 @@ impl App {
         self.switch_screen(Screen::CustomGames)
     }
 
-    fn update_manifest(config: config::ManifestConfig, cache: cache::Manifests, force: bool) -> Command<Message> {
-        Command::perform(
+    fn update_manifest(config: config::ManifestConfig, cache: cache::Manifests, force: bool) -> Task<Message> {
+        Task::perform(
             async move { tokio::task::spawn_blocking(move || Manifest::update(config, cache, force)).await },
             |join| match join {
                 Ok(x) => Message::ManifestUpdated(x),
@@ -1142,28 +1143,32 @@ impl App {
         )
     }
 
-    fn open_url(url: String) -> Command<Message> {
+    fn open_url(url: String) -> Task<Message> {
         let url2 = url.clone();
-        Command::perform(async { opener::open(url) }, move |res| match res {
-            Ok(_) => Message::Ignore,
-            Err(e) => {
-                log::error!("Unable to open URL: `{}` - {}", url2, e);
-                Message::OpenUrlFailure { url: url2 }
+        Task::future(async move {
+            let result = async { opener::open(url) }.await;
+
+            match result {
+                Ok(_) => Message::Ignore,
+                Err(e) => {
+                    log::error!("Unable to open URL: `{}` - {}", &url2, e);
+                    Message::OpenUrlFailure { url: url2 }
+                }
             }
         })
     }
 
-    fn open_wiki(game: String) -> Command<Message> {
+    fn open_wiki(game: String) -> Task<Message> {
         let url = format!("https://www.pcgamingwiki.com/wiki/{}", game.replace(' ', "_"));
         Self::open_url(url)
     }
 
-    fn toggle_backup_comment_editor(&mut self, name: String) -> Command<Message> {
+    fn toggle_backup_comment_editor(&mut self, name: String) -> Task<Message> {
         self.restore_screen.log.toggle_backup_comment_editor(&name);
-        Command::none()
+        Task::none()
     }
 
-    fn switch_screen(&mut self, screen: Screen) -> Command<Message> {
+    fn switch_screen(&mut self, screen: Screen) -> Task<Message> {
         self.screen = screen;
         self.refresh_scroll_position()
     }
@@ -1176,18 +1181,18 @@ impl App {
         }
     }
 
-    fn refresh_scroll_position(&mut self) -> Command<Message> {
+    fn refresh_scroll_position(&mut self) -> Task<Message> {
         let subject = self.scroll_subject();
         let offset = self.scroll_offsets.get(&subject).copied().unwrap_or_default();
 
         scrollable::scroll_to(subject.id(), offset)
     }
 
-    fn refresh_scroll_position_on_log(&mut self, cleared: bool) -> Command<Message> {
+    fn refresh_scroll_position_on_log(&mut self, cleared: bool) -> Task<Message> {
         if cleared {
             self.refresh_scroll_position()
         } else {
-            Command::none()
+            Task::none()
         }
     }
 
@@ -1196,32 +1201,27 @@ impl App {
             .insert(subject, scrollable::AbsoluteOffset::default());
     }
 
-    fn configure_remote(&self, remote: Remote) -> Command<Message> {
+    fn configure_remote(&self, remote: Remote) -> Task<Message> {
         let rclone = self.config.apps.rclone.clone();
         let old_remote = self.config.cloud.remote.clone();
         let new_remote = remote.clone();
-        Command::perform(
-            async move {
+        Task::future(async move {
+            let result = async {
                 if let Some(old_remote) = old_remote {
                     _ = Rclone::new(rclone.clone(), old_remote).unconfigure_remote();
                 }
                 Rclone::new(rclone, new_remote).configure_remote()
-            },
-            move |res| match res {
+            }
+            .await;
+
+            match result {
                 Ok(_) => Message::ConfigureCloudSuccess(remote),
                 Err(e) => Message::ConfigureCloudFailure(e),
-            },
-        )
+            }
+        })
     }
-}
 
-impl Application for App {
-    type Executor = Executor;
-    type Message = Message;
-    type Flags = Flags;
-    type Theme = crate::gui::style::Theme;
-
-    fn new(flags: Flags) -> (Self, Command<Message>) {
+    pub fn new(flags: Flags) -> (Self, Task<Message>) {
         let mut errors = vec![];
 
         let mut modal: Option<Modal> = None;
@@ -1286,10 +1286,11 @@ impl Application for App {
         }
 
         if config.release.check && cache.should_check_app_update() {
-            commands.push(Command::perform(
-                async move { crate::metadata::Release::fetch().await },
-                |join| Message::AppReleaseChecked(join.map_err(|x| x.to_string())),
-            ));
+            commands.push(Task::future(async move {
+                let result = crate::metadata::Release::fetch().await;
+
+                Message::AppReleaseChecked(result.map_err(|x| x.to_string()))
+            }))
         }
 
         (
@@ -1305,21 +1306,21 @@ impl Application for App {
                 flags,
                 ..Self::default()
             },
-            Command::batch(commands),
+            Task::batch(commands),
         )
     }
 
-    fn title(&self) -> String {
+    pub fn title(&self) -> String {
         TRANSLATOR.window_title()
     }
 
-    fn theme(&self) -> Self::Theme {
+    pub fn theme(&self) -> crate::gui::style::Theme {
         crate::gui::style::Theme::from(self.config.theme)
     }
 
-    fn update(&mut self, message: Message) -> Command<Message> {
+    pub fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::Ignore => Command::none(),
+            Message::Ignore => Task::none(),
             Message::CloseModal => self.close_modal(),
             Message::Exit { user } => {
                 if self.operation.idle() || (user && self.exiting) {
@@ -1327,16 +1328,16 @@ impl Application for App {
                     std::process::exit(0)
                 } else {
                     self.exiting = true;
-                    Command::batch([self.show_modal(Modal::Exiting), self.cancel_operation()])
+                    Task::batch([self.show_modal(Modal::Exiting), self.cancel_operation()])
                 }
             }
             Message::Save => {
                 self.save();
-                Command::none()
+                Task::none()
             }
             Message::UpdateTime => {
                 self.progress.update_time();
-                Command::none()
+                Task::none()
             }
             Message::PruneNotifications => {
                 if let Some(notification) = &self.timed_notification {
@@ -1344,20 +1345,22 @@ impl Application for App {
                         self.timed_notification = None;
                     }
                 }
-                Command::none()
+                Task::none()
             }
             Message::AppReleaseToggle(enabled) => {
                 self.config.release.check = enabled;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::CheckAppRelease => {
                 if !self.cache.should_check_app_update() {
-                    return Command::none();
+                    return Task::none();
                 }
 
-                Command::perform(async move { crate::metadata::Release::fetch().await }, |join| {
-                    Message::AppReleaseChecked(join.map_err(|x| x.to_string()))
+                Task::future(async move {
+                    let result = crate::metadata::Release::fetch().await;
+
+                    Message::AppReleaseChecked(result.map_err(|x| x.to_string()))
                 })
             }
             Message::AppReleaseChecked(outcome) => {
@@ -1381,18 +1384,20 @@ impl Application for App {
                     }
                 }
 
-                Command::none()
+                Task::none()
             }
             Message::UpdateManifest { force } => {
                 if self.updating_manifest {
-                    return Command::none();
+                    return Task::none();
                 }
 
                 self.updating_manifest = true;
+                self.manifest_notification = Some(Notification::new(TRANSLATOR.updating_manifest()));
                 Self::update_manifest(self.config.manifest.clone(), self.cache.manifests.clone(), force)
             }
             Message::ManifestUpdated(updates) => {
                 self.updating_manifest = false;
+                self.manifest_notification = None;
                 let mut errors = vec![];
 
                 for update in updates {
@@ -1436,13 +1441,13 @@ impl Application for App {
                 self.text_histories.backup_target.push(&text);
                 self.config.backup.path.reset(text);
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedRestoreSource(text) => {
                 self.text_histories.restore_source.push(&text);
                 self.config.restore.path.reset(text);
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::FindRoots => {
                 let missing = self.config.find_missing_roots();
@@ -1474,7 +1479,7 @@ impl Application for App {
                 }
                 self.save_config();
                 self.go_idle();
-                Command::none()
+                Task::none()
             }
             Message::EditedRoot(action) => {
                 match action {
@@ -1497,7 +1502,7 @@ impl Application for App {
                     }
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedRootLutrisDatabase(index, value) => {
                 self.text_histories.roots[index].lutris_database.push(&value);
@@ -1506,7 +1511,7 @@ impl Application for App {
                 }
 
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedSecondaryManifest(action) => {
                 match action {
@@ -1529,23 +1534,23 @@ impl Application for App {
                     }
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SelectedRootStore(index, store) => {
                 self.text_histories.roots[index].clear_secondary();
                 self.config.roots[index].set_store(store);
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SelectedRedirectKind(index, kind) => {
                 self.config.redirects[index].kind = kind;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SelectedSecondaryManifestKind(index, kind) => {
                 self.config.manifest.secondary[index].convert(kind);
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SelectedCustomGameKind(index, kind) => {
                 self.config.custom_games[index].convert(kind);
@@ -1556,7 +1561,7 @@ impl Application for App {
                     CustomGameKind::Alias => {}
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedRedirect(action, field) => {
                 // TODO: Automatically refresh redirected paths in the game list.
@@ -1587,7 +1592,7 @@ impl Application for App {
                     }
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedCustomGame(action) => {
                 let mut snap = false;
@@ -1619,7 +1624,7 @@ impl Application for App {
                     );
                     self.refresh_scroll_position()
                 } else {
-                    Command::none()
+                    Task::none()
                 }
             }
             Message::EditedCustomGameAlias(index, value) => {
@@ -1627,13 +1632,13 @@ impl Application for App {
                 self.config.custom_games[index].alias = Some(value);
 
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedCustomGaleAliasDisplay(index, value) => {
                 self.config.custom_games[index].prefer_alias = value;
 
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedCustomGameFile(game_index, action) => {
                 match action {
@@ -1658,7 +1663,7 @@ impl Application for App {
                     }
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedCustomGameRegistry(game_index, action) => {
                 match action {
@@ -1685,17 +1690,17 @@ impl Application for App {
                     }
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedExcludeStoreScreenshots(enabled) => {
                 self.config.backup.filter.exclude_store_screenshots = enabled;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedCloudFilter(filter) => {
                 self.config.backup.filter.cloud = filter;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedBackupFilterIgnoredPath(action) => {
                 match action {
@@ -1723,7 +1728,7 @@ impl Application for App {
                 }
                 self.config.backup.filter.build_globs();
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedBackupFilterIgnoredRegistry(action) => {
                 match action {
@@ -1752,7 +1757,7 @@ impl Application for App {
                     }
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SwitchScreen(screen) => self.switch_screen(screen),
             Message::ToggleGameListEntryExpanded { name } => {
@@ -1775,7 +1780,7 @@ impl Application for App {
                     }
                     _ => {}
                 }
-                Command::none()
+                Task::none()
             }
             Message::ToggleGameListEntryTreeExpanded { name, keys } => {
                 match self.screen {
@@ -1799,7 +1804,7 @@ impl Application for App {
                     }
                     _ => {}
                 }
-                Command::none()
+                Task::none()
             }
             Message::ToggleGameListEntryEnabled {
                 name,
@@ -1830,7 +1835,7 @@ impl Application for App {
                     );
                 }
 
-                Command::none()
+                Task::none()
             }
             Message::ToggleCustomGameEnabled { index, enabled } => {
                 if enabled {
@@ -1839,17 +1844,17 @@ impl Application for App {
                     self.config.disable_custom_game(index);
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::TogglePrimaryManifestEnabled { enabled } => {
                 self.config.manifest.enable = enabled;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::ToggleSecondaryManifestEnabled { index, enabled } => {
                 self.config.manifest.secondary[index].enable(enabled);
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::ToggleSearch { screen } => match screen {
                 Screen::Backup => {
@@ -1860,7 +1865,7 @@ impl Application for App {
                     self.restore_screen.log.search.show = !self.restore_screen.log.search.show;
                     iced::widget::text_input::focus(id::restore_search())
                 }
-                _ => Command::none(),
+                _ => Task::none(),
             },
             Message::ToggleSpecificGamePathIgnored { name, path, restoring } => {
                 if restoring {
@@ -1881,7 +1886,7 @@ impl Application for App {
                     );
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::ToggleSpecificGameRegistryIgnored {
                 name,
@@ -1907,7 +1912,7 @@ impl Application for App {
                     );
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedSearchGameName { screen, value } => {
                 match screen {
@@ -1921,7 +1926,7 @@ impl Application for App {
                     }
                     _ => {}
                 }
-                Command::none()
+                Task::none()
             }
             Message::ToggledSearchFilter { filter, enabled } => {
                 let search = if self.screen == Screen::Backup {
@@ -1930,7 +1935,7 @@ impl Application for App {
                     &mut self.restore_screen.log.search
                 };
                 search.toggle_filter(filter, enabled);
-                Command::none()
+                Task::none()
             }
             Message::EditedSearchFilterUniqueness(filter) => {
                 let search = if self.screen == Screen::Backup {
@@ -1939,7 +1944,7 @@ impl Application for App {
                     &mut self.restore_screen.log.search
                 };
                 search.uniqueness.choice = filter;
-                Command::none()
+                Task::none()
             }
             Message::EditedSearchFilterCompleteness(filter) => {
                 let search = if self.screen == Screen::Backup {
@@ -1948,7 +1953,7 @@ impl Application for App {
                     &mut self.restore_screen.log.search
                 };
                 search.completeness.choice = filter;
-                Command::none()
+                Task::none()
             }
             Message::EditedSearchFilterEnablement(filter) => {
                 let search = if self.screen == Screen::Backup {
@@ -1957,7 +1962,7 @@ impl Application for App {
                     &mut self.restore_screen.log.search
                 };
                 search.enablement.choice = filter;
-                Command::none()
+                Task::none()
             }
             Message::EditedSearchFilterChange(filter) => {
                 let search = if self.screen == Screen::Backup {
@@ -1966,7 +1971,7 @@ impl Application for App {
                     &mut self.restore_screen.log.search
                 };
                 search.change.choice = filter;
-                Command::none()
+                Task::none()
             }
             Message::EditedSearchFilterManifest(filter) => {
                 let search = if self.screen == Screen::Backup {
@@ -1975,7 +1980,7 @@ impl Application for App {
                     &mut self.restore_screen.log.search
                 };
                 search.manifest.choice = filter;
-                Command::none()
+                Task::none()
             }
             Message::EditedSortKey { screen, value } => {
                 match screen {
@@ -1990,7 +1995,7 @@ impl Application for App {
                     _ => {}
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedSortReversed { screen, value } => {
                 match screen {
@@ -2005,30 +2010,32 @@ impl Application for App {
                     _ => {}
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::BrowseDir(subject) => {
                 if cfg!(target_os = "macos") {
                     // On Mac, this must be on the main thread, or it will panic.
                     let choice = native_dialog::FileDialog::new().show_open_single_dir();
-                    Command::perform(async {}, |_| Message::browsed_dir(subject, choice))
+                    Task::done(Message::browsed_dir(subject, choice))
                 } else {
-                    Command::perform(
-                        async move { native_dialog::FileDialog::new().show_open_single_dir() },
-                        move |choice| Message::browsed_dir(subject, choice),
-                    )
+                    Task::future(async move {
+                        let choice = async move { native_dialog::FileDialog::new().show_open_single_dir() }.await;
+
+                        Message::browsed_dir(subject, choice)
+                    })
                 }
             }
             Message::BrowseFile(subject) => {
                 if cfg!(target_os = "macos") {
                     // On Mac, this must be on the main thread, or it will panic.
                     let choice = native_dialog::FileDialog::new().show_open_single_file();
-                    Command::perform(async {}, |_| Message::browsed_file(subject, choice))
+                    Task::done(Message::browsed_file(subject, choice))
                 } else {
-                    Command::perform(
-                        async move { native_dialog::FileDialog::new().show_open_single_file() },
-                        move |choice| Message::browsed_file(subject, choice),
-                    )
+                    Task::future(async move {
+                        let choice = async move { native_dialog::FileDialog::new().show_open_single_file() }.await;
+
+                        Message::browsed_file(subject, choice)
+                    })
                 }
             }
             Message::BrowseDirFailure => self.show_modal(Modal::Error {
@@ -2052,7 +2059,7 @@ impl Application for App {
                     }
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SelectAllGames => {
                 match self.screen {
@@ -2074,7 +2081,7 @@ impl Application for App {
                     _ => {}
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::DeselectAllGames => {
                 match self.screen {
@@ -2096,15 +2103,19 @@ impl Application for App {
                     _ => {}
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::OpenDir { path } => {
                 let path2 = path.clone();
-                Command::perform(async move { opener::open(path.resolve()) }, move |res| match res {
-                    Ok(_) => Message::Ignore,
-                    Err(e) => {
-                        log::error!("Unable to open directory: `{}` - {:?}", path2.resolve(), e);
-                        Message::OpenDirFailure { path: path2 }
+                Task::future(async move {
+                    let result = async { opener::open(path.resolve()) }.await;
+
+                    match result {
+                        Ok(_) => Message::Ignore,
+                        Err(e) => {
+                            log::error!("Unable to open directory: `{}` - {:?}", path2.resolve(), e);
+                            Message::OpenDirFailure { path: path2 }
+                        }
                     }
                 })
             }
@@ -2131,16 +2142,16 @@ impl Application for App {
                     BrowseFileSubject::RcloneExecutable => self.config.apps.rclone.path.clone(),
                     BrowseFileSubject::RootLutrisDatabase(i) => {
                         let Root::Lutris(root) = &self.config.roots[i] else {
-                            return Command::none();
+                            return Task::none();
                         };
                         let Some(database) = root.database.as_ref() else {
-                            return Command::none();
+                            return Task::none();
                         };
                         database.clone()
                     }
                     BrowseFileSubject::SecondaryManifest(i) => {
                         let Some(path) = self.config.manifest.secondary[i].path() else {
-                            return Command::none();
+                            return Task::none();
                         };
                         path.clone()
                     }
@@ -2173,7 +2184,7 @@ impl Application for App {
                             iced::widget::focus_next()
                         }
                     }
-                    _ => Command::none(),
+                    _ => Task::none(),
                 }
             }
             Message::UndoRedo(action, subject) => {
@@ -2275,7 +2286,7 @@ impl Application for App {
                             ModalInputKind::Username => self.text_histories.modal.username.apply(shortcut),
                             ModalInputKind::Password => self.text_histories.modal.password.apply(shortcut),
                         }
-                        return Command::none();
+                        return Task::none();
                     }
                     UndoSubject::BackupComment(game) => {
                         if let Some(info) = self.text_histories.backup_comments.get_mut(&game) {
@@ -2292,17 +2303,17 @@ impl Application for App {
                     }
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedFullRetention(value) => {
                 self.config.backup.retention.full = value;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedDiffRetention(value) => {
                 self.config.backup.retention.differential = value;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SelectedBackupToRestore { game, backup } => {
                 self.backups_to_restore.insert(game.clone(), backup.id());
@@ -2315,36 +2326,36 @@ impl Application for App {
                 TRANSLATOR.set_language(language);
                 self.config.language = language;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SelectedTheme(theme) => {
                 self.config.theme = theme;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SelectedBackupFormat(format) => {
                 self.config.backup.format.chosen = format;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SelectedBackupCompression(compression) => {
                 self.config.backup.format.zip.compression = compression;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedCompressionLevel(value) => {
                 self.config.backup.format.set_level(value);
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::ToggleBackupSettings => {
                 self.backup_screen.show_settings = !self.backup_screen.show_settings;
-                Command::none()
+                Task::none()
             }
             Message::ToggleCloudSynchronize => {
                 self.config.cloud.synchronize = !self.config.cloud.synchronize;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::GameAction { action, game } => match action {
                 GameAction::PreviewBackup => self.handle_backup(BackupPhase::Start {
@@ -2389,13 +2400,13 @@ impl Application for App {
                     if updated {
                         self.save_backup(&game);
                     }
-                    Command::none()
+                    Task::none()
                 }
                 GameAction::MakeAlias => self.customize_game_as_alias(game),
             },
             Message::Scrolled { subject, position } => {
                 self.scroll_offsets.insert(subject, position);
-                Command::none()
+                Task::none()
             }
             Message::Scroll { subject, position } => {
                 self.scroll_offsets.insert(subject, position);
@@ -2411,22 +2422,22 @@ impl Application for App {
                     self.save_backup(&game);
                 }
 
-                Command::none()
+                Task::none()
             }
             Message::SetShowDeselectedGames(value) => {
                 self.config.scan.show_deselected_games = value;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SetShowUnchangedGames(value) => {
                 self.config.scan.show_unchanged_games = value;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::SetShowUnscannedGames(value) => {
                 self.config.scan.show_unscanned_games = value;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::FilterDuplicates { restoring, game } => {
                 let log = if restoring {
@@ -2435,29 +2446,29 @@ impl Application for App {
                     &mut self.backup_screen.log
                 };
                 log.filter_duplicates_of = game;
-                Command::none()
+                Task::none()
             }
             Message::OverrideMaxThreads(overridden) => {
                 self.config.override_threads(overridden);
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedMaxThreads(threads) => {
                 self.config.set_threads(threads);
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedRcloneExecutable(text) => {
                 self.text_histories.rclone_executable.push(&text);
                 self.config.apps.rclone.path.reset(text);
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedRcloneArguments(text) => {
                 self.text_histories.rclone_arguments.push(&text);
                 self.config.apps.rclone.arguments = text;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedCloudRemoteId(text) => {
                 self.text_histories.cloud_remote_id.push(&text);
@@ -2465,16 +2476,16 @@ impl Application for App {
                     *id = text;
                 }
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::EditedCloudPath(text) => {
                 self.text_histories.cloud_path.push(&text);
                 self.config.cloud.path = text;
                 self.save_config();
-                Command::none()
+                Task::none()
             }
             Message::OpenUrl(url) => Self::open_url(url),
-            Message::OpenUrlAndCloseModal(url) => Command::batch([Self::open_url(url), self.close_modal()]),
+            Message::OpenUrlAndCloseModal(url) => Task::batch([Self::open_url(url), self.close_modal()]),
             Message::EditedCloudRemote(choice) => {
                 if let Ok(remote) = Remote::try_from(choice) {
                     match &remote {
@@ -2482,7 +2493,7 @@ impl Application for App {
                             self.text_histories.cloud_remote_id.push(id);
                             self.config.cloud.remote = Some(remote);
                             self.save_config();
-                            Command::none()
+                            Task::none()
                         }
                         Remote::Ftp {
                             id: _,
@@ -2533,7 +2544,7 @@ impl Application for App {
                 } else {
                     self.config.cloud.remote = None;
                     self.save_config();
-                    Command::none()
+                    Task::none()
                 }
             }
             Message::ConfigureCloudSuccess(remote) => {
@@ -2627,7 +2638,7 @@ impl Application for App {
                         self.go_idle();
                     }
                 }
-                Command::none()
+                Task::none()
             }
             Message::EditedModalField(field) => {
                 match field {
@@ -2652,14 +2663,14 @@ impl Application for App {
                         }
                     }
                 }
-                Command::none()
+                Task::none()
             }
             Message::FinalizeRemote(remote) => self.configure_remote(remote),
             Message::ModalChangePage(page) => {
                 if let Some(modal) = self.modal.as_mut() {
                     modal.set_page(page);
                 }
-                Command::none()
+                Task::none()
             }
             Message::ShowCustomGame { name } => {
                 use crate::gui::widget::operation::container_scroll_offset;
@@ -2678,13 +2689,11 @@ impl Application for App {
         }
     }
 
-    fn subscription(&self) -> Subscription<Message> {
+    pub fn subscription(&self) -> Subscription<Message> {
         let mut subscriptions = vec![
-            iced::event::listen_with(|event, _| match event {
+            iced::event::listen_with(|event, _status, _window| match event {
                 iced::Event::Keyboard(event) => Some(Message::KeyboardEvent(event)),
-                iced::Event::Window(iced::window::Id::MAIN, iced::window::Event::CloseRequested) => {
-                    Some(Message::Exit { user: true })
-                }
+                iced::Event::Window(iced::window::Event::CloseRequested) => Some(Message::Exit { user: true }),
                 _ => None,
             }),
             rclone_monitor::run().map(Message::RcloneMonitor),
@@ -2716,25 +2725,25 @@ impl Application for App {
             subscriptions.push(iced::time::every(Duration::from_millis(50)).map(|_| Message::Exit { user: false }));
         }
 
-        iced::subscription::Subscription::batch(subscriptions)
+        iced::Subscription::batch(subscriptions)
     }
 
-    fn view(&self) -> Element {
+    pub fn view(&self) -> Element {
         if let Some(m) = &self.modal {
             return Column::new()
                 .push(
                     m.view(&self.config, &self.text_histories)
-                        .style(style::Container::Primary),
+                        .class(style::Container::Primary),
                 )
                 .push_if(self.progress.visible(), || self.progress.view(&self.operation))
                 .into();
         }
 
         let content = Column::new()
-            .align_items(Alignment::Center)
+            .align_x(Alignment::Center)
             .push(
                 Row::new()
-                    .padding([10, 20, 15, 20])
+                    .padding(padding::top(10).right(20).bottom(15).left(20))
                     .spacing(20)
                     .push(button::nav(Screen::Backup, self.screen))
                     .push(button::nav(Screen::Restore, self.screen))
@@ -2772,11 +2781,9 @@ impl Application for App {
                 ),
             })
             .push_maybe(self.timed_notification.as_ref().map(|x| x.view()))
-            .push_if(self.updating_manifest, || {
-                Notification::new(TRANSLATOR.updating_manifest()).view()
-            })
+            .push_maybe(self.manifest_notification.as_ref().map(|x| x.view()))
             .push_if(self.progress.visible(), || self.progress.view(&self.operation));
 
-        Container::new(content).style(style::Container::Primary).into()
+        Container::new(content).class(style::Container::Primary).into()
     }
 }

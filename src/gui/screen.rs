@@ -1,6 +1,6 @@
 use std::collections::HashSet;
 
-use iced::{keyboard, Alignment, Length};
+use iced::{keyboard, padding, Alignment, Length};
 
 use crate::{
     cloud::{Remote, RemoteChoice},
@@ -29,11 +29,10 @@ const RCLONE_URL: &str = "https://rclone.org/downloads";
 const RELEASE_URL: &str = "https://github.com/mtkennerly/ludusavi/releases";
 
 fn template(content: Column) -> Element {
-    Container::new(content.spacing(15).align_items(Alignment::Center))
+    Container::new(content.spacing(15).align_x(Alignment::Center))
         .height(Length::Fill)
-        .width(Length::Fill)
-        .padding([0, 5, 5, 5])
-        .center_x()
+        .center_x(Length::Fill)
+        .padding(padding::all(5).top(0))
         .into()
 }
 
@@ -41,8 +40,8 @@ fn make_status_row<'a>(status: &OperationStatus, duplication: Duplication) -> Ro
     let size = 25;
 
     Row::new()
-        .padding([0, 20, 0, 20])
-        .align_items(Alignment::Center)
+        .padding([0, 20])
+        .align_y(Alignment::Center)
         .spacing(15)
         .push(text(TRANSLATOR.processed_games(status)).size(size))
         .push_if(status.changed_games.new > 0, || {
@@ -88,9 +87,9 @@ impl Backup {
         let content = Column::new()
             .push(
                 Row::new()
-                    .padding([0, 20, 0, 20])
+                    .padding([0, 20])
                     .spacing(20)
-                    .align_items(Alignment::Center)
+                    .align_y(Alignment::Center)
                     .push(button::backup_preview(operation))
                     .push(button::backup(operation))
                     .push(button::toggle_all_scanned_games(
@@ -105,9 +104,9 @@ impl Backup {
             ))
             .push(
                 Row::new()
-                    .padding([0, 20, 0, 20])
+                    .padding([0, 20])
                     .spacing(20)
-                    .align_items(Alignment::Center)
+                    .align_y(Alignment::Center)
                     .push(text(TRANSLATOR.backup_target_label()))
                     .push(histories.input(UndoSubject::BackupTarget))
                     .push(button::choose_folder(BrowseSubject::BackupTarget, modifiers))
@@ -118,16 +117,16 @@ impl Backup {
                             screen,
                             value,
                         })
-                        .style(style::PickList::Primary),
+                        .class(style::PickList::Primary),
                     )
                     .push(button::sort_order(screen, sort.reversed)),
             )
             .push_if(self.show_settings, || {
                 Row::new()
-                    .padding([0, 20, 0, 20])
+                    .padding([0, 20])
                     .spacing(20)
                     .height(30)
-                    .align_items(Alignment::Center)
+                    .align_y(Alignment::Center)
                     .push({
                         number_input(
                             config.backup.retention.full as i32,
@@ -147,13 +146,13 @@ impl Backup {
             })
             .push_if(self.show_settings, || {
                 Row::new()
-                    .padding([0, 20, 0, 20])
+                    .padding([0, 20])
                     .spacing(20)
-                    .align_items(Alignment::Center)
+                    .align_y(Alignment::Center)
                     .push(
                         Row::new()
                             .spacing(5)
-                            .align_items(Alignment::Center)
+                            .align_y(Alignment::Center)
                             .push(text(TRANSLATOR.backup_format_field()))
                             .push(
                                 pick_list(
@@ -161,13 +160,13 @@ impl Backup {
                                     Some(config.backup.format.chosen),
                                     Message::SelectedBackupFormat,
                                 )
-                                .style(style::PickList::Primary),
+                                .class(style::PickList::Primary),
                             ),
                     )
                     .push_if(config.backup.format.chosen == BackupFormat::Zip, || {
                         Row::new()
                             .spacing(5)
-                            .align_items(Alignment::Center)
+                            .align_y(Alignment::Center)
                             .push(text(TRANSLATOR.backup_compression_field()))
                             .push(
                                 pick_list(
@@ -175,7 +174,7 @@ impl Backup {
                                     Some(config.backup.format.zip.compression),
                                     Message::SelectedBackupCompression,
                                 )
-                                .style(style::PickList::Primary),
+                                .class(style::PickList::Primary),
                             )
                     })
                     .push_maybe(match (config.backup.format.level(), config.backup.format.range()) {
@@ -230,9 +229,9 @@ impl Restore {
         let content = Column::new()
             .push(
                 Row::new()
-                    .padding([0, 20, 0, 20])
+                    .padding([0, 20])
                     .spacing(20)
-                    .align_items(Alignment::Center)
+                    .align_y(Alignment::Center)
                     .push(button::restore_preview(operation))
                     .push(button::restore(operation))
                     .push(button::toggle_all_scanned_games(
@@ -247,9 +246,9 @@ impl Restore {
             ))
             .push(
                 Row::new()
-                    .padding([0, 20, 0, 20])
+                    .padding([0, 20])
                     .spacing(20)
-                    .align_items(Alignment::Center)
+                    .align_y(Alignment::Center)
                     .push(text(TRANSLATOR.restore_source_label()))
                     .push(histories.input(UndoSubject::RestoreSource))
                     .push(button::choose_folder(BrowseSubject::RestoreSource, modifiers))
@@ -260,7 +259,7 @@ impl Restore {
                             screen,
                             value,
                         })
-                        .style(style::PickList::Primary),
+                        .class(style::PickList::Primary),
                     )
                     .push(button::sort_order(screen, sort.reversed)),
             )
@@ -287,9 +286,9 @@ pub fn custom_games<'a>(
     let content = Column::new()
         .push(
             Row::new()
-                .padding([0, 20, 0, 20])
+                .padding([0, 20])
                 .spacing(20)
-                .align_items(Alignment::Center)
+                .align_y(Alignment::Center)
                 .push(button::add_game())
                 .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled())),
         )
@@ -313,46 +312,45 @@ pub fn other<'a>(
     let content = Column::new()
         .push_if(*STEAM_DECK, || {
             Row::new()
-                .padding([0, 20, 0, 20])
+                .padding([0, 20])
                 .spacing(20)
-                .align_items(iced::Alignment::Center)
+                .align_y(iced::Alignment::Center)
                 .push(
-                    Button::new(
-                        text(TRANSLATOR.exit_button()).horizontal_alignment(iced::alignment::Horizontal::Center),
-                    )
-                    .on_press(Message::Exit { user: true })
-                    .width(125)
-                    .style(style::Button::Negative),
+                    Button::new(text(TRANSLATOR.exit_button()).align_x(iced::alignment::Horizontal::Center))
+                        .on_press(Message::Exit { user: true })
+                        .width(125)
+                        .class(style::Button::Negative)
+                        .padding(5),
                 )
         })
         .push({
             let content = Column::new()
                 .spacing(20)
-                .padding([0, 15, 5, 15])
+                .padding(padding::top(0).bottom(5).left(15).right(15))
                 .width(Length::Fill)
                 .push(
                     Row::new()
-                        .align_items(iced::Alignment::Center)
+                        .align_y(iced::Alignment::Center)
                         .spacing(20)
                         .push(text(TRANSLATOR.field_language()))
                         .push(
                             pick_list(Language::ALL, Some(config.language), Message::SelectedLanguage)
-                                .style(style::PickList::Primary),
+                                .class(style::PickList::Primary),
                         ),
                 )
                 .push(
                     Row::new()
-                        .align_items(iced::Alignment::Center)
+                        .align_y(iced::Alignment::Center)
                         .spacing(20)
                         .push(text(TRANSLATOR.field_theme()))
                         .push(
                             pick_list(Theme::ALL, Some(config.theme), Message::SelectedTheme)
-                                .style(style::PickList::Primary),
+                                .class(style::PickList::Primary),
                         ),
                 )
                 .push(
                     Row::new()
-                        .align_items(iced::Alignment::Center)
+                        .align_y(iced::Alignment::Center)
                         .spacing(20)
                         .push(checkbox(
                             TRANSLATOR.new_version_check(),
@@ -384,7 +382,7 @@ pub fn other<'a>(
                                                         1..=(max_threads.get() as i32),
                                                         |x| Message::EditedMaxThreads(x as usize),
                                                     ))
-                                                    .padding([0, 0, 0, 35])
+                                                    .padding(padding::left(35))
                                                 })
                                             })
                                     })
@@ -395,7 +393,7 @@ pub fn other<'a>(
                                         config.backup.filter.exclude_store_screenshots,
                                         Message::EditedExcludeStoreScreenshots,
                                     )
-                                    .style(style::Checkbox),
+                                    .class(style::Checkbox),
                                 )
                                 .push(checkbox(
                                     TRANSLATOR.show_deselected_games(),
@@ -424,7 +422,7 @@ pub fn other<'a>(
                                 ))
                                 .push(
                                     Row::new()
-                                        .padding([0, 0, 0, 35])
+                                        .padding(padding::left(35))
                                         .spacing(10)
                                         .push(
                                             checkbox(
@@ -437,7 +435,7 @@ pub fn other<'a>(
                                                     })
                                                 },
                                             )
-                                            .style(style::Checkbox),
+                                            .class(style::Checkbox),
                                         )
                                         .push(
                                             checkbox(
@@ -450,7 +448,7 @@ pub fn other<'a>(
                                                     })
                                                 },
                                             )
-                                            .style(style::Checkbox),
+                                            .class(style::Checkbox),
                                         )
                                         .push(
                                             checkbox(
@@ -467,7 +465,7 @@ pub fn other<'a>(
                                                     })
                                                 },
                                             )
-                                            .style(style::Checkbox),
+                                            .class(style::Checkbox),
                                         )
                                         .push(
                                             checkbox(
@@ -480,7 +478,7 @@ pub fn other<'a>(
                                                     })
                                                 },
                                             )
-                                            .style(style::Checkbox),
+                                            .class(style::Checkbox),
                                         )
                                         .push(
                                             checkbox(
@@ -493,11 +491,11 @@ pub fn other<'a>(
                                                     })
                                                 },
                                             )
-                                            .style(style::Checkbox),
+                                            .class(style::Checkbox),
                                         ),
                                 ),
                         )
-                        .style(style::Container::GameListEntry),
+                        .class(style::Container::GameListEntry),
                     ),
                 )
                 .push(
@@ -505,21 +503,21 @@ pub fn other<'a>(
                         .spacing(5)
                         .push(
                             Row::new()
-                                .align_items(iced::Alignment::Center)
+                                .align_y(iced::Alignment::Center)
                                 .push(text(TRANSLATOR.manifest_label()).width(100))
                                 .push(button::refresh(
                                     Message::UpdateManifest { force: true },
                                     updating_manifest,
                                 )),
                         )
-                        .push(editor::manifest(config, cache, histories, modifiers).padding([10, 0, 0, 0])),
+                        .push(editor::manifest(config, cache, histories, modifiers).padding(padding::top(10))),
                 )
                 .push(
                     Column::new()
                         .spacing(5)
                         .push(
                             Row::new()
-                                .align_items(iced::Alignment::Center)
+                                .align_y(iced::Alignment::Center)
                                 .push(text(TRANSLATOR.cloud_field()).width(100)),
                         )
                         .push(
@@ -527,11 +525,11 @@ pub fn other<'a>(
                                 let mut column = Column::new().spacing(5).push(
                                     Row::new()
                                         .spacing(20)
-                                        .align_items(Alignment::Center)
+                                        .align_y(Alignment::Center)
                                         .push(text(TRANSLATOR.rclone_label()).width(70))
                                         .push(histories.input(UndoSubject::RcloneExecutable))
                                         .push_if(!is_rclone_valid, || {
-                                            Icon::Error.text().width(Length::Shrink).style(style::Text::Failure)
+                                            Icon::Error.text().width(Length::Shrink).class(style::Text::Failure)
                                         })
                                         .push(button::choose_file(BrowseFileSubject::RcloneExecutable, modifiers))
                                         .push(histories.input(UndoSubject::RcloneArguments)),
@@ -543,12 +541,12 @@ pub fn other<'a>(
                                         .push({
                                             let mut row = Row::new()
                                                 .spacing(20)
-                                                .align_items(Alignment::Center)
+                                                .align_y(Alignment::Center)
                                                 .push(text(TRANSLATOR.remote_label()).width(70))
                                                 .push_if(!operation.idle(), || {
                                                     text(choice.to_string())
                                                         .height(30)
-                                                        .vertical_alignment(iced::alignment::Vertical::Center)
+                                                        .align_y(iced::alignment::Vertical::Center)
                                                 })
                                                 .push_if(operation.idle(), || {
                                                     pick_list(
@@ -575,17 +573,17 @@ pub fn other<'a>(
                                         .push_if(choice != RemoteChoice::None, || {
                                             Row::new()
                                                 .spacing(20)
-                                                .align_items(Alignment::Center)
+                                                .align_y(Alignment::Center)
                                                 .push(text(TRANSLATOR.folder_label()).width(70))
                                                 .push(histories.input(UndoSubject::CloudPath))
                                                 .push_if(!is_cloud_path_valid, || {
-                                                    Icon::Error.text().width(Length::Shrink).style(style::Text::Failure)
+                                                    Icon::Error.text().width(Length::Shrink).class(style::Text::Failure)
                                                 })
                                         })
                                         .push_if(is_cloud_configured && is_cloud_path_valid, || {
                                             Row::new()
                                                 .spacing(20)
-                                                .align_items(Alignment::Center)
+                                                .align_y(Alignment::Center)
                                                 .push(button::upload(operation))
                                                 .push(button::download(operation))
                                                 .push(checkbox(
@@ -597,13 +595,13 @@ pub fn other<'a>(
                                         .push_if(!is_cloud_configured, || text(TRANSLATOR.cloud_not_configured()))
                                         .push_if(!is_cloud_path_valid, || {
                                             text(TRANSLATOR.prefix_warning(&TRANSLATOR.cloud_path_invalid()))
-                                                .style(style::Text::Failure)
+                                                .class(style::Text::Failure)
                                         });
                                 } else {
                                     column = column
                                         .push(
                                             text(TRANSLATOR.prefix_warning(&TRANSLATOR.rclone_unavailable()))
-                                                .style(style::Text::Failure),
+                                                .class(style::Text::Failure),
                                         )
                                         .push(button::open_url(TRANSLATOR.get_rclone_button(), RCLONE_URL.to_string()));
                                 }
@@ -611,7 +609,7 @@ pub fn other<'a>(
                                 column
                             })
                             .padding(5)
-                            .style(style::Container::GameListEntry),
+                            .class(style::Container::GameListEntry),
                         ),
                 )
                 .push(
@@ -622,18 +620,18 @@ pub fn other<'a>(
                                 .spacing(4)
                                 .push(editor::root(config, histories, modifiers)),
                         )
-                        .style(style::Container::GameListEntry),
+                        .class(style::Container::GameListEntry),
                     ),
                 )
                 .push(
                     Column::new()
                         .push(text(TRANSLATOR.ignored_items_label()))
-                        .push(editor::ignored_items(config, histories, modifiers).padding([10, 0, 0, 0])),
+                        .push(editor::ignored_items(config, histories, modifiers).padding(padding::top(10))),
                 )
                 .push(
                     Column::new()
                         .push(text(TRANSLATOR.redirects_label()))
-                        .push(editor::redirect(config, histories, modifiers).padding([10, 0, 0, 0])),
+                        .push(editor::redirect(config, histories, modifiers).padding(padding::top(10))),
                 );
             ScrollSubject::Other.into_widget(content)
         });

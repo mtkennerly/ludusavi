@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap};
 
-use iced::Alignment;
+use iced::{padding, Alignment};
 
 use crate::{
     gui::{
@@ -132,7 +132,7 @@ impl FileTreeNode {
                         },
                     })
                     .spacing(5)
-                    .style(style::Checkbox),
+                    .class(style::Checkbox),
                 )
                 .align_x(iced::alignment::Horizontal::Center)
                 .align_y(iced::alignment::Vertical::Center),
@@ -142,8 +142,8 @@ impl FileTreeNode {
         if self.nodes.is_empty() {
             return Container::new(
                 Row::new()
-                    .align_items(Alignment::Center)
-                    .padding([0, 10, 0, 35 * level])
+                    .align_y(Alignment::Center)
+                    .padding(padding::left(35 * level).right(10))
                     .spacing(10)
                     .push(match self.node_type {
                         FileTreeNodeType::File | FileTreeNodeType::RegistryValue(_) => {
@@ -151,7 +151,8 @@ impl FileTreeNode {
                         }
                         FileTreeNodeType::RegistryKey => Container::new(
                             Button::new(Icon::KeyboardArrowDown.text_small())
-                                .style(style::Button::Primary)
+                                .class(style::Button::Primary)
+                                .padding(5)
                                 .height(25)
                                 .width(25),
                         ),
@@ -215,8 +216,8 @@ impl FileTreeNode {
             self.nodes.iter().filter(|(_, v)| v.anything_showable()).fold(
                 Column::new().push(
                     Row::new()
-                        .align_items(Alignment::Center)
-                        .padding([0, 10, 0, 35 * level])
+                        .align_y(Alignment::Center)
+                        .padding(padding::left(35 * level).right(10))
                         .spacing(10)
                         .push(
                             Button::new(
@@ -231,7 +232,8 @@ impl FileTreeNode {
                                 name: game_name.to_string(),
                                 keys: self.keys.clone(),
                             })
-                            .style(style::Button::Primary)
+                            .class(style::Button::Primary)
+                            .padding(5)
                             .height(25)
                             .width(25),
                         )
@@ -250,7 +252,8 @@ impl FileTreeNode {
                             FileTreeNodePath::File(path) => Some(
                                 Button::new(Icon::OpenInNew.text_small())
                                     .on_press(Message::OpenDir { path: path.clone() })
-                                    .style(style::Button::Primary)
+                                    .class(style::Button::Primary)
+                                    .padding(5)
                                     .height(25),
                             ),
                             FileTreeNodePath::RegistryKey(..) | FileTreeNodePath::RegistryValue(..) => None,

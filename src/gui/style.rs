@@ -1,8 +1,7 @@
 use iced::{
     widget::{button, checkbox, container, pick_list, scrollable, text_input},
-    Border, Color, Shadow, Vector,
+    Background, Border, Color, Shadow, Vector,
 };
-use iced_style::menu;
 
 use crate::{resource::config, scan::ScanChange};
 
@@ -78,12 +77,8 @@ impl From<config::Theme> for Theme {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-pub struct Application;
-impl iced::application::StyleSheet for Theme {
-    type Style = Application;
-
-    fn appearance(&self, _style: &Self::Style) -> iced::application::Appearance {
+impl iced::application::DefaultStyle for Theme {
+    fn default_style(&self) -> iced::daemon::Appearance {
         iced::application::Appearance {
             background_color: self.background,
             text_color: self.text,
@@ -97,13 +92,17 @@ pub enum Text {
     Default,
     Failure,
 }
-impl iced::widget::text::StyleSheet for Theme {
-    type Style = Text;
+impl iced::widget::text::Catalog for Theme {
+    type Class<'a> = Text;
 
-    fn appearance(&self, style: Self::Style) -> iced::widget::text::Appearance {
-        match style {
-            Text::Default => iced::widget::text::Appearance { color: None },
-            Text::Failure => iced::widget::text::Appearance {
+    fn default<'a>() -> Self::Class<'a> {
+        Default::default()
+    }
+
+    fn style(&self, item: &Self::Class<'_>) -> iced::widget::text::Style {
+        match item {
+            Text::Default => iced::widget::text::Style { color: None },
+            Text::Failure => iced::widget::text::Style {
                 color: Some(self.negative),
             },
         }
@@ -112,11 +111,15 @@ impl iced::widget::text::StyleSheet for Theme {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Menu;
-impl iced_style::menu::StyleSheet for Theme {
-    type Style = Menu;
+impl iced::widget::overlay::menu::Catalog for Theme {
+    type Class<'a> = Menu;
 
-    fn appearance(&self, _style: &Self::Style) -> menu::Appearance {
-        menu::Appearance {
+    fn default<'a>() -> <Self as iced::overlay::menu::Catalog>::Class<'a> {
+        Default::default()
+    }
+
+    fn style(&self, _class: &<Self as iced::overlay::menu::Catalog>::Class<'_>) -> iced::overlay::menu::Style {
+        iced::overlay::menu::Style {
             background: self.field.into(),
             border: Border {
                 color: self.text.alpha(0.5),
@@ -127,12 +130,6 @@ impl iced_style::menu::StyleSheet for Theme {
             selected_background: self.positive.into(),
             selected_text_color: Color::WHITE,
         }
-    }
-}
-
-impl From<PickList> for Menu {
-    fn from(_: PickList) -> Self {
-        Self
     }
 }
 
@@ -151,90 +148,123 @@ pub enum Button {
     Badge,
     Bare,
 }
-impl button::StyleSheet for Theme {
-    type Style = Button;
+impl button::Catalog for Theme {
+    type Class<'a> = Button;
 
-    fn active(&self, style: &Self::Style) -> button::Appearance {
-        button::Appearance {
-            background: match style {
-                Self::Style::Primary | Self::Style::GameActionPrimary => Some(self.positive.into()),
-                Self::Style::GameListEntryTitle => Some(self.success.into()),
-                Self::Style::GameListEntryTitleFailed => Some(self.failure.into()),
-                Self::Style::GameListEntryTitleDisabled => Some(self.skipped.into()),
-                Self::Style::GameListEntryTitleUnscanned => None,
-                Self::Style::Negative => Some(self.negative.into()),
-                Self::Style::NavButtonActive => Some(self.navigation.alpha(0.9).into()),
-                Self::Style::NavButtonInactive => None,
-                Self::Style::Badge => None,
-                Self::Style::Bare => None,
+    fn default<'a>() -> Self::Class<'a> {
+        Default::default()
+    }
+
+    fn style(&self, class: &Self::Class<'_>, status: button::Status) -> button::Style {
+        let active = button::Style {
+            background: match class {
+                Button::Primary | Button::GameActionPrimary => Some(self.positive.into()),
+                Button::GameListEntryTitle => Some(self.success.into()),
+                Button::GameListEntryTitleFailed => Some(self.failure.into()),
+                Button::GameListEntryTitleDisabled => Some(self.skipped.into()),
+                Button::GameListEntryTitleUnscanned => None,
+                Button::Negative => Some(self.negative.into()),
+                Button::NavButtonActive => Some(self.navigation.alpha(0.9).into()),
+                Button::NavButtonInactive => None,
+                Button::Badge => None,
+                Button::Bare => None,
             },
             border: Border {
-                color: match style {
-                    Self::Style::NavButtonActive | Self::Style::NavButtonInactive => self.navigation,
+                color: match class {
+                    Button::NavButtonActive | Button::NavButtonInactive => self.navigation,
                     _ => Color::TRANSPARENT,
                 },
-                width: match style {
-                    Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 1.0,
+                width: match class {
+                    Button::NavButtonActive | Button::NavButtonInactive => 1.0,
                     _ => 0.0,
                 },
-                radius: match style {
-                    Self::Style::GameActionPrimary
-                    | Self::Style::GameListEntryTitle
-                    | Self::Style::GameListEntryTitleFailed
-                    | Self::Style::GameListEntryTitleDisabled
-                    | Self::Style::GameListEntryTitleUnscanned
-                    | Self::Style::NavButtonActive
-                    | Self::Style::NavButtonInactive => 10.0.into(),
+                radius: match class {
+                    Button::GameActionPrimary
+                    | Button::GameListEntryTitle
+                    | Button::GameListEntryTitleFailed
+                    | Button::GameListEntryTitleDisabled
+                    | Button::GameListEntryTitleUnscanned
+                    | Button::NavButtonActive
+                    | Button::NavButtonInactive => 10.0.into(),
                     _ => 4.0.into(),
                 },
             },
-            shadow_offset: match style {
-                Self::Style::NavButtonActive | Self::Style::NavButtonInactive => Vector::new(0.0, 0.0),
-                _ => Vector::new(1.0, 1.0),
-            },
-            text_color: match style {
-                Self::Style::GameListEntryTitleDisabled => self.text_skipped.alpha(0.8),
-                Self::Style::GameListEntryTitleUnscanned => self.text.alpha(0.8),
-                Self::Style::NavButtonInactive | Self::Style::Bare => self.text,
+            text_color: match class {
+                Button::GameListEntryTitleDisabled => self.text_skipped.alpha(0.8),
+                Button::GameListEntryTitleUnscanned => self.text.alpha(0.8),
+                Button::NavButtonInactive | Button::Bare => self.text,
                 _ => self.text_button.alpha(0.8),
             },
-            shadow: Shadow::default(),
-        }
-    }
+            shadow: Shadow {
+                offset: match class {
+                    Button::NavButtonActive | Button::NavButtonInactive => Vector::new(0.0, 0.0),
+                    _ => Vector::new(1.0, 1.0),
+                },
+                ..Default::default()
+            },
+        };
 
-    fn hovered(&self, style: &Self::Style) -> button::Appearance {
-        let active = self.active(style);
-        button::Appearance {
-            background: match style {
-                Self::Style::NavButtonActive => Some(self.navigation.alpha(0.95).into()),
-                Self::Style::NavButtonInactive => Some(self.navigation.alpha(0.2).into()),
-                _ => self.active(style).background,
-            },
-            border: Border {
-                color: match style {
-                    Self::Style::NavButtonActive | Self::Style::NavButtonInactive => self.navigation,
-                    _ => active.border.color,
+        match status {
+            button::Status::Active => active,
+            button::Status::Hovered => button::Style {
+                background: match class {
+                    Button::NavButtonActive => Some(self.navigation.alpha(0.95).into()),
+                    Button::NavButtonInactive => Some(self.navigation.alpha(0.2).into()),
+                    _ => active.background,
                 },
-                width: match style {
-                    Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 1.0,
-                    _ => active.border.width,
+                border: Border {
+                    color: match class {
+                        Button::NavButtonActive | Button::NavButtonInactive => self.navigation,
+                        _ => active.border.color,
+                    },
+                    width: match class {
+                        Button::NavButtonActive | Button::NavButtonInactive => 1.0,
+                        _ => active.border.width,
+                    },
+                    radius: match class {
+                        Button::NavButtonActive | Button::NavButtonInactive => 10.0.into(),
+                        _ => active.border.radius,
+                    },
                 },
-                radius: match style {
-                    Self::Style::NavButtonActive | Self::Style::NavButtonInactive => 10.0.into(),
-                    _ => active.border.radius,
+                text_color: match class {
+                    Button::GameListEntryTitleDisabled => self.text_skipped,
+                    Button::GameListEntryTitleUnscanned | Button::NavButtonInactive => self.text,
+                    Button::Bare => self.text.alpha(0.9),
+                    _ => self.text_button,
+                },
+                shadow: Shadow {
+                    offset: match class {
+                        Button::NavButtonActive | Button::NavButtonInactive => Vector::new(0.0, 0.0),
+                        _ => Vector::new(1.0, 2.0),
+                    },
+                    ..Default::default()
                 },
             },
-            text_color: match style {
-                Self::Style::GameListEntryTitleDisabled => self.text_skipped,
-                Self::Style::GameListEntryTitleUnscanned | Self::Style::NavButtonInactive => self.text,
-                Self::Style::Bare => self.text.alpha(0.9),
-                _ => self.text_button,
+            button::Status::Pressed => button::Style {
+                shadow: Shadow {
+                    offset: Vector::default(),
+                    ..active.shadow
+                },
+                ..active
             },
-            shadow_offset: match style {
-                Self::Style::NavButtonActive | Self::Style::NavButtonInactive => Vector::new(0.0, 0.0),
-                _ => Vector::new(1.0, 2.0),
+            button::Status::Disabled => button::Style {
+                shadow: Shadow {
+                    offset: Vector::default(),
+                    ..active.shadow
+                },
+                background: active.background.map(|background| match background {
+                    Background::Color(color) => Background::Color(Color {
+                        a: color.a * 0.5,
+                        ..color
+                    }),
+                    Background::Gradient(gradient) => Background::Gradient(gradient.scale_alpha(0.5)),
+                }),
+                text_color: Color {
+                    a: active.text_color.a * 0.5,
+                    ..active.text_color
+                },
+                ..active
             },
-            shadow: Shadow::default(),
         }
     }
 }
@@ -254,64 +284,68 @@ pub enum Container {
     Notification,
     Tooltip,
 }
-impl container::StyleSheet for Theme {
-    type Style = Container;
+impl container::Catalog for Theme {
+    type Class<'a> = Container;
 
-    fn appearance(&self, style: &Self::Style) -> container::Appearance {
-        container::Appearance {
-            background: Some(match style {
-                Self::Style::Wrapper => Color::TRANSPARENT.into(),
-                Self::Style::GameListEntry => self.field.alpha(0.15).into(),
-                Self::Style::ModalBackground | Self::Style::Notification | Self::Style::Tooltip => self.field.into(),
-                Self::Style::DisabledBackup => self.disabled.into(),
-                Self::Style::BadgeActivated => self.negative.into(),
+    fn default<'a>() -> Self::Class<'a> {
+        Default::default()
+    }
+
+    fn style(&self, class: &Self::Class<'_>) -> container::Style {
+        container::Style {
+            background: Some(match class {
+                Container::Wrapper => Color::TRANSPARENT.into(),
+                Container::GameListEntry => self.field.alpha(0.15).into(),
+                Container::ModalBackground | Container::Notification | Container::Tooltip => self.field.into(),
+                Container::DisabledBackup => self.disabled.into(),
+                Container::BadgeActivated => self.negative.into(),
                 _ => self.background.into(),
             }),
             border: Border {
-                color: match style {
-                    Self::Style::Wrapper => Color::TRANSPARENT,
-                    Self::Style::GameListEntry | Self::Style::Notification => self.field,
-                    Self::Style::ChangeBadge(change) => match change {
+                color: match class {
+                    Container::Wrapper => Color::TRANSPARENT,
+                    Container::GameListEntry | Container::Notification => self.field,
+                    Container::ChangeBadge(change) => match change {
                         ScanChange::New => self.added,
                         ScanChange::Different => self.positive,
                         ScanChange::Removed => self.negative,
                         ScanChange::Same | ScanChange::Unknown => self.disabled,
                     },
-                    Self::Style::BadgeActivated => self.negative,
-                    Self::Style::BadgeFaded => self.disabled,
+                    Container::BadgeActivated => self.negative,
+                    Container::BadgeFaded => self.disabled,
                     _ => self.text,
                 },
-                width: match style {
-                    Self::Style::GameListEntry
-                    | Self::Style::Badge
-                    | Self::Style::BadgeActivated
-                    | Self::Style::BadgeFaded
-                    | Self::Style::ChangeBadge(..)
-                    | Self::Style::Notification => 1.0,
+                width: match class {
+                    Container::GameListEntry
+                    | Container::Badge
+                    | Container::BadgeActivated
+                    | Container::BadgeFaded
+                    | Container::ChangeBadge(..)
+                    | Container::Notification => 1.0,
                     _ => 0.0,
                 },
-                radius: match style {
-                    Self::Style::GameListEntry
-                    | Self::Style::Badge
-                    | Self::Style::BadgeActivated
-                    | Self::Style::BadgeFaded
-                    | Self::Style::ChangeBadge(..)
-                    | Self::Style::DisabledBackup => 10.0.into(),
-                    Self::Style::Notification | Self::Style::Tooltip => 20.0.into(),
+                radius: match class {
+                    Container::GameListEntry
+                    | Container::Badge
+                    | Container::BadgeActivated
+                    | Container::BadgeFaded
+                    | Container::ChangeBadge(..)
+                    | Container::DisabledBackup => 10.0.into(),
+                    Container::Notification | Container::Tooltip => 20.0.into(),
                     _ => 0.0.into(),
                 },
             },
-            text_color: match style {
-                Self::Style::Wrapper => None,
-                Self::Style::DisabledBackup => Some(self.text_inverted),
-                Self::Style::ChangeBadge(change) => match change {
+            text_color: match class {
+                Container::Wrapper => None,
+                Container::DisabledBackup => Some(self.text_inverted),
+                Container::ChangeBadge(change) => match change {
                     ScanChange::New => Some(self.added),
                     ScanChange::Different => Some(self.positive),
                     ScanChange::Removed => Some(self.negative),
                     ScanChange::Same | ScanChange::Unknown => Some(self.disabled),
                 },
-                Self::Style::BadgeActivated => Some(self.text_button),
-                Self::Style::BadgeFaded => Some(self.disabled),
+                Container::BadgeActivated => Some(self.text_button),
+                Container::BadgeFaded => Some(self.disabled),
                 _ => Some(self.text),
             },
             shadow: Shadow {
@@ -325,13 +359,33 @@ impl container::StyleSheet for Theme {
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Scrollable;
-impl scrollable::StyleSheet for Theme {
-    type Style = Scrollable;
+impl scrollable::Catalog for Theme {
+    type Class<'a> = Scrollable;
 
-    fn active(&self, _style: &Self::Style) -> scrollable::Appearance {
-        scrollable::Appearance {
-            container: container::Appearance::default(),
-            scrollbar: scrollable::Scrollbar {
+    fn default<'a>() -> Self::Class<'a> {
+        Default::default()
+    }
+
+    fn style(&self, _class: &Self::Class<'_>, status: scrollable::Status) -> scrollable::Style {
+        let active = scrollable::Style {
+            container: container::Style::default(),
+            vertical_rail: scrollable::Rail {
+                background: Some(Color::TRANSPARENT.into()),
+                border: Border {
+                    color: Color::TRANSPARENT,
+                    width: 0.0,
+                    radius: 5.0.into(),
+                },
+                scroller: scrollable::Scroller {
+                    color: self.text.alpha(0.7),
+                    border: Border {
+                        color: Color::TRANSPARENT,
+                        width: 0.0,
+                        radius: 5.0.into(),
+                    },
+                },
+            },
+            horizontal_rail: scrollable::Rail {
                 background: Some(Color::TRANSPARENT.into()),
                 border: Border {
                     color: Color::TRANSPARENT,
@@ -348,26 +402,45 @@ impl scrollable::StyleSheet for Theme {
                 },
             },
             gap: None,
-        }
-    }
+        };
 
-    fn hovered(&self, style: &Self::Style, is_mouse_over_scrollbar: bool) -> scrollable::Appearance {
-        let active = self.active(style);
+        match status {
+            scrollable::Status::Active => active,
+            scrollable::Status::Hovered {
+                is_horizontal_scrollbar_hovered,
+                is_vertical_scrollbar_hovered,
+            } => {
+                if !is_horizontal_scrollbar_hovered && !is_vertical_scrollbar_hovered {
+                    return active;
+                }
 
-        if !is_mouse_over_scrollbar {
-            return active;
-        }
-
-        scrollable::Appearance {
-            scrollbar: scrollable::Scrollbar {
-                background: Some(self.text.alpha(0.4).into()),
-                border: Border {
-                    color: self.text.alpha(0.8),
-                    ..active.scrollbar.border
+                scrollable::Style {
+                    vertical_rail: scrollable::Rail {
+                        background: Some(self.text.alpha(0.4).into()),
+                        border: Border {
+                            color: self.text.alpha(0.8),
+                            ..active.vertical_rail.border
+                        },
+                        ..active.vertical_rail
+                    },
+                    horizontal_rail: scrollable::Rail {
+                        background: Some(self.text.alpha(0.4).into()),
+                        border: Border {
+                            color: self.text.alpha(0.8),
+                            ..active.horizontal_rail.border
+                        },
+                        ..active.horizontal_rail
+                    },
+                    ..active
+                }
+            }
+            scrollable::Status::Dragged { .. } => self.style(
+                _class,
+                scrollable::Status::Hovered {
+                    is_horizontal_scrollbar_hovered: true,
+                    is_vertical_scrollbar_hovered: true,
                 },
-                ..active.scrollbar
-            },
-            ..active
+            ),
         }
     }
 }
@@ -379,41 +452,51 @@ pub enum PickList {
     Backup,
     Popup,
 }
-impl pick_list::StyleSheet for Theme {
-    type Style = PickList;
+impl pick_list::Catalog for Theme {
+    type Class<'a> = PickList;
 
-    fn active(&self, style: &Self::Style) -> pick_list::Appearance {
-        pick_list::Appearance {
+    fn default<'a>() -> <Self as pick_list::Catalog>::Class<'a> {
+        Default::default()
+    }
+
+    fn style(&self, class: &<Self as pick_list::Catalog>::Class<'_>, status: pick_list::Status) -> pick_list::Style {
+        let active = pick_list::Style {
             border: Border {
                 color: self.text.alpha(0.7),
                 width: 1.0,
-                radius: match style {
-                    Self::Style::Primary => 5.0.into(),
-                    Self::Style::Backup | Self::Style::Popup => 10.0.into(),
+                radius: match class {
+                    PickList::Primary => 5.0.into(),
+                    PickList::Backup | PickList::Popup => 10.0.into(),
                 },
             },
             background: self.field.alpha(0.6).into(),
             text_color: self.text,
             placeholder_color: iced::Color::BLACK,
             handle_color: self.text,
-        }
-    }
+        };
 
-    fn hovered(&self, style: &Self::Style) -> pick_list::Appearance {
-        pick_list::Appearance {
-            background: self.field.into(),
-            ..self.active(style)
+        match status {
+            pick_list::Status::Active => active,
+            pick_list::Status::Hovered => pick_list::Style {
+                background: self.field.into(),
+                ..active
+            },
+            pick_list::Status::Opened => active,
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct Checkbox;
-impl checkbox::StyleSheet for Theme {
-    type Style = Checkbox;
+impl checkbox::Catalog for Theme {
+    type Class<'a> = Checkbox;
 
-    fn active(&self, _style: &Self::Style, _is_checked: bool) -> checkbox::Appearance {
-        checkbox::Appearance {
+    fn default<'a>() -> Self::Class<'a> {
+        Default::default()
+    }
+
+    fn style(&self, _class: &Self::Class<'_>, status: checkbox::Status) -> checkbox::Style {
+        let active = checkbox::Style {
             background: self.field.alpha(0.6).into(),
             icon_color: self.text,
             border: Border {
@@ -422,80 +505,86 @@ impl checkbox::StyleSheet for Theme {
                 radius: 5.0.into(),
             },
             text_color: Some(self.text),
-        }
-    }
+        };
 
-    fn hovered(&self, style: &Self::Style, is_checked: bool) -> checkbox::Appearance {
-        checkbox::Appearance {
-            background: self.field.into(),
-            ..self.active(style, is_checked)
+        match status {
+            checkbox::Status::Active { .. } => active,
+            checkbox::Status::Hovered { .. } => checkbox::Style {
+                background: self.field.into(),
+                ..active
+            },
+            checkbox::Status::Disabled { .. } => checkbox::Style {
+                background: match active.background {
+                    Background::Color(color) => Background::Color(Color {
+                        a: color.a * 0.5,
+                        ..color
+                    }),
+                    Background::Gradient(gradient) => Background::Gradient(gradient.scale_alpha(0.5)),
+                },
+                ..active
+            },
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct TextInput;
-impl text_input::StyleSheet for Theme {
-    type Style = TextInput;
+impl text_input::Catalog for Theme {
+    type Class<'a> = TextInput;
 
-    fn active(&self, _style: &Self::Style) -> text_input::Appearance {
-        text_input::Appearance {
+    fn default<'a>() -> Self::Class<'a> {
+        Default::default()
+    }
+
+    fn style(&self, _class: &Self::Class<'_>, status: text_input::Status) -> text_input::Style {
+        let active = text_input::Style {
             background: Color::TRANSPARENT.into(),
             border: Border {
                 color: self.text.alpha(0.8),
                 width: 1.0,
                 radius: 5.0.into(),
             },
-            icon_color: self.negative,
-        }
-    }
+            icon: self.negative,
+            placeholder: self.text.alpha(0.5),
+            value: self.text,
+            selection: self.text_selection,
+        };
 
-    fn focused(&self, style: &Self::Style) -> text_input::Appearance {
-        let active = self.active(style);
-
-        text_input::Appearance {
-            border: Border {
-                color: self.text,
-                ..active.border
+        match status {
+            text_input::Status::Active => active,
+            text_input::Status::Hovered | text_input::Status::Focused => text_input::Style {
+                border: Border {
+                    color: self.text,
+                    ..active.border
+                },
+                ..active
             },
-            ..active
-        }
-    }
-
-    fn placeholder_color(&self, _style: &Self::Style) -> Color {
-        self.text.alpha(0.5)
-    }
-
-    fn value_color(&self, _style: &Self::Style) -> Color {
-        self.text
-    }
-
-    fn disabled_color(&self, _style: &Self::Style) -> Color {
-        self.text.alpha(0.5)
-    }
-
-    fn selection_color(&self, _style: &Self::Style) -> Color {
-        self.text_selection
-    }
-
-    fn disabled(&self, style: &Self::Style) -> text_input::Appearance {
-        text_input::Appearance {
-            background: self.disabled.into(),
-            ..self.active(style)
+            text_input::Status::Disabled => text_input::Style {
+                background: self.disabled.into(),
+                value: self.text.alpha(0.5),
+                ..active
+            },
         }
     }
 }
 
 #[derive(Clone, Copy, Debug, Default)]
 pub struct ProgressBar;
-impl iced::widget::progress_bar::StyleSheet for Theme {
-    type Style = ProgressBar;
+impl iced::widget::progress_bar::Catalog for Theme {
+    type Class<'a> = ProgressBar;
 
-    fn appearance(&self, _style: &Self::Style) -> iced_style::progress_bar::Appearance {
-        iced_style::progress_bar::Appearance {
+    fn default<'a>() -> Self::Class<'a> {
+        Default::default()
+    }
+
+    fn style(&self, _class: &Self::Class<'_>) -> iced::widget::progress_bar::Style {
+        iced::widget::progress_bar::Style {
             background: self.disabled.into(),
             bar: self.added.into(),
-            border_radius: 4.0.into(),
+            border: Border {
+                radius: 4.0.into(),
+                ..Default::default()
+            },
         }
     }
 }

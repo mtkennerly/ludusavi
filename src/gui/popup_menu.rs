@@ -4,6 +4,7 @@
 //! Display a dropdown list of selectable values.
 use std::borrow::Cow;
 
+pub use iced::widget::pick_list::{Catalog, Status};
 use iced::{
     advanced::{
         self, layout, overlay, renderer, text,
@@ -13,21 +14,16 @@ use iced::{
     alignment,
     event::{self, Event},
     mouse, touch,
-    widget::{
-        container,
-        overlay::menu::{self, Menu},
-        scrollable,
-    },
+    widget::overlay::menu::{self, Menu},
     Border, Element, Length, Padding, Rectangle, Shadow, Size, Vector,
 };
-pub use iced_style::pick_list::StyleSheet;
 
 /// A widget for selecting a single value from a list of options.
 #[allow(missing_debug_implementations)]
 pub struct PopupMenu<'a, T, Message, Theme = crate::gui::style::Theme, Renderer = iced::Renderer>
 where
     [T]: ToOwned<Owned = Vec<T>>,
-    Theme: StyleSheet,
+    Theme: Catalog,
     Renderer: text::Renderer,
 {
     on_selected: Box<dyn Fn(T) -> Message + 'a>,
@@ -36,15 +32,15 @@ where
     padding: Padding,
     text_size: Option<f32>,
     font: Option<Renderer::Font>,
-    style: Theme::Style,
+    style: <Theme as Catalog>::Class<'a>,
+    menu_style: <Theme as menu::Catalog>::Class<'a>,
 }
 
 impl<'a, T: 'a, Message, Theme, Renderer> PopupMenu<'a, T, Message, Theme, Renderer>
 where
     T: ToString + Eq,
     [T]: ToOwned<Owned = Vec<T>>,
-    Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet,
-    <Theme as menu::StyleSheet>::Style: From<<Theme as StyleSheet>::Style>,
+    Theme: Catalog,
     Renderer: text::Renderer,
 {
     /// The default padding of a [`PopupMenu`].
@@ -60,7 +56,8 @@ where
             text_size: None,
             padding: Self::DEFAULT_PADDING,
             font: None,
-            style: Default::default(),
+            style: <Theme as Catalog>::default(),
+            menu_style: <Theme as menu::Catalog>::default(),
         }
     }
 
@@ -71,8 +68,14 @@ where
     }
 
     /// Sets the style of the [`PopupMenu`].
-    pub fn style(mut self, style: impl Into<<Theme as StyleSheet>::Style>) -> Self {
+    pub fn class(mut self, style: impl Into<<Theme as Catalog>::Class<'a>>) -> Self {
         self.style = style.into();
+        self
+    }
+
+    /// Sets the style of the [`Menu`].
+    pub fn menu_class(mut self, style: impl Into<<Theme as menu::Catalog>::Class<'a>>) -> Self {
+        self.menu_style = style.into();
         self
     }
 }
@@ -83,8 +86,7 @@ where
     T: Clone + ToString + Eq + 'static,
     [T]: ToOwned<Owned = Vec<T>>,
     Message: 'a,
-    Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet,
-    <Theme as menu::StyleSheet>::Style: From<<Theme as StyleSheet>::Style>,
+    Theme: Catalog,
     Renderer: text::Renderer<Font = iced::Font> + 'a,
 {
     fn tag(&self) -> tree::Tag {
@@ -162,17 +164,34 @@ where
     ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
         let state = tree.state.downcast_mut::<State<T>>();
 
-        overlay(
-            layout,
-            translation,
-            state,
-            self.padding,
-            self.text_size,
-            self.font.unwrap_or_else(|| renderer.default_font()),
-            &self.options,
-            &self.on_selected,
-            self.style.clone(),
-        )
+        if state.is_open {
+            let bounds = layout.bounds();
+
+            let mut menu = Menu::new(
+                &mut state.menu,
+                &self.options,
+                &mut state.hovered_option,
+                |option| {
+                    state.is_open = false;
+
+                    (self.on_selected)(option)
+                },
+                None,
+                &self.menu_style,
+            )
+            .width(150.0)
+            .padding(self.padding)
+            .font(self.font.unwrap_or_else(|| renderer.default_font()))
+            .text_shaping(text::Shaping::Advanced);
+
+            if let Some(text_size) = self.text_size {
+                menu = menu.text_size(text_size);
+            }
+
+            Some(menu.overlay(layout.position() + translation, bounds.height))
+        } else {
+            None
+        }
     }
 }
 
@@ -182,8 +201,7 @@ where
     T: Clone + ToString + Eq + 'static,
     [T]: ToOwned<Owned = Vec<T>>,
     Message: 'a,
-    Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet + 'a,
-    <Theme as menu::StyleSheet>::Style: From<<Theme as StyleSheet>::Style>,
+    Theme: Catalog + 'a,
     Renderer: text::Renderer<Font = iced::Font> + 'a,
 {
     fn from(pick_list: PopupMenu<'a, T, Message, Theme, Renderer>) -> Self {
@@ -319,74 +337,23 @@ pub fn mouse_interaction(layout: Layout<'_>, cursor: mouse::Cursor, usable: bool
     }
 }
 
-/// Returns the current overlay of a [`PopupMenu`].
-pub fn overlay<'a, T, Message, Theme, Renderer>(
-    layout: Layout<'_>,
-    translation: Vector,
-    state: &'a mut State<T>,
-    padding: Padding,
-    text_size: Option<f32>,
-    font: Renderer::Font,
-    options: &'a [T],
-    on_selected: &'a dyn Fn(T) -> Message,
-    style: <Theme as StyleSheet>::Style,
-) -> Option<overlay::Element<'a, Message, Theme, Renderer>>
-where
-    T: Clone + ToString,
-    Message: 'a,
-    Theme: StyleSheet + scrollable::StyleSheet + menu::StyleSheet + container::StyleSheet + 'a,
-    <Theme as menu::StyleSheet>::Style: From<<Theme as StyleSheet>::Style>,
-    Renderer: text::Renderer + 'a,
-{
-    if state.is_open {
-        let bounds = layout.bounds();
-
-        let mut menu = Menu::new(
-            &mut state.menu,
-            options,
-            &mut state.hovered_option,
-            |option| {
-                state.is_open = false;
-
-                (on_selected)(option)
-            },
-            None,
-        )
-        .width(150.0)
-        .padding(padding)
-        .font(font)
-        .text_shaping(text::Shaping::Advanced)
-        .style(style);
-
-        if let Some(text_size) = text_size {
-            menu = menu.text_size(text_size);
-        }
-
-        Some(menu.overlay(layout.position() + translation, bounds.height))
-    } else {
-        None
-    }
-}
-
 /// Draws a [`PopupMenu`].
 pub fn draw<Theme, Renderer>(
     renderer: &mut Renderer,
     theme: &Theme,
     layout: Layout<'_>,
     cursor: mouse::Cursor,
-    style: &<Theme as StyleSheet>::Style,
+    style: &<Theme as Catalog>::Class<'_>,
 ) where
-    Theme: StyleSheet,
+    Theme: Catalog,
     Renderer: text::Renderer<Font = iced::Font>,
 {
     let bounds = layout.bounds();
     let is_mouse_over = cursor.is_over(bounds);
 
-    let style = if is_mouse_over {
-        theme.hovered(style)
-    } else {
-        theme.active(style)
-    };
+    let status = if is_mouse_over { Status::Hovered } else { Status::Active };
+
+    let style = <Theme as Catalog>::style(theme, style, status);
 
     if is_mouse_over {
         renderer.fill_quad(
@@ -410,7 +377,7 @@ pub fn draw<Theme, Renderer>(
     let icon_size = 0.5;
     renderer.fill_text(
         advanced::Text {
-            content: &crate::gui::icon::Icon::MoreVert.as_char().to_string(),
+            content: crate::gui::icon::Icon::MoreVert.as_char().to_string(),
             font: crate::gui::font::ICONS,
             size: (bounds.height * icon_size * 1.5).into(),
             bounds: Size {
@@ -421,6 +388,7 @@ pub fn draw<Theme, Renderer>(
             vertical_alignment: alignment::Vertical::Center,
             line_height: text::LineHeight::default(),
             shaping: text::Shaping::Advanced,
+            wrapping: text::Wrapping::Word,
         },
         bounds.center(),
         style.text_color,

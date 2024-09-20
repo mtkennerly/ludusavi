@@ -1,5 +1,5 @@
 use fuzzy_matcher::FuzzyMatcher;
-use iced::Alignment;
+use iced::{padding, Alignment};
 
 use crate::{
     gui::{
@@ -40,7 +40,7 @@ fn template<'a, T: 'static + Default + Copy + Eq + PartialEq + ToString>(
 ) -> Element<'a> {
     Row::new()
         .spacing(10)
-        .align_items(Alignment::Center)
+        .align_y(Alignment::Center)
         .push(
             checkbox("", filter.active, move |enabled| Message::ToggledSearchFilter {
                 filter: kind,
@@ -60,7 +60,7 @@ fn template_noncopy<T: 'static + Default + Clone + Eq + PartialEq + ToString>(
 ) -> Element {
     Row::new()
         .spacing(10)
-        .align_items(Alignment::Center)
+        .align_y(Alignment::Center)
         .push(
             checkbox("", filter.active, move |enabled| Message::ToggledSearchFilter {
                 filter: kind,
@@ -81,7 +81,7 @@ fn template_with_label<T: 'static + Default + Clone + Eq + PartialEq + ToString>
 ) -> Element {
     Row::new()
         .spacing(10)
-        .align_items(Alignment::Center)
+        .align_y(Alignment::Center)
         .push(checkbox(label, filter.active, move |enabled| {
             Message::ToggledSearchFilter { filter: kind, enabled }
         }))
@@ -140,9 +140,9 @@ impl FilterComponent {
             Column::new()
                 .push(
                     Row::new()
-                        .padding([0, 20, 10, 20])
+                        .padding(padding::top(0).bottom(10).left(20).right(20))
                         .spacing(20)
-                        .align_items(Alignment::Center)
+                        .align_y(Alignment::Center)
                         .push(text(TRANSLATOR.filter_label()))
                         .push(histories.input(match screen {
                             Screen::Restore => UndoSubject::RestoreSearchGameName,
@@ -151,9 +151,9 @@ impl FilterComponent {
                 )
                 .push(
                     Row::new()
-                        .padding([0, 20, 20, 20])
+                        .padding(padding::all(20).top(0))
                         .spacing(20)
-                        .align_items(Alignment::Center)
+                        .align_y(Alignment::Center)
                         .push(template(
                             &self.uniqueness,
                             FilterKind::Uniqueness,
@@ -191,9 +191,9 @@ impl FilterComponent {
                 )
                 .push_if(manifests.len() > 2, || {
                     Row::new()
-                        .padding([0, 20, 20, 20])
+                        .padding(padding::all(20).top(0))
                         .spacing(20)
-                        .align_items(Alignment::Center)
+                        .align_y(Alignment::Center)
                         .push(template_with_label(
                             &self.manifest,
                             TRANSLATOR.source_field(),

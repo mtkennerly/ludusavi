@@ -1,6 +1,8 @@
 use std::collections::{BTreeSet, HashSet};
 
-use iced::{alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, widget::tooltip, Alignment, Length};
+use iced::{
+    alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, padding, widget::tooltip, Alignment, Length,
+};
 
 use crate::{
     gui::{
@@ -67,11 +69,11 @@ impl GameListEntry {
             Column::new()
                 .padding(5)
                 .spacing(5)
-                .align_items(Alignment::Center)
+                .align_x(Alignment::Center)
                 .push(
                     Row::new()
                         .spacing(15)
-                        .align_items(Alignment::Center)
+                        .align_y(Alignment::Center)
                         .push({
                             let name = name.clone();
                             checkbox("", enabled, move |enabled| Message::ToggleGameListEntryEnabled {
@@ -80,43 +82,41 @@ impl GameListEntry {
                                 restoring,
                             })
                             .spacing(0)
-                            .style(style::Checkbox)
+                            .class(style::Checkbox)
                         })
                         .push(
-                            Button::new(
-                                text(display_name.to_string()).horizontal_alignment(HorizontalAlignment::Center),
-                            )
-                            .on_press_maybe(if self.scanned {
-                                Some(Message::ToggleGameListEntryExpanded {
-                                    name: self.scan_info.game_name.clone(),
-                                })
-                            } else if !operating {
-                                if restoring {
-                                    Some(Message::Restore(RestorePhase::Start {
-                                        preview: true,
-                                        games: Some(vec![self.scan_info.game_name.clone()]),
-                                    }))
+                            Button::new(text(display_name.to_string()).align_x(HorizontalAlignment::Center))
+                                .on_press_maybe(if self.scanned {
+                                    Some(Message::ToggleGameListEntryExpanded {
+                                        name: self.scan_info.game_name.clone(),
+                                    })
+                                } else if !operating {
+                                    if restoring {
+                                        Some(Message::Restore(RestorePhase::Start {
+                                            preview: true,
+                                            games: Some(vec![self.scan_info.game_name.clone()]),
+                                        }))
+                                    } else {
+                                        Some(Message::Backup(BackupPhase::Start {
+                                            preview: true,
+                                            repair: false,
+                                            games: Some(vec![self.scan_info.game_name.clone()]),
+                                        }))
+                                    }
                                 } else {
-                                    Some(Message::Backup(BackupPhase::Start {
-                                        preview: true,
-                                        repair: false,
-                                        games: Some(vec![self.scan_info.game_name.clone()]),
-                                    }))
-                                }
-                            } else {
-                                None
-                            })
-                            .style(if !self.scanned {
-                                style::Button::GameListEntryTitleUnscanned
-                            } else if !enabled || all_items_ignored {
-                                style::Button::GameListEntryTitleDisabled
-                            } else if successful {
-                                style::Button::GameListEntryTitle
-                            } else {
-                                style::Button::GameListEntryTitleFailed
-                            })
-                            .width(Length::Fill)
-                            .padding(2),
+                                    None
+                                })
+                                .class(if !self.scanned {
+                                    style::Button::GameListEntryTitleUnscanned
+                                } else if !enabled || all_items_ignored {
+                                    style::Button::GameListEntryTitleDisabled
+                                } else if successful {
+                                    style::Button::GameListEntryTitle
+                                } else {
+                                    style::Button::GameListEntryTitleFailed
+                                })
+                                .width(Length::Fill)
+                                .padding(2),
                         )
                         .push_maybe(match changes {
                             ScanChange::New => Some(Badge::new_entry().view()),
@@ -158,7 +158,7 @@ impl GameListEntry {
                             self.scan_info
                                 .backup
                                 .as_ref()
-                                .and_then(|backup| backup.comment())
+                                .and_then(|backup| backup.comment().cloned())
                                 .map(|comment| {
                                     Tooltip::new(
                                         Icon::Comment.text().width(Length::Shrink),
@@ -166,7 +166,7 @@ impl GameListEntry {
                                         tooltip::Position::Top,
                                     )
                                     .gap(5)
-                                    .style(style::Container::Tooltip)
+                                    .class(style::Container::Tooltip)
                                 })
                         })
                         .push_maybe({
@@ -199,13 +199,11 @@ impl GameListEntry {
                                                 text(backup.label())
                                                     .size(14)
                                                     .line_height(1.1)
-                                                    .horizontal_alignment(HorizontalAlignment::Center),
+                                                    .align_x(HorizontalAlignment::Center),
                                             )
-                                            .padding([2, 2, 0, 0])
-                                            .width(150)
-                                            .height(20)
-                                            .center_x()
-                                            .center_y()
+                                            .padding(padding::top(2).right(2))
+                                            .center_x(150)
+                                            .center_y(20)
                                         })
                                     } else if !self.scan_info.available_backups.is_empty() {
                                         if operating {
@@ -214,16 +212,14 @@ impl GameListEntry {
                                                     Container::new(
                                                         text(backup.label())
                                                             .size(14)
-                                                            .horizontal_alignment(HorizontalAlignment::Center),
+                                                            .align_x(HorizontalAlignment::Center),
                                                     )
-                                                    .padding([2, 0, 0, 0])
-                                                    .width(148)
-                                                    .height(25)
-                                                    .center_x()
-                                                    .center_y()
-                                                    .style(style::Container::DisabledBackup),
+                                                    .padding(padding::top(2))
+                                                    .center_x(148)
+                                                    .center_y(25)
+                                                    .class(style::Container::DisabledBackup),
                                                 )
-                                                .padding([0, 2, 0, 0])
+                                                .padding(padding::right(2))
                                             })
                                         } else {
                                             let game = self.scan_info.game_name.clone();
@@ -238,13 +234,11 @@ impl GameListEntry {
                                                 )
                                                 .text_size(12)
                                                 .width(Length::Fill)
-                                                .style(style::PickList::Backup),
+                                                .class(style::PickList::Backup),
                                             )
-                                            .width(150)
-                                            .height(25)
-                                            .padding([0, 2, 0, 0])
-                                            .center_x()
-                                            .center_y();
+                                            .padding(padding::right(2))
+                                            .center_x(150)
+                                            .center_y(25);
                                             Some(content)
                                         }
                                     } else {
@@ -274,7 +268,7 @@ impl GameListEntry {
                                                 action,
                                                 game: self.scan_info.game_name.clone(),
                                             })
-                                            .style(style::Button::GameActionPrimary)
+                                            .class(style::Button::GameActionPrimary)
                                             .padding(2);
                                         Container::new(
                                             Tooltip::new(
@@ -283,7 +277,7 @@ impl GameListEntry {
                                                 tooltip::Position::Top,
                                             )
                                             .gap(5)
-                                            .style(style::Container::Tooltip),
+                                            .class(style::Container::Tooltip),
                                         )
                                     } else {
                                         let options = GameAction::options(
@@ -307,7 +301,7 @@ impl GameListEntry {
                                             }
                                         })
                                         .width(49)
-                                        .style(style::PickList::Popup);
+                                        .class(style::PickList::Popup);
                                         Container::new(menu)
                                     }
                                 })
@@ -320,14 +314,13 @@ impl GameListEntry {
                                             TRANSLATOR.adjusted_size(summed)
                                         }
                                     }))
-                                    .width(115)
-                                    .center_x(),
+                                    .center_x(115),
                                 ),
                         ),
                 )
                 .push_if(self.show_comment_editor, || {
                     Row::new()
-                        .align_items(Alignment::Center)
+                        .align_y(Alignment::Center)
                         .padding([0, 20])
                         .spacing(20)
                         .push(text(TRANSLATOR.comment_label()))
@@ -348,7 +341,7 @@ impl GameListEntry {
                         .flatten()
                 }),
         )
-        .style(style::Container::GameListEntry)
+        .class(style::Container::GameListEntry)
     }
 
     pub fn refresh_tree(&mut self, duplicate_detector: &DuplicateDetector, config: &Config, restoring: bool) {
@@ -448,7 +441,10 @@ impl GameList {
                                 .unwrap_or(true)
                         })
                         .fold(
-                            Column::new().width(Length::Fill).padding([0, 15, 5, 15]).spacing(5),
+                            Column::new()
+                                .width(Length::Fill)
+                                .padding(padding::bottom(5).left(15).right(15))
+                                .spacing(5),
                             |parent, x| {
                                 parent.push(x.view(
                                     restoring,

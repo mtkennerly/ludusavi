@@ -20,7 +20,7 @@ pub type Checkbox<'a> = w::Checkbox<'a, Message, Theme, Renderer>;
 pub type Column<'a> = w::Column<'a, Message, Theme, Renderer>;
 pub type Container<'a> = w::Container<'a, Message, Theme, Renderer>;
 pub type PickList<'a, T, L, V> = w::PickList<'a, T, L, V, Message, Theme, Renderer>;
-pub type ProgressBar = w::ProgressBar<Theme>;
+pub type ProgressBar<'a> = w::ProgressBar<'a, Theme>;
 pub type Row<'a> = w::Row<'a, Message, Theme, Renderer>;
 pub type Scrollable<'a> = w::Scrollable<'a, Message, Theme, Renderer>;
 pub type Text<'a> = w::Text<'a, Theme, Renderer>;
@@ -33,6 +33,7 @@ pub use w::Space;
 pub fn checkbox<'a>(label: impl Into<String>, is_checked: bool, f: impl Fn(bool) -> Message + 'a) -> Checkbox<'a> {
     Checkbox::new(label, is_checked)
         .on_toggle(f)
+        .size(20)
         .text_shaping(w::text::Shaping::Advanced)
 }
 
@@ -46,15 +47,14 @@ where
     L: std::borrow::Borrow<[T]> + 'a,
     V: std::borrow::Borrow<T> + 'a,
     Message: Clone,
-    Theme:
-        w::pick_list::StyleSheet + w::scrollable::StyleSheet + w::overlay::menu::StyleSheet + w::container::StyleSheet,
-    <Theme as w::overlay::menu::StyleSheet>::Style: From<<Theme as w::pick_list::StyleSheet>::Style>,
     Renderer: iced::advanced::text::Renderer,
 {
-    PickList::new(options, selected, on_selected).text_shaping(w::text::Shaping::Advanced)
+    PickList::new(options, selected, on_selected)
+        .text_shaping(w::text::Shaping::Advanced)
+        .padding(5)
 }
 
-pub fn text<'a>(content: impl Into<std::borrow::Cow<'a, str>>) -> Text<'a> {
+pub fn text<'a>(content: impl iced::widget::text::IntoFragment<'a>) -> Text<'a> {
     Text::new(content).shaping(w::text::Shaping::Advanced)
 }
 
@@ -109,18 +109,20 @@ pub fn number_input<'a>(
     Container::new(
         Row::new()
             .spacing(5)
-            .align_items(Alignment::Center)
+            .align_y(Alignment::Center)
             .push(text(label))
             .push(text(value.to_string()))
             .push({
                 Button::new(Icon::Remove.text().width(Length::Shrink))
                     .on_press_if(&value > range.start(), || (change)(value - 1))
-                    .style(style::Button::Negative)
+                    .class(style::Button::Negative)
+                    .padding(5)
             })
             .push({
                 Button::new(Icon::Add.text().width(Length::Shrink))
                     .on_press_if(&value < range.end(), || (change)(value + 1))
-                    .style(style::Button::Primary)
+                    .class(style::Button::Primary)
+                    .padding(5)
             }),
     )
     .into()
@@ -244,15 +246,15 @@ impl Progress {
             Row::new()
                 .width(Length::Fill)
                 .spacing(5)
-                .padding([0, 5, 0, 5])
-                .align_items(Alignment::Center)
+                .padding([0, 5])
+                .align_y(Alignment::Center)
                 .push_maybe(label.map(|x| text(x).size(text_size)))
                 .push_maybe(elapsed.map(|x| text(x).size(text_size)))
                 .push(ProgressBar::new(0.0..=self.max, self.current).height(8))
                 .push_maybe(count.map(|x| text(x).size(text_size))),
         )
         .height(16)
-        .style(style::Container::ModalBackground)
+        .class(style::Container::ModalBackground)
         .into()
     }
 }
@@ -305,12 +307,12 @@ impl<'a> IcedButtonExt<'a> for Button<'a> {
 
 pub mod operation {
     use iced::{
-        advanced::{widget, widget::Operation},
+        advanced::widget::{self, operate, Operation},
         widget::{container, scrollable::AbsoluteOffset},
-        Command, Rectangle, Vector,
+        Rectangle, Task, Vector,
     };
 
-    pub fn container_scroll_offset(id: container::Id) -> Command<Option<AbsoluteOffset>> {
+    pub fn container_scroll_offset(id: container::Id) -> Task<Option<AbsoluteOffset>> {
         struct ContainerScrollOffset {
             target: widget::Id,
             offset: Option<AbsoluteOffset>,
@@ -323,6 +325,7 @@ pub mod operation {
                 _state: &mut dyn widget::operation::Scrollable,
                 _id: Option<&widget::Id>,
                 bounds: Rectangle,
+                _content_bounds: Rectangle,
                 _translation: Vector,
             ) {
                 self.anchor = Some(bounds.y);
@@ -354,7 +357,7 @@ pub mod operation {
             }
         }
 
-        Command::widget(ContainerScrollOffset {
+        operate(ContainerScrollOffset {
             target: id.into(),
             offset: None,
             anchor: None,

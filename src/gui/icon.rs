@@ -84,8 +84,8 @@ impl Icon {
             .size(20)
             .width(60)
             .height(20)
-            .horizontal_alignment(alignment::Horizontal::Center)
-            .vertical_alignment(iced::alignment::Vertical::Center)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(iced::alignment::Vertical::Center)
             .line_height(1.0)
     }
 
@@ -99,8 +99,8 @@ impl Icon {
             .size(15)
             .width(15)
             .height(15)
-            .horizontal_alignment(alignment::Horizontal::Center)
-            .vertical_alignment(iced::alignment::Vertical::Center)
+            .align_x(alignment::Horizontal::Center)
+            .align_y(iced::alignment::Vertical::Center)
             .line_height(1.0)
     }
 }

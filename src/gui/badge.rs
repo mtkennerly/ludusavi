@@ -1,4 +1,4 @@
-use iced::{alignment, widget::tooltip, Length};
+use iced::{alignment, padding, widget::tooltip, Length};
 
 use crate::{
     gui::{
@@ -100,11 +100,11 @@ impl Badge {
             let content = Container::new(
                 text(self.text)
                     .size(12)
-                    .horizontal_alignment(alignment::Horizontal::Center)
+                    .align_x(alignment::Horizontal::Center)
                     .width(self.width.unwrap_or(Length::Shrink)),
             )
-            .padding([2, 10, 2, 10])
-            .style(match self.change {
+            .padding([2, 10])
+            .class(match self.change {
                 None => match self.on_press.as_ref() {
                     Some(Message::FilterDuplicates { game: None, .. }) => style::Container::BadgeActivated,
                     _ if self.faded => style::Container::BadgeFaded,
@@ -118,7 +118,7 @@ impl Badge {
                 Some(tooltip) => Container::new(
                     Tooltip::new(content, text(tooltip).size(16), tooltip::Position::Top)
                         .gap(5)
-                        .style(style::Container::Tooltip),
+                        .class(style::Container::Tooltip),
                 ),
             };
 
@@ -127,13 +127,11 @@ impl Badge {
                     Button::new(content)
                         .padding(0)
                         .on_press(message)
-                        .style(style::Button::Badge),
+                        .class(style::Button::Badge),
                 ),
                 None => Container::new(content),
             }
         })
-        .padding([1, 0, 0, 0])
-        .center_x()
-        .center_y()
+        .padding(padding::top(1))
     }
 }

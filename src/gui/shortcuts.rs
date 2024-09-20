@@ -484,7 +484,7 @@ impl TextHistories {
             {
                 let mut input = TextInput::new(&placeholder, &current)
                     .on_input(event)
-                    .style(style::TextInput)
+                    .class(style::TextInput)
                     .width(Length::Fill)
                     .padding(5);
 

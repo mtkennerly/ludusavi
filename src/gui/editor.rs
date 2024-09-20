@@ -1,5 +1,5 @@
 use iced::{
-    keyboard,
+    keyboard, padding,
     widget::{horizontal_space, tooltip, Space},
     Alignment, Length,
 };
@@ -41,7 +41,7 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
                                 pick_list(Store::ALL, Some(root.store()), move |v| {
                                     Message::SelectedRootStore(i, v)
                                 })
-                                .style(style::PickList::Primary),
+                                .class(style::PickList::Primary),
                             )
                             .push(button::choose_folder(BrowseSubject::Root(i), modifiers))
                             .push(button::remove(Message::EditedRoot, i)),
@@ -49,7 +49,7 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
                     .push(
                         Row::new()
                             .spacing(20)
-                            .align_items(Alignment::Center)
+                            .align_y(Alignment::Center)
                             .push(horizontal_space().width(70))
                             .push(text(TRANSLATOR.field("pga.db")))
                             .push(histories.input(UndoSubject::RootLutrisDatabase(i)))
@@ -65,7 +65,7 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
                             pick_list(Store::ALL, Some(root.store()), move |v| {
                                 Message::SelectedRootStore(i, v)
                             })
-                            .style(style::PickList::Primary),
+                            .class(style::PickList::Primary),
                         )
                         .push(button::choose_folder(BrowseSubject::Root(i), modifiers))
                         .push(button::remove(Message::EditedRoot, i)),
@@ -122,7 +122,7 @@ pub fn manifest<'a>(
         .push(
             Row::new()
                 .spacing(20)
-                .align_items(Alignment::Center)
+                .align_y(Alignment::Center)
                 .push(Space::with_width(Length::Fill))
                 .push(Container::new(text(TRANSLATOR.checked_label())).width(label_width))
                 .push(Container::new(text(TRANSLATOR.updated_label())).width(label_width))
@@ -133,13 +133,13 @@ pub fn manifest<'a>(
         .push(
             Row::new()
                 .spacing(20)
-                .align_items(Alignment::Center)
+                .align_y(Alignment::Center)
                 .push(
                     checkbox("", config.manifest.enable, move |enabled| {
                         Message::TogglePrimaryManifestEnabled { enabled }
                     })
                     .spacing(0)
-                    .style(style::Checkbox),
+                    .class(style::Checkbox),
                 )
                 .push(iced::widget::TextInput::new("", config.manifest.url()).width(Length::Fill))
                 .push_maybe(get_checked(Some(config.manifest.url()), cache))
@@ -158,13 +158,13 @@ pub fn manifest<'a>(
             column.push(
                 Row::new()
                     .spacing(20)
-                    .align_items(Alignment::Center)
+                    .align_y(Alignment::Center)
                     .push(
                         checkbox("", config.manifest.secondary[i].enabled(), move |enabled| {
                             Message::ToggleSecondaryManifestEnabled { index: i, enabled }
                         })
                         .spacing(0)
-                        .style(style::Checkbox),
+                        .class(style::Checkbox),
                     )
                     .push(button::move_up(Message::EditedSecondaryManifest, i))
                     .push(button::move_down(
@@ -178,7 +178,7 @@ pub fn manifest<'a>(
                             Some(config.manifest.secondary[i].kind()),
                             move |v| Message::SelectedSecondaryManifestKind(i, v),
                         )
-                        .style(style::PickList::Primary)
+                        .class(style::PickList::Primary)
                         .width(75),
                     )
                     .push(histories.input(UndoSubject::SecondaryManifest(i)))
@@ -196,7 +196,7 @@ pub fn manifest<'a>(
 
     content = content.push(button::add(Message::EditedSecondaryManifest));
 
-    Container::new(content).style(style::Container::GameListEntry)
+    Container::new(content).class(style::Container::GameListEntry)
 }
 
 pub fn redirect<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard::Modifiers) -> Container<'a> {
@@ -221,7 +221,7 @@ pub fn redirect<'a>(config: &Config, histories: &TextHistories, modifiers: &keyb
                             pick_list(RedirectKind::ALL, Some(redirects[i].kind), move |v| {
                                 Message::SelectedRedirectKind(i, v)
                             })
-                            .style(style::PickList::Primary),
+                            .class(style::PickList::Primary),
                         )
                         .push(histories.input(UndoSubject::RedirectSource(i)))
                         .push(button::choose_folder(BrowseSubject::RedirectSource(i), modifiers))
@@ -232,7 +232,7 @@ pub fn redirect<'a>(config: &Config, histories: &TextHistories, modifiers: &keyb
             })
             .push(button::add(|x| Message::EditedRedirect(x, None)))
     })
-    .style(style::Container::GameListEntry);
+    .class(style::Container::GameListEntry);
 
     Container::new(inner)
 }
@@ -248,7 +248,10 @@ pub fn custom_games<'a>(
     }
 
     let content = config.custom_games.iter().enumerate().fold(
-        Column::new().width(Length::Fill).padding([0, 15, 5, 15]).spacing(10),
+        Column::new()
+            .width(Length::Fill)
+            .padding(padding::top(0).bottom(5).left(15).right(15))
+            .spacing(10),
         |parent, (i, x)| {
             parent.push(
                 Container::new(
@@ -258,18 +261,18 @@ pub fn custom_games<'a>(
                         .push(
                             Row::new()
                                 .spacing(20)
-                                .align_items(iced::Alignment::Center)
+                                .align_y(iced::Alignment::Center)
                                 .push(
                                     Row::new()
                                         .width(110)
                                         .spacing(20)
-                                        .align_items(Alignment::Center)
+                                        .align_y(Alignment::Center)
                                         .push(
                                             checkbox("", config.is_custom_game_enabled(i), move |enabled| {
                                                 Message::ToggleCustomGameEnabled { index: i, enabled }
                                             })
                                             .spacing(0)
-                                            .style(style::Checkbox),
+                                            .class(style::Checkbox),
                                         )
                                         .push(button::move_up(Message::EditedCustomGame, i))
                                         .push(button::move_down(
@@ -283,7 +286,7 @@ pub fn custom_games<'a>(
                                     pick_list(CustomGameKind::ALL, Some(config.custom_games[i].kind()), move |v| {
                                         Message::SelectedCustomGameKind(i, v)
                                     })
-                                    .style(style::PickList::Primary)
+                                    .class(style::PickList::Primary)
                                     .width(100),
                                 )
                                 .push(
@@ -301,14 +304,14 @@ pub fn custom_games<'a>(
                                         tooltip::Position::Top,
                                     )
                                     .gap(5)
-                                    .style(style::Container::Tooltip),
+                                    .class(style::Container::Tooltip),
                                 )
                                 .push(button::delete(Message::EditedCustomGame, i)),
                         )
                         .push_if(config.custom_games[i].kind() == CustomGameKind::Alias, move || {
                             Row::new()
                                 .spacing(10)
-                                .align_items(Alignment::Center)
+                                .align_y(Alignment::Center)
                                 .push(Column::new().width(120).push(text(TRANSLATOR.original_name_field())))
                                 .push(histories.input(UndoSubject::CustomGameAlias(i)))
                         })
@@ -332,7 +335,7 @@ pub fn custom_games<'a>(
                                         .fold(Column::new().spacing(4), |column, (ii, _)| {
                                             column.push(
                                                 Row::new()
-                                                    .align_items(Alignment::Center)
+                                                    .align_y(Alignment::Center)
                                                     .spacing(20)
                                                     .push(button::move_up_nested(Message::EditedCustomGameFile, i, ii))
                                                     .push(button::move_down_nested(
@@ -363,7 +366,7 @@ pub fn custom_games<'a>(
                                             column.push(
                                                 Row::new()
                                                     .spacing(20)
-                                                    .align_items(Alignment::Center)
+                                                    .align_y(Alignment::Center)
                                                     .push(button::move_up_nested(
                                                         Message::EditedCustomGameRegistry,
                                                         i,
@@ -388,7 +391,7 @@ pub fn custom_games<'a>(
                         }),
                 )
                 .id(iced::widget::container::Id::new(config.custom_games[i].name.clone()))
-                .style(style::Container::GameListEntry),
+                .class(style::Container::GameListEntry),
             )
         },
     );
@@ -462,7 +465,7 @@ pub fn ignored_items<'a>(config: &Config, histories: &TextHistories, modifiers: 
                             ),
                     ),
             )
-            .style(style::Container::GameListEntry),
+            .class(style::Container::GameListEntry),
         )
     })
 }

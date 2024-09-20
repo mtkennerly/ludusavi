@@ -680,8 +680,8 @@ impl Rclone {
 
 pub mod rclone_monitor {
     use iced::{
-        futures::{channel::mpsc, StreamExt},
-        subscription::{self, Subscription},
+        futures::{channel::mpsc, stream, StreamExt},
+        Subscription,
     };
 
     use crate::{
@@ -715,98 +715,100 @@ pub mod rclone_monitor {
     }
 
     pub fn run() -> Subscription<Event> {
-        struct Runner;
+        let unfold = || {
+            stream::unfold(State::Starting, |state| async move {
+                match state {
+                    State::Starting => {
+                        let (sender, receiver) = mpsc::channel(10_000);
 
-        subscription::unfold(std::any::TypeId::of::<Runner>(), State::Starting, |state| async move {
-            match state {
-                State::Starting => {
-                    let (sender, receiver) = mpsc::channel(10_000);
-
-                    (
-                        Event::Ready(sender),
-                        State::Ready {
-                            receiver,
-                            process: None,
-                            interval: tokio::time::interval(std::time::Duration::from_millis(1)),
-                        },
-                    )
-                }
-                State::Ready {
-                    mut receiver,
-                    mut process,
-                    mut interval,
-                } => loop {
-                    let input = tokio::select!(
-                        input = receiver.select_next_some() => {
-                            input
-                        }
-                        _ = interval.tick() => {
-                            Input::Tick
-                        }
-                    );
-
-                    match input {
-                        Input::Process(new_process) => {
-                            if let Some(proc) = process.as_mut() {
-                                let _ = proc.child.kill();
+                        Some((
+                            Event::Ready(sender),
+                            State::Ready {
+                                receiver,
+                                process: None,
+                                interval: tokio::time::interval(std::time::Duration::from_millis(1)),
+                            },
+                        ))
+                    }
+                    State::Ready {
+                        mut receiver,
+                        mut process,
+                        mut interval,
+                    } => loop {
+                        let input = tokio::select!(
+                            input = receiver.select_next_some() => {
+                                input
                             }
-                            process = Some(new_process);
-                        }
-                        Input::Tick => {
-                            if let Some(proc) = process.as_mut() {
-                                let events = proc.events();
-                                if !events.is_empty() {
-                                    return (
-                                        Event::Data(events),
-                                        State::Ready {
-                                            receiver,
-                                            process,
-                                            interval,
-                                        },
-                                    );
+                            _ = interval.tick() => {
+                                Input::Tick
+                            }
+                        );
+
+                        match input {
+                            Input::Process(new_process) => {
+                                if let Some(proc) = process.as_mut() {
+                                    let _ = proc.child.kill();
                                 }
-                                if let Some(outcome) = proc.succeeded() {
-                                    match outcome {
-                                        Ok(_) => {
-                                            return (
-                                                Event::Succeeded,
-                                                State::Ready {
-                                                    receiver,
-                                                    process: None,
-                                                    interval,
-                                                },
-                                            );
-                                        }
-                                        Err(e) => {
-                                            return (
-                                                Event::Failed(e),
-                                                State::Ready {
-                                                    receiver,
-                                                    process: None,
-                                                    interval,
-                                                },
-                                            );
+                                process = Some(new_process);
+                            }
+                            Input::Tick => {
+                                if let Some(proc) = process.as_mut() {
+                                    let events = proc.events();
+                                    if !events.is_empty() {
+                                        return Some((
+                                            Event::Data(events),
+                                            State::Ready {
+                                                receiver,
+                                                process,
+                                                interval,
+                                            },
+                                        ));
+                                    }
+                                    if let Some(outcome) = proc.succeeded() {
+                                        match outcome {
+                                            Ok(_) => {
+                                                return Some((
+                                                    Event::Succeeded,
+                                                    State::Ready {
+                                                        receiver,
+                                                        process: None,
+                                                        interval,
+                                                    },
+                                                ));
+                                            }
+                                            Err(e) => {
+                                                return Some((
+                                                    Event::Failed(e),
+                                                    State::Ready {
+                                                        receiver,
+                                                        process: None,
+                                                        interval,
+                                                    },
+                                                ));
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
-                        Input::Cancel => {
-                            if let Some(proc) = process.as_mut() {
-                                let _ = proc.kill();
+                            Input::Cancel => {
+                                if let Some(proc) = process.as_mut() {
+                                    let _ = proc.kill();
+                                }
+                                return Some((
+                                    Event::Cancelled,
+                                    State::Ready {
+                                        receiver,
+                                        process: None,
+                                        interval,
+                                    },
+                                ));
                             }
-                            return (
-                                Event::Cancelled,
-                                State::Ready {
-                                    receiver,
-                                    process: None,
-                                    interval,
-                                },
-                            );
                         }
-                    }
-                },
-            }
-        })
+                    },
+                }
+            })
+        };
+
+        Subscription::run(unfold)
     }
 }

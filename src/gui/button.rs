@@ -16,33 +16,36 @@ use crate::{
 };
 
 fn template(content: Text, action: Option<Message>, style: Option<style::Button>) -> Element {
-    Button::new(content.horizontal_alignment(alignment::Horizontal::Center))
+    Button::new(content.align_x(alignment::Horizontal::Center))
         .on_press_maybe(action)
-        .style(style.unwrap_or(style::Button::Primary))
+        .class(style.unwrap_or(style::Button::Primary))
+        .padding(5)
         .into()
 }
 
 fn template_bare(content: Text, action: Option<Message>, style: Option<style::Button>) -> Element {
-    Button::new(content.horizontal_alignment(alignment::Horizontal::Center))
+    Button::new(content.align_x(alignment::Horizontal::Center))
         .on_press_maybe(action)
-        .style(style.unwrap_or(style::Button::Primary))
+        .class(style.unwrap_or(style::Button::Primary))
         .padding(0)
         .into()
 }
 
 pub fn primary<'a>(content: String, action: Option<Message>) -> Element<'a> {
-    Button::new(text(content).horizontal_alignment(alignment::Horizontal::Center))
+    Button::new(text(content).align_x(alignment::Horizontal::Center))
         .on_press_maybe(action)
-        .style(style::Button::Primary)
+        .class(style::Button::Primary)
+        .padding(5)
         .width(125)
         .into()
 }
 
 pub fn negative<'a>(content: String, action: Option<Message>) -> Element<'a> {
-    Button::new(text(content).horizontal_alignment(alignment::Horizontal::Center))
+    Button::new(text(content).align_x(alignment::Horizontal::Center))
         .on_press_maybe(action)
-        .style(style::Button::Negative)
+        .class(style::Button::Negative)
         .width(125)
+        .padding(5)
         .into()
 }
 
@@ -246,10 +249,10 @@ pub fn nav<'a>(screen: Screen, current_screen: Screen) -> Button<'a> {
         Screen::Other => TRANSLATOR.nav_other_button(),
     };
 
-    Button::new(text(label).size(14).horizontal_alignment(alignment::Horizontal::Center))
+    Button::new(text(label).size(14).align_x(alignment::Horizontal::Center))
         .on_press(Message::SwitchScreen(screen))
-        .padding([5, 20, 5, 20])
-        .style(if current_screen == screen {
+        .padding([5, 20])
+        .class(if current_screen == screen {
             style::Button::NavButtonActive
         } else {
             style::Button::NavButtonInactive
@@ -320,7 +323,7 @@ pub fn backup<'a>(ongoing: &Operation) -> Element<'a> {
             _ => TRANSLATOR.backup_button(),
         })
         .width(125)
-        .horizontal_alignment(alignment::Horizontal::Center),
+        .align_x(alignment::Horizontal::Center),
         match ongoing {
             Operation::Idle => Some(Message::Backup(BackupPhase::Confirm { games: None })),
             Operation::Backup {
@@ -357,7 +360,7 @@ pub fn backup_preview<'a>(ongoing: &Operation) -> Element<'a> {
             _ => TRANSLATOR.preview_button(),
         })
         .width(125)
-        .horizontal_alignment(alignment::Horizontal::Center),
+        .align_x(alignment::Horizontal::Center),
         match ongoing {
             Operation::Idle => Some(Message::Backup(BackupPhase::Start {
                 preview: true,
@@ -398,7 +401,7 @@ pub fn restore<'a>(ongoing: &Operation) -> Element<'a> {
             _ => TRANSLATOR.restore_button(),
         })
         .width(125)
-        .horizontal_alignment(alignment::Horizontal::Center),
+        .align_x(alignment::Horizontal::Center),
         match ongoing {
             Operation::Idle => Some(Message::Restore(RestorePhase::Confirm { games: None })),
             Operation::Restore {
@@ -435,7 +438,7 @@ pub fn restore_preview<'a>(ongoing: &Operation) -> Element<'a> {
             _ => TRANSLATOR.preview_button(),
         })
         .width(125)
-        .horizontal_alignment(alignment::Horizontal::Center),
+        .align_x(alignment::Horizontal::Center),
         match ongoing {
             Operation::Idle => Some(Message::Restore(RestorePhase::Start {
                 preview: true,
@@ -467,7 +470,7 @@ pub fn validate_backups<'a>(ongoing: &Operation) -> Element<'a> {
             _ => TRANSLATOR.validate_button(),
         })
         .width(125)
-        .horizontal_alignment(alignment::Horizontal::Center),
+        .align_x(alignment::Horizontal::Center),
         match ongoing {
             Operation::Idle => Some(Message::ValidateBackups(ValidatePhase::Start)),
             Operation::ValidateBackups { cancelling: false, .. } => Some(Message::CancelOperation),

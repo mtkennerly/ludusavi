@@ -783,7 +783,7 @@ impl ScrollSubject {
     ) -> crate::gui::widget::Scrollable<'a> {
         crate::gui::widget::Scrollable::new(content)
             .height(Length::Fill)
-            .style(crate::gui::style::Scrollable)
+            .class(crate::gui::style::Scrollable)
             .id(self.id())
             .on_scroll(move |viewport| Message::Scrolled {
                 subject: self,

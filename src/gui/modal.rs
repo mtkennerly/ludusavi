@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use iced::{Alignment, Length};
+use iced::{padding, Alignment, Length};
 use itertools::Itertools;
 
 use crate::{
@@ -60,7 +60,7 @@ impl ModalField {
         };
 
         Row::new()
-            .align_items(Alignment::Center)
+            .align_y(Alignment::Center)
             .push(text(label).width(150))
             .push(histories.input(UndoSubject::ModalField(kind)))
     }
@@ -69,15 +69,12 @@ impl ModalField {
     where
         T: Copy + Eq + PartialEq + ToString + 'static,
     {
-        Row::new()
-            .align_items(Alignment::Center)
-            .push(text(label).width(150))
-            .push(
-                Container::new(pick_list(choices, Some(*value), move |x| {
-                    Message::EditedModalField(change(x))
-                }))
-                .width(Length::Fill),
-            )
+        Row::new().align_y(Alignment::Center).push(text(label).width(150)).push(
+            Container::new(pick_list(choices, Some(*value), move |x| {
+                Message::EditedModalField(change(x))
+            }))
+            .width(Length::Fill),
+        )
     }
 }
 
@@ -372,8 +369,8 @@ impl Modal {
         let mut col = Column::new()
             .width(Length::Fill)
             .spacing(15)
-            .padding([0, 10, 0, 0])
-            .align_items(Alignment::Center)
+            .padding(padding::right(10))
+            .align_x(Alignment::Center)
             .push(text(self.text(config)));
 
         match self {
@@ -399,7 +396,7 @@ impl Modal {
                         .push_if(!state.idle(), || {
                             Row::new()
                                 .spacing(20)
-                                .align_items(Alignment::Center)
+                                .align_y(Alignment::Center)
                                 .push(text(TRANSLATOR.change_count_label(changes.len())))
                                 .push_if(changes.is_empty(), || text(TRANSLATOR.loading()))
                                 .push(Space::new(Length::Fill, Length::Shrink))
@@ -416,12 +413,12 @@ impl Modal {
                                 .skip(page * CHANGES_PER_PAGE)
                                 .take(CHANGES_PER_PAGE)
                                 .fold(
-                                    Column::new().width(Length::Fill).align_items(Alignment::Start),
+                                    Column::new().width(Length::Fill).align_x(Alignment::Start),
                                     |parent, CloudChange { change, path }| {
                                         parent.push(
                                             Row::new()
                                                 .spacing(20)
-                                                .align_items(Alignment::Start)
+                                                .align_y(Alignment::Start)
                                                 .push(Badge::scan_change(*change).view())
                                                 .push(text(path)),
                                         )
@@ -455,7 +452,7 @@ impl Modal {
                 col = notes.iter().fold(col, |parent, note| {
                     parent.push(
                         Row::new()
-                            .push(Container::new(Icon::Info.text_narrow()).padding([2, 10, 0, 5]))
+                            .push(Container::new(Icon::Info.text_narrow()).padding(padding::top(2).left(5).right(10)))
                             .push(
                                 Column::new()
                                     .spacing(5)
@@ -608,22 +605,22 @@ impl Modal {
         Container::new(
             Column::new()
                 .width(Length::Fill)
-                .align_items(Alignment::Center)
+                .align_x(Alignment::Center)
                 .push(
                     Container::new(Space::new(Length::Shrink, Length::Shrink))
                         .width(Length::Fill)
                         .height(Length::FillPortion(1))
-                        .style(style::Container::ModalBackground),
+                        .class(style::Container::ModalBackground),
                 )
                 .push(
                     Column::new()
                         .height(Length::FillPortion(self.body_height_portion()))
-                        .align_items(Alignment::Center)
+                        .align_x(Alignment::Center)
                         .push(
                             Container::new(
-                                ScrollSubject::Modal.into_widget(self.body(config, histories).padding([0, 30, 0, 30])),
+                                ScrollSubject::Modal.into_widget(self.body(config, histories).padding([0, 30])),
                             )
-                            .padding([30, 5, 0, 0])
+                            .padding(padding::top(30).right(5))
                             .height(Length::Fill),
                         )
                         .push(
@@ -634,21 +631,20 @@ impl Modal {
                                     .push_if(!matches!(self, Modal::BackupValidation { .. }), || positive_button)
                                     .push(negative_button),
                             }
-                            .padding([30, 0, 30, 0])
+                            .padding([30, 0])
                             .spacing(20)
                             .height(Length::Shrink)
-                            .align_items(Alignment::Center),
+                            .align_y(Alignment::Center),
                         ),
                 )
                 .push(
                     Container::new(Space::new(Length::Shrink, Length::Shrink))
                         .width(Length::Fill)
                         .height(Length::FillPortion(1))
-                        .style(style::Container::ModalBackground),
+                        .class(style::Container::ModalBackground),
                 ),
         )
         .height(Length::Fill)
-        .width(Length::Fill)
-        .center_x()
+        .center_x(Length::Fill)
     }
 }

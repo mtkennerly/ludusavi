@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use iced::alignment;
+use iced::{alignment, padding};
 
 use crate::gui::{
     style,
@@ -34,14 +34,14 @@ impl Notification {
         }
     }
 
-    pub fn view(&self) -> Container<'static> {
+    pub fn view(&self) -> Container {
         Container::new(
             Container::new(text(self.text.clone()))
                 .padding([3, 40])
                 .align_x(alignment::Horizontal::Center)
                 .align_y(alignment::Vertical::Center)
-                .style(style::Container::Notification),
+                .class(style::Container::Notification),
         )
-        .padding([0, 0, 5, 0])
+        .padding(padding::bottom(5))
     }
 }

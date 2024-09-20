@@ -71,13 +71,7 @@ where
         self.content.as_widget().layout(tree, renderer, limits)
     }
 
-    fn operate(
-        &self,
-        tree: &mut Tree,
-        layout: Layout<'_>,
-        renderer: &Renderer,
-        operation: &mut dyn Operation<Message>,
-    ) {
+    fn operate(&self, tree: &mut Tree, layout: Layout<'_>, renderer: &Renderer, operation: &mut dyn Operation) {
         self.content.as_widget().operate(tree, layout, renderer, operation)
     }
 
