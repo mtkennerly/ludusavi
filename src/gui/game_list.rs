@@ -403,6 +403,7 @@ impl GameList {
 
         Container::new(
             Column::new()
+                .spacing(15)
                 .push_maybe({
                     self.search.view(
                         if restoring { Screen::Restore } else { Screen::Backup },

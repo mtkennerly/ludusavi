@@ -3,7 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use iced::{keyboard, padding, widget::scrollable, Alignment, Length, Subscription, Task};
+use iced::{keyboard, widget::scrollable, Alignment, Length, Subscription, Task};
 
 use crate::{
     cloud::{rclone_monitor, Rclone, Remote},
@@ -2733,7 +2733,7 @@ impl App {
             .align_x(Alignment::Center)
             .push(
                 Row::new()
-                    .padding(padding::top(10).right(20).bottom(15).left(20))
+                    .padding([10, 20])
                     .spacing(20)
                     .push(button::nav(Screen::Backup, self.screen))
                     .push(button::nav(Screen::Restore, self.screen))

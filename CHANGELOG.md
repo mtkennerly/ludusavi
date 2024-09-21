@@ -7,6 +7,7 @@
     instead of the intended `<game>/drive-____UNC_localhost_share/test.txt`.
   * When Steam was not installed, the logs would contain a `warning`-level message.
     This has been demoted to an `info`-level message.
+  * GUI: Fixed some inconsistent spacing between elements.
 * Changed:
   * GUI: Updated to the latest version of [Iced](https://github.com/iced-rs/iced).
     If the GUI fails to load, Ludusavi will log the error info.

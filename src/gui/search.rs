@@ -138,9 +138,10 @@ impl FilterComponent {
         }
         Some(
             Column::new()
+                .spacing(15)
                 .push(
                     Row::new()
-                        .padding(padding::top(0).bottom(10).left(20).right(20))
+                        .padding(padding::left(20).right(20))
                         .spacing(20)
                         .align_y(Alignment::Center)
                         .push(text(TRANSLATOR.filter_label()))
@@ -151,8 +152,8 @@ impl FilterComponent {
                 )
                 .push(
                     Row::new()
-                        .padding(padding::all(20).top(0))
-                        .spacing(20)
+                        .padding(padding::left(20).right(20))
+                        .spacing(15)
                         .align_y(Alignment::Center)
                         .push(template(
                             &self.uniqueness,
@@ -191,8 +192,8 @@ impl FilterComponent {
                 )
                 .push_if(manifests.len() > 2, || {
                     Row::new()
-                        .padding(padding::all(20).top(0))
-                        .spacing(20)
+                        .padding(padding::left(20).right(0))
+                        .spacing(15)
                         .align_y(Alignment::Center)
                         .push(template_with_label(
                             &self.manifest,

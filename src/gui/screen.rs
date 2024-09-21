@@ -32,7 +32,7 @@ fn template(content: Column) -> Element {
     Container::new(content.spacing(15).align_x(Alignment::Center))
         .height(Length::Fill)
         .center_x(Length::Fill)
-        .padding(padding::all(5).top(0))
+        .padding(padding::all(5))
         .into()
 }
 
