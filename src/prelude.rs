@@ -224,7 +224,7 @@ pub fn run_command(
     #[cfg(target_os = "windows")]
     {
         use std::os::windows::process::CommandExt;
-        command.creation_flags(winapi::um::winbase::CREATE_NO_WINDOW);
+        command.creation_flags(windows::Win32::System::Threading::CREATE_NO_WINDOW.0);
     }
 
     let collect_args = || {

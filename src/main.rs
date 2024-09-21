@@ -90,25 +90,24 @@ fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLo
 /// https://github.com/rust-lang/rust/issues/113277
 #[cfg(target_os = "windows")]
 unsafe fn detach_console() {
-    use winapi::um::{
-        processenv::SetStdHandle,
-        winbase::{STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE},
-        wincon::FreeConsole,
+    use windows::Win32::{
+        Foundation::HANDLE,
+        System::Console::{FreeConsole, SetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE},
     };
 
-    if FreeConsole() == 0 {
+    if FreeConsole().is_err() {
         eprintln!("Unable to detach the console");
         std::process::exit(1);
     }
-    if SetStdHandle(STD_INPUT_HANDLE, std::ptr::null_mut()) == 0 {
+    if SetStdHandle(STD_INPUT_HANDLE, HANDLE::default()).is_err() {
         eprintln!("Unable to reset stdin handle");
         std::process::exit(1);
     }
-    if SetStdHandle(STD_OUTPUT_HANDLE, std::ptr::null_mut()) == 0 {
+    if SetStdHandle(STD_OUTPUT_HANDLE, HANDLE::default()).is_err() {
         eprintln!("Unable to reset stdout handle");
         std::process::exit(1);
     }
-    if SetStdHandle(STD_ERROR_HANDLE, std::ptr::null_mut()) == 0 {
+    if SetStdHandle(STD_ERROR_HANDLE, HANDLE::default()).is_err() {
         eprintln!("Unable to reset stderr handle");
         std::process::exit(1);
     }
