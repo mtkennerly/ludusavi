@@ -188,21 +188,18 @@ impl FilterComponent {
                                 manifests.clone(),
                                 Message::EditedSearchFilterManifest,
                             )
-                        }),
+                        })
+                        .push_if(manifests.len() > 2, || {
+                            template_with_label(
+                                &self.manifest,
+                                TRANSLATOR.source_field(),
+                                FilterKind::Manifest,
+                                manifests,
+                                Message::EditedSearchFilterManifest,
+                            )
+                        })
+                        .wrap(),
                 )
-                .push_if(manifests.len() > 2, || {
-                    Row::new()
-                        .padding(padding::left(20).right(0))
-                        .spacing(15)
-                        .align_y(Alignment::Center)
-                        .push(template_with_label(
-                            &self.manifest,
-                            TRANSLATOR.source_field(),
-                            FilterKind::Manifest,
-                            manifests,
-                            Message::EditedSearchFilterManifest,
-                        ))
-                })
                 .into(),
         )
     }

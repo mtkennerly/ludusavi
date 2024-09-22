@@ -2328,9 +2328,9 @@ dependencies = [
 
 [[package]]
 name = "iced_widget"
-version = "0.13.1"
+version = "0.13.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23eef161bcd216f3472916570919dc3542647285da9cc81085b8d5cb434dc870"
+checksum = "81429e1b950b0e4bca65be4c4278fea6678ea782030a411778f26fa9f8983e1d"
 dependencies = [
  "iced_renderer",
  "iced_runtime",
