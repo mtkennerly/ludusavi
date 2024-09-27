@@ -443,8 +443,6 @@ impl App {
                                 return (None, None);
                             }
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
-                                // TODO: https://github.com/hecrj/iced/issues/436
-                                std::thread::sleep(Duration::from_millis(1));
                                 return (None, None);
                             }
 
@@ -775,8 +773,6 @@ impl App {
                             let mut layout = layout.game_layout(&name);
 
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
-                                // TODO: https://github.com/hecrj/iced/issues/436
-                                std::thread::sleep(Duration::from_millis(1));
                                 return (None, None, layout);
                             }
 
@@ -987,8 +983,6 @@ impl App {
                     self.operation_steps.push(Task::perform(
                         async move {
                             if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
-                                // TODO: https://github.com/hecrj/iced/issues/436
-                                std::thread::sleep(Duration::from_millis(1));
                                 return (name, true);
                             }
 
