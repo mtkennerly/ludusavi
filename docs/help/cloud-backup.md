@@ -31,3 +31,13 @@ For example:
   then you can set Ludusavi's backup target to that local folder.
 * If you use Rclone's mounting functionality,
   then you can set Ludusavi's backup target to the mount folder.
+
+## Rclone and Flatpak
+For Linux users who have installed Ludusavi via Flatpak,
+the default Flatpak permissions will keep Ludusavi from seeing your
+system copy of Rclone.
+
+One solution is to give Ludusavi host filesystem access
+(`flatpak override com.github.mtkennerly.ludusavi --filesystem=host`).
+Then, in Ludusavi, you can set the Rclone executable path to
+`/var/run/host/usr/bin/rclone`.
