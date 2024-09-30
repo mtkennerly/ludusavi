@@ -10,14 +10,16 @@ pub struct WrapGameInfo {
 
 impl WrapGameInfo {
     fn is_empty(&self) -> bool {
-        self.name.is_none() && self.gog_id.is_none()
+        let Self { name, steam_id, gog_id } = self;
+
+        name.is_none() && steam_id.is_none() && gog_id.is_none()
     }
 }
 
 pub fn infer_game_from_steam() -> Option<WrapGameInfo> {
-    let app_id = std::env::var("STEAMAPPID").ok()?.parse::<u32>().ok()?;
+    let app_id = std::env::var("SteamAppId").ok()?.parse::<u32>().ok()?;
 
-    log::debug!("Found Steam environment variable: STEAMAPPID={}", app_id);
+    log::debug!("Found Steam environment variable: SteamAppId={}", app_id);
 
     let result = WrapGameInfo {
         steam_id: Some(app_id),
