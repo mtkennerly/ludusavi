@@ -10,6 +10,9 @@
   * GUI: Fixed some inconsistent spacing between elements.
   * CLI: On Linux, the `wrap` command's `--infer steam` option would fail
     to find the `SteamAppId` environment variable due to a case mismatch.
+  * CLI: In some error conditions, the `wrap` command would show an alert
+    and wait for the user to press a key, even if `--force` was specified.
+    Now, with `--force`, Ludusavi will not wait for any input.
 * Changed:
   * GUI: Updated to the latest version of [Iced](https://github.com/iced-rs/iced).
     If the GUI fails to load, Ludusavi will log the error info.

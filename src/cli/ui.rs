@@ -26,22 +26,24 @@ fn pause() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn alert_with_raw_error(gui: bool, msg: &str, error: &str) -> Result<(), Error> {
+pub fn alert_with_raw_error(gui: bool, force: bool, msg: &str, error: &str) -> Result<(), Error> {
     alert(
         gui,
+        force,
         &format!("{}{}{}", msg, get_separator(gui), TRANSLATOR.prefix_error(error)),
     )
 }
 
-pub fn alert_with_error(gui: bool, msg: &str, error: &Error) -> Result<(), Error> {
+pub fn alert_with_error(gui: bool, force: bool, msg: &str, error: &Error) -> Result<(), Error> {
     alert(
         gui,
+        force,
         &format!("{}{}{}", msg, get_separator(gui), TRANSLATOR.handle_error(error)),
     )
 }
 
-pub fn alert(gui: bool, msg: &str) -> Result<(), Error> {
-    log::debug!("Showing alert to user (GUI={}): {}", gui, msg);
+pub fn alert(gui: bool, force: bool, msg: &str) -> Result<(), Error> {
+    log::debug!("Showing alert to user (GUI={}, force={}): {}", gui, force, msg);
     if gui {
         match native_dialog::MessageDialog::new()
             .set_title(&TRANSLATOR.app_name())
@@ -55,17 +57,19 @@ pub fn alert(gui: bool, msg: &str) -> Result<(), Error> {
                 Err(Error::CliUnableToRequestConfirmation)
             }
         }
-    } else {
+    } else if !force {
         // TODO: Dialoguer doesn't have an alert type.
         // https://github.com/console-rs/dialoguer/issues/287
         println!("{}", msg);
         pause()
+    } else {
+        Ok(())
     }
 }
 
 pub fn confirm_with_question(gui: bool, force: Option<bool>, msg: &str, question: &str) -> Result<bool, Error> {
     if let Some(force) = force {
-        _ = alert(gui, msg);
+        _ = alert(gui, true, msg);
         return Ok(force);
     }
 

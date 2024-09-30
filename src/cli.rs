@@ -925,7 +925,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("WRAP::restore: failed for game {:?} with: {:?}", wrap_game_info, err);
-                    ui::alert_with_error(gui, &TRANSLATOR.restore_one_game_failed(game_name), &err)?;
+                    ui::alert_with_error(gui, force, &TRANSLATOR.restore_one_game_failed(game_name), &err)?;
                     return Err(err);
                 }
             }
@@ -939,7 +939,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
                 Err(err) => {
                     log::error!("WRAP::execute: Game command execution failed with: {:#?}", err);
-                    ui::alert_with_raw_error(gui, &TRANSLATOR.game_did_not_launch(), &err.to_string())?;
+                    ui::alert_with_raw_error(gui, force, &TRANSLATOR.game_did_not_launch(), &err.to_string())?;
                     return Err(Error::GameDidNotLaunch { why: err.to_string() });
                 }
             }
@@ -979,7 +979,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("WRAP::backup: failed with: {:#?}", err);
-                    ui::alert_with_error(gui, &TRANSLATOR.back_up_one_game_failed(game_name), &err)?;
+                    ui::alert_with_error(gui, force, &TRANSLATOR.back_up_one_game_failed(game_name), &err)?;
                     return Err(err);
                 }
             }
