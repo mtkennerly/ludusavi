@@ -71,4 +71,5 @@ opt-level = 1
 opt-level = 3
 
 [profile.release]
+lto = "thin"
 strip = true
