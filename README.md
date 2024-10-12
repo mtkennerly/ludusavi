@@ -74,6 +74,7 @@ Note:
 <a name="redirects"></a>
 <a name="roots"></a>
 <a name="selective-scanning"></a>
+<a name="troubleshooting"></a>
 
 Detailed help documentation is available for several topics.
 
@@ -98,6 +99,9 @@ Detailed help documentation is available for several topics.
 * [Configuration file](/docs/help/configuration-file.md)
 * [Environment variables](/docs/help/environment-variables.md)
 * [Logging](/docs/help/logging.md)
+
+### Other
+* [Troubleshooting](/docs/help/troubleshooting.md)
 
 ## Community
 
@@ -141,26 +145,6 @@ cross-platform and cross-store solution:
   * Only supports Linux and Steam.
   * Database is not actively updated. As of 2022-11-16, the last update was 2018-06-05.
   * No command line interface.
-
-## Troubleshooting
-* The window content is way too big and goes off screen.
-  * Try setting the `WINIT_X11_SCALE_FACTOR` environment variable to `1`.
-    Flatpak installs will have this set automatically.
-* The file/folder picker doesn't work.
-  * **Linux:** Make sure that you have Zenity or kdialog installed and available on the `PATH`.
-    The `DISPLAY` environment variable must also be set.
-  * **Steam Deck:** Use desktop mode instead of game mode.
-  * **Flatpak:** The `DISPLAY` environment variable may not be getting passed through to the container.
-    This has been observed on GNOME systems.
-    Try running `flatpak run --nosocket=fallback-x11 --socket=x11 com.github.mtkennerly.ludusavi`.
-* On Windows 11, when I open the GUI, a console window also stays open.
-  * This is a limitation of the new Windows Terminal app (https://github.com/microsoft/terminal/issues/14416).
-    It should be fixed once Windows Terminal v1.17 is released.
-    In the meantime, you can work around it by opening Windows Terminal from the Start Menu,
-    opening its settings, and changing the "default terminal application" to "Windows Console Host".
-* The GUI won't launch.
-  * There may be an issue with your graphics drivers/support.
-    Try using the software renderer instead by setting the `ICED_BACKEND` environment variable to  `tiny-skia`.
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
