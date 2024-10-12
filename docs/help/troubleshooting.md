@@ -1,6 +1,6 @@
 # Troubleshooting
 * The window content is way too big and goes off screen.
-  * Try setting the `WINIT_X11_SCALE_FACTOR` environment variable to `1`.
+  * **Linux:** Try setting the `WINIT_X11_SCALE_FACTOR` environment variable to `1`.
     Flatpak installs will have this set automatically.
 * The file/folder picker doesn't work.
   * **Linux:** Make sure that you have Zenity or kdialog installed and available on the `PATH`.
