@@ -75,6 +75,7 @@ Also install the Crowdin CLI tool manually.
   * This will create a new commit/tag and push them.
   * Manually create a release on GitHub and attach the workflow build artifacts
     (plus `dist/*-legal.zip`).
+    For Linux and Mac, extract the `.tar.gz` files from the `.zip` files.
 * Run `cargo publish`
 * Run `invoke release-flatpak`
   * This will automatically push a branch to https://github.com/flathub/com.github.mtkennerly.ludusavi .

@@ -13,18 +13,22 @@ jobs:
             rust-target: x86_64-pc-windows-msvc
             artifact-name: win64
             artifact-file: ludusavi.exe
+            tar: false
           - os: windows-latest
             rust-target: i686-pc-windows-msvc
             artifact-name: win32
             artifact-file: ludusavi.exe
+            tar: false
           - os: ubuntu-20.04
             rust-target: x86_64-unknown-linux-gnu
             artifact-name: linux
             artifact-file: ludusavi
+            tar: true
           - os: macos-12
             rust-target: x86_64-apple-darwin
             artifact-name: mac
             artifact-file: ludusavi
+            tar: true
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/setup-python@v5
@@ -46,7 +50,17 @@ jobs:
       - if: ${{ matrix.os == 'ubuntu-20.04' }}
         run: sudo apt-get update && sudo apt-get install -y gcc libxcb-composite0-dev
       - run: cargo build --release
-      - uses: actions/upload-artifact@v4
+      - if: ${{ matrix.tar }}
+        run: |
+          cd target/release
+          tar --create --gzip --file=ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}.tar.gz ${{ matrix.artifact-file }}
+      - if: ${{ matrix.tar }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}
+          path: target/release/ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}.tar.gz
+      - if: ${{ !matrix.tar }}
+        uses: actions/upload-artifact@v4
         with:
           name: ludusavi-v${{ env.LUDUSAVI_VERSION }}-${{ matrix.artifact-name }}
           path: target/release/${{ matrix.artifact-file }}

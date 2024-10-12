@@ -1,5 +1,8 @@
 ## Unreleased
 
+The Linux and Mac downloads are now provided in `.tar.gz` format
+to better preserve the files' executable permissions.
+
 * Fixed:
   * Files on Windows network shares were not backed up correctly.
     For example, a file identified as `\\localhost\share\test.txt`
