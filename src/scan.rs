@@ -22,7 +22,7 @@ use crate::{
     prelude::{filter_map_walkdir, Error, SKIP},
     resource::{
         config::{BackupFilter, RedirectConfig, RedirectKind, Root, SortKey, ToggledPaths, ToggledRegistry},
-        manifest::{Game, GameFileEntry, IdMetadata, Os, Store},
+        manifest::{Game, GameFileEntry, IdSet, Os, Store},
     },
     scan::layout::LatestBackup,
 };
@@ -73,20 +73,6 @@ fn check_nonwindows_path(path: &str) -> &str {
     }
 }
 
-pub fn steam_ids(game: &Game, shortcut: Option<&SteamShortcut>) -> Vec<u32> {
-    let mut ids = vec![];
-    if let Some(steam_id) = game.steam.id {
-        ids.push(steam_id);
-    }
-    for extra in &game.id.steam_extra {
-        ids.push(*extra);
-    }
-    if let Some(shortcut) = shortcut {
-        ids.push(shortcut.id);
-    }
-    ids
-}
-
 /// Returns paths to check and whether they require case-sensitive matching.
 pub fn parse_paths(
     path: &str,
@@ -94,8 +80,7 @@ pub fn parse_paths(
     root: &Root,
     install_dir: &Option<String>,
     full_install_dir: &Option<&StrictPath>,
-    steam_ids: &[u32],
-    ids: &IdMetadata,
+    ids: &IdSet,
     manifest_dir: &StrictPath,
     steam_shortcut: Option<&SteamShortcut>,
     platform: Os,
@@ -277,7 +262,7 @@ pub fn parse_paths(
             ));
         }
 
-        for id in steam_ids {
+        for id in ids.steam(steam_shortcut.map(|x| x.id)) {
             let prefix = format!("{}/steamapps/compatdata/{}/pfx/drive_c", &root_interpreted, id);
             let path2 = path
                 .replace(ROOT, &root_interpreted)
@@ -455,7 +440,8 @@ pub fn scan_game_for_backup(
     roots_to_check.extend(roots.iter().cloned());
 
     let manifest_dir_interpreted = manifest_dir.interpret().unwrap();
-    let steam_ids = steam_ids(game, steam_shortcuts.get(name));
+    let all_ids = game.all_ids();
+    let steam_shortcut = steam_shortcuts.get(name);
 
     // We can add this for Wine prefixes from the CLI because they're
     // typically going to be used for only one or a few games at a time.
@@ -508,10 +494,9 @@ pub fn scan_game_for_backup(
                     &root,
                     &install_dir,
                     &full_install_dir,
-                    &steam_ids,
-                    &game.id,
+                    &all_ids,
                     manifest_dir,
-                    steam_shortcuts.get(name),
+                    steam_shortcut,
                     platform,
                 ));
             } else {
@@ -527,10 +512,9 @@ pub fn scan_game_for_backup(
                         &root,
                         &install_dir,
                         &full_install_dir,
-                        &steam_ids,
-                        &game.id,
+                        &all_ids,
                         manifest_dir,
-                        steam_shortcuts.get(name),
+                        steam_shortcut,
                         platform,
                     ));
                 }
@@ -546,7 +530,7 @@ pub fn scan_game_for_backup(
             }
         }
         if root.store() == Store::Steam {
-            for id in &steam_ids {
+            for id in all_ids.steam(steam_shortcut.map(|x| x.id)) {
                 // Cloud saves:
                 paths_to_check.insert((
                     StrictPath::relative(

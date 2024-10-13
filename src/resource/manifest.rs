@@ -228,6 +228,17 @@ impl Game {
             })
             .collect();
     }
+
+    pub fn all_ids(&self) -> IdSet {
+        IdSet {
+            steam: self.steam.id,
+            gog: self.gog.id,
+            flatpak: self.id.flatpak.as_ref(),
+            gog_extra: &self.id.gog_extra,
+            lutris: self.id.lutris.as_ref(),
+            steam_extra: &self.id.steam_extra,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -316,6 +327,27 @@ impl IdMetadata {
         } = self;
 
         flatpak.is_none() && gog_extra.is_empty() && lutris.is_none() && steam_extra.is_empty()
+    }
+}
+
+pub struct IdSet<'a> {
+    pub steam: Option<u32>,
+    #[allow(unused)]
+    pub gog: Option<u64>,
+    pub flatpak: Option<&'a String>,
+    #[allow(unused)]
+    pub gog_extra: &'a BTreeSet<u64>,
+    #[allow(unused)]
+    pub lutris: Option<&'a String>,
+    pub steam_extra: &'a BTreeSet<u32>,
+}
+
+impl<'a> IdSet<'a> {
+    pub fn steam(&'a self, shortcut: Option<u32>) -> impl Iterator<Item = u32> + 'a {
+        std::iter::once(self.steam)
+            .chain(self.steam_extra.iter().map(|x| Some(*x)))
+            .chain(std::iter::once(shortcut))
+            .flatten()
     }
 }
 
