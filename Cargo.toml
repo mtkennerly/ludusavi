@@ -17,7 +17,7 @@ clap_complete = "4.5.28"
 dialoguer = "0.11.0"
 dirs = "5.0.1"
 filetime = "0.2.25"
-flexi_logger = { version = "0.29.0", features = ["async"] }
+flexi_logger = { version = "0.29.3", features = ["async"] }
 fluent = "0.16.1"
 fuzzy-matcher = "0.3.7"
 globetter = "0.2.0"

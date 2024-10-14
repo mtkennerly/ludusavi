@@ -1276,14 +1276,13 @@ dependencies = [
 
 [[package]]
 name = "flexi_logger"
-version = "0.29.0"
+version = "0.29.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a250587a211932896a131f214a4f64c047b826ce072d2018764e5ff5141df8fa"
+checksum = "719236bdbcf6033a3395165f797076b31056018e6723ccff616eb25fc9c99de1"
 dependencies = [
  "chrono",
  "crossbeam-channel",
  "crossbeam-queue",
- "glob",
  "log",
  "nu-ansi-term",
  "regex",
@@ -1581,12 +1580,6 @@ name = "glam"
 version = "0.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "151665d9be52f9bb40fc7966565d39666f2d1e69233571b71b87791c7e0528b3"
-
-[[package]]
-name = "glob"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
 name = "globetter"
