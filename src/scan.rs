@@ -343,14 +343,16 @@ pub fn parse_paths(
         static VIRTUALIZED: Lazy<Regex> = Lazy::new(|| {
             Regex::new(r#"^C:[\\/](Program Files|Program Files \(x86\)|Windows|ProgramData)[\\/]"#).unwrap()
         });
-
-        paths = paths
-            .into_iter()
-            .map(|(p, c)| match VIRTUALIZED.replace(&p, "C:/${1}/") {
-                std::borrow::Cow::Borrowed(_) => (p, c),
-                std::borrow::Cow::Owned(p) => (p, c),
-            })
+        let expanded: HashSet<_> = paths
+            .iter()
+            .filter_map(
+                |(p, c)| match VIRTUALIZED.replace(p, format!("{}/VirtualStore/${{1}}/", &data_local_dir)) {
+                    std::borrow::Cow::Borrowed(_) => None,
+                    std::borrow::Cow::Owned(p) => Some((p, *c)),
+                },
+            )
             .collect();
+        paths.extend(expanded);
     } else {
         if Os::HOST == Os::Linux {
             // Default XDG paths, in case we're in a Flatpak context.
