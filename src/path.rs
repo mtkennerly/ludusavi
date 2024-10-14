@@ -29,6 +29,7 @@ pub enum CommonPath {
     Document,
     Home,
     Public,
+    SavedGames,
 }
 
 impl CommonPath {
@@ -44,6 +45,14 @@ impl CommonPath {
         static HOME: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::home_dir()));
         static PUBLIC: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::public_dir()));
 
+        #[cfg(windows)]
+        static SAVED_GAMES: Lazy<Option<String>> = Lazy::new(|| {
+            known_folders::get_known_folder_path(known_folders::KnownFolder::SavedGames)
+                .map(|x| x.to_string_lossy().trim_end_matches(['/', '\\']).to_string())
+        });
+        #[cfg(not(windows))]
+        static SAVED_GAMES: Option<String> = None;
+
         match self {
             Self::Config => CONFIG.as_ref(),
             Self::Data => DATA.as_ref(),
@@ -51,6 +60,7 @@ impl CommonPath {
             Self::Document => DOCUMENT.as_ref(),
             Self::Home => HOME.as_ref(),
             Self::Public => PUBLIC.as_ref(),
+            Self::SavedGames => SAVED_GAMES.as_ref(),
         }
         .map(|x| x.as_str())
     }

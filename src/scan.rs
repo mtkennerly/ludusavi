@@ -106,12 +106,7 @@ pub fn parse_paths(
     let data_local_dir = CommonPath::DataLocal.get_or_skip();
     let config_dir = CommonPath::Config.get_or_skip();
     let home = CommonPath::Home.get_or_skip();
-
-    #[cfg(target_os = "windows")]
-    let saved_games_dir = known_folders::get_known_folder_path(known_folders::KnownFolder::SavedGames)
-        .map(|x| x.to_string_lossy().trim_end_matches(['/', '\\']).to_string());
-    #[cfg(not(target_os = "windows"))]
-    let saved_games_dir: Option<String> = None;
+    let saved_games_dir = CommonPath::SavedGames.get();
 
     paths.insert((
         path.replace(ROOT, &root_interpreted)
