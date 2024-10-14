@@ -16,6 +16,7 @@ pub mod placeholder {
     pub const GAME: &str = "<game>";
     pub const BASE: &str = "<base>";
     pub const HOME: &str = "<home>";
+    pub const STORE_GAME_ID: &str = "<storeGameId>";
     pub const STORE_USER_ID: &str = "<storeUserId>";
     pub const OS_USER_NAME: &str = "<osUserName>";
     pub const WIN_APP_DATA: &str = "<winAppData>";
@@ -347,6 +348,12 @@ impl<'a> IdSet<'a> {
         std::iter::once(self.steam)
             .chain(self.steam_extra.iter().map(|x| Some(*x)))
             .chain(std::iter::once(shortcut))
+            .flatten()
+    }
+
+    pub fn gog(&'a self) -> impl Iterator<Item = u64> + 'a {
+        std::iter::once(self.gog)
+            .chain(self.gog_extra.iter().map(|x| Some(*x)))
             .flatten()
     }
 }

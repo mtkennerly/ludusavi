@@ -3,6 +3,11 @@
 The Linux and Mac downloads are now provided in `.tar.gz` format
 to better preserve the files' executable permissions.
 
+* Added:
+  * Paths may now use the `<storeGameId>` placeholder.
+    This is supported in Steam, GOG, and Lutris roots.
+    For Steam roots, this also supports shortcuts to non-Steam games,
+    where the placeholder will map to the shortcut's dynamic app ID.
 * Fixed:
   * Files on Windows network shares were not backed up correctly.
     For example, a file identified as `\\localhost\share\test.txt`

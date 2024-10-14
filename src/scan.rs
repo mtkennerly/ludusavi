@@ -385,6 +385,35 @@ pub fn parse_paths(
         }
     }
 
+    let paths = if path.contains(STORE_GAME_ID) {
+        let mut expanded = HashSet::new();
+
+        for (p, c) in paths {
+            match root.store() {
+                Store::Gog => {
+                    for id in ids.gog() {
+                        expanded.insert((p.replace(STORE_GAME_ID, &id.to_string()), c));
+                    }
+                }
+                Store::Lutris => {
+                    if let Some(id) = ids.lutris.as_ref() {
+                        expanded.insert((p.replace(STORE_GAME_ID, id), c));
+                    }
+                }
+                Store::Steam => {
+                    for id in ids.steam(steam_shortcut.map(|x| x.id)) {
+                        expanded.insert((p.replace(STORE_GAME_ID, &id.to_string()), c));
+                    }
+                }
+                _ => continue,
+            }
+        }
+
+        expanded
+    } else {
+        paths
+    };
+
     paths
         .into_iter()
         // This excludes `SKIP` and any other unmatched placeholders.
