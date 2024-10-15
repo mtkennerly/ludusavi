@@ -17,16 +17,21 @@ impl WrapGameInfo {
 }
 
 pub fn infer_game_from_steam() -> Option<WrapGameInfo> {
-    let app_id = std::env::var("SteamAppId").ok()?.parse::<u32>().ok()?;
+    for var in ["SteamAppId", "STEAMAPPID"] {
+        let Ok(raw) = std::env::var(var) else { continue };
+        let Ok(app_id) = raw.parse::<u32>() else { continue };
 
-    log::debug!("Found Steam environment variable: SteamAppId={}", app_id);
+        log::debug!("Found Steam environment variable: {}={}", var, app_id);
 
-    let result = WrapGameInfo {
-        steam_id: Some(app_id),
-        ..Default::default()
-    };
+        let result = WrapGameInfo {
+            steam_id: Some(app_id),
+            ..Default::default()
+        };
 
-    (!result.is_empty()).then_some(result)
+        return Some(result);
+    }
+
+    None
 }
 
 pub mod lutris {
