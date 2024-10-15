@@ -8,6 +8,7 @@ to better preserve the files' executable permissions.
     This is supported in Steam, GOG, and Lutris roots.
     For Steam roots, this also supports shortcuts to non-Steam games,
     where the placeholder will map to the shortcut's dynamic app ID.
+  * Paths may now use the `<winLocalAppDataLow>` placeholder.
 * Fixed:
   * Files on Windows network shares were not backed up correctly.
     For example, a file identified as `\\localhost\share\test.txt`
@@ -28,6 +29,8 @@ to better preserve the files' executable permissions.
   * GUI: Modals now display on top of the app with a transparent background.
   * GUI: On the backup and restore screens,
     the filter controls now wrap depending on the window size.
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
 ## v0.25.0 (2024-08-18)
 

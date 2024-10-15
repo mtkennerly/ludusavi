@@ -21,6 +21,7 @@ pub mod placeholder {
     pub const OS_USER_NAME: &str = "<osUserName>";
     pub const WIN_APP_DATA: &str = "<winAppData>";
     pub const WIN_LOCAL_APP_DATA: &str = "<winLocalAppData>";
+    pub const WIN_LOCAL_APP_DATA_LOW: &str = "<winLocalAppDataLow>";
     pub const WIN_DOCUMENTS: &str = "<winDocuments>";
     pub const WIN_PUBLIC: &str = "<winPublic>";
     pub const WIN_PROGRAM_DATA: &str = "<winProgramData>";

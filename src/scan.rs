@@ -116,6 +116,7 @@ pub fn parse_paths(
     let manifest_dir_interpreted = manifest_dir.interpret().ok();
     let data_dir = CommonPath::Data.get_or_skip();
     let data_local_dir = CommonPath::DataLocal.get_or_skip();
+    let data_local_low_dir = CommonPath::DataLocalLow.get_or_skip();
     let config_dir = CommonPath::Config.get_or_skip();
     let home = CommonPath::Home.get_or_skip();
     let saved_games_dir = CommonPath::SavedGames.get();
@@ -151,6 +152,7 @@ pub fn parse_paths(
         .replace(OS_USER_NAME, &crate::prelude::OS_USERNAME)
         .replace(WIN_APP_DATA, check_windows_path(data_dir))
         .replace(WIN_LOCAL_APP_DATA, check_windows_path(data_local_dir))
+        .replace(WIN_LOCAL_APP_DATA_LOW, check_windows_path(data_local_low_dir))
         .replace(WIN_DOCUMENTS, check_windows_path(CommonPath::Document.get_or_skip()))
         .replace(WIN_PUBLIC, check_windows_path(CommonPath::Public.get_or_skip()))
         .replace(WIN_PROGRAM_DATA, check_windows_path("C:/ProgramData"))
@@ -219,7 +221,11 @@ pub fn parse_paths(
                     add_path_insensitive!(path2
                         .replace(WIN_DOCUMENTS, &format!("{}/users/steamuser/Documents", prefix))
                         .replace(WIN_APP_DATA, &format!("{}/users/steamuser/AppData/Roaming", prefix))
-                        .replace(WIN_LOCAL_APP_DATA, &format!("{}/users/steamuser/AppData/Local", prefix)));
+                        .replace(WIN_LOCAL_APP_DATA, &format!("{}/users/steamuser/AppData/Local", prefix))
+                        .replace(
+                            WIN_LOCAL_APP_DATA_LOW,
+                            &format!("{}/users/steamuser/AppData/LocalLow", prefix)
+                        ));
                     add_path_insensitive!(path2
                         .replace(WIN_DOCUMENTS, &format!("{}/users/steamuser/My Documents", prefix))
                         .replace(WIN_APP_DATA, &format!("{}/users/steamuser/Application Data", prefix))
@@ -249,6 +255,7 @@ pub fn parse_paths(
                 .replace(OS_USER_NAME, &crate::prelude::OS_USERNAME)
                 .replace(WIN_APP_DATA, check_windows_path("<home>/AppData/Roaming"))
                 .replace(WIN_LOCAL_APP_DATA, check_windows_path("<home>/AppData/Local"))
+                .replace(WIN_LOCAL_APP_DATA_LOW, check_windows_path("<home>/AppData/LocalLow"))
                 .replace(WIN_DOCUMENTS, check_windows_path("<home>/Documents"))
                 .replace(WIN_PUBLIC, check_windows_path(CommonPath::Public.get_or_skip()))
                 .replace(WIN_PROGRAM_DATA, check_windows_path("C:/ProgramData"))
@@ -274,7 +281,8 @@ pub fn parse_paths(
             add_path_insensitive!(path2
                 .replace(WIN_DOCUMENTS, &format!("{}/users/*/Documents", prefix))
                 .replace(WIN_APP_DATA, &format!("{}/users/*/AppData/Roaming", prefix))
-                .replace(WIN_LOCAL_APP_DATA, &format!("{}/users/*/AppData/Local", prefix)));
+                .replace(WIN_LOCAL_APP_DATA, &format!("{}/users/*/AppData/Local", prefix))
+                .replace(WIN_LOCAL_APP_DATA_LOW, &format!("{}/users/*/AppData/LocalLow", prefix)));
             add_path_insensitive!(path2
                 .replace(WIN_DOCUMENTS, &format!("{}/users/*/My Documents", prefix))
                 .replace(WIN_APP_DATA, &format!("{}/users/*/Application Data", prefix))
@@ -292,6 +300,10 @@ pub fn parse_paths(
                 .replace(
                     WIN_LOCAL_APP_DATA,
                     &format!("{}/Users/*/AppData/Local", &root_interpreted),
+                )
+                .replace(
+                    WIN_LOCAL_APP_DATA_LOW,
+                    &format!("{}/Users/*/AppData/LocalLow", &root_interpreted),
                 )
                 .replace(WIN_DOCUMENTS, &format!("{}/Users/*/Documents", &root_interpreted))
                 .replace(WIN_PUBLIC, &format!("{}/Users/Public", &root_interpreted))

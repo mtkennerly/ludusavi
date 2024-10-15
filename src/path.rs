@@ -26,6 +26,7 @@ pub enum CommonPath {
     Config,
     Data,
     DataLocal,
+    DataLocalLow,
     Document,
     Home,
     Public,
@@ -46,6 +47,14 @@ impl CommonPath {
         static PUBLIC: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::public_dir()));
 
         #[cfg(windows)]
+        static DATA_LOCAL_LOW: Lazy<Option<String>> = Lazy::new(|| {
+            known_folders::get_known_folder_path(known_folders::KnownFolder::LocalAppDataLow)
+                .map(|x| x.to_string_lossy().trim_end_matches(['/', '\\']).to_string())
+        });
+        #[cfg(not(windows))]
+        static DATA_LOCAL_LOW: Option<String> = None;
+
+        #[cfg(windows)]
         static SAVED_GAMES: Lazy<Option<String>> = Lazy::new(|| {
             known_folders::get_known_folder_path(known_folders::KnownFolder::SavedGames)
                 .map(|x| x.to_string_lossy().trim_end_matches(['/', '\\']).to_string())
@@ -57,6 +66,7 @@ impl CommonPath {
             Self::Config => CONFIG.as_ref(),
             Self::Data => DATA.as_ref(),
             Self::DataLocal => DATA_LOCAL.as_ref(),
+            Self::DataLocalLow => DATA_LOCAL_LOW.as_ref(),
             Self::Document => DOCUMENT.as_ref(),
             Self::Home => HOME.as_ref(),
             Self::Public => PUBLIC.as_ref(),
@@ -266,6 +276,7 @@ impl StrictPath {
                             placeholder::XDG_CONFIG => CommonPath::Config.get(),
                             placeholder::XDG_DATA | placeholder::WIN_APP_DATA => CommonPath::Data.get(),
                             placeholder::WIN_LOCAL_APP_DATA => CommonPath::DataLocal.get(),
+                            placeholder::WIN_LOCAL_APP_DATA_LOW => CommonPath::DataLocalLow.get(),
                             placeholder::WIN_DOCUMENTS => CommonPath::Document.get(),
                             placeholder::WIN_PUBLIC => CommonPath::Public.get(),
                             placeholder::WIN_PROGRAM_DATA => Some("C:/ProgramData"),
