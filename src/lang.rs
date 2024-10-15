@@ -195,26 +195,26 @@ impl Language {
 
     fn completion(&self) -> u8 {
         match self {
-            Language::Arabic => 98,
-            Language::ChineseSimplified => 94,
+            Language::Arabic => 100,
+            Language::ChineseSimplified => 100,
             Language::ChineseTraditional => 99,
             Language::Czech => 4,
             Language::Dutch => 99,
             Language::English => 100,
             Language::Esperanto => 18,
             Language::Filipino => 34,
-            Language::Finnish => 62,
+            Language::Finnish => 82,
             Language::French => 100,
-            Language::German => 99,
+            Language::German => 100,
             Language::Italian => 100,
             Language::Japanese => 53,
             Language::Korean => 91,
             Language::Polish => 95,
             Language::PortugueseBrazilian => 97,
             Language::Russian => 100,
-            Language::Spanish => 96,
+            Language::Spanish => 100,
             Language::Thai => 24,
-            Language::Turkish => 32,
+            Language::Turkish => 100,
             Language::Ukrainian => 40,
         }
     }

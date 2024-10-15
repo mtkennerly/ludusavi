@@ -143,7 +143,7 @@ label-original-name = الاسم الأصلي
 # Which manifest a game's data came from
 label-source = المصدر
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
-label-primary-manifest = Primary manifest
+label-primary-manifest = البيانات الرئيسية
 store-ea = EA
 store-epic = متجر Epic
 store-gog = متجر GOG
@@ -158,16 +158,16 @@ store-steam = متجر Steam
 store-uplay = متجر Uplay
 store-other-home = المجلد الرئيس
 # This would be a folder acting as a virtual C: drive, created by Wine.
-store-other-wine = Wine prefix
+store-other-wine = مجلد Wine
 # This would be a folder with typical Windows system folders,
 # like "Program Files (x86)" and "Users".
-store-other-windows = Windows drive
+store-other-windows = مجلد Windows
 # This would be a folder with typical Linux system folders,
 # like "home" and "opt".
-store-other-linux = Linux drive
+store-other-linux = مجلد Linux
 # This would be a folder with typical Mac system folders,
 # like "Applications" and "Users".
-store-other-mac = Mac drive
+store-other-mac = مجلد Mac
 store-other = أخرى
 backup-format-simple = بسيط
 backup-format-zip = ملف مضغوط بصيغة Zip

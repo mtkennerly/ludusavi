@@ -141,9 +141,9 @@ label-game = Juego
 label-alias = Alias
 label-original-name = Nombre original
 # Which manifest a game's data came from
-label-source = Source
+label-source = Fuente
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
-label-primary-manifest = Primary manifest
+label-primary-manifest = Manifiesto primario
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -239,5 +239,5 @@ back-up-specific-game =
 restore-specific-game =
     .confirm = ¿Restaurar datos guardados de { $game }?
     .failed = Error al restaurar los datos guardados de { $game }
-new-version-check = Check for application updates automatically
-new-version-available = An application update is available: { $version }. Would you like to view the release notes?
+new-version-check = Comprobar actualizaciones automáticamente
+new-version-available = Una actualización de la aplicación está disponible: { $version }. ¿Desea ver las notas del lanzamiento?

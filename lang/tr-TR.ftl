@@ -46,14 +46,14 @@ button-get-app = İndir { $app }
 button-validate = Doğrula
 no-roots-are-configured = Daha fazla veri yedeklemek için daha fazla kök dizin ekleyin.
 config-is-invalid = Hata: Seçenekler dosyası geçersiz.
-manifest-is-invalid = Error: The manifest file is invalid.
-manifest-cannot-be-updated = Error: Unable to check for an update to the manifest file. Is your Internet connection down?
-cannot-prepare-backup-target = Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: { $path }
-restoration-source-is-invalid = Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: { $path }
-registry-issue = Error: Some registry entries were skipped.
-unable-to-browse-file-system = Error: Unable to browse on your system.
-unable-to-open-directory = Error: Unable to open directory:
-unable-to-open-url = Error: Unable to open URL:
+manifest-is-invalid = Hata: Bildiri dosyası geçersiz.
+manifest-cannot-be-updated = Hata: Bildiri dosyasında güncelleme olup olmadığı kontrol edilemiyor. İnternet bağlantınız mı koptu?
+cannot-prepare-backup-target = Hata: Yedekleme hazırlanamıyor (klasör oluşturulurken veya boşaltılırken). Dosya gezgininde klasör açıksa kapatmayı deneyin: { $path }
+restoration-source-is-invalid = Hata: Geri yükleme kaynağı geçersiz (ya mevcut değil ya da bir dizin değil). Lütfen konumu tekrar kontrol edin: { $path }
+registry-issue = Hata: Bazı kayıt defteri girdileri atlandı.
+unable-to-browse-file-system = Hata: Sisteminizde göz atılamıyor.
+unable-to-open-directory = Hata: Dizin açılamıyor:
+unable-to-open-url = Hata: URL açılamıyor:
 unable-to-configure-cloud = Bulut yapılandırılamıyor.
 unable-to-synchronize-with-cloud = Bulut eşitlemesi yapılamıyor.
 cloud-synchronize-conflict = Yerel ve bulut yedeklemeleriniz çakışıyor. Bir yükleme ya da indirme yaparak çözüm sağlayın.
@@ -81,69 +81,69 @@ field-redirect-source =
 field-redirect-target =
     .placeholder = Hedef (yeni yer)
 field-roots = Kök dizinler:
-field-backup-excluded-items = Backup exclusions:
-field-redirects = Redirects:
+field-backup-excluded-items = Yedekleme istisnaları:
+field-redirects = Yönlendirmeler:
 # This appears next to the number of full backups that you'd like to keep.
 # A full backup includes all save files for a game.
-field-retention-full = Full:
+field-retention-full = Tam:
 # This appears next to the number of differential backups that you'd like to keep.
 # A differential backup includes only the files that have changed since the last full backup.
-field-retention-differential = Differential:
-field-backup-format = Format:
-field-backup-compression = Compression:
+field-retention-differential = Değişiklikler:
+field-backup-format = Biçim:
+field-backup-compression = Sıkıştırma:
 # The compression level determines how much compresison we perform.
-field-backup-compression-level = Level:
-label-manifest = Manifest
+field-backup-compression-level = Seviye:
+label-manifest = Bildiri
 # This shows the time when we checked for an update to the manifest.
-label-checked = Checked
+label-checked = Kontrol edildi
 # This shows the time when we found an update to the manifest.
-label-updated = Updated
-label-new = New
-label-removed = Removed
-label-comment = Comment
-label-unchanged = Unchanged
-label-scan = Scan
-label-filter = Filter
-label-unique = Unique
-label-complete = Complete
-label-partial = Partial
-label-enabled = Enabled
-label-disabled = Disabled
+label-updated = Güncellendi
+label-new = Yeni
+label-removed = Kaldırıldı
+label-comment = Yorum
+label-unchanged = Değişmedi
+label-scan = Tara
+label-filter = Filtre
+label-unique = Benzersiz
+label-complete = Tamamla
+label-partial = Kısmen
+label-enabled = Etkin
+label-disabled = Devre dışı
 # https://en.wikipedia.org/wiki/Thread_(computing)
-label-threads = Threads
-label-cloud = Cloud
+label-threads = İş Parçacıkları
+label-cloud = Bulut
 # A "remote" is what Rclone calls cloud systems like Google Drive.
-label-remote = Remote
-label-remote-name = Remote name
-label-folder = Folder
+label-remote = Bulut yedekleme
+label-remote-name = Bulut yedekleme ismi
+label-folder = Klasör
 # An executable file
-label-executable = Executable
+label-executable = Yürütülebilir
 # Options given to a command line program
-label-arguments = Arguments
-label-url = URL
+label-arguments = Değişkenler
+label-url = Bağlantı
 # https://en.wikipedia.org/wiki/Host_(network)
-label-host = Host
+label-host = Sunucu
 # https://en.wikipedia.org/wiki/Port_(computer_networking)
-label-port = Port
-label-username = Username
-label-password = Password
+label-port = Bağlantı Noktası
+label-username = Kullanıcı Adı
+label-password = Şifre
 # This is a specific website or service that provides some cloud functionality.
 # For example, Nextcloud and Owncloud are providers of WebDAV services.
-label-provider = Provider
-label-custom = Custom
-label-none = None
-label-change-count = Changes: { $total }
-label-unscanned = Unscanned
+label-provider = Sağlayıcı
+label-custom = Özel
+label-none = Hiçbiri
+label-change-count = Değişiklikler: { $total }
+label-unscanned = Taranmamış
 # This refers to a local file on the computer
-label-file = File
-label-game = Game
+label-file = Dosya
+label-game = Oyun
 # Aliases are alternative titles for the same game.
-label-alias = Alias
-label-original-name = Original name
+label-alias = Takma Ad
+label-original-name = Orjinal ad
 # Which manifest a game's data came from
-label-source = Source
+label-source = Kaynak
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
-label-primary-manifest = Primary manifest
+label-primary-manifest = Birincil bildirim
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -156,20 +156,20 @@ store-origin = Origin
 store-prime = Prime Gaming
 store-steam = Steam
 store-uplay = Uplay
-store-other-home = Home folder
+store-other-home = Ana klasör
 # This would be a folder acting as a virtual C: drive, created by Wine.
-store-other-wine = Wine prefix
+store-other-wine = Wine sürücüsü
 # This would be a folder with typical Windows system folders,
 # like "Program Files (x86)" and "Users".
-store-other-windows = Windows drive
+store-other-windows = Windows sürücüsü
 # This would be a folder with typical Linux system folders,
 # like "home" and "opt".
-store-other-linux = Linux drive
+store-other-linux = Linux sürücüsü
 # This would be a folder with typical Mac system folders,
 # like "Applications" and "Users".
-store-other-mac = Mac drive
-store-other = Other
-backup-format-simple = Simple
+store-other-mac = Mac sürücüsü
+store-other = Diğer
+backup-format-simple = Basit
 backup-format-zip = Zip
 compression-none = Yok
 # "Deflate" is a proper noun: https://en.wikipedia.org/wiki/Deflate
@@ -179,44 +179,44 @@ compression-zstd = Zstd
 theme = Tema
 theme-light = Beyaz
 theme-dark = Siyah
-redirect-bidirectional = Bidirectional
-show-deselected-games = Show deselected games
-show-unchanged-games = Show unchanged games
-show-unscanned-games = Show unscanned games
-override-max-threads = Override max threads
-synchronize-automatically = Synchronize automatically
-prefer-alias-display = Display alias instead of original name
-explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
-explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
+redirect-bidirectional = Çift yönlü
+show-deselected-games = Seçili olmayan oyunları göster
+show-unchanged-games = Değişmeyen oyunları göster
+show-unscanned-games = Taranmamış oyunları göster
+override-max-threads = Maksimum iş parçacığını geçersiz kıl
+synchronize-automatically = Otomatik olarak senkronize et
+prefer-alias-display = Orijinal ad yerine takma adı görüntüle
+explanation-for-exclude-store-screenshots = Yedeklemelerde mağazaya özel ekran görüntülerini hariç tutun
+explanation-for-exclude-cloud-games = Bu platformlarda bulut destekli oyunları yedekleme
 consider-doing-a-preview =
-    If you haven't already, consider doing a preview first so that there
-    are no surprises.
+    Henüz yapmadıysan, önce bir ön izleme yapmayı düşün, böylece
+    sürprizlerle karşılaşmayacaksın.
 confirm-backup =
-    Are you sure you want to proceed with the backup? { $path-action ->
-        [merge] New save data will be merged into the target folder:
-       *[create] The target folder will be created:
+    Yedeklemeye devam etmek istediğinizden emin misiniz? { $path-action ->
+        [merge] Yeni kaydetme verileri hedef klasörle birleştirilecek:
+       *[create] Hedef klasör oluşturulur:
     }
 confirm-restore =
-    Are you sure you want to proceed with the restoration?
-    This will overwrite any current files with the backups from here:
+    Restorasyona devam etmek istediğinizden emin misiniz?
+    Bu, buradaki yedekleri içeren mevcut dosyaların üzerine yazacaktır:
 confirm-cloud-upload =
-    Do you want to replace your cloud files with your local files?
-    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
-    Files in the cloud will be updated or deleted as necessary.
+    Bulut dosyalarınızı yerel dosyalarınızla değiştirmek ister misiniz?
+    Bulut dosyalarınız ({ $cloud-path }) yerel dosyalarınızın ({ $local-path }) tam bir kopyası haline gelecektir.
+    Buluttaki dosyalar gerektiği şekilde güncellenecek veya silinecektir.
 confirm-cloud-download =
-    Do you want to replace your local files with your cloud files?
-    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
-    Local files will be updated or deleted as necessary.
-confirm-add-missing-roots = Add these roots?
-no-missing-roots = No additional roots found.
-loading = Loading...
-preparing-backup-target = Preparing backup directory...
-updating-manifest = Updating manifest...
-no-cloud-changes = No changes to synchronize
-backups-are-valid = Your backups are valid.
+    Yerel dosyalarınızı bulut dosyalarınızla değiştirmek ister misiniz?
+    Yerel dosyalarınız ({ $local-path }), bulut dosyalarınızın ({ $cloud-path }) tam bir kopyası haline gelecektir.
+    Yerel dosyalar gerektiği şekilde güncellenecek veya silinecektir.
+confirm-add-missing-roots = Bu kök dizinler eklensin mi?
+no-missing-roots = Başka kök dizin bulunamadı.
+loading = Yükleniyor...
+preparing-backup-target = Yedekleme dizini hazırlanıyor...
+updating-manifest = Bildiri güncelleniyor...
+no-cloud-changes = Senkronize edilecek değişiklik yok
+backups-are-valid = Yedeklemeleriniz geçerlidir.
 backups-are-invalid =
-    These games' backups appear to be invalid.
-    Do you want to create new full backups for these games?
+    Bu oyunların yedeklemeleri geçersiz görünüyor.
+    Bu oyunlar için yeni tam yedeklemeler oluşturmak istiyor musunuz?
 saves-found = Kayıtlı veri mevcut.
 no-saves-found = Kayıtlı veri bulunamadı.
 # This is tacked on to form something like "Back up (no confirmation)",
@@ -224,20 +224,20 @@ no-saves-found = Kayıtlı veri bulunamadı.
 suffix-no-confirmation = doğrulamasız
 # This is shown when a setting will only take effect after closing and reopening Ludusavi.
 suffix-restart-required = yeniden başlatma gerekli
-prefix-error = Error: { $message }
-prefix-warning = Warning: { $message }
-cloud-app-unavailable = Cloud backups are disabled because { $app } is not available.
-cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
-cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.
-game-is-unrecognized = Ludusavi does not recognize this game.
-game-has-nothing-to-restore = This game does not have a backup to restore.
-launch-game-after-error = Launch the game anyway?
-game-did-not-launch = Game failed to launch.
+prefix-error = Hata: { $message }
+prefix-warning = Uyarı: { $message }
+cloud-app-unavailable = { $app } kullanılamadığından bulut yedeklemeleri devre dışı bırakıldı.
+cloud-not-configured = Hiçbir bulut sistemi yapılandırılmadığından bulut yedeklemeleri devre dışı bırakıldı.
+cloud-path-invalid = Yedekleme yolu geçersiz olduğundan bulut yedeklemeleri devre dışı bırakıldı.
+game-is-unrecognized = Ludusavi bu oyunu tanımıyor.
+game-has-nothing-to-restore = Bu oyunun geri yüklenecek bir yedeği yok.
+launch-game-after-error = Yine de oyun başlatılsın mı?
+game-did-not-launch = Oyun başlatılamadı.
 back-up-specific-game =
-    .confirm = Back up save data for { $game }?
-    .failed = Failed to back up save data for { $game }
+    .confirm = { $game } için kayıt verileri yedeklensin mi?
+    .failed = { $game } için kayıt verileri yedeklenemedi
 restore-specific-game =
-    .confirm = Restore save data for { $game }?
-    .failed = Failed to restore save data for { $game }
-new-version-check = Check for application updates automatically
-new-version-available = An application update is available: { $version }. Would you like to view the release notes?
+    .confirm = { $game } için kayıt verileri geri yüklensin mi?
+    .failed = { $game } için kayıt verileri geri yüklenemedi
+new-version-check = Güncellemelerini otomatik olarak kontrol et
+new-version-available = Güncelleme mevcut: { $version }. Sürüm notlarını görüntülemek ister misiniz?

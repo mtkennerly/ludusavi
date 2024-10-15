@@ -18,8 +18,8 @@ badge-ignored = OHITETTU
 badge-redirected-from = FROM: { $path }
 badge-redirecting-to = TO: { $path }
 some-entries-failed = Some entries failed to process; look for { badge-failed } in the output for details. Double check whether you can access those files or whether their paths are very long.
-cli-game-line-item-redirected = Redirected from: { $path }
-cli-game-line-item-redirecting = Redirecting to: { $path }
+cli-game-line-item-redirected = Ohjattu lähteestä: { $path }
+cli-game-line-item-redirecting = Ohjattu kohteeseen: { $path }
 button-backup = Varmuuskopioi
 button-preview = Esikatsele
 button-restore = Palauta
@@ -47,9 +47,9 @@ button-validate = Vahvista
 no-roots-are-configured = Lisää joitakin juuria varmuuskopioidaksesi vielä enemmän tietoa.
 config-is-invalid = Virhe: Asetustiedosto on virheellinen.
 manifest-is-invalid = Virhe: manifestitiedosto on virheellinen.
-manifest-cannot-be-updated = Error: Unable to check for an update to the manifest file. Is your Internet connection down?
+manifest-cannot-be-updated = Virhe: Ei voitu tarkistaa manifestitiedoston päivitystä. Toimiiko Internet-yhteytesi?
 cannot-prepare-backup-target = Error: Unable to prepare backup target (either creating or emptying the folder). If you have the folder open in your file browser, try closing it: { $path }
-restoration-source-is-invalid = Error: The restoration source is invalid (either doesn't exist or isn't a directory). Please double check the location: { $path }
+restoration-source-is-invalid = Virhe: Palautuksen lähde on virheellinen (joko ei ole olemassa tai ei ole hakemisto). Tarkista polku: { $path }
 registry-issue = Virhe: Jotkut rekisterimerkinnät ohitettiin.
 unable-to-browse-file-system = Virhe: Järjestelmää ei voi selata.
 unable-to-open-directory = Virhe: Kansiota ei voitu avata:
@@ -129,9 +129,9 @@ label-username = Käyttäjätunnus
 label-password = Salasana
 # This is a specific website or service that provides some cloud functionality.
 # For example, Nextcloud and Owncloud are providers of WebDAV services.
-label-provider = Provider
-label-custom = Custom
-label-none = None
+label-provider = Palveluntarjoaja
+label-custom = Mukautettu
+label-none = Ei mitään
 label-change-count = Muutokset: { $total }
 label-unscanned = Skannamaton
 # This refers to a local file on the computer
@@ -141,9 +141,9 @@ label-game = Peli
 label-alias = Alias
 label-original-name = Alkuperäinen nimi
 # Which manifest a game's data came from
-label-source = Source
+label-source = Lähde
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
-label-primary-manifest = Primary manifest
+label-primary-manifest = Ensisijainen manifesti
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -200,13 +200,13 @@ confirm-restore =
     Are you sure you want to proceed with the restoration?
     This will overwrite any current files with the backups from here:
 confirm-cloud-upload =
-    Do you want to replace your cloud files with your local files?
-    Your cloud files ({ $cloud-path }) will become an exact copy of your local files ({ $local-path }).
-    Files in the cloud will be updated or deleted as necessary.
+    Haluatko korvata pilvessä olevat tiedostot paikallisilla tiedostoillasi?
+    Pilvitiedostoistasi ({ $cloud-path }) tulee tarkka kopio paikallisista tiedostoistasi ({ $local-path }).
+    Pilvessä olevat tiedostot päivitetään tai poistetaan tarpeen mukaan.
 confirm-cloud-download =
-    Do you want to replace your local files with your cloud files?
-    Your local files ({ $local-path }) will become an exact copy of your cloud files ({ $cloud-path }).
-    Local files will be updated or deleted as necessary.
+    Haluatko korvata paikalliset tiedostot pilvessä olevilla tiedostoillasi?
+    Paikallisista tiedostoistasi ({ $local-path }) tulee tarkka kopio pilvitiedostoistasi ({ $cloud-path }).
+    Paikalliset tiedostot päivitetään tai poistetaan tarpeen mukaan.
 confirm-add-missing-roots = Lisätäänkö nämä juuret?
 no-missing-roots = Muita juuria ei löytynyt.
 loading = Ladataan...
@@ -227,8 +227,8 @@ suffix-restart-required = uudelleenkäynnistys vaaditaan
 prefix-error = Virhe: { $message }
 prefix-warning = Varoitus: { $message }
 cloud-app-unavailable = Pilvivarmuuskopiot ovat pois käytöstä, koska { $app } ei ole käytettävissä.
-cloud-not-configured = Cloud backups are disabled because no cloud system is configured.
-cloud-path-invalid = Cloud backups are disabled because the backup path is invalid.
+cloud-not-configured = Pilvivarmuuskopiot eivät ole käytössä, koska pilvijärjestelmää ei ole määritetty.
+cloud-path-invalid = Pilvivarmuuskopiot eivät ole käytössä, koska varmuuskopiointipolku on virheellinen.
 game-is-unrecognized = Ludusavi ei tunnista tätä peliä.
 game-has-nothing-to-restore = Tästä pelistä ei ole palautettavaa varmuuskopiota.
 launch-game-after-error = Käynnistetäänkö peli silti?

@@ -131,11 +131,11 @@ label-file = 文件
 label-game = 游戏
 # Aliases are alternative titles for the same game.
 label-alias = 别名
-label-original-name = Original name
+label-original-name = 原始名称
 # Which manifest a game's data came from
-label-source = Source
+label-source = 游戏数据来源
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
-label-primary-manifest = Primary manifest
+label-primary-manifest = 主要清单
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -177,9 +177,9 @@ show-unchanged-games = 显示未修改的游戏
 show-unscanned-games = 显示未扫描的游戏
 override-max-threads = 覆盖最大线程
 synchronize-automatically = 自动同步
-prefer-alias-display = Display alias instead of original name
+prefer-alias-display = 显示别名而不是原始名称
 explanation-for-exclude-store-screenshots = 在备份中，排除特定商店的屏幕截图
-explanation-for-exclude-cloud-games = Do not back up games with cloud support on these platforms
+explanation-for-exclude-cloud-games = 不要在这些平台上备份云支持的游戏
 consider-doing-a-preview = 如果您还没有预览，请考虑先进行预览，防止发生任何意料之外的结果。
 confirm-backup =
     确定要继续备份吗？ { $path-action ->
@@ -229,5 +229,5 @@ back-up-specific-game =
 restore-specific-game =
     .confirm = 要恢复 { $game } 的存档数据吗？
     .failed = 恢复 { $game } 的存档数据失败
-new-version-check = Check for application updates automatically
-new-version-available = An application update is available: { $version }. Would you like to view the release notes?
+new-version-check = 自动检查应用程序更新
+new-version-available = 应用程序更新可用：{ $version }. 是否要查看发行说明？

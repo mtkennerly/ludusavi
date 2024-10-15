@@ -141,9 +141,9 @@ label-game = Spiel
 label-alias = Alias
 label-original-name = Originalname
 # Which manifest a game's data came from
-label-source = Source
+label-source = Quelle
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
-label-primary-manifest = Primary manifest
+label-primary-manifest = Primäres Manifest
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
