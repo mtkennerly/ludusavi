@@ -169,6 +169,10 @@ pub enum Message {
         index: usize,
         enabled: bool,
     },
+    ToggleCustomGameExpanded {
+        index: usize,
+        expanded: bool,
+    },
     TogglePrimaryManifestEnabled {
         enabled: bool,
     },

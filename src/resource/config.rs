@@ -1123,6 +1123,8 @@ pub struct CustomGame {
     pub files: Vec<String>,
     /// Any registry keys you want to back up.
     pub registry: Vec<String>,
+    #[serde(skip)]
+    pub expanded: bool,
 }
 
 impl CustomGame {
@@ -1523,6 +1525,7 @@ impl Config {
             prefer_alias: false,
             files: vec![],
             registry: vec![],
+            expanded: false,
         });
     }
 
@@ -2086,6 +2089,7 @@ mod tests {
                         prefer_alias: false,
                         files: vec![],
                         registry: vec![],
+                        expanded: false,
                     },
                     CustomGame {
                         name: s("Custom Game 2"),
@@ -2094,6 +2098,7 @@ mod tests {
                         prefer_alias: false,
                         files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
+                        expanded: false,
                     },
                 ],
             },
@@ -2274,6 +2279,7 @@ customGames:
                         prefer_alias: false,
                         files: vec![],
                         registry: vec![],
+                        expanded: false,
                     },
                     CustomGame {
                         name: s("Custom Game 2"),
@@ -2282,6 +2288,7 @@ customGames:
                         prefer_alias: false,
                         files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
                         registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
+                        expanded: false,
                     },
                     CustomGame {
                         name: s("Alias"),
@@ -2290,6 +2297,7 @@ customGames:
                         prefer_alias: false,
                         files: vec![],
                         registry: vec![],
+                        expanded: false,
                     },
                 ],
             })

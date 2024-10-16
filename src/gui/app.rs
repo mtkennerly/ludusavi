@@ -1083,6 +1083,7 @@ impl App {
                 prefer_alias: false,
                 files: standard.files.keys().cloned().collect(),
                 registry: standard.registry.keys().cloned().collect(),
+                expanded: true,
             }
         } else {
             CustomGame {
@@ -1092,6 +1093,7 @@ impl App {
                 prefer_alias: false,
                 files: vec![],
                 registry: vec![],
+                expanded: true,
             }
         };
 
@@ -1114,6 +1116,7 @@ impl App {
             prefer_alias: true,
             files: vec![],
             registry: vec![],
+            expanded: true,
         };
 
         self.text_histories.add_custom_game(&game);
@@ -1838,6 +1841,11 @@ impl App {
                 } else {
                     self.config.disable_custom_game(index);
                 }
+                self.save_config();
+                Task::none()
+            }
+            Message::ToggleCustomGameExpanded { index, expanded } => {
+                self.config.custom_games[index].expanded = expanded;
                 self.save_config();
                 Task::none()
             }

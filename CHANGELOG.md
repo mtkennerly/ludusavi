@@ -9,6 +9,7 @@ to better preserve the files' executable permissions.
     For Steam roots, this also supports shortcuts to non-Steam games,
     where the placeholder will map to the shortcut's dynamic app ID.
   * Paths may now use the `<winLocalAppDataLow>` placeholder.
+  * GUI: Custom games can now be expanded and collapsed.
 * Fixed:
   * Files on Windows network shares were not backed up correctly.
     For example, a file identified as `\\localhost\share\test.txt`

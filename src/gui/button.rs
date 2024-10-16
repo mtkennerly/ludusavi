@@ -487,3 +487,20 @@ pub fn show_game_notes<'a>(game: String, notes: Vec<manifest::Note>) -> Element<
         Some(style::Button::Bare),
     )
 }
+
+pub fn expand<'a>(expanded: bool, on_press: Message) -> Element<'a> {
+    Button::new(
+        (if expanded {
+            Icon::KeyboardArrowDown
+        } else {
+            Icon::KeyboardArrowRight
+        })
+        .text_small(),
+    )
+    .on_press(on_press)
+    .class(style::Button::Primary)
+    .padding(5)
+    .height(25)
+    .width(25)
+    .into()
+}

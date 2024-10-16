@@ -5,6 +5,7 @@ use iced::{padding, Alignment};
 use crate::{
     gui::{
         badge::Badge,
+        button,
         common::{Message, TreeNodeKey},
         icon::Icon,
         style,
@@ -219,24 +220,13 @@ impl FileTreeNode {
                         .align_y(Alignment::Center)
                         .padding(padding::left(35 * level).right(10))
                         .spacing(10)
-                        .push(
-                            Button::new(
-                                (if expanded {
-                                    Icon::KeyboardArrowDown
-                                } else {
-                                    Icon::KeyboardArrowRight
-                                })
-                                .text_small(),
-                            )
-                            .on_press(Message::ToggleGameListEntryTreeExpanded {
+                        .push(button::expand(
+                            expanded,
+                            Message::ToggleGameListEntryTreeExpanded {
                                 name: game_name.to_string(),
                                 keys: self.keys.clone(),
-                            })
-                            .class(style::Button::Primary)
-                            .padding(5)
-                            .height(25)
-                            .width(25),
-                        )
+                            },
+                        ))
                         .push_maybe(make_enabler())
                         .push(text(if label.is_empty() && self.node_type == FileTreeNodeType::File {
                             "/".to_string()

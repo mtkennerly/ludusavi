@@ -253,72 +253,84 @@ pub fn custom_games<'a>(
             .padding(padding::top(0).bottom(5).left(15).right(15))
             .spacing(10),
         |parent, (i, x)| {
-            parent.push(
-                Container::new(
-                    Column::new()
-                        .padding(5)
-                        .spacing(5)
+            parent.push({
+                let mut content = Column::new().padding(5).spacing(5).push(
+                    Row::new()
+                        .spacing(20)
+                        .align_y(iced::Alignment::Center)
+                        .push(button::expand(
+                            x.expanded,
+                            Message::ToggleCustomGameExpanded {
+                                index: i,
+                                expanded: !x.expanded,
+                            },
+                        ))
                         .push(
                             Row::new()
+                                .width(110)
                                 .spacing(20)
-                                .align_y(iced::Alignment::Center)
+                                .align_y(Alignment::Center)
                                 .push(
-                                    Row::new()
-                                        .width(110)
-                                        .spacing(20)
-                                        .align_y(Alignment::Center)
-                                        .push(
-                                            checkbox("", config.is_custom_game_enabled(i), move |enabled| {
-                                                Message::ToggleCustomGameEnabled { index: i, enabled }
-                                            })
-                                            .spacing(0)
-                                            .class(style::Checkbox),
-                                        )
-                                        .push(button::move_up(Message::EditedCustomGame, i))
-                                        .push(button::move_down(
-                                            Message::EditedCustomGame,
-                                            i,
-                                            config.custom_games.len(),
-                                        )),
-                                )
-                                .push(histories.input(UndoSubject::CustomGameName(i)))
-                                .push(
-                                    pick_list(CustomGameKind::ALL, Some(config.custom_games[i].kind()), move |v| {
-                                        Message::SelectedCustomGameKind(i, v)
+                                    checkbox("", config.is_custom_game_enabled(i), move |enabled| {
+                                        Message::ToggleCustomGameEnabled { index: i, enabled }
                                     })
-                                    .class(style::PickList::Primary)
-                                    .width(100),
+                                    .spacing(0)
+                                    .class(style::Checkbox),
                                 )
-                                .push(
-                                    Tooltip::new(
-                                        button::refresh_custom_game(
-                                            Message::Backup(BackupPhase::Start {
-                                                games: Some(vec![config.custom_games[i].name.clone()]),
-                                                preview: true,
-                                                repair: false,
-                                            }),
-                                            operating,
-                                            config.is_custom_game_individually_scannable(i),
-                                        ),
-                                        text(TRANSLATOR.preview_button_in_custom_mode()).size(16),
-                                        tooltip::Position::Top,
-                                    )
-                                    .gap(5)
-                                    .class(style::Container::Tooltip),
-                                )
-                                .push(button::delete(Message::EditedCustomGame, i)),
+                                .push(button::move_up(Message::EditedCustomGame, i))
+                                .push(button::move_down(
+                                    Message::EditedCustomGame,
+                                    i,
+                                    config.custom_games.len(),
+                                )),
                         )
+                        .push(histories.input(UndoSubject::CustomGameName(i)))
+                        .push(
+                            pick_list(CustomGameKind::ALL, Some(config.custom_games[i].kind()), move |v| {
+                                Message::SelectedCustomGameKind(i, v)
+                            })
+                            .class(style::PickList::Primary)
+                            .width(100),
+                        )
+                        .push(
+                            Tooltip::new(
+                                button::refresh_custom_game(
+                                    Message::Backup(BackupPhase::Start {
+                                        games: Some(vec![config.custom_games[i].name.clone()]),
+                                        preview: true,
+                                        repair: false,
+                                    }),
+                                    operating,
+                                    config.is_custom_game_individually_scannable(i),
+                                ),
+                                text(TRANSLATOR.preview_button_in_custom_mode()).size(16),
+                                tooltip::Position::Top,
+                            )
+                            .gap(5)
+                            .class(style::Container::Tooltip),
+                        )
+                        .push(button::delete(Message::EditedCustomGame, i)),
+                );
+
+                if x.expanded {
+                    let left_side = 165;
+
+                    content = content
                         .push_if(config.custom_games[i].kind() == CustomGameKind::Alias, move || {
                             Row::new()
                                 .spacing(10)
                                 .align_y(Alignment::Center)
-                                .push(Column::new().width(120).push(text(TRANSLATOR.original_name_field())))
+                                .push(
+                                    Column::new()
+                                        .width(left_side)
+                                        .push(text(TRANSLATOR.original_name_field())),
+                                )
                                 .push(histories.input(UndoSubject::CustomGameAlias(i)))
                         })
                         .push_if(config.custom_games[i].kind() == CustomGameKind::Alias, || {
                             Row::new()
                                 .spacing(10)
-                                .push(horizontal_space().width(120))
+                                .push(horizontal_space().width(left_side))
                                 .push(checkbox(
                                     TRANSLATOR.prefer_alias_display(),
                                     config.custom_games[i].prefer_alias,
@@ -327,7 +339,12 @@ pub fn custom_games<'a>(
                         })
                         .push_if(config.custom_games[i].kind() == CustomGameKind::Game, || {
                             Row::new()
-                                .push(Column::new().width(130).push(text(TRANSLATOR.custom_files_label())))
+                                .spacing(10)
+                                .push(
+                                    Column::new()
+                                        .width(left_side)
+                                        .push(text(TRANSLATOR.custom_files_label())),
+                                )
                                 .push(
                                     x.files
                                         .iter()
@@ -357,7 +374,12 @@ pub fn custom_games<'a>(
                         })
                         .push_if(config.custom_games[i].kind() == CustomGameKind::Game, || {
                             Row::new()
-                                .push(Column::new().width(130).push(text(TRANSLATOR.custom_registry_label())))
+                                .spacing(10)
+                                .push(
+                                    Column::new()
+                                        .width(left_side)
+                                        .push(text(TRANSLATOR.custom_registry_label())),
+                                )
                                 .push(
                                     x.registry
                                         .iter()
@@ -388,11 +410,13 @@ pub fn custom_games<'a>(
                                         })
                                         .push(button::add_nested(Message::EditedCustomGameRegistry, i)),
                                 )
-                        }),
-                )
-                .id(iced::widget::container::Id::new(config.custom_games[i].name.clone()))
-                .class(style::Container::GameListEntry),
-            )
+                        });
+                }
+
+                Container::new(content)
+                    .id(iced::widget::container::Id::new(config.custom_games[i].name.clone()))
+                    .class(style::Container::GameListEntry)
+            })
         },
     );
 
