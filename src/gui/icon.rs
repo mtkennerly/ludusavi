@@ -61,7 +61,7 @@ impl Icon {
             Self::FastForward => '\u{E01F}',
             Self::Filter => '\u{ef4f}',
             Self::FolderOpen => '\u{E2C8}',
-            Self::Info => '\u{e88e}',
+            Self::Info => '\u{e88f}',
             Self::KeyboardArrowDown => '\u{E313}',
             Self::KeyboardArrowRight => '\u{E315}',
             Self::Language => '\u{E894}',
