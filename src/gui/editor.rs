@@ -6,8 +6,10 @@ use iced::{
 
 use crate::{
     gui::{
+        badge::Badge,
         button,
         common::{BackupPhase, BrowseFileSubject, BrowseSubject, Message, ScrollSubject, UndoSubject},
+        icon::Icon,
         shortcuts::TextHistories,
         style,
         widget::{checkbox, pick_list, text, Column, Container, IcedParentExt, Row, Tooltip},
@@ -16,7 +18,7 @@ use crate::{
     resource::{
         cache::Cache,
         config::{Config, CustomGameKind, RedirectKind, SecondaryManifestConfigKind},
-        manifest::Store,
+        manifest::{Manifest, Store},
     },
 };
 
@@ -239,6 +241,7 @@ pub fn redirect<'a>(config: &Config, histories: &TextHistories, modifiers: &keyb
 
 pub fn custom_games<'a>(
     config: &Config,
+    manifest: &Manifest,
     operating: bool,
     histories: &TextHistories,
     modifiers: &keyboard::Modifiers,
@@ -285,6 +288,15 @@ pub fn custom_games<'a>(
                                 )),
                         )
                         .push(histories.input(UndoSubject::CustomGameName(i)))
+                        .push_maybe(if manifest.0.get(&x.name).is_some_and(|game| game.is_from_manifest()) {
+                            Some(
+                                Badge::icon(Icon::CallSplit)
+                                    .tooltip(TRANSLATOR.custom_game_will_override())
+                                    .view(),
+                            )
+                        } else {
+                            None
+                        })
                         .push(
                             pick_list(CustomGameKind::ALL, Some(config.custom_games[i].kind()), move |v| {
                                 Message::SelectedCustomGameKind(i, v)

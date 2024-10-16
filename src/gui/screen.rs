@@ -279,6 +279,7 @@ impl Restore {
 
 pub fn custom_games<'a>(
     config: &Config,
+    manifest: &Manifest,
     operating: bool,
     histories: &TextHistories,
     modifiers: &keyboard::Modifiers,
@@ -292,7 +293,7 @@ pub fn custom_games<'a>(
                 .push(button::add_game())
                 .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled())),
         )
-        .push(editor::custom_games(config, operating, histories, modifiers));
+        .push(editor::custom_games(config, manifest, operating, histories, modifiers));
 
     template(content)
 }

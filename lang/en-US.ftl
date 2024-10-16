@@ -276,3 +276,5 @@ restore-specific-game =
 
 new-version-check = Check for application updates automatically
 new-version-available = An application update is available: {$version}. Would you like to view the release notes?
+
+custom-game-will-override = The manifest entry with this name will be overridden

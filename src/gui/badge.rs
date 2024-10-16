@@ -3,6 +3,7 @@ use iced::{alignment, padding, widget::tooltip, Length};
 use crate::{
     gui::{
         common::Message,
+        icon::Icon,
         style,
         widget::{text, Button, Container, Tooltip},
     },
@@ -15,6 +16,7 @@ const CHANGE_BADGE_WIDTH: f32 = 10.0;
 #[derive(Default)]
 pub struct Badge {
     text: String,
+    icon: bool,
     change: Option<ScanChange>,
     tooltip: Option<String>,
     on_press: Option<Message>,
@@ -26,6 +28,7 @@ impl Badge {
     pub fn new(text: &str) -> Self {
         Self {
             text: text.to_string(),
+            icon: false,
             change: None,
             tooltip: None,
             on_press: None,
@@ -34,9 +37,18 @@ impl Badge {
         }
     }
 
+    pub fn icon(icon: Icon) -> Self {
+        Self {
+            text: icon.as_char().to_string(),
+            icon: true,
+            ..Default::default()
+        }
+    }
+
     pub fn scan_change(change: ScanChange) -> Self {
         Self {
             text: change.symbol().to_string(),
+            icon: false,
             change: Some(change),
             tooltip: match change {
                 ScanChange::New => Some(TRANSLATOR.new_tooltip()),
@@ -97,12 +109,18 @@ impl Badge {
 
     pub fn view(self) -> Container<'static> {
         Container::new({
-            let content = Container::new(
-                text(self.text)
+            let content = Container::new({
+                let mut text = text(self.text)
                     .size(12)
                     .align_x(alignment::Horizontal::Center)
-                    .width(self.width.unwrap_or(Length::Shrink)),
-            )
+                    .width(self.width.unwrap_or(Length::Shrink));
+
+                if self.icon {
+                    text = text.font(crate::gui::font::ICONS);
+                }
+
+                text
+            })
             .padding([2, 10])
             .class(match self.change {
                 None => match self.on_press.as_ref() {

@@ -241,6 +241,14 @@ impl Game {
             steam_extra: &self.id.steam_extra,
         }
     }
+
+    pub fn is_from_manifest(&self) -> bool {
+        self.sources.iter().any(|source| match source {
+            Source::Primary => true,
+            Source::Custom => false,
+            Source::Secondary(_) => true,
+        })
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -631,6 +639,9 @@ impl Manifest {
         let name = custom.name.clone();
         let existing = self.0.get(&name);
 
+        let mut sources = existing.map(|x| x.sources.clone()).unwrap_or_default();
+        sources.insert(Source::Custom);
+
         let game = Game {
             alias: custom.alias,
             files: custom
@@ -652,7 +663,7 @@ impl Manifest {
             // you probably still want to back up your customized versions of such games.
             cloud: CloudMetadata::default(),
             notes: Default::default(),
-            sources: Default::default(),
+            sources,
         };
 
         self.0.insert(name, game);

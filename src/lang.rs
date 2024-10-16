@@ -1396,6 +1396,10 @@ impl Translator {
         args.set(VERSION, version);
         translate_args("new-version-available", &args)
     }
+
+    pub fn custom_game_will_override(&self) -> String {
+        translate("custom-game-will-override")
+    }
 }
 
 #[cfg(test)]

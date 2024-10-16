@@ -2760,6 +2760,7 @@ impl App {
                 ),
                 Screen::CustomGames => screen::custom_games(
                     &self.config,
+                    &self.manifest.extended,
                     !self.operation.idle(),
                     &self.text_histories,
                     &self.modifiers,
