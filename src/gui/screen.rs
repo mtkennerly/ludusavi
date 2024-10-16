@@ -291,7 +291,8 @@ pub fn custom_games<'a>(
                 .spacing(20)
                 .align_y(Alignment::Center)
                 .push(button::add_game())
-                .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled())),
+                .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled()))
+                .push(button::sort(Message::SortCustomGames)),
         )
         .push(editor::custom_games(config, manifest, operating, histories, modifiers));
 

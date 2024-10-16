@@ -286,6 +286,7 @@ pub enum Message {
     ShowCustomGame {
         name: String,
     },
+    SortCustomGames,
 }
 
 impl Message {

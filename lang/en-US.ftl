@@ -52,6 +52,7 @@ button-get-app = Get {$app}
 button-validate = Validate
 button-override-manifest = Override manifest
 button-extend-manifest = Extend manifest
+button-sort = Sort
 
 no-roots-are-configured = Add some roots to back up even more data.
 

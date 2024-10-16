@@ -2697,6 +2697,14 @@ impl App {
                     None => Message::Ignore,
                 })
             }
+            Message::SortCustomGames => {
+                self.config.custom_games.sort_by(|x, y| x.name.cmp(&y.name));
+                self.text_histories
+                    .custom_games
+                    .sort_by(|x, y| x.name.current().cmp(&y.name.current()));
+                self.config.save();
+                Task::none()
+            }
         }
     }
 

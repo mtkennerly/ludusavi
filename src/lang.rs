@@ -806,6 +806,10 @@ impl Translator {
         translate("button-extend-manifest")
     }
 
+    pub fn sort_button(&self) -> String {
+        translate("button-sort")
+    }
+
     pub fn no_roots_are_configured(&self) -> String {
         translate("no-roots-are-configured")
     }

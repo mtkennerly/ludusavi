@@ -15,6 +15,8 @@ use crate::{
     resource::manifest,
 };
 
+const WIDTH: u16 = 125;
+
 fn template(content: Text, action: Option<Message>, style: Option<style::Button>) -> Element {
     Button::new(content.align_x(alignment::Horizontal::Center))
         .on_press_maybe(action)
@@ -36,7 +38,7 @@ pub fn primary<'a>(content: String, action: Option<Message>) -> Element<'a> {
         .on_press_maybe(action)
         .class(style::Button::Primary)
         .padding(5)
-        .width(125)
+        .width(WIDTH)
         .into()
 }
 
@@ -44,7 +46,7 @@ pub fn negative<'a>(content: String, action: Option<Message>) -> Element<'a> {
     Button::new(text(content).align_x(alignment::Horizontal::Center))
         .on_press_maybe(action)
         .class(style::Button::Negative)
-        .width(125)
+        .width(WIDTH)
         .padding(5)
         .into()
 }
@@ -107,6 +109,10 @@ pub fn filter<'a>(screen: Screen, open: bool) -> Element<'a> {
         Some(Message::ToggleSearch { screen }),
         open.then_some(style::Button::Negative),
     )
+}
+
+pub fn sort<'a>(message: Message) -> Element<'a> {
+    template(text(TRANSLATOR.sort_button()).width(WIDTH), Some(message), None)
 }
 
 pub fn sort_order<'a>(screen: Screen, reversed: bool) -> Element<'a> {
@@ -196,13 +202,13 @@ pub fn previous_page<'a>(action: fn(usize) -> Message, page: usize) -> Element<'
 pub fn toggle_all_scanned_games<'a>(all_enabled: bool) -> Element<'a> {
     if all_enabled {
         template(
-            text(TRANSLATOR.deselect_all_button()).width(125),
+            text(TRANSLATOR.deselect_all_button()).width(WIDTH),
             Some(Message::DeselectAllGames),
             None,
         )
     } else {
         template(
-            text(TRANSLATOR.select_all_button()).width(125),
+            text(TRANSLATOR.select_all_button()).width(WIDTH),
             Some(Message::SelectAllGames),
             None,
         )
@@ -212,13 +218,13 @@ pub fn toggle_all_scanned_games<'a>(all_enabled: bool) -> Element<'a> {
 pub fn toggle_all_custom_games<'a>(all_enabled: bool) -> Element<'a> {
     if all_enabled {
         template(
-            text(TRANSLATOR.disable_all_button()).width(125),
+            text(TRANSLATOR.disable_all_button()).width(WIDTH),
             Some(Message::DeselectAllGames),
             None,
         )
     } else {
         template(
-            text(TRANSLATOR.enable_all_button()).width(125),
+            text(TRANSLATOR.enable_all_button()).width(WIDTH),
             Some(Message::SelectAllGames),
             None,
         )
@@ -227,14 +233,14 @@ pub fn toggle_all_custom_games<'a>(all_enabled: bool) -> Element<'a> {
 
 pub fn add_game<'a>() -> Element<'a> {
     template(
-        text(TRANSLATOR.add_game_button()).width(125),
+        text(TRANSLATOR.add_game_button()).width(WIDTH),
         Some(Message::EditedCustomGame(EditAction::Add)),
         None,
     )
 }
 
 pub fn open_url<'a>(label: String, url: String) -> Element<'a> {
-    template(text(label).width(125), Some(Message::OpenUrl(url)), None)
+    template(text(label).width(WIDTH), Some(Message::OpenUrl(url)), None)
 }
 
 pub fn open_url_icon<'a>(url: String) -> Element<'a> {
@@ -322,7 +328,7 @@ pub fn backup<'a>(ongoing: &Operation) -> Element<'a> {
             } => TRANSLATOR.cancelling_button(),
             _ => TRANSLATOR.backup_button(),
         })
-        .width(125)
+        .width(WIDTH)
         .align_x(alignment::Horizontal::Center),
         match ongoing {
             Operation::Idle => Some(Message::Backup(BackupPhase::Confirm { games: None })),
@@ -359,7 +365,7 @@ pub fn backup_preview<'a>(ongoing: &Operation) -> Element<'a> {
             } => TRANSLATOR.cancelling_button(),
             _ => TRANSLATOR.preview_button(),
         })
-        .width(125)
+        .width(WIDTH)
         .align_x(alignment::Horizontal::Center),
         match ongoing {
             Operation::Idle => Some(Message::Backup(BackupPhase::Start {
@@ -400,7 +406,7 @@ pub fn restore<'a>(ongoing: &Operation) -> Element<'a> {
             } => TRANSLATOR.cancelling_button(),
             _ => TRANSLATOR.restore_button(),
         })
-        .width(125)
+        .width(WIDTH)
         .align_x(alignment::Horizontal::Center),
         match ongoing {
             Operation::Idle => Some(Message::Restore(RestorePhase::Confirm { games: None })),
@@ -437,7 +443,7 @@ pub fn restore_preview<'a>(ongoing: &Operation) -> Element<'a> {
             } => TRANSLATOR.cancelling_button(),
             _ => TRANSLATOR.preview_button(),
         })
-        .width(125)
+        .width(WIDTH)
         .align_x(alignment::Horizontal::Center),
         match ongoing {
             Operation::Idle => Some(Message::Restore(RestorePhase::Start {
@@ -469,7 +475,7 @@ pub fn validate_backups<'a>(ongoing: &Operation) -> Element<'a> {
             Operation::ValidateBackups { cancelling: true, .. } => TRANSLATOR.cancelling_button(),
             _ => TRANSLATOR.validate_button(),
         })
-        .width(125)
+        .width(WIDTH)
         .align_x(alignment::Horizontal::Center),
         match ongoing {
             Operation::Idle => Some(Message::ValidateBackups(ValidatePhase::Start)),
