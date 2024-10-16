@@ -798,6 +798,14 @@ impl Translator {
         translate("button-validate")
     }
 
+    pub fn override_manifest_button(&self) -> String {
+        translate("button-override-manifest")
+    }
+
+    pub fn extend_manifest_button(&self) -> String {
+        translate("button-extend-manifest")
+    }
+
     pub fn no_roots_are_configured(&self) -> String {
         translate("no-roots-are-configured")
     }
@@ -1032,6 +1040,10 @@ impl Translator {
 
     pub fn primary_manifest_label(&self) -> String {
         translate("label-primary-manifest")
+    }
+
+    pub fn integration_label(&self) -> String {
+        translate("label-integration")
     }
 
     pub fn custom_game_kind(&self, kind: &CustomGameKind) -> String {
@@ -1399,6 +1411,10 @@ impl Translator {
 
     pub fn custom_game_will_override(&self) -> String {
         translate("custom-game-will-override")
+    }
+
+    pub fn custom_game_will_extend(&self) -> String {
+        translate("custom-game-will-extend")
     }
 }
 

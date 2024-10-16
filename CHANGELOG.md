@@ -9,8 +9,11 @@ to better preserve the files' executable permissions.
     For Steam roots, this also supports shortcuts to non-Steam games,
     where the placeholder will map to the shortcut's dynamic app ID.
   * Paths may now use the `<winLocalAppDataLow>` placeholder.
+  * You can now choose whether a custom game will override or extend
+    a manifest entry with the same name.
+    Previously, it would always override the manifest entry completely.
   * GUI: Custom games can now be expanded and collapsed.
-  * GUI: Custom games now have an icon to indicate when they override a manifest entry.
+  * GUI: Custom games now have an icon to indicate when they override/extend a manifest entry.
 * Fixed:
   * Files on Windows network shares were not backed up correctly.
     For example, a file identified as `\\localhost\share\test.txt`

@@ -17,7 +17,7 @@ use crate::{
     lang::TRANSLATOR,
     resource::{
         cache::Cache,
-        config::{Config, CustomGameKind, RedirectKind, SecondaryManifestConfigKind},
+        config::{Config, CustomGameKind, Integration, RedirectKind, SecondaryManifestConfigKind},
         manifest::{Manifest, Store},
     },
 };
@@ -289,11 +289,14 @@ pub fn custom_games<'a>(
                         )
                         .push(histories.input(UndoSubject::CustomGameName(i)))
                         .push_maybe(if manifest.0.get(&x.name).is_some_and(|game| game.is_from_manifest()) {
-                            Some(
-                                Badge::icon(Icon::CallSplit)
+                            Some(match x.effective_integration() {
+                                Integration::Override => Badge::icon(Icon::CallSplit)
                                     .tooltip(TRANSLATOR.custom_game_will_override())
                                     .view(),
-                            )
+                                Integration::Extend => Badge::icon(Icon::CallMerge)
+                                    .tooltip(TRANSLATOR.custom_game_will_extend())
+                                    .view(),
+                            })
                         } else {
                             None
                         })
@@ -325,6 +328,7 @@ pub fn custom_games<'a>(
                 );
 
                 if x.expanded {
+                    let top_side = 5;
                     let left_side = 165;
 
                     content = content
@@ -335,6 +339,7 @@ pub fn custom_games<'a>(
                                 .push(
                                     Column::new()
                                         .width(left_side)
+                                        .padding(padding::top(top_side))
                                         .push(text(TRANSLATOR.original_name_field())),
                                 )
                                 .push(histories.input(UndoSubject::CustomGameAlias(i)))
@@ -342,7 +347,9 @@ pub fn custom_games<'a>(
                         .push_if(config.custom_games[i].kind() == CustomGameKind::Alias, || {
                             Row::new()
                                 .spacing(10)
-                                .push(horizontal_space().width(left_side))
+                                .push(
+                                    Container::new(horizontal_space().width(left_side)).padding(padding::top(top_side)),
+                                )
                                 .push(checkbox(
                                     TRANSLATOR.prefer_alias_display(),
                                     config.custom_games[i].prefer_alias,
@@ -355,6 +362,23 @@ pub fn custom_games<'a>(
                                 .push(
                                     Column::new()
                                         .width(left_side)
+                                        .padding(padding::top(top_side))
+                                        .push(text(TRANSLATOR.field(&TRANSLATOR.integration_label()))),
+                                )
+                                .push(
+                                    pick_list(Integration::ALL, Some(config.custom_games[i].integration), move |v| {
+                                        Message::SelectedCustomGameIntegration(i, v)
+                                    })
+                                    .class(style::PickList::Primary),
+                                )
+                        })
+                        .push_if(config.custom_games[i].kind() == CustomGameKind::Game, || {
+                            Row::new()
+                                .spacing(10)
+                                .push(
+                                    Column::new()
+                                        .width(left_side)
+                                        .padding(padding::top(top_side))
                                         .push(text(TRANSLATOR.custom_files_label())),
                                 )
                                 .push(
@@ -390,6 +414,7 @@ pub fn custom_games<'a>(
                                 .push(
                                     Column::new()
                                         .width(left_side)
+                                        .padding(padding::top(top_side))
                                         .push(text(TRANSLATOR.custom_registry_label())),
                                 )
                                 .push(

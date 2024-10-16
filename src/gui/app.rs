@@ -1079,6 +1079,7 @@ impl App {
             CustomGame {
                 name: name.clone(),
                 ignore: false,
+                integration: config::Integration::Override,
                 alias: standard.alias.clone(),
                 prefer_alias: false,
                 files: standard.files.keys().cloned().collect(),
@@ -1089,6 +1090,7 @@ impl App {
             CustomGame {
                 name: name.clone(),
                 ignore: false,
+                integration: config::Integration::Override,
                 alias: None,
                 prefer_alias: false,
                 files: vec![],
@@ -1112,6 +1114,7 @@ impl App {
         let game = CustomGame {
             name: "".to_string(),
             ignore: false,
+            integration: config::Integration::Override,
             alias: Some(name),
             prefer_alias: true,
             files: vec![],
@@ -1558,6 +1561,11 @@ impl App {
                     }
                     CustomGameKind::Alias => {}
                 }
+                self.save_config();
+                Task::none()
+            }
+            Message::SelectedCustomGameIntegration(index, integration) => {
+                self.config.custom_games[index].integration = integration;
                 self.save_config();
                 Task::none()
             }

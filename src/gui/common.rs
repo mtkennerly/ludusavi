@@ -12,8 +12,8 @@ use crate::{
     prelude::{CommandError, Error, Finality, Privacy, StrictPath, SyncDirection},
     resource::{
         config::{
-            BackupFormat, CloudFilter, CustomGameKind, RedirectKind, Root, SecondaryManifestConfigKind, SortKey, Theme,
-            ZipCompression,
+            BackupFormat, CloudFilter, CustomGameKind, Integration, RedirectKind, Root, SecondaryManifestConfigKind,
+            SortKey, Theme, ZipCompression,
         },
         manifest::{self, Manifest, ManifestUpdate, Store},
     },
@@ -128,6 +128,7 @@ pub enum Message {
     SelectedRedirectKind(usize, RedirectKind),
     SelectedSecondaryManifestKind(usize, SecondaryManifestConfigKind),
     SelectedCustomGameKind(usize, CustomGameKind),
+    SelectedCustomGameIntegration(usize, Integration),
     EditedRedirect(EditAction, Option<RedirectEditActionField>),
     EditedCustomGame(EditAction),
     EditedCustomGameAlias(usize, String),

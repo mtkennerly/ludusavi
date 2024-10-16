@@ -1112,6 +1112,7 @@ pub struct CustomGame {
     /// Whether to disable this game.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub ignore: bool,
+    pub integration: Integration,
     /// If set to the title of another game,
     /// then when Ludusavi displays that other game,
     /// Ludusavi will display this custom game's `name` instead.
@@ -1146,6 +1147,14 @@ impl CustomGame {
             }
         }
     }
+
+    pub fn effective_integration(&self) -> Integration {
+        if self.alias.is_some() {
+            Integration::Override
+        } else {
+            self.integration
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -1161,6 +1170,27 @@ impl CustomGameKind {
 impl ToString for CustomGameKind {
     fn to_string(&self) -> String {
         TRANSLATOR.custom_game_kind(self)
+    }
+}
+
+#[derive(Clone, Debug, Default, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum Integration {
+    #[default]
+    Override,
+    Extend,
+}
+
+impl Integration {
+    pub const ALL: &'static [Self] = &[Self::Override, Self::Extend];
+}
+
+impl ToString for Integration {
+    fn to_string(&self) -> String {
+        match self {
+            Self::Override => TRANSLATOR.override_manifest_button(),
+            Self::Extend => TRANSLATOR.extend_manifest_button(),
+        }
     }
 }
 
@@ -1519,13 +1549,8 @@ impl Config {
 
     pub fn add_custom_game(&mut self) {
         self.custom_games.push(CustomGame {
-            name: "".to_string(),
-            ignore: false,
-            alias: None,
-            prefer_alias: false,
-            files: vec![],
-            registry: vec![],
-            expanded: false,
+            expanded: true,
+            ..Default::default()
         });
     }
 
@@ -2085,6 +2110,7 @@ mod tests {
                     CustomGame {
                         name: s("Custom Game 1"),
                         ignore: false,
+                        integration: Integration::Override,
                         alias: None,
                         prefer_alias: false,
                         files: vec![],
@@ -2094,6 +2120,7 @@ mod tests {
                     CustomGame {
                         name: s("Custom Game 2"),
                         ignore: false,
+                        integration: Integration::Override,
                         alias: None,
                         prefer_alias: false,
                         files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
@@ -2192,9 +2219,11 @@ apps:
     arguments: ""
 customGames:
   - name: Custom Game 1
+    integration: override
     files: []
     registry: []
   - name: Custom Game 2
+    integration: extend
     files:
       - Custom File 1
       - Custom File 2
@@ -2204,6 +2233,7 @@ customGames:
       - Custom Registry 2
       - Custom Registry 2
   - name: Alias
+    integration: override
     alias: Other
     files: []
     registry: []
@@ -2275,6 +2305,7 @@ customGames:
                     CustomGame {
                         name: s("Custom Game 1"),
                         ignore: false,
+                        integration: Integration::Override,
                         alias: None,
                         prefer_alias: false,
                         files: vec![],
@@ -2284,6 +2315,7 @@ customGames:
                     CustomGame {
                         name: s("Custom Game 2"),
                         ignore: false,
+                        integration: Integration::Extend,
                         alias: None,
                         prefer_alias: false,
                         files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
@@ -2293,6 +2325,7 @@ customGames:
                     CustomGame {
                         name: s("Alias"),
                         ignore: false,
+                        integration: Integration::Override,
                         alias: Some("Other".to_string()),
                         prefer_alias: false,
                         files: vec![],

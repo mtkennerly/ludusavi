@@ -636,37 +636,59 @@ impl Manifest {
     }
 
     fn add_custom_game(&mut self, custom: CustomGame) {
-        let name = custom.name.clone();
-        let existing = self.0.get(&name);
+        use crate::resource::config::Integration;
 
-        let mut sources = existing.map(|x| x.sources.clone()).unwrap_or_default();
-        sources.insert(Source::Custom);
+        if let Some(stored) = self.0.get_mut(&custom.name) {
+            match custom.integration {
+                Integration::Override => {
+                    stored.alias = custom.alias;
+                    stored.files = custom
+                        .files
+                        .into_iter()
+                        .map(|x| (x, GameFileEntry::default()))
+                        .collect();
+                    stored.registry = custom
+                        .registry
+                        .into_iter()
+                        .map(|x| (x, GameRegistryEntry::default()))
+                        .collect();
+                    // We intentionally don't carry over the cloud info for custom games.
+                    // If you choose not to back up games with cloud support,
+                    // you probably still want to back up your customized versions of such games.
+                    stored.cloud = CloudMetadata::default();
+                    stored.sources.insert(Source::Custom);
+                }
+                Integration::Extend => {
+                    stored.alias = custom.alias;
+                    for item in custom.files {
+                        stored.files.entry(item).or_default();
+                    }
+                    for item in custom.registry {
+                        stored.registry.entry(item).or_default();
+                    }
+                    stored.cloud = CloudMetadata::default();
+                    stored.sources.insert(Source::Custom);
+                }
+            }
+        } else {
+            let game = Game {
+                alias: custom.alias,
+                files: custom
+                    .files
+                    .into_iter()
+                    .map(|x| (x, GameFileEntry::default()))
+                    .collect(),
+                registry: custom
+                    .registry
+                    .into_iter()
+                    .map(|x| (x, GameRegistryEntry::default()))
+                    .collect(),
+                sources: BTreeSet::from_iter([Source::Custom]),
+                ..Default::default()
+            };
 
-        let game = Game {
-            alias: custom.alias,
-            files: custom
-                .files
-                .into_iter()
-                .map(|x| (x, GameFileEntry::default()))
-                .collect(),
-            install_dir: existing.map(|x| x.install_dir.clone()).unwrap_or_default(),
-            registry: custom
-                .registry
-                .into_iter()
-                .map(|x| (x, GameRegistryEntry::default()))
-                .collect(),
-            steam: existing.map(|x| x.steam.clone()).unwrap_or_default(),
-            gog: existing.map(|x| x.gog.clone()).unwrap_or_default(),
-            id: existing.map(|x| x.id.clone()).unwrap_or_default(),
-            // We intentionally don't carry over the cloud info for custom games.
-            // If you choose not to back up games with cloud support,
-            // you probably still want to back up your customized versions of such games.
-            cloud: CloudMetadata::default(),
-            notes: Default::default(),
-            sources,
-        };
-
-        self.0.insert(name, game);
+            self.0.insert(custom.name, game);
+        }
     }
 
     fn load_secondary_manifests(&mut self, config: &Config) {
