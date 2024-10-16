@@ -158,6 +158,14 @@ pub fn move_up<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'
     )
 }
 
+pub fn move_up_maybe<'a>(action: fn(EditAction) -> Message, index: usize, enabled: bool) -> Element<'a> {
+    template(
+        Icon::ArrowUpward.text_small(),
+        (enabled && index > 0).then(|| action(EditAction::move_up(index))),
+        None,
+    )
+}
+
 pub fn move_up_nested<'a>(action: fn(usize, EditAction) -> Message, parent: usize, index: usize) -> Element<'a> {
     template(
         Icon::ArrowUpward.text_small(),
@@ -170,6 +178,14 @@ pub fn move_down<'a>(action: fn(EditAction) -> Message, index: usize, max: usize
     template(
         Icon::ArrowDownward.text_small(),
         (index < max - 1).then(|| action(EditAction::move_down(index))),
+        None,
+    )
+}
+
+pub fn move_down_maybe<'a>(action: fn(EditAction) -> Message, index: usize, max: usize, enabled: bool) -> Element<'a> {
+    template(
+        Icon::ArrowDownward.text_small(),
+        (enabled && index < max - 1).then(|| action(EditAction::move_down(index))),
         None,
     )
 }

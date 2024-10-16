@@ -71,6 +71,8 @@ pub mod id {
 
     pub static BACKUP_SEARCH: Lazy<iced::widget::text_input::Id> = Lazy::new(iced::widget::text_input::Id::unique);
     pub static RESTORE_SEARCH: Lazy<iced::widget::text_input::Id> = Lazy::new(iced::widget::text_input::Id::unique);
+    pub static CUSTOM_GAMES_SEARCH: Lazy<iced::widget::text_input::Id> =
+        Lazy::new(iced::widget::text_input::Id::unique);
 
     pub fn backup_scroll() -> iced::widget::scrollable::Id {
         (*BACKUP_SCROLL).clone()
@@ -98,6 +100,10 @@ pub mod id {
 
     pub fn restore_search() -> iced::widget::text_input::Id {
         (*RESTORE_SEARCH).clone()
+    }
+
+    pub fn custom_games_search() -> iced::widget::text_input::Id {
+        (*CUSTOM_GAMES_SEARCH).clone()
     }
 }
 

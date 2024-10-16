@@ -225,6 +225,7 @@ pub struct TextHistories {
     pub restore_source: TextHistory,
     pub backup_search_game_name: TextHistory,
     pub restore_search_game_name: TextHistory,
+    pub custom_games_search_game_name: TextHistory,
     pub roots: Vec<RootHistory>,
     pub secondary_manifests: Vec<TextHistory>,
     pub redirects: Vec<RedirectHistory>,
@@ -314,6 +315,7 @@ impl TextHistories {
             UndoSubject::RestoreSource => self.restore_source.current(),
             UndoSubject::BackupSearchGameName => self.backup_search_game_name.current(),
             UndoSubject::RestoreSearchGameName => self.restore_search_game_name.current(),
+            UndoSubject::CustomGamesSearchGameName => self.custom_games_search_game_name.current(),
             UndoSubject::RootPath(i) => self.roots.get(i).map(|x| x.path.current()).unwrap_or_default(),
             UndoSubject::RootLutrisDatabase(i) => self
                 .roots
@@ -374,6 +376,10 @@ impl TextHistories {
                 screen: Screen::Restore,
                 value,
             }),
+            UndoSubject::CustomGamesSearchGameName => Box::new(|value| Message::EditedSearchGameName {
+                screen: Screen::CustomGames,
+                value,
+            }),
             UndoSubject::RootPath(i) => Box::new(move |value| Message::EditedRoot(EditAction::Change(i, value))),
             UndoSubject::RootLutrisDatabase(i) => Box::new(move |value| Message::EditedRootLutrisDatabase(i, value)),
             UndoSubject::SecondaryManifest(i) => {
@@ -425,6 +431,7 @@ impl TextHistories {
             UndoSubject::RestoreSource => "".to_string(),
             UndoSubject::BackupSearchGameName => TRANSLATOR.search_game_name_placeholder(),
             UndoSubject::RestoreSearchGameName => TRANSLATOR.search_game_name_placeholder(),
+            UndoSubject::CustomGamesSearchGameName => TRANSLATOR.search_game_name_placeholder(),
             UndoSubject::RootPath(_) => "".to_string(),
             UndoSubject::RootLutrisDatabase(_) => "".to_string(),
             UndoSubject::SecondaryManifest(_) => "".to_string(),
@@ -463,6 +470,7 @@ impl TextHistories {
             UndoSubject::SecondaryManifest(_)
             | UndoSubject::BackupSearchGameName
             | UndoSubject::RestoreSearchGameName
+            | UndoSubject::CustomGamesSearchGameName
             | UndoSubject::CustomGameName(_)
             | UndoSubject::CustomGameAlias(_)
             | UndoSubject::CustomGameRegistry(_, _)
@@ -477,6 +485,7 @@ impl TextHistories {
         let id = match &subject {
             UndoSubject::BackupSearchGameName => Some(id::backup_search()),
             UndoSubject::RestoreSearchGameName => Some(id::restore_search()),
+            UndoSubject::CustomGamesSearchGameName => Some(id::custom_games_search()),
             _ => None,
         };
 

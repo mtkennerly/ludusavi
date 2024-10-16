@@ -1,3 +1,4 @@
+use fuzzy_matcher::FuzzyMatcher;
 use iced::{
     keyboard, padding,
     widget::{horizontal_space, tooltip, Space},
@@ -17,7 +18,7 @@ use crate::{
     lang::TRANSLATOR,
     resource::{
         cache::Cache,
-        config::{Config, CustomGameKind, Integration, RedirectKind, SecondaryManifestConfigKind},
+        config::{Config, CustomGame, CustomGameKind, Integration, RedirectKind, SecondaryManifestConfigKind},
         manifest::{Manifest, Store},
     },
 };
@@ -239,12 +240,29 @@ pub fn redirect<'a>(config: &Config, histories: &TextHistories, modifiers: &keyb
     Container::new(inner)
 }
 
+#[derive(Default)]
+pub struct CustomGamesFilter {
+    pub enabled: bool,
+    pub name: String,
+}
+
+impl CustomGamesFilter {
+    pub fn qualifies(&self, game: &CustomGame) -> bool {
+        !self.enabled
+            || self.name.is_empty()
+            || fuzzy_matcher::skim::SkimMatcherV2::default()
+                .fuzzy_match(&game.name, &self.name)
+                .is_some()
+    }
+}
+
 pub fn custom_games<'a>(
     config: &Config,
     manifest: &Manifest,
     operating: bool,
     histories: &TextHistories,
     modifiers: &keyboard::Modifiers,
+    filter: &CustomGamesFilter,
 ) -> Container<'a> {
     if config.custom_games.is_empty() {
         return Container::new(Space::new(Length::Shrink, Length::Shrink));
@@ -256,6 +274,9 @@ pub fn custom_games<'a>(
             .padding(padding::top(0).bottom(5).left(15).right(15))
             .spacing(10),
         |parent, (i, x)| {
+            if !filter.qualifies(x) {
+                return parent;
+            }
             parent.push({
                 let mut content = Column::new().padding(5).spacing(5).push(
                     Row::new()
@@ -280,11 +301,12 @@ pub fn custom_games<'a>(
                                     .spacing(0)
                                     .class(style::Checkbox),
                                 )
-                                .push(button::move_up(Message::EditedCustomGame, i))
-                                .push(button::move_down(
+                                .push(button::move_up_maybe(Message::EditedCustomGame, i, !filter.enabled))
+                                .push(button::move_down_maybe(
                                     Message::EditedCustomGame,
                                     i,
                                     config.custom_games.len(),
+                                    !filter.enabled,
                                 )),
                         )
                         .push(histories.input(UndoSubject::CustomGameName(i)))

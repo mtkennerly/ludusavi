@@ -12,7 +12,7 @@ to better preserve the files' executable permissions.
   * You can now choose whether a custom game will override or extend
     a manifest entry with the same name.
     Previously, it would always override the manifest entry completely.
-  * GUI: Custom games can now be expanded/collapsed and sorted.
+  * GUI: Custom games can now be expanded/collapsed, sorted, and filtered.
   * GUI: Custom games now have an icon to indicate when they override/extend a manifest entry.
 * Fixed:
   * Files on Windows network shares were not backed up correctly.

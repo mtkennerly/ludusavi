@@ -703,6 +703,7 @@ pub enum UndoSubject {
     RestoreSource,
     BackupSearchGameName,
     RestoreSearchGameName,
+    CustomGamesSearchGameName,
     RootPath(usize),
     RootLutrisDatabase(usize),
     SecondaryManifest(usize),
@@ -729,6 +730,7 @@ impl UndoSubject {
             | UndoSubject::RestoreSource
             | UndoSubject::BackupSearchGameName
             | UndoSubject::RestoreSearchGameName
+            | UndoSubject::CustomGamesSearchGameName
             | UndoSubject::RootPath(_)
             | UndoSubject::RootLutrisDatabase(_)
             | UndoSubject::SecondaryManifest(_)

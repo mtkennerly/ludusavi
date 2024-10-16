@@ -277,26 +277,50 @@ impl Restore {
     }
 }
 
-pub fn custom_games<'a>(
-    config: &Config,
-    manifest: &Manifest,
-    operating: bool,
-    histories: &TextHistories,
-    modifiers: &keyboard::Modifiers,
-) -> Element<'a> {
-    let content = Column::new()
-        .push(
-            Row::new()
-                .padding([0, 20])
-                .spacing(20)
-                .align_y(Alignment::Center)
-                .push(button::add_game())
-                .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled()))
-                .push(button::sort(Message::SortCustomGames)),
-        )
-        .push(editor::custom_games(config, manifest, operating, histories, modifiers));
+#[derive(Default)]
+pub struct CustomGames {
+    pub filter: editor::CustomGamesFilter,
+}
 
-    template(content)
+impl CustomGames {
+    pub fn view<'a>(
+        &self,
+        config: &Config,
+        manifest: &Manifest,
+        operating: bool,
+        histories: &TextHistories,
+        modifiers: &keyboard::Modifiers,
+    ) -> Element<'a> {
+        let content = Column::new()
+            .push(
+                Row::new()
+                    .padding([0, 20])
+                    .spacing(20)
+                    .align_y(Alignment::Center)
+                    .push(button::add_game())
+                    .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled()))
+                    .push(button::sort(Message::SortCustomGames))
+                    .push(button::filter(Screen::CustomGames, self.filter.enabled)),
+            )
+            .push_maybe(self.filter.enabled.then(|| {
+                Row::new()
+                    .padding(padding::left(20).right(20))
+                    .spacing(20)
+                    .align_y(Alignment::Center)
+                    .push(text(TRANSLATOR.filter_label()))
+                    .push(histories.input(UndoSubject::CustomGamesSearchGameName))
+            }))
+            .push(editor::custom_games(
+                config,
+                manifest,
+                operating,
+                histories,
+                modifiers,
+                &self.filter,
+            ));
+
+        template(content)
+    }
 }
 
 pub fn other<'a>(

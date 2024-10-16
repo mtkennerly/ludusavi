@@ -81,6 +81,7 @@ pub struct App {
     modal: Option<Modal>,
     backup_screen: screen::Backup,
     restore_screen: screen::Restore,
+    custom_games_screen: screen::CustomGames,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     operation_steps: Vec<Task<Message>>,
     operation_steps_active: usize,
@@ -1876,6 +1877,10 @@ impl App {
                     self.restore_screen.log.search.show = !self.restore_screen.log.search.show;
                     iced::widget::text_input::focus(id::restore_search())
                 }
+                Screen::CustomGames => {
+                    self.custom_games_screen.filter.enabled = !self.custom_games_screen.filter.enabled;
+                    iced::widget::text_input::focus(id::custom_games_search())
+                }
                 _ => Task::none(),
             },
             Message::ToggleSpecificGamePathIgnored { name, path, restoring } => {
@@ -1934,6 +1939,10 @@ impl App {
                     Screen::Restore => {
                         self.text_histories.restore_search_game_name.push(&value);
                         self.restore_screen.log.search.game_name = value;
+                    }
+                    Screen::CustomGames => {
+                        self.text_histories.custom_games_search_game_name.push(&value);
+                        self.custom_games_screen.filter.name = value;
                     }
                     _ => {}
                 }
@@ -2216,6 +2225,10 @@ impl App {
                     UndoSubject::RestoreSearchGameName => shortcut.apply_to_string_field(
                         &mut self.restore_screen.log.search.game_name,
                         &mut self.text_histories.restore_search_game_name,
+                    ),
+                    UndoSubject::CustomGamesSearchGameName => shortcut.apply_to_string_field(
+                        &mut self.custom_games_screen.filter.name,
+                        &mut self.text_histories.custom_games_search_game_name,
                     ),
                     UndoSubject::RootPath(i) => shortcut.apply_to_strict_path_field(
                         self.config.roots[i].path_mut(),
@@ -2774,7 +2787,7 @@ impl App {
                     &self.text_histories,
                     &self.modifiers,
                 ),
-                Screen::CustomGames => screen::custom_games(
+                Screen::CustomGames => self.custom_games_screen.view(
                     &self.config,
                     &self.manifest.extended,
                     !self.operation.idle(),
