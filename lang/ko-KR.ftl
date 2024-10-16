@@ -44,6 +44,8 @@ button-unlock = 잠금해제
 # This opens a download page.
 button-get-app = { $app } 받기
 button-validate = 검증
+button-override-manifest = Override manifest
+button-extend-manifest = Extend manifest
 no-roots-are-configured = 최상위 디렉토리를 추가해서 더 많은 데이터를 백업하세요.
 config-is-invalid = 오류: 설정 파일이 올바르지 않습니다.
 manifest-is-invalid = 오류: 매니페스트 파일이 올바르지 않습니다.
@@ -144,6 +146,8 @@ label-original-name = 원래 이름
 label-source = 출처
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
 label-primary-manifest = Primary manifest
+# This refers to how we integrate a custom game with the manifest data.
+label-integration = Integration
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -239,3 +243,5 @@ restore-specific-game =
     .failed = { $game } 의 세이브 데이터 복원 실패
 new-version-check = 자동으로 애플리케이션 업데이트 확인
 new-version-available = 업데이트를 할 수 있습니다: { $version }. 변경사항을 보시겠습니까?
+custom-game-will-override = This custom game overrides a manifest entry
+custom-game-will-extend = This custom game extends a manifest entry

@@ -44,6 +44,8 @@ button-unlock = Разблокировать
 # This opens a download page.
 button-get-app = Получить { $app }
 button-validate = Проверить
+button-override-manifest = Override manifest
+button-extend-manifest = Extend manifest
 no-roots-are-configured = Добавьте несколько корней для резервирования еще больше данных.
 config-is-invalid = Ошибка: неверный файл конфигурации.
 manifest-is-invalid = Ошибка: неверный файл конфигурации (манифеста).
@@ -144,6 +146,8 @@ label-original-name = Исходное название
 label-source = Источник
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
 label-primary-manifest = Основной манифест
+# This refers to how we integrate a custom game with the manifest data.
+label-integration = Integration
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -241,3 +245,5 @@ restore-specific-game =
     .failed = Не удалось восстановить данные для { $game }
 new-version-check = Автоматически проверять обновления приложения
 new-version-available = Доступно обновление приложения: { $version }. Хотите просмотреть список изменений (патчноут)?
+custom-game-will-override = This custom game overrides a manifest entry
+custom-game-will-extend = This custom game extends a manifest entry

@@ -44,6 +44,8 @@ button-unlock = Kilidi aç
 # This opens a download page.
 button-get-app = İndir { $app }
 button-validate = Doğrula
+button-override-manifest = Override manifest
+button-extend-manifest = Extend manifest
 no-roots-are-configured = Daha fazla veri yedeklemek için daha fazla kök dizin ekleyin.
 config-is-invalid = Hata: Seçenekler dosyası geçersiz.
 manifest-is-invalid = Hata: Bildiri dosyası geçersiz.
@@ -144,6 +146,8 @@ label-original-name = Orjinal ad
 label-source = Kaynak
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
 label-primary-manifest = Birincil bildirim
+# This refers to how we integrate a custom game with the manifest data.
+label-integration = Integration
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -241,3 +245,5 @@ restore-specific-game =
     .failed = { $game } için kayıt verileri geri yüklenemedi
 new-version-check = Güncellemelerini otomatik olarak kontrol et
 new-version-available = Güncelleme mevcut: { $version }. Sürüm notlarını görüntülemek ister misiniz?
+custom-game-will-override = This custom game overrides a manifest entry
+custom-game-will-extend = This custom game extends a manifest entry

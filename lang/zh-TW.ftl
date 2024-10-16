@@ -44,6 +44,8 @@ button-unlock = 解鎖
 # This opens a download page.
 button-get-app = 取得 { $app }
 button-validate = 驗證
+button-override-manifest = Override manifest
+button-extend-manifest = Extend manifest
 no-roots-are-configured = 增加其他根目錄，可以備份更多資料。
 config-is-invalid = 錯誤：設定檔無效。
 manifest-is-invalid = 錯誤：manifest 清單檔無效。
@@ -144,6 +146,8 @@ label-original-name = 原始名稱
 label-source = Source
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
 label-primary-manifest = Primary manifest
+# This refers to how we integrate a custom game with the manifest data.
+label-integration = Integration
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -239,3 +243,5 @@ restore-specific-game =
     .failed = 無法還原 { $game } 的存檔資料
 new-version-check = 自動檢查程式更新
 new-version-available = 可用的更新：{ $version }。您要查看更新說明嗎？
+custom-game-will-override = This custom game overrides a manifest entry
+custom-game-will-extend = This custom game extends a manifest entry

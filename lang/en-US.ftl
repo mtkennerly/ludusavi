@@ -281,5 +281,5 @@ restore-specific-game =
 new-version-check = Check for application updates automatically
 new-version-available = An application update is available: {$version}. Would you like to view the release notes?
 
-custom-game-will-override = The manifest entry with this name will be overridden
-custom-game-will-extend = The manifest entry with this name will be extended
+custom-game-will-override = This custom game overrides a manifest entry
+custom-game-will-extend = This custom game extends a manifest entry

@@ -44,6 +44,8 @@ button-unlock = Avaa lukitus
 # This opens a download page.
 button-get-app = Hanki { $app }
 button-validate = Vahvista
+button-override-manifest = Override manifest
+button-extend-manifest = Extend manifest
 no-roots-are-configured = Lisää joitakin juuria varmuuskopioidaksesi vielä enemmän tietoa.
 config-is-invalid = Virhe: Asetustiedosto on virheellinen.
 manifest-is-invalid = Virhe: manifestitiedosto on virheellinen.
@@ -144,6 +146,8 @@ label-original-name = Alkuperäinen nimi
 label-source = Lähde
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
 label-primary-manifest = Ensisijainen manifesti
+# This refers to how we integrate a custom game with the manifest data.
+label-integration = Integration
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -241,3 +245,5 @@ restore-specific-game =
     .failed = Pelin { $game } tallennustietojen palautus epäonnistui
 new-version-check = Tarkista sovelluksen päivitykset automaattisesti
 new-version-available = Sovelluspäivitys saatavilla: { $version }. Haluatko nähdä julkaisutiedot?
+custom-game-will-override = This custom game overrides a manifest entry
+custom-game-will-extend = This custom game extends a manifest entry
