@@ -1270,6 +1270,7 @@ impl App {
         let mut commands = vec![
             iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::TEXT_DATA)).map(|_| Message::Ignore),
             iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::ICONS_DATA)).map(|_| Message::Ignore),
+            iced::window::get_oldest().and_then(iced::window::gain_focus),
         ];
         if flags.update_manifest {
             commands.push(Self::update_manifest(

@@ -24,8 +24,8 @@ to better preserve the files' executable permissions.
     Now, with `--force`, Ludusavi will not wait for any input.
   * Old log files were not deleted when stored on a Windows network share.
 * Changed:
-  * GUI: Updated to the latest version of [Iced](https://github.com/iced-rs/iced).
-    If the GUI fails to load, Ludusavi will log the error info.
+  * GUI: If the GUI fails to load, Ludusavi will try to log the error info.
+  * GUI: When you launch Ludusavi, the window now ensures that it gains focus.
   * GUI: Modals now display on top of the app with a transparent background.
   * GUI: On the backup and restore screens,
     the filter controls now wrap depending on the window size.
