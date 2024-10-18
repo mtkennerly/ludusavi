@@ -354,7 +354,7 @@ pub fn other<'a>(
                                     .class(style::Checkbox),
                                 )
                                 .push(checkbox(
-                                    TRANSLATOR.show_deselected_games(),
+                                    TRANSLATOR.show_disabled_games(),
                                     config.scan.show_deselected_games,
                                     Message::SetShowDeselectedGames,
                                 ))

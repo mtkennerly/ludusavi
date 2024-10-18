@@ -768,10 +768,12 @@ impl Translator {
         translate("button-okay")
     }
 
+    #[allow(unused)]
     pub fn select_all_button(&self) -> String {
         translate("button-select-all")
     }
 
+    #[allow(unused)]
     pub fn deselect_all_button(&self) -> String {
         translate("button-deselect-all")
     }
@@ -1077,8 +1079,8 @@ impl Translator {
         translate("game-name")
     }
 
-    pub fn show_deselected_games(&self) -> String {
-        translate("show-deselected-games")
+    pub fn show_disabled_games(&self) -> String {
+        translate("show-disabled-games")
     }
 
     pub fn show_unchanged_games(&self) -> String {

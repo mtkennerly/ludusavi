@@ -40,6 +40,7 @@ to better preserve the files' executable permissions.
     the filter controls now wrap depending on the window size.
   * GUI: The backup format and retention settings are now on the "other" screen,
     instead of being accessed via the gear icon on the backup screen.
+  * GUI: Some uses of "select"/"deselect" have been changed to "enable"/"disable".
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 

@@ -210,13 +210,13 @@ pub fn previous_page<'a>(action: fn(usize) -> Message, page: usize) -> Element<'
 pub fn toggle_all_scanned_games<'a>(all_enabled: bool) -> Element<'a> {
     if all_enabled {
         template(
-            text(TRANSLATOR.deselect_all_button()).width(WIDTH),
+            text(TRANSLATOR.disable_all_button()).width(WIDTH),
             Some(Message::DeselectAllGames),
             None,
         )
     } else {
         template(
-            text(TRANSLATOR.select_all_button()).width(WIDTH),
+            text(TRANSLATOR.enable_all_button()).width(WIDTH),
             Some(Message::SelectAllGames),
             None,
         )

@@ -203,7 +203,7 @@ theme-dark = Dark
 redirect-bidirectional = Bidirectional
 reverse-redirects-when-restoring = Reverse sequence of redirects when restoring
 
-show-deselected-games = Show deselected games
+show-disabled-games = Show disabled games
 show-unchanged-games = Show unchanged games
 show-unscanned-games = Show unscanned games
 override-max-threads = Override max threads
