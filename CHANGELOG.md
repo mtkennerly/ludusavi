@@ -14,6 +14,7 @@ to better preserve the files' executable permissions.
     Previously, it would always override the manifest entry completely.
   * GUI: Custom games can now be expanded/collapsed, sorted, and filtered.
   * GUI: Custom games now have an icon to indicate when they override/extend a manifest entry.
+  * You can now configure redirects to be processed in reverse sequence when restoring.
 * Fixed:
   * Files on Windows network shares were not backed up correctly.
     For example, a file identified as `\\localhost\share\test.txt`

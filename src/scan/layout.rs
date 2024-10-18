@@ -606,6 +606,7 @@ impl GameLayout {
         &self,
         restoring: bool,
         redirects: &[RedirectConfig],
+        reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
     ) -> Option<ScanInfo> {
         if self.mapping.backups.is_empty() {
@@ -613,7 +614,13 @@ impl GameLayout {
         } else {
             Some(ScanInfo {
                 game_name: self.mapping.name.clone(),
-                found_files: self.restorable_files(&BackupId::Latest, restoring, redirects, toggled_paths),
+                found_files: self.restorable_files(
+                    &BackupId::Latest,
+                    restoring,
+                    redirects,
+                    reverse_redirects_on_restore,
+                    toggled_paths,
+                ),
                 // Registry is handled separately.
                 found_registry_keys: Default::default(),
                 available_backups: vec![],
@@ -641,6 +648,7 @@ impl GameLayout {
         id: &BackupId,
         restoring: bool,
         redirects: &[RedirectConfig],
+        reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
     ) -> HashSet<ScannedFile> {
         let mut files = HashSet::new();
@@ -648,12 +656,30 @@ impl GameLayout {
         match self.find_by_id(id) {
             None => {}
             Some((full, None)) => {
-                files.extend(self.restorable_files_from_full_backup(full, restoring, redirects, toggled_paths));
+                files.extend(self.restorable_files_from_full_backup(
+                    full,
+                    restoring,
+                    redirects,
+                    reverse_redirects_on_restore,
+                    toggled_paths,
+                ));
             }
             Some((full, Some(diff))) => {
-                files.extend(self.restorable_files_from_diff_backup(diff, restoring, redirects, toggled_paths));
+                files.extend(self.restorable_files_from_diff_backup(
+                    diff,
+                    restoring,
+                    redirects,
+                    reverse_redirects_on_restore,
+                    toggled_paths,
+                ));
 
-                for full_file in self.restorable_files_from_full_backup(full, restoring, redirects, toggled_paths) {
+                for full_file in self.restorable_files_from_full_backup(
+                    full,
+                    restoring,
+                    redirects,
+                    reverse_redirects_on_restore,
+                    toggled_paths,
+                ) {
                     let original_path = full_file.original_path.as_ref().unwrap().render();
                     if diff.file(original_path) == BackupInclusion::Inherited {
                         files.insert(full_file);
@@ -670,13 +696,14 @@ impl GameLayout {
         backup: &FullBackup,
         restoring: bool,
         redirects: &[RedirectConfig],
+        reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
     ) -> HashSet<ScannedFile> {
         let mut restorables = HashSet::new();
 
         for (k, v) in &backup.files {
             let original_path = StrictPath::new(k.to_string());
-            let redirected = game_file_target(&original_path, redirects, true);
+            let redirected = game_file_target(&original_path, redirects, reverse_redirects_on_restore, true);
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
@@ -724,6 +751,7 @@ impl GameLayout {
         backup: &DifferentialBackup,
         restoring: bool,
         redirects: &[RedirectConfig],
+        reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
     ) -> HashSet<ScannedFile> {
         let mut restorables = HashSet::new();
@@ -731,7 +759,7 @@ impl GameLayout {
         for (k, v) in &backup.files {
             let v = some_or_continue!(v);
             let original_path = StrictPath::new(k.to_string());
-            let redirected = game_file_target(&original_path, redirects, true);
+            let redirected = game_file_target(&original_path, redirects, reverse_redirects_on_restore, true);
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
@@ -1515,6 +1543,7 @@ impl GameLayout {
         name: &str,
         id: &BackupId,
         redirects: &[RedirectConfig],
+        reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         #[allow(unused)] toggled_registry: &ToggledRegistry,
     ) -> ScanInfo {
@@ -1531,7 +1560,7 @@ impl GameLayout {
 
         if self.path.is_dir() {
             self.migrate_backups(true);
-            found_files = self.restorable_files(&id, true, redirects, toggled_paths);
+            found_files = self.restorable_files(&id, true, redirects, reverse_redirects_on_restore, toggled_paths);
             available_backups = self.restorable_backups_flattened();
             backup = self.find_by_id_flattened(&id);
         }
@@ -2084,11 +2113,12 @@ impl BackupLayout {
         name: &str,
         restoring: bool,
         redirects: &[RedirectConfig],
+        reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
     ) -> Option<LatestBackup> {
         if self.contains_game(name) {
             let game_layout = self.game_layout(name);
-            let scan = game_layout.latest_backup(restoring, redirects, toggled_paths);
+            let scan = game_layout.latest_backup(restoring, redirects, reverse_redirects_on_restore, toggled_paths);
             scan.map(|scan| LatestBackup {
                 scan,
                 registry_content: if cfg!(target_os = "windows") {
@@ -3067,7 +3097,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
+                layout.restorable_files(&BackupId::Latest, false, &[], false, &Default::default()),
             );
         }
 
@@ -3117,7 +3147,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
+                layout.restorable_files(&BackupId::Latest, false, &[], false, &Default::default()),
             );
         }
 
@@ -3188,7 +3218,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
+                layout.restorable_files(&BackupId::Latest, false, &[], false, &Default::default()),
             );
         }
 
@@ -3259,7 +3289,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[], &Default::default()),
+                layout.restorable_files(&BackupId::Latest, false, &[], false, &Default::default()),
             );
         }
     }
@@ -3363,6 +3393,7 @@ mod tests {
                     "game1",
                     &BackupId::Latest,
                     &[],
+                    false,
                     &Default::default(),
                     &Default::default()
                 ),
@@ -3412,6 +3443,7 @@ mod tests {
                         "game3",
                         &BackupId::Latest,
                         &[],
+                        false,
                         &Default::default(),
                         &Default::default()
                     ),
@@ -3444,6 +3476,7 @@ mod tests {
                         "game3",
                         &BackupId::Latest,
                         &[],
+                        false,
                         &Default::default(),
                         &Default::default()
                     ),

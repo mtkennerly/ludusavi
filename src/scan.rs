@@ -34,12 +34,24 @@ use crate::{
 use crate::scan::registry_compat::RegistryItem;
 
 /// Returns the effective target, if different from the original
-pub fn game_file_target(original: &StrictPath, redirects: &[RedirectConfig], restoring: bool) -> Option<StrictPath> {
+pub fn game_file_target(
+    original: &StrictPath,
+    redirects: &[RedirectConfig],
+    reverse_redirects_on_restore: bool,
+    restoring: bool,
+) -> Option<StrictPath> {
     if redirects.is_empty() {
         return None;
     }
 
     let mut redirected = original.clone();
+
+    let redirects: &mut dyn Iterator<Item = &RedirectConfig> = if restoring && reverse_redirects_on_restore {
+        &mut redirects.iter().rev()
+    } else {
+        &mut redirects.iter()
+    };
+
     for redirect in redirects {
         if redirect.source.raw().trim().is_empty() || redirect.target.raw().trim().is_empty() {
             continue;
@@ -446,6 +458,7 @@ pub fn scan_game_for_backup(
     #[allow(unused_variables)] ignored_registry: &ToggledRegistry,
     previous: Option<LatestBackup>,
     redirects: &[RedirectConfig],
+    reverse_redirects_on_restore: bool,
     steam_shortcuts: &SteamShortcuts,
 ) -> ScanInfo {
     log::trace!("[{name}] beginning scan for backup");
@@ -615,7 +628,7 @@ pub fn scan_game_for_backup(
                 let ignored = ignored_paths.is_ignored(name, &p);
                 log::debug!("[{name}] found: {p:?}");
                 let hash = p.sha1();
-                let redirected = game_file_target(&p, redirects, false);
+                let redirected = game_file_target(&p, redirects, reverse_redirects_on_restore, false);
                 found_files.insert(ScannedFile {
                     change: ScanChange::evaluate_backup(&hash, previous_files.get(redirected.as_ref().unwrap_or(&p))),
                     size: p.size(),
@@ -652,7 +665,7 @@ pub fn scan_game_for_backup(
                         let ignored = ignored_paths.is_ignored(name, &child);
                         log::debug!("[{name}] found: {child:?}");
                         let hash = child.sha1();
-                        let redirected = game_file_target(&child, redirects, false);
+                        let redirected = game_file_target(&child, redirects, reverse_redirects_on_restore, false);
                         found_files.insert(ScannedFile {
                             change: ScanChange::evaluate_backup(
                                 &hash,
@@ -938,7 +951,10 @@ mod tests {
     #[test]
     fn can_compute_game_file_target() {
         // No redirects
-        assert_eq!(None, game_file_target(&StrictPath::new("/foo".into()), &[], false));
+        assert_eq!(
+            None,
+            game_file_target(&StrictPath::new("/foo".into()), &[], false, false)
+        );
 
         // Match - backup
         assert_eq!(
@@ -962,6 +978,7 @@ mod tests {
                         target: StrictPath::new("/quux".into()),
                     },
                 ],
+                false,
                 false,
             ),
         );
@@ -988,6 +1005,34 @@ mod tests {
                         target: StrictPath::new("/baz".into()),
                     },
                 ],
+                false,
+                true,
+            ),
+        );
+
+        // Match - restore, reversed
+        assert_eq!(
+            Some(StrictPath::new("/bar".into())),
+            game_file_target(
+                &StrictPath::new("/quux".into()),
+                &[
+                    RedirectConfig {
+                        kind: RedirectKind::Bidirectional,
+                        source: StrictPath::new("/bar".into()),
+                        target: StrictPath::new("/quux".into()),
+                    },
+                    RedirectConfig {
+                        kind: RedirectKind::Restore,
+                        source: StrictPath::new("/bar".into()),
+                        target: StrictPath::new("/foo".into()),
+                    },
+                    RedirectConfig {
+                        kind: RedirectKind::Backup,
+                        source: StrictPath::new("/foo".into()),
+                        target: StrictPath::new("/baz".into()),
+                    },
+                ],
+                true,
                 true,
             ),
         );
@@ -1002,6 +1047,7 @@ mod tests {
                     source: StrictPath::new("/f".into()),
                     target: StrictPath::new("/b".into()),
                 },],
+                false,
                 false,
             ),
         );
@@ -1031,6 +1077,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1056,6 +1103,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1085,6 +1133,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1127,6 +1176,7 @@ mod tests {
                     source: StrictPath::new(format!("{}/tests/root3/game5/data", repo())),
                     target: StrictPath::new(format!("{}/tests/root3/game5/data-symlink", repo())),
                 }],
+                false,
                 &Default::default(),
             ),
         );
@@ -1156,6 +1206,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1189,6 +1240,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1221,6 +1273,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1249,6 +1302,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1277,6 +1331,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1313,6 +1368,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1351,6 +1407,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1389,6 +1446,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1424,6 +1482,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1463,6 +1522,7 @@ mod tests {
                 &ToggledRegistry::default(),
                 None,
                 &[],
+                false,
                 &Default::default(),
             ),
         );
@@ -1562,6 +1622,7 @@ mod tests {
                     &ignored,
                     None,
                     &[],
+                    false,
                     &Default::default(),
                 ),
             );

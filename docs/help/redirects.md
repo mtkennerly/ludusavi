@@ -27,3 +27,23 @@ For example:
 Tip: As you're editing your redirects, try running a preview and expanding some
 games' file lists. This will show you what effect your redirects
 will have when you perform the restore for real.
+
+## Sequence
+Redirects are processed top to bottom,
+and the output from one redirect can affect the redirects after it.
+
+Let's say you have a save file at `C:/Title/save.dat`,
+and you set up two redirects:
+
+* Bidirectional: `C:/Title` -> `C:/Games/Title`
+* Bidirectional: `C:/Games` -> `D:/Games`
+
+When backing up, the transformation will be:
+`C:/Title/save.dat` -> `C:/Games/Title/save.dat` -> `D:/Games/Title/save.dat`
+
+By default, the same order is used when restoring.
+When you have chained bidirectional redirects,
+that may lead to an undesired result:
+`D:/Games/Title/save.dat` won't trigger the first redirect,
+so it would restore to `C:/Games/Title/save.dat`.
+You can enable the "reverse sequence of redirects when restoring" option to change this behavior.

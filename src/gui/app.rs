@@ -447,8 +447,13 @@ impl App {
                                 return (None, None);
                             }
 
-                            let previous =
-                                layout.latest_backup(&key, false, &config.redirects, &config.restore.toggled_paths);
+                            let previous = layout.latest_backup(
+                                &key,
+                                false,
+                                &config.redirects,
+                                config.restore.reverse_redirects,
+                                &config.restore.toggled_paths,
+                            );
 
                             if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
                                 log::trace!("[{key}] excluded by backup filter");
@@ -463,11 +468,11 @@ impl App {
                                 &launchers,
                                 &filter,
                                 &None,
-                                // &ranking,
                                 &config.backup.toggled_paths,
                                 &config.backup.toggled_registry,
                                 previous,
                                 &config.redirects,
+                                config.restore.reverse_redirects,
                                 &steam_shortcuts,
                             );
                             if !config.is_game_enabled_for_backup(&key) && full {
@@ -781,6 +786,7 @@ impl App {
                                 &name,
                                 &backup_id,
                                 &config.redirects,
+                                config.restore.reverse_redirects,
                                 &config.restore.toggled_paths,
                                 &config.restore.toggled_registry,
                             );
@@ -1599,6 +1605,11 @@ impl App {
                     }
                 }
                 self.save_config();
+                Task::none()
+            }
+            Message::EditedReverseRedirectsOnRestore(enabled) => {
+                self.config.restore.reverse_redirects = enabled;
+                self.config.save();
                 Task::none()
             }
             Message::EditedCustomGame(action) => {

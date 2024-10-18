@@ -130,6 +130,7 @@ pub enum Message {
     SelectedCustomGameKind(usize, CustomGameKind),
     SelectedCustomGameIntegration(usize, Integration),
     EditedRedirect(EditAction, Option<RedirectEditActionField>),
+    EditedReverseRedirectsOnRestore(bool),
     EditedCustomGame(EditAction),
     EditedCustomGameAlias(usize, String),
     EditedCustomGaleAliasDisplay(usize, bool),

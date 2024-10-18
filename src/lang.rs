@@ -1018,6 +1018,10 @@ impl Translator {
         }
     }
 
+    pub fn reverse_redirects_when_restoring(&self) -> String {
+        translate("reverse-redirects-when-restoring")
+    }
+
     pub fn game_label(&self) -> String {
         translate("label-game")
     }

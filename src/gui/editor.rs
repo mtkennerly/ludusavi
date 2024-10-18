@@ -205,39 +205,42 @@ pub fn manifest<'a>(
 pub fn redirect<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard::Modifiers) -> Container<'a> {
     let redirects = config.get_redirects();
 
-    let inner = Container::new({
-        config
-            .redirects
-            .iter()
-            .enumerate()
-            .fold(Column::new().padding(5).spacing(4), |parent, (i, _)| {
-                parent.push(
-                    Row::new()
-                        .spacing(20)
-                        .push(button::move_up(|x| Message::EditedRedirect(x, None), i))
-                        .push(button::move_down(
-                            |x| Message::EditedRedirect(x, None),
-                            i,
-                            config.redirects.len(),
-                        ))
-                        .push(
-                            pick_list(RedirectKind::ALL, Some(redirects[i].kind), move |v| {
-                                Message::SelectedRedirectKind(i, v)
-                            })
-                            .class(style::PickList::Primary),
-                        )
-                        .push(histories.input(UndoSubject::RedirectSource(i)))
-                        .push(button::choose_folder(BrowseSubject::RedirectSource(i), modifiers))
-                        .push(histories.input(UndoSubject::RedirectTarget(i)))
-                        .push(button::choose_folder(BrowseSubject::RedirectTarget(i), modifiers))
-                        .push(button::remove(|x| Message::EditedRedirect(x, None), i)),
-                )
-            })
-            .push(button::add(|x| Message::EditedRedirect(x, None)))
+    let wrapper = Container::new({
+        let mut content = Column::new().padding(5).spacing(4).push(checkbox(
+            TRANSLATOR.reverse_redirects_when_restoring(),
+            config.restore.reverse_redirects,
+            Message::EditedReverseRedirectsOnRestore,
+        ));
+
+        content = config.redirects.iter().enumerate().fold(content, |parent, (i, _)| {
+            parent.push(
+                Row::new()
+                    .spacing(20)
+                    .push(button::move_up(|x| Message::EditedRedirect(x, None), i))
+                    .push(button::move_down(
+                        |x| Message::EditedRedirect(x, None),
+                        i,
+                        config.redirects.len(),
+                    ))
+                    .push(
+                        pick_list(RedirectKind::ALL, Some(redirects[i].kind), move |v| {
+                            Message::SelectedRedirectKind(i, v)
+                        })
+                        .class(style::PickList::Primary),
+                    )
+                    .push(histories.input(UndoSubject::RedirectSource(i)))
+                    .push(button::choose_folder(BrowseSubject::RedirectSource(i), modifiers))
+                    .push(histories.input(UndoSubject::RedirectTarget(i)))
+                    .push(button::choose_folder(BrowseSubject::RedirectTarget(i), modifiers))
+                    .push(button::remove(|x| Message::EditedRedirect(x, None), i)),
+            )
+        });
+
+        content.push(button::add(|x| Message::EditedRedirect(x, None)))
     })
     .class(style::Container::GameListEntry);
 
-    Container::new(inner)
+    Container::new(wrapper)
 }
 
 #[derive(Default)]

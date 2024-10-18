@@ -200,6 +200,7 @@ theme-light = Light
 theme-dark = Dark
 
 redirect-bidirectional = Bidirectional
+reverse-redirects-when-restoring = Reverse sequence of redirects when restoring
 
 show-deselected-games = Show deselected games
 show-unchanged-games = Show unchanged games

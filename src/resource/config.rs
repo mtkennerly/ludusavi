@@ -1020,6 +1020,7 @@ pub struct RestoreConfig {
     pub toggled_paths: ToggledPaths,
     pub toggled_registry: ToggledRegistry,
     pub sort: Sort,
+    pub reverse_redirects: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -1227,6 +1228,7 @@ impl Default for RestoreConfig {
             toggled_paths: Default::default(),
             toggled_registry: Default::default(),
             sort: Default::default(),
+            reverse_redirects: false,
         }
     }
 }
@@ -1964,6 +1966,7 @@ mod tests {
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
+                    reverse_redirects: false,
                 },
                 scan: Default::default(),
                 apps: Apps {
@@ -2087,6 +2090,7 @@ mod tests {
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
+                    reverse_redirects: false,
                 },
                 scan: Scan {
                     show_deselected_games: false,
@@ -2203,6 +2207,7 @@ restore:
   sort:
     key: status
     reversed: false
+  reverseRedirects: false
 scan:
   showDeselectedGames: false
   showUnchangedGames: false
@@ -2282,6 +2287,7 @@ customGames:
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
+                    reverse_redirects: false,
                 },
                 scan: Scan {
                     show_deselected_games: false,

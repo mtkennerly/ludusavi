@@ -239,7 +239,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     log::trace!("step {i} / {}: {name}", games.len());
                     let game = &manifest.0[name];
 
-                    let previous = layout.latest_backup(name, false, &config.redirects, &config.restore.toggled_paths);
+                    let previous = layout.latest_backup(
+                        name,
+                        false,
+                        &config.redirects,
+                        config.restore.reverse_redirects,
+                        &config.restore.toggled_paths,
+                    );
 
                     if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
                         log::trace!("[{name}] excluded by backup filter");
@@ -258,6 +264,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         &toggled_registry,
                         previous,
                         &config.redirects,
+                        config.restore.reverse_redirects,
                         &steam_shortcuts,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified;
@@ -442,6 +449,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         name,
                         backup_id.as_ref().unwrap_or(&BackupId::Latest),
                         &config.redirects,
+                        config.restore.reverse_redirects,
                         &config.restore.toggled_paths,
                         &config.restore.toggled_registry,
                     );
