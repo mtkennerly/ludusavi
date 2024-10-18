@@ -338,6 +338,7 @@ pub fn custom_games<'a>(
                                     Message::Backup(BackupPhase::Start {
                                         games: Some(vec![config.custom_games[i].name.clone()]),
                                         preview: true,
+                                        jump: true,
                                         repair: false,
                                     }),
                                     operating,

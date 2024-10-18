@@ -97,6 +97,7 @@ pub struct App {
     exiting: bool,
     pending_save: HashMap<SaveKind, Instant>,
     modifiers: keyboard::Modifiers,
+    jump_to_game_after_scan: Option<String>,
 }
 
 impl App {
@@ -205,22 +206,25 @@ impl App {
         }
     }
 
-    fn handle_notify_on_single_game_scanned(&mut self) {
+    fn handle_notify_on_single_game_scanned(&mut self) -> bool {
         if let Some((name, screen)) = self.notify_on_single_game_scanned.as_ref() {
             let log = match self.operation {
                 Operation::Backup { .. } => &self.backup_screen.log,
                 Operation::Restore { .. } => &self.restore_screen.log,
-                _ => return,
+                _ => return false,
             };
             let found = log.entries.iter().any(|x| &x.scan_info.game_name == name);
 
             if *screen != Screen::CustomGames && found {
-                return;
+                return found;
             }
 
             let msg = TRANSLATOR.notify_single_game_status(found);
             self.timed_notification = Some(Notification::new(msg).expires(3));
+            return found;
         }
+
+        false
     }
 
     fn start_sync_cloud(
@@ -266,7 +270,12 @@ impl App {
     fn handle_backup(&mut self, phase: BackupPhase) -> Task<Message> {
         match phase {
             BackupPhase::Confirm { games } => self.show_modal(Modal::ConfirmBackup { games }),
-            BackupPhase::Start { preview, repair, games } => {
+            BackupPhase::Start {
+                preview,
+                repair,
+                jump,
+                games,
+            } => {
                 if !self.operation.idle() {
                     return Task::none();
                 }
@@ -277,6 +286,14 @@ impl App {
                     self.backup_screen.duplicate_detector.clear();
                     self.reset_scroll_position(ScrollSubject::Backup);
                     cleared_log = true;
+                }
+
+                if jump {
+                    if let Some(games) = games.as_ref() {
+                        if let Some(first) = games.first() {
+                            self.jump_to_game_after_scan = Some(first.clone());
+                        }
+                    }
                 }
 
                 self.operation =
@@ -610,7 +627,7 @@ impl App {
                 let preview = self.operation.preview();
                 let full = self.operation.full();
 
-                self.handle_notify_on_single_game_scanned();
+                let found_single = self.handle_notify_on_single_game_scanned();
 
                 if full {
                     self.cache.backup.recent_games.clear();
@@ -641,6 +658,30 @@ impl App {
                 if let Some(errors) = errors {
                     if !errors.is_empty() {
                         return self.show_modal(Modal::Errors { errors });
+                    }
+                }
+
+                if let Some(jump) = self.jump_to_game_after_scan.take() {
+                    if found_single {
+                        use crate::gui::widget::operation::container_scroll_offset;
+                        use iced::widget::container;
+
+                        self.backup_screen.log.expand_game(
+                            &jump,
+                            &self.backup_screen.duplicate_detector,
+                            &self.config,
+                            false,
+                        );
+
+                        return self.switch_screen(Screen::Backup).chain(
+                            container_scroll_offset(container::Id::new(jump)).map(move |offset| match offset {
+                                Some(position) => Message::Scroll {
+                                    subject: ScrollSubject::Backup,
+                                    position,
+                                },
+                                None => Message::Ignore,
+                            }),
+                        );
                     }
                 }
 
@@ -2396,6 +2437,7 @@ impl App {
                 GameAction::PreviewBackup => self.handle_backup(BackupPhase::Start {
                     preview: true,
                     repair: false,
+                    jump: false,
                     games: Some(vec![game]),
                 }),
                 GameAction::Backup { confirm } => {
@@ -2407,6 +2449,7 @@ impl App {
                         self.handle_backup(BackupPhase::Start {
                             preview: false,
                             repair: false,
+                            jump: false,
                             games: Some(vec![game]),
                         })
                     }

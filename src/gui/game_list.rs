@@ -1,7 +1,11 @@
 use std::collections::{BTreeSet, HashSet};
 
 use iced::{
-    alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, padding, widget::tooltip, Alignment, Length,
+    alignment::Horizontal as HorizontalAlignment,
+    keyboard::Modifiers,
+    padding,
+    widget::{container, tooltip},
+    Alignment, Length,
 };
 
 use crate::{
@@ -100,6 +104,8 @@ impl GameListEntry {
                                         Some(Message::Backup(BackupPhase::Start {
                                             preview: true,
                                             repair: false,
+                                            jump: false,
+
                                             games: Some(vec![self.scan_info.game_name.clone()]),
                                         }))
                                     }
@@ -341,6 +347,7 @@ impl GameListEntry {
                         .flatten()
                 }),
         )
+        .id(container::Id::new(name))
         .class(style::Container::GameListEntry)
     }
 
@@ -513,20 +520,42 @@ impl GameList {
         restoring: bool,
     ) {
         if self.expanded_games.contains(game) {
-            self.expanded_games.remove(game);
-            for entry in self.entries.iter_mut() {
-                if entry.scan_info.game_name == game {
-                    entry.clear_tree();
-                    break;
-                }
-            }
+            self.collapse_game(game);
         } else {
-            self.expanded_games.insert(game.to_string());
-            for entry in self.entries.iter_mut() {
-                if entry.scan_info.game_name == game {
-                    entry.refresh_tree(duplicate_detector, config, restoring);
-                    break;
-                }
+            self.expand_game(game, duplicate_detector, config, restoring);
+        }
+    }
+
+    pub fn expand_game(
+        &mut self,
+        game: &str,
+        duplicate_detector: &DuplicateDetector,
+        config: &Config,
+        restoring: bool,
+    ) {
+        if self.expanded_games.contains(game) {
+            return;
+        }
+
+        self.expanded_games.insert(game.to_string());
+        for entry in self.entries.iter_mut() {
+            if entry.scan_info.game_name == game {
+                entry.refresh_tree(duplicate_detector, config, restoring);
+                break;
+            }
+        }
+    }
+
+    pub fn collapse_game(&mut self, game: &str) {
+        if !self.expanded_games.contains(game) {
+            return;
+        }
+
+        self.expanded_games.remove(game);
+        for entry in self.entries.iter_mut() {
+            if entry.scan_info.game_name == game {
+                entry.clear_tree();
+                break;
             }
         }
     }

@@ -15,6 +15,9 @@ to better preserve the files' executable permissions.
   * GUI: Custom games can now be expanded/collapsed, sorted, and filtered.
   * GUI: Custom games now have an icon to indicate when they override/extend a manifest entry.
   * You can now configure redirects to be processed in reverse sequence when restoring.
+  * GUI: On the custom games screen,
+    when you use the button to preview a custom game,
+    the window will switch to the backup screen and show you the results for that game.
 * Fixed:
   * Files on Windows network shares were not backed up correctly.
     For example, a file identified as `\\localhost\share\test.txt`

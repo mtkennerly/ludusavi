@@ -39,6 +39,8 @@ pub enum BackupPhase {
         preview: bool,
         /// Was this backup triggered by a validation check?
         repair: bool,
+        /// Jump to the first game in the list after executing.
+        jump: bool,
         games: Option<Vec<String>>,
     },
     CloudCheck,

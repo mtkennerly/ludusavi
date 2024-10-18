@@ -247,6 +247,7 @@ impl Modal {
             Self::ConfirmBackup { games } => Some(Message::Backup(BackupPhase::Start {
                 preview: false,
                 repair: false,
+                jump: false,
                 games: games.clone(),
             })),
             Self::ConfirmRestore { games } => Some(Message::Restore(RestorePhase::Start {
@@ -348,6 +349,7 @@ impl Modal {
                         Some(Message::Backup(BackupPhase::Start {
                             preview: false,
                             repair: true,
+                            jump: false,
                             games: Some(games.iter().cloned().collect()),
                         })),
                     )]

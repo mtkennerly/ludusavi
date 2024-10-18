@@ -387,6 +387,7 @@ pub fn backup_preview<'a>(ongoing: &Operation) -> Element<'a> {
             Operation::Idle => Some(Message::Backup(BackupPhase::Start {
                 preview: true,
                 repair: false,
+                jump: false,
                 games: None,
             })),
             Operation::Backup {
