@@ -234,7 +234,6 @@ pub enum Message {
     SelectedBackupFormat(BackupFormat),
     SelectedBackupCompression(ZipCompression),
     EditedCompressionLevel(i32),
-    ToggleBackupSettings,
     ToggleCloudSynchronize,
     GameAction {
         action: GameAction,

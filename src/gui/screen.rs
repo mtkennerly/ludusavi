@@ -62,7 +62,6 @@ pub struct Backup {
     pub log: GameList,
     pub previewed_games: HashSet<String>,
     pub duplicate_detector: DuplicateDetector,
-    pub show_settings: bool,
 }
 
 impl Backup {
@@ -95,8 +94,7 @@ impl Backup {
                     .push(button::toggle_all_scanned_games(
                         self.log.all_entries_selected(config, false),
                     ))
-                    .push(button::filter(Screen::Backup, self.log.search.show))
-                    .push(button::settings(self.show_settings)),
+                    .push(button::filter(Screen::Backup, self.log.search.show)),
             )
             .push(make_status_row(
                 &self.log.compute_operation_status(config, false),
@@ -121,72 +119,6 @@ impl Backup {
                     )
                     .push(button::sort_order(screen, sort.reversed)),
             )
-            .push_if(self.show_settings, || {
-                Row::new()
-                    .padding([0, 20])
-                    .spacing(20)
-                    .height(30)
-                    .align_y(Alignment::Center)
-                    .push({
-                        number_input(
-                            config.backup.retention.full as i32,
-                            TRANSLATOR.full_retention(),
-                            1..=255,
-                            |x| Message::EditedFullRetention(x as u8),
-                        )
-                    })
-                    .push({
-                        number_input(
-                            config.backup.retention.differential as i32,
-                            TRANSLATOR.differential_retention(),
-                            0..=255,
-                            |x| Message::EditedDiffRetention(x as u8),
-                        )
-                    })
-            })
-            .push_if(self.show_settings, || {
-                Row::new()
-                    .padding([0, 20])
-                    .spacing(20)
-                    .align_y(Alignment::Center)
-                    .push(
-                        Row::new()
-                            .spacing(5)
-                            .align_y(Alignment::Center)
-                            .push(text(TRANSLATOR.backup_format_field()))
-                            .push(
-                                pick_list(
-                                    BackupFormat::ALL,
-                                    Some(config.backup.format.chosen),
-                                    Message::SelectedBackupFormat,
-                                )
-                                .class(style::PickList::Primary),
-                            ),
-                    )
-                    .push_if(config.backup.format.chosen == BackupFormat::Zip, || {
-                        Row::new()
-                            .spacing(5)
-                            .align_y(Alignment::Center)
-                            .push(text(TRANSLATOR.backup_compression_field()))
-                            .push(
-                                pick_list(
-                                    ZipCompression::ALL,
-                                    Some(config.backup.format.zip.compression),
-                                    Message::SelectedBackupCompression,
-                                )
-                                .class(style::PickList::Primary),
-                            )
-                    })
-                    .push_maybe(match (config.backup.format.level(), config.backup.format.range()) {
-                        (Some(level), Some(range)) => Some(number_input(
-                            level,
-                            TRANSLATOR.backup_compression_level_field(),
-                            range,
-                            Message::EditedCompressionLevel,
-                        )),
-                        _ => None,
-                    })
-            })
             .push(self.log.view(
                 false,
                 config,
@@ -518,6 +450,82 @@ pub fn other<'a>(
                                                 },
                                             )
                                             .class(style::Checkbox),
+                                        ),
+                                ),
+                        )
+                        .class(style::Container::GameListEntry),
+                    ),
+                )
+                .push(
+                    Column::new().spacing(5).push(text(TRANSLATOR.backup_field())).push(
+                        Container::new(
+                            Column::new()
+                                .padding(5)
+                                .spacing(10)
+                                .push(
+                                    Row::new()
+                                        .spacing(20)
+                                        .height(30)
+                                        .align_y(Alignment::Center)
+                                        .push({
+                                            number_input(
+                                                config.backup.retention.full as i32,
+                                                TRANSLATOR.full_retention(),
+                                                1..=255,
+                                                |x| Message::EditedFullRetention(x as u8),
+                                            )
+                                        })
+                                        .push({
+                                            number_input(
+                                                config.backup.retention.differential as i32,
+                                                TRANSLATOR.differential_retention(),
+                                                0..=255,
+                                                |x| Message::EditedDiffRetention(x as u8),
+                                            )
+                                        }),
+                                )
+                                .push(
+                                    Row::new()
+                                        .spacing(20)
+                                        .align_y(Alignment::Center)
+                                        .push(
+                                            Row::new()
+                                                .spacing(5)
+                                                .align_y(Alignment::Center)
+                                                .push(text(TRANSLATOR.backup_format_field()))
+                                                .push(
+                                                    pick_list(
+                                                        BackupFormat::ALL,
+                                                        Some(config.backup.format.chosen),
+                                                        Message::SelectedBackupFormat,
+                                                    )
+                                                    .class(style::PickList::Primary),
+                                                ),
+                                        )
+                                        .push_if(config.backup.format.chosen == BackupFormat::Zip, || {
+                                            Row::new()
+                                                .spacing(5)
+                                                .align_y(Alignment::Center)
+                                                .push(text(TRANSLATOR.backup_compression_field()))
+                                                .push(
+                                                    pick_list(
+                                                        ZipCompression::ALL,
+                                                        Some(config.backup.format.zip.compression),
+                                                        Message::SelectedBackupCompression,
+                                                    )
+                                                    .class(style::PickList::Primary),
+                                                )
+                                        })
+                                        .push_maybe(
+                                            match (config.backup.format.level(), config.backup.format.range()) {
+                                                (Some(level), Some(range)) => Some(number_input(
+                                                    level,
+                                                    TRANSLATOR.backup_compression_level_field(),
+                                                    range,
+                                                    Message::EditedCompressionLevel,
+                                                )),
+                                                _ => None,
+                                            },
                                         ),
                                 ),
                         )

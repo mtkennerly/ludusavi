@@ -142,14 +142,6 @@ pub fn search<'a>(action: Message) -> Element<'a> {
     template(Icon::Search.text(), Some(action), None)
 }
 
-pub fn settings<'a>(open: bool) -> Element<'a> {
-    template(
-        Icon::Settings.text(),
-        Some(Message::ToggleBackupSettings),
-        open.then_some(style::Button::Negative),
-    )
-}
-
 pub fn move_up<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'a> {
     template(
         Icon::ArrowUpward.text_small(),

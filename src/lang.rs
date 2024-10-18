@@ -1153,6 +1153,14 @@ impl Translator {
         translate("label-comment")
     }
 
+    pub fn backup_label(&self) -> String {
+        translate("label-backup")
+    }
+
+    pub fn backup_field(&self) -> String {
+        self.field(&self.backup_label())
+    }
+
     pub fn scan_label(&self) -> String {
         translate("label-scan")
     }

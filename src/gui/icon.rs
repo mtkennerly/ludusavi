@@ -36,6 +36,7 @@ pub enum Icon {
     Remove,
     RemoveCircle,
     Search,
+    #[allow(unused)]
     Settings,
     SubdirectoryArrowRight,
     Upload,

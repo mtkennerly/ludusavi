@@ -2424,10 +2424,6 @@ impl App {
                 self.save_config();
                 Task::none()
             }
-            Message::ToggleBackupSettings => {
-                self.backup_screen.show_settings = !self.backup_screen.show_settings;
-                Task::none()
-            }
             Message::ToggleCloudSynchronize => {
                 self.config.cloud.synchronize = !self.config.cloud.synchronize;
                 self.save_config();
