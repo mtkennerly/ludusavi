@@ -116,6 +116,8 @@ and that these projects are not officially affiliated with Ludusavi itself:
   * https://github.com/GedasFX/decky-ludusavi
 * Plugins for VS Code:
   * https://marketplace.visualstudio.com/items?itemName=claui.ludusavi
+* Tools:
+  * https://github.com/jose-l-martins/GSM-to-Ludusavi-converter
 
 ## Comparison with other tools
 There are other excellent backup tools available, but not a singular
