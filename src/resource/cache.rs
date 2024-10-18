@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashMap};
+use std::collections::{BTreeMap, BTreeSet};
 
 use crate::{
     lang::Language,
@@ -37,7 +37,7 @@ pub struct Migrations {
     pub set_default_manifest_url_to_null: bool,
 }
 
-pub type Manifests = HashMap<String, Manifest>;
+pub type Manifests = BTreeMap<String, Manifest>;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(default)]
