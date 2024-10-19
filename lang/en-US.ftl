@@ -286,3 +286,5 @@ new-version-available = An application update is available: {$version}. Would yo
 
 custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
+
+operation-will-only-include-listed-games = This will only process the games that are currently listed

@@ -1434,6 +1434,10 @@ impl Translator {
     pub fn custom_game_will_extend(&self) -> String {
         translate("custom-game-will-extend")
     }
+
+    pub fn operation_will_only_include_listed_games(&self) -> String {
+        translate("operation-will-only-include-listed-games")
+    }
 }
 
 #[cfg(test)]

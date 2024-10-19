@@ -9,6 +9,10 @@ to better preserve the files' executable permissions.
     For Steam roots, this also supports shortcuts to non-Steam games,
     where the placeholder will map to the shortcut's dynamic app ID.
   * Paths may now use the `<winLocalAppDataLow>` placeholder.
+  * GUI: On the backup and restore screens,
+    if you activate the filter options,
+    then the backup/restore buttons will only process the currently listed games.
+    This allows you to quickly scan a specific subset of games.
   * You can now choose whether a custom game will override or extend
     a manifest entry with the same name.
     Previously, it would always override the manifest entry completely.

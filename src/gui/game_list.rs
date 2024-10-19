@@ -423,30 +423,15 @@ impl GameList {
                     let content = self
                         .entries
                         .iter()
-                        .filter(|x| {
-                            config.should_show_game(
-                                &x.scan_info.game_name,
+                        .filter(|entry| {
+                            self.filter_game(
+                                entry,
                                 restoring,
-                                x.scan_info.overall_change().is_changed(),
-                                x.scan_info.found_anything(),
+                                config,
+                                manifest,
+                                duplicate_detector,
+                                duplicatees.as_ref(),
                             )
-                        })
-                        .filter(|x| {
-                            !self.search.show
-                                || self.search.qualifies(
-                                    &x.scan_info,
-                                    manifest,
-                                    config.is_game_enabled_for_operation(&x.scan_info.game_name, restoring),
-                                    config.is_game_customized(&x.scan_info.game_name),
-                                    duplicate_detector.is_game_duplicated(&x.scan_info.game_name),
-                                    config.scan.show_deselected_games,
-                                )
-                        })
-                        .filter(|x| {
-                            duplicatees
-                                .as_ref()
-                                .map(|xs| xs.contains(&x.scan_info.game_name))
-                                .unwrap_or(true)
                         })
                         .fold(
                             Column::new()
@@ -476,6 +461,76 @@ impl GameList {
         self.entries
             .iter()
             .all(|x| config.is_game_enabled_for_operation(&x.scan_info.game_name, restoring))
+    }
+
+    fn filter_game(
+        &self,
+        entry: &GameListEntry,
+        restoring: bool,
+        config: &Config,
+        manifest: &Manifest,
+        duplicate_detector: &DuplicateDetector,
+        duplicatees: Option<&HashSet<String>>,
+    ) -> bool {
+        let show = config.should_show_game(
+            &entry.scan_info.game_name,
+            restoring,
+            entry.scan_info.overall_change().is_changed(),
+            entry.scan_info.found_anything(),
+        );
+
+        let qualifies = self.search.qualifies(
+            &entry.scan_info,
+            manifest,
+            config.is_game_enabled_for_operation(&entry.scan_info.game_name, restoring),
+            config.is_game_customized(&entry.scan_info.game_name),
+            duplicate_detector.is_game_duplicated(&entry.scan_info.game_name),
+            config.scan.show_deselected_games,
+        );
+
+        let duplicate = duplicatees
+            .as_ref()
+            .map(|xs| xs.contains(&entry.scan_info.game_name))
+            .unwrap_or(true);
+
+        show && qualifies && duplicate
+    }
+
+    pub fn visible_games(
+        &self,
+        restoring: bool,
+        config: &Config,
+        manifest: &Manifest,
+        duplicate_detector: &DuplicateDetector,
+    ) -> Vec<String> {
+        let duplicatees = self.filter_duplicates_of.as_ref().and_then(|game| {
+            let mut duplicatees = duplicate_detector.duplicate_games(game);
+            if duplicatees.is_empty() {
+                None
+            } else {
+                duplicatees.insert(game.clone());
+                Some(duplicatees)
+            }
+        });
+
+        self.entries
+            .iter()
+            .filter(|entry| {
+                self.filter_game(
+                    entry,
+                    restoring,
+                    config,
+                    manifest,
+                    duplicate_detector,
+                    duplicatees.as_ref(),
+                )
+            })
+            .map(|x| x.scan_info.game_name.clone())
+            .collect()
+    }
+
+    pub fn is_filtered(&self) -> bool {
+        self.search.show || self.filter_duplicates_of.is_some()
     }
 
     pub fn compute_operation_status(&self, config: &Config, restoring: bool) -> OperationStatus {

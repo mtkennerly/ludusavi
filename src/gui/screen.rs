@@ -90,8 +90,8 @@ impl Backup {
                     .padding([0, 20])
                     .spacing(20)
                     .align_y(Alignment::Center)
-                    .push(button::backup_preview(operation))
-                    .push(button::backup(operation))
+                    .push(button::backup_preview(operation, self.log.is_filtered()))
+                    .push(button::backup(operation, self.log.is_filtered()))
                     .push(button::toggle_all_scanned_games(
                         self.log.all_entries_selected(config, false),
                     ))
@@ -165,8 +165,8 @@ impl Restore {
                     .padding([0, 20])
                     .spacing(20)
                     .align_y(Alignment::Center)
-                    .push(button::restore_preview(operation))
-                    .push(button::restore(operation))
+                    .push(button::restore_preview(operation, self.log.is_filtered()))
+                    .push(button::restore(operation, self.log.is_filtered()))
                     .push(button::toggle_all_scanned_games(
                         self.log.all_entries_selected(config, true),
                     ))

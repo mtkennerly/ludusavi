@@ -274,7 +274,7 @@ impl App {
                 preview,
                 repair,
                 jump,
-                games,
+                mut games,
             } => {
                 if !self.operation.idle() {
                     return Task::none();
@@ -282,10 +282,19 @@ impl App {
 
                 let mut cleared_log = false;
                 if games.is_none() {
-                    self.backup_screen.log.clear();
-                    self.backup_screen.duplicate_detector.clear();
-                    self.reset_scroll_position(ScrollSubject::Backup);
-                    cleared_log = true;
+                    if self.backup_screen.log.is_filtered() {
+                        games = Some(self.backup_screen.log.visible_games(
+                            false,
+                            &self.config,
+                            &self.manifest.extended,
+                            &self.backup_screen.duplicate_detector,
+                        ));
+                    } else {
+                        self.backup_screen.log.clear();
+                        self.backup_screen.duplicate_detector.clear();
+                        self.reset_scroll_position(ScrollSubject::Backup);
+                        cleared_log = true;
+                    }
                 }
 
                 if jump {
@@ -693,7 +702,7 @@ impl App {
     fn handle_restore(&mut self, phase: RestorePhase) -> Task<Message> {
         match phase {
             RestorePhase::Confirm { games } => self.show_modal(Modal::ConfirmRestore { games }),
-            RestorePhase::Start { preview, games } => {
+            RestorePhase::Start { preview, mut games } => {
                 if !self.operation.idle() {
                     return Task::none();
                 }
@@ -707,10 +716,19 @@ impl App {
 
                 let mut cleared_log = false;
                 if games.is_none() {
-                    self.restore_screen.log.clear();
-                    self.restore_screen.duplicate_detector.clear();
-                    self.reset_scroll_position(ScrollSubject::Restore);
-                    cleared_log = true;
+                    if self.restore_screen.log.is_filtered() {
+                        games = Some(self.restore_screen.log.visible_games(
+                            false,
+                            &self.config,
+                            &self.manifest.extended,
+                            &self.restore_screen.duplicate_detector,
+                        ));
+                    } else {
+                        self.restore_screen.log.clear();
+                        self.restore_screen.duplicate_detector.clear();
+                        self.reset_scroll_position(ScrollSubject::Restore);
+                        cleared_log = true;
+                    }
                 }
 
                 self.operation =

@@ -119,6 +119,10 @@ impl FilterComponent {
         duplicated: Duplication,
         show_deselected_games: bool,
     ) -> bool {
+        if !self.show {
+            return true;
+        }
+
         let fuzzy = self.game_name.is_empty()
             || fuzzy_matcher::skim::SkimMatcherV2::default()
                 .fuzzy_match(&scan.game_name, &self.game_name)

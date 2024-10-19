@@ -1,4 +1,4 @@
-use iced::{alignment, keyboard};
+use iced::{alignment, keyboard, Length};
 
 use crate::{
     gui::{
@@ -8,7 +8,7 @@ use crate::{
         },
         icon::Icon,
         style,
-        widget::{text, Button, Element, Text},
+        widget::{text, Button, Container, Element, Row, Text, Tooltip},
     },
     lang::TRANSLATOR,
     prelude::{Finality, SyncDirection},
@@ -30,6 +30,48 @@ fn template_bare(content: Text, action: Option<Message>, style: Option<style::Bu
         .on_press_maybe(action)
         .class(style.unwrap_or(style::Button::Primary))
         .padding(0)
+        .into()
+}
+
+fn template_extended(
+    content: Text,
+    action: Option<Message>,
+    style: Option<style::Button>,
+    icon: Option<Icon>,
+    tooltip: Option<String>,
+) -> Element {
+    let button = match icon {
+        Some(icon) => template_complex(
+            Container::new(
+                Row::new()
+                    .spacing(5)
+                    .push(icon.text_narrow())
+                    .push(content.width(Length::Shrink)),
+            )
+            .center_x(WIDTH),
+            action,
+            style,
+        ),
+        None => template(content, action, style),
+    };
+
+    match tooltip {
+        Some(tooltip) => Tooltip::new(button, text(tooltip), iced::widget::tooltip::Position::Top)
+            .class(style::Container::Tooltip)
+            .into(),
+        None => button,
+    }
+}
+
+fn template_complex<'a>(
+    content: impl Into<Element<'a>>,
+    action: Option<Message>,
+    style: Option<style::Button>,
+) -> Element<'a> {
+    Button::new(content)
+        .on_press_maybe(action)
+        .class(style.unwrap_or(style::Button::Primary))
+        .padding(5)
         .into()
 }
 
@@ -329,8 +371,8 @@ pub fn download<'a>(operation: &Operation) -> Element<'a> {
     )
 }
 
-pub fn backup<'a>(ongoing: &Operation) -> Element<'a> {
-    template(
+pub fn backup<'a>(ongoing: &Operation, filtered: bool) -> Element<'a> {
+    template_extended(
         text(match ongoing {
             Operation::Backup {
                 finality: Finality::Final,
@@ -363,11 +405,13 @@ pub fn backup<'a>(ongoing: &Operation) -> Element<'a> {
             }
         )
         .then_some(style::Button::Negative),
+        filtered.then_some(Icon::Filter),
+        filtered.then(|| TRANSLATOR.operation_will_only_include_listed_games()),
     )
 }
 
-pub fn backup_preview<'a>(ongoing: &Operation) -> Element<'a> {
-    template(
+pub fn backup_preview<'a>(ongoing: &Operation, filtered: bool) -> Element<'a> {
+    template_extended(
         text(match ongoing {
             Operation::Backup {
                 finality: Finality::Preview,
@@ -405,11 +449,13 @@ pub fn backup_preview<'a>(ongoing: &Operation) -> Element<'a> {
             }
         )
         .then_some(style::Button::Negative),
+        filtered.then_some(Icon::Filter),
+        filtered.then(|| TRANSLATOR.operation_will_only_include_listed_games()),
     )
 }
 
-pub fn restore<'a>(ongoing: &Operation) -> Element<'a> {
-    template(
+pub fn restore<'a>(ongoing: &Operation, filtered: bool) -> Element<'a> {
+    template_extended(
         text(match ongoing {
             Operation::Restore {
                 finality: Finality::Final,
@@ -442,11 +488,13 @@ pub fn restore<'a>(ongoing: &Operation) -> Element<'a> {
             }
         )
         .then_some(style::Button::Negative),
+        filtered.then_some(Icon::Filter),
+        filtered.then(|| TRANSLATOR.operation_will_only_include_listed_games()),
     )
 }
 
-pub fn restore_preview<'a>(ongoing: &Operation) -> Element<'a> {
-    template(
+pub fn restore_preview<'a>(ongoing: &Operation, filtered: bool) -> Element<'a> {
+    template_extended(
         text(match ongoing {
             Operation::Restore {
                 finality: Finality::Preview,
@@ -482,6 +530,8 @@ pub fn restore_preview<'a>(ongoing: &Operation) -> Element<'a> {
             }
         )
         .then_some(style::Button::Negative),
+        filtered.then_some(Icon::Filter),
+        filtered.then(|| TRANSLATOR.operation_will_only_include_listed_games()),
     )
 }
 
