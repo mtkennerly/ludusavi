@@ -111,6 +111,14 @@ pub fn filter<'a>(screen: Screen, open: bool) -> Element<'a> {
     )
 }
 
+pub fn reset_filter<'a>(dirty: bool) -> Element<'a> {
+    template(
+        Icon::RemoveCircle.text(),
+        dirty.then_some(Message::ResetSearchFilter),
+        Some(style::Button::Negative),
+    )
+}
+
 pub fn sort<'a>(message: Message) -> Element<'a> {
     template(text(TRANSLATOR.sort_button()).width(WIDTH), Some(message), None)
 }

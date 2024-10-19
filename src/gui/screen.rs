@@ -11,6 +11,7 @@ use crate::{
         editor,
         game_list::GameList,
         icon::Icon,
+        search::CustomGamesFilter,
         shortcuts::TextHistories,
         style,
         widget::{checkbox, number_input, pick_list, text, Button, Column, Container, Element, IcedParentExt, Row},
@@ -211,16 +212,16 @@ impl Restore {
 
 #[derive(Default)]
 pub struct CustomGames {
-    pub filter: editor::CustomGamesFilter,
+    pub filter: CustomGamesFilter,
 }
 
 impl CustomGames {
     pub fn view<'a>(
-        &self,
+        &'a self,
         config: &Config,
         manifest: &Manifest,
         operating: bool,
-        histories: &TextHistories,
+        histories: &'a TextHistories,
         modifiers: &keyboard::Modifiers,
     ) -> Element<'a> {
         let content = Column::new()
@@ -234,14 +235,7 @@ impl CustomGames {
                     .push(button::sort(Message::SortCustomGames))
                     .push(button::filter(Screen::CustomGames, self.filter.enabled)),
             )
-            .push_maybe(self.filter.enabled.then(|| {
-                Row::new()
-                    .padding(padding::left(20).right(20))
-                    .spacing(20)
-                    .align_y(Alignment::Center)
-                    .push(text(TRANSLATOR.filter_label()))
-                    .push(histories.input(UndoSubject::CustomGamesSearchGameName))
-            }))
+            .push_maybe(self.filter.view(histories))
             .push(editor::custom_games(
                 config,
                 manifest,

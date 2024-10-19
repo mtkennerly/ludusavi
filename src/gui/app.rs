@@ -2009,6 +2009,24 @@ impl App {
                 search.toggle_filter(filter, enabled);
                 Task::none()
             }
+            Message::ResetSearchFilter => {
+                match self.screen {
+                    Screen::Backup => {
+                        self.backup_screen.log.search.reset();
+                        self.text_histories.backup_search_game_name.push("");
+                    }
+                    Screen::Restore => {
+                        self.restore_screen.log.search.reset();
+                        self.text_histories.restore_search_game_name.push("");
+                    }
+                    Screen::CustomGames => {
+                        self.custom_games_screen.filter.reset();
+                        self.text_histories.custom_games_search_game_name.push("");
+                    }
+                    Screen::Other => {}
+                }
+                Task::none()
+            }
             Message::EditedSearchFilterUniqueness(filter) => {
                 let search = if self.screen == Screen::Backup {
                     &mut self.backup_screen.log.search

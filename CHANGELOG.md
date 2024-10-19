@@ -18,6 +18,8 @@ to better preserve the files' executable permissions.
   * GUI: On the custom games screen,
     when you use the button to preview a custom game,
     the window will switch to the backup screen and show you the results for that game.
+  * GUI: There is now a button to quickly reset the game list filters,
+    while still leaving the filter options open.
 * Fixed:
   * Files on Windows network shares were not backed up correctly.
     For example, a file identified as `\\localhost\share\test.txt`
@@ -41,6 +43,7 @@ to better preserve the files' executable permissions.
   * GUI: The backup format and retention settings are now on the "other" screen,
     instead of being accessed via the gear icon on the backup screen.
   * GUI: Some uses of "select"/"deselect" have been changed to "enable"/"disable".
+  * GUI: The game list filters now have a different background color.
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 

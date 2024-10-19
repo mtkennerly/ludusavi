@@ -3,12 +3,14 @@ use iced::{padding, Alignment};
 
 use crate::{
     gui::{
+        button,
         common::{Message, Screen, UndoSubject},
         shortcuts::TextHistories,
-        widget::{checkbox, pick_list, text, Column, Element, IcedParentExt, Row},
+        style,
+        widget::{checkbox, pick_list, text, Column, Container, Element, IcedParentExt, Row},
     },
     lang::TRANSLATOR,
-    resource::manifest::Manifest,
+    resource::{config::CustomGame, manifest::Manifest},
     scan::{
         game_filter::{self, FilterKind},
         Duplication, ScanInfo,
@@ -90,6 +92,24 @@ fn template_with_label<T: 'static + Default + Clone + Eq + PartialEq + ToString>
 }
 
 impl FilterComponent {
+    pub fn reset(&mut self) {
+        self.game_name.clear();
+        self.uniqueness.active = false;
+        self.completeness.active = false;
+        self.enablement.active = false;
+        self.change.active = false;
+        self.manifest.active = false;
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        !self.game_name.is_empty()
+            || self.uniqueness.active
+            || self.completeness.active
+            || self.enablement.active
+            || self.change.active
+            || self.manifest.active
+    }
+
     pub fn qualifies(
         &self,
         scan: &ScanInfo,
@@ -136,71 +156,127 @@ impl FilterComponent {
         if !self.show {
             return None;
         }
+
+        let content = Column::new()
+            .padding(padding::left(5).right(5))
+            .spacing(15)
+            .push(
+                Row::new()
+                    .spacing(20)
+                    .align_y(Alignment::Center)
+                    .push(text(TRANSLATOR.filter_label()))
+                    .push(histories.input(match screen {
+                        Screen::Restore => UndoSubject::RestoreSearchGameName,
+                        _ => UndoSubject::BackupSearchGameName,
+                    }))
+                    .push(button::reset_filter(self.is_dirty())),
+            )
+            .push(
+                Row::new()
+                    .spacing(15)
+                    .align_y(Alignment::Center)
+                    .push(template(
+                        &self.uniqueness,
+                        FilterKind::Uniqueness,
+                        game_filter::Uniqueness::ALL,
+                        Message::EditedSearchFilterUniqueness,
+                    ))
+                    .push(template(
+                        &self.completeness,
+                        FilterKind::Completeness,
+                        game_filter::Completeness::ALL,
+                        Message::EditedSearchFilterCompleteness,
+                    ))
+                    .push(template(
+                        &self.change,
+                        FilterKind::Change,
+                        game_filter::Change::ALL,
+                        Message::EditedSearchFilterChange,
+                    ))
+                    .push_if(show_deselected_games, || {
+                        template(
+                            &self.enablement,
+                            FilterKind::Enablement,
+                            game_filter::Enablement::ALL,
+                            Message::EditedSearchFilterEnablement,
+                        )
+                    })
+                    .push_if(manifests.len() == 2, || {
+                        template_noncopy(
+                            &self.manifest,
+                            FilterKind::Manifest,
+                            manifests.clone(),
+                            Message::EditedSearchFilterManifest,
+                        )
+                    })
+                    .push_if(manifests.len() > 2, || {
+                        template_with_label(
+                            &self.manifest,
+                            TRANSLATOR.source_field(),
+                            FilterKind::Manifest,
+                            manifests,
+                            Message::EditedSearchFilterManifest,
+                        )
+                    })
+                    .wrap(),
+            );
+
         Some(
-            Column::new()
-                .spacing(15)
-                .push(
-                    Row::new()
-                        .padding(padding::left(20).right(20))
-                        .spacing(20)
-                        .align_y(Alignment::Center)
-                        .push(text(TRANSLATOR.filter_label()))
-                        .push(histories.input(match screen {
-                            Screen::Restore => UndoSubject::RestoreSearchGameName,
-                            _ => UndoSubject::BackupSearchGameName,
-                        })),
-                )
-                .push(
-                    Row::new()
-                        .padding(padding::left(20).right(20))
-                        .spacing(15)
-                        .align_y(Alignment::Center)
-                        .push(template(
-                            &self.uniqueness,
-                            FilterKind::Uniqueness,
-                            game_filter::Uniqueness::ALL,
-                            Message::EditedSearchFilterUniqueness,
-                        ))
-                        .push(template(
-                            &self.completeness,
-                            FilterKind::Completeness,
-                            game_filter::Completeness::ALL,
-                            Message::EditedSearchFilterCompleteness,
-                        ))
-                        .push(template(
-                            &self.change,
-                            FilterKind::Change,
-                            game_filter::Change::ALL,
-                            Message::EditedSearchFilterChange,
-                        ))
-                        .push_if(show_deselected_games, || {
-                            template(
-                                &self.enablement,
-                                FilterKind::Enablement,
-                                game_filter::Enablement::ALL,
-                                Message::EditedSearchFilterEnablement,
-                            )
-                        })
-                        .push_if(manifests.len() == 2, || {
-                            template_noncopy(
-                                &self.manifest,
-                                FilterKind::Manifest,
-                                manifests.clone(),
-                                Message::EditedSearchFilterManifest,
-                            )
-                        })
-                        .push_if(manifests.len() > 2, || {
-                            template_with_label(
-                                &self.manifest,
-                                TRANSLATOR.source_field(),
-                                FilterKind::Manifest,
-                                manifests,
-                                Message::EditedSearchFilterManifest,
-                            )
-                        })
-                        .wrap(),
-                )
-                .into(),
+            Container::new(
+                Container::new(content)
+                    .class(style::Container::GameListEntry)
+                    .padding(padding::top(5).bottom(5)),
+            )
+            .padding(padding::left(15).right(15))
+            .into(),
+        )
+    }
+}
+
+#[derive(Default)]
+pub struct CustomGamesFilter {
+    pub enabled: bool,
+    pub name: String,
+}
+
+impl CustomGamesFilter {
+    pub fn reset(&mut self) {
+        self.name.clear();
+    }
+
+    pub fn is_dirty(&self) -> bool {
+        !self.name.is_empty()
+    }
+
+    pub fn qualifies(&self, game: &CustomGame) -> bool {
+        !self.enabled
+            || self.name.is_empty()
+            || fuzzy_matcher::skim::SkimMatcherV2::default()
+                .fuzzy_match(&game.name, &self.name)
+                .is_some()
+    }
+
+    pub fn view<'a>(&'a self, histories: &TextHistories) -> Option<Element<'a>> {
+        if !self.enabled {
+            return None;
+        }
+
+        let content = Row::new()
+            .padding(padding::left(5).right(5))
+            .spacing(20)
+            .align_y(Alignment::Center)
+            .push(text(TRANSLATOR.filter_label()))
+            .push(histories.input(UndoSubject::CustomGamesSearchGameName))
+            .push(button::reset_filter(self.is_dirty()));
+
+        Some(
+            Container::new(
+                Container::new(content)
+                    .class(style::Container::GameListEntry)
+                    .padding(padding::top(5).bottom(5)),
+            )
+            .padding(padding::left(15).right(15))
+            .into(),
         )
     }
 }

@@ -1,4 +1,3 @@
-use fuzzy_matcher::FuzzyMatcher;
 use iced::{
     keyboard, padding,
     widget::{horizontal_space, tooltip, Space},
@@ -11,6 +10,7 @@ use crate::{
         button,
         common::{BackupPhase, BrowseFileSubject, BrowseSubject, Message, ScrollSubject, UndoSubject},
         icon::Icon,
+        search::CustomGamesFilter,
         shortcuts::TextHistories,
         style,
         widget::{checkbox, pick_list, text, Column, Container, IcedParentExt, Row, Tooltip},
@@ -18,7 +18,7 @@ use crate::{
     lang::TRANSLATOR,
     resource::{
         cache::Cache,
-        config::{Config, CustomGame, CustomGameKind, Integration, RedirectKind, SecondaryManifestConfigKind},
+        config::{Config, CustomGameKind, Integration, RedirectKind, SecondaryManifestConfigKind},
         manifest::{Manifest, Store},
     },
 };
@@ -241,22 +241,6 @@ pub fn redirect<'a>(config: &Config, histories: &TextHistories, modifiers: &keyb
     .class(style::Container::GameListEntry);
 
     Container::new(wrapper)
-}
-
-#[derive(Default)]
-pub struct CustomGamesFilter {
-    pub enabled: bool,
-    pub name: String,
-}
-
-impl CustomGamesFilter {
-    pub fn qualifies(&self, game: &CustomGame) -> bool {
-        !self.enabled
-            || self.name.is_empty()
-            || fuzzy_matcher::skim::SkimMatcherV2::default()
-                .fuzzy_match(&game.name, &self.name)
-                .is_some()
-    }
 }
 
 pub fn custom_games<'a>(

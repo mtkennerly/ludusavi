@@ -192,6 +192,7 @@ pub enum Message {
         filter: game_filter::FilterKind,
         enabled: bool,
     },
+    ResetSearchFilter,
     EditedSearchFilterUniqueness(game_filter::Uniqueness),
     EditedSearchFilterCompleteness(game_filter::Completeness),
     EditedSearchFilterEnablement(game_filter::Enablement),
