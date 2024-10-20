@@ -506,11 +506,9 @@ impl App {
                             }
 
                             let backup_info = if !preview {
-                                Some(layout.game_layout(&key).back_up(
-                                    &scan_info,
-                                    &chrono::Utc::now(),
-                                    &config.backup.format,
-                                ))
+                                layout
+                                    .game_layout(&key)
+                                    .back_up(&scan_info, &chrono::Utc::now(), &config.backup.format)
                             } else {
                                 None
                             };

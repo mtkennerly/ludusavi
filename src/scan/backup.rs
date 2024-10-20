@@ -74,12 +74,12 @@ pub struct OperationStatus {
 }
 
 impl OperationStatus {
-    pub fn add_game(&mut self, scan_info: &ScanInfo, backup_info: &Option<BackupInfo>, processed: bool) {
+    pub fn add_game(&mut self, scan_info: &ScanInfo, backup_info: Option<&BackupInfo>, processed: bool) {
         self.total_games += 1;
         self.total_bytes += scan_info.total_possible_bytes();
         if processed {
             self.processed_games += 1;
-            self.processed_bytes += scan_info.sum_bytes(backup_info.as_ref());
+            self.processed_bytes += scan_info.sum_bytes(backup_info);
         }
 
         let changes = scan_info.count_changes();

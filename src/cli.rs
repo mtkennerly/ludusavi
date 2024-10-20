@@ -274,7 +274,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         OperationStepDecision::Processed
                     };
                     let backup_info = if preview || ignored {
-                        crate::scan::BackupInfo::default()
+                        None
                     } else {
                         let mut backup_format = config.backup.format.clone();
                         if let Some(format) = format {
@@ -339,10 +339,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         sort.key,
                         name1,
                         scan_info1,
-                        Some(backup_info1),
+                        backup_info1.as_ref(),
                         name2,
                         scan_info2,
-                        Some(backup_info2),
+                        backup_info2.as_ref(),
                     )
                 },
             );
@@ -351,7 +351,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
 
             for (name, scan_info, backup_info, decision) in info {
-                if !reporter.add_game(name, &scan_info, &backup_info, &decision, &duplicate_detector) {
+                if !reporter.add_game(name, &scan_info, backup_info.as_ref(), &decision, &duplicate_detector) {
                     failed = true;
                 }
             }
@@ -521,7 +521,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
 
             for (name, scan_info, backup_info, decision, _) in info {
-                if !reporter.add_game(name, &scan_info, &backup_info, &decision, &duplicate_detector) {
+                if !reporter.add_game(name, &scan_info, Some(&backup_info), &decision, &duplicate_detector) {
                     failed = true;
                 }
             }

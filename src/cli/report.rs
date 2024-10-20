@@ -285,7 +285,7 @@ impl Reporter {
         &mut self,
         name: &str,
         scan_info: &ScanInfo,
-        backup_info: &BackupInfo,
+        backup_info: Option<&BackupInfo>,
         decision: &OperationStepDecision,
         duplicate_detector: &DuplicateDetector,
     ) -> bool {
@@ -300,13 +300,16 @@ impl Reporter {
             Self::Standard { parts, status, .. } => {
                 parts.push(TRANSLATOR.cli_game_header(
                     name,
-                    scan_info.sum_bytes(Some(backup_info)),
+                    scan_info.sum_bytes(backup_info),
                     decision,
                     !duplicate_detector.is_game_duplicated(&scan_info.game_name).resolved(),
                     scan_info.overall_change(),
                 ));
                 for entry in itertools::sorted(&scan_info.found_files) {
-                    let entry_successful = !backup_info.failed_files.contains_key(entry);
+                    let entry_successful = backup_info
+                        .as_ref()
+                        .map(|x| !x.failed_files.contains_key(entry))
+                        .unwrap_or(true);
                     if !entry_successful {
                         successful = false;
                     }
@@ -327,12 +330,15 @@ impl Reporter {
                         }
                     }
 
-                    if let Some(error) = backup_info.failed_files.get(entry) {
+                    if let Some(error) = backup_info.as_ref().and_then(|x| x.failed_files.get(entry)) {
                         parts.push(TRANSLATOR.cli_game_line_item_error(error));
                     }
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
-                    let entry_successful = !backup_info.failed_registry.contains_key(&entry.path);
+                    let entry_successful = backup_info
+                        .as_ref()
+                        .map(|x| !x.failed_registry.contains_key(&entry.path))
+                        .unwrap_or(true);
                     if !entry_successful {
                         successful = false;
                     }
@@ -345,7 +351,7 @@ impl Reporter {
                         false,
                     ));
 
-                    if let Some(error) = backup_info.failed_registry.get(&entry.path) {
+                    if let Some(error) = backup_info.as_ref().and_then(|x| x.failed_registry.get(&entry.path)) {
                         parts.push(TRANSLATOR.cli_game_line_item_error(error));
                     }
 
@@ -369,11 +375,7 @@ impl Reporter {
                 parts.push("".to_string());
 
                 if let Some(status) = status.as_mut() {
-                    status.add_game(
-                        scan_info,
-                        &Some(backup_info.clone()),
-                        decision == &OperationStepDecision::Processed,
-                    );
+                    status.add_game(scan_info, backup_info, decision == &OperationStepDecision::Processed);
                 }
             }
             Self::Json { output } => {
@@ -384,8 +386,13 @@ impl Reporter {
                 for entry in itertools::sorted(&scan_info.found_files) {
                     let mut api_file = ApiFile {
                         bytes: entry.size,
-                        failed: backup_info.failed_files.contains_key(entry),
-                        error: backup_info.failed_files.get(entry).map(SaveError::from),
+                        failed: backup_info
+                            .as_ref()
+                            .map(|x| x.failed_files.contains_key(entry))
+                            .unwrap_or(false),
+                        error: backup_info
+                            .as_ref()
+                            .and_then(|x| x.failed_files.get(entry).map(SaveError::from)),
                         ignored: entry.ignored,
                         change: entry.change(),
                         ..Default::default()
@@ -411,8 +418,13 @@ impl Reporter {
                 }
                 for entry in itertools::sorted(&scan_info.found_registry_keys) {
                     let mut api_registry = ApiRegistry {
-                        failed: backup_info.failed_registry.contains_key(&entry.path),
-                        error: backup_info.failed_registry.get(&entry.path).map(SaveError::from),
+                        failed: backup_info
+                            .as_ref()
+                            .map(|x| x.failed_registry.contains_key(&entry.path))
+                            .unwrap_or(false),
+                        error: backup_info
+                            .as_ref()
+                            .and_then(|x| x.failed_registry.get(&entry.path).map(SaveError::from)),
                         ignored: entry.ignored,
                         change: entry.change(scan_info.restoring()),
                         values: entry
@@ -460,11 +472,7 @@ impl Reporter {
                 }
 
                 if let Some(overall) = output.overall.as_mut() {
-                    overall.add_game(
-                        scan_info,
-                        &Some(backup_info.clone()),
-                        decision == OperationStepDecision::Processed,
-                    );
+                    overall.add_game(scan_info, backup_info, decision == OperationStepDecision::Processed);
                 }
                 output.games.insert(
                     scan_info.game_name.clone(),
@@ -634,7 +642,7 @@ mod tests {
         reporter.add_game(
             "foo",
             &ScanInfo::default(),
-            &BackupInfo::default(),
+            None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
         );
@@ -687,14 +695,14 @@ Overall:
                 },
                 ..Default::default()
             },
-            &BackupInfo {
+            Some(&BackupInfo {
                 failed_files: hash_map! {
                     ScannedFile::new("/file2", 51_200, "2"): BackupError::Test,
                 },
                 failed_registry: hash_map! {
                     RegistryItem::new(s("HKEY_CURRENT_USER/Key1")): BackupError::Test
                 },
-            },
+            }),
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
         );
@@ -743,10 +751,7 @@ Overall:
                 found_registry_keys: hash_set! {},
                 ..Default::default()
             },
-            &BackupInfo {
-                failed_files: hash_map! {},
-                failed_registry: hash_map! {},
-            },
+            None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
         );
@@ -769,10 +774,7 @@ Overall:
                 found_registry_keys: hash_set! {},
                 ..Default::default()
             },
-            &BackupInfo {
-                failed_files: hash_map! {},
-                failed_registry: hash_map! {},
-            },
+            None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
         );
@@ -827,7 +829,7 @@ Overall:
                 found_registry_keys: hash_set! {},
                 ..Default::default()
             },
-            &BackupInfo::default(),
+            None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
         );
@@ -880,7 +882,7 @@ Overall:
                 },
                 ..Default::default()
             },
-            &BackupInfo::default(),
+            None,
             &OperationStepDecision::Processed,
             &duplicate_detector,
         );
@@ -917,10 +919,7 @@ Overall:
                 found_registry_keys: hash_set! {},
                 ..Default::default()
             },
-            &BackupInfo {
-                failed_files: hash_map! {},
-                failed_registry: hash_map! {},
-            },
+            None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
         );
@@ -934,10 +933,7 @@ Overall:
                 found_registry_keys: hash_set! {},
                 ..Default::default()
             },
-            &BackupInfo {
-                failed_files: hash_map! {},
-                failed_registry: hash_map! {},
-            },
+            None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
         );
@@ -969,7 +965,7 @@ Overall:
         reporter.add_game(
             "foo",
             &ScanInfo::default(),
-            &BackupInfo::default(),
+            None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
         );
@@ -1014,14 +1010,14 @@ Overall:
                 },
                 ..Default::default()
             },
-            &BackupInfo {
+            Some(&BackupInfo {
                 failed_files: hash_map! {
                     ScannedFile::new("/file2", 50, "2"): BackupError::Test,
                 },
                 failed_registry: hash_map! {
                     RegistryItem::new(s("HKEY_CURRENT_USER/Key1")): BackupError::Test
                 },
-            },
+            }),
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
         );
@@ -1122,7 +1118,7 @@ Overall:
                 found_registry_keys: hash_set! {},
                 ..Default::default()
             },
-            &BackupInfo::default(),
+            None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
         );
@@ -1197,7 +1193,7 @@ Overall:
                 },
                 ..Default::default()
             },
-            &BackupInfo::default(),
+            None,
             &OperationStepDecision::Processed,
             &duplicate_detector,
         );
@@ -1262,10 +1258,7 @@ Overall:
                 found_registry_keys: hash_set! {},
                 ..Default::default()
             },
-            &BackupInfo {
-                failed_files: hash_map! {},
-                failed_registry: hash_map! {},
-            },
+            None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
         );

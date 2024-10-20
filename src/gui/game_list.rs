@@ -772,8 +772,13 @@ impl GameList {
     pub fn unscan_games(&mut self, games: &[String]) {
         for entry in self.entries.iter_mut() {
             if games.contains(&entry.scan_info.game_name) {
+                entry.scanned = false;
                 entry.scan_info.found_files.clear();
                 entry.scan_info.found_registry_keys.clear();
+                if games.len() > 1 {
+                    entry.clear_tree();
+                    self.expanded_games.remove(&entry.scan_info.game_name);
+                }
             }
         }
     }

@@ -1481,10 +1481,10 @@ impl GameLayout {
         scan: &ScanInfo,
         now: &chrono::DateTime<chrono::Utc>,
         format: &BackupFormats,
-    ) -> BackupInfo {
+    ) -> Option<BackupInfo> {
         if !scan.found_anything() {
             log::trace!("[{}] nothing to back up", &scan.game_name);
-            return BackupInfo::default();
+            return None;
         }
 
         log::trace!("[{}] preparing for backup", &scan.game_name);
@@ -1494,14 +1494,14 @@ impl GameLayout {
                 scan.game_name,
                 &self.path
             );
-            return BackupInfo::total_failure(scan, BackupError::App(e));
+            return Some(BackupInfo::total_failure(scan, BackupError::App(e)));
         }
 
         self.migrate_backups(true);
         match self.plan_backup(scan, now, format) {
             None => {
                 log::info!("[{}] no need for new backup", &scan.game_name);
-                BackupInfo::default()
+                None
             }
             Some(mut backup) => {
                 log::info!(
@@ -1518,7 +1518,7 @@ impl GameLayout {
                     self.save();
                 }
                 self.prune_irrelevant_parents();
-                backup_info
+                Some(backup_info)
             }
         }
     }
