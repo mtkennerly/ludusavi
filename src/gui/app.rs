@@ -530,7 +530,7 @@ impl App {
                 let restoring = false;
                 let full = self.operation.full();
 
-                if let Some(scan_info) = scan_info {
+                if let Some(mut scan_info) = scan_info {
                     log::trace!(
                         "step {} / {}: {}",
                         self.progress.current,
@@ -538,6 +538,10 @@ impl App {
                         scan_info.game_name
                     );
                     if scan_info.can_report_game() {
+                        if let Some(backup_info) = backup_info.as_ref() {
+                            scan_info.clear_processed_changes(backup_info);
+                        }
+
                         let duplicates = self.backup_screen.duplicate_detector.add_game(
                             &scan_info,
                             self.config
@@ -882,7 +886,7 @@ impl App {
                 let restoring = true;
                 let full = self.operation.full();
 
-                if let Some(scan_info) = scan_info {
+                if let Some(mut scan_info) = scan_info {
                     log::trace!(
                         "step {} / {}: {}",
                         self.progress.current,
@@ -890,6 +894,10 @@ impl App {
                         scan_info.game_name
                     );
                     if scan_info.can_report_game() {
+                        if let Some(backup_info) = backup_info.as_ref() {
+                            scan_info.clear_processed_changes(backup_info);
+                        }
+
                         let comment = scan_info.backup.as_ref().and_then(|x| x.comment()).map(|x| x.as_str());
                         self.text_histories.backup_comments.insert(
                             scan_info.game_name.clone(),

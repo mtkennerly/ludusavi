@@ -39,6 +39,8 @@ to better preserve the files' executable permissions.
     Now, with `--force`, Ludusavi will not wait for any input.
   * Old log files were not deleted when stored on a Windows network share.
 * Changed:
+  * GUI: After successfully backing up or restoring a game,
+    the status icons (new/updated/etc) will be cleared for that game.
   * GUI: If the GUI fails to load, Ludusavi will try to log the error info.
   * GUI: When you launch Ludusavi, the window now ensures that it gains focus.
   * GUI: Modals now display on top of the app with a transparent background.

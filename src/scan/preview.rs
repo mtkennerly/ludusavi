@@ -231,6 +231,40 @@ impl ScanInfo {
             ScanChange::Unknown => false,
         }
     }
+
+    /// This is meant to be used for the GUI after a backup/restore,
+    /// so we don't show the previous change state anymore.
+    pub fn clear_processed_changes(&mut self, backup_info: &BackupInfo) {
+        self.found_files = self
+            .found_files
+            .clone()
+            .into_iter()
+            .map(|mut item| {
+                if !item.ignored && !backup_info.failed_files.contains_key(&item) {
+                    item.change = ScanChange::Same;
+                }
+                item
+            })
+            .collect();
+
+        self.found_registry_keys = self
+            .found_registry_keys
+            .clone()
+            .into_iter()
+            .map(|mut item| {
+                if !item.ignored && !backup_info.failed_registry.contains_key(&item.path) {
+                    item.change = ScanChange::Same;
+
+                    for item in item.values.values_mut() {
+                        if !item.ignored {
+                            item.change = ScanChange::Same;
+                        }
+                    }
+                }
+                item
+            })
+            .collect();
+    }
 }
 
 #[cfg(test)]
