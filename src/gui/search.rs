@@ -125,7 +125,7 @@ impl FilterComponent {
 
         let fuzzy = self.game_name.is_empty()
             || fuzzy_matcher::skim::SkimMatcherV2::default()
-                .fuzzy_match(&scan.game_name, &self.game_name)
+                .fuzzy_match(&scan.game_name.to_lowercase(), &self.game_name.to_lowercase())
                 .is_some();
         let unique = !self.uniqueness.active || self.uniqueness.choice.qualifies(duplicated);
         let complete = !self.completeness.active || self.completeness.choice.qualifies(scan);
@@ -256,7 +256,7 @@ impl CustomGamesFilter {
         !self.enabled
             || self.name.is_empty()
             || fuzzy_matcher::skim::SkimMatcherV2::default()
-                .fuzzy_match(&game.name, &self.name)
+                .fuzzy_match(&game.name.to_lowercase(), &self.name.to_lowercase())
                 .is_some()
     }
 

@@ -38,6 +38,7 @@ to better preserve the files' executable permissions.
     and wait for the user to press a key, even if `--force` was specified.
     Now, with `--force`, Ludusavi will not wait for any input.
   * Old log files were not deleted when stored on a Windows network share.
+  * GUI: The title filter was case-sensitive.
 * Changed:
   * GUI: After successfully backing up or restoring a game,
     the status icons (new/updated/etc) will be cleared for that game.
