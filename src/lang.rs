@@ -211,7 +211,7 @@ impl Language {
             Language::Korean => 86,
             Language::Polish => 90,
             Language::PortugueseBrazilian => 92,
-            Language::Russian => 94,
+            Language::Russian => 100,
             Language::Spanish => 94,
             Language::Thai => 22,
             Language::Turkish => 94,

@@ -9,3 +9,5 @@ You can also use keyboard shortcuts to swap the three-dot menu with some specifi
 * preview: shift
 * backup/restore: ctrl (Mac: cmd)
 * backup/restore without confirmation: ctrl + alt (Mac: cmd + option)
+
+Additionally, [filters](/docs/help/filter.md) can restrict which games are processed.

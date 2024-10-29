@@ -82,6 +82,7 @@ properties:
     default:
       ignoredGames: []
       path: "C:\\Users\\mtken/ludusavi-backup"
+      reverseRedirects: false
       sort:
         key: status
         reversed: false
@@ -345,6 +346,10 @@ definitions:
       ignore:
         description: Whether to disable this game.
         type: boolean
+      integration:
+        default: override
+        allOf:
+          - $ref: "#/definitions/Integration"
       name:
         description: Name of the game.
         default: ""
@@ -367,6 +372,11 @@ definitions:
         format: int32
   FilePath:
     type: string
+  Integration:
+    type: string
+    enum:
+      - override
+      - extend
   Language:
     description: Display language.
     oneOf:
@@ -522,6 +532,9 @@ definitions:
         default: "C:\\Users\\mtken/ludusavi-backup"
         allOf:
           - $ref: "#/definitions/FilePath"
+      reverseRedirects:
+        default: false
+        type: boolean
       sort:
         default:
           key: status

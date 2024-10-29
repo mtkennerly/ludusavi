@@ -1,4 +1,4 @@
-## Unreleased
+## v0.26.0 (2024-10-29)
 
 The Linux and Mac downloads are now provided in `.tar.gz` format
 to better preserve the files' executable permissions.
