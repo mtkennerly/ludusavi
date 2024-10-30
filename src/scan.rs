@@ -715,10 +715,7 @@ pub fn scan_game_for_backup(
 
     #[cfg(target_os = "windows")]
     {
-        let previous_registry = match previous.map(|x| x.registry_content) {
-            Some(Some(content)) => registry::Hives::deserialize(&content),
-            _ => None,
-        };
+        let previous_registry = previous.and_then(|x| x.registry_content);
 
         for key in game.registry.keys() {
             if key.trim().is_empty() {

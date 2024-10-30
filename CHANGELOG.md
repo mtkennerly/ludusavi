@@ -1,3 +1,9 @@
+## Unreleased
+
+* Changed:
+  * Windows registry backups are now saved as `*.reg` files instead of `*.yaml`.
+    Existing backups will not be affected.
+
 ## v0.26.0 (2024-10-29)
 
 The Linux and Mac downloads are now provided in `.tar.gz` format

@@ -15,7 +15,8 @@ use crate::{
         manifest::Os,
     },
     scan::{
-        game_file_target, prepare_backup_target, BackupError, BackupId, BackupInfo, ScanChange, ScanInfo, ScannedFile,
+        game_file_target, prepare_backup_target, registry, BackupError, BackupId, BackupInfo, ScanChange, ScanInfo,
+        ScannedFile,
     },
 };
 
@@ -63,7 +64,7 @@ pub fn escape_folder_name(name: &str) -> String {
 pub struct LatestBackup {
     pub scan: ScanInfo,
     #[allow(unused)]
-    pub registry_content: Option<String>,
+    pub registry_content: Option<registry::Hives>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -161,7 +162,7 @@ impl Backup {
         }
     }
 
-    #[cfg(target_os = "windows")]
+    #[allow(dead_code)]
     pub fn includes_registry(&self) -> bool {
         match self {
             Self::Full(backup) => backup.registry.hash.is_some(),
@@ -485,7 +486,9 @@ impl IndividualMapping {
         );
 
         if !self.has_backup(".") {
-            irrelevant.push(base.joined("registry.yaml"));
+            for format in registry::Format::ALL {
+                irrelevant.push(base.joined(format.filename()));
+            }
         }
 
         let Ok(base) = base.interpret() else {
@@ -846,7 +849,7 @@ impl GameLayout {
     }
 
     #[allow(dead_code)]
-    pub fn registry_content(&self, id: &BackupId) -> Option<String> {
+    pub fn registry_content(&self, id: &BackupId) -> Option<registry::Hives> {
         match self.find_by_id(id) {
             None => None,
             Some((full, None)) => self.registry_content_in(&full.name, &full.format()),
@@ -863,41 +866,36 @@ impl GameLayout {
         }
     }
 
-    fn registry_content_in(&self, backup: &str, format: &BackupFormat) -> Option<String> {
+    fn registry_content_in(&self, backup: &str, format: &BackupFormat) -> Option<registry::Hives> {
         match format {
-            BackupFormat::Simple => self.path.joined(backup).joined("registry.yaml").read(),
+            BackupFormat::Simple => {
+                for format in registry::Format::ALL {
+                    let candidate = self.path.joined(backup).joined(format.filename());
+                    let hives = registry::Hives::load(&candidate);
+                    if hives.is_some() {
+                        return hives;
+                    }
+                }
+
+                None
+            }
             BackupFormat::Zip => {
                 let handle = self.path.joined(backup).open().ok()?;
                 let mut archive = zip::ZipArchive::new(handle).ok()?;
-                let mut file = archive.by_name("registry.yaml").ok()?;
 
-                let mut buffer = vec![];
-                std::io::copy(&mut file, &mut buffer).ok()?;
+                for format in registry::Format::ALL {
+                    if let Ok(mut file) = archive.by_name(format.filename()) {
+                        let mut buffer = vec![];
+                        std::io::copy(&mut file, &mut buffer).ok()?;
+                        let content = String::from_utf8(buffer).ok()?;
 
-                String::from_utf8(buffer).ok()
-            }
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn registry_file(&self, id: &BackupId) -> StrictPath {
-        match self.find_by_id(id) {
-            None => self.registry_file_in("."),
-            Some((full, None)) => self.registry_file_in(&full.name),
-            Some((full, Some(diff))) => {
-                let diff_reg = self.registry_file_in(&diff.name);
-                if diff_reg.exists() || diff.omits_registry() {
-                    diff_reg
-                } else {
-                    self.registry_file_in(&full.name)
+                        return registry::Hives::deserialize(&content, *format);
+                    }
                 }
+
+                None
             }
         }
-    }
-
-    #[allow(dead_code)]
-    fn registry_file_in(&self, backup: &str) -> StrictPath {
-        self.path.joined(backup).joined("registry.yaml")
     }
 
     fn generate_file_friendly_timestamp(now: &chrono::DateTime<chrono::Utc>) -> String {
@@ -1009,7 +1007,7 @@ impl GameLayout {
             use crate::scan::registry::Hives;
             let mut hives = Hives::default();
             let _ = hives.back_up(&scan.game_name, &scan.found_registry_keys);
-            registry.hash = hives.sha1();
+            registry.hash = hives.sha1(registry::Format::Reg);
         }
 
         FullBackup {
@@ -1058,7 +1056,9 @@ impl GameLayout {
             let mut hives = Hives::default();
             let _ = hives.back_up(&scan.game_name, &scan.found_registry_keys);
             if !hives.is_empty() {
-                registry = Some(IndividualMappingRegistry { hash: hives.sha1() });
+                registry = Some(IndividualMappingRegistry {
+                    hash: hives.sha1(registry::Format::Reg),
+                });
             }
         }
 
@@ -1131,17 +1131,14 @@ impl GameLayout {
 
         #[cfg(target_os = "windows")]
         {
-            use crate::scan::registry::Hives;
-            let target_registry_file = self.registry_file_in(backup.name());
-
             if backup.includes_registry() {
-                let mut hives = Hives::default();
+                let target_registry_file = self.path.joined(backup.name()).joined(registry::Format::Reg.filename());
+                let mut hives = registry::Hives::default();
                 if let Err(failed) = hives.back_up(&scan.game_name, &scan.found_registry_keys) {
                     backup_info.failed_registry.extend(failed);
                 }
                 hives.save(&target_registry_file);
-            } else {
-                let _ = target_registry_file.remove();
+                relevant_files.push(target_registry_file);
             }
         }
 
@@ -1288,8 +1285,9 @@ impl GameLayout {
                 if let Err(failed) = hives.back_up(&scan.game_name, &scan.found_registry_keys) {
                     backup_info.failed_registry.extend(failed);
                 }
-                if zip.start_file("registry.yaml", options).is_ok() {
-                    let _ = zip.write_all(hives.serialize().as_bytes());
+                let format = registry::Format::Reg;
+                if zip.start_file(format.filename(), options).is_ok() {
+                    let _ = zip.write_all(hives.serialize(format).as_bytes());
                 }
             }
         }
@@ -1418,9 +1416,9 @@ impl GameLayout {
         }
         #[cfg(target_os = "windows")]
         {
-            if let Some(content) = self.registry_content_in(&backup.name, &BackupFormat::Simple) {
+            if let Some(hives) = self.registry_content_in(&backup.name, &BackupFormat::Simple) {
                 backup.registry = IndividualMappingRegistry {
-                    hash: Some(crate::prelude::sha1(content)),
+                    hash: hives.sha1(registry::Format::Yaml),
                 };
             }
         }
@@ -1569,49 +1567,47 @@ impl GameLayout {
         {
             use crate::scan::{registry, RegistryItem, ScannedRegistryValue, ScannedRegistryValues};
 
-            if let Some(registry_content) = self.registry_content(&id) {
-                if let Some(hives) = registry::Hives::deserialize(&registry_content) {
-                    for (hive_name, keys) in hives.0.iter() {
-                        for (key_name, entries) in keys.0.iter() {
-                            let live_entries = registry::win::try_read_registry_key(hive_name, key_name);
-                            let mut live_values = ScannedRegistryValues::new();
+            if let Some(hives) = self.registry_content(&id) {
+                for (hive_name, keys) in hives.0.iter() {
+                    for (key_name, entries) in keys.0.iter() {
+                        let live_entries = registry::win::try_read_registry_key(hive_name, key_name);
+                        let mut live_values = ScannedRegistryValues::new();
 
-                            let path = RegistryItem::from_hive_and_key(hive_name, key_name);
+                        let path = RegistryItem::from_hive_and_key(hive_name, key_name);
 
-                            for (entry_name, entry) in entries.0.iter() {
-                                live_values.insert(
-                                    entry_name.clone(),
-                                    ScannedRegistryValue {
-                                        ignored: toggled_registry.is_ignored(name, &path, Some(entry_name)),
-                                        change: live_entries
-                                            .as_ref()
-                                            .and_then(|x| x.0.get(entry_name))
-                                            .map(|live_entry| {
-                                                if entry == live_entry {
-                                                    ScanChange::Same
-                                                } else {
-                                                    ScanChange::Different
-                                                }
-                                            })
-                                            .unwrap_or(ScanChange::New),
-                                    },
-                                );
-                            }
-
-                            found_registry_keys.insert(ScannedRegistry {
-                                ignored: toggled_registry.is_ignored(name, &path, None)
-                                    && entries
-                                        .0
-                                        .keys()
-                                        .all(|x| toggled_registry.is_ignored(name, &path, Some(x))),
-                                path,
-                                change: match &live_entries {
-                                    None => ScanChange::New,
-                                    Some(_) => ScanChange::Same,
+                        for (entry_name, entry) in entries.0.iter() {
+                            live_values.insert(
+                                entry_name.clone(),
+                                ScannedRegistryValue {
+                                    ignored: toggled_registry.is_ignored(name, &path, Some(entry_name)),
+                                    change: live_entries
+                                        .as_ref()
+                                        .and_then(|x| x.0.get(entry_name))
+                                        .map(|live_entry| {
+                                            if entry == live_entry {
+                                                ScanChange::Same
+                                            } else {
+                                                ScanChange::Different
+                                            }
+                                        })
+                                        .unwrap_or(ScanChange::New),
                                 },
-                                values: live_values,
-                            });
+                            );
                         }
+
+                        found_registry_keys.insert(ScannedRegistry {
+                            ignored: toggled_registry.is_ignored(name, &path, None)
+                                && entries
+                                    .0
+                                    .keys()
+                                    .all(|x| toggled_registry.is_ignored(name, &path, Some(x))),
+                            path,
+                            change: match &live_entries {
+                                None => ScanChange::New,
+                                Some(_) => ScanChange::Same,
+                            },
+                            values: live_values,
+                        });
                     }
                 }
             }
@@ -1730,14 +1726,10 @@ impl GameLayout {
 
         #[cfg(target_os = "windows")]
         {
-            use crate::scan::registry::Hives;
-
             if let Some(backup) = scan.backup.as_ref() {
-                if let Some(registry_content) = self.registry_content(&backup.id()) {
-                    if let Some(hives) = Hives::deserialize(&registry_content) {
-                        if let Err(failed) = hives.restore(&scan.game_name, toggled) {
-                            failed_registry.extend(failed);
-                        }
+                if let Some(hives) = self.registry_content(&backup.id()) {
+                    if let Err(failed) = hives.restore(&scan.game_name, toggled) {
+                        failed_registry.extend(failed);
                     }
                 }
             }
@@ -1841,6 +1833,15 @@ impl GameLayout {
         let Ok(walk_path) = self.path.joined(backup).interpret() else {
             return vec![];
         };
+
+        for format in registry::Format::ALL {
+            let Ok(path) = self.path.joined(format.filename()).interpreted() else {
+                continue;
+            };
+            if !relevant_files.contains(&path.raw()) && path.is_file() {
+                irrelevant_files.push(path);
+            }
+        }
 
         for drive_dir in walkdir::WalkDir::new(walk_path)
             .max_depth(1)
@@ -2569,7 +2570,7 @@ mod tests {
                     when: now(),
                     os: Some(Os::HOST),
                     registry: IndividualMappingRegistry {
-                        hash: Some(crate::prelude::sha1(hives.serialize()))
+                        hash: hives.sha1(registry::Format::Reg),
                     },
                     ..Default::default()
                 },
@@ -2715,7 +2716,7 @@ mod tests {
                     when: now(),
                     os: Some(Os::HOST),
                     registry: Some(IndividualMappingRegistry {
-                        hash: Some(crate::prelude::sha1(hives.serialize()))
+                        hash: hives.sha1(registry::Format::Reg),
                     }),
                     ..Default::default()
                 },
@@ -2762,7 +2763,7 @@ mod tests {
                     when: now(),
                     os: Some(Os::HOST),
                     registry: Some(IndividualMappingRegistry {
-                        hash: Some(crate::prelude::sha1(hives.serialize()))
+                        hash: hives.sha1(registry::Format::Reg),
                     }),
                     ..Default::default()
                 },
@@ -2792,7 +2793,7 @@ mod tests {
                         name: ".".to_string(),
                         when: past(),
                         registry: IndividualMappingRegistry {
-                            hash: Some(crate::prelude::sha1(hives.serialize())),
+                            hash: hives.sha1(registry::Format::Reg),
                         },
                         ..Default::default()
                     }]),
