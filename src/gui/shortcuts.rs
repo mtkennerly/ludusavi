@@ -16,7 +16,7 @@ use crate::{
     lang::TRANSLATOR,
     prelude::StrictPath,
     resource::config::{Config, CustomGame},
-    scan::registry_compat::RegistryItem,
+    scan::registry::RegistryItem,
 };
 
 fn path_appears_valid(path: &str) -> bool {

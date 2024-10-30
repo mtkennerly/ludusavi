@@ -274,7 +274,7 @@ mod tests {
 
     use crate::{
         path::StrictPath,
-        scan::{registry_compat::RegistryItem, ScannedRegistryValue},
+        scan::{registry::RegistryItem, ScannedRegistryValue},
     };
 
     use super::*;

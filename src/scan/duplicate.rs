@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use crate::{
     prelude::StrictPath,
-    scan::{registry_compat::RegistryItem, ScanChange, ScanInfo, ScannedFile},
+    scan::{registry::RegistryItem, ScanChange, ScanInfo, ScannedFile},
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]

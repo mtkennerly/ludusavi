@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use crate::{
     lang::TRANSLATOR,
-    scan::{registry_compat::RegistryItem, ScanChangeCount, ScanInfo, ScannedFile},
+    scan::{registry::RegistryItem, ScanChangeCount, ScanInfo, ScannedFile},
 };
 
 #[derive(Clone, Debug)]

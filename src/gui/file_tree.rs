@@ -15,7 +15,7 @@ use crate::{
     path::StrictPath,
     resource::config::Config,
     scan::{
-        registry_compat::RegistryItem, BackupError, BackupInfo, DuplicateDetector, Duplication, ScanChange, ScanInfo,
+        registry::RegistryItem, BackupError, BackupInfo, DuplicateDetector, Duplication, ScanChange, ScanInfo,
         ScannedFile, ScannedRegistryValues,
     },
 };

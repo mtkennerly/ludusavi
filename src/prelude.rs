@@ -170,7 +170,7 @@ pub fn filter_map_walkdir(e: Result<walkdir::DirEntry, walkdir::Error>) -> Optio
     e.ok()
 }
 
-#[cfg(target_os = "windows")]
+#[allow(dead_code)]
 pub fn sha1(content: String) -> String {
     use sha1::Digest;
     let mut hasher = sha1::Sha1::new();

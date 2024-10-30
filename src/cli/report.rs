@@ -632,7 +632,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        scan::{registry_compat::RegistryItem, BackupError, ScannedFile, ScannedRegistry},
+        scan::{registry::RegistryItem, BackupError, ScannedFile, ScannedRegistry},
         testing::s,
     };
 

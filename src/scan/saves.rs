@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 
 use crate::{
     prelude::StrictPath,
-    scan::{registry_compat::RegistryItem, ScanChange},
+    scan::{registry::RegistryItem, ScanChange},
 };
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]

@@ -1573,7 +1573,7 @@ impl GameLayout {
                 if let Some(hives) = registry::Hives::deserialize(&registry_content) {
                     for (hive_name, keys) in hives.0.iter() {
                         for (key_name, entries) in keys.0.iter() {
-                            let live_entries = registry::try_read_registry_key(hive_name, key_name);
+                            let live_entries = registry::win::try_read_registry_key(hive_name, key_name);
                             let mut live_values = ScannedRegistryValues::new();
 
                             let path = RegistryItem::from_hive_and_key(hive_name, key_name);

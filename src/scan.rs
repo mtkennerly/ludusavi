@@ -5,13 +5,10 @@ pub mod game_filter;
 pub mod launchers;
 pub mod layout;
 mod preview;
-pub mod registry_compat;
+pub mod registry;
 mod saves;
 mod steam;
 mod title;
-
-#[cfg(target_os = "windows")]
-pub mod registry;
 
 use std::collections::{HashMap, HashSet};
 
@@ -31,7 +28,7 @@ use crate::{
 };
 
 #[cfg(target_os = "windows")]
-use crate::scan::registry_compat::RegistryItem;
+use crate::scan::registry::RegistryItem;
 
 /// Returns the effective target, if different from the original
 pub fn game_file_target(
@@ -747,7 +744,7 @@ pub fn scan_game_for_backup(
             for candidate in candidates {
                 log::trace!("[{name}] checking registry: {candidate}");
                 for mut scanned in
-                    registry::scan_registry(name, &candidate, filter, ignored_registry, &previous_registry)
+                    registry::win::scan_registry(name, &candidate, filter, ignored_registry, &previous_registry)
                         .unwrap_or_default()
                 {
                     log::debug!("[{name}] found registry: {}", scanned.path.raw());

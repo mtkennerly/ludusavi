@@ -26,8 +26,8 @@ use crate::{
         ResourceFile, SaveableResourceFile,
     },
     scan::{
-        layout::BackupLayout, prepare_backup_target, registry_compat::RegistryItem, scan_game_for_backup, BackupId,
-        Launchers, SteamShortcuts, TitleFinder,
+        layout::BackupLayout, prepare_backup_target, registry::RegistryItem, scan_game_for_backup, BackupId, Launchers,
+        SteamShortcuts, TitleFinder,
     },
 };
 

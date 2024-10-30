@@ -15,7 +15,7 @@ use crate::{
         manifest::{self, CloudMetadata, Manifest, Store},
         ResourceFile, SaveableResourceFile,
     },
-    scan::registry_compat::RegistryItem,
+    scan::registry::RegistryItem,
 };
 
 pub const MANIFEST_URL: &str =

@@ -20,7 +20,7 @@ use crate::{
     scan::{
         game_filter,
         layout::{Backup, BackupLayout, GameLayout},
-        registry_compat::RegistryItem,
+        registry::RegistryItem,
         BackupInfo, Launchers, ScanInfo, SteamShortcuts,
     },
 };
