@@ -3,6 +3,10 @@
 * Changed:
   * Windows registry backups are now saved as `*.reg` files instead of `*.yaml`.
     Existing backups will not be affected.
+* Fixed:
+  * The registry format change also resolved an issue where very large (> 100 MB)
+    `registry.yaml` files could be slow to read and consume a lot of extra memory,
+    whereas the same data in `.reg` format can be loaded without issue.
 
 ## v0.26.0 (2024-10-29)
 
