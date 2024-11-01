@@ -239,6 +239,7 @@ impl ScanInfo {
             .found_files
             .clone()
             .into_iter()
+            .filter(|item| item.change != ScanChange::Removed)
             .map(|mut item| {
                 if !item.ignored && !backup_info.failed_files.contains_key(&item) {
                     item.change = ScanChange::Same;
@@ -251,6 +252,7 @@ impl ScanInfo {
             .found_registry_keys
             .clone()
             .into_iter()
+            .filter(|item| item.change != ScanChange::Removed)
             .map(|mut item| {
                 if !item.ignored && !backup_info.failed_registry.contains_key(&item.path) {
                     item.change = ScanChange::Same;
