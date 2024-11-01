@@ -1,5 +1,6 @@
 /target
 /dist
 /tmp
+tarpaulin-report.html
 tests/root3/game5/data-symlink
 *~
