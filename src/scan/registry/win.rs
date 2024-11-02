@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use winreg::types::{FromRegValue, ToRegValue};
 
 use crate::{
@@ -119,7 +119,7 @@ pub fn scan_registry(
     filter: &BackupFilter,
     toggled: &ToggledRegistry,
     previous: &Option<Hives>,
-) -> Result<Vec<ScannedRegistry>, Error> {
+) -> Result<HashMap<RegistryItem, ScannedRegistry>, Error> {
     let path = RegistryItem::new(path.to_string());
 
     let (hive_name, key) = path.split_hive().ok_or(Error::RegistryIssue)?;
@@ -136,8 +136,8 @@ fn scan_registry_key(
     filter: &BackupFilter,
     toggled: &ToggledRegistry,
     previous: &Option<Hives>,
-) -> Result<Vec<ScannedRegistry>, Error> {
-    let mut found = vec![];
+) -> Result<HashMap<RegistryItem, ScannedRegistry>, Error> {
+    let mut found = HashMap::new();
     let path = RegistryItem::new(format!("{}\\{}", hive_name, key));
 
     let subkey = winreg::RegKey::predef(hive)
@@ -169,18 +169,20 @@ fn scan_registry_key(
             );
         }
 
-        found.push(ScannedRegistry {
-            path: path.rendered(),
-            ignored: toggled.is_ignored(game, &path, None),
-            change: match previous {
-                None => ScanChange::New,
-                Some(previous) => match previous.get(hive_name, key) {
+        found.insert(
+            path.rendered(),
+            ScannedRegistry {
+                ignored: toggled.is_ignored(game, &path, None),
+                change: match previous {
                     None => ScanChange::New,
-                    Some(_) => ScanChange::Same,
+                    Some(previous) => match previous.get(hive_name, key) {
+                        None => ScanChange::New,
+                        Some(_) => ScanChange::Same,
+                    },
                 },
+                values: live_values,
             },
-            values: live_values,
-        });
+        );
 
         for name in subkey.enum_keys().filter_map(|x| x.ok()) {
             if name.contains('/') {
@@ -229,11 +231,11 @@ impl Hives {
     pub fn back_up(
         &mut self,
         game: &str,
-        scan: &HashSet<ScannedRegistry>,
+        scan: &HashMap<RegistryItem, ScannedRegistry>,
     ) -> Result<(), HashMap<RegistryItem, BackupError>> {
         let mut failed = HashMap::new();
 
-        for scanned in scan {
+        for (scan_key, scanned) in scan {
             if scanned.ignored && scanned.values.values().all(|x| x.ignored) {
                 continue;
             }
@@ -242,8 +244,8 @@ impl Hives {
                 ScanChange::Removed | ScanChange::Unknown => continue,
             }
 
-            if let Err(e) = self.back_up_key(game, scanned) {
-                failed.insert(scanned.path.clone(), e);
+            if let Err(e) = self.back_up_key(game, scan_key, scanned) {
+                failed.insert(scan_key.clone(), e);
             }
         }
 
@@ -254,10 +256,10 @@ impl Hives {
         }
     }
 
-    fn back_up_key(&mut self, game: &str, scan: &ScannedRegistry) -> Result<(), BackupError> {
-        let Some((hive_name, key)) = scan.path.split_hive() else {
-            log::error!("[{game}] Unable to split hive: {:?}", &scan.path);
-            return Err(BackupError::Raw(format!("Unable to split hive: {}", scan.path.raw())));
+    fn back_up_key(&mut self, game: &str, scan_key: &RegistryItem, scan: &ScannedRegistry) -> Result<(), BackupError> {
+        let Some((hive_name, key)) = scan_key.split_hive() else {
+            log::error!("[{game}] Unable to split hive: {:?}", scan_key);
+            return Err(BackupError::Raw(format!("Unable to split hive: {}", scan_key.raw())));
         };
 
         let Some(hive) = get_hkey_from_name(&hive_name) else {
@@ -386,9 +388,10 @@ mod tests {
 
     #[test]
     fn can_store_key_from_full_path_of_leaf_key_with_values() {
-        let scanned = ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3");
+        let scan_key = RegistryItem::from("HKEY_CURRENT_USER/Software/Ludusavi/game3");
+        let scanned = ScannedRegistry::new();
         let mut hives = Hives::default();
-        hives.back_up_key("foo", &scanned).unwrap();
+        hives.back_up_key("foo", &scan_key, &scanned).unwrap();
         assert_eq!(
             Hives(btree_map! {
                 s("HKEY_CURRENT_USER"): Keys(btree_map! {
@@ -408,13 +411,10 @@ mod tests {
 
     #[test]
     fn can_store_key_from_full_path_of_leaf_key_with_ignored_values() {
-        let scanned = ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").with_value(
-            "binary",
-            ScanChange::New,
-            true,
-        );
+        let scan_key = RegistryItem::from("HKEY_CURRENT_USER/Software/Ludusavi/game3");
+        let scanned = ScannedRegistry::new().with_value("binary", ScanChange::New, true);
         let mut hives = Hives::default();
-        hives.back_up_key("foo", &scanned).unwrap();
+        hives.back_up_key("foo", &scan_key, &scanned).unwrap();
         assert_eq!(
             Hives(btree_map! {
                 s("HKEY_CURRENT_USER"): Keys(btree_map! {
@@ -433,9 +433,10 @@ mod tests {
 
     #[test]
     fn can_store_key_from_full_path_of_leaf_key_with_invalid_values() {
-        let scanned = ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/invalid");
+        let scan_key = RegistryItem::from("HKEY_CURRENT_USER/Software/Ludusavi/invalid");
+        let scanned = ScannedRegistry::new();
         let mut hives = Hives::default();
-        hives.back_up_key("foo", &scanned).unwrap();
+        hives.back_up_key("foo", &scan_key, &scanned).unwrap();
         assert_eq!(
             Hives(btree_map! {
                 s("HKEY_CURRENT_USER"): Keys(btree_map! {
@@ -450,9 +451,10 @@ mod tests {
 
     #[test]
     fn can_store_key_from_full_path_of_leaf_key_without_values() {
-        let scanned = ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other");
+        let scan_key = RegistryItem::from("HKEY_CURRENT_USER/Software/Ludusavi/other");
+        let scanned = ScannedRegistry::new();
         let mut hives = Hives::default();
-        hives.back_up_key("foo", &scanned).unwrap();
+        hives.back_up_key("foo", &scan_key, &scanned).unwrap();
         assert_eq!(
             Hives(btree_map! {
                 s("HKEY_CURRENT_USER"): Keys(btree_map! {
@@ -465,9 +467,10 @@ mod tests {
 
     #[test]
     fn can_store_key_from_full_path_of_parent_key_without_values() {
-        let scanned = ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi");
+        let scan_key = RegistryItem::from("HKEY_CURRENT_USER/Software/Ludusavi");
+        let scanned = ScannedRegistry::new();
         let mut hives = Hives::default();
-        hives.back_up_key("foo", &scanned).unwrap();
+        hives.back_up_key("foo", &scan_key, &scanned).unwrap();
         assert_eq!(
             Hives(btree_map! {
                 s("HKEY_CURRENT_USER"): Keys(btree_map! {

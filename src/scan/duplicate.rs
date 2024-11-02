@@ -98,8 +98,8 @@ impl DuplicateDetector {
         let mut stale = self.remove_game_and_refresh(&scan_info.game_name, false);
         stale.insert(scan_info.game_name.clone());
 
-        for item in scan_info.found_files.iter() {
-            let path = self.pick_path(item);
+        for (scan_key, item) in &scan_info.found_files {
+            let path = self.pick_path(scan_key, item);
             if let Some(existing) = self.files.get(&path).map(|x| x.keys()) {
                 // Len 0: No games to update counts for.
                 // Len 2+: These games already include the item in their duplicate counts.
@@ -120,8 +120,8 @@ impl DuplicateDetector {
                 .insert(path);
         }
 
-        for item in scan_info.found_registry_keys.iter() {
-            let path = item.path.clone();
+        for (scan_key, item) in &scan_info.found_registry_keys {
+            let path = scan_key.clone();
             if let Some(existing) = self.registry.get(&path).map(|x| x.keys()) {
                 if existing.len() == 1 {
                     stale.extend(existing.cloned());
@@ -231,22 +231,22 @@ impl DuplicateDetector {
         self.count_duplicates_for(game).evaluate()
     }
 
-    fn pick_path(&self, file: &ScannedFile) -> StrictPath {
+    fn pick_path(&self, scan_key: &StrictPath, file: &ScannedFile) -> StrictPath {
         match &file.original_path {
             Some(op) => op.clone(),
-            None => file.path.clone(),
+            None => scan_key.clone(),
         }
     }
 
-    pub fn file(&self, file: &ScannedFile) -> HashMap<String, DuplicateDetectorEntry> {
-        match self.files.get(&self.pick_path(file)) {
+    pub fn file(&self, scan_key: &StrictPath, file: &ScannedFile) -> HashMap<String, DuplicateDetectorEntry> {
+        match self.files.get(&self.pick_path(scan_key, file)) {
             Some(games) => games.clone(),
             None => Default::default(),
         }
     }
 
-    pub fn is_file_duplicated(&self, file: &ScannedFile) -> Duplication {
-        Duplication::evaluate(self.file(file).values())
+    pub fn is_file_duplicated(&self, scan_key: &StrictPath, file: &ScannedFile) -> Duplication {
+        Duplication::evaluate(self.file(scan_key, file).values())
     }
 
     pub fn registry(&self, path: &RegistryItem) -> HashMap<String, DuplicateDetectorEntry> {
@@ -377,7 +377,7 @@ impl DuplicateDetector {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::{hash_map, hash_set};
+    use velcro::hash_map;
 
     use super::*;
     use crate::{scan::ScannedRegistry, testing::s};
@@ -388,16 +388,18 @@ mod tests {
 
         let game1 = s("game1");
         let game2 = s("game2");
-        let file1 = ScannedFile::new("file1.txt", 1, "1");
-        let file2 = ScannedFile::new("file2.txt", 2, "2");
-        let reg1 = s("reg1");
-        let reg2 = s("reg2");
+        let scan_key1 = StrictPath::from("file1.txt");
+        let scan_key2 = StrictPath::from("file2.txt");
+        let file1 = ScannedFile::new(1, "1");
+        let file2 = ScannedFile::new(2, "2");
+        let reg1 = RegistryItem::from("reg1");
+        let reg2 = RegistryItem::from("reg2");
 
         detector.add_game(
             &ScanInfo {
                 game_name: game1.clone(),
-                found_files: hash_set! { file1.clone(), file2.clone() },
-                found_registry_keys: hash_set! { ScannedRegistry::new(&reg1) },
+                found_files: hash_map! { scan_key1.clone(): file1.clone(), scan_key2.clone(): file2.clone() },
+                found_registry_keys: hash_map! { reg1.clone(): ScannedRegistry::new() },
                 ..Default::default()
             },
             true,
@@ -405,51 +407,45 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: game2.clone(),
-                found_files: hash_set! { file1.clone() },
-                found_registry_keys: hash_set! { ScannedRegistry::new(&reg1), ScannedRegistry::new(&reg2) },
+                found_files: hash_map! { scan_key1.clone(): file1.clone() },
+                found_registry_keys: hash_map! { reg1.clone(): ScannedRegistry::new(), reg2.clone(): ScannedRegistry::new() },
                 ..Default::default()
             },
             true,
         );
 
-        assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1));
+        assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&scan_key1, &file1));
         assert_eq!(
             hash_map! {
                 game1.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
                 game2.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
-            detector.file(&file1)
+            detector.file(&scan_key1, &file1)
         );
 
-        assert_eq!(Duplication::Unique, detector.is_file_duplicated(&file2));
+        assert_eq!(Duplication::Unique, detector.is_file_duplicated(&scan_key2, &file2));
         assert_eq!(
             hash_map! {
                 game1.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
-            detector.file(&file2)
+            detector.file(&scan_key2, &file2)
         );
 
-        assert_eq!(
-            Duplication::Duplicate,
-            detector.is_registry_duplicated(&RegistryItem::new(reg1.clone()))
-        );
+        assert_eq!(Duplication::Duplicate, detector.is_registry_duplicated(&reg1));
         assert_eq!(
             hash_map! {
                 game1: DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
                 game2.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
-            detector.registry(&RegistryItem::new(reg1))
+            detector.registry(&reg1)
         );
 
-        assert_eq!(
-            Duplication::Unique,
-            detector.is_registry_duplicated(&RegistryItem::new(reg2.clone()))
-        );
+        assert_eq!(Duplication::Unique, detector.is_registry_duplicated(&reg2));
         assert_eq!(
             hash_map! {
                 game2: DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
-            detector.registry(&RegistryItem::new(reg2))
+            detector.registry(&reg2)
         );
     }
 
@@ -459,8 +455,8 @@ mod tests {
 
         let game1 = s("game1");
         let game2 = s("game2");
+        let scan_key_1a = StrictPath::from("file1a.txt");
         let file1a = ScannedFile {
-            path: StrictPath::new(s("file1a.txt")),
             size: 1,
             hash: "1".to_string(),
             original_path: Some(StrictPath::new(s("file1.txt"))),
@@ -469,8 +465,8 @@ mod tests {
             container: None,
             redirected: None,
         };
+        let scan_key_1b = StrictPath::from("file1b.txt");
         let file1b = ScannedFile {
-            path: StrictPath::new(s("file1b.txt")),
             size: 1,
             hash: "1b".to_string(),
             original_path: Some(StrictPath::new(s("file1.txt"))),
@@ -483,7 +479,7 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: game1.clone(),
-                found_files: hash_set! { file1a.clone() },
+                found_files: hash_map! { scan_key_1a.clone(): file1a.clone() },
                 ..Default::default()
             },
             true,
@@ -491,54 +487,64 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: game2.clone(),
-                found_files: hash_set! { file1b.clone() },
+                found_files: hash_map! { scan_key_1b.clone(): file1b.clone() },
                 ..Default::default()
             },
             true,
         );
 
-        assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1a));
+        assert_eq!(
+            Duplication::Duplicate,
+            detector.is_file_duplicated(&scan_key_1a, &file1a)
+        );
         assert_eq!(
             hash_map! {
                 game1.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
                 game2.clone(): DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
-            detector.file(&file1a)
+            detector.file(&scan_key_1a, &file1a)
         );
         assert_eq!(
             Duplication::Unique,
-            detector.is_file_duplicated(&ScannedFile {
-                path: StrictPath::new(s("file1a.txt")),
-                size: 1,
-                hash: "1a".to_string(),
-                original_path: None,
-                ignored: false,
-                change: Default::default(),
-                container: None,
-                redirected: None,
-            })
+            detector.is_file_duplicated(
+                &scan_key_1a,
+                &ScannedFile {
+                    size: 1,
+                    hash: "1a".to_string(),
+                    original_path: None,
+                    ignored: false,
+                    change: Default::default(),
+                    container: None,
+                    redirected: None,
+                }
+            )
         );
 
-        assert_eq!(Duplication::Duplicate, detector.is_file_duplicated(&file1b));
+        assert_eq!(
+            Duplication::Duplicate,
+            detector.is_file_duplicated(&scan_key_1b, &file1b)
+        );
         assert_eq!(
             hash_map! {
                 game1: DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown },
                 game2: DuplicateDetectorEntry { enabled: true, change: ScanChange::Unknown }
             },
-            detector.file(&file1b)
+            detector.file(&scan_key_1b, &file1b)
         );
         assert_eq!(
             Duplication::Unique,
-            detector.is_file_duplicated(&ScannedFile {
-                path: StrictPath::new(s("file1b.txt")),
-                size: 1,
-                hash: "1b".to_string(),
-                original_path: None,
-                ignored: false,
-                change: Default::default(),
-                container: None,
-                redirected: None,
-            })
+            detector.is_file_duplicated(
+                &scan_key_1b,
+                &ScannedFile {
+                    size: 1,
+                    hash: "1b".to_string(),
+                    original_path: None,
+                    ignored: false,
+                    change: Default::default(),
+                    container: None,
+                    redirected: None,
+                }
+            )
         );
     }
 
@@ -549,9 +555,9 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: "base".into(),
-                found_files: hash_set! {
-                    ScannedFile::with_name("unique-base"),
-                    ScannedFile::with_name("file1").change_as(ScanChange::Removed),
+                found_files: hash_map! {
+                    "unique-base".into(): ScannedFile::default(),
+                    "file1".into(): ScannedFile::default().change_as(ScanChange::Removed),
                 },
                 ..Default::default()
             },
@@ -560,9 +566,9 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: "conflict".into(),
-                found_files: hash_set! {
-                    ScannedFile::with_name("unique-conflict"),
-                    ScannedFile::with_name("file1").change_as(ScanChange::Removed),
+                found_files: hash_map! {
+                    "unique-conflict".into(): ScannedFile::default(),
+                    "file1".into(): ScannedFile::default().change_as(ScanChange::Removed),
                 },
                 ..Default::default()
             },
@@ -572,7 +578,7 @@ mod tests {
         assert_eq!(Duplication::Resolved, detector.is_game_duplicated("conflict"));
         assert_eq!(
             Duplication::Resolved,
-            detector.is_file_duplicated(&ScannedFile::with_name("file1"))
+            detector.is_file_duplicated(&StrictPath::from("file1"), &ScannedFile::default())
         );
     }
 
@@ -583,9 +589,9 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: "base".into(),
-                found_files: hash_set! {
-                    ScannedFile::with_name("unique-base"),
-                    ScannedFile::with_name("file1").change_as(ScanChange::Different),
+                found_files: hash_map! {
+                    "unique-base".into(): ScannedFile::default(),
+                    "file1".into(): ScannedFile::default().change_as(ScanChange::Different),
                 },
                 ..Default::default()
             },
@@ -594,9 +600,9 @@ mod tests {
         detector.add_game(
             &ScanInfo {
                 game_name: "conflict".into(),
-                found_files: hash_set! {
-                    ScannedFile::with_name("unique-conflict"),
-                    ScannedFile::with_name("file1").change_as(ScanChange::Different).ignored(),
+                found_files: hash_map! {
+                    "unique-conflict".into(): ScannedFile::default(),
+                    "file1".into(): ScannedFile::default().change_as(ScanChange::Different).ignored(),
                 },
                 ..Default::default()
             },
@@ -606,7 +612,7 @@ mod tests {
         assert_eq!(Duplication::Resolved, detector.is_game_duplicated("conflict"));
         assert_eq!(
             Duplication::Resolved,
-            detector.is_file_duplicated(&ScannedFile::with_name("file1"))
+            detector.is_file_duplicated(&StrictPath::from("file1"), &ScannedFile::default())
         );
     }
 }

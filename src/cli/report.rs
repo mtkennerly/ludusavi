@@ -305,24 +305,24 @@ impl Reporter {
                     !duplicate_detector.is_game_duplicated(&scan_info.game_name).resolved(),
                     scan_info.overall_change(),
                 ));
-                for entry in itertools::sorted(&scan_info.found_files) {
+                for (scan_key, entry) in itertools::sorted(&scan_info.found_files) {
                     let entry_successful = backup_info
                         .as_ref()
-                        .map(|x| !x.failed_files.contains_key(entry))
+                        .map(|x| !x.failed_files.contains_key(scan_key))
                         .unwrap_or(true);
                     if !entry_successful {
                         successful = false;
                     }
                     parts.push(TRANSLATOR.cli_game_line_item(
-                        &entry.readable(restoring),
+                        &entry.readable(scan_key, restoring),
                         entry_successful,
                         entry.ignored,
-                        !duplicate_detector.is_file_duplicated(entry).resolved(),
+                        !duplicate_detector.is_file_duplicated(scan_key, entry).resolved(),
                         entry.change(),
                         false,
                     ));
 
-                    if let Some(alt) = entry.alt_readable(restoring) {
+                    if let Some(alt) = entry.alt_readable(scan_key, restoring) {
                         if restoring {
                             parts.push(TRANSLATOR.cli_game_line_item_redirected(&alt));
                         } else {
@@ -330,28 +330,28 @@ impl Reporter {
                         }
                     }
 
-                    if let Some(error) = backup_info.as_ref().and_then(|x| x.failed_files.get(entry)) {
+                    if let Some(error) = backup_info.as_ref().and_then(|x| x.failed_files.get(scan_key)) {
                         parts.push(TRANSLATOR.cli_game_line_item_error(error));
                     }
                 }
-                for entry in itertools::sorted(&scan_info.found_registry_keys) {
+                for (scan_key, entry) in itertools::sorted(&scan_info.found_registry_keys) {
                     let entry_successful = backup_info
                         .as_ref()
-                        .map(|x| !x.failed_registry.contains_key(&entry.path))
+                        .map(|x| !x.failed_registry.contains_key(scan_key))
                         .unwrap_or(true);
                     if !entry_successful {
                         successful = false;
                     }
                     parts.push(TRANSLATOR.cli_game_line_item(
-                        &entry.path.render(),
+                        &scan_key.render(),
                         entry_successful,
                         entry.ignored,
-                        !duplicate_detector.is_registry_duplicated(&entry.path).resolved(),
+                        !duplicate_detector.is_registry_duplicated(scan_key).resolved(),
                         entry.change(scan_info.restoring()),
                         false,
                     ));
 
-                    if let Some(error) = backup_info.as_ref().and_then(|x| x.failed_registry.get(&entry.path)) {
+                    if let Some(error) = backup_info.as_ref().and_then(|x| x.failed_registry.get(scan_key)) {
                         parts.push(TRANSLATOR.cli_game_line_item_error(error));
                     }
 
@@ -362,7 +362,7 @@ impl Reporter {
                                 true,
                                 value.ignored,
                                 !duplicate_detector
-                                    .is_registry_value_duplicated(&entry.path, value_name)
+                                    .is_registry_value_duplicated(scan_key, value_name)
                                     .resolved(),
                                 value.change(scan_info.restoring()),
                                 true,
@@ -383,27 +383,28 @@ impl Reporter {
                 let mut files = BTreeMap::new();
                 let mut registry = BTreeMap::new();
 
-                for entry in itertools::sorted(&scan_info.found_files) {
+                for (scan_key, entry) in itertools::sorted(&scan_info.found_files) {
                     let mut api_file = ApiFile {
                         bytes: entry.size,
                         failed: backup_info
                             .as_ref()
-                            .map(|x| x.failed_files.contains_key(entry))
+                            .map(|x| x.failed_files.contains_key(scan_key))
                             .unwrap_or(false),
                         error: backup_info
                             .as_ref()
-                            .and_then(|x| x.failed_files.get(entry).map(SaveError::from)),
+                            .and_then(|x| x.failed_files.get(scan_key).map(SaveError::from)),
                         ignored: entry.ignored,
                         change: entry.change(),
                         ..Default::default()
                     };
-                    if !duplicate_detector.is_file_duplicated(entry).resolved() {
-                        let mut duplicated_by: BTreeSet<_> = duplicate_detector.file(entry).into_keys().collect();
+                    if !duplicate_detector.is_file_duplicated(scan_key, entry).resolved() {
+                        let mut duplicated_by: BTreeSet<_> =
+                            duplicate_detector.file(scan_key, entry).into_keys().collect();
                         duplicated_by.remove(&scan_info.game_name);
                         api_file.duplicated_by = duplicated_by;
                     }
 
-                    if let Some(alt) = entry.alt_readable(restoring) {
+                    if let Some(alt) = entry.alt_readable(scan_key, restoring) {
                         if restoring {
                             api_file.original_path = Some(alt);
                         } else {
@@ -414,17 +415,17 @@ impl Reporter {
                         successful = false;
                     }
 
-                    files.insert(entry.readable(restoring), api_file);
+                    files.insert(entry.readable(scan_key, restoring), api_file);
                 }
-                for entry in itertools::sorted(&scan_info.found_registry_keys) {
+                for (scan_key, entry) in itertools::sorted(&scan_info.found_registry_keys) {
                     let mut api_registry = ApiRegistry {
                         failed: backup_info
                             .as_ref()
-                            .map(|x| x.failed_registry.contains_key(&entry.path))
+                            .map(|x| x.failed_registry.contains_key(scan_key))
                             .unwrap_or(false),
                         error: backup_info
                             .as_ref()
-                            .and_then(|x| x.failed_registry.get(&entry.path).map(SaveError::from)),
+                            .and_then(|x| x.failed_registry.get(scan_key).map(SaveError::from)),
                         ignored: entry.ignored,
                         change: entry.change(scan_info.restoring()),
                         values: entry
@@ -437,12 +438,10 @@ impl Reporter {
                                         change: v.change(scan_info.restoring()),
                                         ignored: v.ignored,
                                         duplicated_by: {
-                                            if !duplicate_detector
-                                                .is_registry_value_duplicated(&entry.path, k)
-                                                .resolved()
+                                            if !duplicate_detector.is_registry_value_duplicated(scan_key, k).resolved()
                                             {
                                                 let mut duplicated_by: BTreeSet<_> = duplicate_detector
-                                                    .registry_value(&entry.path, k)
+                                                    .registry_value(scan_key, k)
                                                     .into_keys()
                                                     .collect();
                                                 duplicated_by.remove(&scan_info.game_name);
@@ -457,9 +456,9 @@ impl Reporter {
                             .collect(),
                         ..Default::default()
                     };
-                    if !duplicate_detector.is_registry_duplicated(&entry.path).resolved() {
+                    if !duplicate_detector.is_registry_duplicated(scan_key).resolved() {
                         let mut duplicated_by: BTreeSet<_> =
-                            duplicate_detector.registry(&entry.path).into_keys().collect();
+                            duplicate_detector.registry(scan_key).into_keys().collect();
                         duplicated_by.remove(&scan_info.game_name);
                         api_registry.duplicated_by = duplicated_by;
                     }
@@ -468,7 +467,7 @@ impl Reporter {
                         successful = false;
                     }
 
-                    registry.insert(entry.path.render(), api_registry);
+                    registry.insert(scan_key.render(), api_registry);
                 }
 
                 if let Some(overall) = output.overall.as_mut() {
@@ -628,11 +627,11 @@ pub fn report_cloud_changes(changes: &[CloudChange], api: bool) {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::{hash_map, hash_set};
+    use velcro::hash_map;
 
     use super::*;
     use crate::{
-        scan::{registry::RegistryItem, BackupError, ScannedFile, ScannedRegistry},
+        scan::{BackupError, ScannedFile, ScannedRegistry},
         testing::s,
     };
 
@@ -666,9 +665,8 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hash_set! {
-                    ScannedFile {
-                        path: StrictPath::new(s("/file1")),
+                found_files: hash_map! {
+                    "/file1".into(): ScannedFile {
                         size: 102_400,
                         hash: "1".to_string(),
                         original_path: None,
@@ -677,8 +675,7 @@ Overall:
                         container: None,
                         redirected: None,
                     },
-                    ScannedFile {
-                        path: StrictPath::new(s("/file2")),
+                    "/file2".into(): ScannedFile {
                         size: 51_200,
                         hash: "2".to_string(),
                         original_path: None,
@@ -688,19 +685,19 @@ Overall:
                         redirected: None,
                     },
                 },
-                found_registry_keys: hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Key2"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Key3").with_value_same("Value1"),
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Key1".into(): ScannedRegistry::new(),
+                    "HKEY_CURRENT_USER/Key2".into(): ScannedRegistry::new(),
+                    "HKEY_CURRENT_USER/Key3".into(): ScannedRegistry::new().with_value_same("Value1"),
                 },
                 ..Default::default()
             },
             Some(&BackupInfo {
                 failed_files: hash_map! {
-                    ScannedFile::new("/file2", 51_200, "2"): BackupError::Test,
+                    "/file2".into(): BackupError::Test,
                 },
                 failed_registry: hash_map! {
-                    RegistryItem::new(s("HKEY_CURRENT_USER/Key1")): BackupError::Test
+                    "HKEY_CURRENT_USER/Key1".into(): BackupError::Test
                 },
             }),
             &OperationStepDecision::Processed,
@@ -736,9 +733,8 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hash_set! {
-                    ScannedFile {
-                        path: StrictPath::new(s("/file1")),
+                found_files: hash_map! {
+                    "/file1".into(): ScannedFile {
                         size: 1,
                         hash: "1".to_string(),
                         original_path: None,
@@ -748,7 +744,7 @@ Overall:
                         redirected: None,
                     },
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             None,
@@ -759,9 +755,8 @@ Overall:
             "bar",
             &ScanInfo {
                 game_name: s("bar"),
-                found_files: hash_set! {
-                    ScannedFile {
-                        path: StrictPath::new(s("/file2")),
+                found_files: hash_map! {
+                    "/file2".into(): ScannedFile {
                         size: 3,
                         hash: "2".to_string(),
                         original_path: None,
@@ -771,7 +766,7 @@ Overall:
                         redirected: None,
                     },
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             None,
@@ -804,9 +799,8 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hash_set! {
-                    ScannedFile {
-                        path: StrictPath::new(s("/backup/file1")),
+                found_files: hash_map! {
+                    "/backup/file1".into(): ScannedFile {
                         size: 102_400,
                         hash: "1".to_string(),
                         original_path: Some(StrictPath::new(s("/original/file1"))),
@@ -815,8 +809,7 @@ Overall:
                         container: None,
                         redirected: None,
                     },
-                    ScannedFile {
-                        path: StrictPath::new(s("/backup/file2")),
+                    "/backup/file2".into(): ScannedFile {
                         size: 51_200,
                         hash: "2".to_string(),
                         original_path: Some(StrictPath::new(s("/original/file2"))),
@@ -826,7 +819,7 @@ Overall:
                         redirected: None,
                     },
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             None,
@@ -858,11 +851,11 @@ Overall:
             duplicate_detector.add_game(
                 &ScanInfo {
                     game_name: s(name),
-                    found_files: hash_set! {
-                        ScannedFile::new("/file1", 102_400, "1").change_as(ScanChange::New),
+                    found_files: hash_map! {
+                        "/file1".into(): ScannedFile::new(102_400, "1").change_as(ScanChange::New),
                     },
-                    found_registry_keys: hash_set! {
-                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1").change_as(ScanChange::New),
+                    found_registry_keys: hash_map! {
+                        "HKEY_CURRENT_USER/Key1".into(): ScannedRegistry::new().change_as(ScanChange::New),
                     },
                     ..Default::default()
                 },
@@ -874,11 +867,11 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hash_set! {
-                    ScannedFile::new("/file1", 102_400, "1"),
+                found_files: hash_map! {
+                    "/file1".into(): ScannedFile::new(102_400, "1"),
                 },
-                found_registry_keys: hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Key1".into(): ScannedRegistry::new(),
                 },
                 ..Default::default()
             },
@@ -910,13 +903,13 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hash_set! {
-                    ScannedFile::new(s("/new"), 1, "1".to_string()).change_as(ScanChange::New),
-                    ScannedFile::new(s("/different"), 1, "1".to_string()).change_as(ScanChange::Different),
-                    ScannedFile::new(s("/same"), 1, "1".to_string()).change_as(ScanChange::Same),
-                    ScannedFile::new(s("/unknown"), 1, "1".to_string()).change_as(ScanChange::Unknown),
+                found_files: hash_map! {
+                    "/new".into(): ScannedFile::new(1, "1".to_string()).change_as(ScanChange::New),
+                    "/different".into(): ScannedFile::new(1, "1".to_string()).change_as(ScanChange::Different),
+                    "/same".into(): ScannedFile::new(1, "1".to_string()).change_as(ScanChange::Same),
+                    "/unknown".into(): ScannedFile::new(1, "1".to_string()).change_as(ScanChange::Unknown),
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             None,
@@ -927,10 +920,10 @@ Overall:
             "bar",
             &ScanInfo {
                 game_name: s("bar"),
-                found_files: hash_set! {
-                    ScannedFile::new(s("/brand-new"), 1, "1".to_string()).change_as(ScanChange::New),
+                found_files: hash_map! {
+                    "/brand-new".into(): ScannedFile::new(1, "1".to_string()).change_as(ScanChange::New),
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             None,
@@ -999,23 +992,23 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hash_set! {
-                    ScannedFile::new("/file1", 100, "1"),
-                    ScannedFile::new("/file2", 50, "2"),
+                found_files: hash_map! {
+                    "/file1".into(): ScannedFile::new(100, "1"),
+                    "/file2".into(): ScannedFile::new(50, "2"),
                 },
-                found_registry_keys: hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Key2"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Key3").with_value_same("Value1")
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Key1".into(): ScannedRegistry::new(),
+                    "HKEY_CURRENT_USER/Key2".into(): ScannedRegistry::new(),
+                    "HKEY_CURRENT_USER/Key3".into(): ScannedRegistry::new().with_value_same("Value1")
                 },
                 ..Default::default()
             },
             Some(&BackupInfo {
                 failed_files: hash_map! {
-                    ScannedFile::new("/file2", 50, "2"): BackupError::Test,
+                    "/file2".into(): BackupError::Test,
                 },
                 failed_registry: hash_map! {
-                    RegistryItem::new(s("HKEY_CURRENT_USER/Key1")): BackupError::Test
+                    "HKEY_CURRENT_USER/Key1".into(): BackupError::Test
                 },
             }),
             &OperationStepDecision::Processed,
@@ -1093,9 +1086,8 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hash_set! {
-                    ScannedFile {
-                        path: StrictPath::new(s("/backup/file1")),
+                found_files: hash_map! {
+                    "/backup/file1".into(): ScannedFile {
                         size: 100,
                         hash: "1".to_string(),
                         original_path: Some(StrictPath::new(s("/original/file1"))),
@@ -1104,8 +1096,7 @@ Overall:
                         container: None,
                         redirected: None,
                     },
-                    ScannedFile {
-                        path: StrictPath::new(s("/backup/file2")),
+                    "/backup/file2".into(): ScannedFile {
                         size: 50,
                         hash: "2".to_string(),
                         original_path: Some(StrictPath::new(s("/original/file2"))),
@@ -1115,7 +1106,7 @@ Overall:
                         redirected: None,
                     },
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             None,
@@ -1169,11 +1160,11 @@ Overall:
             duplicate_detector.add_game(
                 &ScanInfo {
                     game_name: s(name),
-                    found_files: hash_set! {
-                        ScannedFile::new("/file1", 102_400, "1"),
+                    found_files: hash_map! {
+                        "/file1".into(): ScannedFile::new(102_400, "1"),
                     },
-                    found_registry_keys: hash_set! {
-                        ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
+                    found_registry_keys: hash_map! {
+                        "HKEY_CURRENT_USER/Key1".into(): ScannedRegistry::new(),
                     },
                     ..Default::default()
                 },
@@ -1185,11 +1176,11 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hash_set! {
-                    ScannedFile::new("/file1", 100, "2"),
+                found_files: hash_map! {
+                    "/file1".into(): ScannedFile::new(100, "2"),
                 },
-                found_registry_keys: hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Key1"),
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Key1".into(): ScannedRegistry::new(),
                 },
                 ..Default::default()
             },
@@ -1249,13 +1240,13 @@ Overall:
             "foo",
             &ScanInfo {
                 game_name: s("foo"),
-                found_files: hash_set! {
-                    ScannedFile::new("/new", 1, "1").change_as(ScanChange::New),
-                    ScannedFile::new("/different", 1, "2").change_as(ScanChange::Different),
-                    ScannedFile::new("/same", 1, "2").change_as(ScanChange::Same),
-                    ScannedFile::new("/unknown", 1, "2").change_as(ScanChange::Unknown),
+                found_files: hash_map! {
+                    "/new".into(): ScannedFile::new(1, "1").change_as(ScanChange::New),
+                    "/different".into(): ScannedFile::new(1, "2").change_as(ScanChange::Different),
+                    "/same".into(): ScannedFile::new(1, "2").change_as(ScanChange::Same),
+                    "/unknown".into(): ScannedFile::new(1, "2").change_as(ScanChange::Unknown),
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             None,

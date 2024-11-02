@@ -1,16 +1,9 @@
 use std::collections::BTreeMap;
 
-use crate::{
-    prelude::StrictPath,
-    scan::{registry::RegistryItem, ScanChange},
-};
+use crate::{prelude::StrictPath, scan::ScanChange};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ScannedFile {
-    /// The actual location on disk.
-    /// When `container` is set, this is the path inside of the container
-    /// and should be used in its raw form.
-    pub path: StrictPath,
     pub size: u64,
     pub hash: String,
     /// This is the restoration target path, without redirects applied.
@@ -24,9 +17,8 @@ pub struct ScannedFile {
 
 impl ScannedFile {
     #[cfg(test)]
-    pub fn new<T: AsRef<str> + ToString, H: ToString>(path: T, size: u64, hash: H) -> Self {
+    pub fn new<H: ToString>(size: u64, hash: H) -> Self {
         Self {
-            path: StrictPath::new(path.to_string()),
             size,
             hash: hash.to_string(),
             original_path: None,
@@ -38,17 +30,8 @@ impl ScannedFile {
     }
 
     #[cfg(test)]
-    pub fn with_name<T: AsRef<str> + ToString>(path: T) -> Self {
+    pub fn with_change<H: ToString>(size: u64, hash: H, change: ScanChange) -> Self {
         Self {
-            path: StrictPath::new(path.to_string()),
-            ..Default::default()
-        }
-    }
-
-    #[cfg(test)]
-    pub fn with_change<T: AsRef<str> + ToString, H: ToString>(path: T, size: u64, hash: H, change: ScanChange) -> Self {
-        Self {
-            path: StrictPath::new(path.to_string()),
             size,
             hash: hash.to_string(),
             original_path: None,
@@ -77,10 +60,10 @@ impl ScannedFile {
         self
     }
 
-    pub fn original_path(&self) -> &StrictPath {
+    pub fn original_path<'a>(&'a self, scan_key: &'a StrictPath) -> &'a StrictPath {
         match &self.original_path {
             Some(x) => x,
-            None => &self.path,
+            None => scan_key,
         }
     }
 
@@ -89,32 +72,32 @@ impl ScannedFile {
     }
 
     /// This is stored in the mapping file.
-    pub fn mapping_key(&self) -> String {
-        self.effective().render()
+    pub fn mapping_key(&self, scan_key: &StrictPath) -> String {
+        self.effective(scan_key).render()
     }
 
     /// This is used for operations.
-    pub fn effective(&self) -> &StrictPath {
-        self.redirected.as_ref().unwrap_or_else(|| self.original_path())
+    pub fn effective<'a>(&'a self, scan_key: &'a StrictPath) -> &'a StrictPath {
+        self.redirected.as_ref().unwrap_or_else(|| self.original_path(scan_key))
     }
 
     /// This is the main path to show to the user.
-    pub fn readable(&self, restoring: bool) -> String {
+    pub fn readable(&self, scan_key: &StrictPath, restoring: bool) -> String {
         if restoring {
             self.redirected
                 .as_ref()
-                .unwrap_or_else(|| self.original_path())
+                .unwrap_or_else(|| self.original_path(scan_key))
                 .render()
         } else {
-            self.original_path().render()
+            self.original_path(scan_key).render()
         }
     }
 
     /// This is shown in the GUI/CLI to annotate the `readable` path.
-    pub fn alt(&self, restoring: bool) -> Option<&StrictPath> {
+    pub fn alt<'a>(&'a self, scan_key: &'a StrictPath, restoring: bool) -> Option<&'a StrictPath> {
         if restoring {
             if self.redirected.is_some() {
-                Some(self.original_path())
+                Some(self.original_path(scan_key))
             } else {
                 None
             }
@@ -124,8 +107,8 @@ impl ScannedFile {
     }
 
     /// This is shown in the GUI/CLI to annotate the `readable` path.
-    pub fn alt_readable(&self, restoring: bool) -> Option<String> {
-        self.alt(restoring).map(|x| x.render())
+    pub fn alt_readable(&self, scan_key: &StrictPath, restoring: bool) -> Option<String> {
+        self.alt(scan_key, restoring).map(|x| x.render())
     }
 
     pub fn will_take_space(&self) -> bool {
@@ -139,7 +122,6 @@ impl ScannedFile {
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ScannedRegistry {
-    pub path: RegistryItem,
     pub ignored: bool,
     pub change: ScanChange,
     pub values: ScannedRegistryValues,
@@ -155,9 +137,8 @@ pub type ScannedRegistryValues = BTreeMap<String, ScannedRegistryValue>;
 
 impl ScannedRegistry {
     #[cfg(test)]
-    pub fn new<T: AsRef<str> + ToString>(path: T) -> Self {
+    pub fn new() -> Self {
         Self {
-            path: RegistryItem::new(path.to_string()),
             ignored: false,
             change: ScanChange::Unknown,
             values: Default::default(),
@@ -236,7 +217,6 @@ mod tests {
         assert_eq!(
             ScanChange::Removed,
             ScannedRegistry {
-                path: RegistryItem::new("key".to_string()),
                 ignored: true,
                 change: ScanChange::Same,
                 values: Default::default(),
@@ -246,7 +226,6 @@ mod tests {
         assert_eq!(
             ScanChange::Removed,
             ScannedRegistry {
-                path: RegistryItem::new("key".to_string()),
                 ignored: true,
                 change: ScanChange::Same,
                 values: btree_map! {
@@ -258,7 +237,6 @@ mod tests {
         assert_eq!(
             ScanChange::Same,
             ScannedRegistry {
-                path: RegistryItem::new("key".to_string()),
                 ignored: true,
                 change: ScanChange::Same,
                 values: btree_map! {

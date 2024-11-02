@@ -58,7 +58,7 @@ struct FileTreeNode {
     ignored: bool,
     duplicated: Duplication,
     change: ScanChange,
-    scanned_file: Option<ScannedFile>,
+    scanned_file: Option<(StrictPath, ScannedFile)>,
     node_type: FileTreeNodeType,
 }
 
@@ -179,9 +179,9 @@ impl FileTreeNode {
                             .map(|x| Badge::new(&TRANSLATOR.badge_failed()).tooltip(x.clone()).view()),
                     )
                     .push_maybe({
-                        self.scanned_file.as_ref().and_then(|scanned| {
+                        self.scanned_file.as_ref().and_then(|(scan_key, scanned)| {
                             let restoring = scanned.restoring();
-                            scanned.alt(restoring).as_ref().map(|alt| {
+                            scanned.alt(scan_key, restoring).as_ref().map(|alt| {
                                 let msg = if restoring {
                                     TRANSLATOR.badge_redirected_from(alt)
                                 } else {
@@ -192,7 +192,7 @@ impl FileTreeNode {
                         })
                     })
                     .push_maybe({
-                        self.scanned_file.as_ref().map(|f| {
+                        self.scanned_file.as_ref().map(|(_, f)| {
                             let size = TRANSLATOR.adjusted_size(f.size);
                             Badge::new(&size).faded(f.ignored).view()
                         })
@@ -288,7 +288,7 @@ impl FileTreeNode {
         error: Option<&BackupError>,
         duplicated: Duplication,
         change: ScanChange,
-        scanned_file: Option<ScannedFile>,
+        scanned_file: Option<(StrictPath, ScannedFile)>,
         registry_values: Option<&ScannedRegistryValues>,
         duplicate_detector: &DuplicateDetector,
         config: &Config,
@@ -363,7 +363,7 @@ impl FileTreeNode {
         let mut size = 0;
         for child_node in self.nodes.values() {
             if child_node.nodes.is_empty() {
-                if let Some(scanned_file) = &child_node.scanned_file {
+                if let Some((_, scanned_file)) = &child_node.scanned_file {
                     if include_ignored || !scanned_file.ignored {
                         size += scanned_file.size;
                     }
@@ -474,8 +474,8 @@ impl FileTree {
     ) -> BTreeMap<TreeNodeKey, FileTreeNode> {
         let mut nodes = BTreeMap::<TreeNodeKey, FileTreeNode>::new();
 
-        for item in scan_info.found_files.iter() {
-            let rendered = item.readable(scan_info.restoring());
+        for (scan_key, item) in &scan_info.found_files {
+            let rendered = item.readable(scan_key, scan_info.restoring());
             let components: Vec<_> = rendered.split('/').map(|x| TreeNodeKey::File(x.to_string())).collect();
 
             nodes
@@ -501,19 +501,18 @@ impl FileTree {
                     &scan_info.game_name,
                     &components[1..],
                     &[components[0].clone()],
-                    backup_info.as_ref().and_then(|x| x.failed_files.get(item)),
-                    duplicate_detector.is_file_duplicated(item),
+                    backup_info.as_ref().and_then(|x| x.failed_files.get(scan_key)),
+                    duplicate_detector.is_file_duplicated(scan_key, item),
                     item.change(),
-                    Some(item.clone()),
+                    Some((scan_key.clone(), item.clone())),
                     None,
                     duplicate_detector,
                     config,
                     restoring,
                 );
         }
-        for item in scan_info.found_registry_keys.iter() {
-            let components: Vec<_> = item
-                .path
+        for (scan_key, item) in &scan_info.found_registry_keys {
+            let components: Vec<_> = scan_key
                 .split()
                 .iter()
                 .map(|x| TreeNodeKey::RegistryKey(x.to_string()))
@@ -535,8 +534,8 @@ impl FileTree {
                     &scan_info.game_name,
                     &components[1..],
                     &components[0..1],
-                    backup_info.as_ref().and_then(|x| x.failed_registry.get(&item.path)),
-                    duplicate_detector.is_registry_duplicated(&item.path),
+                    backup_info.as_ref().and_then(|x| x.failed_registry.get(scan_key)),
+                    duplicate_detector.is_registry_duplicated(scan_key),
                     item.change(restoring),
                     None,
                     Some(&item.values),

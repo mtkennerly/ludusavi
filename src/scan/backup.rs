@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use crate::{
     lang::TRANSLATOR,
-    scan::{registry::RegistryItem, ScanChangeCount, ScanInfo, ScannedFile},
+    path::StrictPath,
+    scan::{registry::RegistryItem, ScanChangeCount, ScanInfo},
 };
 
 #[derive(Clone, Debug)]
@@ -27,7 +28,7 @@ impl BackupError {
 #[derive(Clone, Debug, Default)]
 pub struct BackupInfo {
     // TODO: Use `StrictPath` as key instead of whole `ScannedFile`?
-    pub failed_files: HashMap<ScannedFile, BackupError>,
+    pub failed_files: HashMap<StrictPath, BackupError>,
     pub failed_registry: HashMap<RegistryItem, BackupError>,
 }
 
@@ -39,17 +40,17 @@ impl BackupInfo {
     pub fn total_failure(scan: &ScanInfo, error: BackupError) -> Self {
         let mut backup_info = Self::default();
 
-        for file in &scan.found_files {
+        for (scan_key, file) in &scan.found_files {
             if file.ignored {
                 continue;
             }
-            backup_info.failed_files.insert(file.clone(), error.clone());
+            backup_info.failed_files.insert(scan_key.clone(), error.clone());
         }
-        for reg_path in &scan.found_registry_keys {
+        for (scan_key, reg_path) in &scan.found_registry_keys {
             if reg_path.ignored {
                 continue;
             }
-            backup_info.failed_registry.insert(reg_path.path.clone(), error.clone());
+            backup_info.failed_registry.insert(scan_key.clone(), error.clone());
         }
 
         backup_info

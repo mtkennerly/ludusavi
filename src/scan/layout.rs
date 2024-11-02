@@ -1,5 +1,5 @@
 use std::{
-    collections::{BTreeMap, BTreeSet, HashMap, HashSet, VecDeque},
+    collections::{BTreeMap, BTreeSet, HashMap, VecDeque},
     io::Write,
 };
 
@@ -184,7 +184,7 @@ impl Backup {
             Self::Full(backup) => {
                 let mut failed = vec![];
                 for file in backup.files.keys() {
-                    if backup_info.failed_files.keys().any(|x| &x.path.raw() == file) {
+                    if backup_info.failed_files.keys().any(|x| &x.raw() == file) {
                         failed.push(file.to_string());
                     }
                 }
@@ -201,7 +201,7 @@ impl Backup {
             Self::Differential(backup) => {
                 let mut failed = vec![];
                 for file in backup.files.keys() {
-                    if backup_info.failed_files.keys().any(|x| &x.path.raw() == file) {
+                    if backup_info.failed_files.keys().any(|x| &x.raw() == file) {
                         failed.push(file.to_string());
                     }
                 }
@@ -653,8 +653,8 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
-    ) -> HashSet<ScannedFile> {
-        let mut files = HashSet::new();
+    ) -> HashMap<StrictPath, ScannedFile> {
+        let mut files = HashMap::new();
 
         match self.find_by_id(id) {
             None => {}
@@ -676,7 +676,7 @@ impl GameLayout {
                     toggled_paths,
                 ));
 
-                for full_file in self.restorable_files_from_full_backup(
+                for (scan_key, full_file) in self.restorable_files_from_full_backup(
                     full,
                     restoring,
                     redirects,
@@ -685,7 +685,7 @@ impl GameLayout {
                 ) {
                     let original_path = full_file.original_path.as_ref().unwrap().render();
                     if diff.file(original_path) == BackupInclusion::Inherited {
-                        files.insert(full_file);
+                        files.insert(scan_key, full_file);
                     }
                 }
             }
@@ -701,47 +701,55 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
-    ) -> HashSet<ScannedFile> {
-        let mut restorables = HashSet::new();
+    ) -> HashMap<StrictPath, ScannedFile> {
+        let mut restorables = HashMap::new();
 
-        for (k, v) in &backup.files {
-            let original_path = StrictPath::new(k.to_string());
+        for (mapping_key, v) in &backup.files {
+            let original_path = StrictPath::new(mapping_key.to_string());
             let redirected = game_file_target(&original_path, redirects, reverse_redirects_on_restore, true);
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
-                    restorables.insert(ScannedFile {
-                        change: if restoring {
-                            ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
-                        } else {
-                            ScanChange::Unknown
+                    let scan_key = self
+                        .mapping
+                        .game_file_immutable(&self.path, &original_path, &backup.name);
+
+                    restorables.insert(
+                        scan_key,
+                        ScannedFile {
+                            change: if restoring {
+                                ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
+                            } else {
+                                ScanChange::Unknown
+                            },
+                            size: v.size,
+                            hash: v.hash.clone(),
+                            ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
+                            redirected,
+                            original_path: Some(original_path),
+                            container: None,
                         },
-                        path: self
-                            .mapping
-                            .game_file_immutable(&self.path, &original_path, &backup.name),
-                        size: v.size,
-                        hash: v.hash.clone(),
-                        ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
-                        redirected,
-                        original_path: Some(original_path),
-                        container: None,
-                    });
+                    );
                 }
                 BackupFormat::Zip => {
-                    restorables.insert(ScannedFile {
-                        change: if restoring {
-                            ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
-                        } else {
-                            ScanChange::Unknown
+                    let scan_key = StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path));
+
+                    restorables.insert(
+                        scan_key,
+                        ScannedFile {
+                            change: if restoring {
+                                ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
+                            } else {
+                                ScanChange::Unknown
+                            },
+                            size: v.size,
+                            hash: v.hash.clone(),
+                            ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
+                            redirected,
+                            original_path: Some(original_path),
+                            container: Some(self.path.joined(&backup.name)),
                         },
-                        path: StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path)),
-                        size: v.size,
-                        hash: v.hash.clone(),
-                        ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
-                        redirected,
-                        original_path: Some(original_path),
-                        container: Some(self.path.joined(&backup.name)),
-                    });
+                    );
                 }
             }
         }
@@ -756,48 +764,56 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
-    ) -> HashSet<ScannedFile> {
-        let mut restorables = HashSet::new();
+    ) -> HashMap<StrictPath, ScannedFile> {
+        let mut restorables = HashMap::new();
 
-        for (k, v) in &backup.files {
+        for (mapping_key, v) in &backup.files {
             let v = some_or_continue!(v);
-            let original_path = StrictPath::new(k.to_string());
+            let original_path = StrictPath::new(mapping_key.to_string());
             let redirected = game_file_target(&original_path, redirects, reverse_redirects_on_restore, true);
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
-                    restorables.insert(ScannedFile {
-                        change: if restoring {
-                            ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
-                        } else {
-                            ScanChange::Unknown
+                    let scan_key = self
+                        .mapping
+                        .game_file_immutable(&self.path, &original_path, &backup.name);
+
+                    restorables.insert(
+                        scan_key,
+                        ScannedFile {
+                            change: if restoring {
+                                ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
+                            } else {
+                                ScanChange::Unknown
+                            },
+                            size: v.size,
+                            hash: v.hash.clone(),
+                            ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
+                            redirected,
+                            original_path: Some(original_path),
+                            container: None,
                         },
-                        path: self
-                            .mapping
-                            .game_file_immutable(&self.path, &original_path, &backup.name),
-                        size: v.size,
-                        hash: v.hash.clone(),
-                        ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
-                        redirected,
-                        original_path: Some(original_path),
-                        container: None,
-                    });
+                    );
                 }
                 BackupFormat::Zip => {
-                    restorables.insert(ScannedFile {
-                        change: if restoring {
-                            ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
-                        } else {
-                            ScanChange::Unknown
+                    let scan_key = StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path));
+
+                    restorables.insert(
+                        scan_key,
+                        ScannedFile {
+                            change: if restoring {
+                                ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
+                            } else {
+                                ScanChange::Unknown
+                            },
+                            size: v.size,
+                            hash: v.hash.clone(),
+                            ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
+                            redirected,
+                            original_path: Some(original_path),
+                            container: Some(self.path.joined(&backup.name)),
                         },
-                        path: StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path)),
-                        size: v.size,
-                        hash: v.hash.clone(),
-                        ignored: toggled_paths.is_ignored(&self.mapping.name, ignorable_path),
-                        redirected,
-                        original_path: Some(original_path),
-                        container: Some(self.path.joined(&backup.name)),
-                    });
+                    );
                 }
             }
         }
@@ -807,12 +823,12 @@ impl GameLayout {
 
     // Since this is only used for a specific migration use case,
     // we don't need to fill out all of the `ScannedFile` info.
-    fn restorable_files_in_simple(&self, backup: &str) -> HashSet<ScannedFile> {
+    fn restorable_files_in_simple(&self, backup: &str) -> HashMap<StrictPath, ScannedFile> {
         let Ok(path) = self.path.joined(backup).interpret() else {
-            return HashSet::new();
+            return HashMap::new();
         };
 
-        let mut files = HashSet::new();
+        let mut files = HashMap::new();
         for drive_dir in walkdir::WalkDir::new(path)
             .max_depth(1)
             .follow_links(false)
@@ -832,17 +848,21 @@ impl GameLayout {
             {
                 let raw_file = file.path().display().to_string();
                 let original_path = Some(StrictPath::new(raw_file.replace(&raw_drive_dir, drive_mapping)));
-                let path = StrictPath::new(raw_file);
-                files.insert(ScannedFile {
-                    change: crate::scan::ScanChange::Unknown,
-                    size: path.size(),
-                    hash: path.sha1(),
-                    path,
-                    original_path,
-                    ignored: false,
-                    container: None,
-                    redirected: None,
-                });
+                let scan_key = StrictPath::new(raw_file);
+                let size = scan_key.size();
+                let hash = scan_key.sha1();
+                files.insert(
+                    scan_key,
+                    ScannedFile {
+                        change: crate::scan::ScanChange::Unknown,
+                        size,
+                        hash,
+                        original_path,
+                        ignored: false,
+                        container: None,
+                        redirected: None,
+                    },
+                );
             }
         }
         files
@@ -987,11 +1007,11 @@ impl GameLayout {
         #[allow(unused_mut)]
         let mut registry = IndividualMappingRegistry::default();
 
-        for file in scan.found_files.iter().filter(|x| !x.ignored) {
+        for (scan_key, file) in scan.found_files.iter().filter(|(_, x)| !x.ignored) {
             match file.change() {
                 ScanChange::New | ScanChange::Different | ScanChange::Same => {
                     files.insert(
-                        file.mapping_key(),
+                        file.mapping_key(scan_key),
                         IndividualMappingFile {
                             hash: file.hash.clone(),
                             size: file.size,
@@ -1032,11 +1052,11 @@ impl GameLayout {
         #[allow(unused_mut)]
         let mut registry = Some(IndividualMappingRegistry::default());
 
-        for file in scan.found_files.iter() {
+        for (scan_key, file) in &scan.found_files {
             match file.change() {
                 ScanChange::New | ScanChange::Different | ScanChange::Same => {
                     files.insert(
-                        file.mapping_key(),
+                        file.mapping_key(scan_key),
                         (!file.ignored).then(|| IndividualMappingFile {
                             hash: file.hash.clone(),
                             size: file.size,
@@ -1044,7 +1064,7 @@ impl GameLayout {
                     );
                 }
                 ScanChange::Removed => {
-                    files.insert(file.mapping_key(), None);
+                    files.insert(file.mapping_key(scan_key), None);
                 }
                 ScanChange::Unknown => (),
             };
@@ -1097,35 +1117,32 @@ impl GameLayout {
         let mut backup_info = BackupInfo::default();
 
         let mut relevant_files = vec![];
-        for file in &scan.found_files {
-            if !backup.includes_file(file.mapping_key()) {
-                log::debug!("[{}] skipped: {}", self.mapping.name, file.path.raw());
+        for (scan_key, file) in &scan.found_files {
+            if !backup.includes_file(file.mapping_key(scan_key)) {
+                log::debug!("[{}] skipped: {}", self.mapping.name, scan_key.raw());
                 continue;
             }
 
-            let target_file = self.mapping.game_file(&self.path, file.effective(), backup.name());
-            if file.path.same_content(&target_file) {
+            let target_file = self
+                .mapping
+                .game_file(&self.path, file.effective(scan_key), backup.name());
+            if scan_key.same_content(&target_file) {
                 log::info!(
                     "[{}] already matches: {:?} -> {:?}",
                     self.mapping.name,
-                    &file.path,
+                    &scan_key,
                     &target_file
                 );
                 relevant_files.push(target_file);
                 continue;
             }
-            if let Err(e) = file.path.copy_to_path(&self.mapping.name, &target_file) {
+            if let Err(e) = scan_key.copy_to_path(&self.mapping.name, &target_file) {
                 backup_info
                     .failed_files
-                    .insert(file.clone(), BackupError::Raw(e.to_string()));
+                    .insert(scan_key.clone(), BackupError::Raw(e.to_string()));
                 continue;
             }
-            log::info!(
-                "[{}] backed up: {:?} -> {:?}",
-                self.mapping.name,
-                file.path,
-                target_file
-            );
+            log::info!("[{}] backed up: {:?} -> {:?}", self.mapping.name, scan_key, target_file);
             relevant_files.push(target_file);
         }
 
@@ -1152,11 +1169,11 @@ impl GameLayout {
     fn execute_backup_as_zip(&mut self, backup: &Backup, scan: &ScanInfo, format: &BackupFormats) -> BackupInfo {
         let mut backup_info = BackupInfo::default();
 
-        let fail_file = |file: &ScannedFile, backup_info: &mut BackupInfo, error: String| {
+        let fail_file = |file: &StrictPath, backup_info: &mut BackupInfo, error: String| {
             backup_info.failed_files.insert(file.clone(), BackupError::Raw(error))
         };
         let fail_all = |backup_info: &mut BackupInfo, error: String| {
-            for file in &scan.found_files {
+            for file in scan.found_files.keys() {
                 backup_info
                     .failed_files
                     .insert(file.clone(), BackupError::Raw(error.clone()));
@@ -1187,24 +1204,24 @@ impl GameLayout {
             .compression_level(format.level())
             .large_file(true);
 
-        'item: for file in &scan.found_files {
-            if !backup.includes_file(file.mapping_key()) {
-                log::debug!("[{}] skipped: {:?}", self.mapping.name, &file.path);
+        'item: for (scan_key, file) in &scan.found_files {
+            if !backup.includes_file(file.mapping_key(scan_key)) {
+                log::debug!("[{}] skipped: {:?}", self.mapping.name, &scan_key);
                 continue;
             }
 
-            let target_file_id = self.mapping.game_file_for_zip(file.effective());
+            let target_file_id = self.mapping.game_file_for_zip(file.effective(scan_key));
 
-            let mtime = match file.path.get_mtime_zip() {
+            let mtime = match scan_key.get_mtime_zip() {
                 Ok(x) => x,
                 Err(e) => {
                     log::error!(
                         "[{}] unable to get mtime: {:?} -> {} | {e}",
                         self.mapping.name,
-                        &file.path,
+                        &scan_key,
                         &target_file_id
                     );
-                    fail_file(file, &mut backup_info, e.to_string());
+                    fail_file(scan_key, &mut backup_info, e.to_string());
                     continue;
                 }
             };
@@ -1214,7 +1231,7 @@ impl GameLayout {
             #[cfg(not(target_os = "windows"))]
             let mode = {
                 use std::os::unix::fs::PermissionsExt;
-                file.path.metadata().map(|metadata| metadata.permissions().mode()).ok()
+                scan_key.metadata().map(|metadata| metadata.permissions().mode()).ok()
             };
 
             let local_options = match mode {
@@ -1226,19 +1243,19 @@ impl GameLayout {
                 log::error!(
                     "[{}] unable to start zip file record: {:?} -> {} | {e}",
                     self.mapping.name,
-                    &file.path,
+                    &scan_key,
                     &target_file_id
                 );
-                fail_file(file, &mut backup_info, e.to_string());
+                fail_file(scan_key, &mut backup_info, e.to_string());
                 continue;
             }
 
             use std::io::Read;
-            let handle = match file.path.open() {
+            let handle = match scan_key.open() {
                 Ok(x) => x,
                 Err(e) => {
-                    log::error!("[{}] unable to open source: {:?} | {e}", self.mapping.name, &file.path);
-                    fail_file(file, &mut backup_info, e.to_string());
+                    log::error!("[{}] unable to open source: {:?} | {e}", self.mapping.name, &scan_key);
+                    fail_file(scan_key, &mut backup_info, e.to_string());
                     continue;
                 }
             };
@@ -1249,8 +1266,8 @@ impl GameLayout {
                 let read = match reader.read(&mut buffer[..]) {
                     Ok(x) => x,
                     Err(e) => {
-                        log::error!("[{}] unable to read source: {:?} | {e}", self.mapping.name, &file.path);
-                        fail_file(file, &mut backup_info, e.to_string());
+                        log::error!("[{}] unable to read source: {:?} | {e}", self.mapping.name, &scan_key);
+                        fail_file(scan_key, &mut backup_info, e.to_string());
                         continue 'item;
                     }
                 };
@@ -1258,7 +1275,7 @@ impl GameLayout {
                     log::info!(
                         "[{}] backed up: {:?} -> {}",
                         self.mapping.name,
-                        &file.path,
+                        &scan_key,
                         &target_file_id
                     );
                     break;
@@ -1267,10 +1284,10 @@ impl GameLayout {
                     log::error!(
                         "[{}] unable to write target: {:?} -> {} | {e}",
                         self.mapping.name,
-                        &file.path,
+                        &scan_key,
                         &target_file_id
                     );
-                    fail_file(file, &mut backup_info, e.to_string());
+                    fail_file(scan_key, &mut backup_info, e.to_string());
                     continue 'item;
                 }
             }
@@ -1405,12 +1422,12 @@ impl GameLayout {
 
         log::info!("[{}] migrating legacy backup", &self.mapping.name);
 
-        for file in self.restorable_files_in_simple(&backup.name) {
+        for (scan_key, file) in self.restorable_files_in_simple(&backup.name) {
             backup.files.insert(
-                file.mapping_key(),
+                file.mapping_key(&scan_key),
                 IndividualMappingFile {
-                    hash: file.path.sha1(),
-                    size: file.path.size(),
+                    hash: scan_key.sha1(),
+                    size: scan_key.size(),
                 },
             );
         }
@@ -1547,9 +1564,9 @@ impl GameLayout {
     ) -> ScanInfo {
         log::trace!("[{name}] beginning scan for restore");
 
-        let mut found_files = HashSet::new();
+        let mut found_files = HashMap::new();
         #[allow(unused_mut)]
-        let mut found_registry_keys = HashSet::new();
+        let mut found_registry_keys = HashMap::new();
         #[allow(unused_mut)]
         let mut available_backups = vec![];
         let mut backup = None;
@@ -1595,19 +1612,23 @@ impl GameLayout {
                             );
                         }
 
-                        found_registry_keys.insert(ScannedRegistry {
-                            ignored: toggled_registry.is_ignored(name, &path, None)
-                                && entries
-                                    .0
-                                    .keys()
-                                    .all(|x| toggled_registry.is_ignored(name, &path, Some(x))),
+                        let ignored = toggled_registry.is_ignored(name, &path, None)
+                            && entries
+                                .0
+                                .keys()
+                                .all(|x| toggled_registry.is_ignored(name, &path, Some(x)));
+
+                        found_registry_keys.insert(
                             path,
-                            change: match &live_entries {
-                                None => ScanChange::New,
-                                Some(_) => ScanChange::Same,
+                            ScannedRegistry {
+                                ignored,
+                                change: match &live_entries {
+                                    None => ScanChange::New,
+                                    Some(_) => ScanChange::Same,
+                                },
+                                values: live_values,
                             },
-                            values: live_values,
-                        });
+                        );
                     }
                 }
             }
@@ -1637,8 +1658,8 @@ impl GameLayout {
         let mut containers: HashMap<StrictPath, zip::ZipArchive<std::fs::File>> = HashMap::new();
         let mut failed_containers: HashMap<StrictPath, BackupError> = HashMap::new();
 
-        for file in &scan.found_files {
-            let target = file.effective();
+        for (scan_key, file) in &scan.found_files {
+            let target = file.effective(scan_key);
 
             if !file.change().is_changed() || file.ignored {
                 log::info!(
@@ -1646,7 +1667,7 @@ impl GameLayout {
                     self.mapping.name,
                     file.change,
                     file.ignored,
-                    &file.path,
+                    scan_key,
                     &target
                 );
                 continue;
@@ -1658,10 +1679,10 @@ impl GameLayout {
                         "[{}] skipping file because container had failed to load: {:?} -> {:?} -> {:?}",
                         self.mapping.name,
                         &container,
-                        &file.path,
+                        scan_key,
                         &target,
                     );
-                    failed_files.insert(file.clone(), e.clone());
+                    failed_files.insert(scan_key.clone(), e.clone());
                     continue;
                 }
 
@@ -1676,7 +1697,7 @@ impl GameLayout {
                                 &container
                             );
                             failed_containers.insert(container.clone(), BackupError::Raw(e.to_string()));
-                            failed_files.insert(file.clone(), BackupError::Raw(e.to_string()));
+                            failed_files.insert(scan_key.clone(), BackupError::Raw(e.to_string()));
                             continue;
                         }
                     };
@@ -1689,7 +1710,7 @@ impl GameLayout {
                                 &container
                             );
                             failed_containers.insert(container.clone(), BackupError::Raw(e.to_string()));
-                            failed_files.insert(file.clone(), BackupError::Raw(e.to_string()));
+                            failed_files.insert(scan_key.clone(), BackupError::Raw(e.to_string()));
                             continue;
                         }
                     };
@@ -1699,27 +1720,27 @@ impl GameLayout {
             }
 
             let outcome = match &file.container {
-                None => self.restore_file_from_simple(target, file),
+                None => self.restore_file_from_simple(target, scan_key),
                 Some(container) => {
                     let Some(archive) = containers.get_mut(container) else {
                         continue;
                     };
-                    self.restore_file_from_zip(target, file, archive)
+                    self.restore_file_from_zip(target, scan_key, archive)
                 }
             };
 
             match outcome {
                 Ok(_) => {
-                    log::info!("[{}] restored: {:?} -> {:?}", &self.mapping.name, &file.path, &target);
+                    log::info!("[{}] restored: {:?} -> {:?}", &self.mapping.name, scan_key, &target);
                 }
                 Err(e) => {
                     log::error!(
                         "[{}] failed to restore: {:?} -> {:?} | {e}",
                         self.mapping.name,
-                        &file.path,
+                        scan_key,
                         &target
                     );
-                    failed_files.insert(file.clone(), BackupError::Raw(e.to_string()));
+                    failed_files.insert(scan_key.clone(), BackupError::Raw(e.to_string()));
                 }
             }
         }
@@ -1743,27 +1764,27 @@ impl GameLayout {
         }
     }
 
-    fn restore_file_from_simple(&self, target: &StrictPath, file: &ScannedFile) -> Result<(), AnyError> {
+    fn restore_file_from_simple(&self, target: &StrictPath, scan_key: &StrictPath) -> Result<(), AnyError> {
         log::trace!(
             "[{}] about to restore (simple): {:?} -> {:?}",
             self.mapping.name,
-            &file.path,
+            scan_key,
             &target
         );
 
-        Ok(file.path.copy_to_path(&self.mapping.name, target)?)
+        Ok(scan_key.copy_to_path(&self.mapping.name, target)?)
     }
 
     fn restore_file_from_zip(
         &self,
         target: &StrictPath,
-        file: &ScannedFile,
+        scan_key: &StrictPath,
         archive: &mut zip::ZipArchive<std::fs::File>,
     ) -> Result<(), AnyError> {
         log::debug!(
             "[{}] about to restore (zip): {:?} -> {:?}",
             self.mapping.name,
-            &file.path,
+            scan_key,
             &target
         );
 
@@ -1789,18 +1810,18 @@ impl GameLayout {
                 log::warn!(
                     "[{}] failed to get handle: {:?} -> {:?} | {e}",
                     self.mapping.name,
-                    &file.path,
+                    scan_key,
                     &target
                 );
                 return Err(Box::new(e));
             }
         };
-        let mut source_file = archive.by_name(&file.path.raw())?;
+        let mut source_file = archive.by_name(&scan_key.raw())?;
         if let Err(e) = std::io::copy(&mut source_file, &mut target_handle) {
             log::warn!(
                 "[{}] failed to copy to target: {:?} -> {:?} | {e}",
                 self.mapping.name,
-                &file.path,
+                &scan_key,
                 &target,
             );
             return Err(Box::new(e));
@@ -1811,7 +1832,7 @@ impl GameLayout {
             log::error!(
                 "[{}] unable to set modification time: {:?} -> {:?} to {:#?} | {e:?}",
                 self.mapping.name,
-                &file.path,
+                scan_key,
                 &target,
                 mtime
             );
@@ -2164,7 +2185,7 @@ impl BackupLayout {
 
 #[cfg(test)]
 mod tests {
-    use velcro::{btree_map, hash_set};
+    use velcro::{btree_map, hash_map};
 
     use super::*;
     use crate::testing::{drives_x, make_original_path, mapping_file_key, repo, repo_raw, s};
@@ -2504,12 +2525,12 @@ mod tests {
         #[test]
         fn can_plan_full_backup_with_files() {
             let scan = ScanInfo {
-                found_files: hash_set! {
-                    ScannedFile::with_change(repo_file("new"), 1, "n", ScanChange::New),
-                    ScannedFile::with_change(repo_file("different"), 2, "d", ScanChange::Different),
-                    ScannedFile::with_change(repo_file("removed"), 3, "r", ScanChange::Removed),
-                    ScannedFile::with_change(repo_file("same"), 5, "s", ScanChange::Same),
-                    ScannedFile::with_change(repo_file("unknown"), 6, "u", ScanChange::Unknown),
+                found_files: hash_map! {
+                    repo_file("new").into(): ScannedFile::with_change(1, "n", ScanChange::New),
+                    repo_file("different").into(): ScannedFile::with_change(2, "d", ScanChange::Different),
+                    repo_file("removed").into(): ScannedFile::with_change(3, "r", ScanChange::Removed),
+                    repo_file("same").into(): ScannedFile::with_change(5, "s", ScanChange::Same),
+                    repo_file("unknown").into(): ScannedFile::with_change(6, "u", ScanChange::Unknown),
                 },
                 ..Default::default()
             };
@@ -2539,16 +2560,16 @@ mod tests {
             // Realistically, if a value is marked as removed`, then it won't exist, so `Hives` won't load it.
             // The removed value here only makes it into the plan because it actually does exist.
             let scan = ScanInfo {
-                found_registry_keys: hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New).ignored(),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::Different)
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Software/Ludusavi".into(): ScannedRegistry::new().change_as(ScanChange::New).ignored(),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/game3".into(): ScannedRegistry::new().change_as(ScanChange::Different)
                         .with_value("binary", ScanChange::New, false)
                         .with_value("dword", ScanChange::Different, false)
                         .with_value("expandSz", ScanChange::Removed, false)
                         .with_value("multiSz", ScanChange::Same, false)
                         .with_value("qword", ScanChange::Same, true)
                         .with_value("sz", ScanChange::Unknown, false),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::Removed)
+                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().change_as(ScanChange::Removed)
                 },
                 ..Default::default()
             };
@@ -2581,12 +2602,12 @@ mod tests {
         #[test]
         fn can_plan_differential_backup_with_files() {
             let scan = ScanInfo {
-                found_files: hash_set! {
-                    ScannedFile::with_change(repo_file("new"), 1, "n", ScanChange::New),
-                    ScannedFile::with_change(repo_file("different"), 2, "d+", ScanChange::Different),
-                    ScannedFile::with_change(repo_file("removed"), 0, "", ScanChange::Removed),
-                    ScannedFile::with_change(repo_file("same"), 5, "s", ScanChange::Same),
-                    ScannedFile::with_change(repo_file("unknown"), 6, "u", ScanChange::Unknown),
+                found_files: hash_map! {
+                    repo_file("new").into(): ScannedFile::with_change(1, "n", ScanChange::New),
+                    repo_file("different").into(): ScannedFile::with_change(2, "d+", ScanChange::Different),
+                    repo_file("removed").into(): ScannedFile::with_change(0, "", ScanChange::Removed),
+                    repo_file("same").into(): ScannedFile::with_change(5, "s", ScanChange::Same),
+                    repo_file("unknown").into(): ScannedFile::with_change(6, "u", ScanChange::Unknown),
                 },
                 ..Default::default()
             };
@@ -2627,13 +2648,13 @@ mod tests {
         #[test]
         fn can_plan_second_differential_backup_with_different_ignored_files() {
             let scan = ScanInfo {
-                found_files: hash_set! {
+                found_files: hash_map! {
                     // Ignored in first differential backup:
-                    ScannedFile::with_change(repo_file("file1"), 1, "1", ScanChange::New).ignored(),
+                    repo_file("file1").into(): ScannedFile::with_change(1, "1", ScanChange::New).ignored(),
                     // Newly ignored:
-                    ScannedFile::with_change(repo_file("file2"), 2, "2", ScanChange::Same).ignored(),
+                    repo_file("file2").into(): ScannedFile::with_change(2, "2", ScanChange::Same).ignored(),
                     // Just here to keep the backup from being inert (all ignores):
-                    ScannedFile::with_change(repo_file("file3"), 3, "3", ScanChange::Same),
+                    repo_file("file3").into(): ScannedFile::with_change(3, "3", ScanChange::Same),
                 },
                 ..Default::default()
             };
@@ -2688,8 +2709,8 @@ mod tests {
             use crate::scan::registry::{Entries, Hives, Keys};
 
             let scan = ScanInfo {
-                found_registry_keys: hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::New)
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().change_as(ScanChange::New)
                 },
                 ..Default::default()
             };
@@ -2730,8 +2751,8 @@ mod tests {
             use crate::scan::registry::{Entries, Hives, Keys};
 
             let scan = ScanInfo {
-                found_registry_keys: hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::Different)
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().change_as(ScanChange::Different)
                         .with_value("removed", ScanChange::Removed, false)
                         // Fake registry values are ignored because `Hives` re-reads the actual registry.
                         .with_value("fake", ScanChange::New, false)
@@ -2777,8 +2798,8 @@ mod tests {
             use crate::scan::registry::{Entries, Hives, Keys};
 
             let scan = ScanInfo {
-                found_registry_keys: hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::Same)
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().change_as(ScanChange::Same)
                 },
                 ..Default::default()
             };
@@ -2817,8 +2838,8 @@ mod tests {
         #[cfg(target_os = "windows")]
         fn can_plan_differential_backup_with_registry_removed() {
             let scan = ScanInfo {
-                found_registry_keys: hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::Removed)
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().change_as(ScanChange::Removed)
                 },
                 ..Default::default()
             };
@@ -3076,9 +3097,8 @@ mod tests {
                 },
             };
             assert_eq!(
-                hash_set! {
-                    ScannedFile {
-                        path: make_restorable_path("backup-1", "file1.txt"),
+                hash_map! {
+                    make_restorable_path("backup-1", "file1.txt"): ScannedFile {
                         size: 1,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/file1.txt")),
@@ -3087,8 +3107,7 @@ mod tests {
                         container: None,
                         redirected: None,
                     },
-                    ScannedFile {
-                        path: make_restorable_path("backup-1", "file2.txt"),
+                    make_restorable_path("backup-1", "file2.txt"): ScannedFile {
                         size: 2,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/file2.txt")),
@@ -3126,9 +3145,8 @@ mod tests {
                 },
             };
             assert_eq!(
-                hash_set! {
-                    ScannedFile {
-                        path: make_restorable_path_zip("file1.txt"),
+                hash_map! {
+                    make_restorable_path_zip("file1.txt"): ScannedFile {
                         size: 1,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/file1.txt")),
@@ -3137,8 +3155,7 @@ mod tests {
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
                     },
-                    ScannedFile {
-                        path: make_restorable_path_zip("file2.txt"),
+                    make_restorable_path_zip("file2.txt"): ScannedFile {
                         size: 2,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/file2.txt")),
@@ -3187,9 +3204,8 @@ mod tests {
                 },
             };
             assert_eq!(
-                hash_set! {
-                    ScannedFile {
-                        path: make_restorable_path("backup-1", "unchanged.txt"),
+                hash_map! {
+                    make_restorable_path("backup-1", "unchanged.txt"): ScannedFile {
                         size: 1,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/unchanged.txt")),
@@ -3198,8 +3214,7 @@ mod tests {
                         container: None,
                         redirected: None,
                     },
-                    ScannedFile {
-                        path: make_restorable_path("backup-2", "changed.txt"),
+                    make_restorable_path("backup-2", "changed.txt"): ScannedFile {
                         size: 2,
                         hash: "new".into(),
                         original_path: Some(make_original_path("/changed.txt")),
@@ -3208,8 +3223,7 @@ mod tests {
                         container: None,
                         redirected: None,
                     },
-                    ScannedFile {
-                        path: make_restorable_path("backup-2", "added.txt"),
+                    make_restorable_path("backup-2", "added.txt"): ScannedFile {
                         size: 5,
                         hash: "new".into(),
                         original_path: Some(make_original_path("/added.txt")),
@@ -3258,9 +3272,8 @@ mod tests {
                 },
             };
             assert_eq!(
-                hash_set! {
-                    ScannedFile {
-                        path: make_restorable_path_zip("unchanged.txt"),
+                hash_map! {
+                    make_restorable_path_zip("unchanged.txt"): ScannedFile {
                         size: 1,
                         hash: "old".into(),
                         original_path: Some(make_original_path("/unchanged.txt")),
@@ -3269,8 +3282,7 @@ mod tests {
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
                     },
-                    ScannedFile {
-                        path: make_restorable_path_zip("changed.txt"),
+                    make_restorable_path_zip("changed.txt"): ScannedFile {
                         size: 2,
                         hash: "new".into(),
                         original_path: Some(make_original_path("/changed.txt")),
@@ -3279,8 +3291,7 @@ mod tests {
                         container: Some(make_path("backup-2.zip")),
                         redirected: None,
                     },
-                    ScannedFile {
-                        path: make_restorable_path_zip("added.txt"),
+                    make_restorable_path_zip("added.txt"): ScannedFile {
                         size: 5,
                         hash: "new".into(),
                         original_path: Some(make_original_path("/added.txt")),
@@ -3363,9 +3374,8 @@ mod tests {
             assert_eq!(
                 ScanInfo {
                     game_name: s("game1"),
-                    found_files: hash_set! {
-                        ScannedFile {
-                            path: restorable_file_simple(".", "file1.txt"),
+                    found_files: hash_map! {
+                        restorable_file_simple(".", "file1.txt"): ScannedFile {
                             size: 1,
                             hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
                             original_path: Some(make_original_path("/file1.txt")),
@@ -3374,8 +3384,7 @@ mod tests {
                             container: None,
                             redirected: None,
                         },
-                        ScannedFile {
-                            path: restorable_file_simple(".", "file2.txt"),
+                        restorable_file_simple(".", "file2.txt"): ScannedFile {
                             size: 2,
                             hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
                             original_path: Some(make_original_path("/file2.txt")),
@@ -3413,8 +3422,8 @@ mod tests {
                     ScanInfo {
                         game_name: s("game3"),
                         found_files: Default::default(),
-                        found_registry_keys: hash_set! {
-                            ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::Same)
+                        found_registry_keys: hash_map! {
+                            "HKEY_CURRENT_USER/Software/Ludusavi/game3".into(): ScannedRegistry::new().change_as(ScanChange::Same)
                                 .with_value_same("binary")
                                 .with_value_same("dword")
                                 .with_value_same("expandSz")

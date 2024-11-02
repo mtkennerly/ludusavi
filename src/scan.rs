@@ -460,9 +460,9 @@ pub fn scan_game_for_backup(
 ) -> ScanInfo {
     log::trace!("[{name}] beginning scan for backup");
 
-    let mut found_files = HashSet::new();
+    let mut found_files = HashMap::new();
     #[allow(unused_mut)]
-    let mut found_registry_keys = HashSet::new();
+    let mut found_registry_keys = HashMap::new();
     let has_backups = previous.is_some();
 
     let mut paths_to_check = HashSet::<(StrictPath, Option<bool>)>::new();
@@ -598,7 +598,7 @@ pub fn scan_game_for_backup(
                 .scan
                 .found_files
                 .iter()
-                .map(|x| (x.original_path(), &x.hash))
+                .map(|(scan_key, x)| (x.original_path(scan_key), &x.hash))
                 .collect()
         })
         .unwrap_or_default();
@@ -615,27 +615,32 @@ pub fn scan_game_for_backup(
         };
         for p in paths {
             if p.is_file() {
-                let Ok(p) = p.interpreted().map(|x| x.rendered()) else {
+                let Ok(scan_key) = p.interpreted().map(|x| x.rendered()) else {
                     continue;
                 };
-                if filter.is_path_ignored(&p) {
-                    log::debug!("[{name}] excluded: {p:?}");
+                if filter.is_path_ignored(&scan_key) {
+                    log::debug!("[{name}] excluded: {scan_key:?}");
                     continue;
                 }
-                let ignored = ignored_paths.is_ignored(name, &p);
-                log::debug!("[{name}] found: {p:?}");
-                let hash = p.sha1();
-                let redirected = game_file_target(&p, redirects, reverse_redirects_on_restore, false);
-                found_files.insert(ScannedFile {
-                    change: ScanChange::evaluate_backup(&hash, previous_files.get(redirected.as_ref().unwrap_or(&p))),
-                    size: p.size(),
-                    hash,
-                    redirected,
-                    path: p,
-                    original_path: None,
-                    ignored,
-                    container: None,
-                });
+                let ignored = ignored_paths.is_ignored(name, &scan_key);
+                log::debug!("[{name}] found: {scan_key:?}");
+                let size = scan_key.size();
+                let hash = scan_key.sha1();
+                let redirected = game_file_target(&scan_key, redirects, reverse_redirects_on_restore, false);
+                let change =
+                    ScanChange::evaluate_backup(&hash, previous_files.get(redirected.as_ref().unwrap_or(&scan_key)));
+                found_files.insert(
+                    scan_key,
+                    ScannedFile {
+                        change,
+                        size,
+                        hash,
+                        redirected,
+                        original_path: None,
+                        ignored,
+                        container: None,
+                    },
+                );
             } else if p.is_dir() {
                 log::trace!("[{name}] looking for files in: {p:?}");
                 for child in walkdir::WalkDir::new(p.as_std_path_buf().unwrap())
@@ -651,31 +656,35 @@ pub fn scan_game_for_backup(
                     }
 
                     if child.file_type().is_file() {
-                        let Ok(child) = StrictPath::from(&child).interpreted().map(|x| x.rendered()) else {
+                        let Ok(scan_key) = StrictPath::from(&child).interpreted().map(|x| x.rendered()) else {
                             continue;
                         };
 
-                        if filter.is_path_ignored(&child) {
-                            log::debug!("[{name}] excluded: {child:?}");
+                        if filter.is_path_ignored(&scan_key) {
+                            log::debug!("[{name}] excluded: {scan_key:?}");
                             continue;
                         }
-                        let ignored = ignored_paths.is_ignored(name, &child);
-                        log::debug!("[{name}] found: {child:?}");
-                        let hash = child.sha1();
-                        let redirected = game_file_target(&child, redirects, reverse_redirects_on_restore, false);
-                        found_files.insert(ScannedFile {
-                            change: ScanChange::evaluate_backup(
-                                &hash,
-                                previous_files.get(redirected.as_ref().unwrap_or(&child)),
-                            ),
-                            size: child.size(),
-                            hash,
-                            redirected,
-                            path: child,
-                            original_path: None,
-                            ignored,
-                            container: None,
-                        });
+                        let ignored = ignored_paths.is_ignored(name, &scan_key);
+                        log::debug!("[{name}] found: {scan_key:?}");
+                        let size = scan_key.size();
+                        let hash = scan_key.sha1();
+                        let redirected = game_file_target(&scan_key, redirects, reverse_redirects_on_restore, false);
+                        let change = ScanChange::evaluate_backup(
+                            &hash,
+                            previous_files.get(redirected.as_ref().unwrap_or(&scan_key)),
+                        );
+                        found_files.insert(
+                            scan_key,
+                            ScannedFile {
+                                change,
+                                size,
+                                hash,
+                                redirected,
+                                original_path: None,
+                                ignored,
+                                container: None,
+                            },
+                        );
                     }
                 }
             }
@@ -685,31 +694,33 @@ pub fn scan_game_for_backup(
     // Mark removed files.
     let current_files: Vec<_> = found_files
         .iter()
-        .map(|x| x.redirected.as_ref().unwrap_or(&x.path).interpret())
+        .map(|(scan_key, x)| x.redirected.as_ref().unwrap_or(scan_key).interpret())
         .collect();
     // But if a file is only "removed" because now it has a redirect,
     // then the removal isn't very interesting
     // and would lead to duplicate hash keys during reporting.
     let current_files_with_redirects: Vec<_> = found_files
         .iter()
-        .filter(|&x| x.redirected.is_some())
-        .map(|x| x.path.interpret())
+        .filter(|(_, x)| x.redirected.is_some())
+        .map(|(scan_key, _)| scan_key.interpret())
         .collect();
     for (previous_file, _) in previous_files {
         let previous_file_interpreted = previous_file.interpret();
         if !current_files.contains(&previous_file_interpreted)
             && !current_files_with_redirects.contains(&previous_file_interpreted)
         {
-            found_files.insert(ScannedFile {
-                change: ScanChange::Removed,
-                size: 0,
-                hash: "".to_string(),
-                redirected: None,
-                path: previous_file.to_owned(),
-                original_path: None,
-                ignored: ignored_paths.is_ignored(name, previous_file),
-                container: None,
-            });
+            found_files.insert(
+                previous_file.to_owned(),
+                ScannedFile {
+                    change: ScanChange::Removed,
+                    size: 0,
+                    hash: "".to_string(),
+                    redirected: None,
+                    original_path: None,
+                    ignored: ignored_paths.is_ignored(name, previous_file),
+                    container: None,
+                },
+            );
         }
     }
 
@@ -740,24 +751,21 @@ pub fn scan_game_for_backup(
 
             for candidate in candidates {
                 log::trace!("[{name}] checking registry: {candidate}");
-                for mut scanned in
+                for (scan_key, mut scanned) in
                     registry::win::scan_registry(name, &candidate, filter, ignored_registry, &previous_registry)
                         .unwrap_or_default()
                 {
-                    log::debug!("[{name}] found registry: {}", scanned.path.raw());
+                    log::debug!("[{name}] found registry: {}", scan_key.raw());
 
                     // Mark removed registry values.
                     let previous_values = previous_registry
                         .as_ref()
-                        .and_then(|x| {
-                            x.get_path(&scanned.path)
-                                .map(|y| y.0.keys().cloned().collect::<Vec<_>>())
-                        })
+                        .and_then(|x| x.get_path(&scan_key).map(|y| y.0.keys().cloned().collect::<Vec<_>>()))
                         .unwrap_or_default();
                     for previous_value in previous_values {
                         #[allow(clippy::map_entry)]
                         if !scanned.values.contains_key(&previous_value) {
-                            let ignored = ignored_registry.is_ignored(name, &scanned.path, Some(&previous_value));
+                            let ignored = ignored_registry.is_ignored(name, &scan_key, Some(&previous_value));
                             scanned.values.insert(
                                 previous_value,
                                 ScannedRegistryValue {
@@ -768,25 +776,27 @@ pub fn scan_game_for_backup(
                         }
                     }
 
-                    found_registry_keys.insert(scanned);
+                    found_registry_keys.insert(scan_key, scanned);
                 }
             }
         }
 
         // Mark removed registry keys.
         if let Some(previous_registry) = &previous_registry {
-            let current_registry_keys: Vec<_> = found_registry_keys.iter().map(|x| x.path.interpret()).collect();
+            let current_registry_keys: Vec<_> = found_registry_keys.keys().map(|x| x.interpret()).collect();
             for (previous_hive, previous_keys) in &previous_registry.0 {
                 for previous_key in previous_keys.0.keys() {
                     let path = RegistryItem::from_hive_and_key(previous_hive, previous_key);
                     if !current_registry_keys.contains(&path.interpret()) {
                         let ignored = ignored_registry.is_ignored(name, &path, None);
-                        found_registry_keys.insert(ScannedRegistry {
-                            change: ScanChange::Removed,
+                        found_registry_keys.insert(
                             path,
-                            ignored,
-                            values: Default::default(),
-                        });
+                            ScannedRegistry {
+                                change: ScanChange::Removed,
+                                ignored,
+                                values: Default::default(),
+                            },
+                        );
                     }
                 }
             }
@@ -873,7 +883,7 @@ fn compare_games_by_status(scan_info1: &ScanInfo, scan_info2: &ScanInfo) -> std:
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::{btree_map, hash_set};
+    use velcro::{btree_map, hash_map};
 
     use super::*;
     #[cfg(target_os = "windows")]
@@ -1052,11 +1062,11 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game1"),
-                found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new(),
-                    ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                found_files: hash_map! {
+                    format!("{}/tests/root1/game1/subdir/file2.txt", repo()).into(): ScannedFile::new(2, "9d891e731f75deae56884d79e9816736b7488080").change_new(),
+                    format!("{}/tests/root2/game1/file1.txt", repo()).into(): ScannedFile::new(1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1079,10 +1089,10 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game 2"),
-                found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/root2/game2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                found_files: hash_map! {
+                    format!("{}/tests/root2/game2/file1.txt", repo()).into(): ScannedFile::new(1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1109,10 +1119,10 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game5"),
-                found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/root3/game5/data/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                found_files: hash_map! {
+                    format!("{}/tests/root3/game5/data/file1.txt", repo()).into(): ScannedFile::new(1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1139,9 +1149,8 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game5"),
-                found_files: hash_set! {
-                    ScannedFile {
-                        path: StrictPath::new(format!("{}/tests/root3/game5/data/file1.txt", repo())),
+                found_files: hash_map! {
+                    format!("{}/tests/root3/game5/data/file1.txt", repo()).into(): ScannedFile {
                         size: 1,
                         hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".to_string(),
                         original_path: None,
@@ -1151,7 +1160,7 @@ mod tests {
                         redirected: Some(StrictPath::new(format!("{}/tests/root3/game5/data-symlink/file1.txt", repo()))),
                     },
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1182,10 +1191,10 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game 2"),
-                found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/root3/game_2/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                found_files: hash_map! {
+                    format!("{}/tests/root3/game_2/file1.txt", repo()).into(): ScannedFile::new(1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1213,13 +1222,13 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
-                found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH).change_new(),
-                    ScannedFile::new(format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo()), 0, EMPTY_HASH).change_new(),
-                    ScannedFile::new(format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo()), 0, EMPTY_HASH).change_new(),
-                    ScannedFile::new(format!("{}/tests/home/Documents/winDocuments.txt", repo()), 0, EMPTY_HASH).change_new(),
+                found_files: hash_map! {
+                    format!("{}/tests/home/data.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
+                    format!("{}/tests/home/AppData/Roaming/winAppData.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
+                    format!("{}/tests/home/AppData/Local/winLocalAppData.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
+                    format!("{}/tests/home/Documents/winDocuments.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1247,12 +1256,12 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
-                found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/home/data.txt", repo()), 0, EMPTY_HASH).change_new(),
-                    ScannedFile::new(format!("{}/tests/home/.config/xdgConfig.txt", repo()), 0, EMPTY_HASH).change_new(),
-                    ScannedFile::new(format!("{}/tests/home/.local/share/xdgData.txt", repo()), 0, EMPTY_HASH).change_new(),
+                found_files: hash_map! {
+                    format!("{}/tests/home/data.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
+                    format!("{}/tests/home/.config/xdgConfig.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
+                    format!("{}/tests/home/.local/share/xdgData.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1278,10 +1287,10 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game4"),
-                found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()), 0, EMPTY_HASH).change_new(),
+                found_files: hash_map! {
+                    format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1307,10 +1316,10 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("fake-registry"),
-                found_files: hash_set! {
-                    ScannedFile::new(format!("{}/tests/wine-prefix/user.reg", repo()), 37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0",).change_new(),
+                found_files: hash_map! {
+                    format!("{}/tests/wine-prefix/user.reg", repo()).into(): ScannedFile::new(37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0",).change_new(),
                 },
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1338,8 +1347,8 @@ mod tests {
             ..Default::default()
         };
         let ignored = ToggledPaths::default();
-        let found = hash_set! {
-            ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+        let found = hash_map! {
+            format!("{}/tests/root2/game1/file1.txt", repo()).into(): ScannedFile::new(1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
         };
 
         filter.build_globs();
@@ -1347,7 +1356,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game1"),
                 found_files: found,
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1376,9 +1385,9 @@ mod tests {
                 StrictPath::new(format!("{}\\tests/root1/game1/subdir", repo())): false
             }
         });
-        let found = hash_set! {
-            ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
-            ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+        let found = hash_map! {
+            format!("{}/tests/root1/game1/subdir/file2.txt", repo()).into(): ScannedFile::new(2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
+            format!("{}/tests/root2/game1/file1.txt", repo()).into(): ScannedFile::new(1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
         };
 
         filter.build_globs();
@@ -1386,7 +1395,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game1"),
                 found_files: found,
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1415,9 +1424,9 @@ mod tests {
                 StrictPath::new(format!("{}\\tests/root1/game1/subdir/file2.txt", repo())): false
             }
         });
-        let found = hash_set! {
-            ScannedFile::new(format!("{}/tests/root1/game1/subdir/file2.txt", repo()), 2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
-            ScannedFile::new(format!("{}/tests/root2/game1/file1.txt", repo()), 1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+        let found = hash_map! {
+            format!("{}/tests/root1/game1/subdir/file2.txt", repo()).into(): ScannedFile::new(2, "9d891e731f75deae56884d79e9816736b7488080").change_new().ignored(),
+            format!("{}/tests/root2/game1/file1.txt", repo()).into(): ScannedFile::new(1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
         };
 
         filter.build_globs();
@@ -1425,7 +1434,7 @@ mod tests {
             ScanInfo {
                 game_name: s("game1"),
                 found_files: found,
-                found_registry_keys: hash_set! {},
+                found_registry_keys: hash_map! {},
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1452,9 +1461,9 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game3"),
-                found_files: hash_set! {},
-                found_registry_keys: hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
+                found_files: hash_map! {},
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Software/Ludusavi/game3".into(): ScannedRegistry::new().change_as(ScanChange::New)
                         .with_value_new("binary")
                         .with_value_new("dword")
                         .with_value_new("expandSz")
@@ -1488,19 +1497,19 @@ mod tests {
         assert_eq!(
             ScanInfo {
                 game_name: s("game3-outer"),
-                found_files: hash_set! {},
-                found_registry_keys: hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
+                found_files: hash_map! {},
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Software/Ludusavi".into(): ScannedRegistry::new().change_as(ScanChange::New),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/game3".into(): ScannedRegistry::new().change_as(ScanChange::New)
                         .with_value_new("binary")
                         .with_value_new("dword")
                         .with_value_new("expandSz")
                         .with_value_new("multiSz")
                         .with_value_new("qword")
                         .with_value_new("sz"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/invalid").change_as(ScanChange::New)
+                    "HKEY_CURRENT_USER/Software/Ludusavi/invalid".into(): ScannedRegistry::new().change_as(ScanChange::New)
                         .with_value_new("dword"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").change_as(ScanChange::New),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().change_as(ScanChange::New),
                 },
                 ..Default::default()
             },
@@ -1535,9 +1544,9 @@ mod tests {
                     ..Default::default()
                 },
                 ToggledRegistry::default(),
-                hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
+                hash_map! {
+                    "HKEY_CURRENT_USER/Software/Ludusavi".into(): ScannedRegistry::new().change_as(ScanChange::New),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/game3".into(): ScannedRegistry::new().change_as(ScanChange::New)
                         .with_value_new("binary")
                         .with_value_new("dword")
                         .with_value_new("expandSz")
@@ -1553,18 +1562,18 @@ mod tests {
                         RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi")): ToggledRegistryEntry::Key(false)
                     }
                 }),
-                hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").ignored().change_as(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").ignored().change_as(ScanChange::New)
+                hash_map! {
+                    "HKEY_CURRENT_USER/Software/Ludusavi".into(): ScannedRegistry::new().ignored().change_as(ScanChange::New),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/game3".into():  ScannedRegistry::new().ignored().change_as(ScanChange::New)
                         .with_value("binary", ScanChange::New, true)
                         .with_value("dword", ScanChange::New, true)
                         .with_value("expandSz", ScanChange::New, true)
                         .with_value("multiSz", ScanChange::New, true)
                         .with_value("qword", ScanChange::New, true)
                         .with_value("sz", ScanChange::New, true),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/invalid").ignored().change_as(ScanChange::New)
+                    "HKEY_CURRENT_USER/Software/Ludusavi/invalid".into(): ScannedRegistry::new().ignored().change_as(ScanChange::New)
                         .with_value("dword", ScanChange::New, true),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change_as(ScanChange::New),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().ignored().change_as(ScanChange::New),
                 },
             ),
             (
@@ -1580,18 +1589,18 @@ mod tests {
                         RegistryItem::new(s("HKEY_CURRENT_USER\\Software/Ludusavi/other")): ToggledRegistryEntry::Key(false),
                     }
                 }),
-                hash_set! {
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi").change_as(ScanChange::New),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/game3").change_as(ScanChange::New)
+                hash_map! {
+                    "HKEY_CURRENT_USER/Software/Ludusavi".into(): ScannedRegistry::new().change_as(ScanChange::New),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/game3".into(): ScannedRegistry::new().change_as(ScanChange::New)
                         .with_value_new("binary")
                         .with_value_new("dword")
                         .with_value_new("expandSz")
                         .with_value_new("multiSz")
                         .with_value("qword", ScanChange::New, true)
                         .with_value_new("sz"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/invalid").change_as(ScanChange::New)
+                    "HKEY_CURRENT_USER/Software/Ludusavi/invalid".into(): ScannedRegistry::new().change_as(ScanChange::New)
                         .with_value_new("dword"),
-                    ScannedRegistry::new("HKEY_CURRENT_USER/Software/Ludusavi/other").ignored().change_as(ScanChange::New),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().ignored().change_as(ScanChange::New),
                 },
             ),
         ];
@@ -1600,7 +1609,7 @@ mod tests {
             assert_eq!(
                 ScanInfo {
                     game_name: s("game3-outer"),
-                    found_files: hash_set! {},
+                    found_files: hash_map! {},
                     found_registry_keys: found,
                     ..Default::default()
                 },

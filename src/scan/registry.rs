@@ -393,6 +393,18 @@ impl RegistryItem {
     }
 }
 
+impl From<String> for RegistryItem {
+    fn from(value: String) -> Self {
+        Self::new(value)
+    }
+}
+
+impl From<&str> for RegistryItem {
+    fn from(value: &str) -> Self {
+        Self::new(value.to_string())
+    }
+}
+
 // Based on:
 // https://github.com/serde-rs/serde/issues/751#issuecomment-277580700
 #[derive(Clone, Debug, serde::Serialize, serde::Deserialize)]
