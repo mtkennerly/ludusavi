@@ -1,5 +1,7 @@
 ## Unreleased
 
+* Added:
+  * Support for installing via [cargo-binstall](https://github.com/cargo-bins/cargo-binstall).
 * Changed:
   * Windows registry backups are now saved as `*.reg` files instead of `*.yaml`.
     Existing backups will not be affected.
