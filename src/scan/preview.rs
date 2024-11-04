@@ -232,15 +232,22 @@ impl ScanInfo {
 
     /// This is meant to be used for the GUI after a backup/restore,
     /// so we don't show the previous change state anymore.
-    pub fn clear_processed_changes(&mut self, backup_info: &BackupInfo) {
+    pub fn clear_processed_changes(&mut self, backup_info: &BackupInfo, restoring: bool) {
+        let resolve = |old: ScanChange, ignored: bool| match (restoring, ignored) {
+            (true, true) => old,
+            (true, false) => ScanChange::Same,
+            (false, true) => ScanChange::New,
+            (false, false) => ScanChange::Same,
+        };
+
         self.found_files = self
             .found_files
             .clone()
             .into_iter()
             .filter(|(_, v)| v.change != ScanChange::Removed)
             .map(|(scan_key, mut v)| {
-                if !v.ignored && !backup_info.failed_files.contains_key(&scan_key) {
-                    v.change = ScanChange::Same;
+                if !backup_info.failed_files.contains_key(&scan_key) {
+                    v.change = resolve(v.change, v.ignored);
                 }
                 (scan_key, v)
             })
@@ -252,13 +259,11 @@ impl ScanInfo {
             .into_iter()
             .filter(|(_, v)| v.change != ScanChange::Removed)
             .map(|(scan_key, mut v)| {
-                if !v.ignored && !backup_info.failed_registry.contains_key(&scan_key) {
-                    v.change = ScanChange::Same;
+                if !backup_info.failed_registry.contains_key(&scan_key) {
+                    v.change = resolve(v.change, v.ignored);
 
                     for item in v.values.values_mut() {
-                        if !item.ignored {
-                            item.change = ScanChange::Same;
-                        }
+                        item.change = resolve(item.change, item.ignored);
                     }
                 }
                 (scan_key, v)

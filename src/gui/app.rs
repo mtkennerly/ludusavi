@@ -537,7 +537,7 @@ impl App {
                     );
                     if scan_info.can_report_game() {
                         if let Some(backup_info) = backup_info.as_ref() {
-                            scan_info.clear_processed_changes(backup_info);
+                            scan_info.clear_processed_changes(backup_info, false);
                         }
 
                         let duplicates = self.backup_screen.duplicate_detector.add_game(
@@ -893,7 +893,7 @@ impl App {
                     );
                     if scan_info.can_report_game() {
                         if let Some(backup_info) = backup_info.as_ref() {
-                            scan_info.clear_processed_changes(backup_info);
+                            scan_info.clear_processed_changes(backup_info, true);
                         }
 
                         let comment = scan_info.backup.as_ref().and_then(|x| x.comment()).map(|x| x.as_str());
