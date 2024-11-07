@@ -5,6 +5,9 @@
 * Changed:
   * Windows registry backups are now saved as `*.reg` files instead of `*.yaml`.
     Existing backups will not be affected.
+  * Dialogs (folder picker and `wrap --gui` prompts) now use GTK on Linux.
+    The previous system relied on Zenity/KDialog,
+    which could behave poorly depending on the version or in a Flatpak context.
 * Fixed:
   * The registry format change also resolved an issue where very large (> 100 MB)
     `registry.yaml` files could be slow to read and consume a lot of extra memory,

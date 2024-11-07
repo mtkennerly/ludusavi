@@ -2126,34 +2126,15 @@ impl App {
                 self.save_config();
                 Task::none()
             }
-            Message::BrowseDir(subject) => {
-                if cfg!(target_os = "macos") {
-                    // On Mac, this must be on the main thread, or it will panic.
-                    let choice = native_dialog::FileDialog::new().show_open_single_dir();
-                    Task::done(Message::browsed_dir(subject, choice))
-                } else {
-                    Task::future(async move {
-                        let choice = async move { native_dialog::FileDialog::new().show_open_single_dir() }.await;
+            Message::BrowseDir(subject) => Task::future(async move {
+                let choice = async move { rfd::AsyncFileDialog::new().pick_folder().await }.await;
 
-                        Message::browsed_dir(subject, choice)
-                    })
-                }
-            }
-            Message::BrowseFile(subject) => {
-                if cfg!(target_os = "macos") {
-                    // On Mac, this must be on the main thread, or it will panic.
-                    let choice = native_dialog::FileDialog::new().show_open_single_file();
-                    Task::done(Message::browsed_file(subject, choice))
-                } else {
-                    Task::future(async move {
-                        let choice = async move { native_dialog::FileDialog::new().show_open_single_file() }.await;
+                Message::browsed_dir(subject, choice.map(|x| x.path().to_path_buf()))
+            }),
+            Message::BrowseFile(subject) => Task::future(async move {
+                let choice = async move { rfd::AsyncFileDialog::new().pick_file().await }.await;
 
-                        Message::browsed_file(subject, choice)
-                    })
-                }
-            }
-            Message::BrowseDirFailure => self.show_modal(Modal::Error {
-                variant: Error::UnableToBrowseFileSystem,
+                Message::browsed_file(subject, choice.map(|x| x.path().to_path_buf()))
             }),
             Message::SelectedFile(subject, path) => {
                 match subject {

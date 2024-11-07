@@ -208,7 +208,6 @@ pub enum Message {
     },
     BrowseDir(BrowseSubject),
     BrowseFile(BrowseFileSubject),
-    BrowseDirFailure,
     SelectedFile(BrowseFileSubject, StrictPath),
     SelectAllGames,
     DeselectAllGames,
@@ -293,12 +292,9 @@ pub enum Message {
 }
 
 impl Message {
-    pub fn browsed_dir(
-        subject: BrowseSubject,
-        choice: Result<Option<std::path::PathBuf>, native_dialog::Error>,
-    ) -> Self {
+    pub fn browsed_dir(subject: BrowseSubject, choice: Option<std::path::PathBuf>) -> Self {
         match choice {
-            Ok(Some(path)) => match subject {
+            Some(path) => match subject {
                 BrowseSubject::BackupTarget => Message::EditedBackupTarget(crate::path::render_pathbuf(&path)),
                 BrowseSubject::RestoreSource => Message::EditedRestoreSource(crate::path::render_pathbuf(&path)),
                 BrowseSubject::Root(i) => Message::EditedRoot(EditAction::Change(
@@ -321,19 +317,14 @@ impl Message {
                     Message::EditedBackupFilterIgnoredPath(EditAction::Change(i, crate::path::render_pathbuf(&path)))
                 }
             },
-            Ok(None) => Message::Ignore,
-            Err(_) => Message::BrowseDirFailure,
+            None => Message::Ignore,
         }
     }
 
-    pub fn browsed_file(
-        subject: BrowseFileSubject,
-        choice: Result<Option<std::path::PathBuf>, native_dialog::Error>,
-    ) -> Self {
+    pub fn browsed_file(subject: BrowseFileSubject, choice: Option<std::path::PathBuf>) -> Self {
         match choice {
-            Ok(Some(path)) => Message::SelectedFile(subject, StrictPath::from(path)),
-            Ok(None) => Message::Ignore,
-            Err(_) => Message::BrowseDirFailure,
+            Some(path) => Message::SelectedFile(subject, StrictPath::from(path)),
+            None => Message::Ignore,
         }
     }
 }

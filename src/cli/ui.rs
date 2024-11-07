@@ -45,18 +45,13 @@ pub fn alert_with_error(gui: bool, force: bool, msg: &str, error: &Error) -> Res
 pub fn alert(gui: bool, force: bool, msg: &str) -> Result<(), Error> {
     log::debug!("Showing alert to user (GUI={}, force={}): {}", gui, force, msg);
     if gui {
-        match native_dialog::MessageDialog::new()
-            .set_title(&TRANSLATOR.app_name())
-            .set_text(msg)
-            .set_type(native_dialog::MessageType::Error)
-            .show_alert()
-        {
-            Ok(_) => Ok(()),
-            Err(err) => {
-                log::error!("Unable to show alert: {:?}", err);
-                Err(Error::CliUnableToRequestConfirmation)
-            }
-        }
+        rfd::MessageDialog::new()
+            .set_title(TRANSLATOR.app_name())
+            .set_description(msg)
+            .set_level(rfd::MessageLevel::Error)
+            .set_buttons(rfd::MessageButtons::Ok)
+            .show();
+        Ok(())
     } else if !force {
         // TODO: Dialoguer doesn't have an alert type.
         // https://github.com/console-rs/dialoguer/issues/287
@@ -84,21 +79,21 @@ pub fn confirm(gui: bool, force: Option<bool>, msg: &str) -> Result<bool, Error>
     }
 
     if gui {
-        match native_dialog::MessageDialog::new()
-            .set_title(&TRANSLATOR.app_name())
-            .set_text(msg)
-            .set_type(native_dialog::MessageType::Info)
-            .show_confirm()
+        let choice = match rfd::MessageDialog::new()
+            .set_title(TRANSLATOR.app_name())
+            .set_description(msg)
+            .set_level(rfd::MessageLevel::Info)
+            .set_buttons(rfd::MessageButtons::YesNo)
+            .show()
         {
-            Ok(value) => {
-                log::debug!("User responded: {}", value);
-                Ok(value)
-            }
-            Err(err) => {
-                log::error!("Unable to request confirmation: {:?}", err);
-                Err(Error::CliUnableToRequestConfirmation)
-            }
-        }
+            rfd::MessageDialogResult::Yes => true,
+            rfd::MessageDialogResult::No => false,
+            rfd::MessageDialogResult::Ok => true,
+            rfd::MessageDialogResult::Cancel => false,
+            rfd::MessageDialogResult::Custom(_) => false,
+        };
+        log::debug!("User responded: {}", choice);
+        Ok(choice)
     } else {
         match dialoguer::Confirm::new().with_prompt(msg).interact() {
             Ok(value) => {

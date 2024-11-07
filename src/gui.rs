@@ -59,12 +59,10 @@ pub fn run(flags: Flags) {
         log::error!("Failed to initialize GUI: {e:?}");
         eprintln!("Failed to initialize GUI: {e:?}");
 
-        if let Err(e) = native_dialog::MessageDialog::new()
-            .set_type(native_dialog::MessageType::Error)
-            .set_text(e.to_string().as_str())
-            .show_alert()
-        {
-            log::error!("Failed to display error dialog: {e:?}");
-        }
+        rfd::MessageDialog::new()
+            .set_level(rfd::MessageLevel::Error)
+            .set_description(e.to_string())
+            .set_buttons(rfd::MessageButtons::Ok)
+            .show();
     }
 }
