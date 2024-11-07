@@ -6,6 +6,10 @@ If you want to use this feature, you must manually configure your game launcher 
 In general, you can set your launcher to run `ludusavi wrap --name "GAME_NAME" -- GAME_INVOCATION`.
 Some specific launchers have built-in support (see below) to make this easier.
 
+On Linux, this feature works best with a standalone copy of Ludusavi,
+rather than the Flatpak version.
+In some cases, the Flatpak environment's constraints may keep Ludusavi from launching the game.
+
 ## Steam
 * Right click on a game in your Steam library and click `properties`.
 * In the popup window, set the launch options like so:
