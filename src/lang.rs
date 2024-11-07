@@ -381,7 +381,6 @@ impl Translator {
             Error::CannotPrepareBackupTarget { path } => self.cannot_prepare_backup_target(path),
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
             Error::RegistryIssue => self.registry_issue(),
-            Error::UnableToBrowseFileSystem => self.unable_to_browse_file_system(),
             Error::UnableToOpenDir(path) => self.unable_to_open_dir(path),
             Error::UnableToOpenUrl(url) => self.unable_to_open_url(url),
             Error::RcloneUnavailable => self.rclone_unavailable(),
@@ -848,6 +847,7 @@ impl Translator {
         translate("registry-issue")
     }
 
+    #[allow(unused)]
     pub fn unable_to_browse_file_system(&self) -> String {
         translate("unable-to-browse-file-system")
     }

@@ -103,7 +103,6 @@ pub enum Error {
     },
     #[allow(dead_code)]
     RegistryIssue,
-    UnableToBrowseFileSystem,
     UnableToOpenDir(StrictPath),
     UnableToOpenUrl(String),
     RcloneUnavailable,
