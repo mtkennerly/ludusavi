@@ -8,6 +8,8 @@
   * Dialogs (folder picker and `wrap --gui` prompts) now use GTK on Linux.
     The previous system relied on Zenity/KDialog,
     which could behave poorly depending on the version or in a Flatpak context.
+  * The standalone Mac release is now compiled on Mac OS 13 instead of Mac OS 12
+    because of [a change by GitHub](https://github.com/actions/runner-images/issues/10721).
 * Fixed:
   * The registry format change also resolved an issue where very large (> 100 MB)
     `registry.yaml` files could be slow to read and consume a lot of extra memory,
