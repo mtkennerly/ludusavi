@@ -171,15 +171,9 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 prepare_backup_target(&backup_dir)?;
             }
 
-            let mut retention = config.backup.retention.clone();
-            if let Some(full_limit) = full_limit {
-                retention.full = full_limit;
-            }
-            if let Some(differential_limit) = differential_limit {
-                retention.differential = differential_limit;
-            }
+            let retention = config.backup.retention.with_limits(full_limit, differential_limit);
 
-            let layout = BackupLayout::new(backup_dir.clone(), retention);
+            let layout = BackupLayout::new(backup_dir.clone());
             let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
             let games_specified = !games.is_empty();
@@ -291,7 +285,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
                         layout
                             .game_layout(name)
-                            .back_up(&scan_info, &chrono::Utc::now(), &backup_format)
+                            .back_up(&scan_info, &chrono::Utc::now(), &backup_format, retention)
                     };
                     log::trace!("step {i} completed");
                     if !scan_info.can_report_game() {
@@ -388,7 +382,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
             }
 
-            let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
+            let layout = BackupLayout::new(restore_dir.clone());
 
             if backup.is_some() && games.len() != 1 {
                 return Err(Error::CliBackupIdWithMultipleGames);
@@ -553,7 +547,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 Some(p) => p,
             };
 
-            let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
+            let layout = BackupLayout::new(restore_dir.clone());
             let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
             let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
@@ -607,7 +601,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 None => config.restore.path.clone(),
                 Some(p) => p,
             };
-            let layout = BackupLayout::new(restore_dir.clone(), config.backup.retention.clone());
+            let layout = BackupLayout::new(restore_dir.clone());
 
             let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
             let found = title_finder.find(TitleQuery {
@@ -761,7 +755,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 let finality = if preview { Finality::Preview } else { Finality::Final };
                 let direction = SyncDirection::Upload;
 
-                let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
+                let layout = BackupLayout::new(config.restore.path.clone());
                 let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
                 let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
@@ -802,7 +796,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 let finality = if preview { Finality::Preview } else { Finality::Final };
                 let direction = SyncDirection::Download;
 
-                let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
+                let layout = BackupLayout::new(config.restore.path.clone());
                 let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
                 let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
@@ -835,7 +829,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             commands,
         } => {
             let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
-            let layout = BackupLayout::new(config.restore.path.clone(), config.backup.retention.clone());
+            let layout = BackupLayout::new(config.restore.path.clone());
             let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
             // Determine raw game identifiers
@@ -1103,7 +1097,7 @@ fn sync_cloud(
     let remote = crate::cloud::validate_cloud_config(config, cloud)?;
 
     let games = if !games.is_empty() {
-        let layout = BackupLayout::new(local.clone(), config.backup.retention.clone());
+        let layout = BackupLayout::new(local.clone());
         let games: Vec<_> = games.iter().filter_map(|x| layout.game_folder(x).leaf()).collect();
         games
     } else {

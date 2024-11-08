@@ -178,7 +178,7 @@ pub fn process(input: Option<String>, config: &Config, manifest: &Manifest) -> R
     let mut responses = vec![];
 
     let backup_path = input.config.backup_path.unwrap_or_else(|| config.restore.path.clone());
-    let layout = BackupLayout::new(backup_path, config.backup.retention.clone());
+    let layout = BackupLayout::new(backup_path);
 
     let title_finder = TitleFinder::new(config, manifest, layout.restorable_game_set());
 

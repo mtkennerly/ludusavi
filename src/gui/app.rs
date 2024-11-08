@@ -239,7 +239,7 @@ impl App {
 
         let games = match games {
             Some(games) => {
-                let layout = BackupLayout::new(local.clone(), self.config.backup.retention.clone());
+                let layout = BackupLayout::new(local.clone());
                 let games: Vec<_> = games.iter().filter_map(|x| layout.game_folder(x).leaf()).collect();
                 games
             }
@@ -369,7 +369,6 @@ impl App {
                 let mut manifest = self.manifest.primary.clone();
                 let config = self.config.clone();
                 let previewed_games = self.backup_screen.previewed_games.clone();
-                let should_force_new_full_backups = self.operation.should_force_new_full_backups();
 
                 Task::perform(
                     async move {
@@ -387,11 +386,8 @@ impl App {
                             manifest.processable_titles().cloned().collect()
                         };
 
-                        let mut retention = config.backup.retention.clone();
-                        retention.force_new_full = should_force_new_full_backups;
-
                         let roots = config.expanded_roots();
-                        let layout = BackupLayout::new(config.backup.path.clone(), retention);
+                        let layout = BackupLayout::new(config.backup.path.clone());
                         let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
                         let steam = SteamShortcuts::scan();
                         let launchers = Launchers::scan(&roots, &manifest, &subjects, &title_finder, None);
@@ -454,6 +450,10 @@ impl App {
                 let filter = std::sync::Arc::new(self.config.backup.filter.clone());
                 let steam_shortcuts = std::sync::Arc::new(steam);
                 let games_specified = self.operation.games_specified();
+                let retention = config
+                    .backup
+                    .retention
+                    .with_force_new_full(self.operation.should_force_new_full_backups());
 
                 for key in subjects {
                     let game = manifest.0[&key].clone();
@@ -506,9 +506,12 @@ impl App {
                             }
 
                             let backup_info = if !preview {
-                                layout
-                                    .game_layout(&key)
-                                    .back_up(&scan_info, &chrono::Utc::now(), &config.backup.format)
+                                layout.game_layout(&key).back_up(
+                                    &scan_info,
+                                    &chrono::Utc::now(),
+                                    &config.backup.format,
+                                    retention,
+                                )
                             } else {
                                 None
                             };
@@ -770,13 +773,11 @@ impl App {
             RestorePhase::Load => {
                 let restore_path = self.config.restore.path.clone();
 
-                let config = std::sync::Arc::new(self.config.clone());
-
                 self.progress.start();
 
                 Task::perform(
                     async move {
-                        let layout = BackupLayout::new(restore_path, config.backup.retention.clone());
+                        let layout = BackupLayout::new(restore_path);
                         let restorables = layout.restorable_games();
                         (layout, restorables)
                     },
@@ -1016,13 +1017,11 @@ impl App {
             ValidatePhase::Load => {
                 let restore_path = self.config.restore.path.clone();
 
-                let config = std::sync::Arc::new(self.config.clone());
-
                 self.progress.start();
 
                 Task::perform(
                     async move {
-                        let layout = BackupLayout::new(restore_path, config.backup.retention.clone());
+                        let layout = BackupLayout::new(restore_path);
                         let subjects = layout.restorable_games();
                         (layout, subjects)
                     },

@@ -766,7 +766,7 @@ pub struct Sort {
     pub reversed: bool,
 }
 
-#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Copy, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 #[serde(default, rename_all = "camelCase")]
 pub struct Retention {
     /// Full backups to keep. Range: 1-255.
@@ -775,6 +775,32 @@ pub struct Retention {
     pub differential: u8,
     #[serde(skip)]
     pub force_new_full: bool,
+}
+
+impl Retention {
+    #[cfg(test)]
+    pub fn new(full: u8, differential: u8) -> Self {
+        Self {
+            full,
+            differential,
+            ..Default::default()
+        }
+    }
+
+    pub fn with_limits(self, full: Option<u8>, differential: Option<u8>) -> Self {
+        Self {
+            full: full.unwrap_or(self.full),
+            differential: differential.unwrap_or(self.differential),
+            ..self
+        }
+    }
+
+    pub fn with_force_new_full(self, force: bool) -> Self {
+        Self {
+            force_new_full: force,
+            ..self
+        }
+    }
 }
 
 impl Default for Retention {
