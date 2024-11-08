@@ -112,6 +112,9 @@ and that these projects are not officially affiliated with Ludusavi itself:
 * Secondary manifests:
   * https://github.com/BloodShed-Oni/ludusavi-extra-manifests
   * https://github.com/hblamo/ludusavi-emudeck-manifest
+  * https://github.com/hvmzx/ludusavi-manifests
+    * This has an example of using a scheduled GitHub workflow
+      to generate a manifest that adds more paths to the primary manifest's entries.
 * Plugins for Decky Loader on Steam Deck:
   * https://github.com/GedasFX/decky-ludusavi
 * Plugins for VS Code:
