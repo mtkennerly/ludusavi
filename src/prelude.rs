@@ -101,7 +101,7 @@ pub enum Error {
     RestorationSourceInvalid {
         path: StrictPath,
     },
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     RegistryIssue,
     UnableToOpenDir(StrictPath),
     UnableToOpenUrl(String),
@@ -169,7 +169,7 @@ pub fn filter_map_walkdir(e: Result<walkdir::DirEntry, walkdir::Error>) -> Optio
     e.ok()
 }
 
-#[allow(dead_code)]
+#[cfg_attr(not(target_os = "windows"), allow(unused))]
 pub fn sha1(content: String) -> String {
     use sha1::Digest;
     let mut hasher = sha1::Sha1::new();

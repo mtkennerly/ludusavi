@@ -146,21 +146,21 @@ impl ScannedRegistry {
     }
 
     #[cfg(test)]
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     pub fn ignored(mut self) -> Self {
         self.ignored = true;
         self
     }
 
     #[cfg(test)]
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     pub fn change_as(mut self, change: ScanChange) -> Self {
         self.change = change;
         self
     }
 
     #[cfg(test)]
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     pub fn with_value(mut self, value_name: &str, change: ScanChange, ignored: bool) -> Self {
         self.values
             .insert(value_name.to_string(), ScannedRegistryValue { change, ignored });
@@ -168,7 +168,7 @@ impl ScannedRegistry {
     }
 
     #[cfg(test)]
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     pub fn with_value_new(mut self, value_name: &str) -> Self {
         self.values.insert(
             value_name.to_string(),
@@ -181,7 +181,7 @@ impl ScannedRegistry {
     }
 
     #[cfg(test)]
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     pub fn with_value_same(mut self, value_name: &str) -> Self {
         self.values.insert(
             value_name.to_string(),

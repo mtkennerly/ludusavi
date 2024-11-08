@@ -1046,7 +1046,7 @@ impl schemars::JsonSchema for StrictPath {
     }
 }
 
-#[allow(dead_code)]
+#[cfg_attr(not(target_os = "windows"), allow(unused))]
 pub fn is_raw_path_relative(path: &str) -> bool {
     let path = path.replace('\\', "/");
     path.is_empty() || path == "." || path == ".." || path.starts_with("./") || path.starts_with("../")

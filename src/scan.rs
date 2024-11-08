@@ -452,7 +452,7 @@ pub fn scan_game_for_backup(
     filter: &BackupFilter,
     wine_prefix: &Option<StrictPath>,
     ignored_paths: &ToggledPaths,
-    #[allow(unused_variables)] ignored_registry: &ToggledRegistry,
+    #[cfg_attr(not(target_os = "windows"), allow(unused))] ignored_registry: &ToggledRegistry,
     previous: Option<LatestBackup>,
     redirects: &[RedirectConfig],
     reverse_redirects_on_restore: bool,
@@ -461,7 +461,7 @@ pub fn scan_game_for_backup(
     log::trace!("[{name}] beginning scan for backup");
 
     let mut found_files = HashMap::new();
-    #[allow(unused_mut)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     let mut found_registry_keys = HashMap::new();
     let has_backups = previous.is_some();
 

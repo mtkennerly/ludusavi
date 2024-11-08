@@ -20,7 +20,7 @@ use crate::{
     },
 };
 
-#[allow(unused)]
+#[cfg_attr(not(target_os = "windows"), allow(unused))]
 use crate::scan::ScannedRegistry;
 
 const SAFE: &str = "_";
@@ -63,7 +63,7 @@ pub fn escape_folder_name(name: &str) -> String {
 
 pub struct LatestBackup {
     pub scan: ScanInfo,
-    #[allow(unused)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     pub registry_content: Option<registry::Hives>,
 }
 
@@ -162,7 +162,7 @@ impl Backup {
         }
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     pub fn includes_registry(&self) -> bool {
         match self {
             Self::Full(backup) => backup.registry.hash.is_some(),
@@ -861,7 +861,7 @@ impl GameLayout {
         files
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     pub fn registry_content(&self, id: &BackupId) -> Option<registry::Hives> {
         match self.find_by_id(id) {
             None => None,
@@ -1000,7 +1000,7 @@ impl GameLayout {
         retention: Retention,
     ) -> FullBackup {
         let mut files = BTreeMap::new();
-        #[allow(unused_mut)]
+        #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut registry = IndividualMappingRegistry::default();
 
         for (scan_key, file) in scan.found_files.iter().filter(|(_, x)| !x.ignored) {
@@ -1046,7 +1046,7 @@ impl GameLayout {
         retention: Retention,
     ) -> DifferentialBackup {
         let mut files = BTreeMap::new();
-        #[allow(unused_mut)]
+        #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut registry = Some(IndividualMappingRegistry::default());
 
         for (scan_key, file) in &scan.found_files {
@@ -1558,14 +1558,14 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
-        #[allow(unused)] toggled_registry: &ToggledRegistry,
+        #[cfg_attr(not(target_os = "windows"), allow(unused))] toggled_registry: &ToggledRegistry,
     ) -> ScanInfo {
         log::trace!("[{name}] beginning scan for restore");
 
         let mut found_files = HashMap::new();
-        #[allow(unused_mut)]
+        #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut found_registry_keys = HashMap::new();
-        #[allow(unused_mut)]
+        #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut available_backups = vec![];
         let mut backup = None;
 
@@ -1646,11 +1646,15 @@ impl GameLayout {
         }
     }
 
-    pub fn restore(&self, scan: &ScanInfo, #[allow(unused)] toggled: &ToggledRegistry) -> BackupInfo {
+    pub fn restore(
+        &self,
+        scan: &ScanInfo,
+        #[cfg_attr(not(target_os = "windows"), allow(unused))] toggled: &ToggledRegistry,
+    ) -> BackupInfo {
         log::trace!("[{}] beginning restore", &scan.game_name);
 
         let mut failed_files = HashMap::new();
-        #[allow(unused_mut)]
+        #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut failed_registry = HashMap::new();
 
         let mut containers: HashMap<StrictPath, zip::ZipArchive<std::fs::File>> = HashMap::new();

@@ -596,7 +596,7 @@ impl BackupFilter {
             .unwrap_or(false)
     }
 
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     pub fn is_registry_ignored(&self, item: &RegistryItem) -> bool {
         if self.ignored_registry.is_empty() {
             return false;
@@ -1770,7 +1770,7 @@ impl ToggledPaths {
 }
 
 impl ToggledRegistry {
-    #[allow(dead_code)]
+    #[cfg_attr(not(target_os = "windows"), allow(unused))]
     #[cfg(test)]
     pub fn new(data: BTreeMap<String, BTreeMap<RegistryItem, ToggledRegistryEntry>>) -> Self {
         Self(data)

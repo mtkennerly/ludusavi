@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use serde::{Serialize, Serializer};
 
-#[allow(dead_code)]
+#[cfg_attr(not(target_os = "windows"), allow(unused))]
 pub fn ordered_map<S, V>(value: &HashMap<String, V>, serializer: S) -> Result<S::Ok, S::Error>
 where
     V: Serialize,
