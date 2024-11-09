@@ -4,6 +4,7 @@ use std::{
     sync::{atomic::AtomicBool, Arc, Mutex},
 };
 
+use itertools::Itertools;
 use once_cell::sync::Lazy;
 
 pub use crate::path::StrictPath;
@@ -237,7 +238,7 @@ pub fn run_command(
         if privacy.sensitive() {
             "**REDACTED**".to_string()
         } else {
-            args.iter().map(|x| x.to_string()).collect::<Vec<_>>().join(" ")
+            args.iter().map(|x| x.to_string()).join(" ")
         }
     };
     log::debug!("Running command: {} {:?}", executable, collect_args());

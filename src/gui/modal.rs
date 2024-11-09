@@ -193,10 +193,7 @@ impl Modal {
     pub fn text(&self, config: &Config) -> String {
         match self {
             Self::Error { variant } => TRANSLATOR.handle_error(variant),
-            Self::Errors { errors } => {
-                let messages: Vec<_> = errors.iter().map(|x| TRANSLATOR.handle_error(x)).collect();
-                messages.join("\n\n")
-            }
+            Self::Errors { errors } => errors.iter().map(|x| TRANSLATOR.handle_error(x)).join("\n\n"),
             Self::Exiting => TRANSLATOR.cancelling_button(),
             Self::ConfirmBackup { .. } => {
                 TRANSLATOR.confirm_backup(&config.backup.path, config.backup.path.exists(), true)

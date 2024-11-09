@@ -26,7 +26,7 @@ fn fuzzy_match(
     matcher: &fuzzy_matcher::skim::SkimMatcherV2,
     reference: &str,
     candidate: &str,
-    ideal: &Option<i64>,
+    ideal: Option<i64>,
 ) -> Option<i64> {
     if reference == candidate {
         return Some(i64::MAX);
@@ -43,7 +43,7 @@ fn fuzzy_match(
 
     let actual = matcher.fuzzy_match(reference, &candidate);
     if let (Some(ideal), Some(actual)) = (ideal, actual) {
-        if actual == *ideal {
+        if actual == ideal {
             return Some(i64::MAX);
         } else if actual > (ideal / 4 * 3) {
             return Some(actual);
@@ -78,16 +78,14 @@ pub fn scan(root: &Root, manifest: &Manifest, subjects: &[String]) -> HashMap<St
     let scores: Vec<_> = subjects
         .into_par_iter()
         .filter_map(|name| {
-            let manifest_install_dirs: Vec<_> = manifest.0[name].install_dir.keys().collect();
-            let default_install_dir = name.to_string();
-            let expected_install_dirs = &[manifest_install_dirs, vec![&default_install_dir]].concat();
+            let expected_install_dirs = manifest.0[name].install_dir.keys().chain(std::iter::once(name));
 
             let mut best: Option<(i64, &String)> = None;
             'dirs: for expected_dir in expected_install_dirs {
                 log::trace!("[{name}] looking for install dir: {expected_dir}");
                 let ideal = matcher.fuzzy_match(expected_dir, expected_dir);
                 for actual_dir in &actual_dirs {
-                    let score = fuzzy_match(&matcher, expected_dir, actual_dir, &ideal);
+                    let score = fuzzy_match(&matcher, expected_dir, actual_dir, ideal);
                     if let Some(score) = score {
                         if let Some((previous, _)) = best {
                             if score > previous {
@@ -204,7 +202,7 @@ mod tests {
                     &matcher,
                     reference,
                     candidate,
-                    &matcher.fuzzy_match(reference, reference)
+                    matcher.fuzzy_match(reference, reference)
                 )
             );
         }

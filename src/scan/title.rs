@@ -233,12 +233,13 @@ impl TitleFinder {
         }
 
         // Resolve aliases to primary name.
-        for name in output.clone() {
-            if let Some(aliased) = self.aliases.get(&name) {
-                output.remove(&name);
-                output.insert(aliased.to_string());
-            }
-        }
+        output = output
+            .into_iter()
+            .map(|name| match self.aliases.get(&name) {
+                Some(aliased) => aliased.to_string(),
+                None => name,
+            })
+            .collect();
 
         output
     }

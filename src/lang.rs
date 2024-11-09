@@ -2,6 +2,7 @@ use std::sync::Mutex;
 
 use fluent::{bundle::FluentBundle, FluentArgs, FluentResource};
 use intl_memoizer::concurrent::IntlLangMemoizer;
+use itertools::Itertools;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use unic_langid::LanguageIdentifier;
@@ -436,8 +437,8 @@ impl Translator {
 
     pub fn cli_unrecognized_games(&self, games: &[String]) -> String {
         let prefix = translate("cli-unrecognized-games");
-        let lines: Vec<_> = games.iter().map(|x| format!("  - {}", x)).collect();
-        format!("{}\n{}", prefix, lines.join("\n"))
+        let lines = games.iter().map(|x| format!("  - {}", x)).join("\n");
+        format!("{}\n{}", prefix, lines)
     }
 
     pub fn cli_unable_to_request_confirmation(&self) -> String {

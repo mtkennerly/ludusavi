@@ -253,7 +253,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         &app_dir(),
                         &launchers,
                         &filter,
-                        &wine_prefix,
+                        wine_prefix.as_ref(),
                         &toggled_paths,
                         &toggled_registry,
                         previous,

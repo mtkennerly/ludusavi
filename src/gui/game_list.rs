@@ -355,7 +355,7 @@ impl GameListEntry {
         match self.tree.as_mut() {
             Some(tree) => tree.reset_nodes(
                 self.scan_info.clone(),
-                &self.backup_info,
+                self.backup_info.as_ref(),
                 duplicate_detector,
                 config,
                 restoring,
@@ -363,7 +363,7 @@ impl GameListEntry {
             None => {
                 self.tree = Some(FileTree::new(
                     self.scan_info.clone(),
-                    &self.backup_info,
+                    self.backup_info.as_ref(),
                     duplicate_detector,
                     config,
                     restoring,
@@ -855,6 +855,6 @@ impl GameList {
         manifests
             .into_iter()
             .map(|x| game_filter::Manifest::new(x.clone()))
-            .collect::<Vec<_>>()
+            .collect()
     }
 }

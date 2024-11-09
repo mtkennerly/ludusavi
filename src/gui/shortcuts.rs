@@ -310,43 +310,45 @@ impl TextHistories {
     }
 
     pub fn input<'a>(&self, subject: UndoSubject) -> Element<'a> {
-        let current = match subject.clone() {
+        let current = match &subject {
             UndoSubject::BackupTarget => self.backup_target.current(),
             UndoSubject::RestoreSource => self.restore_source.current(),
             UndoSubject::BackupSearchGameName => self.backup_search_game_name.current(),
             UndoSubject::RestoreSearchGameName => self.restore_search_game_name.current(),
             UndoSubject::CustomGamesSearchGameName => self.custom_games_search_game_name.current(),
-            UndoSubject::RootPath(i) => self.roots.get(i).map(|x| x.path.current()).unwrap_or_default(),
+            UndoSubject::RootPath(i) => self.roots.get(*i).map(|x| x.path.current()).unwrap_or_default(),
             UndoSubject::RootLutrisDatabase(i) => self
                 .roots
-                .get(i)
+                .get(*i)
                 .map(|x| x.lutris_database.current())
                 .unwrap_or_default(),
-            UndoSubject::SecondaryManifest(i) => {
-                self.secondary_manifests.get(i).map(|x| x.current()).unwrap_or_default()
-            }
-            UndoSubject::RedirectSource(i) => self.redirects.get(i).map(|x| x.source.current()).unwrap_or_default(),
-            UndoSubject::RedirectTarget(i) => self.redirects.get(i).map(|x| x.target.current()).unwrap_or_default(),
-            UndoSubject::CustomGameName(i) => self.custom_games.get(i).map(|x| x.name.current()).unwrap_or_default(),
-            UndoSubject::CustomGameAlias(i) => self.custom_games.get(i).map(|x| x.alias.current()).unwrap_or_default(),
+            UndoSubject::SecondaryManifest(i) => self
+                .secondary_manifests
+                .get(*i)
+                .map(|x| x.current())
+                .unwrap_or_default(),
+            UndoSubject::RedirectSource(i) => self.redirects.get(*i).map(|x| x.source.current()).unwrap_or_default(),
+            UndoSubject::RedirectTarget(i) => self.redirects.get(*i).map(|x| x.target.current()).unwrap_or_default(),
+            UndoSubject::CustomGameName(i) => self.custom_games.get(*i).map(|x| x.name.current()).unwrap_or_default(),
+            UndoSubject::CustomGameAlias(i) => self.custom_games.get(*i).map(|x| x.alias.current()).unwrap_or_default(),
             UndoSubject::CustomGameFile(i, j) => self
                 .custom_games
-                .get(i)
-                .and_then(|x| x.files.get(j).map(|y| y.current()))
+                .get(*i)
+                .and_then(|x| x.files.get(*j).map(|y| y.current()))
                 .unwrap_or_default(),
             UndoSubject::CustomGameRegistry(i, j) => self
                 .custom_games
-                .get(i)
-                .and_then(|x| x.registry.get(j).map(|y| y.current()))
+                .get(*i)
+                .and_then(|x| x.registry.get(*j).map(|y| y.current()))
                 .unwrap_or_default(),
             UndoSubject::BackupFilterIgnoredPath(i) => self
                 .backup_filter_ignored_paths
-                .get(i)
+                .get(*i)
                 .map(|x| x.current())
                 .unwrap_or_default(),
             UndoSubject::BackupFilterIgnoredRegistry(i) => self
                 .backup_filter_ignored_registry
-                .get(i)
+                .get(*i)
                 .map(|x| x.current())
                 .unwrap_or_default(),
             UndoSubject::RcloneExecutable => self.rclone_executable.current(),
@@ -360,9 +362,7 @@ impl TextHistories {
                 ModalInputKind::Username => self.modal.username.current(),
                 ModalInputKind::Password => self.modal.password.current(),
             },
-            UndoSubject::BackupComment(game) => {
-                self.backup_comments.get(&game).map(|x| x.current()).unwrap_or_default()
-            }
+            UndoSubject::BackupComment(game) => self.backup_comments.get(game).map(|x| x.current()).unwrap_or_default(),
         };
 
         let event: Box<dyn Fn(String) -> Message> = match subject.clone() {

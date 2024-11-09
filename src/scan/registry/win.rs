@@ -118,7 +118,7 @@ pub fn scan_registry(
     path: &str,
     filter: &BackupFilter,
     toggled: &ToggledRegistry,
-    previous: &Option<Hives>,
+    previous: Option<&Hives>,
 ) -> Result<HashMap<RegistryItem, ScannedRegistry>, Error> {
     let path = RegistryItem::new(path.to_string());
 
@@ -135,7 +135,7 @@ fn scan_registry_key(
     key: &str,
     filter: &BackupFilter,
     toggled: &ToggledRegistry,
-    previous: &Option<Hives>,
+    previous: Option<&Hives>,
 ) -> Result<HashMap<RegistryItem, ScannedRegistry>, Error> {
     let mut found = HashMap::new();
     let path = RegistryItem::new(format!("{}\\{}", hive_name, key));

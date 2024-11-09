@@ -1,6 +1,7 @@
 use std::collections::{BTreeMap, HashMap};
 
 use iced::{padding, Alignment};
+use itertools::Itertools;
 
 use crate::{
     gui::{
@@ -304,7 +305,7 @@ impl FileTreeNode {
         for key in keys.iter() {
             inserted_keys.push(key.clone());
             full_keys.push(key.clone());
-            let raw_path = inserted_keys.iter().map(|x| x.raw()).collect::<Vec<_>>().join("/");
+            let raw_path = inserted_keys.iter().map(|x| x.raw()).join("/");
             node = node.nodes.entry(key.clone()).or_insert_with(|| {
                 FileTreeNode::new(
                     game,
@@ -329,7 +330,7 @@ impl FileTreeNode {
         node.scanned_file = scanned_file;
 
         if let Some(registry_values) = registry_values {
-            let raw_key_path = inserted_keys.iter().map(|x| x.raw()).collect::<Vec<_>>().join("/");
+            let raw_key_path = inserted_keys.iter().map(|x| x.raw()).join("/");
             for (value_name, value) in registry_values {
                 let mut full_keys = full_keys.clone();
                 full_keys.push(TreeNodeKey::RegistryKey(value_name.clone()));
@@ -440,7 +441,7 @@ pub struct FileTree {
 impl FileTree {
     pub fn new(
         scan_info: ScanInfo,
-        backup_info: &Option<BackupInfo>,
+        backup_info: Option<&BackupInfo>,
         duplicate_detector: &DuplicateDetector,
         config: &Config,
         restoring: bool,
@@ -457,7 +458,7 @@ impl FileTree {
     pub fn reset_nodes(
         &mut self,
         scan_info: ScanInfo,
-        backup_info: &Option<BackupInfo>,
+        backup_info: Option<&BackupInfo>,
         duplicate_detector: &DuplicateDetector,
         config: &Config,
         restoring: bool,
@@ -467,7 +468,7 @@ impl FileTree {
 
     fn initialize_nodes(
         scan_info: ScanInfo,
-        backup_info: &Option<BackupInfo>,
+        backup_info: Option<&BackupInfo>,
         duplicate_detector: &DuplicateDetector,
         config: &Config,
         restoring: bool,

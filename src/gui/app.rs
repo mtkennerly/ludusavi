@@ -493,7 +493,7 @@ impl App {
                                 &app_dir(),
                                 &launchers,
                                 &filter,
-                                &None,
+                                None,
                                 &config.backup.toggled_paths,
                                 &config.backup.toggled_registry,
                                 previous,
