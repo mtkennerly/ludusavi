@@ -726,7 +726,7 @@ impl App {
                 if games.is_none() {
                     if self.restore_screen.log.is_filtered() {
                         games = Some(self.restore_screen.log.visible_games(
-                            ScanKind::Backup,
+                            SCAN_KIND,
                             &self.config,
                             &self.manifest.extended,
                             &self.restore_screen.duplicate_detector,
