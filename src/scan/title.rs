@@ -3,7 +3,10 @@ use std::collections::{BTreeSet, HashMap};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
-use crate::resource::{config::Config, manifest::Manifest};
+use crate::{
+    resource::{config::Config, manifest::Manifest},
+    scan::ScanKind,
+};
 
 /// This covers any edition that is clearly separated by punctuation.
 static RE_EDITION_PUNCTUATED: Lazy<Regex> = Lazy::new(|| Regex::new(r#"[™®©:-] .+ edition$"#).unwrap());
@@ -60,7 +63,7 @@ impl TitleFinder {
             info.backup = TitleGameOperationInfo {
                 known: true,
                 enabled: config.is_game_enabled_for_backup(name),
-                complete: !config.any_saves_ignored(name, false),
+                complete: !config.any_saves_ignored(name, ScanKind::Backup),
             };
         }
         for name in restorables {
@@ -68,7 +71,7 @@ impl TitleFinder {
             info.restore = TitleGameOperationInfo {
                 known: true,
                 enabled: config.is_game_enabled_for_restore(&name),
-                complete: !config.any_saves_ignored(&name, true),
+                complete: !config.any_saves_ignored(&name, ScanKind::Restore),
             };
         }
 

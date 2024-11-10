@@ -26,7 +26,7 @@ use crate::{
     resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
     scan::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
-        OperationStepDecision, SteamShortcuts, TitleFinder, TitleQuery,
+        OperationStepDecision, ScanKind, SteamShortcuts, TitleFinder, TitleQuery,
     },
     wrap,
 };
@@ -235,7 +235,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
                     let previous = layout.latest_backup(
                         name,
-                        false,
+                        ScanKind::Backup,
                         &config.redirects,
                         config.restore.reverse_redirects,
                         &config.restore.toggled_paths,
@@ -322,7 +322,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             for (_, scan_info, _, _) in info.iter() {
                 duplicate_detector.add_game(
                     scan_info,
-                    config.is_game_enabled_for_operation(&scan_info.game_name, false),
+                    config.is_game_enabled_for_operation(&scan_info.game_name, ScanKind::Backup),
                 );
             }
 
@@ -492,7 +492,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
                 duplicate_detector.add_game(
                     scan_info,
-                    config.is_game_enabled_for_operation(&scan_info.game_name, true),
+                    config.is_game_enabled_for_operation(&scan_info.game_name, ScanKind::Restore),
                 );
             }
 

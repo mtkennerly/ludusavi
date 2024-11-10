@@ -1,6 +1,7 @@
 use crate::{
     lang::{ADD_SYMBOL, CHANGE_SYMBOL, REMOVAL_SYMBOL},
     prelude::StrictPath,
+    scan::ScanKind,
 };
 
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash, serde::Serialize, schemars::JsonSchema)]
@@ -24,15 +25,15 @@ impl ScanChange {
         }
     }
 
-    pub fn normalize(&self, ignored: bool, restoring: bool) -> Self {
+    pub fn normalize(&self, ignored: bool, scan_kind: ScanKind) -> Self {
         match self {
             ScanChange::New if ignored => Self::Same,
             ScanChange::New => *self,
-            ScanChange::Different if ignored && restoring => Self::Same,
-            ScanChange::Different if ignored && !restoring => Self::Removed,
+            ScanChange::Different if ignored && scan_kind.is_restore() => Self::Same,
+            ScanChange::Different if ignored && scan_kind.is_backup() => Self::Removed,
             ScanChange::Different => Self::Different,
             ScanChange::Removed => *self,
-            ScanChange::Same if ignored && !restoring => Self::Removed,
+            ScanChange::Same if ignored && scan_kind.is_backup() => Self::Removed,
             ScanChange::Same => *self,
             ScanChange::Unknown => *self,
         }

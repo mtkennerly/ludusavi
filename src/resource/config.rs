@@ -15,7 +15,7 @@ use crate::{
         manifest::{self, CloudMetadata, Manifest, Store},
         ResourceFile, SaveableResourceFile,
     },
-    scan::registry::RegistryItem,
+    scan::{registry::RegistryItem, ScanKind},
 };
 
 pub const MANIFEST_URL: &str =
@@ -1498,11 +1498,10 @@ impl Config {
         None
     }
 
-    pub fn is_game_enabled_for_operation(&self, name: &str, restoring: bool) -> bool {
-        if restoring {
-            self.is_game_enabled_for_restore(name)
-        } else {
-            self.is_game_enabled_for_backup(name)
+    pub fn is_game_enabled_for_operation(&self, name: &str, scan_kind: ScanKind) -> bool {
+        match scan_kind {
+            ScanKind::Backup => self.is_game_enabled_for_backup(name),
+            ScanKind::Restore => self.is_game_enabled_for_restore(name),
         }
     }
 
@@ -1530,35 +1529,38 @@ impl Config {
         self.restore.ignored_games.insert(name.to_owned());
     }
 
-    pub fn any_saves_ignored(&self, name: &str, restoring: bool) -> bool {
-        if restoring {
-            self.restore
-                .toggled_paths
-                .0
-                .get(name)
-                .map(|x| x.values().any(|x| !x))
-                .unwrap_or(false)
-                || self
-                    .restore
-                    .toggled_registry
+    pub fn any_saves_ignored(&self, name: &str, scan_kind: ScanKind) -> bool {
+        match scan_kind {
+            ScanKind::Backup => {
+                self.backup
+                    .toggled_paths
                     .0
                     .get(name)
-                    .map(|x| x.values().any(|x| !x.fully_enabled()))
+                    .map(|x| x.values().any(|x| !x))
                     .unwrap_or(false)
-        } else {
-            self.backup
-                .toggled_paths
-                .0
-                .get(name)
-                .map(|x| x.values().any(|x| !x))
-                .unwrap_or(false)
-                || self
-                    .backup
-                    .toggled_registry
+                    || self
+                        .backup
+                        .toggled_registry
+                        .0
+                        .get(name)
+                        .map(|x| x.values().any(|x| !x.fully_enabled()))
+                        .unwrap_or(false)
+            }
+            ScanKind::Restore => {
+                self.restore
+                    .toggled_paths
                     .0
                     .get(name)
-                    .map(|x| x.values().any(|x| !x.fully_enabled()))
+                    .map(|x| x.values().any(|x| !x))
                     .unwrap_or(false)
+                    || self
+                        .restore
+                        .toggled_registry
+                        .0
+                        .get(name)
+                        .map(|x| x.values().any(|x| !x.fully_enabled()))
+                        .unwrap_or(false)
+            }
         }
     }
 
@@ -1632,8 +1634,8 @@ impl Config {
         expanded
     }
 
-    pub fn should_show_game(&self, name: &str, restoring: bool, changed: bool, scanned: bool) -> bool {
-        (self.scan.show_deselected_games || self.is_game_enabled_for_operation(name, restoring))
+    pub fn should_show_game(&self, name: &str, scan_kind: ScanKind, changed: bool, scanned: bool) -> bool {
+        (self.scan.show_deselected_games || self.is_game_enabled_for_operation(name, scan_kind))
             && (self.scan.show_unchanged_games || changed || !scanned)
             && (self.scan.show_unscanned_games || scanned)
     }

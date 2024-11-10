@@ -30,12 +30,28 @@ use crate::{
 #[cfg(target_os = "windows")]
 use crate::scan::registry::RegistryItem;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ScanKind {
+    Backup,
+    Restore,
+}
+
+impl ScanKind {
+    pub fn is_backup(&self) -> bool {
+        *self == Self::Backup
+    }
+
+    pub fn is_restore(&self) -> bool {
+        *self == Self::Restore
+    }
+}
+
 /// Returns the effective target, if different from the original
 pub fn game_file_target(
     original: &StrictPath,
     redirects: &[RedirectConfig],
     reverse_redirects_on_restore: bool,
-    restoring: bool,
+    scan_kind: ScanKind,
 ) -> Option<StrictPath> {
     if redirects.is_empty() {
         return None;
@@ -43,7 +59,8 @@ pub fn game_file_target(
 
     let mut redirected = original.clone();
 
-    let redirects: &mut dyn Iterator<Item = &RedirectConfig> = if restoring && reverse_redirects_on_restore {
+    let redirects: &mut dyn Iterator<Item = &RedirectConfig> = if scan_kind.is_restore() && reverse_redirects_on_restore
+    {
         &mut redirects.iter().rev()
     } else {
         &mut redirects.iter()
@@ -53,17 +70,16 @@ pub fn game_file_target(
         if redirect.source.raw().trim().is_empty() || redirect.target.raw().trim().is_empty() {
             continue;
         }
-        let (source, target) = if !restoring {
-            match redirect.kind {
+        let (source, target) = match scan_kind {
+            ScanKind::Backup => match redirect.kind {
                 RedirectKind::Backup | RedirectKind::Bidirectional => (&redirect.source, &redirect.target),
                 RedirectKind::Restore => continue,
-            }
-        } else {
-            match redirect.kind {
+            },
+            ScanKind::Restore => match redirect.kind {
                 RedirectKind::Backup => continue,
                 RedirectKind::Restore => (&redirect.source, &redirect.target),
                 RedirectKind::Bidirectional => (&redirect.target, &redirect.source),
-            }
+            },
         };
         redirected = redirected.replace(source, target);
     }
@@ -626,7 +642,7 @@ pub fn scan_game_for_backup(
                 log::debug!("[{name}] found: {scan_key:?}");
                 let size = scan_key.size();
                 let hash = scan_key.sha1();
-                let redirected = game_file_target(&scan_key, redirects, reverse_redirects_on_restore, false);
+                let redirected = game_file_target(&scan_key, redirects, reverse_redirects_on_restore, ScanKind::Backup);
                 let change =
                     ScanChange::evaluate_backup(&hash, previous_files.get(redirected.as_ref().unwrap_or(&scan_key)));
                 found_files.insert(
@@ -668,7 +684,8 @@ pub fn scan_game_for_backup(
                         log::debug!("[{name}] found: {scan_key:?}");
                         let size = scan_key.size();
                         let hash = scan_key.sha1();
-                        let redirected = game_file_target(&scan_key, redirects, reverse_redirects_on_restore, false);
+                        let redirected =
+                            game_file_target(&scan_key, redirects, reverse_redirects_on_restore, ScanKind::Backup);
                         let change = ScanChange::evaluate_backup(
                             &hash,
                             previous_files.get(redirected.as_ref().unwrap_or(&scan_key)),
@@ -957,7 +974,7 @@ mod tests {
         // No redirects
         assert_eq!(
             None,
-            game_file_target(&StrictPath::new("/foo".into()), &[], false, false)
+            game_file_target(&StrictPath::new("/foo".into()), &[], false, ScanKind::Backup)
         );
 
         // Match - backup
@@ -983,7 +1000,7 @@ mod tests {
                     },
                 ],
                 false,
-                false,
+                ScanKind::Backup,
             ),
         );
 
@@ -1010,7 +1027,7 @@ mod tests {
                     },
                 ],
                 false,
-                true,
+                ScanKind::Restore,
             ),
         );
 
@@ -1037,7 +1054,7 @@ mod tests {
                     },
                 ],
                 true,
-                true,
+                ScanKind::Restore,
             ),
         );
 
@@ -1052,7 +1069,7 @@ mod tests {
                     target: StrictPath::new("/b".into()),
                 },],
                 false,
-                false,
+                ScanKind::Backup,
             ),
         );
     }

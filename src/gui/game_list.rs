@@ -26,7 +26,9 @@ use crate::{
         config::{Config, Sort},
         manifest::{self, Manifest, Os},
     },
-    scan::{game_filter, layout::GameLayout, BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo},
+    scan::{
+        game_filter, layout::GameLayout, BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo, ScanKind,
+    },
 };
 
 #[derive(Default)]
@@ -44,7 +46,7 @@ pub struct GameListEntry {
 impl GameListEntry {
     fn view(
         &self,
-        restoring: bool,
+        scan_kind: ScanKind,
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
@@ -59,7 +61,7 @@ impl GameListEntry {
             _ => true,
         };
 
-        let enabled = config.is_game_enabled_for_operation(&self.scan_info.game_name, restoring);
+        let enabled = config.is_game_enabled_for_operation(&self.scan_info.game_name, scan_kind);
         let all_items_ignored = self.scan_info.all_ignored();
         let customized = config.is_game_customized(&self.scan_info.game_name);
         let customized_pure = customized && !manifest.0.contains_key(&self.scan_info.game_name);
@@ -83,7 +85,7 @@ impl GameListEntry {
                             checkbox("", enabled, move |enabled| Message::ToggleGameListEntryEnabled {
                                 name: name.clone(),
                                 enabled,
-                                restoring,
+                                scan_kind,
                             })
                             .spacing(0)
                             .class(style::Checkbox)
@@ -95,19 +97,18 @@ impl GameListEntry {
                                         name: self.scan_info.game_name.clone(),
                                     })
                                 } else if !operating {
-                                    if restoring {
-                                        Some(Message::Restore(RestorePhase::Start {
-                                            preview: true,
-                                            games: Some(vec![self.scan_info.game_name.clone()]),
-                                        }))
-                                    } else {
-                                        Some(Message::Backup(BackupPhase::Start {
+                                    match scan_kind {
+                                        ScanKind::Backup => Some(Message::Backup(BackupPhase::Start {
                                             preview: true,
                                             repair: false,
                                             jump: false,
 
                                             games: Some(vec![self.scan_info.game_name.clone()]),
-                                        }))
+                                        })),
+                                        ScanKind::Restore => Some(Message::Restore(RestorePhase::Start {
+                                            preview: true,
+                                            games: Some(vec![self.scan_info.game_name.clone()]),
+                                        })),
                                     }
                                 } else {
                                     None
@@ -142,7 +143,7 @@ impl GameListEntry {
                             Badge::new(&TRANSLATOR.badge_duplicates())
                                 .faded(duplication.resolved())
                                 .on_press(Message::FilterDuplicates {
-                                    restoring,
+                                    scan_kind,
                                     game: (!filtering_duplicates).then_some(name.clone()),
                                 })
                                 .view()
@@ -177,7 +178,7 @@ impl GameListEntry {
                         })
                         .push_maybe({
                             manifest.0.get(&name).and_then(|data| {
-                                (!restoring && !data.notes.is_empty())
+                                (scan_kind.is_backup() && !data.notes.is_empty())
                                     .then(|| button::show_game_notes(name.clone(), data.notes.clone()))
                             })
                         })
@@ -254,16 +255,14 @@ impl GameListEntry {
                                 .push({
                                     let confirm = !modifiers.alt();
                                     let action = if modifiers.shift() {
-                                        Some(if restoring {
-                                            GameAction::PreviewRestore
-                                        } else {
-                                            GameAction::PreviewBackup
+                                        Some(match scan_kind {
+                                            ScanKind::Backup => GameAction::PreviewBackup,
+                                            ScanKind::Restore => GameAction::PreviewRestore,
                                         })
                                     } else if modifiers.command() {
-                                        Some(if restoring {
-                                            GameAction::Restore { confirm }
-                                        } else {
-                                            GameAction::Backup { confirm }
+                                        Some(match scan_kind {
+                                            ScanKind::Backup => GameAction::Backup { confirm },
+                                            ScanKind::Restore => GameAction::Restore { confirm },
                                         })
                                     } else {
                                         None
@@ -287,7 +286,7 @@ impl GameListEntry {
                                         )
                                     } else {
                                         let options = GameAction::options(
-                                            restoring,
+                                            scan_kind,
                                             operating,
                                             customized,
                                             customized_pure,
@@ -340,7 +339,7 @@ impl GameListEntry {
                     expanded
                         .then(|| {
                             self.tree.as_ref().map(|tree| {
-                                tree.view(&self.scan_info.game_name, config, restoring)
+                                tree.view(&self.scan_info.game_name, config, scan_kind)
                                     .width(Length::Fill)
                             })
                         })
@@ -351,14 +350,14 @@ impl GameListEntry {
         .class(style::Container::GameListEntry)
     }
 
-    pub fn refresh_tree(&mut self, duplicate_detector: &DuplicateDetector, config: &Config, restoring: bool) {
+    pub fn refresh_tree(&mut self, duplicate_detector: &DuplicateDetector, config: &Config, scan_kind: ScanKind) {
         match self.tree.as_mut() {
             Some(tree) => tree.reset_nodes(
                 self.scan_info.clone(),
                 self.backup_info.as_ref(),
                 duplicate_detector,
                 config,
-                restoring,
+                scan_kind,
             ),
             None => {
                 self.tree = Some(FileTree::new(
@@ -366,7 +365,7 @@ impl GameListEntry {
                     self.backup_info.as_ref(),
                     duplicate_detector,
                     config,
-                    restoring,
+                    scan_kind,
                 ))
             }
         }
@@ -390,7 +389,7 @@ pub struct GameList {
 impl GameList {
     pub fn view(
         &self,
-        restoring: bool,
+        scan_kind: ScanKind,
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
@@ -413,7 +412,10 @@ impl GameList {
                 .spacing(15)
                 .push_maybe({
                     self.search.view(
-                        if restoring { Screen::Restore } else { Screen::Backup },
+                        match scan_kind {
+                            ScanKind::Backup => Screen::Backup,
+                            ScanKind::Restore => Screen::Restore,
+                        },
                         histories,
                         config.scan.show_deselected_games,
                         self.manifests(manifest),
@@ -426,7 +428,7 @@ impl GameList {
                         .filter(|entry| {
                             self.filter_game(
                                 entry,
-                                restoring,
+                                scan_kind,
                                 config,
                                 manifest,
                                 duplicate_detector,
@@ -440,7 +442,7 @@ impl GameList {
                                 .spacing(5),
                             |parent, x| {
                                 parent.push(x.view(
-                                    restoring,
+                                    scan_kind,
                                     config,
                                     manifest,
                                     duplicate_detector,
@@ -452,21 +454,21 @@ impl GameList {
                                 ))
                             },
                         );
-                    ScrollSubject::game_list(restoring).into_widget(content)
+                    ScrollSubject::game_list(scan_kind).into_widget(content)
                 }),
         )
     }
 
-    pub fn all_entries_selected(&self, config: &Config, restoring: bool) -> bool {
+    pub fn all_entries_selected(&self, config: &Config, scan_kind: ScanKind) -> bool {
         self.entries
             .iter()
-            .all(|x| config.is_game_enabled_for_operation(&x.scan_info.game_name, restoring))
+            .all(|x| config.is_game_enabled_for_operation(&x.scan_info.game_name, scan_kind))
     }
 
     fn filter_game(
         &self,
         entry: &GameListEntry,
-        restoring: bool,
+        scan_kind: ScanKind,
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
@@ -474,7 +476,7 @@ impl GameList {
     ) -> bool {
         let show = config.should_show_game(
             &entry.scan_info.game_name,
-            restoring,
+            scan_kind,
             entry.scan_info.overall_change().is_changed(),
             entry.scan_info.found_anything(),
         );
@@ -482,7 +484,7 @@ impl GameList {
         let qualifies = self.search.qualifies(
             &entry.scan_info,
             manifest,
-            config.is_game_enabled_for_operation(&entry.scan_info.game_name, restoring),
+            config.is_game_enabled_for_operation(&entry.scan_info.game_name, scan_kind),
             config.is_game_customized(&entry.scan_info.game_name),
             duplicate_detector.is_game_duplicated(&entry.scan_info.game_name),
             config.scan.show_deselected_games,
@@ -498,7 +500,7 @@ impl GameList {
 
     pub fn visible_games(
         &self,
-        restoring: bool,
+        scan_kind: ScanKind,
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
@@ -518,7 +520,7 @@ impl GameList {
             .filter(|entry| {
                 self.filter_game(
                     entry,
-                    restoring,
+                    scan_kind,
                     config,
                     manifest,
                     duplicate_detector,
@@ -533,13 +535,13 @@ impl GameList {
         self.search.show || self.filter_duplicates_of.is_some()
     }
 
-    pub fn compute_operation_status(&self, config: &Config, restoring: bool) -> OperationStatus {
+    pub fn compute_operation_status(&self, config: &Config, scan_kind: ScanKind) -> OperationStatus {
         let mut status = OperationStatus::default();
         for entry in self.entries.iter() {
             status.total_games += 1;
             status.total_bytes += entry.scan_info.total_possible_bytes();
             if !entry.scan_info.all_ignored()
-                && config.is_game_enabled_for_operation(&entry.scan_info.game_name, restoring)
+                && config.is_game_enabled_for_operation(&entry.scan_info.game_name, scan_kind)
             {
                 status.processed_games += 1;
                 status.processed_bytes += entry.scan_info.sum_bytes(None);
@@ -572,12 +574,12 @@ impl GameList {
         game: &str,
         duplicate_detector: &DuplicateDetector,
         config: &Config,
-        restoring: bool,
+        scan_kind: ScanKind,
     ) {
         if self.expanded_games.contains(game) {
             self.collapse_game(game);
         } else {
-            self.expand_game(game, duplicate_detector, config, restoring);
+            self.expand_game(game, duplicate_detector, config, scan_kind);
         }
     }
 
@@ -586,7 +588,7 @@ impl GameList {
         game: &str,
         duplicate_detector: &DuplicateDetector,
         config: &Config,
-        restoring: bool,
+        scan_kind: ScanKind,
     ) {
         if self.expanded_games.contains(game) {
             return;
@@ -595,7 +597,7 @@ impl GameList {
         self.expanded_games.insert(game.to_string());
         for entry in self.entries.iter_mut() {
             if entry.scan_info.game_name == game {
-                entry.refresh_tree(duplicate_detector, config, restoring);
+                entry.refresh_tree(duplicate_detector, config, scan_kind);
                 break;
             }
         }
@@ -620,16 +622,14 @@ impl GameList {
         self.expanded_games.clear();
     }
 
-    pub fn with_recent_games(restoring: bool, config: &Config, cache: &Cache) -> Self {
-        let games = if restoring {
-            &cache.restore.recent_games
-        } else {
-            &cache.backup.recent_games
+    pub fn with_recent_games(scan_kind: ScanKind, config: &Config, cache: &Cache) -> Self {
+        let games = match scan_kind {
+            ScanKind::Backup => &cache.backup.recent_games,
+            ScanKind::Restore => &cache.restore.recent_games,
         };
-        let sort = if restoring {
-            &config.restore.sort
-        } else {
-            &config.backup.sort
+        let sort = match scan_kind {
+            ScanKind::Backup => &config.backup.sort,
+            ScanKind::Restore => &config.restore.sort,
         };
 
         let mut log = Self::default();
@@ -645,7 +645,7 @@ impl GameList {
                 &Default::default(),
                 None,
                 config,
-                restoring,
+                scan_kind,
             );
         }
         log
@@ -673,7 +673,7 @@ impl GameList {
         duplicates: &HashSet<String>,
         game_layout: Option<GameLayout>,
         config: &Config,
-        restoring: bool,
+        scan_kind: ScanKind,
     ) {
         let game_name = scan_info.game_name.clone();
         let index = self.find_game(&game_name);
@@ -687,7 +687,7 @@ impl GameList {
                     self.entries[i].game_layout = game_layout;
                     self.entries[i].scanned = scanned || self.entries[i].scanned;
                     if self.expanded_games.contains(&game_name) {
-                        self.entries[i].refresh_tree(duplicate_detector, config, restoring);
+                        self.entries[i].refresh_tree(duplicate_detector, config, scan_kind);
                     }
                 } else {
                     self.entries.remove(i);
@@ -702,7 +702,7 @@ impl GameList {
                     ..Default::default()
                 };
                 if self.expanded_games.contains(&game_name) {
-                    entry.refresh_tree(duplicate_detector, config, restoring);
+                    entry.refresh_tree(duplicate_detector, config, scan_kind);
                 }
                 self.entries.push(entry);
                 self.sort(sort, config);
@@ -714,7 +714,7 @@ impl GameList {
                 if duplicates.contains(&entry.scan_info.game_name)
                     && self.expanded_games.contains(&entry.scan_info.game_name)
                 {
-                    entry.refresh_tree(duplicate_detector, config, restoring);
+                    entry.refresh_tree(duplicate_detector, config, scan_kind);
                 }
             }
         }
@@ -725,29 +725,32 @@ impl GameList {
         game: &str,
         config: &Config,
         duplicate_detector: &mut DuplicateDetector,
-        restoring: bool,
+        scan_kind: ScanKind,
     ) {
         if let Some(index) = self.find_game(game) {
-            if restoring {
-                self.entries[index]
-                    .scan_info
-                    .update_ignored(&config.restore.toggled_paths, &config.restore.toggled_registry);
-            } else {
-                self.entries[index]
-                    .scan_info
-                    .update_ignored(&config.backup.toggled_paths, &config.backup.toggled_registry);
+            match scan_kind {
+                ScanKind::Backup => {
+                    self.entries[index]
+                        .scan_info
+                        .update_ignored(&config.backup.toggled_paths, &config.backup.toggled_registry);
+                }
+                ScanKind::Restore => {
+                    self.entries[index]
+                        .scan_info
+                        .update_ignored(&config.restore.toggled_paths, &config.restore.toggled_registry);
+                }
             }
 
             let stale = duplicate_detector.add_game(
                 &self.entries[index].scan_info,
-                config.is_game_enabled_for_operation(game, restoring),
+                config.is_game_enabled_for_operation(game, scan_kind),
             );
 
-            self.entries[index].refresh_tree(duplicate_detector, config, restoring);
+            self.entries[index].refresh_tree(duplicate_detector, config, scan_kind);
 
             for entry in &mut self.entries {
                 if stale.contains(&entry.scan_info.game_name) {
-                    entry.refresh_tree(duplicate_detector, config, restoring);
+                    entry.refresh_tree(duplicate_detector, config, scan_kind);
                 }
             }
         }
@@ -759,12 +762,12 @@ impl GameList {
         duplicate_detector: &DuplicateDetector,
         duplicates: &HashSet<String>,
         config: &Config,
-        restoring: bool,
+        scan_kind: ScanKind,
     ) {
         self.entries.retain(|entry| entry.scan_info.game_name != game);
         for entry in self.entries.iter_mut() {
             if duplicates.contains(&entry.scan_info.game_name) {
-                entry.refresh_tree(duplicate_detector, config, restoring);
+                entry.refresh_tree(duplicate_detector, config, scan_kind);
             }
         }
     }

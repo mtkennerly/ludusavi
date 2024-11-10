@@ -1,6 +1,9 @@
 use std::collections::BTreeMap;
 
-use crate::{prelude::StrictPath, scan::ScanChange};
+use crate::{
+    prelude::StrictPath,
+    scan::{ScanChange, ScanKind},
+};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ScannedFile {
@@ -67,8 +70,12 @@ impl ScannedFile {
         }
     }
 
-    pub fn restoring(&self) -> bool {
-        self.original_path.is_some()
+    pub fn scan_kind(&self) -> ScanKind {
+        if self.original_path.is_some() {
+            ScanKind::Restore
+        } else {
+            ScanKind::Backup
+        }
     }
 
     /// This is stored in the mapping file.
@@ -82,33 +89,34 @@ impl ScannedFile {
     }
 
     /// This is the main path to show to the user.
-    pub fn readable(&self, scan_key: &StrictPath, restoring: bool) -> String {
-        if restoring {
-            self.redirected
+    pub fn readable(&self, scan_key: &StrictPath, scan_kind: ScanKind) -> String {
+        match scan_kind {
+            ScanKind::Backup => self.original_path(scan_key).render(),
+            ScanKind::Restore => self
+                .redirected
                 .as_ref()
                 .unwrap_or_else(|| self.original_path(scan_key))
-                .render()
-        } else {
-            self.original_path(scan_key).render()
+                .render(),
         }
     }
 
     /// This is shown in the GUI/CLI to annotate the `readable` path.
-    pub fn alt<'a>(&'a self, scan_key: &'a StrictPath, restoring: bool) -> Option<&'a StrictPath> {
-        if restoring {
-            if self.redirected.is_some() {
-                Some(self.original_path(scan_key))
-            } else {
-                None
+    pub fn alt<'a>(&'a self, scan_key: &'a StrictPath, scan_kind: ScanKind) -> Option<&'a StrictPath> {
+        match scan_kind {
+            ScanKind::Backup => self.redirected.as_ref(),
+            ScanKind::Restore => {
+                if self.redirected.is_some() {
+                    Some(self.original_path(scan_key))
+                } else {
+                    None
+                }
             }
-        } else {
-            self.redirected.as_ref()
         }
     }
 
     /// This is shown in the GUI/CLI to annotate the `readable` path.
-    pub fn alt_readable(&self, scan_key: &StrictPath, restoring: bool) -> Option<String> {
-        self.alt(scan_key, restoring).map(|x| x.render())
+    pub fn alt_readable(&self, scan_key: &StrictPath, scan_kind: ScanKind) -> Option<String> {
+        self.alt(scan_key, scan_kind).map(|x| x.render())
     }
 
     pub fn will_take_space(&self) -> bool {
@@ -116,7 +124,7 @@ impl ScannedFile {
     }
 
     pub fn change(&self) -> ScanChange {
-        self.change.normalize(self.ignored, self.restoring())
+        self.change.normalize(self.ignored, self.scan_kind())
     }
 }
 
@@ -193,15 +201,15 @@ impl ScannedRegistry {
         self
     }
 
-    pub fn change(&self, restoring: bool) -> ScanChange {
+    pub fn change(&self, scan_kind: ScanKind) -> ScanChange {
         self.change
-            .normalize(self.ignored && self.values.values().all(|x| x.ignored), restoring)
+            .normalize(self.ignored && self.values.values().all(|x| x.ignored), scan_kind)
     }
 }
 
 impl ScannedRegistryValue {
-    pub fn change(&self, restoring: bool) -> ScanChange {
-        self.change.normalize(self.ignored, restoring)
+    pub fn change(&self, scan_kind: ScanKind) -> ScanChange {
+        self.change.normalize(self.ignored, scan_kind)
     }
 }
 
@@ -221,7 +229,7 @@ mod tests {
                 change: ScanChange::Same,
                 values: Default::default(),
             }
-            .change(false)
+            .change(ScanKind::Backup)
         );
         assert_eq!(
             ScanChange::Removed,
@@ -232,7 +240,7 @@ mod tests {
                     "val1".to_string(): ScannedRegistryValue { ignored: true, change: ScanChange::New },
                 },
             }
-            .change(false)
+            .change(ScanKind::Backup)
         );
         assert_eq!(
             ScanChange::Same,
@@ -244,7 +252,7 @@ mod tests {
                     "val2".to_string(): ScannedRegistryValue { ignored: false, change: ScanChange::Same },
                 },
             }
-            .change(false)
+            .change(ScanKind::Backup)
         );
     }
 }

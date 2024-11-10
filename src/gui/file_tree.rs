@@ -17,15 +17,14 @@ use crate::{
     resource::config::Config,
     scan::{
         registry::RegistryItem, BackupError, BackupInfo, DuplicateDetector, Duplication, ScanChange, ScanInfo,
-        ScannedFile, ScannedRegistryValues,
+        ScanKind, ScannedFile, ScannedRegistryValues,
     },
 };
 
-fn check_ignored(game: &str, path: &FileTreeNodePath, config: &Config, restoring: bool) -> bool {
-    let (paths, registries) = if restoring {
-        (&config.restore.toggled_paths, &config.restore.toggled_registry)
-    } else {
-        (&config.backup.toggled_paths, &config.backup.toggled_registry)
+fn check_ignored(game: &str, path: &FileTreeNodePath, config: &Config, scan_kind: ScanKind) -> bool {
+    let (paths, registries) = match scan_kind {
+        ScanKind::Backup => (&config.backup.toggled_paths, &config.backup.toggled_registry),
+        ScanKind::Restore => (&config.restore.toggled_paths, &config.restore.toggled_registry),
     };
 
     match path {
@@ -70,9 +69,9 @@ impl FileTreeNode {
         path: FileTreeNodePath,
         node_type: FileTreeNodeType,
         config: &Config,
-        restoring: bool,
+        scan_kind: ScanKind,
     ) -> Self {
-        let ignored = check_ignored(game, &path, config, restoring);
+        let ignored = check_ignored(game, &path, config, scan_kind);
         Self {
             keys,
             path,
@@ -104,7 +103,7 @@ impl FileTreeNode {
         label: String,
         game_name: &str,
         _config: &Config,
-        restoring: bool,
+        scan_kind: ScanKind,
         expansion: &Expansion,
     ) -> Container {
         let expanded = expansion.expanded(&self.keys);
@@ -118,19 +117,19 @@ impl FileTreeNode {
                         FileTreeNodePath::File(path) => Message::ToggleSpecificGamePathIgnored {
                             name: game_name.clone(),
                             path: path.clone(),
-                            restoring,
+                            scan_kind,
                         },
                         FileTreeNodePath::RegistryKey(path) => Message::ToggleSpecificGameRegistryIgnored {
                             name: game_name.clone(),
                             path: path.clone(),
                             value: None,
-                            restoring,
+                            scan_kind,
                         },
                         FileTreeNodePath::RegistryValue(path, name) => Message::ToggleSpecificGameRegistryIgnored {
                             name: game_name.clone(),
                             path: path.clone(),
                             value: Some(name.clone()),
-                            restoring,
+                            scan_kind,
                         },
                     })
                     .spacing(5)
@@ -181,12 +180,11 @@ impl FileTreeNode {
                     )
                     .push_maybe({
                         self.scanned_file.as_ref().and_then(|(scan_key, scanned)| {
-                            let restoring = scanned.restoring();
-                            scanned.alt(scan_key, restoring).as_ref().map(|alt| {
-                                let msg = if restoring {
-                                    TRANSLATOR.badge_redirected_from(alt)
-                                } else {
-                                    TRANSLATOR.badge_redirecting_to(alt)
+                            let scan_kind = scanned.scan_kind();
+                            scanned.alt(scan_key, scan_kind).as_ref().map(|alt| {
+                                let msg = match scan_kind {
+                                    ScanKind::Backup => TRANSLATOR.badge_redirecting_to(alt),
+                                    ScanKind::Restore => TRANSLATOR.badge_redirected_from(alt),
                                 };
                                 Badge::new(&msg).view()
                             })
@@ -208,7 +206,7 @@ impl FileTreeNode {
                     format!("{}/{}", label, key.raw()),
                     game_name,
                     _config,
-                    restoring,
+                    scan_kind,
                     expansion,
                 ));
             }
@@ -274,7 +272,7 @@ impl FileTreeNode {
                 ),
                 |parent, (k, v)| {
                     parent.push_if(expanded, || {
-                        v.view(level + 1, k.raw().to_string(), game_name, _config, restoring, expansion)
+                        v.view(level + 1, k.raw().to_string(), game_name, _config, scan_kind, expansion)
                     })
                 },
             ),
@@ -293,7 +291,7 @@ impl FileTreeNode {
         registry_values: Option<&ScannedRegistryValues>,
         duplicate_detector: &DuplicateDetector,
         config: &Config,
-        restoring: bool,
+        scan_kind: ScanKind,
     ) -> &mut Self {
         let node_type = self.node_type.clone();
         let mut node = self;
@@ -319,7 +317,7 @@ impl FileTreeNode {
                     },
                     node_type.clone(),
                     config,
-                    restoring,
+                    scan_kind,
                 )
             });
         }
@@ -347,13 +345,13 @@ impl FileTreeNode {
                             ),
                             FileTreeNodeType::RegistryValue(value_name.clone()),
                             config,
-                            restoring,
+                            scan_kind,
                         )
                     });
                 node.error = None;
                 node.duplicated = duplicate_detector
                     .is_registry_value_duplicated(&RegistryItem::new(raw_key_path.clone()), value_name);
-                node.change = value.change(restoring);
+                node.change = value.change(scan_kind);
             }
         }
 
@@ -444,9 +442,9 @@ impl FileTree {
         backup_info: Option<&BackupInfo>,
         duplicate_detector: &DuplicateDetector,
         config: &Config,
-        restoring: bool,
+        scan_kind: ScanKind,
     ) -> Self {
-        let nodes = Self::initialize_nodes(scan_info, backup_info, duplicate_detector, config, restoring);
+        let nodes = Self::initialize_nodes(scan_info, backup_info, duplicate_detector, config, scan_kind);
         let expansion = Expansion::new(&nodes);
         Self { nodes, expansion }
     }
@@ -461,9 +459,9 @@ impl FileTree {
         backup_info: Option<&BackupInfo>,
         duplicate_detector: &DuplicateDetector,
         config: &Config,
-        restoring: bool,
+        scan_kind: ScanKind,
     ) {
-        self.nodes = Self::initialize_nodes(scan_info, backup_info, duplicate_detector, config, restoring);
+        self.nodes = Self::initialize_nodes(scan_info, backup_info, duplicate_detector, config, scan_kind);
     }
 
     fn initialize_nodes(
@@ -471,12 +469,12 @@ impl FileTree {
         backup_info: Option<&BackupInfo>,
         duplicate_detector: &DuplicateDetector,
         config: &Config,
-        restoring: bool,
+        scan_kind: ScanKind,
     ) -> BTreeMap<TreeNodeKey, FileTreeNode> {
         let mut nodes = BTreeMap::<TreeNodeKey, FileTreeNode>::new();
 
         for (scan_key, item) in &scan_info.found_files {
-            let rendered = item.readable(scan_key, scan_info.restoring());
+            let rendered = item.readable(scan_key, scan_info.scan_kind());
             let components: Vec<_> = rendered.split('/').map(|x| TreeNodeKey::File(x.to_string())).collect();
 
             nodes
@@ -495,7 +493,7 @@ impl FileTree {
                         })),
                         FileTreeNodeType::File,
                         config,
-                        restoring,
+                        scan_kind,
                     )
                 })
                 .insert_keys(
@@ -509,7 +507,7 @@ impl FileTree {
                     None,
                     duplicate_detector,
                     config,
-                    restoring,
+                    scan_kind,
                 );
         }
         for (scan_key, item) in &scan_info.found_registry_keys {
@@ -528,7 +526,7 @@ impl FileTree {
                         FileTreeNodePath::RegistryKey(RegistryItem::new(components[0].raw().to_string())),
                         FileTreeNodeType::RegistryKey,
                         config,
-                        restoring,
+                        scan_kind,
                     )
                 })
                 .insert_keys(
@@ -537,24 +535,24 @@ impl FileTree {
                     &components[0..1],
                     backup_info.as_ref().and_then(|x| x.failed_registry.get(scan_key)),
                     duplicate_detector.is_registry_duplicated(scan_key),
-                    item.change(restoring),
+                    item.change(scan_kind),
                     None,
                     Some(&item.values),
                     duplicate_detector,
                     config,
-                    restoring,
+                    scan_kind,
                 );
         }
 
         nodes
     }
 
-    pub fn view(&self, game_name: &str, config: &Config, restoring: bool) -> Container {
+    pub fn view(&self, game_name: &str, config: &Config, scan_kind: ScanKind) -> Container {
         Container::new(
             self.nodes.iter().filter(|(_, v)| v.anything_showable()).fold(
                 Column::new().spacing(4),
                 |parent, (k, v)| {
-                    parent.push(v.view(0, k.raw().to_string(), game_name, config, restoring, &self.expansion))
+                    parent.push(v.view(0, k.raw().to_string(), game_name, config, scan_kind, &self.expansion))
                 },
             ),
         )

@@ -294,7 +294,7 @@ impl Reporter {
         }
 
         let mut successful = true;
-        let restoring = scan_info.restoring();
+        let scan_kind = scan_info.scan_kind();
 
         match self {
             Self::Standard { parts, status, .. } => {
@@ -314,7 +314,7 @@ impl Reporter {
                         successful = false;
                     }
                     parts.push(TRANSLATOR.cli_game_line_item(
-                        &entry.readable(scan_key, restoring),
+                        &entry.readable(scan_key, scan_kind),
                         entry_successful,
                         entry.ignored,
                         !duplicate_detector.is_file_duplicated(scan_key, entry).resolved(),
@@ -322,11 +322,14 @@ impl Reporter {
                         false,
                     ));
 
-                    if let Some(alt) = entry.alt_readable(scan_key, restoring) {
-                        if restoring {
-                            parts.push(TRANSLATOR.cli_game_line_item_redirected(&alt));
-                        } else {
-                            parts.push(TRANSLATOR.cli_game_line_item_redirecting(&alt));
+                    if let Some(alt) = entry.alt_readable(scan_key, scan_kind) {
+                        match scan_kind {
+                            crate::scan::ScanKind::Backup => {
+                                parts.push(TRANSLATOR.cli_game_line_item_redirecting(&alt))
+                            }
+                            crate::scan::ScanKind::Restore => {
+                                parts.push(TRANSLATOR.cli_game_line_item_redirected(&alt))
+                            }
                         }
                     }
 
@@ -347,7 +350,7 @@ impl Reporter {
                         entry_successful,
                         entry.ignored,
                         !duplicate_detector.is_registry_duplicated(scan_key).resolved(),
-                        entry.change(scan_info.restoring()),
+                        entry.change(scan_info.scan_kind()),
                         false,
                     ));
 
@@ -364,7 +367,7 @@ impl Reporter {
                                 !duplicate_detector
                                     .is_registry_value_duplicated(scan_key, value_name)
                                     .resolved(),
-                                value.change(scan_info.restoring()),
+                                value.change(scan_info.scan_kind()),
                                 true,
                             ),
                         );
@@ -404,18 +407,21 @@ impl Reporter {
                         api_file.duplicated_by = duplicated_by;
                     }
 
-                    if let Some(alt) = entry.alt_readable(scan_key, restoring) {
-                        if restoring {
-                            api_file.original_path = Some(alt);
-                        } else {
-                            api_file.redirected_path = Some(alt);
+                    if let Some(alt) = entry.alt_readable(scan_key, scan_kind) {
+                        match scan_kind {
+                            crate::scan::ScanKind::Backup => {
+                                api_file.redirected_path = Some(alt);
+                            }
+                            crate::scan::ScanKind::Restore => {
+                                api_file.original_path = Some(alt);
+                            }
                         }
                     }
                     if api_file.failed {
                         successful = false;
                     }
 
-                    files.insert(entry.readable(scan_key, restoring), api_file);
+                    files.insert(entry.readable(scan_key, scan_kind), api_file);
                 }
                 for (scan_key, entry) in itertools::sorted(&scan_info.found_registry_keys) {
                     let mut api_registry = ApiRegistry {
@@ -427,7 +433,7 @@ impl Reporter {
                             .as_ref()
                             .and_then(|x| x.failed_registry.get(scan_key).map(SaveError::from)),
                         ignored: entry.ignored,
-                        change: entry.change(scan_info.restoring()),
+                        change: entry.change(scan_info.scan_kind()),
                         values: entry
                             .values
                             .iter()
@@ -435,7 +441,7 @@ impl Reporter {
                                 (
                                     k.clone(),
                                     ApiRegistryValue {
-                                        change: v.change(scan_info.restoring()),
+                                        change: v.change(scan_info.scan_kind()),
                                         ignored: v.ignored,
                                         duplicated_by: {
                                             if !duplicate_detector.is_registry_value_duplicated(scan_key, k).resolved()

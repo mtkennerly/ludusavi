@@ -4,7 +4,8 @@ use crate::{
     path::StrictPath,
     resource::config::{ToggledPaths, ToggledRegistry},
     scan::{
-        layout::Backup, registry::RegistryItem, BackupInfo, ScanChange, ScanChangeCount, ScannedFile, ScannedRegistry,
+        layout::Backup, registry::RegistryItem, BackupInfo, ScanChange, ScanChangeCount, ScanKind, ScannedFile,
+        ScannedRegistry,
     },
 };
 
@@ -113,8 +114,8 @@ impl ScanInfo {
         self.found_anything()
             && self.found_files.values().all(|x| x.change().is_inert())
             && self.found_registry_keys.values().all(|x| {
-                x.change(self.restoring()).is_inert()
-                    && x.values.values().all(|y| y.change(self.restoring()).is_inert())
+                x.change(self.scan_kind()).is_inert()
+                    && x.values.values().all(|y| y.change(self.scan_kind()).is_inert())
             })
     }
 
@@ -148,8 +149,12 @@ impl ScanInfo {
                 .sum::<usize>()
     }
 
-    pub fn restoring(&self) -> bool {
-        self.backup.is_some()
+    pub fn scan_kind(&self) -> ScanKind {
+        if self.backup.is_some() {
+            ScanKind::Restore
+        } else {
+            ScanKind::Backup
+        }
     }
 
     fn is_brand_new(&self) -> bool {
@@ -178,7 +183,7 @@ impl ScanInfo {
             if all_ignored {
                 count.add(ScanChange::Same);
             } else {
-                let change = entry.change(self.restoring());
+                let change = entry.change(self.scan_kind());
                 if change == ScanChange::Removed && self.found_registry_keys.keys().any(|x| scan_key.is_prefix_of(x)) {
                     // There's a child key, so we won't be removing this parent key,
                     // even if we do remove some of its values.
@@ -192,7 +197,7 @@ impl ScanInfo {
                 if all_ignored {
                     count.add(ScanChange::Same);
                 } else {
-                    count.add(entry.change(self.restoring()));
+                    count.add(entry.change(self.scan_kind()));
                 }
             }
         }
@@ -232,12 +237,12 @@ impl ScanInfo {
 
     /// This is meant to be used for the GUI after a backup/restore,
     /// so we don't show the previous change state anymore.
-    pub fn clear_processed_changes(&mut self, backup_info: &BackupInfo, restoring: bool) {
-        let resolve = |old: ScanChange, ignored: bool| match (restoring, ignored) {
-            (true, true) => old,
-            (true, false) => ScanChange::Same,
-            (false, true) => ScanChange::New,
-            (false, false) => ScanChange::Same,
+    pub fn clear_processed_changes(&mut self, backup_info: &BackupInfo, scan_kind: ScanKind) {
+        let resolve = |old: ScanChange, ignored: bool| match (scan_kind, ignored) {
+            (ScanKind::Backup, true) => ScanChange::New,
+            (ScanKind::Backup, false) => ScanChange::Same,
+            (ScanKind::Restore, true) => old,
+            (ScanKind::Restore, false) => ScanChange::Same,
         };
 
         self.found_files = self

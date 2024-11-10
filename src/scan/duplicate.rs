@@ -131,7 +131,7 @@ impl DuplicateDetector {
                 scan_info.game_name.clone(),
                 DuplicateDetectorEntry {
                     enabled: game_enabled && !item.ignored,
-                    change: item.change(scan_info.restoring()),
+                    change: item.change(scan_info.scan_kind()),
                 },
             );
             self.game_registry
@@ -149,7 +149,7 @@ impl DuplicateDetector {
                         scan_info.game_name.clone(),
                         DuplicateDetectorEntry {
                             enabled: game_enabled && !value.ignored,
-                            change: value.change(scan_info.restoring()),
+                            change: value.change(scan_info.scan_kind()),
                         },
                     );
                 self.game_registry_values

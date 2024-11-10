@@ -21,7 +21,7 @@ use crate::{
         game_filter,
         layout::{Backup, BackupLayout, GameLayout},
         registry::RegistryItem,
-        BackupInfo, Launchers, ScanInfo, SteamShortcuts,
+        BackupInfo, Launchers, ScanInfo, ScanKind, SteamShortcuts,
     },
 };
 
@@ -153,7 +153,7 @@ pub enum Message {
     ToggleGameListEntryEnabled {
         name: String,
         enabled: bool,
-        restoring: bool,
+        scan_kind: ScanKind,
     },
     ToggleSearch {
         screen: Screen,
@@ -161,13 +161,13 @@ pub enum Message {
     ToggleSpecificGamePathIgnored {
         name: String,
         path: StrictPath,
-        restoring: bool,
+        scan_kind: ScanKind,
     },
     ToggleSpecificGameRegistryIgnored {
         name: String,
         path: RegistryItem,
         value: Option<String>,
-        restoring: bool,
+        scan_kind: ScanKind,
     },
     ToggleCustomGameEnabled {
         index: usize,
@@ -260,7 +260,7 @@ pub enum Message {
     SetShowUnchangedGames(bool),
     SetShowUnscannedGames(bool),
     FilterDuplicates {
-        restoring: bool,
+        scan_kind: ScanKind,
         game: Option<String>,
     },
     OverrideMaxThreads(bool),
@@ -761,11 +761,10 @@ pub enum ScrollSubject {
 }
 
 impl ScrollSubject {
-    pub fn game_list(restoring: bool) -> Self {
-        if restoring {
-            Self::Restore
-        } else {
-            Self::Backup
+    pub fn game_list(scan_kind: ScanKind) -> Self {
+        match scan_kind {
+            ScanKind::Backup => Self::Backup,
+            ScanKind::Restore => Self::Restore,
         }
     }
 
@@ -821,7 +820,7 @@ pub enum GameAction {
 
 impl GameAction {
     pub fn options(
-        restoring: bool,
+        scan_kind: ScanKind,
         operating: bool,
         customized: bool,
         invented: bool,
@@ -831,22 +830,25 @@ impl GameAction {
         let mut options = vec![];
 
         if !operating {
-            if restoring {
-                options.push(Self::PreviewRestore);
-                options.push(Self::Restore { confirm: true });
-            } else {
-                options.push(Self::PreviewBackup);
-                options.push(Self::Backup { confirm: true });
+            match scan_kind {
+                ScanKind::Backup => {
+                    options.push(Self::PreviewBackup);
+                    options.push(Self::Backup { confirm: true });
+                }
+                ScanKind::Restore => {
+                    options.push(Self::PreviewRestore);
+                    options.push(Self::Restore { confirm: true });
+                }
             }
         }
 
-        if !restoring && !customized {
+        if scan_kind.is_backup() && !customized {
             options.push(Self::Customize);
         }
 
         options.push(Self::MakeAlias);
 
-        if restoring && has_backups {
+        if scan_kind.is_restore() && has_backups {
             options.push(Self::Comment);
 
             if locked {

@@ -23,7 +23,7 @@ use crate::{
         config::{BackupFormat, CloudFilter, Config, SortKey, Theme, ZipCompression},
         manifest::{Manifest, Store},
     },
-    scan::{DuplicateDetector, Duplication, OperationStatus},
+    scan::{DuplicateDetector, Duplication, OperationStatus, ScanKind},
 };
 
 const RCLONE_URL: &str = "https://rclone.org/downloads";
@@ -66,9 +66,11 @@ pub struct Backup {
 }
 
 impl Backup {
+    const SCAN_KIND: ScanKind = ScanKind::Backup;
+
     pub fn new(config: &Config, cache: &Cache) -> Self {
         Self {
-            log: GameList::with_recent_games(false, config, cache),
+            log: GameList::with_recent_games(Self::SCAN_KIND, config, cache),
             ..Default::default()
         }
     }
@@ -93,12 +95,12 @@ impl Backup {
                     .push(button::backup_preview(operation, self.log.is_filtered()))
                     .push(button::backup(operation, self.log.is_filtered()))
                     .push(button::toggle_all_scanned_games(
-                        self.log.all_entries_selected(config, false),
+                        self.log.all_entries_selected(config, Self::SCAN_KIND),
                     ))
                     .push(button::filter(Screen::Backup, self.log.search.show)),
             )
             .push(make_status_row(
-                &self.log.compute_operation_status(config, false),
+                &self.log.compute_operation_status(config, Self::SCAN_KIND),
                 self.duplicate_detector.overall(),
             ))
             .push(
@@ -121,7 +123,7 @@ impl Backup {
                     .push(button::sort_order(screen, sort.reversed)),
             )
             .push(self.log.view(
-                false,
+                Self::SCAN_KIND,
                 config,
                 manifest,
                 &self.duplicate_detector,
@@ -141,9 +143,11 @@ pub struct Restore {
 }
 
 impl Restore {
+    const SCAN_KIND: ScanKind = ScanKind::Restore;
+
     pub fn new(config: &Config, cache: &Cache) -> Self {
         Self {
-            log: GameList::with_recent_games(true, config, cache),
+            log: GameList::with_recent_games(Self::SCAN_KIND, config, cache),
             ..Default::default()
         }
     }
@@ -168,13 +172,13 @@ impl Restore {
                     .push(button::restore_preview(operation, self.log.is_filtered()))
                     .push(button::restore(operation, self.log.is_filtered()))
                     .push(button::toggle_all_scanned_games(
-                        self.log.all_entries_selected(config, true),
+                        self.log.all_entries_selected(config, Self::SCAN_KIND),
                     ))
                     .push(button::validate_backups(operation))
                     .push(button::filter(Screen::Restore, self.log.search.show)),
             )
             .push(make_status_row(
-                &self.log.compute_operation_status(config, true),
+                &self.log.compute_operation_status(config, Self::SCAN_KIND),
                 self.duplicate_detector.overall(),
             ))
             .push(
@@ -197,7 +201,7 @@ impl Restore {
                     .push(button::sort_order(screen, sort.reversed)),
             )
             .push(self.log.view(
-                true,
+                Self::SCAN_KIND,
                 config,
                 manifest,
                 &self.duplicate_detector,

@@ -27,7 +27,7 @@ use crate::{
     },
     scan::{
         layout::BackupLayout, prepare_backup_target, registry::RegistryItem, scan_game_for_backup, BackupId, Launchers,
-        SteamShortcuts, TitleFinder,
+        ScanKind, SteamShortcuts, TitleFinder,
     },
 };
 
@@ -268,6 +268,8 @@ impl App {
     }
 
     fn handle_backup(&mut self, phase: BackupPhase) -> Task<Message> {
+        const SCAN_KIND: ScanKind = ScanKind::Backup;
+
         match phase {
             BackupPhase::Confirm { games } => self.show_modal(Modal::ConfirmBackup { games }),
             BackupPhase::Start {
@@ -284,7 +286,7 @@ impl App {
                 if games.is_none() {
                     if self.backup_screen.log.is_filtered() {
                         games = Some(self.backup_screen.log.visible_games(
-                            false,
+                            SCAN_KIND,
                             &self.config,
                             &self.manifest.extended,
                             &self.backup_screen.duplicate_detector,
@@ -430,7 +432,7 @@ impl App {
                                 &self.backup_screen.duplicate_detector,
                                 &duplicates,
                                 &self.config,
-                                false,
+                                SCAN_KIND,
                             );
                         }
                         self.cache.backup.recent_games.retain(|x| !games.contains(x));
@@ -475,7 +477,7 @@ impl App {
 
                             let previous = layout.latest_backup(
                                 &key,
-                                false,
+                                SCAN_KIND,
                                 &config.redirects,
                                 config.restore.reverse_redirects,
                                 &config.restore.toggled_paths,
@@ -528,7 +530,6 @@ impl App {
             }
             BackupPhase::GameScanned { scan_info, backup_info } => {
                 self.progress.step();
-                let restoring = false;
                 let full = self.operation.full();
 
                 if let Some(mut scan_info) = scan_info {
@@ -540,13 +541,13 @@ impl App {
                     );
                     if scan_info.can_report_game() {
                         if let Some(backup_info) = backup_info.as_ref() {
-                            scan_info.clear_processed_changes(backup_info, false);
+                            scan_info.clear_processed_changes(backup_info, SCAN_KIND);
                         }
 
                         let duplicates = self.backup_screen.duplicate_detector.add_game(
                             &scan_info,
                             self.config
-                                .is_game_enabled_for_operation(&scan_info.game_name, restoring),
+                                .is_game_enabled_for_operation(&scan_info.game_name, SCAN_KIND),
                         );
                         self.backup_screen.previewed_games.insert(scan_info.game_name.clone());
                         self.backup_screen.log.update_game(
@@ -557,7 +558,7 @@ impl App {
                             &duplicates,
                             None,
                             &self.config,
-                            restoring,
+                            SCAN_KIND,
                         );
                     } else if !full {
                         let duplicates = self.backup_screen.duplicate_detector.remove_game(&scan_info.game_name);
@@ -566,7 +567,7 @@ impl App {
                             &self.backup_screen.duplicate_detector,
                             &duplicates,
                             &self.config,
-                            restoring,
+                            SCAN_KIND,
                         );
                         self.cache.backup.recent_games.remove(&scan_info.game_name);
                     }
@@ -684,7 +685,7 @@ impl App {
                             &jump,
                             &self.backup_screen.duplicate_detector,
                             &self.config,
-                            false,
+                            SCAN_KIND,
                         );
 
                         return self.switch_screen(Screen::Backup).chain(
@@ -705,6 +706,8 @@ impl App {
     }
 
     fn handle_restore(&mut self, phase: RestorePhase) -> Task<Message> {
+        const SCAN_KIND: ScanKind = ScanKind::Restore;
+
         match phase {
             RestorePhase::Confirm { games } => self.show_modal(Modal::ConfirmRestore { games }),
             RestorePhase::Start { preview, mut games } => {
@@ -723,7 +726,7 @@ impl App {
                 if games.is_none() {
                     if self.restore_screen.log.is_filtered() {
                         games = Some(self.restore_screen.log.visible_games(
-                            false,
+                            ScanKind::Backup,
                             &self.config,
                             &self.manifest.extended,
                             &self.restore_screen.duplicate_detector,
@@ -814,7 +817,7 @@ impl App {
                                 &self.restore_screen.duplicate_detector,
                                 &duplicates,
                                 &self.config,
-                                true,
+                                SCAN_KIND,
                             );
                         }
                         self.cache.restore.recent_games.retain(|x| !games.contains(x));
@@ -882,7 +885,6 @@ impl App {
                 game_layout,
             } => {
                 self.progress.step();
-                let restoring = true;
                 let full = self.operation.full();
 
                 if let Some(mut scan_info) = scan_info {
@@ -894,7 +896,7 @@ impl App {
                     );
                     if scan_info.can_report_game() {
                         if let Some(backup_info) = backup_info.as_ref() {
-                            scan_info.clear_processed_changes(backup_info, true);
+                            scan_info.clear_processed_changes(backup_info, SCAN_KIND);
                         }
 
                         let comment = scan_info.backup.as_ref().and_then(|x| x.comment()).map(|x| x.as_str());
@@ -906,7 +908,7 @@ impl App {
                         let duplicates = self.restore_screen.duplicate_detector.add_game(
                             &scan_info,
                             self.config
-                                .is_game_enabled_for_operation(&scan_info.game_name, restoring),
+                                .is_game_enabled_for_operation(&scan_info.game_name, SCAN_KIND),
                         );
                         self.restore_screen.log.update_game(
                             scan_info,
@@ -916,7 +918,7 @@ impl App {
                             &duplicates,
                             Some(*game_layout),
                             &self.config,
-                            restoring,
+                            SCAN_KIND,
                         );
                     } else if !full {
                         let duplicates = self.restore_screen.duplicate_detector.remove_game(&scan_info.game_name);
@@ -925,7 +927,7 @@ impl App {
                             &self.restore_screen.duplicate_detector,
                             &duplicates,
                             &self.config,
-                            restoring,
+                            SCAN_KIND,
                         );
                         self.cache.restore.recent_games.remove(&scan_info.game_name);
                     }
@@ -1849,7 +1851,7 @@ impl App {
                             &name,
                             &self.backup_screen.duplicate_detector,
                             &self.config,
-                            false,
+                            ScanKind::Backup,
                         );
                     }
                     Screen::Restore => {
@@ -1857,7 +1859,7 @@ impl App {
                             &name,
                             &self.restore_screen.duplicate_detector,
                             &self.config,
-                            true,
+                            ScanKind::Restore,
                         );
                     }
                     _ => {}
@@ -1891,30 +1893,33 @@ impl App {
             Message::ToggleGameListEntryEnabled {
                 name,
                 enabled,
-                restoring,
+                scan_kind,
             } => {
-                match (restoring, enabled) {
-                    (false, false) => self.config.disable_game_for_backup(&name),
-                    (false, true) => self.config.enable_game_for_backup(&name),
-                    (true, false) => self.config.disable_game_for_restore(&name),
-                    (true, true) => self.config.enable_game_for_restore(&name),
+                match (scan_kind, enabled) {
+                    (ScanKind::Backup, false) => self.config.disable_game_for_backup(&name),
+                    (ScanKind::Backup, true) => self.config.enable_game_for_backup(&name),
+                    (ScanKind::Restore, false) => self.config.disable_game_for_restore(&name),
+                    (ScanKind::Restore, true) => self.config.enable_game_for_restore(&name),
                 };
                 self.save_config();
 
-                if restoring {
-                    self.restore_screen.log.refresh_game_tree(
-                        &name,
-                        &self.config,
-                        &mut self.restore_screen.duplicate_detector,
-                        restoring,
-                    );
-                } else {
-                    self.backup_screen.log.refresh_game_tree(
-                        &name,
-                        &self.config,
-                        &mut self.backup_screen.duplicate_detector,
-                        restoring,
-                    );
+                match scan_kind {
+                    ScanKind::Backup => {
+                        self.backup_screen.log.refresh_game_tree(
+                            &name,
+                            &self.config,
+                            &mut self.backup_screen.duplicate_detector,
+                            scan_kind,
+                        );
+                    }
+                    ScanKind::Restore => {
+                        self.restore_screen.log.refresh_game_tree(
+                            &name,
+                            &self.config,
+                            &mut self.restore_screen.duplicate_detector,
+                            scan_kind,
+                        );
+                    }
                 }
 
                 Task::none()
@@ -1958,23 +1963,26 @@ impl App {
                 }
                 _ => Task::none(),
             },
-            Message::ToggleSpecificGamePathIgnored { name, path, restoring } => {
-                if restoring {
-                    self.config.restore.toggled_paths.toggle(&name, &path);
-                    self.restore_screen.log.refresh_game_tree(
-                        &name,
-                        &self.config,
-                        &mut self.restore_screen.duplicate_detector,
-                        restoring,
-                    );
-                } else {
-                    self.config.backup.toggled_paths.toggle(&name, &path);
-                    self.backup_screen.log.refresh_game_tree(
-                        &name,
-                        &self.config,
-                        &mut self.backup_screen.duplicate_detector,
-                        restoring,
-                    );
+            Message::ToggleSpecificGamePathIgnored { name, path, scan_kind } => {
+                match scan_kind {
+                    ScanKind::Backup => {
+                        self.config.backup.toggled_paths.toggle(&name, &path);
+                        self.backup_screen.log.refresh_game_tree(
+                            &name,
+                            &self.config,
+                            &mut self.backup_screen.duplicate_detector,
+                            scan_kind,
+                        );
+                    }
+                    ScanKind::Restore => {
+                        self.config.restore.toggled_paths.toggle(&name, &path);
+                        self.restore_screen.log.refresh_game_tree(
+                            &name,
+                            &self.config,
+                            &mut self.restore_screen.duplicate_detector,
+                            scan_kind,
+                        );
+                    }
                 }
                 self.save_config();
                 Task::none()
@@ -1983,24 +1991,27 @@ impl App {
                 name,
                 path,
                 value,
-                restoring,
+                scan_kind,
             } => {
-                if restoring {
-                    self.config.restore.toggled_registry.toggle_owned(&name, &path, value);
-                    self.restore_screen.log.refresh_game_tree(
-                        &name,
-                        &self.config,
-                        &mut self.restore_screen.duplicate_detector,
-                        restoring,
-                    );
-                } else {
-                    self.config.backup.toggled_registry.toggle_owned(&name, &path, value);
-                    self.backup_screen.log.refresh_game_tree(
-                        &name,
-                        &self.config,
-                        &mut self.backup_screen.duplicate_detector,
-                        restoring,
-                    );
+                match scan_kind {
+                    ScanKind::Backup => {
+                        self.config.backup.toggled_registry.toggle_owned(&name, &path, value);
+                        self.backup_screen.log.refresh_game_tree(
+                            &name,
+                            &self.config,
+                            &mut self.backup_screen.duplicate_detector,
+                            scan_kind,
+                        );
+                    }
+                    ScanKind::Restore => {
+                        self.config.restore.toggled_registry.toggle_owned(&name, &path, value);
+                        self.restore_screen.log.refresh_game_tree(
+                            &name,
+                            &self.config,
+                            &mut self.restore_screen.duplicate_detector,
+                            scan_kind,
+                        );
+                    }
                 }
                 self.save_config();
                 Task::none()
@@ -2535,11 +2546,10 @@ impl App {
                 self.save_config();
                 Task::none()
             }
-            Message::FilterDuplicates { restoring, game } => {
-                let log = if restoring {
-                    &mut self.restore_screen.log
-                } else {
-                    &mut self.backup_screen.log
+            Message::FilterDuplicates { scan_kind, game } => {
+                let log = match scan_kind {
+                    ScanKind::Backup => &mut self.backup_screen.log,
+                    ScanKind::Restore => &mut self.restore_screen.log,
                 };
                 log.filter_duplicates_of = game;
                 Task::none()

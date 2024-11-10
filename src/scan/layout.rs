@@ -16,7 +16,7 @@ use crate::{
     },
     scan::{
         game_file_target, prepare_backup_target, registry, BackupError, BackupId, BackupInfo, ScanChange, ScanInfo,
-        ScannedFile,
+        ScanKind, ScannedFile,
     },
 };
 
@@ -600,7 +600,7 @@ impl GameLayout {
     /// because the backup scan will do that separately.
     pub fn latest_backup(
         &self,
-        restoring: bool,
+        scan_kind: ScanKind,
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
@@ -612,7 +612,7 @@ impl GameLayout {
                 game_name: self.mapping.name.clone(),
                 found_files: self.restorable_files(
                     &BackupId::Latest,
-                    restoring,
+                    scan_kind,
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
@@ -642,7 +642,7 @@ impl GameLayout {
     pub fn restorable_files(
         &self,
         id: &BackupId,
-        restoring: bool,
+        scan_kind: ScanKind,
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
@@ -654,7 +654,7 @@ impl GameLayout {
             Some((full, None)) => {
                 files.extend(self.restorable_files_from_full_backup(
                     full,
-                    restoring,
+                    scan_kind,
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
@@ -663,7 +663,7 @@ impl GameLayout {
             Some((full, Some(diff))) => {
                 files.extend(self.restorable_files_from_diff_backup(
                     diff,
-                    restoring,
+                    scan_kind,
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
@@ -671,7 +671,7 @@ impl GameLayout {
 
                 for (scan_key, full_file) in self.restorable_files_from_full_backup(
                     full,
-                    restoring,
+                    scan_kind,
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
@@ -690,7 +690,7 @@ impl GameLayout {
     fn restorable_files_from_full_backup(
         &self,
         backup: &FullBackup,
-        restoring: bool,
+        scan_kind: ScanKind,
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
@@ -699,7 +699,12 @@ impl GameLayout {
 
         for (mapping_key, v) in &backup.files {
             let original_path = StrictPath::new(mapping_key.to_string());
-            let redirected = game_file_target(&original_path, redirects, reverse_redirects_on_restore, true);
+            let redirected = game_file_target(
+                &original_path,
+                redirects,
+                reverse_redirects_on_restore,
+                ScanKind::Restore,
+            );
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
@@ -710,10 +715,11 @@ impl GameLayout {
                     restorables.insert(
                         scan_key,
                         ScannedFile {
-                            change: if restoring {
-                                ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
-                            } else {
-                                ScanChange::Unknown
+                            change: match scan_kind {
+                                ScanKind::Backup => ScanChange::Unknown,
+                                ScanKind::Restore => {
+                                    ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
+                                }
                             },
                             size: v.size,
                             hash: v.hash.clone(),
@@ -730,10 +736,11 @@ impl GameLayout {
                     restorables.insert(
                         scan_key,
                         ScannedFile {
-                            change: if restoring {
-                                ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
-                            } else {
-                                ScanChange::Unknown
+                            change: match scan_kind {
+                                ScanKind::Backup => ScanChange::Unknown,
+                                ScanKind::Restore => {
+                                    ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
+                                }
                             },
                             size: v.size,
                             hash: v.hash.clone(),
@@ -753,7 +760,7 @@ impl GameLayout {
     fn restorable_files_from_diff_backup(
         &self,
         backup: &DifferentialBackup,
-        restoring: bool,
+        scan_kind: ScanKind,
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
@@ -763,7 +770,12 @@ impl GameLayout {
         for (mapping_key, v) in &backup.files {
             let v = some_or_continue!(v);
             let original_path = StrictPath::new(mapping_key.to_string());
-            let redirected = game_file_target(&original_path, redirects, reverse_redirects_on_restore, true);
+            let redirected = game_file_target(
+                &original_path,
+                redirects,
+                reverse_redirects_on_restore,
+                ScanKind::Restore,
+            );
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
@@ -774,10 +786,11 @@ impl GameLayout {
                     restorables.insert(
                         scan_key,
                         ScannedFile {
-                            change: if restoring {
-                                ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
-                            } else {
-                                ScanChange::Unknown
+                            change: match scan_kind {
+                                ScanKind::Backup => ScanChange::Unknown,
+                                ScanKind::Restore => {
+                                    ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
+                                }
                             },
                             size: v.size,
                             hash: v.hash.clone(),
@@ -794,10 +807,11 @@ impl GameLayout {
                     restorables.insert(
                         scan_key,
                         ScannedFile {
-                            change: if restoring {
-                                ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
-                            } else {
-                                ScanChange::Unknown
+                            change: match scan_kind {
+                                ScanKind::Backup => ScanChange::Unknown,
+                                ScanKind::Restore => {
+                                    ScanChange::evaluate_restore(redirected.as_ref().unwrap_or(&original_path), &v.hash)
+                                }
                             },
                             size: v.size,
                             hash: v.hash.clone(),
@@ -1573,7 +1587,13 @@ impl GameLayout {
 
         if self.path.is_dir() {
             self.migrate_backups(true);
-            found_files = self.restorable_files(&id, true, redirects, reverse_redirects_on_restore, toggled_paths);
+            found_files = self.restorable_files(
+                &id,
+                ScanKind::Restore,
+                redirects,
+                reverse_redirects_on_restore,
+                toggled_paths,
+            );
             available_backups = self.restorable_backups_flattened();
             backup = self.find_by_id_flattened(&id);
         }
@@ -2132,14 +2152,14 @@ impl BackupLayout {
     pub fn latest_backup(
         &self,
         name: &str,
-        restoring: bool,
+        scan_kind: ScanKind,
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
     ) -> Option<LatestBackup> {
         if self.contains_game(name) {
             let game_layout = self.game_layout(name);
-            let scan = game_layout.latest_backup(restoring, redirects, reverse_redirects_on_restore, toggled_paths);
+            let scan = game_layout.latest_backup(scan_kind, redirects, reverse_redirects_on_restore, toggled_paths);
             scan.map(|scan| LatestBackup {
                 scan,
                 registry_content: if cfg!(target_os = "windows") {
@@ -3054,7 +3074,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[], false, &Default::default()),
+                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
             );
         }
 
@@ -3097,7 +3117,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[], false, &Default::default()),
+                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
             );
         }
 
@@ -3160,7 +3180,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[], false, &Default::default()),
+                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
             );
         }
 
@@ -3223,7 +3243,7 @@ mod tests {
                         redirected: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, false, &[], false, &Default::default()),
+                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
             );
         }
     }
