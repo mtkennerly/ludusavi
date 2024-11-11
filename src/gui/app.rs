@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     time::{Duration, Instant},
 };
 
@@ -201,7 +201,9 @@ impl App {
     fn register_notify_on_single_game_scanned(&mut self) {
         if let Some(games) = &self.operation.games() {
             if games.len() == 1 {
-                self.notify_on_single_game_scanned = Some((games[0].clone(), self.screen));
+                if let Some(game) = games.iter().next() {
+                    self.notify_on_single_game_scanned = Some((game.clone(), self.screen));
+                }
             }
         }
     }
@@ -232,7 +234,7 @@ impl App {
         local: &StrictPath,
         direction: SyncDirection,
         finality: Finality,
-        games: Option<&Vec<String>>,
+        games: Option<&HashSet<String>>,
         standalone: bool,
     ) -> Result<(), Error> {
         let remote = crate::cloud::validate_cloud_config(&self.config, &self.config.cloud.path)?;
@@ -301,7 +303,7 @@ impl App {
 
                 if jump {
                     if let Some(games) = games.as_ref() {
-                        if let Some(first) = games.first() {
+                        if let Some(first) = games.iter().next() {
                             self.jump_to_game_after_scan = Some(first.clone());
                         }
                     }
@@ -376,7 +378,7 @@ impl App {
                     async move {
                         manifest.incorporate_extensions(&config);
                         let subjects: Vec<_> = if let Some(games) = &games {
-                            manifest.0.keys().filter(|k| games.contains(k)).cloned().collect()
+                            manifest.0.keys().filter(|k| games.contains(*k)).cloned().collect()
                         } else if !previewed_games.is_empty() && all_scanned {
                             manifest
                                 .0
@@ -600,7 +602,7 @@ impl App {
                 let local = self.config.backup.path.clone();
                 let games = self.operation.games();
 
-                let changed_games: Vec<_> = self
+                let changed_games: HashSet<_> = self
                     .backup_screen
                     .log
                     .entries
@@ -2428,7 +2430,7 @@ impl App {
                 self.backups_to_restore.insert(game.clone(), backup.id());
                 self.handle_restore(RestorePhase::Start {
                     preview: true,
-                    games: Some(vec![game]),
+                    games: Some(HashSet::from([game])),
                 })
             }
             Message::SelectedLanguage(language) => {
@@ -2467,35 +2469,35 @@ impl App {
                     preview: true,
                     repair: false,
                     jump: false,
-                    games: Some(vec![game]),
+                    games: Some(HashSet::from([game])),
                 }),
                 GameAction::Backup { confirm } => {
                     if confirm {
                         self.handle_backup(BackupPhase::Confirm {
-                            games: Some(vec![game]),
+                            games: Some(HashSet::from([game])),
                         })
                     } else {
                         self.handle_backup(BackupPhase::Start {
                             preview: false,
                             repair: false,
                             jump: false,
-                            games: Some(vec![game]),
+                            games: Some(HashSet::from([game])),
                         })
                     }
                 }
                 GameAction::PreviewRestore => self.handle_restore(RestorePhase::Start {
                     preview: true,
-                    games: Some(vec![game]),
+                    games: Some(HashSet::from([game])),
                 }),
                 GameAction::Restore { confirm } => {
                     if confirm {
                         self.handle_restore(RestorePhase::Confirm {
-                            games: Some(vec![game]),
+                            games: Some(HashSet::from([game])),
                         })
                     } else {
                         self.handle_restore(RestorePhase::Start {
                             preview: false,
-                            games: Some(vec![game]),
+                            games: Some(HashSet::from([game])),
                         })
                     }
                 }

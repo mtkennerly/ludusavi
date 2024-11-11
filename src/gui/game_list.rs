@@ -103,11 +103,11 @@ impl GameListEntry {
                                             repair: false,
                                             jump: false,
 
-                                            games: Some(vec![self.scan_info.game_name.clone()]),
+                                            games: Some(HashSet::from([self.scan_info.game_name.clone()])),
                                         })),
                                         ScanKind::Restore => Some(Message::Restore(RestorePhase::Start {
                                             preview: true,
-                                            games: Some(vec![self.scan_info.game_name.clone()]),
+                                            games: Some(HashSet::from([self.scan_info.game_name.clone()])),
                                         })),
                                     }
                                 } else {
@@ -504,7 +504,7 @@ impl GameList {
         config: &Config,
         manifest: &Manifest,
         duplicate_detector: &DuplicateDetector,
-    ) -> Vec<String> {
+    ) -> HashSet<String> {
         let duplicatees = self.filter_duplicates_of.as_ref().and_then(|game| {
             let mut duplicatees = duplicate_detector.duplicate_games(game);
             if duplicatees.is_empty() {
@@ -772,7 +772,7 @@ impl GameList {
         }
     }
 
-    pub fn unscan_games(&mut self, games: &[String]) {
+    pub fn unscan_games(&mut self, games: &HashSet<String>) {
         for entry in self.entries.iter_mut() {
             if games.contains(&entry.scan_info.game_name) {
                 entry.scanned = false;

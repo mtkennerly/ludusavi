@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use iced::{
     keyboard, padding,
     widget::{horizontal_space, tooltip, Space},
@@ -320,7 +322,7 @@ pub fn custom_games<'a>(
                             Tooltip::new(
                                 button::refresh_custom_game(
                                     Message::Backup(BackupPhase::Start {
-                                        games: Some(vec![config.custom_games[i].name.clone()]),
+                                        games: Some(HashSet::from([config.custom_games[i].name.clone()])),
                                         preview: true,
                                         jump: true,
                                         repair: false,

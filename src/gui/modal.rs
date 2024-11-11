@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use iced::{
     padding,
@@ -126,10 +126,10 @@ pub enum Modal {
     },
     Exiting,
     ConfirmBackup {
-        games: Option<Vec<String>>,
+        games: Option<HashSet<String>>,
     },
     ConfirmRestore {
-        games: Option<Vec<String>>,
+        games: Option<HashSet<String>>,
     },
     NoMissingRoots,
     ConfirmAddMissingRoots(Vec<Root>),

@@ -1,4 +1,4 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 
 use iced::Length;
 
@@ -33,7 +33,7 @@ pub struct Flags {
 #[derive(Debug, Clone)]
 pub enum BackupPhase {
     Confirm {
-        games: Option<Vec<String>>,
+        games: Option<HashSet<String>>,
     },
     Start {
         preview: bool,
@@ -41,7 +41,7 @@ pub enum BackupPhase {
         repair: bool,
         /// Jump to the first game in the list after executing.
         jump: bool,
-        games: Option<Vec<String>>,
+        games: Option<HashSet<String>>,
     },
     CloudCheck,
     Load,
@@ -63,11 +63,11 @@ pub enum BackupPhase {
 #[derive(Debug, Clone)]
 pub enum RestorePhase {
     Confirm {
-        games: Option<Vec<String>>,
+        games: Option<HashSet<String>>,
     },
     Start {
         preview: bool,
-        games: Option<Vec<String>>,
+        games: Option<HashSet<String>>,
     },
     CloudCheck,
     Load,
@@ -339,7 +339,7 @@ pub enum Operation {
         checking_cloud: bool,
         syncing_cloud: bool,
         should_sync_cloud_after: bool,
-        games: Option<Vec<String>>,
+        games: Option<HashSet<String>>,
         errors: Vec<Error>,
         cloud_changes: i64,
         force_new_full_backup: bool,
@@ -348,7 +348,7 @@ pub enum Operation {
         finality: Finality,
         cancelling: bool,
         checking_cloud: bool,
-        games: Option<Vec<String>>,
+        games: Option<HashSet<String>>,
         errors: Vec<Error>,
         cloud_changes: i64,
     },
@@ -370,7 +370,7 @@ impl Operation {
         matches!(self, Self::Idle)
     }
 
-    pub fn new_backup(finality: Finality, games: Option<Vec<String>>) -> Self {
+    pub fn new_backup(finality: Finality, games: Option<HashSet<String>>) -> Self {
         Self::Backup {
             finality,
             cancelling: false,
@@ -384,7 +384,7 @@ impl Operation {
         }
     }
 
-    pub fn new_restore(finality: Finality, games: Option<Vec<String>>) -> Self {
+    pub fn new_restore(finality: Finality, games: Option<HashSet<String>>) -> Self {
         Self::Restore {
             finality,
             cancelling: false,
@@ -432,7 +432,7 @@ impl Operation {
         }
     }
 
-    pub fn games(&self) -> Option<Vec<String>> {
+    pub fn games(&self) -> Option<HashSet<String>> {
         match self {
             Operation::Idle => None,
             Operation::Backup { games, .. } => games.clone(),
