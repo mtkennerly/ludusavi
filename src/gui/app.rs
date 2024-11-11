@@ -377,7 +377,7 @@ impl App {
                 Task::perform(
                     async move {
                         manifest.incorporate_extensions(&config);
-                        let subjects: Vec<_> = if let Some(games) = &games {
+                        let subjects: HashSet<_> = if let Some(games) = &games {
                             manifest.0.keys().filter(|k| games.contains(*k)).cloned().collect()
                         } else if !previewed_games.is_empty() && all_scanned {
                             manifest
@@ -389,6 +389,9 @@ impl App {
                         } else {
                             manifest.processable_titles().cloned().collect()
                         };
+
+                        // HashSet -> Vec because randomized order looks nicer in the GUI.
+                        let subjects: Vec<_> = subjects.into_iter().collect();
 
                         let roots = config.expanded_roots();
                         let layout = BackupLayout::new(config.backup.path.clone());
