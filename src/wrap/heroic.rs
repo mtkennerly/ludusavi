@@ -2,7 +2,7 @@ use std::env;
 
 use crate::{
     resource::config::Root,
-    scan::heroic::{gog, legendary, nile, sideload},
+    scan::launchers::heroic::{gog, legendary, nile, sideload},
     wrap::WrapGameInfo,
 };
 

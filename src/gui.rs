@@ -20,7 +20,7 @@ mod widget;
 use iced::Size;
 
 use self::app::App;
-pub use crate::gui::common::Flags;
+pub use self::common::Flags;
 
 pub fn run(flags: Flags) {
     let app = iced::application(App::title, App::update, App::view)

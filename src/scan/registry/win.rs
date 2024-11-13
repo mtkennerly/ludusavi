@@ -12,21 +12,19 @@ use crate::{
 
 impl From<winreg::enums::RegType> for RegistryKind {
     fn from(value: winreg::enums::RegType) -> Self {
-        use winreg::enums::*;
-
         match value {
-            REG_NONE => Self::None,
-            REG_SZ => Self::Sz,
-            REG_EXPAND_SZ => Self::ExpandSz,
-            REG_BINARY => Self::Binary,
-            REG_DWORD => Self::Dword,
-            REG_DWORD_BIG_ENDIAN => Self::DwordBigEndian,
-            REG_LINK => Self::Link,
-            REG_MULTI_SZ => Self::MultiSz,
-            REG_RESOURCE_LIST => Self::ResourceList,
-            REG_FULL_RESOURCE_DESCRIPTOR => Self::FullResourceDescriptor,
-            REG_RESOURCE_REQUIREMENTS_LIST => Self::ResourceRequirementsList,
-            REG_QWORD => Self::Qword,
+            winreg::enums::REG_NONE => Self::None,
+            winreg::enums::REG_SZ => Self::Sz,
+            winreg::enums::REG_EXPAND_SZ => Self::ExpandSz,
+            winreg::enums::REG_BINARY => Self::Binary,
+            winreg::enums::REG_DWORD => Self::Dword,
+            winreg::enums::REG_DWORD_BIG_ENDIAN => Self::DwordBigEndian,
+            winreg::enums::REG_LINK => Self::Link,
+            winreg::enums::REG_MULTI_SZ => Self::MultiSz,
+            winreg::enums::REG_RESOURCE_LIST => Self::ResourceList,
+            winreg::enums::REG_FULL_RESOURCE_DESCRIPTOR => Self::FullResourceDescriptor,
+            winreg::enums::REG_RESOURCE_REQUIREMENTS_LIST => Self::ResourceRequirementsList,
+            winreg::enums::REG_QWORD => Self::Qword,
         }
     }
 }
