@@ -105,7 +105,7 @@ label-new = Uusi
 label-removed = Poistettu
 label-comment = Kommentti
 label-unchanged = Muuttumaton
-label-backup = Backup
+label-backup = Varmuuskopiointi
 label-scan = Skannaus
 label-filter = Suodatin
 label-unique = Yksilöllinen
@@ -149,7 +149,7 @@ label-source = Lähde
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
 label-primary-manifest = Ensisijainen manifesti
 # This refers to how we integrate a custom game with the manifest data.
-label-integration = Integration
+label-integration = Integraatio
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -187,7 +187,7 @@ theme-light = Vaalea
 theme-dark = Tumma
 redirect-bidirectional = Kaksisuuntainen
 reverse-redirects-when-restoring = Reverse sequence of redirects when restoring
-show-disabled-games = Show disabled games
+show-disabled-games = Näytä käytöstä poistetut pelit
 show-unchanged-games = Näytä muuttumattomat pelit
 show-unscanned-games = Näytä skannaamattomat pelit
 override-max-threads = Ohita säikeiden enimmäismäärä

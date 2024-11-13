@@ -215,7 +215,7 @@ impl Language {
             Language::Russian => 100,
             Language::Spanish => 94,
             Language::Thai => 22,
-            Language::Turkish => 94,
+            Language::Turkish => 100,
             Language::Ukrainian => 38,
         }
     }

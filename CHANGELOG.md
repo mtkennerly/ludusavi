@@ -10,6 +10,8 @@
     which could behave poorly depending on the version or in a Flatpak context.
   * The standalone Mac release is now compiled on Mac OS 13 instead of Mac OS 12
     because of [a change by GitHub](https://github.com/actions/runner-images/issues/10721).
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:
   * The registry format change also resolved an issue where very large (> 100 MB)
     `registry.yaml` files could be slow to read and consume a lot of extra memory,
