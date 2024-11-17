@@ -21,7 +21,7 @@ pub use self::{
     duplicate::{DuplicateDetector, Duplication},
     launchers::{LauncherGame, Launchers},
     preview::ScanInfo,
-    saves::{ScannedFile, ScannedRegistry, ScannedRegistryValue, ScannedRegistryValues},
+    saves::{ScannedFile, ScannedRegistry, ScannedRegistryValues},
     steam::{SteamShortcut, SteamShortcuts},
     title::{TitleFinder, TitleQuery},
 };
@@ -37,7 +37,7 @@ use crate::{
 };
 
 #[cfg(target_os = "windows")]
-use crate::scan::registry::RegistryItem;
+use crate::scan::{registry::RegistryItem, saves::ScannedRegistryValue};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScanKind {
