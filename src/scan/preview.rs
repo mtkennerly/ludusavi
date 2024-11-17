@@ -282,7 +282,10 @@ mod tests {
     use pretty_assertions::assert_eq;
     use velcro::{btree_map, hash_map};
 
-    use crate::{path::StrictPath, scan::ScannedRegistryValue};
+    use crate::path::StrictPath;
+
+    #[cfg(target_os = "windows")]
+    use crate::scan::ScannedRegistryValue;
 
     use super::*;
 
