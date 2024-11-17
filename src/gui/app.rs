@@ -10,8 +10,8 @@ use crate::{
     gui::{
         button,
         common::{
-            BackupPhase, BrowseFileSubject, BrowseSubject, EditAction, Flags, GameAction, Message, Operation,
-            RedirectEditActionField, RestorePhase, Screen, ScrollSubject, UndoSubject, ValidatePhase,
+            BackupPhase, BrowseFileSubject, BrowseSubject, EditAction, Flags, GameAction, GameSelection, Message,
+            Operation, RedirectEditActionField, RestorePhase, Screen, ScrollSubject, UndoSubject, ValidatePhase,
         },
         modal::{CloudModalState, Modal, ModalField, ModalInputKind},
         notification::Notification,
@@ -202,12 +202,8 @@ impl App {
     }
 
     fn register_notify_on_single_game_scanned(&mut self) {
-        if let Some(games) = &self.operation.games() {
-            if games.len() == 1 {
-                if let Some(game) = games.iter().next() {
-                    self.notify_on_single_game_scanned = Some((game.clone(), self.screen));
-                }
-            }
+        if let Some(GameSelection::Single { game }) = self.operation.games() {
+            self.notify_on_single_game_scanned = Some((game.clone(), self.screen));
         }
     }
 
@@ -237,7 +233,7 @@ impl App {
         local: &StrictPath,
         direction: SyncDirection,
         finality: Finality,
-        games: Option<&HashSet<String>>,
+        games: Option<GameSelection>,
         standalone: bool,
     ) -> Result<(), Error> {
         let remote = crate::cloud::validate_cloud_config(&self.config, &self.config.cloud.path)?;
@@ -290,12 +286,12 @@ impl App {
                 let mut cleared_log = false;
                 if games.is_none() {
                     if self.backup_screen.log.is_filtered() {
-                        games = Some(self.backup_screen.log.visible_games(
+                        games = Some(GameSelection::group(self.backup_screen.log.visible_games(
                             SCAN_KIND,
                             &self.config,
                             &self.manifest.extended,
                             &self.backup_screen.duplicate_detector,
-                        ));
+                        )));
                     } else {
                         self.backup_screen.log.clear();
                         self.backup_screen.duplicate_detector.clear();
@@ -305,10 +301,8 @@ impl App {
                 }
 
                 if jump {
-                    if let Some(games) = games.as_ref() {
-                        if let Some(first) = games.iter().next() {
-                            self.jump_to_game_after_scan = Some(first.clone());
-                        }
+                    if let Some(GameSelection::Single { game }) = &games {
+                        self.jump_to_game_after_scan = Some(game.clone());
                     }
                 }
 
@@ -344,7 +338,7 @@ impl App {
                 let local = self.config.backup.path.clone();
                 let games = self.operation.games();
 
-                match self.start_sync_cloud(&local, SyncDirection::Upload, Finality::Preview, games.as_ref(), false) {
+                match self.start_sync_cloud(&local, SyncDirection::Upload, Finality::Preview, games.cloned(), false) {
                     Ok(_) => {
                         // deferring to `transition_from_cloud_step`
                         Task::none()
@@ -361,7 +355,7 @@ impl App {
 
                 let preview = self.operation.preview();
                 let full = self.operation.full();
-                let games = self.operation.games();
+                let games = self.operation.games().cloned();
 
                 if preview && full {
                     self.backup_screen.previewed_games.clear();
@@ -381,7 +375,7 @@ impl App {
                     async move {
                         manifest.incorporate_extensions(&config);
                         let subjects: HashSet<_> = if let Some(games) = &games {
-                            manifest.0.keys().filter(|k| games.contains(*k)).cloned().collect()
+                            manifest.0.keys().filter(|k| games.contains(k)).cloned().collect()
                         } else if !previewed_games.is_empty() && all_scanned {
                             manifest
                                 .0
@@ -424,7 +418,7 @@ impl App {
             } => {
                 log::info!("beginning backup with {} steps", subjects.len());
                 let preview = self.operation.preview();
-                let full = self.operation.full();
+                let single = self.operation.games().is_some_and(|x| x.is_single());
 
                 if self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed) {
                     self.go_idle();
@@ -433,7 +427,7 @@ impl App {
 
                 if subjects.is_empty() {
                     if let Some(games) = self.operation.games() {
-                        for game in &games {
+                        for game in games.iter() {
                             let duplicates = self.backup_screen.duplicate_detector.remove_game(game);
                             self.backup_screen.log.remove_game(
                                 game,
@@ -511,7 +505,7 @@ impl App {
                                 config.restore.reverse_redirects,
                                 &steam_shortcuts,
                             );
-                            if !config.is_game_enabled_for_backup(&key) && full {
+                            if !config.is_game_enabled_for_backup(&key) && !single {
                                 return (Some(scan_info), None);
                             }
 
@@ -608,20 +602,21 @@ impl App {
                 let local = self.config.backup.path.clone();
                 let games = self.operation.games();
 
-                let changed_games: HashSet<_> = self
-                    .backup_screen
-                    .log
-                    .entries
-                    .iter()
-                    .filter(|x| {
-                        let relevant = games
-                            .as_ref()
-                            .map(|games| games.contains(&x.scan_info.game_name))
-                            .unwrap_or(true);
-                        relevant && x.scan_info.needs_cloud_sync()
-                    })
-                    .map(|x| x.scan_info.game_name.clone())
-                    .collect();
+                let changed_games = GameSelection::group(
+                    self.backup_screen
+                        .log
+                        .entries
+                        .iter()
+                        .filter(|x| {
+                            let relevant = games
+                                .as_ref()
+                                .map(|games| games.contains(&x.scan_info.game_name))
+                                .unwrap_or(true);
+                            relevant && x.scan_info.needs_cloud_sync()
+                        })
+                        .map(|x| x.scan_info.game_name.clone())
+                        .collect(),
+                );
 
                 if changed_games.is_empty() {
                     return self.handle_backup(BackupPhase::Done);
@@ -631,7 +626,7 @@ impl App {
                     &local,
                     SyncDirection::Upload,
                     Finality::Final,
-                    Some(&changed_games),
+                    Some(changed_games),
                     false,
                 ) {
                     Ok(_) => {
@@ -733,12 +728,12 @@ impl App {
                 let mut cleared_log = false;
                 if games.is_none() {
                     if self.restore_screen.log.is_filtered() {
-                        games = Some(self.restore_screen.log.visible_games(
+                        games = Some(GameSelection::group(self.restore_screen.log.visible_games(
                             SCAN_KIND,
                             &self.config,
                             &self.manifest.extended,
                             &self.restore_screen.duplicate_detector,
-                        ));
+                        )));
                     } else {
                         self.restore_screen.log.clear();
                         self.restore_screen.duplicate_detector.clear();
@@ -770,7 +765,7 @@ impl App {
                 let local = self.config.restore.path.clone();
                 let games = self.operation.games();
 
-                match self.start_sync_cloud(&local, SyncDirection::Upload, Finality::Preview, games.as_ref(), false) {
+                match self.start_sync_cloud(&local, SyncDirection::Upload, Finality::Preview, games.cloned(), false) {
                     Ok(_) => {
                         // waiting for background thread
                         Task::none()
@@ -803,8 +798,8 @@ impl App {
             } => {
                 log::info!("beginning restore with {} steps", restorables.len());
                 let preview = self.operation.preview();
-                let full = self.operation.full();
                 let games = self.operation.games();
+                let single = games.is_some_and(|x| x.is_single());
 
                 if self.operation_should_cancel.load(std::sync::atomic::Ordering::Relaxed) {
                     self.go_idle();
@@ -818,7 +813,7 @@ impl App {
 
                 if restorables.is_empty() {
                     if let Some(games) = games {
-                        for game in &games {
+                        for game in games.iter() {
                             let duplicates = self.restore_screen.duplicate_detector.remove_game(game);
                             self.restore_screen.log.remove_game(
                                 game,
@@ -863,7 +858,7 @@ impl App {
                                 &config.restore.toggled_paths,
                                 &config.restore.toggled_registry,
                             );
-                            if !config.is_game_enabled_for_restore(&name) && full {
+                            if !config.is_game_enabled_for_restore(&name) && !single {
                                 return (Some(scan_info), None, layout);
                             }
 
@@ -2436,7 +2431,7 @@ impl App {
                 self.backups_to_restore.insert(game.clone(), backup.id());
                 self.handle_restore(RestorePhase::Start {
                     preview: true,
-                    games: Some(HashSet::from([game])),
+                    games: Some(GameSelection::single(game)),
                 })
             }
             Message::SelectedLanguage(language) => {
@@ -2475,35 +2470,35 @@ impl App {
                     preview: true,
                     repair: false,
                     jump: false,
-                    games: Some(HashSet::from([game])),
+                    games: Some(GameSelection::single(game)),
                 }),
                 GameAction::Backup { confirm } => {
                     if confirm {
                         self.handle_backup(BackupPhase::Confirm {
-                            games: Some(HashSet::from([game])),
+                            games: Some(GameSelection::single(game)),
                         })
                     } else {
                         self.handle_backup(BackupPhase::Start {
                             preview: false,
                             repair: false,
                             jump: false,
-                            games: Some(HashSet::from([game])),
+                            games: Some(GameSelection::single(game)),
                         })
                     }
                 }
                 GameAction::PreviewRestore => self.handle_restore(RestorePhase::Start {
                     preview: true,
-                    games: Some(HashSet::from([game])),
+                    games: Some(GameSelection::single(game)),
                 }),
                 GameAction::Restore { confirm } => {
                     if confirm {
                         self.handle_restore(RestorePhase::Confirm {
-                            games: Some(HashSet::from([game])),
+                            games: Some(GameSelection::single(game)),
                         })
                     } else {
                         self.handle_restore(RestorePhase::Start {
                             preview: false,
-                            games: Some(HashSet::from([game])),
+                            games: Some(GameSelection::single(game)),
                         })
                     }
                 }

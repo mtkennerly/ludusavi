@@ -18,6 +18,8 @@
     whereas the same data in `.reg` format can be loaded without issue.
   * GUI: After a backup, if a file were removed,
     its change status wouldn't immediately refresh.
+  * GUI: When performing a multi-game scan with a filter active,
+    the visible games would be backed up or restored even if they were disabled.
   * GUI: When performing a multi-game scan on the restore screen with a filter active,
     the scan would exclude games that were disabled for backup rather than disabled for restore.
 

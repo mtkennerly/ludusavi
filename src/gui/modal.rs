@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::BTreeSet;
 
 use iced::{
     padding,
@@ -12,7 +12,7 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{BackupPhase, Message, RestorePhase, ScrollSubject, UndoSubject},
+        common::{BackupPhase, GameSelection, Message, RestorePhase, ScrollSubject, UndoSubject},
         icon::Icon,
         shortcuts::TextHistories,
         style,
@@ -126,14 +126,15 @@ pub enum Modal {
     },
     Exiting,
     ConfirmBackup {
-        games: Option<HashSet<String>>,
+        games: Option<GameSelection>,
     },
     ConfirmRestore {
-        games: Option<HashSet<String>>,
+        games: Option<GameSelection>,
     },
     NoMissingRoots,
     ConfirmAddMissingRoots(Vec<Root>),
     BackupValidation {
+        /// Any games with invalid backups.
         games: BTreeSet<String>,
     },
     AppUpdate {
@@ -347,7 +348,7 @@ impl Modal {
                             preview: false,
                             repair: true,
                             jump: false,
-                            games: Some(games.iter().cloned().collect()),
+                            games: Some(GameSelection::group(games.iter().cloned().collect())),
                         })),
                     )]
                 }

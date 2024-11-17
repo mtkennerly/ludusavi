@@ -33,7 +33,7 @@ pub struct Flags {
 #[derive(Debug, Clone)]
 pub enum BackupPhase {
     Confirm {
-        games: Option<HashSet<String>>,
+        games: Option<GameSelection>,
     },
     Start {
         preview: bool,
@@ -41,7 +41,7 @@ pub enum BackupPhase {
         repair: bool,
         /// Jump to the first game in the list after executing.
         jump: bool,
-        games: Option<HashSet<String>>,
+        games: Option<GameSelection>,
     },
     CloudCheck,
     Load,
@@ -63,11 +63,11 @@ pub enum BackupPhase {
 #[derive(Debug, Clone)]
 pub enum RestorePhase {
     Confirm {
-        games: Option<HashSet<String>>,
+        games: Option<GameSelection>,
     },
     Start {
         preview: bool,
-        games: Option<HashSet<String>>,
+        games: Option<GameSelection>,
     },
     CloudCheck,
     Load,
@@ -329,6 +329,47 @@ impl Message {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum GameSelection {
+    Single { game: String },
+    Group { games: HashSet<String> },
+}
+
+impl GameSelection {
+    pub fn single(game: String) -> Self {
+        Self::Single { game }
+    }
+
+    pub fn group(games: HashSet<String>) -> Self {
+        Self::Group { games }
+    }
+
+    pub fn is_single(&self) -> bool {
+        matches!(self, Self::Single { .. })
+    }
+
+    pub fn contains(&self, query: &str) -> bool {
+        match self {
+            Self::Single { game } => game == query,
+            Self::Group { games } => games.contains(query),
+        }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        match self {
+            Self::Single { .. } => false,
+            Self::Group { games } => games.is_empty(),
+        }
+    }
+
+    pub fn iter<'a>(&'a self) -> Box<dyn Iterator<Item = &'a String> + 'a> {
+        match self {
+            Self::Single { game } => Box::new(std::iter::once(game)),
+            Self::Group { games } => Box::new(games.iter()),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Operation {
     #[default]
@@ -339,7 +380,7 @@ pub enum Operation {
         checking_cloud: bool,
         syncing_cloud: bool,
         should_sync_cloud_after: bool,
-        games: Option<HashSet<String>>,
+        games: Option<GameSelection>,
         errors: Vec<Error>,
         cloud_changes: i64,
         force_new_full_backup: bool,
@@ -348,7 +389,7 @@ pub enum Operation {
         finality: Finality,
         cancelling: bool,
         checking_cloud: bool,
-        games: Option<HashSet<String>>,
+        games: Option<GameSelection>,
         errors: Vec<Error>,
         cloud_changes: i64,
     },
@@ -370,7 +411,7 @@ impl Operation {
         matches!(self, Self::Idle)
     }
 
-    pub fn new_backup(finality: Finality, games: Option<HashSet<String>>) -> Self {
+    pub fn new_backup(finality: Finality, games: Option<GameSelection>) -> Self {
         Self::Backup {
             finality,
             cancelling: false,
@@ -384,7 +425,7 @@ impl Operation {
         }
     }
 
-    pub fn new_restore(finality: Finality, games: Option<HashSet<String>>) -> Self {
+    pub fn new_restore(finality: Finality, games: Option<GameSelection>) -> Self {
         Self::Restore {
             finality,
             cancelling: false,
@@ -432,11 +473,11 @@ impl Operation {
         }
     }
 
-    pub fn games(&self) -> Option<HashSet<String>> {
+    pub fn games(&self) -> Option<&GameSelection> {
         match self {
             Operation::Idle => None,
-            Operation::Backup { games, .. } => games.clone(),
-            Operation::Restore { games, .. } => games.clone(),
+            Operation::Backup { games, .. } => games.as_ref(),
+            Operation::Restore { games, .. } => games.as_ref(),
             Operation::ValidateBackups { .. } => None,
             Operation::Cloud { .. } => None,
         }

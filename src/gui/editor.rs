@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use iced::{
     keyboard, padding,
     widget::{horizontal_space, tooltip, Space},
@@ -10,7 +8,7 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{BackupPhase, BrowseFileSubject, BrowseSubject, Message, ScrollSubject, UndoSubject},
+        common::{BackupPhase, BrowseFileSubject, BrowseSubject, GameSelection, Message, ScrollSubject, UndoSubject},
         icon::Icon,
         search::CustomGamesFilter,
         shortcuts::TextHistories,
@@ -322,7 +320,7 @@ pub fn custom_games<'a>(
                             Tooltip::new(
                                 button::refresh_custom_game(
                                     Message::Backup(BackupPhase::Start {
-                                        games: Some(HashSet::from([config.custom_games[i].name.clone()])),
+                                        games: Some(GameSelection::single(config.custom_games[i].name.clone())),
                                         preview: true,
                                         jump: true,
                                         repair: false,

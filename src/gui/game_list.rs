@@ -12,7 +12,10 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{BackupPhase, GameAction, Message, Operation, RestorePhase, Screen, ScrollSubject, UndoSubject},
+        common::{
+            BackupPhase, GameAction, GameSelection, Message, Operation, RestorePhase, Screen, ScrollSubject,
+            UndoSubject,
+        },
         file_tree::FileTree,
         icon::Icon,
         search::FilterComponent,
@@ -102,12 +105,11 @@ impl GameListEntry {
                                             preview: true,
                                             repair: false,
                                             jump: false,
-
-                                            games: Some(HashSet::from([self.scan_info.game_name.clone()])),
+                                            games: Some(GameSelection::single(self.scan_info.game_name.clone())),
                                         })),
                                         ScanKind::Restore => Some(Message::Restore(RestorePhase::Start {
                                             preview: true,
-                                            games: Some(HashSet::from([self.scan_info.game_name.clone()])),
+                                            games: Some(GameSelection::single(self.scan_info.game_name.clone())),
                                         })),
                                     }
                                 } else {
@@ -772,13 +774,13 @@ impl GameList {
         }
     }
 
-    pub fn unscan_games(&mut self, games: &HashSet<String>) {
+    pub fn unscan_games(&mut self, games: &GameSelection) {
         for entry in self.entries.iter_mut() {
             if games.contains(&entry.scan_info.game_name) {
                 entry.scanned = false;
                 entry.scan_info.found_files.clear();
                 entry.scan_info.found_registry_keys.clear();
-                if games.len() > 1 {
+                if !games.is_single() {
                     entry.clear_tree();
                     self.expanded_games.remove(&entry.scan_info.game_name);
                 }
