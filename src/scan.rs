@@ -15,13 +15,14 @@ use std::collections::{HashMap, HashSet};
 use once_cell::sync::Lazy;
 use regex::Regex;
 
+#[allow(unused)]
 pub use self::{
     backup::{BackupError, BackupId, BackupInfo, OperationStatus, OperationStepDecision},
     change::{ScanChange, ScanChangeCount},
     duplicate::{DuplicateDetector, Duplication},
     launchers::{LauncherGame, Launchers},
     preview::ScanInfo,
-    saves::{ScannedFile, ScannedRegistry, ScannedRegistryValues},
+    saves::{ScannedFile, ScannedRegistry, ScannedRegistryValue, ScannedRegistryValues},
     steam::{SteamShortcut, SteamShortcuts},
     title::{TitleFinder, TitleQuery},
 };
@@ -37,7 +38,7 @@ use crate::{
 };
 
 #[cfg(target_os = "windows")]
-use crate::scan::{registry::RegistryItem, saves::ScannedRegistryValue};
+use crate::scan::registry::RegistryItem;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScanKind {
