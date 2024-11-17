@@ -15,7 +15,7 @@ impl SteamShortcuts {
     pub fn scan() -> Self {
         let mut instance = Self::default();
 
-        let mut steam = match steamlocate::SteamDir::locate() {
+        let steam = match steamlocate::SteamDir::locate() {
             Ok(x) => x,
             Err(e) => {
                 log::info!("Unable to locate Steam directory: {:?}", e);

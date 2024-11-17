@@ -2493,7 +2493,7 @@ dependencies = [
  "which",
  "whoami",
  "windows 0.58.0",
- "winreg 0.52.0",
+ "winreg",
  "winres",
  "zip",
 ]
@@ -4224,16 +4224,16 @@ checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
 name = "steamlocate"
-version = "2.0.0-beta.2"
+version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3b6a4810c4e7fecb0123a9a8ba99b335c17d92e636c265ef99108ee4734c812"
+checksum = "cb96708f2e7cadc6c5bde3f3e12e3d6565bbd4d8b9e3da057035881c33136d9d"
 dependencies = [
  "crc",
- "dirs",
+ "home",
  "keyvalues-parser",
  "keyvalues-serde",
  "serde",
- "winreg 0.51.0",
+ "winreg",
 ]
 
 [[package]]
@@ -5652,16 +5652,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "36c1fec1a2bb5866f07c25f68c26e565c4c200aebb96d7e55710c19d3e8ac49b"
 dependencies = [
  "memchr",
-]
-
-[[package]]
-name = "winreg"
-version = "0.51.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "937f3df7948156640f46aacef17a70db0de5917bda9c92b0f751f3a955b588fc"
-dependencies = [
- "cfg-if",
- "windows-sys 0.48.0",
 ]
 
 [[package]]
