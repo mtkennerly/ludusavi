@@ -24,6 +24,7 @@ use crate::{
 use crate::scan::ScannedRegistry;
 
 const SAFE: &str = "_";
+const SOLO: &str = ".";
 
 macro_rules! some_or_continue {
     ($maybe:expr) => {
@@ -448,7 +449,7 @@ impl IndividualMapping {
 
         // Handle legacy files without backup timestamps.
         for full in parsed.backups.iter_mut() {
-            if full.name == "." && full.when == chrono::DateTime::<chrono::Utc>::default() {
+            if full.name == SOLO && full.when == chrono::DateTime::<chrono::Utc>::default() {
                 full.when = file
                     .metadata()
                     .ok()
@@ -485,7 +486,7 @@ impl IndividualMapping {
                 .flat_map(|x| x.children.iter().map(|y| y.name.clone())),
         );
 
-        if !self.has_backup(".") {
+        if !self.has_backup(SOLO) {
             for format in registry::Format::ALL {
                 irrelevant.push(base.joined(format.filename()));
             }
@@ -503,7 +504,7 @@ impl IndividualMapping {
         {
             let name = child.file_name().to_string_lossy();
 
-            if name.starts_with("drive-") && !self.has_backup(".") {
+            if name.starts_with("drive-") && !self.has_backup(SOLO) {
                 irrelevant.push(StrictPath::from(&child));
             }
             if name.starts_with("backup-") && !relevant.clone().any(|x| x == name) {
@@ -949,7 +950,7 @@ impl GameLayout {
             && format.chosen == BackupFormat::Simple
             && self.mapping.backups.iter().all(|x| !x.locked)
         {
-            ".".to_string()
+            SOLO.to_string()
         } else {
             let timestamp = Self::generate_file_friendly_timestamp(now);
             let name = match *kind {
@@ -1170,8 +1171,9 @@ impl GameLayout {
             }
         }
 
-        if backup.full() {
+        if backup.full() && backup.name() == SOLO {
             self.remove_irrelevant_backup_files(backup.name(), &relevant_files);
+            self.remove_empty_backup_subdirs(backup.name());
         }
 
         backup_info
@@ -1427,7 +1429,7 @@ impl GameLayout {
         }
 
         let mut backup = FullBackup {
-            name: ".".to_string(),
+            name: SOLO.to_string(),
             ..Default::default()
         };
 
@@ -1869,7 +1871,6 @@ impl GameLayout {
     }
 
     fn find_irrelevant_backup_files(&self, backup: &str, relevant_files: &[StrictPath]) -> Vec<StrictPath> {
-        #[allow(clippy::needless_collect)]
         let relevant_files: Vec<_> = relevant_files.iter().filter_map(|x| x.interpret().ok()).collect();
         let mut irrelevant_files = vec![];
 
@@ -1913,8 +1914,7 @@ impl GameLayout {
         irrelevant_files
     }
 
-    pub fn remove_irrelevant_backup_files(&self, backup: &str, relevant_files: &[StrictPath]) {
-        // TODO: Remove empty directories as well.
+    fn remove_irrelevant_backup_files(&self, backup: &str, relevant_files: &[StrictPath]) {
         log::trace!(
             "[{}] looking for irrelevant backup files in {}",
             self.mapping.name,
@@ -1925,6 +1925,40 @@ impl GameLayout {
             let _ = file.remove();
         }
         log::trace!("[{}] done removing irrelevant backup files", self.mapping.name);
+    }
+
+    fn remove_empty_backup_subdirs(&self, backup: &str) {
+        log::trace!("[{}] looking for empty backup subdirs in {}", self.mapping.name, backup);
+
+        let Ok(walk_path) = self.path.joined(backup).interpret() else {
+            return;
+        };
+
+        for drive_dir in walkdir::WalkDir::new(walk_path)
+            .max_depth(1)
+            .follow_links(false)
+            .into_iter()
+            .filter_map(crate::scan::filter_map_walkdir)
+            .filter(|x| x.file_name().to_string_lossy().starts_with("drive-"))
+        {
+            for entry in walkdir::WalkDir::new(drive_dir.path())
+                .max_depth(100)
+                .follow_links(false)
+                .contents_first(true)
+                .into_iter()
+                .filter_map(crate::scan::filter_map_walkdir)
+                .filter(|x| x.file_type().is_dir())
+            {
+                let empty = std::fs::read_dir(entry.path()).is_ok_and(|mut xs| xs.next().is_none());
+                if empty {
+                    let folder = StrictPath::new(entry.path().display().to_string());
+                    log::debug!("[{}] removing empty backup subdir: {:?}", self.mapping.name, &folder);
+                    let _ = folder.remove();
+                }
+            }
+        }
+
+        log::trace!("[{}] done removing empty backup subdirs", self.mapping.name);
     }
 
     pub fn set_backup_comment(&mut self, backup_name: &str, comment: &str) {
@@ -2293,12 +2327,12 @@ mod tests {
             assert_eq!(
                 vec![repo_path_raw("tests/backup/game1/drive-X/file2.txt")],
                 game_layout("game1", &repo_file_raw("tests/backup/game1"))
-                    .find_irrelevant_backup_files(".", &[repo_path("tests/backup/game1/drive-X/file1.txt")])
+                    .find_irrelevant_backup_files(SOLO, &[repo_path("tests/backup/game1/drive-X/file1.txt")])
             );
             assert_eq!(
                 Vec::<StrictPath>::new(),
                 game_layout("game1", &repo_file("tests/backup/game1")).find_irrelevant_backup_files(
-                    ".",
+                    SOLO,
                     &[
                         repo_path("tests/backup/game1/drive-X/file1.txt"),
                         repo_path("tests/backup/game1/drive-X/file2.txt"),
@@ -2514,7 +2548,7 @@ mod tests {
             let layout = GameLayout::default();
             assert_eq!(
                 FullBackup {
-                    name: ".".to_string(),
+                    name: SOLO.to_string(),
                     when: now(),
                     os: Some(Os::HOST),
                     files: btree_map! {
@@ -2564,7 +2598,7 @@ mod tests {
             });
             assert_eq!(
                 FullBackup {
-                    name: ".".to_string(),
+                    name: SOLO.to_string(),
                     when: now(),
                     os: Some(Os::HOST),
                     registry: IndividualMappingRegistry {
@@ -2592,7 +2626,7 @@ mod tests {
                 mapping: IndividualMapping {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
-                        name: ".".to_string(),
+                        name: SOLO.to_string(),
                         when: past(),
                         files: btree_map! {
                             StrictPath::new(repo_file("different")).render(): IndividualMappingFile { hash: "d".into(), size: 2 },
@@ -2639,7 +2673,7 @@ mod tests {
                 mapping: IndividualMapping {
                     drives: drives(),
                     backups: VecDeque::from_iter(vec![FullBackup {
-                        name: ".".to_string(),
+                        name: SOLO.to_string(),
                         when: past(),
                         files: btree_map! {
                             StrictPath::new(repo_file("file1")).render(): IndividualMappingFile { hash: "1".into(), size: 1 },
@@ -2694,7 +2728,7 @@ mod tests {
             let layout = GameLayout {
                 mapping: IndividualMapping {
                     backups: VecDeque::from_iter(vec![FullBackup {
-                        name: ".".to_string(),
+                        name: SOLO.to_string(),
                         when: past(),
                         registry: IndividualMappingRegistry { hash: None },
                         ..Default::default()
@@ -2739,7 +2773,7 @@ mod tests {
             let layout = GameLayout {
                 mapping: IndividualMapping {
                     backups: VecDeque::from_iter(vec![FullBackup {
-                        name: ".".to_string(),
+                        name: SOLO.to_string(),
                         when: past(),
                         registry: IndividualMappingRegistry {
                             hash: Some("foo".into()),
@@ -2788,7 +2822,7 @@ mod tests {
             let layout = GameLayout {
                 mapping: IndividualMapping {
                     backups: VecDeque::from_iter(vec![FullBackup {
-                        name: ".".to_string(),
+                        name: SOLO.to_string(),
                         when: past(),
                         registry: IndividualMappingRegistry {
                             hash: hives.sha1(registry::Format::Reg),
@@ -2823,7 +2857,7 @@ mod tests {
             let layout = GameLayout {
                 mapping: IndividualMapping {
                     backups: VecDeque::from_iter(vec![FullBackup {
-                        name: ".".to_string(),
+                        name: SOLO.to_string(),
                         when: past(),
                         registry: IndividualMappingRegistry {
                             hash: Some("foo".into()),
@@ -2899,12 +2933,12 @@ mod tests {
                 mapping: IndividualMapping {
                     backups: VecDeque::from_iter(vec![
                         FullBackup {
-                            name: ".".to_string(),
+                            name: SOLO.to_string(),
                             comment: Some("old".to_string()),
                             ..Default::default()
                         },
                         FullBackup {
-                            name: ".".to_string(),
+                            name: SOLO.to_string(),
                             comment: Some("new".to_string()),
                             ..Default::default()
                         },
@@ -2917,7 +2951,7 @@ mod tests {
             layout.forget_excess_backups(Retention::new(1, 0));
             assert_eq!(
                 VecDeque::from_iter(vec![FullBackup {
-                    name: ".".to_string(),
+                    name: SOLO.to_string(),
                     comment: Some("new".to_string()),
                     ..Default::default()
                 },]),
@@ -3282,7 +3316,7 @@ mod tests {
                     name: "game1".to_string(),
                     drives: drives_x(),
                     backups: VecDeque::from(vec![FullBackup {
-                        name: ".".into(),
+                        name: SOLO.into(),
                         when: now(),
                         files: btree_map! {
                             mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
@@ -3293,7 +3327,7 @@ mod tests {
                 },
             );
             let backups = vec![Backup::Full(FullBackup {
-                name: ".".to_string(),
+                name: SOLO.to_string(),
                 when: now(),
                 files: btree_map! {
                     mapping_file_key("/file1.txt"): IndividualMappingFile {
@@ -3312,7 +3346,7 @@ mod tests {
                 ScanInfo {
                     game_name: s("game1"),
                     found_files: hash_map! {
-                        restorable_file_simple(".", "file1.txt"): ScannedFile {
+                        restorable_file_simple(SOLO, "file1.txt"): ScannedFile {
                             size: 1,
                             hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(),
                             original_path: Some(make_original_path("/file1.txt")),
@@ -3321,7 +3355,7 @@ mod tests {
                             container: None,
                             redirected: None,
                         },
-                        restorable_file_simple(".", "file2.txt"): ScannedFile {
+                        restorable_file_simple(SOLO, "file2.txt"): ScannedFile {
                             size: 2,
                             hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
                             original_path: Some(make_original_path("/file2.txt")),
@@ -3366,7 +3400,7 @@ mod tests {
                                 .with_value_same("sz")
                         },
                         available_backups: vec![Backup::Full(FullBackup {
-                            name: ".".to_string(),
+                            name: SOLO.to_string(),
                             when: now(),
                             registry: IndividualMappingRegistry {
                                 hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
@@ -3374,7 +3408,7 @@ mod tests {
                             ..Default::default()
                         })],
                         backup: Some(Backup::Full(FullBackup {
-                            name: ".".to_string(),
+                            name: SOLO.to_string(),
                             when: now(),
                             registry: IndividualMappingRegistry {
                                 hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
@@ -3399,7 +3433,7 @@ mod tests {
                         found_files: Default::default(),
                         found_registry_keys: Default::default(),
                         available_backups: vec![Backup::Full(FullBackup {
-                            name: ".".to_string(),
+                            name: SOLO.to_string(),
                             when: now(),
                             registry: IndividualMappingRegistry {
                                 hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into()),
@@ -3407,7 +3441,7 @@ mod tests {
                             ..Default::default()
                         })],
                         backup: Some(Backup::Full(FullBackup {
-                            name: ".".to_string(),
+                            name: SOLO.to_string(),
                             when: now(),
                             registry: IndividualMappingRegistry {
                                 hash: Some("4e2cab4b4e3ab853e5767fae35f317c26c655c52".into())
@@ -3434,7 +3468,7 @@ mod tests {
                 mapping: IndividualMapping {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
-                        name: ".".into(),
+                        name: SOLO.into(),
                         files: btree_map! {
                             mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
                             mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
@@ -3455,7 +3489,7 @@ mod tests {
                 mapping: IndividualMapping {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
-                        name: ".".into(),
+                        name: SOLO.into(),
                         files: btree_map! {
                             mapping_file_key("/fake.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
@@ -3475,13 +3509,13 @@ mod tests {
                 mapping: IndividualMapping {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
-                        name: ".".into(),
+                        name: SOLO.into(),
                         files: btree_map! {
                             mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
                             mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
                         children: VecDeque::from(vec![DifferentialBackup {
-                            name: ".".into(),
+                            name: SOLO.into(),
                             files: btree_map! {
                                 mapping_file_key("/file1.txt"): None,
                                 mapping_file_key("/file2.txt"): Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
@@ -3504,13 +3538,13 @@ mod tests {
                 mapping: IndividualMapping {
                     drives: drives_x_always(),
                     backups: VecDeque::from(vec![FullBackup {
-                        name: ".".into(),
+                        name: SOLO.into(),
                         files: btree_map! {
                             mapping_file_key("/file1.txt"): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
                             mapping_file_key("/file2.txt"): IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 },
                         },
                         children: VecDeque::from(vec![DifferentialBackup {
-                            name: ".".into(),
+                            name: SOLO.into(),
                             files: btree_map! {
                                 mapping_file_key("/fake.txt"): Some(IndividualMappingFile { hash: "9d891e731f75deae56884d79e9816736b7488080".into(), size: 2 }),
                             },
@@ -3637,7 +3671,7 @@ mod tests {
                 name: "migrate-legacy-backup".to_string(),
                 drives: drives_x_static(),
                 backups: VecDeque::from(vec![FullBackup {
-                    name: ".".into(),
+                    name: SOLO.into(),
                     files: btree_map! {
                         "X:/file1.txt".into(): IndividualMappingFile { hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".into(), size: 1 },
                     },
@@ -3669,7 +3703,7 @@ mod tests {
                 drives: drives_x_static(),
                 backups: VecDeque::from(vec![
                     FullBackup {
-                        name: ".".into(),
+                        name: SOLO.into(),
                         ..Default::default()
                     },
                     FullBackup {
@@ -3731,7 +3765,7 @@ mod tests {
                 name: "migrate-initial-empty-backup".to_string(),
                 drives: drives_x_static(),
                 backups: VecDeque::from(vec![FullBackup {
-                    name: ".".into(),
+                    name: SOLO.into(),
                     children: VecDeque::from(vec![DifferentialBackup {
                         name: "backup-20240626T100614Z-diff".to_string(),
                         when: chrono::DateTime::<chrono::FixedOffset>::parse_from_rfc3339(

@@ -16,6 +16,10 @@
   * The registry format change also resolved an issue where very large (> 100 MB)
     `registry.yaml` files could be slow to read and consume a lot of extra memory,
     whereas the same data in `.reg` format can be loaded without issue.
+  * When set to only keep 1 full backup and 0 differential backups using the simple format,
+    Ludusavi keeps the existing backup in place and just adds/removes any changed files.
+    However, after removing obsolete files, Ludusavi could leave empty directories behind.
+    Now, Ludusavi will clean these up as well after creating a new backup for a game.
   * GUI: After a backup, if a file were removed,
     its change status wouldn't immediately refresh.
   * GUI: When performing a multi-game scan with a filter active,
