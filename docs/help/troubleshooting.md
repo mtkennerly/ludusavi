@@ -3,8 +3,6 @@
   * **Linux:** Try setting the `WINIT_X11_SCALE_FACTOR` environment variable to `1`.
     Flatpak installs will have this set automatically.
 * The file/folder picker doesn't work.
-  * **Linux:** Make sure that you have Zenity or kdialog installed and available on the `PATH`.
-    The `DISPLAY` environment variable must also be set.
   * **Steam Deck:** Use desktop mode instead of game mode.
   * **Flatpak:** The `DISPLAY` environment variable may not be getting passed through to the container.
     This has been observed on GNOME systems.
@@ -21,6 +19,10 @@
     by setting the `WGPU_BACKEND` environment variable to `dx12`, `vulkan`, or `metal`.
   * **Flatpak:** You can try forcing X11 instead of Wayland:
     `flatpak run --nosocket=wayland --socket=x11 com.github.mtkennerly.ludusavi`
+* On Windows, I can't back up really long folder/file paths.
+  * Ludusavi supports long paths,
+    but you also need to enable that feature in Windows itself:
+    https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation?tabs=registry#registry-setting-to-enable-long-paths
 
 ## Environment variables on Windows
 Some of the instructions above mention setting environment variables.
