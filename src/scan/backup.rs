@@ -27,7 +27,6 @@ impl BackupError {
 
 #[derive(Clone, Debug, Default)]
 pub struct BackupInfo {
-    // TODO: Use `StrictPath` as key instead of whole `ScannedFile`?
     pub failed_files: HashMap<StrictPath, BackupError>,
     pub failed_registry: HashMap<RegistryItem, BackupError>,
 }

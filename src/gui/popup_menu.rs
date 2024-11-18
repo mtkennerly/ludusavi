@@ -223,7 +223,6 @@ impl<T> State<T> {
     pub fn new() -> Self {
         Self {
             menu: menu::State::default(),
-            // keyboard_modifiers: keyboard::Modifiers::default(),
             is_open: bool::default(),
             hovered_option: Option::default(),
             last_selection: Option::default(),

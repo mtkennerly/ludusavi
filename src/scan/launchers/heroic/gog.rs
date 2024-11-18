@@ -58,7 +58,6 @@ pub fn scan(root: &root::Heroic, title_finder: &TitleFinder) -> HashMap<String, 
         return games;
     }
 
-    // iterate over all games found in HEROCONFIGDIR/gog_store/installed.json and call find_prefix
     let installed_path = root.path.joined(installed::PATH);
     let content = installed_path.read();
 

@@ -253,13 +253,13 @@ pub struct TitleQuery {
     /// Search for exact titles or aliases.
     /// This will cause only one result to be returned.
     pub names: Vec<String>,
-    // Search for a Steam ID.
+    /// Search for a Steam ID.
     /// This will cause only one result to be returned.
     pub steam_id: Option<u32>,
     /// Search for a GOG ID.
     /// This will cause only one result to be returned.
     pub gog_id: Option<u64>,
-    // Search for a Lutris slug.
+    /// Search for a Lutris slug.
     /// This will cause only one result to be returned.
     pub lutris_id: Option<String>,
     /// Search by normalizing the `names`.

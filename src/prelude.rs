@@ -39,7 +39,6 @@ pub static OS_USERNAME: Lazy<String> = Lazy::new(whoami::username);
 
 pub static AVAILABLE_PARALELLISM: Lazy<Option<NonZeroUsize>> = Lazy::new(|| std::thread::available_parallelism().ok());
 
-// NOTE.2022-11-04 not very pretty singleton like global variable
 pub static CONFIG_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
 static HANDLER_SIGINT: Mutex<Option<signal_hook::SigId>> = Mutex::new(None);
 

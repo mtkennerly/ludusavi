@@ -46,7 +46,7 @@ fn title_case(text: &str) -> String {
     }
 }
 
-// TODO: Some are blocked by https://github.com/mtkennerly/ludusavi/issues/9.
+// TODO: RTL blocked by https://github.com/iced-rs/iced/issues/250.
 /// Display language.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum Language {
