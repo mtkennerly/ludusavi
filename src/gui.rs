@@ -36,7 +36,8 @@ pub fn run(flags: Flags) {
             exit_on_close_request: false,
             #[cfg(target_os = "linux")]
             platform_specific: iced::window::settings::PlatformSpecific {
-                application_id: "com.github.mtkennerly.ludusavi".to_string(),
+                application_id: std::env::var(crate::prelude::ENV_LINUX_APP_ID)
+                    .unwrap_or_else(|_| crate::prelude::LINUX_APP_ID.to_string()),
                 ..Default::default()
             },
             icon: match image::load_from_memory(include_bytes!("../assets/icon.png")) {

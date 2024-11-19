@@ -30,6 +30,8 @@ pub type AnyError = Box<dyn std::error::Error>;
 
 pub const SKIP: &str = "<skip>";
 pub const APP_DIR_NAME: &str = "ludusavi";
+#[allow(unused)]
+pub const LINUX_APP_ID: &str = "com.mtkennerly.ludusavi";
 const PORTABLE_FLAG_FILE_NAME: &str = "ludusavi.portable";
 pub const INVALID_FILE_CHARS: &[char] = &['\\', '/', ':', '*', '?', '"', '<', '>', '|', '\0'];
 
@@ -44,6 +46,8 @@ static HANDLER_SIGINT: Mutex<Option<signal_hook::SigId>> = Mutex::new(None);
 
 pub const ENV_DEBUG: &str = "LUDUSAVI_DEBUG";
 const ENV_THREADS: &str = "LUDUSAVI_THREADS";
+#[allow(unused)]
+pub const ENV_LINUX_APP_ID: &str = "LUDUSAVI_LINUX_APP_ID";
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Finality {

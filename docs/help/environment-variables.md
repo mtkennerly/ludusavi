@@ -9,3 +9,6 @@ Environment variables can be used to tweak some additional behavior:
   Example: `LUDUSAVI_DEBUG=1`
 * `LUDUSAVI_THREADS`: Overrive the `runtime.threads` value from the config file.
   Example: `LUDUSAVI_THREADS=8`
+* `LUDUSAVI_LINUX_APP_ID`: On Linux, this can override Ludusavi's application ID.
+  The default is `com.mtkennerly.ludusavi`.
+  This should match the corresponding `.desktop` file.

@@ -5,6 +5,16 @@
 * Changed:
   * Windows registry backups are now saved as `*.reg` files instead of `*.yaml`.
     Existing backups will not be affected.
+  * On Linux, Ludusavi previously reported its application ID as just `ludusavi`,
+    which meant the desktop file should be named `ludusavi.desktop` to show the right icon.
+    However, that name does not follow the Freedesktop.org `desktop-entry` specification.
+
+    To better conform, Ludusavi now reports its ID as `com.mtkennerly.ludusavi`
+    (except for Flatpak, which will use `com.github.mtkennerly.ludusavi` for legacy reasons).
+    If you need to preserve the original behavior,
+    you can set `LUDUSAVI_LINUX_APP_ID=ludusavi` in your environment variables.
+
+    ([Prototyped by OlegAckbar](https://github.com/mtkennerly/ludusavi/pull/417))
   * Dialogs (folder picker and `wrap --gui` prompts) now use GTK on Linux.
     The previous system relied on Zenity/KDialog,
     which could behave poorly depending on the version or in a Flatpak context.

@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Encoding=UTF-8
+Name=Ludusavi
+Comment=Tool for backing up your PC video game save data.
+Exec=ludusavi
+Icon=com.mtkennerly.ludusavi
+Terminal=false
+Categories=Game;
+Keywords=game;games;backup;save;saves;
