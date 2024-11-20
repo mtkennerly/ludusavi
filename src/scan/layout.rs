@@ -500,7 +500,7 @@ impl IndividualMapping {
             .max_depth(1)
             .follow_links(false)
             .into_iter()
-            .filter_map(crate::scan::filter_map_walkdir)
+            .filter_map(|x| crate::scan::filter_map_walkdir(&self.name, x))
         {
             let name = child.file_name().to_string_lossy();
 
@@ -841,7 +841,7 @@ impl GameLayout {
             .max_depth(1)
             .follow_links(false)
             .into_iter()
-            .filter_map(crate::scan::filter_map_walkdir)
+            .filter_map(|x| crate::scan::filter_map_walkdir(&self.mapping.name, x))
         {
             let raw_drive_dir = drive_dir.path().display().to_string();
             let drive_mapping =
@@ -851,7 +851,7 @@ impl GameLayout {
                 .max_depth(100)
                 .follow_links(false)
                 .into_iter()
-                .filter_map(crate::scan::filter_map_walkdir)
+                .filter_map(|x| crate::scan::filter_map_walkdir(&self.mapping.name, x))
                 .filter(|x| x.file_type().is_file())
             {
                 let raw_file = file.path().display().to_string();
@@ -1820,7 +1820,7 @@ impl GameLayout {
             );
             return Err(Box::new(e));
         }
-        if let Err(e) = target.unset_readonly() {
+        if let Err(e) = target.unset_readonly(&self.mapping.name) {
             log::warn!(
                 "[{}] failed to unset read-only on target: {:?} | {e}",
                 self.mapping.name,
@@ -1891,14 +1891,14 @@ impl GameLayout {
             .max_depth(1)
             .follow_links(false)
             .into_iter()
-            .filter_map(crate::scan::filter_map_walkdir)
+            .filter_map(|x| crate::scan::filter_map_walkdir(&self.mapping.name, x))
             .filter(|x| x.file_name().to_string_lossy().starts_with("drive-"))
         {
             for file in walkdir::WalkDir::new(drive_dir.path())
                 .max_depth(100)
                 .follow_links(false)
                 .into_iter()
-                .filter_map(crate::scan::filter_map_walkdir)
+                .filter_map(|x| crate::scan::filter_map_walkdir(&self.mapping.name, x))
                 .filter(|x| x.file_type().is_file())
             {
                 let backup_file = StrictPath::new(file.path().display().to_string());
@@ -1938,7 +1938,7 @@ impl GameLayout {
             .max_depth(1)
             .follow_links(false)
             .into_iter()
-            .filter_map(crate::scan::filter_map_walkdir)
+            .filter_map(|x| crate::scan::filter_map_walkdir(&self.mapping.name, x))
             .filter(|x| x.file_name().to_string_lossy().starts_with("drive-"))
         {
             for entry in walkdir::WalkDir::new(drive_dir.path())
@@ -1946,7 +1946,7 @@ impl GameLayout {
                 .follow_links(false)
                 .contents_first(true)
                 .into_iter()
-                .filter_map(crate::scan::filter_map_walkdir)
+                .filter_map(|x| crate::scan::filter_map_walkdir(&self.mapping.name, x))
                 .filter(|x| x.file_type().is_dir())
             {
                 let empty = std::fs::read_dir(entry.path()).is_ok_and(|mut xs| xs.next().is_none());
@@ -2122,7 +2122,7 @@ impl BackupLayout {
             .follow_links(false)
             .into_iter()
             .skip(1) // the base path itself
-            .filter_map(crate::scan::filter_map_walkdir)
+            .filter_map(|x| crate::scan::filter_map_walkdir("ludusavi::BackupLayout", x))
             .filter(|x| x.file_type().is_dir())
         {
             let game_dir = StrictPath::from(&game_dir);

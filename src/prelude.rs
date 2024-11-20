@@ -166,9 +166,9 @@ pub fn app_dir() -> StrictPath {
     StrictPath::new(format!("{}/{}", CommonPath::Config.get().unwrap(), APP_DIR_NAME))
 }
 
-pub fn filter_map_walkdir(e: Result<walkdir::DirEntry, walkdir::Error>) -> Option<walkdir::DirEntry> {
+pub fn filter_map_walkdir(context: &str, e: Result<walkdir::DirEntry, walkdir::Error>) -> Option<walkdir::DirEntry> {
     if let Err(e) = &e {
-        log::warn!("failed to walk: {:?} | {e:?}", e.path());
+        log::warn!("[{context}] failed to walk: {:?} | {e:?}", e.path());
     }
     e.ok()
 }

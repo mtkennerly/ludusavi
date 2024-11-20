@@ -726,7 +726,7 @@ impl StrictPath {
             return Err(e);
         }
 
-        if let Err(e) = target_file.unset_readonly() {
+        if let Err(e) = target_file.unset_readonly(context) {
             log::warn!(
                 "[{context}] failed to unset read-only on target: {} | {e}",
                 target_file.raw()
@@ -786,7 +786,7 @@ impl StrictPath {
         }
     }
 
-    pub fn unset_readonly(&self) -> Result<(), AnyError> {
+    pub fn unset_readonly(&self, context: &str) -> Result<(), AnyError> {
         let subject = self.as_std_path_buf()?;
         if self.is_file() {
             let mut perms = std::fs::metadata(&subject)?.permissions();
@@ -801,7 +801,7 @@ impl StrictPath {
                 .follow_links(false)
                 .into_iter()
                 .skip(1) // the base path itself
-                .filter_map(crate::prelude::filter_map_walkdir)
+                .filter_map(|x| crate::prelude::filter_map_walkdir(context, x))
                 .filter(|x| x.file_type().is_file())
             {
                 let file = entry.path().display().to_string();

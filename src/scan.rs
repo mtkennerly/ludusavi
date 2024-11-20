@@ -685,7 +685,7 @@ pub fn scan_game_for_backup(
                     .max_depth(100)
                     .follow_links(true)
                     .into_iter()
-                    .filter_map(filter_map_walkdir)
+                    .filter_map(|x| filter_map_walkdir(name, x))
                 {
                     #[cfg(not(target_os = "windows"))]
                     if child.path().to_string_lossy().contains('\\') {
