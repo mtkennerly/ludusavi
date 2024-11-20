@@ -628,7 +628,7 @@ impl Manifest {
 
     fn add_custom_games(&mut self, config: &Config) {
         for custom_game in &config.custom_games {
-            if custom_game.ignore {
+            if custom_game.ignore || custom_game.name.trim().is_empty() {
                 continue;
             }
             self.add_custom_game(custom_game.clone());
@@ -712,6 +712,11 @@ impl Manifest {
         let manifest = secondary.data.0;
 
         for (name, mut game) in manifest {
+            if name.trim().is_empty() {
+                log::debug!("ignoring secondary manifest game with blank name: '{name}'");
+                continue;
+            }
+
             game.normalize_relative_paths();
 
             if let Some(standard) = self.0.get_mut(&name) {

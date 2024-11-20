@@ -1601,7 +1601,9 @@ impl Config {
     }
 
     pub fn is_custom_game_individually_scannable(&self, index: usize) -> bool {
-        self.is_custom_game_enabled(index) && self.custom_games[index].kind() == CustomGameKind::Game
+        self.is_custom_game_enabled(index)
+            && self.custom_games[index].kind() == CustomGameKind::Game
+            && !self.custom_games[index].name.trim().is_empty()
     }
 
     pub fn are_all_custom_games_enabled(&self) -> bool {

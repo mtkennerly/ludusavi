@@ -36,6 +36,10 @@
     the visible games would be backed up or restored even if they were disabled.
   * GUI: When performing a multi-game scan on the restore screen with a filter active,
     the scan would exclude games that were disabled for backup rather than disabled for restore.
+  * Ludusavi would try to scan games (custom or from secondary manifest) with a blank title.
+    In the GUI, they would be omitted from the results,
+    while on the CLI, they would be reported without a title.
+    Now such games are ignored when scanning.
 
 ## v0.26.0 (2024-10-29)
 
