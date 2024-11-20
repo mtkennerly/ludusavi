@@ -206,7 +206,7 @@ impl Language {
             Language::Filipino => 32,
             Language::Finnish => 78,
             Language::French => 100,
-            Language::German => 97,
+            Language::German => 100,
             Language::Italian => 100,
             Language::Japanese => 50,
             Language::Korean => 86,
