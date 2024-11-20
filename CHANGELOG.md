@@ -1,4 +1,4 @@
-## Unreleased
+## v0.27.0 (2024-11-19)
 
 * Added:
   * Support for installing via [cargo-binstall](https://github.com/cargo-bins/cargo-binstall).
@@ -23,7 +23,7 @@
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:
-  * The registry format change also resolved an issue where very large (> 100 MB)
+  * The registry format change also resolved an issue where very large (over 100 MB)
     `registry.yaml` files could be slow to read and consume a lot of extra memory,
     whereas the same data in `.reg` format can be loaded without issue.
   * When set to only keep 1 full backup and 0 differential backups using the simple format,

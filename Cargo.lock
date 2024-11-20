@@ -2445,7 +2445,7 @@ checksum = "234cf4f4a04dc1f57e24b96cc0cd600cf2af460d4161ac5ecdd0af8e1f3b2a38"
 
 [[package]]
 name = "ludusavi"
-version = "0.26.0"
+version = "0.27.0"
 dependencies = [
  "base64",
  "byte-unit",
