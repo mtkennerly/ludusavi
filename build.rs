@@ -1,7 +1,7 @@
 fn main() {
     println!("cargo:rerun-if-env-changed=LUDUSAVI_VERSION");
     println!("cargo:rerun-if-env-changed=LUDUSAVI_VARIANT");
-    println!("cargo:rerun-if-changed=assets/windows-manifest.xml");
+    println!("cargo:rerun-if-changed=assets/windows/manifest.xml");
 
     #[cfg(windows)]
     {
