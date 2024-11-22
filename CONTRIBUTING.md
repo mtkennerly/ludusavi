@@ -2,8 +2,8 @@
 ### Prerequisites
 Use the latest version of Rust.
 
-On Linux, you'll need some additional system packages. Refer to the README
-for the list.
+On Linux, you'll need some additional system packages.
+Refer to [the installation guide](/docs/help/installation.md) for the list.
 
 ### Commands
 * Run program:

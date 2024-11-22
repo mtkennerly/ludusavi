@@ -34,7 +34,7 @@ You can install Ludusavi one of these ways:
   On Linux, this requires the following system packages, or their equivalents
   for your distribution:
 
-  * Ubuntu: `sudo apt-get install -y gcc cmake libx11-dev libxcb-composite0-dev libfreetype6-dev libexpat1-dev libfontconfig1-dev`
+  * Ubuntu: `sudo apt-get install -y gcc cmake libx11-dev libxcb-composite0-dev libfreetype6-dev libexpat1-dev libfontconfig1-dev libgtk-3-dev`
 
 ## Notes
 If you are on Windows:
