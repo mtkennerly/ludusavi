@@ -185,7 +185,7 @@ impl Backup {
             Self::Full(backup) => {
                 let mut failed = vec![];
                 for file in backup.files.keys() {
-                    if backup_info.failed_files.keys().any(|x| &x.raw() == file) {
+                    if backup_info.failed_files.keys().any(|x| x.raw() == file) {
                         failed.push(file.to_string());
                     }
                 }
@@ -202,7 +202,7 @@ impl Backup {
             Self::Differential(backup) => {
                 let mut failed = vec![];
                 for file in backup.files.keys() {
-                    if backup_info.failed_files.keys().any(|x| &x.raw() == file) {
+                    if backup_info.failed_files.keys().any(|x| x.raw() == file) {
                         failed.push(file.to_string());
                     }
                 }
@@ -1840,7 +1840,7 @@ impl GameLayout {
                 return Err(Box::new(e));
             }
         };
-        let mut source_file = archive.by_name(&scan_key.raw())?;
+        let mut source_file = archive.by_name(scan_key.raw())?;
         if let Err(e) = std::io::copy(&mut source_file, &mut target_handle) {
             log::warn!(
                 "[{}] failed to copy to target: {:?} -> {:?} | {e}",
@@ -1882,7 +1882,7 @@ impl GameLayout {
             let Ok(path) = self.path.joined(format.filename()).interpreted() else {
                 continue;
             };
-            if !relevant_files.contains(&path.raw()) && path.is_file() {
+            if !relevant_files.contains(&path.raw().into()) && path.is_file() {
                 irrelevant_files.push(path);
             }
         }
@@ -3063,10 +3063,10 @@ mod tests {
         }
 
         fn make_restorable_path_zip(file: &str) -> StrictPath {
-            StrictPath::relative(
-                format!("drive-{}/{file}", if cfg!(target_os = "windows") { "X" } else { "0" }),
-                None,
-            )
+            StrictPath::new(format!(
+                "drive-{}/{file}",
+                if cfg!(target_os = "windows") { "X" } else { "0" }
+            ))
         }
 
         #[test]

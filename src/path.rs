@@ -159,18 +159,18 @@ impl std::fmt::Debug for StrictPath {
 }
 
 impl StrictPath {
-    pub fn new(raw: String) -> Self {
+    pub fn new(raw: impl Into<String>) -> Self {
         Self {
-            raw,
+            raw: raw.into(),
             basis: None,
             canonical: Arc::new(Mutex::new(None)),
         }
     }
 
-    pub fn relative(raw: String, basis: Option<String>) -> Self {
+    pub fn relative(raw: impl Into<String>, basis: Option<impl Into<String>>) -> Self {
         Self {
-            raw,
-            basis,
+            raw: raw.into(),
+            basis: basis.map(|x| x.into()),
             canonical: Arc::new(Mutex::new(None)),
         }
     }
@@ -198,8 +198,8 @@ impl StrictPath {
         })?))
     }
 
-    pub fn raw(&self) -> String {
-        self.raw.to_string()
+    pub fn raw(&self) -> &str {
+        &self.raw
     }
 
     /// For any paths that we store the entire time the GUI is running, like in the config,
@@ -463,7 +463,7 @@ impl StrictPath {
         if let Ok(access) = self.access() {
             access
         } else {
-            self.raw()
+            self.raw().into()
         }
     }
 
@@ -660,20 +660,14 @@ impl StrictPath {
             .map(|x| x.to_string_lossy().to_string())
     }
 
-    // TODO: Refactor to use `popped()`?
     pub fn parent(&self) -> Option<Self> {
-        self.as_std_path_buf().ok()?.parent().map(Self::from)
+        let popped = self.popped();
+        (self != &popped).then_some(popped)
     }
 
-    // TODO: Refactor to use `popped()`?
     pub fn parent_if_file(&self) -> Result<Self, StrictPathError> {
-        let resolved = self.try_resolve()?;
-        let pathbuf = std::path::PathBuf::from(&resolved);
-        if pathbuf.is_file() {
-            match pathbuf.parent() {
-                Some(parent) => Ok(Self::from(parent)),
-                None => Ok(self.clone()),
-            }
+        if self.is_file() {
+            Ok(self.popped())
         } else {
             Ok(self.clone())
         }
@@ -1027,7 +1021,7 @@ impl<'de> serde::Deserialize<'de> for StrictPath {
     where
         D: serde::Deserializer<'de>,
     {
-        serde::Deserialize::deserialize(deserializer).map(StrictPath::new)
+        serde::Deserialize::deserialize(deserializer).map(|raw: String| StrictPath::new(raw))
     }
 }
 
@@ -1170,52 +1164,50 @@ mod tests {
         fn can_replace() {
             // Identical
             assert_eq!(
-                StrictPath::new("/foo".into()),
-                StrictPath::new("/foo".into())
-                    .replace(&StrictPath::new("/foo".into()), &StrictPath::new("/foo".into())),
+                StrictPath::new("/foo"),
+                StrictPath::new("/foo").replace(&StrictPath::new("/foo"), &StrictPath::new("/foo")),
             );
 
             // Match
             assert_eq!(
-                StrictPath::new("/baz/bar".into()),
-                StrictPath::new("/foo/bar".into())
-                    .replace(&StrictPath::new("/foo".into()), &StrictPath::new("/baz".into())),
+                StrictPath::new("/baz/bar"),
+                StrictPath::new("/foo/bar").replace(&StrictPath::new("/foo"), &StrictPath::new("/baz")),
             );
 
             // Mismatch
             assert_eq!(
-                StrictPath::new("/a".into()),
-                StrictPath::new("/a".into()).replace(&StrictPath::new("/ab".into()), &StrictPath::new("/ac".into())),
+                StrictPath::new("/a"),
+                StrictPath::new("/a").replace(&StrictPath::new("/ab"), &StrictPath::new("/ac")),
             );
 
             // Linux to Windows
             assert_eq!(
-                StrictPath::new("C:/foo".into()),
-                StrictPath::new("/foo".into()).replace(&StrictPath::new("/".into()), &StrictPath::new("C:".into())),
+                StrictPath::new("C:/foo"),
+                StrictPath::new("/foo").replace(&StrictPath::new("/"), &StrictPath::new("C:")),
             );
 
             // Windows to Linux
             assert_eq!(
-                StrictPath::new("/foo".into()),
-                StrictPath::new("C:/foo".into()).replace(&StrictPath::new("C:/".into()), &StrictPath::new("/".into())),
+                StrictPath::new("/foo"),
+                StrictPath::new("C:/foo").replace(&StrictPath::new("C:/"), &StrictPath::new("/")),
             );
 
             // Empty - original
             assert_eq!(
-                StrictPath::new("".into()),
-                StrictPath::new("".into()).replace(&StrictPath::new("/foo".into()), &StrictPath::new("/bar".into())),
+                StrictPath::new(""),
+                StrictPath::new("").replace(&StrictPath::new("/foo"), &StrictPath::new("/bar")),
             );
 
             // Empty - find
             assert_eq!(
-                StrictPath::new("/foo".into()),
-                StrictPath::new("/foo".into()).replace(&StrictPath::new("".into()), &StrictPath::new("/bar".into())),
+                StrictPath::new("/foo"),
+                StrictPath::new("/foo").replace(&StrictPath::new(""), &StrictPath::new("/bar")),
             );
 
             // Empty - new
             assert_eq!(
-                StrictPath::new("/foo".into()),
-                StrictPath::new("/foo".into()).replace(&StrictPath::new("/foo".into()), &StrictPath::new("".into())),
+                StrictPath::new("/foo"),
+                StrictPath::new("/foo").replace(&StrictPath::new("/foo"), &StrictPath::new("")),
             );
         }
     }

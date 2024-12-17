@@ -184,7 +184,7 @@ impl SecondaryManifestConfig {
 
     pub fn value(&self) -> String {
         match self {
-            Self::Local { path, .. } => path.raw(),
+            Self::Local { path, .. } => path.raw().into(),
             Self::Remote { url, .. } => url.to_string(),
         }
     }
@@ -221,7 +221,7 @@ impl SecondaryManifestConfig {
         match (&self, kind) {
             (Self::Local { path, enable }, SecondaryManifestConfigKind::Remote) => {
                 *self = Self::Remote {
-                    url: path.raw(),
+                    url: path.raw().into(),
                     enable: *enable,
                 };
             }

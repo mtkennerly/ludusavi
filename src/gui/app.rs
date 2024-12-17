@@ -2152,18 +2152,18 @@ impl App {
             Message::SelectedFile(subject, path) => {
                 match subject {
                     BrowseFileSubject::RcloneExecutable => {
-                        self.text_histories.rclone_executable.push(&path.raw());
+                        self.text_histories.rclone_executable.push(path.raw());
                         self.config.apps.rclone.path = path;
                     }
                     BrowseFileSubject::RootLutrisDatabase(i) => {
-                        self.text_histories.roots[i].lutris_database.push(&path.raw());
+                        self.text_histories.roots[i].lutris_database.push(path.raw());
                         if let Root::Lutris(root) = &mut self.config.roots[i] {
                             root.database = Some(path);
                         }
                     }
                     BrowseFileSubject::SecondaryManifest(i) => {
-                        self.text_histories.secondary_manifests[i].push(&path.raw());
-                        self.config.manifest.secondary[i].set(path.raw());
+                        self.text_histories.secondary_manifests[i].push(path.raw());
+                        self.config.manifest.secondary[i].set(path.raw().into());
                     }
                 }
                 self.save_config();

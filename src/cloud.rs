@@ -572,7 +572,7 @@ impl Rclone {
     fn run(&self, args: &[String], success: &[i32], privacy: Privacy) -> Result<CommandOutput, CommandError> {
         let args = self.args(args);
         let args: Vec<_> = args.iter().map(|x| x.as_str()).collect();
-        run_command(&self.app.path.raw(), &args, success, privacy)
+        run_command(self.app.path.raw(), &args, success, privacy)
     }
 
     fn obscure(&self, credential: &str) -> Result<String, CommandError> {
@@ -674,7 +674,7 @@ impl Rclone {
             }
         }
 
-        RcloneProcess::launch(self.app.path.raw(), self.args(&args))
+        RcloneProcess::launch(self.app.path.raw().into(), self.args(&args))
     }
 }
 

@@ -401,7 +401,7 @@ mod tests {
         let scan = ScanInfo {
             found_files: hash_map! {
                 "/new".into(): ScannedFile {
-                    redirected: Some(StrictPath::new("/old".into())),
+                    redirected: Some(StrictPath::new("/old")),
                     change: ScanChange::New,
                     ..Default::default()
                 },
@@ -415,7 +415,7 @@ mod tests {
         let scan = ScanInfo {
             found_files: hash_map! {
                 "/new".into(): ScannedFile {
-                    redirected: Some(StrictPath::new("/old".into())),
+                    redirected: Some(StrictPath::new("/old")),
                     change: ScanChange::New,
                     ..Default::default()
                 },

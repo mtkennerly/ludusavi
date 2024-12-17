@@ -123,7 +123,7 @@ impl TextHistory {
 
     pub fn path(initial: &StrictPath) -> Self {
         let mut history = VecDeque::<String>::new();
-        history.push_back(initial.raw());
+        history.push_back(initial.raw().into());
         Self {
             history,
             limit: 100,

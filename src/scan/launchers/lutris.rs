@@ -281,7 +281,7 @@ fn scan_spec(spec: spec::Data, spec_path: &StrictPath) -> Option<Pending> {
             let exe = if exe.is_absolute() {
                 exe
             } else if let Some(prefix) = pending.prefix.as_ref() {
-                prefix.joined(&exe.raw())
+                prefix.joined(exe.raw())
             } else {
                 log::info!("Lutris game file has relative exe and no prefix: {:?}", spec_path);
                 break 'wd;
@@ -467,7 +467,7 @@ mod tests {
     fn can_scan_spec_with_relative_exe_but_prefix() {
         let spec = spec::Data {
             game: spec::Game {
-                exe: Some(StrictPath::new("drive_c/game/launcher.exe".into())),
+                exe: Some(StrictPath::new("drive_c/game/launcher.exe")),
                 prefix: Some(absolute_path("/prefix")),
                 working_dir: None,
             },

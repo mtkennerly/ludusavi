@@ -998,29 +998,29 @@ mod tests {
         // No redirects
         assert_eq!(
             None,
-            game_file_target(&StrictPath::new("/foo".into()), &[], false, ScanKind::Backup)
+            game_file_target(&StrictPath::new("/foo"), &[], false, ScanKind::Backup)
         );
 
         // Match - backup
         assert_eq!(
-            Some(StrictPath::new("/quux".into())),
+            Some(StrictPath::new("/quux")),
             game_file_target(
-                &StrictPath::new("/foo".into()),
+                &StrictPath::new("/foo"),
                 &[
                     RedirectConfig {
                         kind: RedirectKind::Backup,
-                        source: StrictPath::new("/foo".into()),
-                        target: StrictPath::new("/bar".into()),
+                        source: StrictPath::new("/foo"),
+                        target: StrictPath::new("/bar"),
                     },
                     RedirectConfig {
                         kind: RedirectKind::Restore,
-                        source: StrictPath::new("/bar".into()),
-                        target: StrictPath::new("/baz".into()),
+                        source: StrictPath::new("/bar"),
+                        target: StrictPath::new("/baz"),
                     },
                     RedirectConfig {
                         kind: RedirectKind::Bidirectional,
-                        source: StrictPath::new("/bar".into()),
-                        target: StrictPath::new("/quux".into()),
+                        source: StrictPath::new("/bar"),
+                        target: StrictPath::new("/quux"),
                     },
                 ],
                 false,
@@ -1030,24 +1030,24 @@ mod tests {
 
         // Match - restore
         assert_eq!(
-            Some(StrictPath::new("/foo".into())),
+            Some(StrictPath::new("/foo")),
             game_file_target(
-                &StrictPath::new("/quux".into()),
+                &StrictPath::new("/quux"),
                 &[
                     RedirectConfig {
                         kind: RedirectKind::Bidirectional,
-                        source: StrictPath::new("/bar".into()),
-                        target: StrictPath::new("/quux".into()),
+                        source: StrictPath::new("/bar"),
+                        target: StrictPath::new("/quux"),
                     },
                     RedirectConfig {
                         kind: RedirectKind::Restore,
-                        source: StrictPath::new("/bar".into()),
-                        target: StrictPath::new("/foo".into()),
+                        source: StrictPath::new("/bar"),
+                        target: StrictPath::new("/foo"),
                     },
                     RedirectConfig {
                         kind: RedirectKind::Backup,
-                        source: StrictPath::new("/foo".into()),
-                        target: StrictPath::new("/baz".into()),
+                        source: StrictPath::new("/foo"),
+                        target: StrictPath::new("/baz"),
                     },
                 ],
                 false,
@@ -1057,24 +1057,24 @@ mod tests {
 
         // Match - restore, reversed
         assert_eq!(
-            Some(StrictPath::new("/bar".into())),
+            Some(StrictPath::new("/bar")),
             game_file_target(
-                &StrictPath::new("/quux".into()),
+                &StrictPath::new("/quux"),
                 &[
                     RedirectConfig {
                         kind: RedirectKind::Bidirectional,
-                        source: StrictPath::new("/bar".into()),
-                        target: StrictPath::new("/quux".into()),
+                        source: StrictPath::new("/bar"),
+                        target: StrictPath::new("/quux"),
                     },
                     RedirectConfig {
                         kind: RedirectKind::Restore,
-                        source: StrictPath::new("/bar".into()),
-                        target: StrictPath::new("/foo".into()),
+                        source: StrictPath::new("/bar"),
+                        target: StrictPath::new("/foo"),
                     },
                     RedirectConfig {
                         kind: RedirectKind::Backup,
-                        source: StrictPath::new("/foo".into()),
-                        target: StrictPath::new("/baz".into()),
+                        source: StrictPath::new("/foo"),
+                        target: StrictPath::new("/baz"),
                     },
                 ],
                 true,
@@ -1086,11 +1086,11 @@ mod tests {
         assert_eq!(
             None,
             game_file_target(
-                &StrictPath::new("/foo".into()),
+                &StrictPath::new("/foo"),
                 &[RedirectConfig {
                     kind: RedirectKind::Backup,
-                    source: StrictPath::new("/f".into()),
-                    target: StrictPath::new("/b".into()),
+                    source: StrictPath::new("/f"),
+                    target: StrictPath::new("/b"),
                 },],
                 false,
                 ScanKind::Backup,
