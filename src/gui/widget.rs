@@ -60,19 +60,25 @@ pub fn text<'a>(content: impl iced::widget::text::IntoFragment<'a>) -> Text<'a> 
 }
 
 pub mod id {
-    use once_cell::sync::Lazy;
+    use std::sync::LazyLock;
 
-    pub static BACKUP_SCROLL: Lazy<iced::widget::scrollable::Id> = Lazy::new(iced::widget::scrollable::Id::unique);
-    pub static RESTORE_SCROLL: Lazy<iced::widget::scrollable::Id> = Lazy::new(iced::widget::scrollable::Id::unique);
-    pub static CUSTOM_GAMES_SCROLL: Lazy<iced::widget::scrollable::Id> =
-        Lazy::new(iced::widget::scrollable::Id::unique);
-    pub static OTHER_SCROLL: Lazy<iced::widget::scrollable::Id> = Lazy::new(iced::widget::scrollable::Id::unique);
-    pub static MODAL_SCROLL: Lazy<iced::widget::scrollable::Id> = Lazy::new(iced::widget::scrollable::Id::unique);
+    pub static BACKUP_SCROLL: LazyLock<iced::widget::scrollable::Id> =
+        LazyLock::new(iced::widget::scrollable::Id::unique);
+    pub static RESTORE_SCROLL: LazyLock<iced::widget::scrollable::Id> =
+        LazyLock::new(iced::widget::scrollable::Id::unique);
+    pub static CUSTOM_GAMES_SCROLL: LazyLock<iced::widget::scrollable::Id> =
+        LazyLock::new(iced::widget::scrollable::Id::unique);
+    pub static OTHER_SCROLL: LazyLock<iced::widget::scrollable::Id> =
+        LazyLock::new(iced::widget::scrollable::Id::unique);
+    pub static MODAL_SCROLL: LazyLock<iced::widget::scrollable::Id> =
+        LazyLock::new(iced::widget::scrollable::Id::unique);
 
-    pub static BACKUP_SEARCH: Lazy<iced::widget::text_input::Id> = Lazy::new(iced::widget::text_input::Id::unique);
-    pub static RESTORE_SEARCH: Lazy<iced::widget::text_input::Id> = Lazy::new(iced::widget::text_input::Id::unique);
-    pub static CUSTOM_GAMES_SEARCH: Lazy<iced::widget::text_input::Id> =
-        Lazy::new(iced::widget::text_input::Id::unique);
+    pub static BACKUP_SEARCH: LazyLock<iced::widget::text_input::Id> =
+        LazyLock::new(iced::widget::text_input::Id::unique);
+    pub static RESTORE_SEARCH: LazyLock<iced::widget::text_input::Id> =
+        LazyLock::new(iced::widget::text_input::Id::unique);
+    pub static CUSTOM_GAMES_SEARCH: LazyLock<iced::widget::text_input::Id> =
+        LazyLock::new(iced::widget::text_input::Id::unique);
 
     pub fn backup_scroll() -> iced::widget::scrollable::Id {
         (*BACKUP_SCROLL).clone()

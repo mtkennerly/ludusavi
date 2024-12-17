@@ -1,20 +1,19 @@
 use std::{
     num::NonZeroUsize,
     path::PathBuf,
-    sync::{atomic::AtomicBool, Arc, Mutex},
+    sync::{atomic::AtomicBool, Arc, LazyLock, Mutex},
 };
 
 use itertools::Itertools;
-use once_cell::sync::Lazy;
 
 pub use crate::path::StrictPath;
 use crate::{path::CommonPath, resource::manifest::Os};
 
-pub static VERSION: Lazy<&'static str> =
-    Lazy::new(|| option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")));
-pub static USER_AGENT: Lazy<String> = Lazy::new(|| format!("ludusavi/{}", *VERSION));
+pub static VERSION: LazyLock<&'static str> =
+    LazyLock::new(|| option_env!("LUDUSAVI_VERSION").unwrap_or(env!("CARGO_PKG_VERSION")));
+pub static USER_AGENT: LazyLock<String> = LazyLock::new(|| format!("ludusavi/{}", *VERSION));
 pub static VARIANT: Option<&'static str> = option_env!("LUDUSAVI_VARIANT");
-pub static CANONICAL_VERSION: Lazy<(u32, u32, u32)> = Lazy::new(|| {
+pub static CANONICAL_VERSION: LazyLock<(u32, u32, u32)> = LazyLock::new(|| {
     let version_parts: Vec<u32> = env!("CARGO_PKG_VERSION")
         .split('.')
         .map(|x| x.parse().unwrap_or(0))
@@ -35,11 +34,12 @@ pub const LINUX_APP_ID: &str = "com.mtkennerly.ludusavi";
 const PORTABLE_FLAG_FILE_NAME: &str = "ludusavi.portable";
 pub const INVALID_FILE_CHARS: &[char] = &['\\', '/', ':', '*', '?', '"', '<', '>', '|', '\0'];
 
-pub static STEAM_DECK: Lazy<bool> =
-    Lazy::new(|| Os::HOST == Os::Linux && StrictPath::new("/home/deck".to_string()).exists());
-pub static OS_USERNAME: Lazy<String> = Lazy::new(whoami::username);
+pub static STEAM_DECK: LazyLock<bool> =
+    LazyLock::new(|| Os::HOST == Os::Linux && StrictPath::new("/home/deck".to_string()).exists());
+pub static OS_USERNAME: LazyLock<String> = LazyLock::new(whoami::username);
 
-pub static AVAILABLE_PARALELLISM: Lazy<Option<NonZeroUsize>> = Lazy::new(|| std::thread::available_parallelism().ok());
+pub static AVAILABLE_PARALELLISM: LazyLock<Option<NonZeroUsize>> =
+    LazyLock::new(|| std::thread::available_parallelism().ok());
 
 pub static CONFIG_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
 static HANDLER_SIGINT: Mutex<Option<signal_hook::SigId>> = Mutex::new(None);

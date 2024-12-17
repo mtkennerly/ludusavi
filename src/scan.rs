@@ -10,9 +10,11 @@ mod saves;
 mod steam;
 mod title;
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::LazyLock,
+};
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 
 #[allow(unused)]
@@ -399,7 +401,7 @@ pub fn parse_paths(
                 .replace(p::HOME, home));
         }
 
-        static VIRTUALIZED: Lazy<Regex> = Lazy::new(|| {
+        static VIRTUALIZED: LazyLock<Regex> = LazyLock::new(|| {
             Regex::new(r#"^C:[\\/](Program Files|Program Files \(x86\)|Windows|ProgramData)[\\/]"#).unwrap()
         });
         let expanded: HashSet<_> = paths

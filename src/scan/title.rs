@@ -1,6 +1,8 @@
-use std::collections::{BTreeSet, HashMap};
+use std::{
+    collections::{BTreeSet, HashMap},
+    sync::LazyLock,
+};
 
-use once_cell::sync::Lazy;
 use regex::Regex;
 
 use crate::{
@@ -9,16 +11,16 @@ use crate::{
 };
 
 /// This covers any edition that is clearly separated by punctuation.
-static RE_EDITION_PUNCTUATED: Lazy<Regex> = Lazy::new(|| Regex::new(r#"[™®©:-] .+ edition$"#).unwrap());
+static RE_EDITION_PUNCTUATED: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"[™®©:-] .+ edition$"#).unwrap());
 /// This covers specific, known editions that are not separated by punctuation.
-static RE_EDITION_KNOWN: Lazy<Regex> = Lazy::new(|| Regex::new(r#" (game of the year) edition$"#).unwrap());
+static RE_EDITION_KNOWN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#" (game of the year) edition$"#).unwrap());
 /// This covers any single-word editions that are not separated by punctuation.
 /// We can't assume more than one word because it may be part of the main title.
-static RE_EDITION_SHORT: Lazy<Regex> = Lazy::new(|| Regex::new(r#" [^ ]+ edition$"#).unwrap());
-static RE_YEAR_SUFFIX: Lazy<Regex> = Lazy::new(|| Regex::new(r" \(\d+\)$").unwrap());
-static RE_SYMBOLS_GAP: Lazy<Regex> = Lazy::new(|| Regex::new(r#"[™®©:-]"#).unwrap());
-static RE_SYMBOLS_NO_GAP: Lazy<Regex> = Lazy::new(|| Regex::new(r#"['"‘’“”]"#).unwrap());
-static RE_SPACES: Lazy<Regex> = Lazy::new(|| Regex::new(r#" {2,}"#).unwrap());
+static RE_EDITION_SHORT: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#" [^ ]+ edition$"#).unwrap());
+static RE_YEAR_SUFFIX: LazyLock<Regex> = LazyLock::new(|| Regex::new(r" \(\d+\)$").unwrap());
+static RE_SYMBOLS_GAP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"[™®©:-]"#).unwrap());
+static RE_SYMBOLS_NO_GAP: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#"['"‘’“”]"#).unwrap());
+static RE_SPACES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r#" {2,}"#).unwrap());
 
 pub fn normalize_title(title: &str) -> String {
     let normalized = title.to_lowercase();

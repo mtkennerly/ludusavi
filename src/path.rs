@@ -1,8 +1,7 @@
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, LazyLock, Mutex};
 
 use filetime::FileTime;
 use itertools::Itertools;
-use once_cell::sync::Lazy;
 
 use crate::{
     prelude::{AnyError, SKIP},
@@ -39,15 +38,15 @@ impl CommonPath {
             Some(path?.to_string_lossy().to_string())
         }
 
-        static CONFIG: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::config_dir()));
-        static DATA: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::data_dir()));
-        static DATA_LOCAL: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::data_local_dir()));
-        static DOCUMENT: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::document_dir()));
-        static HOME: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::home_dir()));
-        static PUBLIC: Lazy<Option<String>> = Lazy::new(|| check_dir(dirs::public_dir()));
+        static CONFIG: LazyLock<Option<String>> = LazyLock::new(|| check_dir(dirs::config_dir()));
+        static DATA: LazyLock<Option<String>> = LazyLock::new(|| check_dir(dirs::data_dir()));
+        static DATA_LOCAL: LazyLock<Option<String>> = LazyLock::new(|| check_dir(dirs::data_local_dir()));
+        static DOCUMENT: LazyLock<Option<String>> = LazyLock::new(|| check_dir(dirs::document_dir()));
+        static HOME: LazyLock<Option<String>> = LazyLock::new(|| check_dir(dirs::home_dir()));
+        static PUBLIC: LazyLock<Option<String>> = LazyLock::new(|| check_dir(dirs::public_dir()));
 
         #[cfg(windows)]
-        static DATA_LOCAL_LOW: Lazy<Option<String>> = Lazy::new(|| {
+        static DATA_LOCAL_LOW: LazyLock<Option<String>> = LazyLock::new(|| {
             known_folders::get_known_folder_path(known_folders::KnownFolder::LocalAppDataLow)
                 .map(|x| x.to_string_lossy().trim_end_matches(['/', '\\']).to_string())
         });
@@ -55,7 +54,7 @@ impl CommonPath {
         static DATA_LOCAL_LOW: Option<String> = None;
 
         #[cfg(windows)]
-        static SAVED_GAMES: Lazy<Option<String>> = Lazy::new(|| {
+        static SAVED_GAMES: LazyLock<Option<String>> = LazyLock::new(|| {
             known_folders::get_known_folder_path(known_folders::KnownFolder::SavedGames)
                 .map(|x| x.to_string_lossy().trim_end_matches(['/', '\\']).to_string())
         });

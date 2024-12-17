@@ -1,9 +1,8 @@
-use std::sync::Mutex;
+use std::sync::{LazyLock, Mutex};
 
 use fluent::{bundle::FluentBundle, FluentArgs, FluentResource};
 use intl_memoizer::concurrent::IntlLangMemoizer;
 use itertools::Itertools;
-use once_cell::sync::Lazy;
 use regex::Regex;
 use unic_langid::LanguageIdentifier;
 
@@ -235,7 +234,7 @@ pub struct Translator {}
 
 static LANGUAGE: Mutex<Language> = Mutex::new(Language::English);
 
-static BUNDLE: Lazy<Mutex<FluentBundle<FluentResource, IntlLangMemoizer>>> = Lazy::new(|| {
+static BUNDLE: LazyLock<Mutex<FluentBundle<FluentResource, IntlLangMemoizer>>> = LazyLock::new(|| {
     let ftl = include_str!("../lang/en-US.ftl").to_owned();
     let res = FluentResource::try_new(ftl).expect("Failed to parse Fluent file content.");
 
@@ -286,9 +285,9 @@ fn set_language(language: Language) {
     *last_language = language;
 }
 
-static RE_EXTRA_SPACES: Lazy<Regex> = Lazy::new(|| Regex::new(r"([^\r\n ]) {2,}").unwrap());
-static RE_EXTRA_LINES: Lazy<Regex> = Lazy::new(|| Regex::new(r"([^\r\n ])[\r\n]([^\r\n ])").unwrap());
-static RE_EXTRA_PARAGRAPHS: Lazy<Regex> = Lazy::new(|| Regex::new(r"([^\r\n ])[\r\n]{2,}([^\r\n ])").unwrap());
+static RE_EXTRA_SPACES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([^\r\n ]) {2,}").unwrap());
+static RE_EXTRA_LINES: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([^\r\n ])[\r\n]([^\r\n ])").unwrap());
+static RE_EXTRA_PARAGRAPHS: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"([^\r\n ])[\r\n]{2,}([^\r\n ])").unwrap());
 
 fn translate(id: &str) -> String {
     translate_args(id, &FluentArgs::new())
