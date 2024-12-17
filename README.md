@@ -102,6 +102,7 @@ Detailed help documentation is available for several topics.
 
 ### Other
 * [Troubleshooting](/docs/help/troubleshooting.md)
+* [What if my saves aren't found?](/docs/help/missing-saves.md)
 
 ## Community
 
