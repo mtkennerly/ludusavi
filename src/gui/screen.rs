@@ -97,7 +97,7 @@ impl Backup {
                     .push(button::toggle_all_scanned_games(
                         self.log.all_entries_selected(config, Self::SCAN_KIND),
                     ))
-                    .push(button::filter(Screen::Backup, self.log.search.show)),
+                    .push(button::filter(self.log.search.show)),
             )
             .push(make_status_row(
                 &self.log.compute_operation_status(config, Self::SCAN_KIND),
@@ -175,7 +175,7 @@ impl Restore {
                         self.log.all_entries_selected(config, Self::SCAN_KIND),
                     ))
                     .push(button::validate_backups(operation))
-                    .push(button::filter(Screen::Restore, self.log.search.show)),
+                    .push(button::filter(self.log.search.show)),
             )
             .push(make_status_row(
                 &self.log.compute_operation_status(config, Self::SCAN_KIND),
@@ -237,7 +237,7 @@ impl CustomGames {
                     .push(button::add_game())
                     .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled()))
                     .push(button::sort(Message::SortCustomGames))
-                    .push(button::filter(Screen::CustomGames, self.filter.enabled)),
+                    .push(button::filter(self.filter.enabled)),
             )
             .push_maybe(self.filter.view(histories))
             .push(editor::custom_games(

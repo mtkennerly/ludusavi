@@ -29,8 +29,8 @@ use crate::{
         ResourceFile, SaveableResourceFile,
     },
     scan::{
-        layout::BackupLayout, prepare_backup_target, registry::RegistryItem, scan_game_for_backup, BackupId, Launchers,
-        ScanKind, SteamShortcuts, TitleFinder,
+        game_filter, layout::BackupLayout, prepare_backup_target, registry::RegistryItem, scan_game_for_backup,
+        BackupId, Launchers, ScanKind, SteamShortcuts, TitleFinder,
     },
 };
 
@@ -1951,21 +1951,6 @@ impl App {
                 self.save_config();
                 Task::none()
             }
-            Message::ToggleSearch { screen } => match screen {
-                Screen::Backup => {
-                    self.backup_screen.log.search.show = !self.backup_screen.log.search.show;
-                    iced::widget::text_input::focus(id::backup_search())
-                }
-                Screen::Restore => {
-                    self.restore_screen.log.search.show = !self.restore_screen.log.search.show;
-                    iced::widget::text_input::focus(id::restore_search())
-                }
-                Screen::CustomGames => {
-                    self.custom_games_screen.filter.enabled = !self.custom_games_screen.filter.enabled;
-                    iced::widget::text_input::focus(id::custom_games_search())
-                }
-                _ => Task::none(),
-            },
             Message::ToggleSpecificGamePathIgnored { name, path, scan_kind } => {
                 match scan_kind {
                     ScanKind::Backup => {
@@ -2019,95 +2004,118 @@ impl App {
                 self.save_config();
                 Task::none()
             }
-            Message::EditedSearchGameName { screen, value } => {
-                match screen {
-                    Screen::Backup => {
-                        self.text_histories.backup_search_game_name.push(&value);
-                        self.backup_screen.log.search.game_name = value;
-                    }
-                    Screen::Restore => {
-                        self.text_histories.restore_search_game_name.push(&value);
-                        self.restore_screen.log.search.game_name = value;
-                    }
-                    Screen::CustomGames => {
-                        self.text_histories.custom_games_search_game_name.push(&value);
-                        self.custom_games_screen.filter.name = value;
-                    }
-                    _ => {}
+            Message::Filter { event } => {
+                let mut task = None;
+
+                match event {
+                    game_filter::Event::Toggled => match self.screen {
+                        Screen::Backup => {
+                            self.backup_screen.log.search.show = !self.backup_screen.log.search.show;
+                            task = Some(iced::widget::text_input::focus(id::backup_search()));
+                        }
+                        Screen::Restore => {
+                            self.restore_screen.log.search.show = !self.restore_screen.log.search.show;
+                            task = Some(iced::widget::text_input::focus(id::restore_search()));
+                        }
+                        Screen::CustomGames => {
+                            self.custom_games_screen.filter.enabled = !self.custom_games_screen.filter.enabled;
+                            task = Some(iced::widget::text_input::focus(id::custom_games_search()));
+                        }
+                        Screen::Other => {}
+                    },
+                    game_filter::Event::ToggledFilter { filter, enabled } => match self.screen {
+                        Screen::Backup => {
+                            self.backup_screen.log.search.toggle_filter(filter, enabled);
+                        }
+                        Screen::Restore => {
+                            self.restore_screen.log.search.toggle_filter(filter, enabled);
+                        }
+                        Screen::CustomGames => {}
+                        Screen::Other => {}
+                    },
+                    game_filter::Event::EditedGameName(value) => match self.screen {
+                        Screen::Backup => {
+                            self.text_histories.backup_search_game_name.push(&value);
+                            self.backup_screen.log.search.game_name = value;
+                        }
+                        Screen::Restore => {
+                            self.text_histories.restore_search_game_name.push(&value);
+                            self.restore_screen.log.search.game_name = value;
+                        }
+                        Screen::CustomGames => {
+                            self.text_histories.custom_games_search_game_name.push(&value);
+                            self.custom_games_screen.filter.name = value;
+                        }
+                        Screen::Other => {}
+                    },
+                    game_filter::Event::Reset => match self.screen {
+                        Screen::Backup => {
+                            self.backup_screen.log.search.reset();
+                            self.text_histories.backup_search_game_name.push("");
+                        }
+                        Screen::Restore => {
+                            self.restore_screen.log.search.reset();
+                            self.text_histories.restore_search_game_name.push("");
+                        }
+                        Screen::CustomGames => {
+                            self.custom_games_screen.filter.reset();
+                            self.text_histories.custom_games_search_game_name.push("");
+                        }
+                        Screen::Other => {}
+                    },
+                    game_filter::Event::EditedFilterUniqueness(value) => match self.screen {
+                        Screen::Backup => {
+                            self.backup_screen.log.search.uniqueness.choice = value;
+                        }
+                        Screen::Restore => {
+                            self.restore_screen.log.search.uniqueness.choice = value;
+                        }
+                        Screen::CustomGames => {}
+                        Screen::Other => {}
+                    },
+                    game_filter::Event::EditedFilterCompleteness(value) => match self.screen {
+                        Screen::Backup => {
+                            self.backup_screen.log.search.completeness.choice = value;
+                        }
+                        Screen::Restore => {
+                            self.restore_screen.log.search.completeness.choice = value;
+                        }
+                        Screen::CustomGames => {}
+                        Screen::Other => {}
+                    },
+                    game_filter::Event::EditedFilterEnablement(value) => match self.screen {
+                        Screen::Backup => {
+                            self.backup_screen.log.search.enablement.choice = value;
+                        }
+                        Screen::Restore => {
+                            self.restore_screen.log.search.enablement.choice = value;
+                        }
+                        Screen::CustomGames => {}
+                        Screen::Other => {}
+                    },
+                    game_filter::Event::EditedFilterChange(value) => match self.screen {
+                        Screen::Backup => {
+                            self.backup_screen.log.search.change.choice = value;
+                        }
+                        Screen::Restore => {
+                            self.restore_screen.log.search.change.choice = value;
+                        }
+                        Screen::CustomGames => {}
+                        Screen::Other => {}
+                    },
+                    game_filter::Event::EditedFilterManifest(value) => match self.screen {
+                        Screen::Backup => {
+                            self.backup_screen.log.search.manifest.choice = value;
+                        }
+                        Screen::Restore => {
+                            self.restore_screen.log.search.manifest.choice = value;
+                        }
+                        Screen::CustomGames => {}
+                        Screen::Other => {}
+                    },
                 }
-                Task::none()
-            }
-            Message::ToggledSearchFilter { filter, enabled } => {
-                let search = if self.screen == Screen::Backup {
-                    &mut self.backup_screen.log.search
-                } else {
-                    &mut self.restore_screen.log.search
-                };
-                search.toggle_filter(filter, enabled);
-                Task::none()
-            }
-            Message::ResetSearchFilter => {
-                match self.screen {
-                    Screen::Backup => {
-                        self.backup_screen.log.search.reset();
-                        self.text_histories.backup_search_game_name.push("");
-                    }
-                    Screen::Restore => {
-                        self.restore_screen.log.search.reset();
-                        self.text_histories.restore_search_game_name.push("");
-                    }
-                    Screen::CustomGames => {
-                        self.custom_games_screen.filter.reset();
-                        self.text_histories.custom_games_search_game_name.push("");
-                    }
-                    Screen::Other => {}
-                }
-                Task::none()
-            }
-            Message::EditedSearchFilterUniqueness(filter) => {
-                let search = if self.screen == Screen::Backup {
-                    &mut self.backup_screen.log.search
-                } else {
-                    &mut self.restore_screen.log.search
-                };
-                search.uniqueness.choice = filter;
-                Task::none()
-            }
-            Message::EditedSearchFilterCompleteness(filter) => {
-                let search = if self.screen == Screen::Backup {
-                    &mut self.backup_screen.log.search
-                } else {
-                    &mut self.restore_screen.log.search
-                };
-                search.completeness.choice = filter;
-                Task::none()
-            }
-            Message::EditedSearchFilterEnablement(filter) => {
-                let search = if self.screen == Screen::Backup {
-                    &mut self.backup_screen.log.search
-                } else {
-                    &mut self.restore_screen.log.search
-                };
-                search.enablement.choice = filter;
-                Task::none()
-            }
-            Message::EditedSearchFilterChange(filter) => {
-                let search = if self.screen == Screen::Backup {
-                    &mut self.backup_screen.log.search
-                } else {
-                    &mut self.restore_screen.log.search
-                };
-                search.change.choice = filter;
-                Task::none()
-            }
-            Message::EditedSearchFilterManifest(filter) => {
-                let search = if self.screen == Screen::Backup {
-                    &mut self.backup_screen.log.search
-                } else {
-                    &mut self.restore_screen.log.search
-                };
-                search.manifest.choice = filter;
-                Task::none()
+
+                task.unwrap_or_else(Task::none)
             }
             Message::EditedSortKey { screen, value } => {
                 match screen {

@@ -6,6 +6,19 @@ use crate::{
 
 use super::ScanChange;
 
+#[derive(Clone, Debug)]
+pub enum Event {
+    Toggled,
+    ToggledFilter { filter: FilterKind, enabled: bool },
+    EditedGameName(String),
+    Reset,
+    EditedFilterUniqueness(Uniqueness),
+    EditedFilterCompleteness(Completeness),
+    EditedFilterEnablement(Enablement),
+    EditedFilterChange(Change),
+    EditedFilterManifest(Manifest),
+}
+
 #[derive(Clone, Copy, Debug)]
 pub enum FilterKind {
     Uniqueness,

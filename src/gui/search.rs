@@ -44,9 +44,8 @@ fn template<'a, T: 'static + Default + Copy + Eq + PartialEq + ToString>(
         .spacing(10)
         .align_y(Alignment::Center)
         .push(
-            checkbox("", filter.active, move |enabled| Message::ToggledSearchFilter {
-                filter: kind,
-                enabled,
+            checkbox("", filter.active, move |enabled| Message::Filter {
+                event: game_filter::Event::ToggledFilter { filter: kind, enabled },
             })
             .spacing(0),
         )
@@ -64,9 +63,8 @@ fn template_noncopy<T: 'static + Default + Clone + Eq + PartialEq + ToString>(
         .spacing(10)
         .align_y(Alignment::Center)
         .push(
-            checkbox("", filter.active, move |enabled| Message::ToggledSearchFilter {
-                filter: kind,
-                enabled,
+            checkbox("", filter.active, move |enabled| Message::Filter {
+                event: game_filter::Event::ToggledFilter { filter: kind, enabled },
             })
             .spacing(0),
         )
@@ -84,8 +82,8 @@ fn template_with_label<T: 'static + Default + Clone + Eq + PartialEq + ToString>
     Row::new()
         .spacing(10)
         .align_y(Alignment::Center)
-        .push(checkbox(label, filter.active, move |enabled| {
-            Message::ToggledSearchFilter { filter: kind, enabled }
+        .push(checkbox(label, filter.active, move |enabled| Message::Filter {
+            event: game_filter::Event::ToggledFilter { filter: kind, enabled },
         }))
         .push(pick_list(options, Some(filter.choice.clone()), message))
         .into()
@@ -183,35 +181,42 @@ impl FilterComponent {
                         &self.uniqueness,
                         FilterKind::Uniqueness,
                         game_filter::Uniqueness::ALL,
-                        Message::EditedSearchFilterUniqueness,
+                        move |value| Message::Filter {
+                            event: game_filter::Event::EditedFilterUniqueness(value),
+                        },
                     ))
                     .push(template(
                         &self.completeness,
                         FilterKind::Completeness,
                         game_filter::Completeness::ALL,
-                        Message::EditedSearchFilterCompleteness,
+                        move |value| Message::Filter {
+                            event: game_filter::Event::EditedFilterCompleteness(value),
+                        },
                     ))
                     .push(template(
                         &self.change,
                         FilterKind::Change,
                         game_filter::Change::ALL,
-                        Message::EditedSearchFilterChange,
+                        move |value| Message::Filter {
+                            event: game_filter::Event::EditedFilterChange(value),
+                        },
                     ))
                     .push_if(show_deselected_games, || {
                         template(
                             &self.enablement,
                             FilterKind::Enablement,
                             game_filter::Enablement::ALL,
-                            Message::EditedSearchFilterEnablement,
+                            move |value| Message::Filter {
+                                event: game_filter::Event::EditedFilterEnablement(value),
+                            },
                         )
                     })
                     .push_if(manifests.len() == 2, || {
-                        template_noncopy(
-                            &self.manifest,
-                            FilterKind::Manifest,
-                            manifests.clone(),
-                            Message::EditedSearchFilterManifest,
-                        )
+                        template_noncopy(&self.manifest, FilterKind::Manifest, manifests.clone(), move |value| {
+                            Message::Filter {
+                                event: game_filter::Event::EditedFilterManifest(value),
+                            }
+                        })
                     })
                     .push_if(manifests.len() > 2, || {
                         template_with_label(
@@ -219,7 +224,9 @@ impl FilterComponent {
                             TRANSLATOR.source_field(),
                             FilterKind::Manifest,
                             manifests,
-                            Message::EditedSearchFilterManifest,
+                            move |value| Message::Filter {
+                                event: game_filter::Event::EditedFilterManifest(value),
+                            },
                         )
                     })
                     .wrap(),

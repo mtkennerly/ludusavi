@@ -163,9 +163,6 @@ pub enum Message {
         enabled: bool,
         scan_kind: ScanKind,
     },
-    ToggleSearch {
-        screen: Screen,
-    },
     ToggleSpecificGamePathIgnored {
         name: String,
         path: StrictPath,
@@ -192,20 +189,9 @@ pub enum Message {
         index: usize,
         enabled: bool,
     },
-    EditedSearchGameName {
-        screen: Screen,
-        value: String,
+    Filter {
+        event: game_filter::Event,
     },
-    ToggledSearchFilter {
-        filter: game_filter::FilterKind,
-        enabled: bool,
-    },
-    ResetSearchFilter,
-    EditedSearchFilterUniqueness(game_filter::Uniqueness),
-    EditedSearchFilterCompleteness(game_filter::Completeness),
-    EditedSearchFilterEnablement(game_filter::Enablement),
-    EditedSearchFilterChange(game_filter::Change),
-    EditedSearchFilterManifest(game_filter::Manifest),
     EditedSortKey {
         screen: Screen,
         value: SortKey,

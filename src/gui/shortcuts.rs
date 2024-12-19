@@ -8,7 +8,7 @@ use iced::Length;
 use crate::{
     cloud::Remote,
     gui::{
-        common::{EditAction, Message, RedirectEditActionField, Screen, UndoSubject, ERROR_ICON},
+        common::{EditAction, Message, RedirectEditActionField, UndoSubject, ERROR_ICON},
         modal::{ModalField, ModalInputKind},
         style,
         widget::{id, Element, TextInput, Undoable},
@@ -16,7 +16,7 @@ use crate::{
     lang::TRANSLATOR,
     prelude::StrictPath,
     resource::config::{Config, CustomGame},
-    scan::registry::RegistryItem,
+    scan::{game_filter, registry::RegistryItem},
 };
 
 fn path_appears_valid(path: &str) -> bool {
@@ -368,17 +368,14 @@ impl TextHistories {
         let event: Box<dyn Fn(String) -> Message> = match subject.clone() {
             UndoSubject::BackupTarget => Box::new(Message::EditedBackupTarget),
             UndoSubject::RestoreSource => Box::new(Message::EditedRestoreSource),
-            UndoSubject::BackupSearchGameName => Box::new(|value| Message::EditedSearchGameName {
-                screen: Screen::Backup,
-                value,
+            UndoSubject::BackupSearchGameName => Box::new(|value| Message::Filter {
+                event: game_filter::Event::EditedGameName(value),
             }),
-            UndoSubject::RestoreSearchGameName => Box::new(|value| Message::EditedSearchGameName {
-                screen: Screen::Restore,
-                value,
+            UndoSubject::RestoreSearchGameName => Box::new(|value| Message::Filter {
+                event: game_filter::Event::EditedGameName(value),
             }),
-            UndoSubject::CustomGamesSearchGameName => Box::new(|value| Message::EditedSearchGameName {
-                screen: Screen::CustomGames,
-                value,
+            UndoSubject::CustomGamesSearchGameName => Box::new(|value| Message::Filter {
+                event: game_filter::Event::EditedGameName(value),
             }),
             UndoSubject::RootPath(i) => Box::new(move |value| Message::EditedRoot(EditAction::Change(i, value))),
             UndoSubject::RootLutrisDatabase(i) => Box::new(move |value| Message::EditedRootLutrisDatabase(i, value)),

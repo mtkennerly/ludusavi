@@ -13,6 +13,7 @@ use crate::{
     lang::TRANSLATOR,
     prelude::{Finality, SyncDirection},
     resource::manifest,
+    scan::game_filter,
 };
 
 const WIDTH: u16 = 125;
@@ -145,10 +146,12 @@ pub fn choose_file<'a>(subject: BrowseFileSubject, modifiers: &keyboard::Modifie
     }
 }
 
-pub fn filter<'a>(screen: Screen, open: bool) -> Element<'a> {
+pub fn filter<'a>(open: bool) -> Element<'a> {
     template(
         Icon::Filter.text(),
-        Some(Message::ToggleSearch { screen }),
+        Some(Message::Filter {
+            event: game_filter::Event::Toggled,
+        }),
         open.then_some(style::Button::Negative),
     )
 }
@@ -156,7 +159,9 @@ pub fn filter<'a>(screen: Screen, open: bool) -> Element<'a> {
 pub fn reset_filter<'a>(dirty: bool) -> Element<'a> {
     template(
         Icon::RemoveCircle.text(),
-        dirty.then_some(Message::ResetSearchFilter),
+        dirty.then_some(Message::Filter {
+            event: game_filter::Event::Reset,
+        }),
         Some(style::Button::Negative),
     )
 }
