@@ -1,6 +1,6 @@
 use std::collections::{BTreeSet, HashSet};
 
-use iced::Length;
+use iced::{widget::text_input, Length};
 
 use crate::{
     cloud::{rclone_monitor, Remote, RemoteChoice},
@@ -23,6 +23,14 @@ use crate::{
         registry::RegistryItem,
         BackupInfo, Launchers, ScanInfo, ScanKind, SteamShortcuts,
     },
+};
+
+pub const ERROR_ICON: text_input::Icon<iced::Font> = text_input::Icon {
+    font: crate::gui::font::ICONS,
+    code_point: crate::gui::icon::Icon::Error.as_char(),
+    size: None,
+    spacing: 5.0,
+    side: text_input::Side::Right,
 };
 
 #[derive(Clone, Debug, Default)]

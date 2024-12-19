@@ -1,3 +1,12 @@
+## Unreleased
+
+* Fixed:
+  * If a custom game's title begins or ends with a space,
+    that custom game will now be ignored.
+    Previously, Ludusavi would make a backup folder for the game including the space,
+    but the OS (namely Windows) would remove the space from the folder title,
+    causing unpredictable behavior when Ludusavi couldn't find the expected folder name.
+
 ## v0.27.0 (2024-11-19)
 
 * Added:

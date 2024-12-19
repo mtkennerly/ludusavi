@@ -44,7 +44,7 @@ pub enum Icon {
 }
 
 impl Icon {
-    pub fn as_char(&self) -> char {
+    pub const fn as_char(&self) -> char {
         match self {
             Self::Add => '\u{E145}',
             Self::AddCircle => '\u{E147}',

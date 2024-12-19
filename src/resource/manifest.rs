@@ -628,9 +628,20 @@ impl Manifest {
 
     fn add_custom_games(&mut self, config: &Config) {
         for custom_game in &config.custom_games {
-            if custom_game.ignore || custom_game.name.trim().is_empty() {
+            let name = &custom_game.name;
+
+            if custom_game.ignore {
                 continue;
             }
+            if name.is_empty() {
+                log::warn!("ignoring custom game with blank name: '{name}'");
+                continue;
+            }
+            if name.trim() != name {
+                log::warn!("ignoring custom game with outer whitespace: '{name}'");
+                continue;
+            }
+
             self.add_custom_game(custom_game.clone());
         }
     }
@@ -712,8 +723,12 @@ impl Manifest {
         let manifest = secondary.data.0;
 
         for (name, mut game) in manifest {
-            if name.trim().is_empty() {
-                log::debug!("ignoring secondary manifest game with blank name: '{name}'");
+            if name.is_empty() {
+                log::warn!("ignoring secondary manifest game with blank name: '{name}'");
+                continue;
+            }
+            if name.trim() != name {
+                log::warn!("ignoring secondary manifest game with outer whitespace: '{name}'");
                 continue;
             }
 

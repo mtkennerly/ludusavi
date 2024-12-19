@@ -3,12 +3,12 @@
 
 use std::collections::{HashMap, VecDeque};
 
-use iced::{widget::text_input, Length};
+use iced::Length;
 
 use crate::{
     cloud::Remote,
     gui::{
-        common::{EditAction, Message, RedirectEditActionField, Screen, UndoSubject},
+        common::{EditAction, Message, RedirectEditActionField, Screen, UndoSubject, ERROR_ICON},
         modal::{ModalField, ModalInputKind},
         style,
         widget::{id, Element, TextInput, Undoable},
@@ -460,19 +460,14 @@ impl TextHistories {
             | UndoSubject::RedirectTarget(_)
             | UndoSubject::CustomGameFile(_, _)
             | UndoSubject::BackupFilterIgnoredPath(_)
-            | UndoSubject::RcloneExecutable => (!path_appears_valid(&current)).then_some(text_input::Icon {
-                font: crate::gui::font::ICONS,
-                code_point: crate::gui::icon::Icon::Error.as_char(),
-                size: None,
-                spacing: 5.0,
-                side: text_input::Side::Right,
-            }),
+            | UndoSubject::RcloneExecutable => (!path_appears_valid(&current)).then_some(ERROR_ICON),
+            UndoSubject::CustomGameName(_) | UndoSubject::CustomGameAlias(_) => {
+                (current.trim() != current).then_some(ERROR_ICON)
+            }
             UndoSubject::SecondaryManifest(_)
             | UndoSubject::BackupSearchGameName
             | UndoSubject::RestoreSearchGameName
             | UndoSubject::CustomGamesSearchGameName
-            | UndoSubject::CustomGameName(_)
-            | UndoSubject::CustomGameAlias(_)
             | UndoSubject::CustomGameRegistry(_, _)
             | UndoSubject::BackupFilterIgnoredRegistry(_)
             | UndoSubject::RcloneArguments
