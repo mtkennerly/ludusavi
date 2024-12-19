@@ -7,7 +7,7 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{BrowseFileSubject, BrowseSubject, Message, Operation, Screen, ScrollSubject, UndoSubject},
+        common::{BrowseFileSubject, BrowseSubject, Message, Operation, ScrollSubject, UndoSubject},
         editor,
         game_list::GameList,
         icon::Icon,
@@ -20,7 +20,7 @@ use crate::{
     prelude::{AVAILABLE_PARALELLISM, STEAM_DECK},
     resource::{
         cache::Cache,
-        config::{BackupFormat, CloudFilter, Config, SortKey, Theme, ZipCompression},
+        config::{self, BackupFormat, CloudFilter, Config, SortKey, Theme, ZipCompression},
         manifest::{Manifest, Store},
     },
     scan::{DuplicateDetector, Duplication, OperationStatus, ScanKind},
@@ -83,7 +83,6 @@ impl Backup {
         histories: &TextHistories,
         modifiers: &keyboard::Modifiers,
     ) -> Element {
-        let screen = Screen::Backup;
         let sort = &config.backup.sort;
 
         let content = Column::new()
@@ -114,13 +113,10 @@ impl Backup {
                     .push("|")
                     .push(text(TRANSLATOR.sort_label()))
                     .push(
-                        pick_list(SortKey::ALL, Some(sort.key), move |value| Message::EditedSortKey {
-                            screen,
-                            value,
-                        })
-                        .class(style::PickList::Primary),
+                        pick_list(SortKey::ALL, Some(sort.key), Message::config(config::Event::SortKey))
+                            .class(style::PickList::Primary),
                     )
-                    .push(button::sort_order(screen, sort.reversed)),
+                    .push(button::sort_order(sort.reversed)),
             )
             .push(self.log.view(
                 Self::SCAN_KIND,
@@ -160,7 +156,6 @@ impl Restore {
         histories: &TextHistories,
         modifiers: &keyboard::Modifiers,
     ) -> Element {
-        let screen = Screen::Restore;
         let sort = &config.restore.sort;
 
         let content = Column::new()
@@ -192,13 +187,10 @@ impl Restore {
                     .push("|")
                     .push(text(TRANSLATOR.sort_label()))
                     .push(
-                        pick_list(SortKey::ALL, Some(sort.key), move |value| Message::EditedSortKey {
-                            screen,
-                            value,
-                        })
-                        .class(style::PickList::Primary),
+                        pick_list(SortKey::ALL, Some(sort.key), Message::config(config::Event::SortKey))
+                            .class(style::PickList::Primary),
                     )
-                    .push(button::sort_order(screen, sort.reversed)),
+                    .push(button::sort_order(sort.reversed)),
             )
             .push(self.log.view(
                 Self::SCAN_KIND,
@@ -236,7 +228,7 @@ impl CustomGames {
                     .align_y(Alignment::Center)
                     .push(button::add_game())
                     .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled()))
-                    .push(button::sort(Message::SortCustomGames))
+                    .push(button::sort(config::Event::SortCustomGames))
                     .push(button::filter(self.filter.enabled)),
             )
             .push_maybe(self.filter.view(histories))
@@ -290,8 +282,12 @@ pub fn other<'a>(
                         .spacing(20)
                         .push(text(TRANSLATOR.field_language()))
                         .push(
-                            pick_list(Language::ALL, Some(config.language), Message::SelectedLanguage)
-                                .class(style::PickList::Primary),
+                            pick_list(
+                                Language::ALL,
+                                Some(config.language),
+                                Message::config(config::Event::Language),
+                            )
+                            .class(style::PickList::Primary),
                         ),
                 )
                 .push(
@@ -300,7 +296,7 @@ pub fn other<'a>(
                         .spacing(20)
                         .push(text(TRANSLATOR.field_theme()))
                         .push(
-                            pick_list(Theme::ALL, Some(config.theme), Message::SelectedTheme)
+                            pick_list(Theme::ALL, Some(config.theme), Message::config(config::Event::Theme))
                                 .class(style::PickList::Primary),
                         ),
                 )
@@ -311,7 +307,7 @@ pub fn other<'a>(
                         .push(checkbox(
                             TRANSLATOR.new_version_check(),
                             config.release.check,
-                            Message::AppReleaseToggle,
+                            Message::config(config::Event::CheckRelease),
                         ))
                         .push(button::open_url_icon(RELEASE_URL.to_string())),
                 )
@@ -328,7 +324,7 @@ pub fn other<'a>(
                                             .push(checkbox(
                                                 TRANSLATOR.override_max_threads(),
                                                 config.runtime.threads.is_some(),
-                                                Message::OverrideMaxThreads,
+                                                Message::config(config::Event::OverrideMaxThreads),
                                             ))
                                             .push_maybe({
                                                 config.runtime.threads.map(|threads| {
@@ -336,7 +332,7 @@ pub fn other<'a>(
                                                         threads.get() as i32,
                                                         TRANSLATOR.threads_label(),
                                                         1..=(max_threads.get() as i32),
-                                                        |x| Message::EditedMaxThreads(x as usize),
+                                                        Message::config(|x| config::Event::MaxThreads(x as usize)),
                                                     ))
                                                     .padding(padding::left(35))
                                                 })
@@ -347,34 +343,34 @@ pub fn other<'a>(
                                     checkbox(
                                         TRANSLATOR.explanation_for_exclude_store_screenshots(),
                                         config.backup.filter.exclude_store_screenshots,
-                                        Message::EditedExcludeStoreScreenshots,
+                                        Message::config(config::Event::ExcludeStoreScreenshots),
                                     )
                                     .class(style::Checkbox),
                                 )
                                 .push(checkbox(
                                     TRANSLATOR.show_disabled_games(),
                                     config.scan.show_deselected_games,
-                                    Message::SetShowDeselectedGames,
+                                    Message::config(config::Event::ShowDeselectedGames),
                                 ))
                                 .push(checkbox(
                                     TRANSLATOR.show_unchanged_games(),
                                     config.scan.show_unchanged_games,
-                                    Message::SetShowUnchangedGames,
+                                    Message::config(config::Event::ShowUnchangedGames),
                                 ))
                                 .push(checkbox(
                                     TRANSLATOR.show_unscanned_games(),
                                     config.scan.show_unscanned_games,
-                                    Message::SetShowUnscannedGames,
+                                    Message::config(config::Event::ShowUnscannedGames),
                                 ))
                                 .push(checkbox(
                                     TRANSLATOR.field(&TRANSLATOR.explanation_for_exclude_cloud_games()),
                                     config.backup.filter.cloud.exclude,
-                                    |exclude| {
-                                        Message::EditedCloudFilter(CloudFilter {
+                                    Message::config(move |exclude| {
+                                        config::Event::CloudFilter(CloudFilter {
                                             exclude,
                                             ..config.backup.filter.cloud
                                         })
-                                    },
+                                    }),
                                 ))
                                 .push(
                                     Row::new()
@@ -384,12 +380,12 @@ pub fn other<'a>(
                                             checkbox(
                                                 TRANSLATOR.store(&Store::Epic),
                                                 config.backup.filter.cloud.epic,
-                                                |epic| {
-                                                    Message::EditedCloudFilter(CloudFilter {
+                                                Message::config(move |epic| {
+                                                    config::Event::CloudFilter(CloudFilter {
                                                         epic,
                                                         ..config.backup.filter.cloud
                                                     })
-                                                },
+                                                }),
                                             )
                                             .class(style::Checkbox),
                                         )
@@ -397,12 +393,12 @@ pub fn other<'a>(
                                             checkbox(
                                                 TRANSLATOR.store(&Store::Gog),
                                                 config.backup.filter.cloud.gog,
-                                                |gog| {
-                                                    Message::EditedCloudFilter(CloudFilter {
+                                                Message::config(move |gog| {
+                                                    config::Event::CloudFilter(CloudFilter {
                                                         gog,
                                                         ..config.backup.filter.cloud
                                                     })
-                                                },
+                                                }),
                                             )
                                             .class(style::Checkbox),
                                         )
@@ -414,12 +410,12 @@ pub fn other<'a>(
                                                     TRANSLATOR.store(&Store::Ea)
                                                 ),
                                                 config.backup.filter.cloud.origin,
-                                                |origin| {
-                                                    Message::EditedCloudFilter(CloudFilter {
+                                                Message::config(move |origin| {
+                                                    config::Event::CloudFilter(CloudFilter {
                                                         origin,
                                                         ..config.backup.filter.cloud
                                                     })
-                                                },
+                                                }),
                                             )
                                             .class(style::Checkbox),
                                         )
@@ -427,12 +423,12 @@ pub fn other<'a>(
                                             checkbox(
                                                 TRANSLATOR.store(&Store::Steam),
                                                 config.backup.filter.cloud.steam,
-                                                |steam| {
-                                                    Message::EditedCloudFilter(CloudFilter {
+                                                Message::config(move |steam| {
+                                                    config::Event::CloudFilter(CloudFilter {
                                                         steam,
                                                         ..config.backup.filter.cloud
                                                     })
-                                                },
+                                                }),
                                             )
                                             .class(style::Checkbox),
                                         )
@@ -440,12 +436,12 @@ pub fn other<'a>(
                                             checkbox(
                                                 TRANSLATOR.store(&Store::Uplay),
                                                 config.backup.filter.cloud.uplay,
-                                                |uplay| {
-                                                    Message::EditedCloudFilter(CloudFilter {
+                                                Message::config(move |uplay| {
+                                                    config::Event::CloudFilter(CloudFilter {
                                                         uplay,
                                                         ..config.backup.filter.cloud
                                                     })
-                                                },
+                                                }),
                                             )
                                             .class(style::Checkbox),
                                         ),
@@ -470,7 +466,7 @@ pub fn other<'a>(
                                                 config.backup.retention.full as i32,
                                                 TRANSLATOR.full_retention(),
                                                 1..=255,
-                                                |x| Message::EditedFullRetention(x as u8),
+                                                Message::config(|x| config::Event::FullRetention(x as u8)),
                                             )
                                         })
                                         .push({
@@ -478,7 +474,7 @@ pub fn other<'a>(
                                                 config.backup.retention.differential as i32,
                                                 TRANSLATOR.differential_retention(),
                                                 0..=255,
-                                                |x| Message::EditedDiffRetention(x as u8),
+                                                Message::config(|x| config::Event::DiffRetention(x as u8)),
                                             )
                                         }),
                                 )
@@ -495,7 +491,7 @@ pub fn other<'a>(
                                                     pick_list(
                                                         BackupFormat::ALL,
                                                         Some(config.backup.format.chosen),
-                                                        Message::SelectedBackupFormat,
+                                                        Message::config(config::Event::BackupFormat),
                                                     )
                                                     .class(style::PickList::Primary),
                                                 ),
@@ -509,7 +505,7 @@ pub fn other<'a>(
                                                     pick_list(
                                                         ZipCompression::ALL,
                                                         Some(config.backup.format.zip.compression),
-                                                        Message::SelectedBackupCompression,
+                                                        Message::config(config::Event::BackupCompression),
                                                     )
                                                     .class(style::PickList::Primary),
                                                 )
@@ -520,7 +516,7 @@ pub fn other<'a>(
                                                     level,
                                                     TRANSLATOR.backup_compression_level_field(),
                                                     range,
-                                                    Message::EditedCompressionLevel,
+                                                    Message::config(config::Event::CompressionLevel),
                                                 )),
                                                 _ => None,
                                             },
@@ -621,7 +617,7 @@ pub fn other<'a>(
                                                 .push(checkbox(
                                                     TRANSLATOR.synchronize_automatically(),
                                                     config.cloud.synchronize,
-                                                    |_| Message::ToggleCloudSynchronize,
+                                                    Message::config(|_| config::Event::ToggleCloudSynchronize),
                                                 ))
                                         })
                                         .push_if(!is_cloud_configured, || text(TRANSLATOR.cloud_not_configured()))

@@ -26,7 +26,7 @@ use crate::{
     lang::TRANSLATOR,
     resource::{
         cache::Cache,
-        config::{Config, Sort},
+        config::{self, Config, Sort},
         manifest::{self, Manifest, Os},
     },
     scan::{
@@ -85,11 +85,15 @@ impl GameListEntry {
                         .align_y(Alignment::Center)
                         .push({
                             let name = name.clone();
-                            checkbox("", enabled, move |enabled| Message::ToggleGameListEntryEnabled {
-                                name: name.clone(),
+                            checkbox(
+                                "",
                                 enabled,
-                                scan_kind,
-                            })
+                                Message::config(move |enabled| config::Event::GameListEntryEnabled {
+                                    name: name.clone(),
+                                    enabled,
+                                    scan_kind,
+                                }),
+                            )
                             .spacing(0)
                             .class(style::Checkbox)
                         })

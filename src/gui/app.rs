@@ -10,8 +10,8 @@ use crate::{
     gui::{
         button,
         common::{
-            BackupPhase, BrowseFileSubject, BrowseSubject, EditAction, Flags, GameAction, GameSelection, Message,
-            Operation, RedirectEditActionField, RestorePhase, Screen, ScrollSubject, UndoSubject, ValidatePhase,
+            BackupPhase, BrowseFileSubject, BrowseSubject, Flags, GameAction, GameSelection, Message, Operation,
+            RestorePhase, Screen, ScrollSubject, UndoSubject, ValidatePhase,
         },
         modal::{CloudModalState, Modal, ModalField, ModalInputKind},
         notification::Notification,
@@ -21,7 +21,10 @@ use crate::{
         widget::{id, Column, Container, Element, IcedParentExt, Progress, Row, Stack},
     },
     lang::TRANSLATOR,
-    prelude::{app_dir, get_threads_from_env, initialize_rayon, Error, Finality, StrictPath, SyncDirection},
+    prelude::{
+        app_dir, get_threads_from_env, initialize_rayon, EditAction, Error, Finality, RedirectEditActionField,
+        StrictPath, SyncDirection,
+    },
     resource::{
         cache::{self, Cache},
         config::{self, Config, CustomGame, CustomGameKind, Root},
@@ -1424,10 +1427,436 @@ impl App {
                 }
                 Task::none()
             }
-            Message::AppReleaseToggle(enabled) => {
-                self.config.release.check = enabled;
+            Message::Config { event } => {
+                let mut task = None;
+
+                match event {
+                    config::Event::Theme(theme) => {
+                        self.config.theme = theme;
+                    }
+                    config::Event::Language(language) => {
+                        TRANSLATOR.set_language(language);
+                        self.config.language = language;
+                    }
+                    config::Event::CheckRelease(enabled) => {
+                        self.config.release.check = enabled;
+                    }
+                    config::Event::BackupTarget(text) => {
+                        self.text_histories.backup_target.push(&text);
+                        self.config.backup.path.reset(text);
+                    }
+                    config::Event::RestoreSource(text) => {
+                        self.text_histories.restore_source.push(&text);
+                        self.config.restore.path.reset(text);
+                    }
+                    config::Event::Root(action) => match action {
+                        EditAction::Add => {
+                            self.text_histories.roots.push(Default::default());
+                            self.config.roots.push(Root::default());
+                        }
+                        EditAction::Change(index, value) => {
+                            self.text_histories.roots[index].path.push(&value);
+                            self.config.roots[index].path_mut().reset(value);
+                        }
+                        EditAction::Remove(index) => {
+                            self.text_histories.roots.remove(index);
+                            self.config.roots.remove(index);
+                        }
+                        EditAction::Move(index, direction) => {
+                            let offset = direction.shift(index);
+                            self.text_histories.roots.swap(index, offset);
+                            self.config.roots.swap(index, offset);
+                        }
+                    },
+                    config::Event::RootLutrisDatabase(index, value) => {
+                        self.text_histories.roots[index].lutris_database.push(&value);
+                        if let Root::Lutris(root) = &mut self.config.roots[index] {
+                            root.database = if value.is_empty() { None } else { Some(value.into()) };
+                        }
+                    }
+                    config::Event::SecondaryManifest(action) => match action {
+                        EditAction::Add => {
+                            self.text_histories.secondary_manifests.push(Default::default());
+                            self.config.manifest.secondary.push(Default::default());
+                        }
+                        EditAction::Change(index, value) => {
+                            self.text_histories.secondary_manifests[index].push(&value);
+                            self.config.manifest.secondary[index].set(value);
+                        }
+                        EditAction::Remove(index) => {
+                            self.text_histories.secondary_manifests.remove(index);
+                            self.config.manifest.secondary.remove(index);
+                        }
+                        EditAction::Move(index, direction) => {
+                            let offset = direction.shift(index);
+                            self.text_histories.secondary_manifests.swap(index, offset);
+                            self.config.manifest.secondary.swap(index, offset);
+                        }
+                    },
+                    config::Event::RootStore(index, store) => {
+                        self.text_histories.roots[index].clear_secondary();
+                        self.config.roots[index].set_store(store);
+                    }
+                    config::Event::RedirectKind(index, kind) => {
+                        self.config.redirects[index].kind = kind;
+                    }
+                    config::Event::SecondaryManifestKind(index, kind) => {
+                        self.config.manifest.secondary[index].convert(kind);
+                    }
+                    config::Event::CustomGameKind(index, kind) => {
+                        self.config.custom_games[index].convert(kind);
+                        match kind {
+                            CustomGameKind::Game => {
+                                self.text_histories.custom_games[index].alias.clear();
+                            }
+                            CustomGameKind::Alias => {}
+                        }
+                    }
+                    config::Event::CustomGameIntegration(index, integration) => {
+                        self.config.custom_games[index].integration = integration;
+                    }
+                    config::Event::Redirect(action, field) => {
+                        // TODO: Automatically refresh redirected paths in the game list.
+                        match action {
+                            EditAction::Add => {
+                                self.text_histories.redirects.push(Default::default());
+                                self.config.add_redirect(&StrictPath::default(), &StrictPath::default());
+                            }
+                            EditAction::Change(index, value) => match field {
+                                Some(RedirectEditActionField::Source) => {
+                                    self.text_histories.redirects[index].source.push(&value);
+                                    self.config.redirects[index].source.reset(value);
+                                }
+                                Some(RedirectEditActionField::Target) => {
+                                    self.text_histories.redirects[index].target.push(&value);
+                                    self.config.redirects[index].target.reset(value);
+                                }
+                                _ => {}
+                            },
+                            EditAction::Remove(index) => {
+                                self.text_histories.redirects.remove(index);
+                                self.config.redirects.remove(index);
+                            }
+                            EditAction::Move(index, direction) => {
+                                let offset = direction.shift(index);
+                                self.text_histories.redirects.swap(index, offset);
+                                self.config.redirects.swap(index, offset);
+                            }
+                        }
+                    }
+                    config::Event::ReverseRedirectsOnRestore(enabled) => {
+                        self.config.restore.reverse_redirects = enabled;
+                    }
+                    config::Event::CustomGame(action) => {
+                        let mut snap = false;
+                        match action {
+                            EditAction::Add => {
+                                self.text_histories.custom_games.push(Default::default());
+                                self.config.add_custom_game();
+                                snap = true;
+                            }
+                            EditAction::Change(index, value) => {
+                                self.text_histories.custom_games[index].name.push(&value);
+                                self.config.custom_games[index].name = value;
+                            }
+                            EditAction::Remove(index) => {
+                                self.text_histories.custom_games.remove(index);
+                                self.config.custom_games.remove(index);
+                            }
+                            EditAction::Move(index, direction) => {
+                                let offset = direction.shift(index);
+                                self.text_histories.custom_games.swap(index, offset);
+                                self.config.custom_games.swap(index, offset);
+                            }
+                        }
+                        if snap {
+                            self.scroll_offsets.insert(
+                                ScrollSubject::CustomGames,
+                                scrollable::AbsoluteOffset { x: 0.0, y: f32::MAX },
+                            );
+                            task = Some(self.refresh_scroll_position());
+                        }
+                    }
+                    config::Event::CustomGameAlias(index, value) => {
+                        self.text_histories.custom_games[index].alias.push(&value);
+                        self.config.custom_games[index].alias = Some(value);
+                    }
+                    config::Event::CustomGaleAliasDisplay(index, value) => {
+                        self.config.custom_games[index].prefer_alias = value;
+                    }
+                    config::Event::CustomGameFile(game_index, action) => match action {
+                        EditAction::Add => {
+                            self.text_histories.custom_games[game_index]
+                                .files
+                                .push(Default::default());
+                            self.config.custom_games[game_index].files.push("".to_string());
+                        }
+                        EditAction::Change(index, value) => {
+                            self.text_histories.custom_games[game_index].files[index].push(&value);
+                            self.config.custom_games[game_index].files[index] = value;
+                        }
+                        EditAction::Remove(index) => {
+                            self.text_histories.custom_games[game_index].files.remove(index);
+                            self.config.custom_games[game_index].files.remove(index);
+                        }
+                        EditAction::Move(index, direction) => {
+                            let offset = direction.shift(index);
+                            self.text_histories.custom_games[game_index].files.swap(index, offset);
+                            self.config.custom_games[game_index].files.swap(index, offset);
+                        }
+                    },
+                    config::Event::CustomGameRegistry(game_index, action) => match action {
+                        EditAction::Add => {
+                            self.text_histories.custom_games[game_index]
+                                .registry
+                                .push(Default::default());
+                            self.config.custom_games[game_index].registry.push("".to_string());
+                        }
+                        EditAction::Change(index, value) => {
+                            self.text_histories.custom_games[game_index].registry[index].push(&value);
+                            self.config.custom_games[game_index].registry[index] = value;
+                        }
+                        EditAction::Remove(index) => {
+                            self.text_histories.custom_games[game_index].registry.remove(index);
+                            self.config.custom_games[game_index].registry.remove(index);
+                        }
+                        EditAction::Move(index, direction) => {
+                            let offset = direction.shift(index);
+                            self.text_histories.custom_games[game_index]
+                                .registry
+                                .swap(index, offset);
+                            self.config.custom_games[game_index].registry.swap(index, offset);
+                        }
+                    },
+                    config::Event::ExcludeStoreScreenshots(enabled) => {
+                        self.config.backup.filter.exclude_store_screenshots = enabled;
+                    }
+                    config::Event::CloudFilter(filter) => {
+                        self.config.backup.filter.cloud = filter;
+                    }
+                    config::Event::BackupFilterIgnoredPath(action) => {
+                        match action {
+                            EditAction::Add => {
+                                self.text_histories.backup_filter_ignored_paths.push(Default::default());
+                                self.config
+                                    .backup
+                                    .filter
+                                    .ignored_paths
+                                    .push(StrictPath::new("".to_string()));
+                            }
+                            EditAction::Change(index, value) => {
+                                self.text_histories.backup_filter_ignored_paths[index].push(&value);
+                                self.config.backup.filter.ignored_paths[index] = StrictPath::new(value);
+                            }
+                            EditAction::Remove(index) => {
+                                self.text_histories.backup_filter_ignored_paths.remove(index);
+                                self.config.backup.filter.ignored_paths.remove(index);
+                            }
+                            EditAction::Move(index, direction) => {
+                                let offset = direction.shift(index);
+                                self.text_histories.backup_filter_ignored_paths.swap(index, offset);
+                                self.config.backup.filter.ignored_paths.swap(index, offset);
+                            }
+                        }
+                        self.config.backup.filter.build_globs();
+                    }
+                    config::Event::BackupFilterIgnoredRegistry(action) => match action {
+                        EditAction::Add => {
+                            self.text_histories
+                                .backup_filter_ignored_registry
+                                .push(Default::default());
+                            self.config
+                                .backup
+                                .filter
+                                .ignored_registry
+                                .push(RegistryItem::new("".to_string()));
+                        }
+                        EditAction::Change(index, value) => {
+                            self.text_histories.backup_filter_ignored_registry[index].push(&value);
+                            self.config.backup.filter.ignored_registry[index] = RegistryItem::new(value);
+                        }
+                        EditAction::Remove(index) => {
+                            self.text_histories.backup_filter_ignored_registry.remove(index);
+                            self.config.backup.filter.ignored_registry.remove(index);
+                        }
+                        EditAction::Move(index, direction) => {
+                            let offset = direction.shift(index);
+                            self.text_histories.backup_filter_ignored_registry.swap(index, offset);
+                            self.config.backup.filter.ignored_registry.swap(index, offset);
+                        }
+                    },
+                    config::Event::GameListEntryEnabled {
+                        name,
+                        enabled,
+                        scan_kind,
+                    } => {
+                        match (scan_kind, enabled) {
+                            (ScanKind::Backup, false) => self.config.disable_game_for_backup(&name),
+                            (ScanKind::Backup, true) => self.config.enable_game_for_backup(&name),
+                            (ScanKind::Restore, false) => self.config.disable_game_for_restore(&name),
+                            (ScanKind::Restore, true) => self.config.enable_game_for_restore(&name),
+                        };
+
+                        match scan_kind {
+                            ScanKind::Backup => {
+                                self.backup_screen.log.refresh_game_tree(
+                                    &name,
+                                    &self.config,
+                                    &mut self.backup_screen.duplicate_detector,
+                                    scan_kind,
+                                );
+                            }
+                            ScanKind::Restore => {
+                                self.restore_screen.log.refresh_game_tree(
+                                    &name,
+                                    &self.config,
+                                    &mut self.restore_screen.duplicate_detector,
+                                    scan_kind,
+                                );
+                            }
+                        }
+                    }
+                    config::Event::CustomGameEnabled { index, enabled } => {
+                        if enabled {
+                            self.config.enable_custom_game(index);
+                        } else {
+                            self.config.disable_custom_game(index);
+                        }
+                    }
+                    config::Event::PrimaryManifestEnabled { enabled } => {
+                        self.config.manifest.enable = enabled;
+                    }
+                    config::Event::SecondaryManifestEnabled { index, enabled } => {
+                        self.config.manifest.secondary[index].enable(enabled);
+                    }
+                    config::Event::ToggleSpecificGamePathIgnored { name, path, scan_kind } => match scan_kind {
+                        ScanKind::Backup => {
+                            self.config.backup.toggled_paths.toggle(&name, &path);
+                            self.backup_screen.log.refresh_game_tree(
+                                &name,
+                                &self.config,
+                                &mut self.backup_screen.duplicate_detector,
+                                scan_kind,
+                            );
+                        }
+                        ScanKind::Restore => {
+                            self.config.restore.toggled_paths.toggle(&name, &path);
+                            self.restore_screen.log.refresh_game_tree(
+                                &name,
+                                &self.config,
+                                &mut self.restore_screen.duplicate_detector,
+                                scan_kind,
+                            );
+                        }
+                    },
+                    config::Event::ToggleSpecificGameRegistryIgnored {
+                        name,
+                        path,
+                        value,
+                        scan_kind,
+                    } => match scan_kind {
+                        ScanKind::Backup => {
+                            self.config.backup.toggled_registry.toggle_owned(&name, &path, value);
+                            self.backup_screen.log.refresh_game_tree(
+                                &name,
+                                &self.config,
+                                &mut self.backup_screen.duplicate_detector,
+                                scan_kind,
+                            );
+                        }
+                        ScanKind::Restore => {
+                            self.config.restore.toggled_registry.toggle_owned(&name, &path, value);
+                            self.restore_screen.log.refresh_game_tree(
+                                &name,
+                                &self.config,
+                                &mut self.restore_screen.duplicate_detector,
+                                scan_kind,
+                            );
+                        }
+                    },
+                    config::Event::SortKey(value) => match self.screen {
+                        Screen::Backup => {
+                            self.config.backup.sort.key = value;
+                            self.backup_screen.log.sort(&self.config.backup.sort, &self.config);
+                        }
+                        Screen::Restore => {
+                            self.config.restore.sort.key = value;
+                            self.restore_screen.log.sort(&self.config.restore.sort, &self.config);
+                        }
+                        _ => {}
+                    },
+                    config::Event::SortReversed(value) => match self.screen {
+                        Screen::Backup => {
+                            self.config.backup.sort.reversed = value;
+                            self.backup_screen.log.sort(&self.config.backup.sort, &self.config);
+                        }
+                        Screen::Restore => {
+                            self.config.restore.sort.reversed = value;
+                            self.restore_screen.log.sort(&self.config.restore.sort, &self.config);
+                        }
+                        _ => {}
+                    },
+                    config::Event::FullRetention(value) => {
+                        self.config.backup.retention.full = value;
+                    }
+                    config::Event::DiffRetention(value) => {
+                        self.config.backup.retention.differential = value;
+                    }
+                    config::Event::BackupFormat(format) => {
+                        self.config.backup.format.chosen = format;
+                    }
+                    config::Event::BackupCompression(compression) => {
+                        self.config.backup.format.zip.compression = compression;
+                    }
+                    config::Event::CompressionLevel(value) => {
+                        self.config.backup.format.set_level(value);
+                    }
+                    config::Event::ToggleCloudSynchronize => {
+                        self.config.cloud.synchronize = !self.config.cloud.synchronize;
+                    }
+                    config::Event::ShowDeselectedGames(value) => {
+                        self.config.scan.show_deselected_games = value;
+                    }
+                    config::Event::ShowUnchangedGames(value) => {
+                        self.config.scan.show_unchanged_games = value;
+                    }
+                    config::Event::ShowUnscannedGames(value) => {
+                        self.config.scan.show_unscanned_games = value;
+                    }
+                    config::Event::OverrideMaxThreads(overridden) => {
+                        self.config.override_threads(overridden);
+                    }
+                    config::Event::MaxThreads(threads) => {
+                        self.config.set_threads(threads);
+                    }
+                    config::Event::RcloneExecutable(text) => {
+                        self.text_histories.rclone_executable.push(&text);
+                        self.config.apps.rclone.path.reset(text);
+                    }
+                    config::Event::RcloneArguments(text) => {
+                        self.text_histories.rclone_arguments.push(&text);
+                        self.config.apps.rclone.arguments = text;
+                    }
+                    config::Event::CloudRemoteId(text) => {
+                        self.text_histories.cloud_remote_id.push(&text);
+                        if let Some(Remote::Custom { id }) = &mut self.config.cloud.remote {
+                            *id = text;
+                        }
+                    }
+                    config::Event::CloudPath(text) => {
+                        self.text_histories.cloud_path.push(&text);
+                        self.config.cloud.path = text;
+                    }
+                    config::Event::SortCustomGames => {
+                        self.config.custom_games.sort_by(|x, y| x.name.cmp(&y.name));
+                        self.text_histories
+                            .custom_games
+                            .sort_by(|x, y| x.name.current().cmp(&y.name.current()));
+                    }
+                }
+
                 self.save_config();
-                Task::none()
+                task.unwrap_or_else(Task::none)
             }
             Message::CheckAppRelease => {
                 if !self.cache.should_check_app_update() {
@@ -1514,18 +1943,6 @@ impl App {
             Message::ValidateBackups(phase) => self.handle_validation(phase),
             Message::CancelOperation => self.cancel_operation(),
             Message::ShowGameNotes { game, notes } => self.show_modal(Modal::GameNotes { game, notes }),
-            Message::EditedBackupTarget(text) => {
-                self.text_histories.backup_target.push(&text);
-                self.config.backup.path.reset(text);
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedRestoreSource(text) => {
-                self.text_histories.restore_source.push(&text);
-                self.config.restore.path.reset(text);
-                self.save_config();
-                Task::none()
-            }
             Message::FindRoots => {
                 let missing = self.config.find_missing_roots();
                 if missing.is_empty() {
@@ -1556,294 +1973,6 @@ impl App {
                 }
                 self.save_config();
                 self.go_idle();
-                Task::none()
-            }
-            Message::EditedRoot(action) => {
-                match action {
-                    EditAction::Add => {
-                        self.text_histories.roots.push(Default::default());
-                        self.config.roots.push(Root::default());
-                    }
-                    EditAction::Change(index, value) => {
-                        self.text_histories.roots[index].path.push(&value);
-                        self.config.roots[index].path_mut().reset(value);
-                    }
-                    EditAction::Remove(index) => {
-                        self.text_histories.roots.remove(index);
-                        self.config.roots.remove(index);
-                    }
-                    EditAction::Move(index, direction) => {
-                        let offset = direction.shift(index);
-                        self.text_histories.roots.swap(index, offset);
-                        self.config.roots.swap(index, offset);
-                    }
-                }
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedRootLutrisDatabase(index, value) => {
-                self.text_histories.roots[index].lutris_database.push(&value);
-                if let Root::Lutris(root) = &mut self.config.roots[index] {
-                    root.database = if value.is_empty() { None } else { Some(value.into()) };
-                }
-
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedSecondaryManifest(action) => {
-                match action {
-                    EditAction::Add => {
-                        self.text_histories.secondary_manifests.push(Default::default());
-                        self.config.manifest.secondary.push(Default::default());
-                    }
-                    EditAction::Change(index, value) => {
-                        self.text_histories.secondary_manifests[index].push(&value);
-                        self.config.manifest.secondary[index].set(value);
-                    }
-                    EditAction::Remove(index) => {
-                        self.text_histories.secondary_manifests.remove(index);
-                        self.config.manifest.secondary.remove(index);
-                    }
-                    EditAction::Move(index, direction) => {
-                        let offset = direction.shift(index);
-                        self.text_histories.secondary_manifests.swap(index, offset);
-                        self.config.manifest.secondary.swap(index, offset);
-                    }
-                }
-                self.save_config();
-                Task::none()
-            }
-            Message::SelectedRootStore(index, store) => {
-                self.text_histories.roots[index].clear_secondary();
-                self.config.roots[index].set_store(store);
-                self.save_config();
-                Task::none()
-            }
-            Message::SelectedRedirectKind(index, kind) => {
-                self.config.redirects[index].kind = kind;
-                self.save_config();
-                Task::none()
-            }
-            Message::SelectedSecondaryManifestKind(index, kind) => {
-                self.config.manifest.secondary[index].convert(kind);
-                self.save_config();
-                Task::none()
-            }
-            Message::SelectedCustomGameKind(index, kind) => {
-                self.config.custom_games[index].convert(kind);
-                match kind {
-                    CustomGameKind::Game => {
-                        self.text_histories.custom_games[index].alias.clear();
-                    }
-                    CustomGameKind::Alias => {}
-                }
-                self.save_config();
-                Task::none()
-            }
-            Message::SelectedCustomGameIntegration(index, integration) => {
-                self.config.custom_games[index].integration = integration;
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedRedirect(action, field) => {
-                // TODO: Automatically refresh redirected paths in the game list.
-                match action {
-                    EditAction::Add => {
-                        self.text_histories.redirects.push(Default::default());
-                        self.config.add_redirect(&StrictPath::default(), &StrictPath::default());
-                    }
-                    EditAction::Change(index, value) => match field {
-                        Some(RedirectEditActionField::Source) => {
-                            self.text_histories.redirects[index].source.push(&value);
-                            self.config.redirects[index].source.reset(value);
-                        }
-                        Some(RedirectEditActionField::Target) => {
-                            self.text_histories.redirects[index].target.push(&value);
-                            self.config.redirects[index].target.reset(value);
-                        }
-                        _ => {}
-                    },
-                    EditAction::Remove(index) => {
-                        self.text_histories.redirects.remove(index);
-                        self.config.redirects.remove(index);
-                    }
-                    EditAction::Move(index, direction) => {
-                        let offset = direction.shift(index);
-                        self.text_histories.redirects.swap(index, offset);
-                        self.config.redirects.swap(index, offset);
-                    }
-                }
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedReverseRedirectsOnRestore(enabled) => {
-                self.config.restore.reverse_redirects = enabled;
-                self.config.save();
-                Task::none()
-            }
-            Message::EditedCustomGame(action) => {
-                let mut snap = false;
-                match action {
-                    EditAction::Add => {
-                        self.text_histories.custom_games.push(Default::default());
-                        self.config.add_custom_game();
-                        snap = true;
-                    }
-                    EditAction::Change(index, value) => {
-                        self.text_histories.custom_games[index].name.push(&value);
-                        self.config.custom_games[index].name = value;
-                    }
-                    EditAction::Remove(index) => {
-                        self.text_histories.custom_games.remove(index);
-                        self.config.custom_games.remove(index);
-                    }
-                    EditAction::Move(index, direction) => {
-                        let offset = direction.shift(index);
-                        self.text_histories.custom_games.swap(index, offset);
-                        self.config.custom_games.swap(index, offset);
-                    }
-                }
-                self.save_config();
-                if snap {
-                    self.scroll_offsets.insert(
-                        ScrollSubject::CustomGames,
-                        scrollable::AbsoluteOffset { x: 0.0, y: f32::MAX },
-                    );
-                    self.refresh_scroll_position()
-                } else {
-                    Task::none()
-                }
-            }
-            Message::EditedCustomGameAlias(index, value) => {
-                self.text_histories.custom_games[index].alias.push(&value);
-                self.config.custom_games[index].alias = Some(value);
-
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedCustomGaleAliasDisplay(index, value) => {
-                self.config.custom_games[index].prefer_alias = value;
-
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedCustomGameFile(game_index, action) => {
-                match action {
-                    EditAction::Add => {
-                        self.text_histories.custom_games[game_index]
-                            .files
-                            .push(Default::default());
-                        self.config.custom_games[game_index].files.push("".to_string());
-                    }
-                    EditAction::Change(index, value) => {
-                        self.text_histories.custom_games[game_index].files[index].push(&value);
-                        self.config.custom_games[game_index].files[index] = value;
-                    }
-                    EditAction::Remove(index) => {
-                        self.text_histories.custom_games[game_index].files.remove(index);
-                        self.config.custom_games[game_index].files.remove(index);
-                    }
-                    EditAction::Move(index, direction) => {
-                        let offset = direction.shift(index);
-                        self.text_histories.custom_games[game_index].files.swap(index, offset);
-                        self.config.custom_games[game_index].files.swap(index, offset);
-                    }
-                }
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedCustomGameRegistry(game_index, action) => {
-                match action {
-                    EditAction::Add => {
-                        self.text_histories.custom_games[game_index]
-                            .registry
-                            .push(Default::default());
-                        self.config.custom_games[game_index].registry.push("".to_string());
-                    }
-                    EditAction::Change(index, value) => {
-                        self.text_histories.custom_games[game_index].registry[index].push(&value);
-                        self.config.custom_games[game_index].registry[index] = value;
-                    }
-                    EditAction::Remove(index) => {
-                        self.text_histories.custom_games[game_index].registry.remove(index);
-                        self.config.custom_games[game_index].registry.remove(index);
-                    }
-                    EditAction::Move(index, direction) => {
-                        let offset = direction.shift(index);
-                        self.text_histories.custom_games[game_index]
-                            .registry
-                            .swap(index, offset);
-                        self.config.custom_games[game_index].registry.swap(index, offset);
-                    }
-                }
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedExcludeStoreScreenshots(enabled) => {
-                self.config.backup.filter.exclude_store_screenshots = enabled;
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedCloudFilter(filter) => {
-                self.config.backup.filter.cloud = filter;
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedBackupFilterIgnoredPath(action) => {
-                match action {
-                    EditAction::Add => {
-                        self.text_histories.backup_filter_ignored_paths.push(Default::default());
-                        self.config
-                            .backup
-                            .filter
-                            .ignored_paths
-                            .push(StrictPath::new("".to_string()));
-                    }
-                    EditAction::Change(index, value) => {
-                        self.text_histories.backup_filter_ignored_paths[index].push(&value);
-                        self.config.backup.filter.ignored_paths[index] = StrictPath::new(value);
-                    }
-                    EditAction::Remove(index) => {
-                        self.text_histories.backup_filter_ignored_paths.remove(index);
-                        self.config.backup.filter.ignored_paths.remove(index);
-                    }
-                    EditAction::Move(index, direction) => {
-                        let offset = direction.shift(index);
-                        self.text_histories.backup_filter_ignored_paths.swap(index, offset);
-                        self.config.backup.filter.ignored_paths.swap(index, offset);
-                    }
-                }
-                self.config.backup.filter.build_globs();
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedBackupFilterIgnoredRegistry(action) => {
-                match action {
-                    EditAction::Add => {
-                        self.text_histories
-                            .backup_filter_ignored_registry
-                            .push(Default::default());
-                        self.config
-                            .backup
-                            .filter
-                            .ignored_registry
-                            .push(RegistryItem::new("".to_string()));
-                    }
-                    EditAction::Change(index, value) => {
-                        self.text_histories.backup_filter_ignored_registry[index].push(&value);
-                        self.config.backup.filter.ignored_registry[index] = RegistryItem::new(value);
-                    }
-                    EditAction::Remove(index) => {
-                        self.text_histories.backup_filter_ignored_registry.remove(index);
-                        self.config.backup.filter.ignored_registry.remove(index);
-                    }
-                    EditAction::Move(index, direction) => {
-                        let offset = direction.shift(index);
-                        self.text_histories.backup_filter_ignored_registry.swap(index, offset);
-                        self.config.backup.filter.ignored_registry.swap(index, offset);
-                    }
-                }
-                self.save_config();
                 Task::none()
             }
             Message::SwitchScreen(screen) => self.switch_screen(screen),
@@ -1893,114 +2022,8 @@ impl App {
                 }
                 Task::none()
             }
-            Message::ToggleGameListEntryEnabled {
-                name,
-                enabled,
-                scan_kind,
-            } => {
-                match (scan_kind, enabled) {
-                    (ScanKind::Backup, false) => self.config.disable_game_for_backup(&name),
-                    (ScanKind::Backup, true) => self.config.enable_game_for_backup(&name),
-                    (ScanKind::Restore, false) => self.config.disable_game_for_restore(&name),
-                    (ScanKind::Restore, true) => self.config.enable_game_for_restore(&name),
-                };
-                self.save_config();
-
-                match scan_kind {
-                    ScanKind::Backup => {
-                        self.backup_screen.log.refresh_game_tree(
-                            &name,
-                            &self.config,
-                            &mut self.backup_screen.duplicate_detector,
-                            scan_kind,
-                        );
-                    }
-                    ScanKind::Restore => {
-                        self.restore_screen.log.refresh_game_tree(
-                            &name,
-                            &self.config,
-                            &mut self.restore_screen.duplicate_detector,
-                            scan_kind,
-                        );
-                    }
-                }
-
-                Task::none()
-            }
-            Message::ToggleCustomGameEnabled { index, enabled } => {
-                if enabled {
-                    self.config.enable_custom_game(index);
-                } else {
-                    self.config.disable_custom_game(index);
-                }
-                self.save_config();
-                Task::none()
-            }
             Message::ToggleCustomGameExpanded { index, expanded } => {
                 self.config.custom_games[index].expanded = expanded;
-                self.save_config();
-                Task::none()
-            }
-            Message::TogglePrimaryManifestEnabled { enabled } => {
-                self.config.manifest.enable = enabled;
-                self.save_config();
-                Task::none()
-            }
-            Message::ToggleSecondaryManifestEnabled { index, enabled } => {
-                self.config.manifest.secondary[index].enable(enabled);
-                self.save_config();
-                Task::none()
-            }
-            Message::ToggleSpecificGamePathIgnored { name, path, scan_kind } => {
-                match scan_kind {
-                    ScanKind::Backup => {
-                        self.config.backup.toggled_paths.toggle(&name, &path);
-                        self.backup_screen.log.refresh_game_tree(
-                            &name,
-                            &self.config,
-                            &mut self.backup_screen.duplicate_detector,
-                            scan_kind,
-                        );
-                    }
-                    ScanKind::Restore => {
-                        self.config.restore.toggled_paths.toggle(&name, &path);
-                        self.restore_screen.log.refresh_game_tree(
-                            &name,
-                            &self.config,
-                            &mut self.restore_screen.duplicate_detector,
-                            scan_kind,
-                        );
-                    }
-                }
-                self.save_config();
-                Task::none()
-            }
-            Message::ToggleSpecificGameRegistryIgnored {
-                name,
-                path,
-                value,
-                scan_kind,
-            } => {
-                match scan_kind {
-                    ScanKind::Backup => {
-                        self.config.backup.toggled_registry.toggle_owned(&name, &path, value);
-                        self.backup_screen.log.refresh_game_tree(
-                            &name,
-                            &self.config,
-                            &mut self.backup_screen.duplicate_detector,
-                            scan_kind,
-                        );
-                    }
-                    ScanKind::Restore => {
-                        self.config.restore.toggled_registry.toggle_owned(&name, &path, value);
-                        self.restore_screen.log.refresh_game_tree(
-                            &name,
-                            &self.config,
-                            &mut self.restore_screen.duplicate_detector,
-                            scan_kind,
-                        );
-                    }
-                }
                 self.save_config();
                 Task::none()
             }
@@ -2116,36 +2139,6 @@ impl App {
                 }
 
                 task.unwrap_or_else(Task::none)
-            }
-            Message::EditedSortKey { screen, value } => {
-                match screen {
-                    Screen::Backup => {
-                        self.config.backup.sort.key = value;
-                        self.backup_screen.log.sort(&self.config.backup.sort, &self.config);
-                    }
-                    Screen::Restore => {
-                        self.config.restore.sort.key = value;
-                        self.restore_screen.log.sort(&self.config.restore.sort, &self.config);
-                    }
-                    _ => {}
-                }
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedSortReversed { screen, value } => {
-                match screen {
-                    Screen::Backup => {
-                        self.config.backup.sort.reversed = value;
-                        self.backup_screen.log.sort(&self.config.backup.sort, &self.config);
-                    }
-                    Screen::Restore => {
-                        self.config.restore.sort.reversed = value;
-                        self.restore_screen.log.sort(&self.config.restore.sort, &self.config);
-                    }
-                    _ => {}
-                }
-                self.save_config();
-                Task::none()
             }
             Message::BrowseDir(subject) => Task::future(async move {
                 let choice = async move { rfd::AsyncFileDialog::new().pick_folder().await }.await;
@@ -2425,53 +2418,12 @@ impl App {
                 self.save_config();
                 Task::none()
             }
-            Message::EditedFullRetention(value) => {
-                self.config.backup.retention.full = value;
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedDiffRetention(value) => {
-                self.config.backup.retention.differential = value;
-                self.save_config();
-                Task::none()
-            }
             Message::SelectedBackupToRestore { game, backup } => {
                 self.backups_to_restore.insert(game.clone(), backup.id());
                 self.handle_restore(RestorePhase::Start {
                     preview: true,
                     games: Some(GameSelection::single(game)),
                 })
-            }
-            Message::SelectedLanguage(language) => {
-                TRANSLATOR.set_language(language);
-                self.config.language = language;
-                self.save_config();
-                Task::none()
-            }
-            Message::SelectedTheme(theme) => {
-                self.config.theme = theme;
-                self.save_config();
-                Task::none()
-            }
-            Message::SelectedBackupFormat(format) => {
-                self.config.backup.format.chosen = format;
-                self.save_config();
-                Task::none()
-            }
-            Message::SelectedBackupCompression(compression) => {
-                self.config.backup.format.zip.compression = compression;
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedCompressionLevel(value) => {
-                self.config.backup.format.set_level(value);
-                self.save_config();
-                Task::none()
-            }
-            Message::ToggleCloudSynchronize => {
-                self.config.cloud.synchronize = !self.config.cloud.synchronize;
-                self.save_config();
-                Task::none()
             }
             Message::GameAction { action, game } => match action {
                 GameAction::PreviewBackup => self.handle_backup(BackupPhase::Start {
@@ -2542,63 +2494,12 @@ impl App {
 
                 Task::none()
             }
-            Message::SetShowDeselectedGames(value) => {
-                self.config.scan.show_deselected_games = value;
-                self.save_config();
-                Task::none()
-            }
-            Message::SetShowUnchangedGames(value) => {
-                self.config.scan.show_unchanged_games = value;
-                self.save_config();
-                Task::none()
-            }
-            Message::SetShowUnscannedGames(value) => {
-                self.config.scan.show_unscanned_games = value;
-                self.save_config();
-                Task::none()
-            }
             Message::FilterDuplicates { scan_kind, game } => {
                 let log = match scan_kind {
                     ScanKind::Backup => &mut self.backup_screen.log,
                     ScanKind::Restore => &mut self.restore_screen.log,
                 };
                 log.filter_duplicates_of = game;
-                Task::none()
-            }
-            Message::OverrideMaxThreads(overridden) => {
-                self.config.override_threads(overridden);
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedMaxThreads(threads) => {
-                self.config.set_threads(threads);
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedRcloneExecutable(text) => {
-                self.text_histories.rclone_executable.push(&text);
-                self.config.apps.rclone.path.reset(text);
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedRcloneArguments(text) => {
-                self.text_histories.rclone_arguments.push(&text);
-                self.config.apps.rclone.arguments = text;
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedCloudRemoteId(text) => {
-                self.text_histories.cloud_remote_id.push(&text);
-                if let Some(Remote::Custom { id }) = &mut self.config.cloud.remote {
-                    *id = text;
-                }
-                self.save_config();
-                Task::none()
-            }
-            Message::EditedCloudPath(text) => {
-                self.text_histories.cloud_path.push(&text);
-                self.config.cloud.path = text;
-                self.save_config();
                 Task::none()
             }
             Message::OpenUrl(url) => Self::open_url(url),
@@ -2802,14 +2703,6 @@ impl App {
                     Some(position) => Message::Scroll { subject, position },
                     None => Message::Ignore,
                 })
-            }
-            Message::SortCustomGames => {
-                self.config.custom_games.sort_by(|x, y| x.name.cmp(&y.name));
-                self.text_histories
-                    .custom_games
-                    .sort_by(|x, y| x.name.current().cmp(&y.name.current()));
-                self.config.save();
-                Task::none()
             }
         }
     }

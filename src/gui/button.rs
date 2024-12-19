@@ -3,16 +3,15 @@ use iced::{alignment, keyboard, Length};
 use crate::{
     gui::{
         common::{
-            BackupPhase, BrowseFileSubject, BrowseSubject, EditAction, Message, Operation, RestorePhase, Screen,
-            ValidatePhase,
+            BackupPhase, BrowseFileSubject, BrowseSubject, Message, Operation, RestorePhase, Screen, ValidatePhase,
         },
         icon::Icon,
         style,
         widget::{text, Button, Container, Element, Row, Text, Tooltip},
     },
     lang::TRANSLATOR,
-    prelude::{Finality, SyncDirection},
-    resource::manifest,
+    prelude::{EditAction, Finality, SyncDirection},
+    resource::{config, manifest},
     scan::game_filter,
 };
 
@@ -94,15 +93,15 @@ pub fn negative<'a>(content: String, action: Option<Message>) -> Element<'a> {
         .into()
 }
 
-pub fn add<'a>(action: fn(EditAction) -> Message) -> Element<'a> {
+pub fn add<'a>(action: impl Fn(EditAction) -> Message) -> Element<'a> {
     template(Icon::AddCircle.text(), Some(action(EditAction::Add)), None)
 }
 
-pub fn add_nested<'a>(action: fn(usize, EditAction) -> Message, parent: usize) -> Element<'a> {
+pub fn add_nested<'a>(action: impl Fn(usize, EditAction) -> Message, parent: usize) -> Element<'a> {
     template(Icon::AddCircle.text(), Some(action(parent, EditAction::Add)), None)
 }
 
-pub fn remove<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'a> {
+pub fn remove<'a>(action: impl Fn(EditAction) -> Message, index: usize) -> Element<'a> {
     template(
         Icon::RemoveCircle.text(),
         Some(action(EditAction::Remove(index))),
@@ -110,7 +109,7 @@ pub fn remove<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'a
     )
 }
 
-pub fn remove_nested<'a>(action: fn(usize, EditAction) -> Message, parent: usize, index: usize) -> Element<'a> {
+pub fn remove_nested<'a>(action: impl Fn(usize, EditAction) -> Message, parent: usize, index: usize) -> Element<'a> {
     template(
         Icon::RemoveCircle.text(),
         Some(action(parent, EditAction::Remove(index))),
@@ -118,7 +117,7 @@ pub fn remove_nested<'a>(action: fn(usize, EditAction) -> Message, parent: usize
     )
 }
 
-pub fn delete<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'a> {
+pub fn delete<'a>(action: impl Fn(EditAction) -> Message, index: usize) -> Element<'a> {
     template(
         Icon::Delete.text(),
         Some(action(EditAction::Remove(index))),
@@ -166,21 +165,18 @@ pub fn reset_filter<'a>(dirty: bool) -> Element<'a> {
     )
 }
 
-pub fn sort<'a>(message: Message) -> Element<'a> {
-    template(text(TRANSLATOR.sort_button()).width(WIDTH), Some(message), None)
+pub fn sort<'a>(message: impl Into<Message>) -> Element<'a> {
+    template(text(TRANSLATOR.sort_button()).width(WIDTH), Some(message.into()), None)
 }
 
-pub fn sort_order<'a>(screen: Screen, reversed: bool) -> Element<'a> {
+pub fn sort_order<'a>(reversed: bool) -> Element<'a> {
     template(
         if reversed {
             Icon::ArrowDownward.text()
         } else {
             Icon::ArrowUpward.text()
         },
-        Some(Message::EditedSortReversed {
-            screen,
-            value: !reversed,
-        }),
+        Some(config::Event::SortReversed(!reversed).into()),
         None,
     )
 }
@@ -197,7 +193,7 @@ pub fn search<'a>(action: Message) -> Element<'a> {
     template(Icon::Search.text(), Some(action), None)
 }
 
-pub fn move_up<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'a> {
+pub fn move_up<'a>(action: impl Fn(EditAction) -> Message, index: usize) -> Element<'a> {
     template(
         Icon::ArrowUpward.text_small(),
         (index > 0).then(|| action(EditAction::move_up(index))),
@@ -205,7 +201,7 @@ pub fn move_up<'a>(action: fn(EditAction) -> Message, index: usize) -> Element<'
     )
 }
 
-pub fn move_up_maybe<'a>(action: fn(EditAction) -> Message, index: usize, enabled: bool) -> Element<'a> {
+pub fn move_up_maybe<'a>(action: impl Fn(EditAction) -> Message, index: usize, enabled: bool) -> Element<'a> {
     template(
         Icon::ArrowUpward.text_small(),
         (enabled && index > 0).then(|| action(EditAction::move_up(index))),
@@ -213,7 +209,7 @@ pub fn move_up_maybe<'a>(action: fn(EditAction) -> Message, index: usize, enable
     )
 }
 
-pub fn move_up_nested<'a>(action: fn(usize, EditAction) -> Message, parent: usize, index: usize) -> Element<'a> {
+pub fn move_up_nested<'a>(action: impl Fn(usize, EditAction) -> Message, parent: usize, index: usize) -> Element<'a> {
     template(
         Icon::ArrowUpward.text_small(),
         (index > 0).then(|| action(parent, EditAction::move_up(index))),
@@ -221,7 +217,7 @@ pub fn move_up_nested<'a>(action: fn(usize, EditAction) -> Message, parent: usiz
     )
 }
 
-pub fn move_down<'a>(action: fn(EditAction) -> Message, index: usize, max: usize) -> Element<'a> {
+pub fn move_down<'a>(action: impl Fn(EditAction) -> Message, index: usize, max: usize) -> Element<'a> {
     template(
         Icon::ArrowDownward.text_small(),
         (index < max - 1).then(|| action(EditAction::move_down(index))),
@@ -229,7 +225,12 @@ pub fn move_down<'a>(action: fn(EditAction) -> Message, index: usize, max: usize
     )
 }
 
-pub fn move_down_maybe<'a>(action: fn(EditAction) -> Message, index: usize, max: usize, enabled: bool) -> Element<'a> {
+pub fn move_down_maybe<'a>(
+    action: impl Fn(EditAction) -> Message,
+    index: usize,
+    max: usize,
+    enabled: bool,
+) -> Element<'a> {
     template(
         Icon::ArrowDownward.text_small(),
         (enabled && index < max - 1).then(|| action(EditAction::move_down(index))),
@@ -238,7 +239,7 @@ pub fn move_down_maybe<'a>(action: fn(EditAction) -> Message, index: usize, max:
 }
 
 pub fn move_down_nested<'a>(
-    action: fn(usize, EditAction) -> Message,
+    action: impl Fn(usize, EditAction) -> Message,
     parent: usize,
     index: usize,
     max: usize,
@@ -250,7 +251,7 @@ pub fn move_down_nested<'a>(
     )
 }
 
-pub fn next_page<'a>(action: fn(usize) -> Message, page: usize, pages: usize) -> Element<'a> {
+pub fn next_page<'a>(action: impl Fn(usize) -> Message, page: usize, pages: usize) -> Element<'a> {
     template(
         Icon::ArrowForward.text(),
         (page < pages).then(|| action(page + 1)),
@@ -258,7 +259,7 @@ pub fn next_page<'a>(action: fn(usize) -> Message, page: usize, pages: usize) ->
     )
 }
 
-pub fn previous_page<'a>(action: fn(usize) -> Message, page: usize) -> Element<'a> {
+pub fn previous_page<'a>(action: impl Fn(usize) -> Message, page: usize) -> Element<'a> {
     template(Icon::ArrowBack.text(), (page > 0).then(|| action(page - 1)), None)
 }
 
@@ -297,7 +298,7 @@ pub fn toggle_all_custom_games<'a>(all_enabled: bool) -> Element<'a> {
 pub fn add_game<'a>() -> Element<'a> {
     template(
         text(TRANSLATOR.add_game_button()).width(WIDTH),
-        Some(Message::EditedCustomGame(EditAction::Add)),
+        Some(config::Event::CustomGame(EditAction::Add).into()),
         None,
     )
 }

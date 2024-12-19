@@ -18,7 +18,7 @@ use crate::{
     lang::TRANSLATOR,
     resource::{
         cache::Cache,
-        config::{Config, CustomGameKind, Integration, RedirectKind, SecondaryManifestConfigKind},
+        config::{self, Config, CustomGameKind, Integration, RedirectKind, SecondaryManifestConfigKind},
         manifest::{Manifest, Store},
     },
 };
@@ -37,17 +37,23 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
                     .push(
                         Row::new()
                             .spacing(20)
-                            .push(button::move_up(Message::EditedRoot, i))
-                            .push(button::move_down(Message::EditedRoot, i, config.roots.len()))
+                            .push(button::move_up(Message::config(config::Event::Root), i))
+                            .push(button::move_down(
+                                Message::config(config::Event::Root),
+                                i,
+                                config.roots.len(),
+                            ))
                             .push(histories.input(UndoSubject::RootPath(i)))
                             .push(
-                                pick_list(Store::ALL, Some(root.store()), move |v| {
-                                    Message::SelectedRootStore(i, v)
-                                })
+                                pick_list(
+                                    Store::ALL,
+                                    Some(root.store()),
+                                    Message::config(move |v| config::Event::RootStore(i, v)),
+                                )
                                 .class(style::PickList::Primary),
                             )
                             .push(button::choose_folder(BrowseSubject::Root(i), modifiers))
-                            .push(button::remove(Message::EditedRoot, i)),
+                            .push(button::remove(Message::config(config::Event::Root), i)),
                     )
                     .push(
                         Row::new()
@@ -61,17 +67,23 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
                 _ => parent.push(
                     Row::new()
                         .spacing(20)
-                        .push(button::move_up(Message::EditedRoot, i))
-                        .push(button::move_down(Message::EditedRoot, i, config.roots.len()))
+                        .push(button::move_up(Message::config(config::Event::Root), i))
+                        .push(button::move_down(
+                            Message::config(config::Event::Root),
+                            i,
+                            config.roots.len(),
+                        ))
                         .push(histories.input(UndoSubject::RootPath(i)))
                         .push(
-                            pick_list(Store::ALL, Some(root.store()), move |v| {
-                                Message::SelectedRootStore(i, v)
-                            })
+                            pick_list(
+                                Store::ALL,
+                                Some(root.store()),
+                                Message::config(move |v| config::Event::RootStore(i, v)),
+                            )
                             .class(style::PickList::Primary),
                         )
                         .push(button::choose_folder(BrowseSubject::Root(i), modifiers))
-                        .push(button::remove(Message::EditedRoot, i)),
+                        .push(button::remove(Message::config(config::Event::Root), i)),
                 ),
             });
     };
@@ -79,7 +91,7 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
     content = content.push(
         Row::new()
             .spacing(20)
-            .push(button::add(Message::EditedRoot))
+            .push(button::add(Message::config(config::Event::Root)))
             .push(button::search(Message::FindRoots)),
     );
 
@@ -138,9 +150,11 @@ pub fn manifest<'a>(
                 .spacing(20)
                 .align_y(Alignment::Center)
                 .push(
-                    checkbox("", config.manifest.enable, move |enabled| {
-                        Message::TogglePrimaryManifestEnabled { enabled }
-                    })
+                    checkbox(
+                        "",
+                        config.manifest.enable,
+                        Message::config(move |enabled| config::Event::PrimaryManifestEnabled { enabled }),
+                    )
                     .spacing(0)
                     .class(style::Checkbox),
                 )
@@ -163,15 +177,20 @@ pub fn manifest<'a>(
                     .spacing(20)
                     .align_y(Alignment::Center)
                     .push(
-                        checkbox("", config.manifest.secondary[i].enabled(), move |enabled| {
-                            Message::ToggleSecondaryManifestEnabled { index: i, enabled }
-                        })
+                        checkbox(
+                            "",
+                            config.manifest.secondary[i].enabled(),
+                            Message::config(move |enabled| config::Event::SecondaryManifestEnabled {
+                                index: i,
+                                enabled,
+                            }),
+                        )
                         .spacing(0)
                         .class(style::Checkbox),
                     )
-                    .push(button::move_up(Message::EditedSecondaryManifest, i))
+                    .push(button::move_up(Message::config(config::Event::SecondaryManifest), i))
                     .push(button::move_down(
-                        Message::EditedSecondaryManifest,
+                        Message::config(config::Event::SecondaryManifest),
                         i,
                         config.manifest.secondary.len(),
                     ))
@@ -179,7 +198,7 @@ pub fn manifest<'a>(
                         pick_list(
                             SecondaryManifestConfigKind::ALL,
                             Some(config.manifest.secondary[i].kind()),
-                            move |v| Message::SelectedSecondaryManifestKind(i, v),
+                            Message::config(move |v| config::Event::SecondaryManifestKind(i, v)),
                         )
                         .class(style::PickList::Primary)
                         .width(75),
@@ -193,11 +212,11 @@ pub fn manifest<'a>(
                         }
                         SecondaryManifestConfigKind::Remote => None,
                     })
-                    .push(button::remove(Message::EditedSecondaryManifest, i)),
+                    .push(button::remove(Message::config(config::Event::SecondaryManifest), i)),
             )
         });
 
-    content = content.push(button::add(Message::EditedSecondaryManifest));
+    content = content.push(button::add(Message::config(config::Event::SecondaryManifest)));
 
     Container::new(content).class(style::Container::GameListEntry)
 }
@@ -209,34 +228,42 @@ pub fn redirect<'a>(config: &Config, histories: &TextHistories, modifiers: &keyb
         let mut content = Column::new().padding(5).spacing(4).push(checkbox(
             TRANSLATOR.reverse_redirects_when_restoring(),
             config.restore.reverse_redirects,
-            Message::EditedReverseRedirectsOnRestore,
+            Message::config(config::Event::ReverseRedirectsOnRestore),
         ));
 
         content = config.redirects.iter().enumerate().fold(content, |parent, (i, _)| {
             parent.push(
                 Row::new()
                     .spacing(20)
-                    .push(button::move_up(|x| Message::EditedRedirect(x, None), i))
+                    .push(button::move_up(
+                        Message::config(move |x| config::Event::Redirect(x, None)),
+                        i,
+                    ))
                     .push(button::move_down(
-                        |x| Message::EditedRedirect(x, None),
+                        Message::config(move |x| config::Event::Redirect(x, None)),
                         i,
                         config.redirects.len(),
                     ))
                     .push(
-                        pick_list(RedirectKind::ALL, Some(redirects[i].kind), move |v| {
-                            Message::SelectedRedirectKind(i, v)
-                        })
+                        pick_list(
+                            RedirectKind::ALL,
+                            Some(redirects[i].kind),
+                            Message::config(move |v| config::Event::RedirectKind(i, v)),
+                        )
                         .class(style::PickList::Primary),
                     )
                     .push(histories.input(UndoSubject::RedirectSource(i)))
                     .push(button::choose_folder(BrowseSubject::RedirectSource(i), modifiers))
                     .push(histories.input(UndoSubject::RedirectTarget(i)))
                     .push(button::choose_folder(BrowseSubject::RedirectTarget(i), modifiers))
-                    .push(button::remove(|x| Message::EditedRedirect(x, None), i)),
+                    .push(button::remove(
+                        Message::config(move |x| config::Event::Redirect(x, None)),
+                        i,
+                    )),
             )
         });
 
-        content.push(button::add(|x| Message::EditedRedirect(x, None)))
+        content.push(button::add(Message::config(move |x| config::Event::Redirect(x, None))))
     })
     .class(style::Container::GameListEntry);
 
@@ -282,15 +309,24 @@ pub fn custom_games<'a>(
                                 .spacing(20)
                                 .align_y(Alignment::Center)
                                 .push(
-                                    checkbox("", config.is_custom_game_enabled(i), move |enabled| {
-                                        Message::ToggleCustomGameEnabled { index: i, enabled }
-                                    })
+                                    checkbox(
+                                        "",
+                                        config.is_custom_game_enabled(i),
+                                        Message::config(move |enabled| config::Event::CustomGameEnabled {
+                                            index: i,
+                                            enabled,
+                                        }),
+                                    )
                                     .spacing(0)
                                     .class(style::Checkbox),
                                 )
-                                .push(button::move_up_maybe(Message::EditedCustomGame, i, !filter.enabled))
+                                .push(button::move_up_maybe(
+                                    Message::config(config::Event::CustomGame),
+                                    i,
+                                    !filter.enabled,
+                                ))
                                 .push(button::move_down_maybe(
-                                    Message::EditedCustomGame,
+                                    Message::config(config::Event::CustomGame),
                                     i,
                                     config.custom_games.len(),
                                     !filter.enabled,
@@ -310,9 +346,11 @@ pub fn custom_games<'a>(
                             None
                         })
                         .push(
-                            pick_list(CustomGameKind::ALL, Some(config.custom_games[i].kind()), move |v| {
-                                Message::SelectedCustomGameKind(i, v)
-                            })
+                            pick_list(
+                                CustomGameKind::ALL,
+                                Some(config.custom_games[i].kind()),
+                                Message::config(move |v| config::Event::CustomGameKind(i, v)),
+                            )
                             .class(style::PickList::Primary)
                             .width(100),
                         )
@@ -334,7 +372,7 @@ pub fn custom_games<'a>(
                             .gap(5)
                             .class(style::Container::Tooltip),
                         )
-                        .push(button::delete(Message::EditedCustomGame, i)),
+                        .push(button::delete(Message::config(config::Event::CustomGame), i)),
                 );
 
                 if x.expanded {
@@ -363,7 +401,7 @@ pub fn custom_games<'a>(
                                 .push(checkbox(
                                     TRANSLATOR.prefer_alias_display(),
                                     config.custom_games[i].prefer_alias,
-                                    move |x| Message::EditedCustomGaleAliasDisplay(i, x),
+                                    Message::config(move |x| config::Event::CustomGaleAliasDisplay(i, x)),
                                 ))
                         })
                         .push_if(config.custom_games[i].kind() == CustomGameKind::Game, || {
@@ -376,9 +414,11 @@ pub fn custom_games<'a>(
                                         .push(text(TRANSLATOR.field(&TRANSLATOR.integration_label()))),
                                 )
                                 .push(
-                                    pick_list(Integration::ALL, Some(config.custom_games[i].integration), move |v| {
-                                        Message::SelectedCustomGameIntegration(i, v)
-                                    })
+                                    pick_list(
+                                        Integration::ALL,
+                                        Some(config.custom_games[i].integration),
+                                        Message::config(move |v| config::Event::CustomGameIntegration(i, v)),
+                                    )
                                     .class(style::PickList::Primary),
                                 )
                         })
@@ -400,9 +440,13 @@ pub fn custom_games<'a>(
                                                 Row::new()
                                                     .align_y(Alignment::Center)
                                                     .spacing(20)
-                                                    .push(button::move_up_nested(Message::EditedCustomGameFile, i, ii))
+                                                    .push(button::move_up_nested(
+                                                        Message::config2(config::Event::CustomGameFile),
+                                                        i,
+                                                        ii,
+                                                    ))
                                                     .push(button::move_down_nested(
-                                                        Message::EditedCustomGameFile,
+                                                        Message::config2(config::Event::CustomGameFile),
                                                         i,
                                                         ii,
                                                         x.files.len(),
@@ -412,10 +456,14 @@ pub fn custom_games<'a>(
                                                         BrowseSubject::CustomGameFile(i, ii),
                                                         modifiers,
                                                     ))
-                                                    .push(button::remove_nested(Message::EditedCustomGameFile, i, ii)),
+                                                    .push(button::remove_nested(
+                                                        Message::config2(config::Event::CustomGameFile),
+                                                        i,
+                                                        ii,
+                                                    )),
                                             )
                                         })
-                                        .push(button::add_nested(Message::EditedCustomGameFile, i)),
+                                        .push(button::add_nested(Message::config2(config::Event::CustomGameFile), i)),
                                 )
                         })
                         .push_if(config.custom_games[i].kind() == CustomGameKind::Game, || {
@@ -437,25 +485,28 @@ pub fn custom_games<'a>(
                                                     .spacing(20)
                                                     .align_y(Alignment::Center)
                                                     .push(button::move_up_nested(
-                                                        Message::EditedCustomGameRegistry,
+                                                        Message::config2(config::Event::CustomGameRegistry),
                                                         i,
                                                         ii,
                                                     ))
                                                     .push(button::move_down_nested(
-                                                        Message::EditedCustomGameRegistry,
+                                                        Message::config2(config::Event::CustomGameRegistry),
                                                         i,
                                                         ii,
                                                         x.registry.len(),
                                                     ))
                                                     .push(histories.input(UndoSubject::CustomGameRegistry(i, ii)))
                                                     .push(button::remove_nested(
-                                                        Message::EditedCustomGameRegistry,
+                                                        Message::config2(config::Event::CustomGameRegistry),
                                                         i,
                                                         ii,
                                                     )),
                                             )
                                         })
-                                        .push(button::add_nested(Message::EditedCustomGameRegistry, i)),
+                                        .push(button::add_nested(
+                                            Message::config2(config::Event::CustomGameRegistry),
+                                            i,
+                                        )),
                                 )
                         });
                 }
@@ -491,9 +542,12 @@ pub fn ignored_items<'a>(config: &Config, histories: &TextHistories, modifiers: 
                                         column.push(
                                             Row::new()
                                                 .spacing(20)
-                                                .push(button::move_up(Message::EditedBackupFilterIgnoredPath, ii))
+                                                .push(button::move_up(
+                                                    Message::config(config::Event::BackupFilterIgnoredPath),
+                                                    ii,
+                                                ))
                                                 .push(button::move_down(
-                                                    Message::EditedBackupFilterIgnoredPath,
+                                                    Message::config(config::Event::BackupFilterIgnoredPath),
                                                     ii,
                                                     config.backup.filter.ignored_paths.len(),
                                                 ))
@@ -502,10 +556,13 @@ pub fn ignored_items<'a>(config: &Config, histories: &TextHistories, modifiers: 
                                                     BrowseSubject::BackupFilterIgnoredPath(ii),
                                                     modifiers,
                                                 ))
-                                                .push(button::remove(Message::EditedBackupFilterIgnoredPath, ii)),
+                                                .push(button::remove(
+                                                    Message::config(config::Event::BackupFilterIgnoredPath),
+                                                    ii,
+                                                )),
                                         )
                                     })
-                                    .push(button::add(Message::EditedBackupFilterIgnoredPath)),
+                                    .push(button::add(Message::config(config::Event::BackupFilterIgnoredPath))),
                             ),
                     )
                     .push(
@@ -522,17 +579,23 @@ pub fn ignored_items<'a>(config: &Config, histories: &TextHistories, modifiers: 
                                         column.push(
                                             Row::new()
                                                 .spacing(20)
-                                                .push(button::move_up(Message::EditedBackupFilterIgnoredRegistry, ii))
+                                                .push(button::move_up(
+                                                    Message::config(config::Event::BackupFilterIgnoredRegistry),
+                                                    ii,
+                                                ))
                                                 .push(button::move_down(
-                                                    Message::EditedBackupFilterIgnoredRegistry,
+                                                    Message::config(config::Event::BackupFilterIgnoredRegistry),
                                                     ii,
                                                     config.backup.filter.ignored_registry.len(),
                                                 ))
                                                 .push(histories.input(UndoSubject::BackupFilterIgnoredRegistry(ii)))
-                                                .push(button::remove(Message::EditedBackupFilterIgnoredRegistry, ii)),
+                                                .push(button::remove(
+                                                    Message::config(config::Event::BackupFilterIgnoredRegistry),
+                                                    ii,
+                                                )),
                                         )
                                     })
-                                    .push(button::add(Message::EditedBackupFilterIgnoredRegistry)),
+                                    .push(button::add(Message::config(config::Event::BackupFilterIgnoredRegistry))),
                             ),
                     ),
             )

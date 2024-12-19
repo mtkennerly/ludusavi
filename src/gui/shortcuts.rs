@@ -8,14 +8,14 @@ use iced::Length;
 use crate::{
     cloud::Remote,
     gui::{
-        common::{EditAction, Message, RedirectEditActionField, UndoSubject, ERROR_ICON},
+        common::{Message, UndoSubject, ERROR_ICON},
         modal::{ModalField, ModalInputKind},
         style,
         widget::{id, Element, TextInput, Undoable},
     },
     lang::TRANSLATOR,
-    prelude::StrictPath,
-    resource::config::{Config, CustomGame},
+    prelude::{EditAction, RedirectEditActionField, StrictPath},
+    resource::config::{self, Config, CustomGame},
     scan::{game_filter, registry::RegistryItem},
 };
 
@@ -366,8 +366,8 @@ impl TextHistories {
         };
 
         let event: Box<dyn Fn(String) -> Message> = match subject.clone() {
-            UndoSubject::BackupTarget => Box::new(Message::EditedBackupTarget),
-            UndoSubject::RestoreSource => Box::new(Message::EditedRestoreSource),
+            UndoSubject::BackupTarget => Box::new(Message::config(config::Event::BackupTarget)),
+            UndoSubject::RestoreSource => Box::new(Message::config(config::Event::RestoreSource)),
             UndoSubject::BackupSearchGameName => Box::new(|value| Message::Filter {
                 event: game_filter::Event::EditedGameName(value),
             }),
@@ -377,37 +377,43 @@ impl TextHistories {
             UndoSubject::CustomGamesSearchGameName => Box::new(|value| Message::Filter {
                 event: game_filter::Event::EditedGameName(value),
             }),
-            UndoSubject::RootPath(i) => Box::new(move |value| Message::EditedRoot(EditAction::Change(i, value))),
-            UndoSubject::RootLutrisDatabase(i) => Box::new(move |value| Message::EditedRootLutrisDatabase(i, value)),
-            UndoSubject::SecondaryManifest(i) => {
-                Box::new(move |value| Message::EditedSecondaryManifest(EditAction::Change(i, value)))
+            UndoSubject::RootPath(i) => Box::new(Message::config(move |value| {
+                config::Event::Root(EditAction::Change(i, value))
+            })),
+            UndoSubject::RootLutrisDatabase(i) => Box::new(Message::config(move |value| {
+                config::Event::RootLutrisDatabase(i, value)
+            })),
+            UndoSubject::SecondaryManifest(i) => Box::new(Message::config(move |value| {
+                config::Event::SecondaryManifest(EditAction::Change(i, value))
+            })),
+            UndoSubject::RedirectSource(i) => Box::new(Message::config(move |value| {
+                config::Event::Redirect(EditAction::Change(i, value), Some(RedirectEditActionField::Source))
+            })),
+            UndoSubject::RedirectTarget(i) => Box::new(Message::config(move |value| {
+                config::Event::Redirect(EditAction::Change(i, value), Some(RedirectEditActionField::Target))
+            })),
+            UndoSubject::CustomGameName(i) => Box::new(Message::config(move |value| {
+                config::Event::CustomGame(EditAction::Change(i, value))
+            })),
+            UndoSubject::CustomGameAlias(i) => {
+                Box::new(Message::config(move |value| config::Event::CustomGameAlias(i, value)))
             }
-            UndoSubject::RedirectSource(i) => Box::new(move |value| {
-                Message::EditedRedirect(EditAction::Change(i, value), Some(RedirectEditActionField::Source))
-            }),
-            UndoSubject::RedirectTarget(i) => Box::new(move |value| {
-                Message::EditedRedirect(EditAction::Change(i, value), Some(RedirectEditActionField::Target))
-            }),
-            UndoSubject::CustomGameName(i) => {
-                Box::new(move |value| Message::EditedCustomGame(EditAction::Change(i, value)))
-            }
-            UndoSubject::CustomGameAlias(i) => Box::new(move |value| Message::EditedCustomGameAlias(i, value)),
-            UndoSubject::CustomGameFile(i, j) => {
-                Box::new(move |value| Message::EditedCustomGameFile(i, EditAction::Change(j, value)))
-            }
-            UndoSubject::CustomGameRegistry(i, j) => {
-                Box::new(move |value| Message::EditedCustomGameRegistry(i, EditAction::Change(j, value)))
-            }
-            UndoSubject::BackupFilterIgnoredPath(i) => {
-                Box::new(move |value| Message::EditedBackupFilterIgnoredPath(EditAction::Change(i, value)))
-            }
-            UndoSubject::BackupFilterIgnoredRegistry(i) => {
-                Box::new(move |value| Message::EditedBackupFilterIgnoredRegistry(EditAction::Change(i, value)))
-            }
-            UndoSubject::RcloneExecutable => Box::new(Message::EditedRcloneExecutable),
-            UndoSubject::RcloneArguments => Box::new(Message::EditedRcloneArguments),
-            UndoSubject::CloudRemoteId => Box::new(Message::EditedCloudRemoteId),
-            UndoSubject::CloudPath => Box::new(Message::EditedCloudPath),
+            UndoSubject::CustomGameFile(i, j) => Box::new(Message::config(move |value| {
+                config::Event::CustomGameFile(i, EditAction::Change(j, value))
+            })),
+            UndoSubject::CustomGameRegistry(i, j) => Box::new(Message::config(move |value| {
+                config::Event::CustomGameRegistry(i, EditAction::Change(j, value))
+            })),
+            UndoSubject::BackupFilterIgnoredPath(i) => Box::new(Message::config(move |value| {
+                config::Event::BackupFilterIgnoredPath(EditAction::Change(i, value))
+            })),
+            UndoSubject::BackupFilterIgnoredRegistry(i) => Box::new(Message::config(move |value| {
+                config::Event::BackupFilterIgnoredRegistry(EditAction::Change(i, value))
+            })),
+            UndoSubject::RcloneExecutable => Box::new(Message::config(config::Event::RcloneExecutable)),
+            UndoSubject::RcloneArguments => Box::new(Message::config(config::Event::RcloneArguments)),
+            UndoSubject::CloudRemoteId => Box::new(Message::config(config::Event::CloudRemoteId)),
+            UndoSubject::CloudPath => Box::new(Message::config(config::Event::CloudPath)),
             UndoSubject::ModalField(field) => Box::new(move |value| {
                 Message::EditedModalField(match field {
                     ModalInputKind::Url => ModalField::Url(value),

@@ -10,7 +10,7 @@ use crate::{
     cloud::Remote,
     lang::{Language, TRANSLATOR},
     path::CommonPath,
-    prelude::{app_dir, Error, StrictPath, AVAILABLE_PARALELLISM},
+    prelude::{app_dir, EditAction, Error, RedirectEditActionField, StrictPath, AVAILABLE_PARALELLISM},
     resource::{
         manifest::{self, CloudMetadata, Manifest, Store},
         ResourceFile, SaveableResourceFile,
@@ -23,6 +23,79 @@ pub const MANIFEST_URL: &str =
 
 fn default_backup_dir() -> StrictPath {
     StrictPath::new(format!("{}/ludusavi-backup", CommonPath::Home.get().unwrap()))
+}
+
+#[derive(Debug, Clone)]
+pub enum Event {
+    Theme(Theme),
+    Language(Language),
+    CheckRelease(bool),
+    BackupTarget(String),
+    RestoreSource(String),
+    Root(EditAction),
+    RootLutrisDatabase(usize, String),
+    SecondaryManifest(EditAction),
+    RootStore(usize, Store),
+    RedirectKind(usize, RedirectKind),
+    SecondaryManifestKind(usize, SecondaryManifestConfigKind),
+    CustomGameKind(usize, CustomGameKind),
+    CustomGameIntegration(usize, Integration),
+    Redirect(EditAction, Option<RedirectEditActionField>),
+    ReverseRedirectsOnRestore(bool),
+    CustomGame(EditAction),
+    CustomGameAlias(usize, String),
+    CustomGaleAliasDisplay(usize, bool),
+    CustomGameFile(usize, EditAction),
+    CustomGameRegistry(usize, EditAction),
+    ExcludeStoreScreenshots(bool),
+    CloudFilter(CloudFilter),
+    BackupFilterIgnoredPath(EditAction),
+    BackupFilterIgnoredRegistry(EditAction),
+    GameListEntryEnabled {
+        name: String,
+        enabled: bool,
+        scan_kind: ScanKind,
+    },
+    ToggleSpecificGamePathIgnored {
+        name: String,
+        path: StrictPath,
+        scan_kind: ScanKind,
+    },
+    ToggleSpecificGameRegistryIgnored {
+        name: String,
+        path: RegistryItem,
+        value: Option<String>,
+        scan_kind: ScanKind,
+    },
+    CustomGameEnabled {
+        index: usize,
+        enabled: bool,
+    },
+    PrimaryManifestEnabled {
+        enabled: bool,
+    },
+    SecondaryManifestEnabled {
+        index: usize,
+        enabled: bool,
+    },
+    SortKey(SortKey),
+    SortReversed(bool),
+    FullRetention(u8),
+    DiffRetention(u8),
+    BackupFormat(BackupFormat),
+    BackupCompression(ZipCompression),
+    CompressionLevel(i32),
+    ToggleCloudSynchronize,
+    ShowDeselectedGames(bool),
+    ShowUnchangedGames(bool),
+    ShowUnscannedGames(bool),
+    OverrideMaxThreads(bool),
+    MaxThreads(usize),
+    RcloneExecutable(String),
+    RcloneArguments(String),
+    CloudRemoteId(String),
+    CloudPath(String),
+    SortCustomGames,
 }
 
 /// Settings for `config.yaml`

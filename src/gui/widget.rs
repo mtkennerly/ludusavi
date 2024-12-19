@@ -117,7 +117,7 @@ pub fn number_input<'a>(
     value: i32,
     label: String,
     range: RangeInclusive<i32>,
-    change: fn(i32) -> Message,
+    change: impl Fn(i32) -> Message,
 ) -> Element<'a> {
     Container::new(
         Row::new()

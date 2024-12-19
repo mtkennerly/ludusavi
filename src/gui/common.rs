@@ -8,19 +8,15 @@ use crate::{
         icon::Icon,
         modal::{ModalField, ModalInputKind},
     },
-    lang::{Language, TRANSLATOR},
-    prelude::{CommandError, Error, Finality, Privacy, StrictPath, SyncDirection},
+    lang::TRANSLATOR,
+    prelude::{CommandError, EditAction, Error, Finality, Privacy, RedirectEditActionField, StrictPath, SyncDirection},
     resource::{
-        config::{
-            BackupFormat, CloudFilter, CustomGameKind, Integration, RedirectKind, Root, SecondaryManifestConfigKind,
-            SortKey, Theme, ZipCompression,
-        },
-        manifest::{self, Manifest, ManifestUpdate, Store},
+        config::{self, Root},
+        manifest::{self, Manifest, ManifestUpdate},
     },
     scan::{
         game_filter,
         layout::{Backup, BackupLayout, GameLayout},
-        registry::RegistryItem,
         BackupInfo, Launchers, ScanInfo, ScanKind, SteamShortcuts,
     },
 };
@@ -116,7 +112,9 @@ pub enum Message {
     CloseModal,
     UpdateTime,
     PruneNotifications,
-    AppReleaseToggle(bool),
+    Config {
+        event: config::Event,
+    },
     CheckAppRelease,
     AppReleaseChecked(Result<crate::metadata::Release, String>),
     UpdateManifest {
@@ -127,29 +125,8 @@ pub enum Message {
     Restore(RestorePhase),
     ValidateBackups(ValidatePhase),
     CancelOperation,
-    EditedBackupTarget(String),
-    EditedRestoreSource(String),
     FindRoots,
     ConfirmAddMissingRoots(Vec<Root>),
-    EditedRoot(EditAction),
-    EditedRootLutrisDatabase(usize, String),
-    EditedSecondaryManifest(EditAction),
-    SelectedRootStore(usize, Store),
-    SelectedRedirectKind(usize, RedirectKind),
-    SelectedSecondaryManifestKind(usize, SecondaryManifestConfigKind),
-    SelectedCustomGameKind(usize, CustomGameKind),
-    SelectedCustomGameIntegration(usize, Integration),
-    EditedRedirect(EditAction, Option<RedirectEditActionField>),
-    EditedReverseRedirectsOnRestore(bool),
-    EditedCustomGame(EditAction),
-    EditedCustomGameAlias(usize, String),
-    EditedCustomGaleAliasDisplay(usize, bool),
-    EditedCustomGameFile(usize, EditAction),
-    EditedCustomGameRegistry(usize, EditAction),
-    EditedExcludeStoreScreenshots(bool),
-    EditedCloudFilter(CloudFilter),
-    EditedBackupFilterIgnoredPath(EditAction),
-    EditedBackupFilterIgnoredRegistry(EditAction),
     SwitchScreen(Screen),
     ToggleGameListEntryExpanded {
         name: String,
@@ -158,47 +135,12 @@ pub enum Message {
         name: String,
         keys: Vec<TreeNodeKey>,
     },
-    ToggleGameListEntryEnabled {
-        name: String,
-        enabled: bool,
-        scan_kind: ScanKind,
-    },
-    ToggleSpecificGamePathIgnored {
-        name: String,
-        path: StrictPath,
-        scan_kind: ScanKind,
-    },
-    ToggleSpecificGameRegistryIgnored {
-        name: String,
-        path: RegistryItem,
-        value: Option<String>,
-        scan_kind: ScanKind,
-    },
-    ToggleCustomGameEnabled {
-        index: usize,
-        enabled: bool,
-    },
     ToggleCustomGameExpanded {
         index: usize,
         expanded: bool,
     },
-    TogglePrimaryManifestEnabled {
-        enabled: bool,
-    },
-    ToggleSecondaryManifestEnabled {
-        index: usize,
-        enabled: bool,
-    },
     Filter {
         event: game_filter::Event,
-    },
-    EditedSortKey {
-        screen: Screen,
-        value: SortKey,
-    },
-    EditedSortReversed {
-        screen: Screen,
-        value: bool,
     },
     BrowseDir(BrowseSubject),
     BrowseFile(BrowseFileSubject),
@@ -217,18 +159,10 @@ pub enum Message {
         url: String,
     },
     KeyboardEvent(iced::keyboard::Event),
-    EditedFullRetention(u8),
-    EditedDiffRetention(u8),
     SelectedBackupToRestore {
         game: String,
         backup: Backup,
     },
-    SelectedLanguage(Language),
-    SelectedTheme(Theme),
-    SelectedBackupFormat(BackupFormat),
-    SelectedBackupCompression(ZipCompression),
-    EditedCompressionLevel(i32),
-    ToggleCloudSynchronize,
     GameAction {
         action: GameAction,
         game: String,
@@ -250,19 +184,10 @@ pub enum Message {
         game: String,
         comment: String,
     },
-    SetShowDeselectedGames(bool),
-    SetShowUnchangedGames(bool),
-    SetShowUnscannedGames(bool),
     FilterDuplicates {
         scan_kind: ScanKind,
         game: Option<String>,
     },
-    OverrideMaxThreads(bool),
-    EditedMaxThreads(usize),
-    EditedRcloneExecutable(String),
-    EditedRcloneArguments(String),
-    EditedCloudRemoteId(String),
-    EditedCloudPath(String),
     OpenUrl(String),
     OpenUrlAndCloseModal(String),
     EditedCloudRemote(RemoteChoice),
@@ -282,35 +207,35 @@ pub enum Message {
     ShowCustomGame {
         name: String,
     },
-    SortCustomGames,
 }
 
 impl Message {
     pub fn browsed_dir(subject: BrowseSubject, choice: Option<std::path::PathBuf>) -> Self {
         match choice {
             Some(path) => match subject {
-                BrowseSubject::BackupTarget => Message::EditedBackupTarget(crate::path::render_pathbuf(&path)),
-                BrowseSubject::RestoreSource => Message::EditedRestoreSource(crate::path::render_pathbuf(&path)),
-                BrowseSubject::Root(i) => Message::EditedRoot(EditAction::Change(
+                BrowseSubject::BackupTarget => config::Event::BackupTarget(crate::path::render_pathbuf(&path)),
+                BrowseSubject::RestoreSource => config::Event::RestoreSource(crate::path::render_pathbuf(&path)),
+                BrowseSubject::Root(i) => config::Event::Root(EditAction::Change(
                     i,
                     globetter::Pattern::escape(&crate::path::render_pathbuf(&path)),
                 )),
-                BrowseSubject::RedirectSource(i) => Message::EditedRedirect(
+                BrowseSubject::RedirectSource(i) => config::Event::Redirect(
                     EditAction::Change(i, crate::path::render_pathbuf(&path)),
                     Some(RedirectEditActionField::Source),
                 ),
-                BrowseSubject::RedirectTarget(i) => Message::EditedRedirect(
+                BrowseSubject::RedirectTarget(i) => config::Event::Redirect(
                     EditAction::Change(i, crate::path::render_pathbuf(&path)),
                     Some(RedirectEditActionField::Target),
                 ),
-                BrowseSubject::CustomGameFile(i, j) => Message::EditedCustomGameFile(
+                BrowseSubject::CustomGameFile(i, j) => config::Event::CustomGameFile(
                     i,
                     EditAction::Change(j, globetter::Pattern::escape(&crate::path::render_pathbuf(&path))),
                 ),
                 BrowseSubject::BackupFilterIgnoredPath(i) => {
-                    Message::EditedBackupFilterIgnoredPath(EditAction::Change(i, crate::path::render_pathbuf(&path)))
+                    config::Event::BackupFilterIgnoredPath(EditAction::Change(i, crate::path::render_pathbuf(&path)))
                 }
-            },
+            }
+            .into(),
             None => Message::Ignore,
         }
     }
@@ -320,6 +245,20 @@ impl Message {
             Some(path) => Message::SelectedFile(subject, StrictPath::from(path)),
             None => Message::Ignore,
         }
+    }
+
+    pub fn config<T>(convert: impl Fn(T) -> config::Event) -> impl Fn(T) -> Self {
+        move |value: T| Self::Config { event: convert(value) }
+    }
+
+    pub fn config2<T, T2>(convert: impl Fn(T, T2) -> config::Event) -> impl Fn(T, T2) -> Self {
+        move |v1: T, v2: T2| Self::Config { event: convert(v1, v2) }
+    }
+}
+
+impl From<config::Event> for Message {
+    fn from(event: config::Event) -> Self {
+        Self::Config { event }
     }
 }
 
@@ -667,45 +606,6 @@ pub enum Screen {
     Restore,
     CustomGames,
     Other,
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EditDirection {
-    Up,
-    Down,
-}
-
-impl EditDirection {
-    pub fn shift(&self, index: usize) -> usize {
-        match self {
-            Self::Up => index - 1,
-            Self::Down => index + 1,
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum EditAction {
-    Add,
-    Change(usize, String),
-    Remove(usize),
-    Move(usize, EditDirection),
-}
-
-impl EditAction {
-    pub fn move_up(index: usize) -> Self {
-        Self::Move(index, EditDirection::Up)
-    }
-
-    pub fn move_down(index: usize) -> Self {
-        Self::Move(index, EditDirection::Down)
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum RedirectEditActionField {
-    Source,
-    Target,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

@@ -14,7 +14,7 @@ use crate::{
     },
     lang::TRANSLATOR,
     path::StrictPath,
-    resource::config::Config,
+    resource::config::{self, Config},
     scan::{
         registry::RegistryItem, BackupError, BackupInfo, DuplicateDetector, Duplication, ScanChange, ScanInfo,
         ScanKind, ScannedFile, ScannedRegistryValues,
@@ -113,25 +113,31 @@ impl FileTreeNode {
             let path = self.path.clone();
             Some(
                 Container::new(
-                    checkbox("", !self.ignored, move |_| match &path {
-                        FileTreeNodePath::File(path) => Message::ToggleSpecificGamePathIgnored {
-                            name: game_name.clone(),
-                            path: path.clone(),
-                            scan_kind,
-                        },
-                        FileTreeNodePath::RegistryKey(path) => Message::ToggleSpecificGameRegistryIgnored {
-                            name: game_name.clone(),
-                            path: path.clone(),
-                            value: None,
-                            scan_kind,
-                        },
-                        FileTreeNodePath::RegistryValue(path, name) => Message::ToggleSpecificGameRegistryIgnored {
-                            name: game_name.clone(),
-                            path: path.clone(),
-                            value: Some(name.clone()),
-                            scan_kind,
-                        },
-                    })
+                    checkbox(
+                        "",
+                        !self.ignored,
+                        Message::config(move |_| match &path {
+                            FileTreeNodePath::File(path) => config::Event::ToggleSpecificGamePathIgnored {
+                                name: game_name.clone(),
+                                path: path.clone(),
+                                scan_kind,
+                            },
+                            FileTreeNodePath::RegistryKey(path) => config::Event::ToggleSpecificGameRegistryIgnored {
+                                name: game_name.clone(),
+                                path: path.clone(),
+                                value: None,
+                                scan_kind,
+                            },
+                            FileTreeNodePath::RegistryValue(path, name) => {
+                                config::Event::ToggleSpecificGameRegistryIgnored {
+                                    name: game_name.clone(),
+                                    path: path.clone(),
+                                    value: Some(name.clone()),
+                                    scan_kind,
+                                }
+                            }
+                        }),
+                    )
                     .spacing(5)
                     .class(style::Checkbox),
                 )
