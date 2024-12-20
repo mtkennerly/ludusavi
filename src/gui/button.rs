@@ -263,34 +263,42 @@ pub fn previous_page<'a>(action: impl Fn(usize) -> Message, page: usize) -> Elem
     template(Icon::ArrowBack.text(), (page > 0).then(|| action(page - 1)), None)
 }
 
-pub fn toggle_all_scanned_games<'a>(all_enabled: bool) -> Element<'a> {
+pub fn toggle_all_scanned_games<'a>(all_enabled: bool, filtered: bool) -> Element<'a> {
     if all_enabled {
-        template(
+        template_extended(
             text(TRANSLATOR.disable_all_button()).width(WIDTH),
             Some(Message::DeselectAllGames),
             None,
+            filtered.then_some(Icon::Filter),
+            filtered.then(|| TRANSLATOR.operation_will_only_include_listed_games()),
         )
     } else {
-        template(
+        template_extended(
             text(TRANSLATOR.enable_all_button()).width(WIDTH),
             Some(Message::SelectAllGames),
             None,
+            filtered.then_some(Icon::Filter),
+            filtered.then(|| TRANSLATOR.operation_will_only_include_listed_games()),
         )
     }
 }
 
-pub fn toggle_all_custom_games<'a>(all_enabled: bool) -> Element<'a> {
+pub fn toggle_all_custom_games<'a>(all_enabled: bool, filtered: bool) -> Element<'a> {
     if all_enabled {
-        template(
+        template_extended(
             text(TRANSLATOR.disable_all_button()).width(WIDTH),
             Some(Message::DeselectAllGames),
             None,
+            filtered.then_some(Icon::Filter),
+            filtered.then(|| TRANSLATOR.operation_will_only_include_listed_games()),
         )
     } else {
-        template(
+        template_extended(
             text(TRANSLATOR.enable_all_button()).width(WIDTH),
             Some(Message::SelectAllGames),
             None,
+            filtered.then_some(Icon::Filter),
+            filtered.then(|| TRANSLATOR.operation_will_only_include_listed_games()),
         )
     }
 }

@@ -393,17 +393,8 @@ pub struct GameList {
 }
 
 impl GameList {
-    pub fn view(
-        &self,
-        scan_kind: ScanKind,
-        config: &Config,
-        manifest: &Manifest,
-        duplicate_detector: &DuplicateDetector,
-        operation: &Operation,
-        histories: &TextHistories,
-        modifiers: &Modifiers,
-    ) -> Container {
-        let duplicatees = self.filter_duplicates_of.as_ref().and_then(|game| {
+    pub fn duplicatees(&self, duplicate_detector: &DuplicateDetector) -> Option<HashSet<String>> {
+        self.filter_duplicates_of.as_ref().and_then(|game| {
             let mut duplicatees = duplicate_detector.duplicate_games(game);
             if duplicatees.is_empty() {
                 None
@@ -411,8 +402,20 @@ impl GameList {
                 duplicatees.insert(game.clone());
                 Some(duplicatees)
             }
-        });
+        })
+    }
 
+    pub fn view(
+        &self,
+        scan_kind: ScanKind,
+        config: &Config,
+        manifest: &Manifest,
+        duplicate_detector: &DuplicateDetector,
+        duplicatees: Option<&HashSet<String>>,
+        operation: &Operation,
+        histories: &TextHistories,
+        modifiers: &Modifiers,
+    ) -> Container {
         Container::new(
             Column::new()
                 .spacing(15)
@@ -432,14 +435,7 @@ impl GameList {
                         .entries
                         .iter()
                         .filter(|entry| {
-                            self.filter_game(
-                                entry,
-                                scan_kind,
-                                config,
-                                manifest,
-                                duplicate_detector,
-                                duplicatees.as_ref(),
-                            )
+                            self.filter_game(entry, scan_kind, config, manifest, duplicate_detector, duplicatees)
                         })
                         .fold(
                             Column::new()
@@ -465,9 +461,17 @@ impl GameList {
         )
     }
 
-    pub fn all_entries_selected(&self, config: &Config, scan_kind: ScanKind) -> bool {
+    pub fn all_visible_entries_selected(
+        &self,
+        config: &Config,
+        scan_kind: ScanKind,
+        manifest: &Manifest,
+        duplicate_detector: &DuplicateDetector,
+        duplicatees: Option<&HashSet<String>>,
+    ) -> bool {
         self.entries
             .iter()
+            .filter(|entry| self.filter_game(entry, scan_kind, config, manifest, duplicate_detector, duplicatees))
             .all(|x| config.is_game_enabled_for_operation(&x.scan_info.game_name, scan_kind))
     }
 
@@ -484,7 +488,7 @@ impl GameList {
             &entry.scan_info.game_name,
             scan_kind,
             entry.scan_info.overall_change().is_changed(),
-            entry.scan_info.found_anything(),
+            entry.scanned,
         );
 
         let qualifies = self.search.qualifies(
@@ -541,9 +545,20 @@ impl GameList {
         self.search.show || self.filter_duplicates_of.is_some()
     }
 
-    pub fn compute_operation_status(&self, config: &Config, scan_kind: ScanKind) -> OperationStatus {
+    pub fn compute_operation_status(
+        &self,
+        config: &Config,
+        scan_kind: ScanKind,
+        manifest: &Manifest,
+        duplicate_detector: &DuplicateDetector,
+        duplicatees: Option<&HashSet<String>>,
+    ) -> OperationStatus {
         let mut status = OperationStatus::default();
         for entry in self.entries.iter() {
+            if !self.filter_game(entry, scan_kind, config, manifest, duplicate_detector, duplicatees) {
+                continue;
+            }
+
             status.total_games += 1;
             status.total_bytes += entry.scan_info.total_possible_bytes();
             if !entry.scan_info.all_ignored()

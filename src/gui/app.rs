@@ -2173,17 +2173,27 @@ impl App {
             Message::SelectAllGames => {
                 match self.screen {
                     Screen::Backup => {
-                        for entry in &self.backup_screen.log.entries {
-                            self.config.enable_game_for_backup(&entry.scan_info.game_name);
+                        for name in self.backup_screen.log.visible_games(
+                            ScanKind::Backup,
+                            &self.config,
+                            &self.manifest.extended,
+                            &self.backup_screen.duplicate_detector,
+                        ) {
+                            self.config.enable_game_for_backup(&name);
                         }
                     }
                     Screen::Restore => {
-                        for entry in &self.restore_screen.log.entries {
-                            self.config.enable_game_for_restore(&entry.scan_info.game_name);
+                        for name in self.restore_screen.log.visible_games(
+                            ScanKind::Restore,
+                            &self.config,
+                            &self.manifest.extended,
+                            &self.restore_screen.duplicate_detector,
+                        ) {
+                            self.config.enable_game_for_restore(&name);
                         }
                     }
                     Screen::CustomGames => {
-                        for i in 0..self.config.custom_games.len() {
+                        for i in self.custom_games_screen.visible_games(&self.config) {
                             self.config.enable_custom_game(i);
                         }
                     }
@@ -2195,17 +2205,27 @@ impl App {
             Message::DeselectAllGames => {
                 match self.screen {
                     Screen::Backup => {
-                        for entry in &self.backup_screen.log.entries {
-                            self.config.disable_game_for_backup(&entry.scan_info.game_name);
+                        for name in self.backup_screen.log.visible_games(
+                            ScanKind::Backup,
+                            &self.config,
+                            &self.manifest.extended,
+                            &self.backup_screen.duplicate_detector,
+                        ) {
+                            self.config.disable_game_for_backup(&name);
                         }
                     }
                     Screen::Restore => {
-                        for entry in &self.restore_screen.log.entries {
-                            self.config.disable_game_for_restore(&entry.scan_info.game_name);
+                        for name in self.restore_screen.log.visible_games(
+                            ScanKind::Restore,
+                            &self.config,
+                            &self.manifest.extended,
+                            &self.restore_screen.duplicate_detector,
+                        ) {
+                            self.config.disable_game_for_restore(&name);
                         }
                     }
                     Screen::CustomGames => {
-                        for i in 0..self.config.custom_games.len() {
+                        for i in self.custom_games_screen.visible_games(&self.config) {
                             self.config.disable_custom_game(i);
                         }
                     }

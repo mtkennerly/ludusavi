@@ -85,6 +85,8 @@ impl Backup {
     ) -> Element {
         let sort = &config.backup.sort;
 
+        let duplicatees = self.log.duplicatees(&self.duplicate_detector);
+
         let content = Column::new()
             .push(
                 Row::new()
@@ -94,12 +96,25 @@ impl Backup {
                     .push(button::backup_preview(operation, self.log.is_filtered()))
                     .push(button::backup(operation, self.log.is_filtered()))
                     .push(button::toggle_all_scanned_games(
-                        self.log.all_entries_selected(config, Self::SCAN_KIND),
+                        self.log.all_visible_entries_selected(
+                            config,
+                            Self::SCAN_KIND,
+                            manifest,
+                            &self.duplicate_detector,
+                            duplicatees.as_ref(),
+                        ),
+                        self.log.is_filtered(),
                     ))
                     .push(button::filter(self.log.search.show)),
             )
             .push(make_status_row(
-                &self.log.compute_operation_status(config, Self::SCAN_KIND),
+                &self.log.compute_operation_status(
+                    config,
+                    Self::SCAN_KIND,
+                    manifest,
+                    &self.duplicate_detector,
+                    duplicatees.as_ref(),
+                ),
                 self.duplicate_detector.overall(),
             ))
             .push(
@@ -123,6 +138,7 @@ impl Backup {
                 config,
                 manifest,
                 &self.duplicate_detector,
+                duplicatees.as_ref(),
                 operation,
                 histories,
                 modifiers,
@@ -158,6 +174,8 @@ impl Restore {
     ) -> Element {
         let sort = &config.restore.sort;
 
+        let duplicatees = self.log.duplicatees(&self.duplicate_detector);
+
         let content = Column::new()
             .push(
                 Row::new()
@@ -167,13 +185,26 @@ impl Restore {
                     .push(button::restore_preview(operation, self.log.is_filtered()))
                     .push(button::restore(operation, self.log.is_filtered()))
                     .push(button::toggle_all_scanned_games(
-                        self.log.all_entries_selected(config, Self::SCAN_KIND),
+                        self.log.all_visible_entries_selected(
+                            config,
+                            Self::SCAN_KIND,
+                            manifest,
+                            &self.duplicate_detector,
+                            duplicatees.as_ref(),
+                        ),
+                        self.log.is_filtered(),
                     ))
                     .push(button::validate_backups(operation))
                     .push(button::filter(self.log.search.show)),
             )
             .push(make_status_row(
-                &self.log.compute_operation_status(config, Self::SCAN_KIND),
+                &self.log.compute_operation_status(
+                    config,
+                    Self::SCAN_KIND,
+                    manifest,
+                    &self.duplicate_detector,
+                    duplicatees.as_ref(),
+                ),
                 self.duplicate_detector.overall(),
             ))
             .push(
@@ -197,6 +228,7 @@ impl Restore {
                 config,
                 manifest,
                 &self.duplicate_detector,
+                duplicatees.as_ref(),
                 operation,
                 histories,
                 modifiers,
@@ -227,7 +259,10 @@ impl CustomGames {
                     .spacing(20)
                     .align_y(Alignment::Center)
                     .push(button::add_game())
-                    .push(button::toggle_all_custom_games(config.are_all_custom_games_enabled()))
+                    .push(button::toggle_all_custom_games(
+                        self.all_visible_game_selected(config),
+                        self.is_filtered(),
+                    ))
                     .push(button::sort(config::Event::SortCustomGames))
                     .push(button::filter(self.filter.enabled)),
             )
@@ -242,6 +277,27 @@ impl CustomGames {
             ));
 
         template(content)
+    }
+
+    fn is_filtered(&self) -> bool {
+        self.filter.enabled
+    }
+
+    pub fn visible_games(&self, config: &Config) -> Vec<usize> {
+        config
+            .custom_games
+            .iter()
+            .enumerate()
+            .filter_map(|(i, game)| self.filter.qualifies(game).then_some(i))
+            .collect()
+    }
+
+    fn all_visible_game_selected(&self, config: &Config) -> bool {
+        config
+            .custom_games
+            .iter()
+            .filter(|game| self.filter.qualifies(game))
+            .all(|x| !x.ignore)
     }
 }
 
