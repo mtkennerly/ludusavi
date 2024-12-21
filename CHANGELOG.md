@@ -1,5 +1,9 @@
 ## Unreleased
 
+* Added:
+  * On Linux, for Lutris roots that point to a Flatpak installation,
+    Ludusavi now checks `$XDG_DATA_HOME` and `$XDG_CONFIG_HOME`
+    inside of the Flatpak installation of Lutris.
 * Changed:
   * When the game list is filtered,
     the summary line (e.g., "1 of 10 games") now reflects the filtered totals.

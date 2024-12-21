@@ -222,6 +222,22 @@ pub fn parse_paths(
                     .replace(p::OS_USER_NAME, &crate::prelude::OS_USERNAME));
             }
         }
+        Store::Lutris => {
+            if Os::HOST == Os::Linux && root_interpreted.ends_with(".var/app/net.lutris.Lutris/config/lutris") {
+                // Lutris is installed via Flatpak.
+                add_path!(path
+                    .replace(
+                        p::XDG_DATA,
+                        check_nonwindows_path(&format!("{}/../../data", &root_interpreted)),
+                    )
+                    .replace(
+                        p::XDG_CONFIG,
+                        check_nonwindows_path(&format!("{}/../../config", &root_interpreted)),
+                    )
+                    .replace(p::STORE_USER_ID, "*")
+                    .replace(p::OS_USER_NAME, &crate::prelude::OS_USERNAME));
+            }
+        }
         Store::Steam => {
             if let Some(steam_shortcut) = steam_shortcut {
                 if let Some(start_dir) = &steam_shortcut.start_dir {
@@ -382,7 +398,6 @@ pub fn parse_paths(
         | Store::Epic
         | Store::GogGalaxy
         | Store::Legendary
-        | Store::Lutris
         | Store::Microsoft
         | Store::Origin
         | Store::Prime
