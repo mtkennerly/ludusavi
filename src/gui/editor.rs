@@ -508,6 +508,49 @@ pub fn custom_games<'a>(
                                             i,
                                         )),
                                 )
+                        })
+                        .push_if(config.custom_games[i].kind() == CustomGameKind::Game, || {
+                            Row::new()
+                                .spacing(10)
+                                .push(
+                                    Column::new()
+                                        .width(left_side)
+                                        .padding(padding::top(top_side))
+                                        .push(text(TRANSLATOR.field(&TRANSLATOR.custom_installed_name_label()))),
+                                )
+                                .push(
+                                    x.install_dir
+                                        .iter()
+                                        .enumerate()
+                                        .fold(Column::new().spacing(4), |column, (ii, _)| {
+                                            column.push(
+                                                Row::new()
+                                                    .align_y(Alignment::Center)
+                                                    .spacing(20)
+                                                    .push(button::move_up_nested(
+                                                        Message::config2(config::Event::CustomGameInstallDir),
+                                                        i,
+                                                        ii,
+                                                    ))
+                                                    .push(button::move_down_nested(
+                                                        Message::config2(config::Event::CustomGameInstallDir),
+                                                        i,
+                                                        ii,
+                                                        x.install_dir.len(),
+                                                    ))
+                                                    .push(histories.input(UndoSubject::CustomGameInstallDir(i, ii)))
+                                                    .push(button::remove_nested(
+                                                        Message::config2(config::Event::CustomGameInstallDir),
+                                                        i,
+                                                        ii,
+                                                    )),
+                                            )
+                                        })
+                                        .push(button::add_nested(
+                                            Message::config2(config::Event::CustomGameInstallDir),
+                                            i,
+                                        )),
+                                )
                         });
                 }
 

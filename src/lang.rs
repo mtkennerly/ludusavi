@@ -924,6 +924,10 @@ impl Translator {
         translate("field-custom-registry")
     }
 
+    pub fn custom_installed_name_label(&self) -> String {
+        translate("label-installed-name")
+    }
+
     pub fn sort_label(&self) -> String {
         translate("field-sort")
     }

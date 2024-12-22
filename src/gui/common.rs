@@ -642,6 +642,7 @@ pub enum UndoSubject {
     CustomGameAlias(usize),
     CustomGameFile(usize, usize),
     CustomGameRegistry(usize, usize),
+    CustomGameInstallDir(usize, usize),
     BackupFilterIgnoredPath(usize),
     BackupFilterIgnoredRegistry(usize),
     RcloneExecutable,
@@ -669,6 +670,7 @@ impl UndoSubject {
             | UndoSubject::CustomGameAlias(_)
             | UndoSubject::CustomGameFile(_, _)
             | UndoSubject::CustomGameRegistry(_, _)
+            | UndoSubject::CustomGameInstallDir(_, _)
             | UndoSubject::BackupFilterIgnoredPath(_)
             | UndoSubject::BackupFilterIgnoredRegistry(_)
             | UndoSubject::RcloneExecutable

@@ -208,6 +208,7 @@ pub struct CustomGameHistory {
     pub alias: TextHistory,
     pub files: Vec<TextHistory>,
     pub registry: Vec<TextHistory>,
+    pub install_dir: Vec<TextHistory>,
 }
 
 #[derive(Default)]
@@ -297,6 +298,7 @@ impl TextHistories {
             alias: TextHistory::raw(&game.alias.clone().unwrap_or_default()),
             files: game.files.iter().map(|x| TextHistory::raw(x)).collect(),
             registry: game.registry.iter().map(|x| TextHistory::raw(x)).collect(),
+            install_dir: game.install_dir.iter().map(|x| TextHistory::raw(x)).collect(),
         };
         self.custom_games.push(history);
     }
@@ -340,6 +342,11 @@ impl TextHistories {
                 .custom_games
                 .get(*i)
                 .and_then(|x| x.registry.get(*j).map(|y| y.current()))
+                .unwrap_or_default(),
+            UndoSubject::CustomGameInstallDir(i, j) => self
+                .custom_games
+                .get(*i)
+                .and_then(|x| x.install_dir.get(*j).map(|y| y.current()))
                 .unwrap_or_default(),
             UndoSubject::BackupFilterIgnoredPath(i) => self
                 .backup_filter_ignored_paths
@@ -404,6 +411,9 @@ impl TextHistories {
             UndoSubject::CustomGameRegistry(i, j) => Box::new(Message::config(move |value| {
                 config::Event::CustomGameRegistry(i, EditAction::Change(j, value))
             })),
+            UndoSubject::CustomGameInstallDir(i, j) => Box::new(Message::config(move |value| {
+                config::Event::CustomGameInstallDir(i, EditAction::Change(j, value))
+            })),
             UndoSubject::BackupFilterIgnoredPath(i) => Box::new(Message::config(move |value| {
                 config::Event::BackupFilterIgnoredPath(EditAction::Change(i, value))
             })),
@@ -444,6 +454,7 @@ impl TextHistories {
             UndoSubject::CustomGameAlias(_) => TRANSLATOR.custom_game_name_placeholder(),
             UndoSubject::CustomGameFile(_, _) => "".to_string(),
             UndoSubject::CustomGameRegistry(_, _) => "".to_string(),
+            UndoSubject::CustomGameInstallDir(_, _) => "".to_string(),
             UndoSubject::BackupFilterIgnoredPath(_) => "".to_string(),
             UndoSubject::BackupFilterIgnoredRegistry(_) => "".to_string(),
             UndoSubject::RcloneExecutable => TRANSLATOR.executable_label(),
@@ -462,6 +473,7 @@ impl TextHistories {
             | UndoSubject::RedirectSource(_)
             | UndoSubject::RedirectTarget(_)
             | UndoSubject::CustomGameFile(_, _)
+            | UndoSubject::CustomGameInstallDir(_, _)
             | UndoSubject::BackupFilterIgnoredPath(_)
             | UndoSubject::RcloneExecutable => (!path_appears_valid(&current)).then_some(ERROR_ICON),
             UndoSubject::CustomGameName(_) | UndoSubject::CustomGameAlias(_) => {

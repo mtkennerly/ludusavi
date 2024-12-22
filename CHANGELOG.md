@@ -4,6 +4,10 @@
   * On Linux, for Lutris roots that point to a Flatpak installation,
     Ludusavi now checks `$XDG_DATA_HOME` and `$XDG_CONFIG_HOME`
     inside of the Flatpak installation of Lutris.
+  * Custom games now let you specify installed folder names.
+    This can be used to satisfy the `<base>` and `<game>` path placeholders
+    in cases where Ludusavi can't automatically detect the right folder.
+    For more info, [see the custom games document](/docs/help/custom-games.md).
 * Changed:
   * When the game list is filtered,
     the summary line (e.g., "1 of 10 games") now reflects the filtered totals.

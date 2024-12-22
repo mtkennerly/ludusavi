@@ -160,6 +160,8 @@ label-source = Source
 label-primary-manifest = Primary manifest
 # This refers to how we integrate a custom game with the manifest data.
 label-integration = Integration
+# This is a folder name where a specific game is installed
+label-installed-name = Installed name
 
 store-ea = EA
 store-epic = Epic

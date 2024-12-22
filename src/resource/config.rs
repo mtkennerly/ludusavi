@@ -47,6 +47,7 @@ pub enum Event {
     CustomGaleAliasDisplay(usize, bool),
     CustomGameFile(usize, EditAction),
     CustomGameRegistry(usize, EditAction),
+    CustomGameInstallDir(usize, EditAction),
     ExcludeStoreScreenshots(bool),
     CloudFilter(CloudFilter),
     BackupFilterIgnoredPath(EditAction),
@@ -1224,6 +1225,8 @@ pub struct CustomGame {
     pub files: Vec<String>,
     /// Any registry keys you want to back up.
     pub registry: Vec<String>,
+    /// Bare folder names where the game has been installed.
+    pub install_dir: Vec<String>,
     #[serde(skip)]
     pub expanded: bool,
 }
@@ -2140,6 +2143,10 @@ mod tests {
                   - Custom Registry 1
                   - Custom Registry 2
                   - Custom Registry 2
+                installDir:
+                  - Custom Install Dir 1
+                  - Custom Install Dir 2
+                  - Custom Install Dir 2
             "#,
         )
         .unwrap();
@@ -2218,6 +2225,7 @@ mod tests {
                         prefer_alias: false,
                         files: vec![],
                         registry: vec![],
+                        install_dir: vec![],
                         expanded: false,
                     },
                     CustomGame {
@@ -2226,8 +2234,13 @@ mod tests {
                         integration: Integration::Override,
                         alias: None,
                         prefer_alias: false,
-                        files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
-                        registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
+                        files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2")],
+                        registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2")],
+                        install_dir: vec![
+                            s("Custom Install Dir 1"),
+                            s("Custom Install Dir 2"),
+                            s("Custom Install Dir 2")
+                        ],
                         expanded: false,
                     },
                 ],
@@ -2326,6 +2339,7 @@ customGames:
     integration: override
     files: []
     registry: []
+    installDir: []
   - name: Custom Game 2
     integration: extend
     files:
@@ -2336,11 +2350,16 @@ customGames:
       - Custom Registry 1
       - Custom Registry 2
       - Custom Registry 2
+    installDir:
+      - Custom Install Dir 1
+      - Custom Install Dir 2
+      - Custom Install Dir 2
   - name: Alias
     integration: override
     alias: Other
     files: []
     registry: []
+    installDir: []
 "#
             .trim(),
             serde_yaml::to_string(&Config {
@@ -2415,6 +2434,7 @@ customGames:
                         prefer_alias: false,
                         files: vec![],
                         registry: vec![],
+                        install_dir: vec![],
                         expanded: false,
                     },
                     CustomGame {
@@ -2423,8 +2443,13 @@ customGames:
                         integration: Integration::Extend,
                         alias: None,
                         prefer_alias: false,
-                        files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2"),],
-                        registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2"),],
+                        files: vec![s("Custom File 1"), s("Custom File 2"), s("Custom File 2")],
+                        registry: vec![s("Custom Registry 1"), s("Custom Registry 2"), s("Custom Registry 2")],
+                        install_dir: vec![
+                            s("Custom Install Dir 1"),
+                            s("Custom Install Dir 2"),
+                            s("Custom Install Dir 2")
+                        ],
                         expanded: false,
                     },
                     CustomGame {
@@ -2435,6 +2460,7 @@ customGames:
                         prefer_alias: false,
                         files: vec![],
                         registry: vec![],
+                        install_dir: vec![],
                         expanded: false,
                     },
                 ],

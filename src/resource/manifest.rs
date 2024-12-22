@@ -663,6 +663,11 @@ impl Manifest {
                         .into_iter()
                         .map(|x| (x, GameRegistryEntry::default()))
                         .collect();
+                    stored.install_dir = custom
+                        .install_dir
+                        .into_iter()
+                        .map(|x| (x, GameInstallDirEntry::default()))
+                        .collect();
                     // We intentionally don't carry over the cloud info for custom games.
                     // If you choose not to back up games with cloud support,
                     // you probably still want to back up your customized versions of such games.
@@ -676,6 +681,9 @@ impl Manifest {
                     }
                     for item in custom.registry {
                         stored.registry.entry(item).or_default();
+                    }
+                    for item in custom.install_dir {
+                        stored.install_dir.entry(item).or_default();
                     }
                     stored.cloud = CloudMetadata::default();
                     stored.sources.insert(Source::Custom);
@@ -693,6 +701,11 @@ impl Manifest {
                     .registry
                     .into_iter()
                     .map(|x| (x, GameRegistryEntry::default()))
+                    .collect(),
+                install_dir: custom
+                    .install_dir
+                    .into_iter()
+                    .map(|x| (x, GameInstallDirEntry::default()))
                     .collect(),
                 sources: BTreeSet::from_iter([Source::Custom]),
                 ..Default::default()

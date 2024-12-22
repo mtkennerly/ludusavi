@@ -1163,6 +1163,7 @@ impl App {
                 prefer_alias: false,
                 files: standard.files.keys().cloned().collect(),
                 registry: standard.registry.keys().cloned().collect(),
+                install_dir: standard.install_dir.keys().filter(|x| *x != &name).cloned().collect(),
                 expanded: true,
             }
         } else {
@@ -1174,6 +1175,7 @@ impl App {
                 prefer_alias: false,
                 files: vec![],
                 registry: vec![],
+                install_dir: vec![],
                 expanded: true,
             }
         };
@@ -1198,6 +1200,7 @@ impl App {
             prefer_alias: true,
             files: vec![],
             registry: vec![],
+            install_dir: vec![],
             expanded: true,
         };
 
@@ -1626,6 +1629,29 @@ impl App {
                                 .registry
                                 .swap(index, offset);
                             self.config.custom_games[game_index].registry.swap(index, offset);
+                        }
+                    },
+                    config::Event::CustomGameInstallDir(game_index, action) => match action {
+                        EditAction::Add => {
+                            self.text_histories.custom_games[game_index]
+                                .install_dir
+                                .push(Default::default());
+                            self.config.custom_games[game_index].install_dir.push("".to_string());
+                        }
+                        EditAction::Change(index, value) => {
+                            self.text_histories.custom_games[game_index].install_dir[index].push(&value);
+                            self.config.custom_games[game_index].install_dir[index] = value;
+                        }
+                        EditAction::Remove(index) => {
+                            self.text_histories.custom_games[game_index].install_dir.remove(index);
+                            self.config.custom_games[game_index].install_dir.remove(index);
+                        }
+                        EditAction::Move(index, direction) => {
+                            let offset = direction.shift(index);
+                            self.text_histories.custom_games[game_index]
+                                .install_dir
+                                .swap(index, offset);
+                            self.config.custom_games[game_index].install_dir.swap(index, offset);
                         }
                     },
                     config::Event::ExcludeStoreScreenshots(enabled) => {
@@ -2386,6 +2412,10 @@ impl App {
                     UndoSubject::CustomGameRegistry(i, j) => shortcut.apply_to_string_field(
                         &mut self.config.custom_games[i].registry[j],
                         &mut self.text_histories.custom_games[i].registry[j],
+                    ),
+                    UndoSubject::CustomGameInstallDir(i, j) => shortcut.apply_to_string_field(
+                        &mut self.config.custom_games[i].install_dir[j],
+                        &mut self.text_histories.custom_games[i].install_dir[j],
                     ),
                     UndoSubject::BackupFilterIgnoredPath(i) => shortcut.apply_to_strict_path_field(
                         &mut self.config.backup.filter.ignored_paths[i],
