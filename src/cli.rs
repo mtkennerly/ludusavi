@@ -828,6 +828,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             gui,
             commands,
         } => {
+            log::warn!("Wrap environment variables: {:?}", std::env::vars());
+
             let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
             let layout = BackupLayout::new(config.restore.path.clone());
             let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
