@@ -249,39 +249,51 @@ pub fn run_command(
     log::debug!("Running command: {} {:?}", executable, collect_args());
 
     match command.output() {
-        Ok(output) => match output.status.code() {
-            Some(code) if success.contains(&code) => {
-                log::debug!("Command succeeded with {}: {} {}", code, executable, format_args());
+        Ok(output) => {
+            match output.status.code() {
+                Some(code) if success.contains(&code) => {
+                    log::debug!("Command succeeded with {}: {} {}", code, executable, format_args());
 
-                let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
 
-                Ok(CommandOutput { code, stdout, stderr })
+                    Ok(CommandOutput { code, stdout, stderr })
+                }
+                Some(code) => {
+                    log::error!("Command failed with {}: {} {}", code, executable, format_args());
+
+                    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+                    log::error!("Command stdout: {}", stdout);
+                    log::error!("Command stderr: {}", stderr);
+
+                    Err(CommandError::Exited {
+                        program: executable.to_string(),
+                        args: collect_args(),
+                        code,
+                        stdout: (!stdout.is_empty()).then_some(stdout),
+                        stderr: (!stderr.is_empty()).then_some(stderr),
+                    })
+                }
+                None => {
+                    #[cfg(unix)]
+                    {
+                        use std::os::unix::process::ExitStatusExt;
+                        log::warn!("Command terminated: {} {} || signal={:?}, core dumped={}, stopped signal={:?}, continued={}", executable, format_args(), output.status.signal(), output.status.core_dumped(), output.status.stopped_signal(), output.status.continued());
+                    }
+
+                    #[cfg(not(unix))]
+                    {
+                        log::warn!("Command terminated: {} {}", executable, format_args());
+                    }
+
+                    Err(CommandError::Terminated {
+                        program: executable.to_string(),
+                        args: collect_args(),
+                    })
+                }
             }
-            Some(code) => {
-                log::error!("Command failed with {}: {} {}", code, executable, format_args());
-
-                let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-                log::error!("Command stdout: {}", stdout);
-                log::error!("Command stderr: {}", stderr);
-
-                Err(CommandError::Exited {
-                    program: executable.to_string(),
-                    args: collect_args(),
-                    code,
-                    stdout: (!stdout.is_empty()).then_some(stdout),
-                    stderr: (!stderr.is_empty()).then_some(stderr),
-                })
-            }
-            None => {
-                log::warn!("Command terminated: {} {}", executable, format_args());
-                Err(CommandError::Terminated {
-                    program: executable.to_string(),
-                    args: collect_args(),
-                })
-            }
-        },
+        }
         Err(error) => {
             log::warn!("Command did not launch: {} {}", executable, format_args());
             Err(CommandError::Launched {
