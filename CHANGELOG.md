@@ -12,6 +12,7 @@
   * When the game list is filtered,
     the summary line (e.g., "1 of 10 games") now reflects the filtered totals.
   * The `enable/disable all` buttons are now constrained by the active filter.
+  * GUI: Changed some icons to a softer version.
 * Fixed:
   * If a custom game's title begins or ends with a space,
     that custom game will now be ignored.
