@@ -1,4 +1,23 @@
-use crate::{lang::TRANSLATOR, prelude::Error};
+use crate::{
+    lang::TRANSLATOR,
+    prelude::{Error, STEAM_DECK_GAME_MODE},
+};
+
+enum System {
+    Native,
+    Iced,
+}
+
+impl System {
+    fn best() -> Self {
+        if *STEAM_DECK_GAME_MODE {
+            // Native dialogs don't work in game mode.
+            Self::Iced
+        } else {
+            Self::Native
+        }
+    }
+}
 
 /// GUI looks nicer with an extra empty line as separator, but for terminals a single
 /// newline is sufficient
@@ -45,12 +64,19 @@ pub fn alert_with_error(gui: bool, force: bool, msg: &str, error: &Error) -> Res
 pub fn alert(gui: bool, force: bool, msg: &str) -> Result<(), Error> {
     log::debug!("Showing alert to user (GUI={}, force={}): {}", gui, force, msg);
     if gui {
-        rfd::MessageDialog::new()
-            .set_title(TRANSLATOR.app_name())
-            .set_description(msg)
-            .set_level(rfd::MessageLevel::Error)
-            .set_buttons(rfd::MessageButtons::Ok)
-            .show();
+        match System::best() {
+            System::Native => {
+                rfd::MessageDialog::new()
+                    .set_title(TRANSLATOR.app_name())
+                    .set_description(msg)
+                    .set_level(rfd::MessageLevel::Error)
+                    .set_buttons(rfd::MessageButtons::Ok)
+                    .show();
+            }
+            System::Iced => {
+                crate::gui::dialog::error(msg);
+            }
+        }
         Ok(())
     } else if !force {
         // TODO: Dialoguer doesn't have an alert type.
@@ -79,18 +105,23 @@ pub fn confirm(gui: bool, force: Option<bool>, msg: &str) -> Result<bool, Error>
     }
 
     if gui {
-        let choice = match rfd::MessageDialog::new()
-            .set_title(TRANSLATOR.app_name())
-            .set_description(msg)
-            .set_level(rfd::MessageLevel::Info)
-            .set_buttons(rfd::MessageButtons::YesNo)
-            .show()
-        {
-            rfd::MessageDialogResult::Yes => true,
-            rfd::MessageDialogResult::No => false,
-            rfd::MessageDialogResult::Ok => true,
-            rfd::MessageDialogResult::Cancel => false,
-            rfd::MessageDialogResult::Custom(_) => false,
+        let choice = match System::best() {
+            System::Native => {
+                match rfd::MessageDialog::new()
+                    .set_title(TRANSLATOR.app_name())
+                    .set_description(msg)
+                    .set_level(rfd::MessageLevel::Info)
+                    .set_buttons(rfd::MessageButtons::YesNo)
+                    .show()
+                {
+                    rfd::MessageDialogResult::Yes => true,
+                    rfd::MessageDialogResult::No => false,
+                    rfd::MessageDialogResult::Ok => true,
+                    rfd::MessageDialogResult::Cancel => false,
+                    rfd::MessageDialogResult::Custom(_) => false,
+                }
+            }
+            System::Iced => crate::gui::dialog::confirm(msg),
         };
         log::debug!("User responded: {}", choice);
         Ok(choice)

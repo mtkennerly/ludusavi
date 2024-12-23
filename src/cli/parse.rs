@@ -398,6 +398,15 @@ pub enum Subcommand {
         #[clap(subcommand)]
         kind: SchemaSubcommand,
     },
+    /// For internal use; not a stable interface.
+    /// Show custom dialogs.
+    #[clap(hide = true)]
+    Dialog {
+        #[clap(long, value_parser = possible_values!(crate::gui::dialog::Kind, ALL_CLI))]
+        kind: crate::gui::dialog::Kind,
+        #[clap(long)]
+        message: String,
+    },
 }
 
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]

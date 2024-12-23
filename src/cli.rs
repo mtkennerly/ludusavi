@@ -1021,6 +1021,12 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             };
             println!("{serialized}");
         }
+        Subcommand::Dialog { kind, message } => {
+            if let Err(e) = crate::gui::dialog::run(config.theme, kind, message) {
+                log::error!("Failed to run custom dialog: {e:?}");
+                failed = true;
+            }
+        }
     }
     if failed {
         Err(Error::SomeEntriesFailed)

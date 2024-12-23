@@ -36,6 +36,8 @@ pub const INVALID_FILE_CHARS: &[char] = &['\\', '/', ':', '*', '?', '"', '<', '>
 
 pub static STEAM_DECK: LazyLock<bool> =
     LazyLock::new(|| Os::HOST == Os::Linux && StrictPath::new("/home/deck".to_string()).exists());
+pub static STEAM_DECK_GAME_MODE: LazyLock<bool> =
+    LazyLock::new(|| Os::HOST == Os::Linux && std::env::var("SteamDeck").is_ok_and(|x| &x == "1"));
 pub static OS_USERNAME: LazyLock<String> = LazyLock::new(whoami::username);
 
 pub static AVAILABLE_PARALELLISM: LazyLock<Option<NonZeroUsize>> =

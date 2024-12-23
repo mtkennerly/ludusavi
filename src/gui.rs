@@ -2,6 +2,7 @@ mod app;
 mod badge;
 mod button;
 mod common;
+pub mod dialog;
 mod editor;
 mod file_tree;
 mod font;

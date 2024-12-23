@@ -12,6 +12,9 @@
   * When the game list is filtered,
     the summary line (e.g., "1 of 10 games") now reflects the filtered totals.
   * The `enable/disable all` buttons are now constrained by the active filter.
+  * CLI: On Steam Deck, when game mode is active,
+    the `wrap --gui` command will use custom dialogs instead of native ones,
+    because native dialogs don't work properly in game mode.
 * Fixed:
   * If a custom game's title begins or ends with a space,
     that custom game will now be ignored.
