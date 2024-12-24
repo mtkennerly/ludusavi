@@ -1,4 +1,5 @@
 use std::{
+    collections::HashMap,
     num::NonZeroUsize,
     path::PathBuf,
     sync::{atomic::AtomicBool, Arc, LazyLock, Mutex},
@@ -221,10 +222,21 @@ pub fn run_command(
     success: &[i32],
     privacy: Privacy,
 ) -> Result<CommandOutput, CommandError> {
+    run_command_env(executable, args, success, privacy, HashMap::new())
+}
+
+pub fn run_command_env(
+    executable: &str,
+    args: &[&str],
+    success: &[i32],
+    privacy: Privacy,
+    env: HashMap<String, String>,
+) -> Result<CommandOutput, CommandError> {
     let mut command = std::process::Command::new(executable);
     command.stdout(std::process::Stdio::piped());
     command.stderr(std::process::Stdio::piped());
     command.args(args);
+    command.envs(env);
 
     #[cfg(target_os = "windows")]
     {

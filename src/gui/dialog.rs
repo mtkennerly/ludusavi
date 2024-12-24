@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use iced::{
     alignment,
     widget::{button, text, Column, Container, Row},
@@ -7,7 +9,7 @@ use iced::{
 use crate::{
     gui::{icon::Icon, style},
     lang::TRANSLATOR,
-    prelude::{run_command, Privacy},
+    prelude::{run_command_env, Privacy},
     resource::config,
 };
 
@@ -28,11 +30,12 @@ pub fn confirm(message: &str) -> bool {
 
 pub fn show(kind: Kind, message: &str) -> bool {
     let exe = std::env::current_exe().unwrap().to_string_lossy().to_string();
-    match run_command(
+    match run_command_env(
         &exe,
         &["dialog", "--kind", kind.slug(), "--message", message],
         &[0],
         Privacy::Public,
+        HashMap::from_iter([("RUST_LOG".to_string(), "debug".to_string())]),
     ) {
         Ok(info) => info.stdout.contains(POSITIVE_CHOICE),
         Err(e) => {
