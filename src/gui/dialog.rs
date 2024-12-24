@@ -35,7 +35,10 @@ pub fn show(kind: Kind, message: &str) -> bool {
         &["dialog", "--kind", kind.slug(), "--message", message],
         &[0],
         Privacy::Public,
-        HashMap::from_iter([("RUST_LOG".to_string(), "debug".to_string())]),
+        HashMap::from_iter([
+            ("RUST_LOG".to_string(), "debug".to_string()),
+            ("ICED_BACKEND".to_string(), "tiny-skia".to_string()),
+        ]),
     ) {
         Ok(info) => info.stdout.contains(POSITIVE_CHOICE),
         Err(e) => {
