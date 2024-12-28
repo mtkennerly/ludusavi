@@ -20,6 +20,20 @@ In some cases, the Flatpak environment's constraints may keep Ludusavi from laun
 
 You must do this for each game individually.
 
+### Non-Steam shortcuts
+As of 2024-12-27,
+non-Steam games added as shortcuts in Steam won't work with the above method.
+Instead, you have to flip the target and launch option fields like so:
+
+* Set the `target` to `C:\ludusavi.exe` (path to your Ludusavi executable)
+* Set the launch options to `wrap --name "GAME NAME" --gui -- "C:\path\to\game.exe"`
+
+On the Steam Deck in game mode,
+using the Steam overlay to quit the game will also quit the Ludusavi wrapper,
+preventing the post-game prompt to back up the save data.
+To avoid this, you should use the game's built-in quit option instead.
+Currently, this has only been confirmed to happen in game mode, not desktop mode or Big Picture.
+
 ## Heroic
 ### Heroic 2.9.2+ (Linux example)
 Create a file named `ludusavi-wrap.sh` with this content:
