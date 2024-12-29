@@ -60,6 +60,7 @@ one when the game starts, and one when the game stops.
 In Playnite, navigate to settings -> scripts -> game scripts,
 and configure the following:
 
+<!-- `--gui` -->
 * Execute before starting a game
   (if you want Ludusavi to restore your latest backup):
   ```

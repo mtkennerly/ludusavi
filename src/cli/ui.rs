@@ -58,24 +58,36 @@ pub fn alert(gui: bool, force: bool, msg: &str) -> Result<(), Error> {
         println!("{}", msg);
         pause()
     } else {
+        println!("{}", msg);
         Ok(())
     }
 }
 
-pub fn confirm_with_question(gui: bool, force: Option<bool>, msg: &str, question: &str) -> Result<bool, Error> {
-    if let Some(force) = force {
-        _ = alert(gui, true, msg);
-        return Ok(force);
+pub fn confirm_with_question(gui: bool, force: bool, preview: bool, msg: &str, question: &str) -> Result<bool, Error> {
+    if force || preview {
+        _ = alert(gui, force, msg);
+        return Ok(true);
     }
 
-    confirm(gui, None, &format!("{}{}{}", msg, get_separator(gui), question))
+    confirm(
+        gui,
+        force,
+        preview,
+        &format!("{}{}{}", msg, get_separator(gui), question),
+    )
 }
 
-pub fn confirm(gui: bool, force: Option<bool>, msg: &str) -> Result<bool, Error> {
-    log::debug!("Showing confirmation to user (GUI={}, force={:?}): {}", gui, force, msg);
+pub fn confirm(gui: bool, force: bool, preview: bool, msg: &str) -> Result<bool, Error> {
+    log::debug!(
+        "Showing confirmation to user (GUI={}, force={}, preview={}): {}",
+        gui,
+        force,
+        preview,
+        msg
+    );
 
-    if let Some(force) = force {
-        return Ok(force);
+    if force || preview {
+        return Ok(true);
     }
 
     if gui {

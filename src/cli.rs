@@ -33,6 +33,16 @@ use crate::{
 
 const PROGRESS_BAR_REFRESH_INTERVAL: Duration = Duration::from_millis(50);
 
+pub fn show_error(error: &Error, gui: bool, force: bool) {
+    let message = TRANSLATOR.handle_error(error);
+
+    if gui {
+        let _ = ui::alert(gui, force, &message);
+    } else {
+        eprintln!("{}", message);
+    }
+}
+
 fn negatable_flag(on: bool, off: bool, default: bool) -> bool {
     if on {
         true
@@ -134,6 +144,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             force,
             wine_prefix,
             api,
+            gui,
             sort,
             format,
             compression,
@@ -156,15 +167,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             };
             let roots = config.expanded_roots();
 
-            if !preview && !force {
-                match dialoguer::Confirm::new()
-                    .with_prompt(TRANSLATOR.confirm_backup(&backup_dir, backup_dir.exists(), false))
-                    .interact()
-                {
-                    Ok(true) => (),
-                    Ok(false) => return Ok(()),
-                    Err(_) => return Err(Error::CliUnableToRequestConfirmation),
-                }
+            if !ui::confirm(
+                gui,
+                force,
+                preview,
+                &TRANSLATOR.confirm_backup(&backup_dir, backup_dir.exists(), false),
+            )? {
+                return Ok(());
             }
 
             if !preview {
@@ -356,6 +365,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             path,
             force,
             api,
+            gui,
             sort,
             backup,
             cloud_sync,
@@ -371,15 +381,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 Some(p) => p,
             };
 
-            if !preview && !force {
-                match dialoguer::Confirm::new()
-                    .with_prompt(TRANSLATOR.confirm_restore(&restore_dir, false))
-                    .interact()
-                {
-                    Ok(true) => (),
-                    Ok(false) => return Ok(()),
-                    Err(_) => return Err(Error::CliUnableToRequestConfirmation),
-                }
+            if !ui::confirm(gui, force, preview, &TRANSLATOR.confirm_restore(&restore_dir, false))? {
+                return Ok(());
             }
 
             let layout = BackupLayout::new(restore_dir.clone());
@@ -745,6 +748,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 force,
                 preview,
                 api,
+                gui,
                 games,
             } => {
                 let games = parse_games(games);
@@ -769,10 +773,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     }
                 };
 
-                if !ask(
-                    TRANSLATOR.confirm_cloud_upload(&local.render(), &cloud),
-                    finality,
+                if !ui::confirm(
+                    gui,
                     force,
+                    finality.preview(),
+                    &TRANSLATOR.confirm_cloud_upload(&local.render(), &cloud),
                 )? {
                     return Ok(());
                 }
@@ -786,6 +791,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 force,
                 preview,
                 api,
+                gui,
                 games,
             } => {
                 let games = parse_games(games);
@@ -810,10 +816,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     }
                 };
 
-                if !ask(
-                    TRANSLATOR.confirm_cloud_download(&local.render(), &cloud),
-                    finality,
+                if !ui::confirm(
+                    gui,
                     force,
+                    finality.preview(),
+                    &TRANSLATOR.confirm_cloud_download(&local.render(), &cloud),
                 )? {
                     return Ok(());
                 }
@@ -831,6 +838,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
             let layout = BackupLayout::new(config.restore.path.clone());
             let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
+            let preview = false;
 
             // Determine raw game identifiers
             let wrap_game_info = if let Some(name) = name_source.name.as_ref() {
@@ -873,7 +881,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 None => {
                     if !ui::confirm_with_question(
                         gui,
-                        force.then_some(true),
+                        force,
+                        preview,
                         &TRANSLATOR.game_is_unrecognized(),
                         &TRANSLATOR.launch_game_after_error(),
                     )? {
@@ -893,7 +902,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 if !game_layout.has_backups() {
                     if ui::confirm_with_question(
                         gui,
-                        force.then_some(true),
+                        force,
+                        preview,
                         &TRANSLATOR.game_has_nothing_to_restore(),
                         &TRANSLATOR.launch_game_after_error(),
                     )? {
@@ -903,11 +913,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     }
                 }
 
-                if !ui::confirm(
-                    gui,
-                    force.then_some(true),
-                    &TRANSLATOR.restore_one_game_confirm(game_name),
-                )? {
+                if !ui::confirm(gui, force, preview, &TRANSLATOR.restore_one_game_confirm(game_name))? {
                     break 'restore;
                 }
 
@@ -918,6 +924,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         preview: Default::default(),
                         path: Default::default(),
                         api: Default::default(),
+                        gui: Default::default(),
                         sort: Default::default(),
                         backup: Default::default(),
                         cloud_sync: Default::default(),
@@ -952,11 +959,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     break 'backup;
                 };
 
-                if !ui::confirm(
-                    gui,
-                    force.then_some(true),
-                    &TRANSLATOR.back_up_one_game_confirm(game_name),
-                )? {
+                if !ui::confirm(gui, force, preview, &TRANSLATOR.back_up_one_game_confirm(game_name))? {
                     break 'backup;
                 }
 
@@ -968,6 +971,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         path: Default::default(),
                         wine_prefix: Default::default(),
                         api: Default::default(),
+                        gui: Default::default(),
                         sort: Default::default(),
                         format: Default::default(),
                         compression: Default::default(),
@@ -1041,17 +1045,6 @@ fn configure_cloud(config: &mut Config, remote: Remote) -> Result<(), Error> {
     config.cloud.remote = Some(remote);
     config.save();
     Ok(())
-}
-
-fn ask(question: String, finality: Finality, force: bool) -> Result<bool, Error> {
-    if finality.preview() || force {
-        Ok(true)
-    } else {
-        dialoguer::Confirm::new()
-            .with_prompt(question)
-            .interact()
-            .map_err(|_| Error::CliUnableToRequestConfirmation)
-    }
 }
 
 fn scan_progress_bar(length: u64) -> ProgressBar {

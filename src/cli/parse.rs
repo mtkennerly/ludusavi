@@ -159,6 +159,10 @@ pub enum Subcommand {
         #[clap(long)]
         api: bool,
 
+        /// Use GUI dialogs for prompts and some information.
+        #[clap(long)]
+        gui: bool,
+
         /// Sort the game list by different criteria.
         /// When not specified, this defers to the config file.
         #[clap(long, value_parser = possible_values!(CliSort, ALL))]
@@ -229,6 +233,10 @@ pub enum Subcommand {
         /// This replaces the default, human-readable output.
         #[clap(long)]
         api: bool,
+
+        /// Use GUI dialogs for prompts and some information.
+        #[clap(long)]
+        gui: bool,
 
         /// Sort the game list by different criteria.
         /// When not specified, this defers to Ludusavi's config file.
@@ -400,6 +408,38 @@ pub enum Subcommand {
     },
 }
 
+impl Subcommand {
+    pub fn force(&self) -> bool {
+        match self {
+            Self::Backup { force, .. } => *force,
+            Self::Restore { force, .. } => *force,
+            Self::Complete { .. } => false,
+            Self::Backups { .. } => false,
+            Self::Find { .. } => false,
+            Self::Manifest { .. } => false,
+            Self::Cloud { sub } => sub.force(),
+            Self::Wrap { force, .. } => *force,
+            Self::Api { .. } => false,
+            Self::Schema { .. } => false,
+        }
+    }
+
+    pub fn gui(&self) -> bool {
+        match self {
+            Self::Backup { gui, .. } => *gui,
+            Self::Restore { gui, .. } => *gui,
+            Self::Complete { .. } => false,
+            Self::Backups { .. } => false,
+            Self::Find { .. } => false,
+            Self::Manifest { .. } => false,
+            Self::Cloud { sub } => sub.gui(),
+            Self::Wrap { gui, .. } => *gui,
+            Self::Api { .. } => false,
+            Self::Schema { .. } => false,
+        }
+    }
+}
+
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
 pub enum ManifestSubcommand {
     /// Print the content of the manifest, including any custom entries.
@@ -449,6 +489,10 @@ pub enum CloudSubcommand {
         #[clap(long)]
         api: bool,
 
+        /// Use GUI dialogs for prompts and some information.
+        #[clap(long)]
+        gui: bool,
+
         /// Only sync these specific games.
         /// Alternatively supports stdin (one value per line).
         #[clap()]
@@ -479,11 +523,33 @@ pub enum CloudSubcommand {
         #[clap(long)]
         api: bool,
 
+        /// Use GUI dialogs for prompts and some information.
+        #[clap(long)]
+        gui: bool,
+
         /// Only sync these specific games.
         /// Alternatively supports stdin (one value per line).
         #[clap()]
         games: Vec<String>,
     },
+}
+
+impl CloudSubcommand {
+    pub fn force(&self) -> bool {
+        match self {
+            Self::Set { .. } => false,
+            Self::Upload { force, .. } => *force,
+            Self::Download { force, .. } => *force,
+        }
+    }
+
+    pub fn gui(&self) -> bool {
+        match self {
+            Self::Set { .. } => false,
+            Self::Upload { gui, .. } => *gui,
+            Self::Download { gui, .. } => *gui,
+        }
+    }
 }
 
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
@@ -646,6 +712,7 @@ mod tests {
                     force: false,
                     wine_prefix: None,
                     api: false,
+                    gui: false,
                     sort: None,
                     format: None,
                     compression: None,
@@ -673,6 +740,7 @@ mod tests {
                 "--wine-prefix",
                 "tests/wine-prefix",
                 "--api",
+                "--gui",
                 "--sort",
                 "name",
                 "--format",
@@ -699,6 +767,7 @@ mod tests {
                     force: true,
                     wine_prefix: Some(StrictPath::relative(s("tests/wine-prefix"), Some(repo_raw()))),
                     api: true,
+                    gui: true,
                     sort: Some(CliSort::Name),
                     format: Some(BackupFormat::Zip),
                     compression: Some(ZipCompression::Bzip2),
@@ -727,6 +796,7 @@ mod tests {
                     force: false,
                     wine_prefix: None,
                     api: false,
+                    gui: false,
                     sort: None,
                     format: None,
                     compression: None,
@@ -763,6 +833,7 @@ mod tests {
                         force: false,
                         wine_prefix: None,
                         api: false,
+                        gui: false,
                         sort: Some(sort),
                         format: None,
                         compression: None,
@@ -792,6 +863,7 @@ mod tests {
                     force: false,
                     wine_prefix: None,
                     api: false,
+                    gui: false,
                     sort: None,
                     format: None,
                     compression: None,
@@ -819,6 +891,7 @@ mod tests {
                     path: None,
                     force: false,
                     api: false,
+                    gui: false,
                     sort: None,
                     backup: None,
                     cloud_sync: false,
@@ -860,6 +933,7 @@ mod tests {
                     )),
                     force: true,
                     api: true,
+                    gui: false,
                     sort: Some(CliSort::Name),
                     backup: Some(s(".")),
                     cloud_sync: true,
@@ -899,6 +973,7 @@ mod tests {
                         path: None,
                         force: false,
                         api: false,
+                        gui: false,
                         sort: Some(sort),
                         backup: None,
                         cloud_sync: false,

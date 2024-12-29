@@ -17,7 +17,6 @@ mod testing;
 
 use crate::{
     gui::Flags,
-    lang::TRANSLATOR,
     prelude::{app_dir, CONFIG_DIR, VERSION},
 };
 
@@ -142,10 +141,13 @@ fn main() {
             #[allow(unused)]
             let logger = prepare_logging();
 
+            let gui = sub.gui();
+            let force = sub.force();
+
             log::debug!("Version: {}", *VERSION);
 
             if let Err(e) = cli::run(sub, args.no_manifest_update, args.try_manifest_update) {
-                eprintln!("{}", TRANSLATOR.handle_error(&e));
+                cli::show_error(&e, gui, force);
                 std::process::exit(1);
             }
         }

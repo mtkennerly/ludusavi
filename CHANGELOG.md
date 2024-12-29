@@ -8,11 +8,16 @@
     This can be used to satisfy the `<base>` and `<game>` path placeholders
     in cases where Ludusavi can't automatically detect the right folder.
     For more info, [see the custom games document](/docs/help/custom-games.md).
+  * CLI: The `backup`, `restore`, `cloud upload`, and `cloud download` commands
+    now support a `--gui` option for graphical dialog prompts.
 * Changed:
   * When the game list is filtered,
     the summary line (e.g., "1 of 10 games") now reflects the filtered totals.
   * The `enable/disable all` buttons are now constrained by the active filter.
   * GUI: Changed some icons to a softer version.
+  * CLI: When using the `--gui` option of any command that supports it,
+    errors at the end of the process will also be reported via dialogs.
+    This does not apply to CLI parse errors.
 * Fixed:
   * If a custom game's title begins or ends with a space,
     that custom game will now be ignored.
