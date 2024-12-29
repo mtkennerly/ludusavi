@@ -119,9 +119,9 @@ pub fn evaluate_games(
     Ok(valid.into_iter().collect())
 }
 
-pub fn parse() -> Cli {
+pub fn parse() -> Result<Cli, clap::Error> {
     use clap::Parser;
-    Cli::parse()
+    Cli::try_parse()
 }
 
 pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool) -> Result<(), Error> {
@@ -135,7 +135,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
     let mut duplicate_detector = DuplicateDetector::default();
 
     log::debug!("Config on startup: {config:?}");
-    log::debug!("Invocation: {sub:?}");
 
     match sub {
         Subcommand::Backup {

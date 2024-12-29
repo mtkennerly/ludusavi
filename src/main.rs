@@ -20,14 +20,13 @@ use crate::{
     prelude::{app_dir, CONFIG_DIR, VERSION},
 };
 
-/// The logger must be assigned to a variable because we're using async logging.
-/// We should also avoid doing this if we're just going to relaunch into detached mode anyway.
+/// The logger handle must be retained until the application closes.
 /// https://docs.rs/flexi_logger/0.23.1/flexi_logger/error_info/index.html#write
 fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLoggerError> {
     flexi_logger::Logger::try_with_env_or_str("ludusavi=warn")
         .unwrap()
         .log_to_file(flexi_logger::FileSpec::default().directory(app_dir().as_std_path_buf().unwrap()))
-        .write_mode(flexi_logger::WriteMode::Async)
+        .write_mode(flexi_logger::WriteMode::BufferAndFlush)
         .rotate(
             flexi_logger::Criterion::Size(1024 * 1024 * 10),
             flexi_logger::Naming::Timestamps,
@@ -45,6 +44,37 @@ fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLo
             )
         })
         .start()
+}
+
+/// Based on: https://github.com/Traverse-Research/panic-log/blob/874a61b24a8bc8f9b07f9c26dc10b13cbc2622f9/src/lib.rs#L26
+/// Modified to flush a provided log handle.
+fn prepare_panic_hook(handle: Option<flexi_logger::LoggerHandle>) {
+    let original_hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |info| {
+        let thread_name = std::thread::current().name().unwrap_or("<unnamed thread>").to_owned();
+
+        let location = if let Some(panic_location) = info.location() {
+            format!(
+                "{}:{}:{}",
+                panic_location.file(),
+                panic_location.line(),
+                panic_location.column()
+            )
+        } else {
+            "<unknown location>".to_owned()
+        };
+        let message = info.payload().downcast_ref::<&str>().unwrap_or(&"");
+
+        let backtrace = std::backtrace::Backtrace::force_capture();
+
+        log::error!("thread '{thread_name}' panicked at {location}:\n{message}\nstack backtrace:\n{backtrace}");
+
+        if let Some(handle) = handle.clone() {
+            handle.flush();
+        }
+
+        original_hook(info);
+    }));
 }
 
 /// Detach the current process from its console on Windows.
@@ -87,6 +117,10 @@ fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLo
 /// ("The request is not supported (os error 50)"),
 /// but that has been solved by resetting the standard device handles:
 /// https://github.com/rust-lang/rust/issues/113277
+///
+/// Watch out for non-obvious code paths that may defeat detachment.
+/// flexi_logger's `colors` feature would cause the console to stick around
+/// if logging was enabled before detaching.
 #[cfg(target_os = "windows")]
 unsafe fn detach_console() {
     use windows::Win32::{
@@ -94,26 +128,58 @@ unsafe fn detach_console() {
         System::Console::{FreeConsole, SetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE},
     };
 
+    fn tell(msg: &str) {
+        eprintln!("{}", msg);
+        log::error!("{}", msg);
+    }
+
     if FreeConsole().is_err() {
-        eprintln!("Unable to detach the console");
+        tell("Unable to detach the console");
         std::process::exit(1);
     }
     if SetStdHandle(STD_INPUT_HANDLE, HANDLE::default()).is_err() {
-        eprintln!("Unable to reset stdin handle");
+        tell("Unable to reset stdin handle");
         std::process::exit(1);
     }
     if SetStdHandle(STD_OUTPUT_HANDLE, HANDLE::default()).is_err() {
-        eprintln!("Unable to reset stdout handle");
+        tell("Unable to reset stdout handle");
         std::process::exit(1);
     }
     if SetStdHandle(STD_ERROR_HANDLE, HANDLE::default()).is_err() {
-        eprintln!("Unable to reset stderr handle");
+        tell("Unable to reset stderr handle");
         std::process::exit(1);
     }
 }
 
 fn main() {
-    let args = cli::parse();
+    let mut failed = false;
+
+    let mut logger = prepare_logging();
+    #[allow(clippy::useless_asref)]
+    prepare_panic_hook(logger.as_ref().map(|x| x.clone()).ok());
+    let mut flush_logger = || {
+        if let Ok(logger) = &mut logger {
+            logger.flush();
+        }
+    };
+
+    log::debug!("Version: {}", *VERSION);
+    log::debug!("Invocation: {:?}", std::env::args());
+
+    let args = match cli::parse() {
+        Ok(x) => x,
+        Err(e) => {
+            match e.kind() {
+                clap::error::ErrorKind::DisplayHelp | clap::error::ErrorKind::DisplayVersion => {}
+                _ => {
+                    log::error!("CLI failed to parse: {e}");
+                }
+            }
+            flush_logger();
+            e.exit()
+        }
+    };
+
     if let Some(config_dir) = args.config.as_deref() {
         *CONFIG_DIR.lock().unwrap() = Some(config_dir.to_path_buf());
     }
@@ -126,30 +192,25 @@ fn main() {
                 }
             }
 
-            // We must do this after detaching the console, or else it will still be present, somehow.
-            #[allow(unused)]
-            let logger = prepare_logging();
-
-            log::debug!("Version: {}", *VERSION);
-
             let flags = Flags {
                 update_manifest: !args.no_manifest_update,
             };
             gui::run(flags);
         }
         Some(sub) => {
-            #[allow(unused)]
-            let logger = prepare_logging();
-
             let gui = sub.gui();
             let force = sub.force();
 
-            log::debug!("Version: {}", *VERSION);
-
             if let Err(e) = cli::run(sub, args.no_manifest_update, args.try_manifest_update) {
+                failed = true;
                 cli::show_error(&e, gui, force);
-                std::process::exit(1);
             }
         }
     };
+
+    flush_logger();
+
+    if failed {
+        std::process::exit(1);
+    }
 }

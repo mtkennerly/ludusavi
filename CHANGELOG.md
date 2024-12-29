@@ -18,6 +18,7 @@
   * CLI: When using the `--gui` option of any command that supports it,
     errors at the end of the process will also be reported via dialogs.
     This does not apply to CLI parse errors.
+  * Application crash and CLI parse errors are now logged.
 * Fixed:
   * If a custom game's title begins or ends with a space,
     that custom game will now be ignored.
