@@ -14,7 +14,7 @@ use rayon::{
 
 use crate::{
     cli::{
-        parse::{Cli, CompletionShell, ManifestSubcommand, Subcommand},
+        parse::{Cli, CompletionShell, ConfigSubcommand, ManifestSubcommand, Subcommand},
         report::{report_cloud_changes, Reporter},
     },
     cloud::{CloudChange, Rclone, Remote},
@@ -662,6 +662,19 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
             ManifestSubcommand::Update { force } => {
                 Manifest::update_mut(&config, &mut cache, force)?;
+            }
+        },
+        Subcommand::Config { sub: config_sub } => match config_sub {
+            ConfigSubcommand::Show { api, default } => {
+                if default {
+                    config = Config::default();
+                }
+
+                if api {
+                    println!("{}", serde_json::to_string(&config).unwrap());
+                } else {
+                    println!("{}", serde_yaml::to_string(&config).unwrap());
+                }
             }
         },
         Subcommand::Cloud { sub: cloud_sub } => match cloud_sub {

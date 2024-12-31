@@ -365,6 +365,11 @@ pub enum Subcommand {
         #[clap(subcommand)]
         sub: ManifestSubcommand,
     },
+    /// Options for Ludusavi's configuration.
+    Config {
+        #[clap(subcommand)]
+        sub: ConfigSubcommand,
+    },
     /// Cloud sync.
     Cloud {
         #[clap(subcommand)]
@@ -427,6 +432,7 @@ impl Subcommand {
             Self::Backups { .. } => false,
             Self::Find { .. } => false,
             Self::Manifest { .. } => false,
+            Self::Config { .. } => false,
             Self::Cloud { sub } => sub.force(),
             Self::Wrap { force, .. } => *force,
             Self::Api { .. } => false,
@@ -442,6 +448,7 @@ impl Subcommand {
             Self::Backups { .. } => false,
             Self::Find { .. } => false,
             Self::Manifest { .. } => false,
+            Self::Config { .. } => false,
             Self::Cloud { sub } => sub.gui(),
             Self::Wrap { gui, .. } => *gui,
             Self::Api { .. } => false,
@@ -464,6 +471,20 @@ pub enum ManifestSubcommand {
         /// Check again even if the most recent check was within the last 24 hours.
         #[clap(long)]
         force: bool,
+    },
+}
+
+#[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
+pub enum ConfigSubcommand {
+    /// Print the active configuration.
+    Show {
+        /// Print information to stdout in machine-readable JSON.
+        #[clap(long)]
+        api: bool,
+
+        /// Print the default configuration.
+        #[clap(long)]
+        default: bool,
     },
 }
 

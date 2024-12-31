@@ -8,6 +8,7 @@
     This can be used to satisfy the `<base>` and `<game>` path placeholders
     in cases where Ludusavi can't automatically detect the right folder.
     For more info, [see the custom games document](/docs/help/custom-games.md).
+  * CLI: `config show` command.
   * CLI: The `backup`, `restore`, `cloud upload`, and `cloud download` commands
     now support a `--gui` option for graphical dialog prompts.
   * CLI: The `backup` and `restore` commands now support a `--dump-registry` option,
