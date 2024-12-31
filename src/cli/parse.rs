@@ -209,6 +209,11 @@ pub enum Subcommand {
         #[clap(long, conflicts_with("cloud_sync"))]
         no_cloud_sync: bool,
 
+        /// Include the serialized registry content in the output.
+        /// Only includes the native Windows registry, not Wine.
+        #[clap(long)]
+        dump_registry: bool,
+
         /// Only back up these specific games.
         /// Alternatively supports stdin (one value per line).
         #[clap()]
@@ -259,6 +264,11 @@ pub enum Subcommand {
         /// When not specified, this defers to the config file.
         #[clap(long, conflicts_with("cloud_sync"))]
         no_cloud_sync: bool,
+
+        /// Include the serialized registry content in the output.
+        /// Only includes the native Windows registry, not Wine.
+        #[clap(long)]
+        dump_registry: bool,
 
         /// Only restore these specific games.
         /// Alternatively supports stdin (one value per line).
@@ -721,6 +731,7 @@ mod tests {
                     differential_limit: None,
                     cloud_sync: false,
                     no_cloud_sync: false,
+                    dump_registry: false,
                     games: vec![],
                 }),
             },
@@ -754,6 +765,7 @@ mod tests {
                 "--differential-limit",
                 "2",
                 "--cloud-sync",
+                "--dump-registry",
                 "game1",
                 "game2",
             ],
@@ -776,6 +788,7 @@ mod tests {
                     differential_limit: Some(2),
                     cloud_sync: true,
                     no_cloud_sync: false,
+                    dump_registry: true,
                     games: vec![s("game1"), s("game2")],
                 }),
             },
@@ -805,6 +818,7 @@ mod tests {
                     differential_limit: None,
                     cloud_sync: false,
                     no_cloud_sync: false,
+                    dump_registry: false,
                     games: vec![],
                 }),
             },
@@ -842,6 +856,7 @@ mod tests {
                         differential_limit: None,
                         cloud_sync: false,
                         no_cloud_sync: false,
+                        dump_registry: false,
                         games: vec![],
                     }),
                 },
@@ -872,6 +887,7 @@ mod tests {
                     differential_limit: None,
                     cloud_sync: false,
                     no_cloud_sync: false,
+                    dump_registry: false,
                     games: vec![],
                 }),
             },
@@ -896,6 +912,7 @@ mod tests {
                     backup: None,
                     cloud_sync: false,
                     no_cloud_sync: false,
+                    dump_registry: false,
                     games: vec![],
                 }),
             },
@@ -918,6 +935,7 @@ mod tests {
                 "--backup",
                 ".",
                 "--cloud-sync",
+                "--dump-registry",
                 "game1",
                 "game2",
             ],
@@ -938,6 +956,7 @@ mod tests {
                     backup: Some(s(".")),
                     cloud_sync: true,
                     no_cloud_sync: false,
+                    dump_registry: true,
                     games: vec![s("game1"), s("game2")],
                 }),
             },
@@ -978,6 +997,7 @@ mod tests {
                         backup: None,
                         cloud_sync: false,
                         no_cloud_sync: false,
+                        dump_registry: false,
                         games: vec![],
                     }),
                 },

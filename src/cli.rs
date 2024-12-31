@@ -152,6 +152,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             differential_limit,
             cloud_sync,
             no_cloud_sync,
+            dump_registry,
             games,
         } => {
             let games = parse_games(games);
@@ -353,7 +354,14 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
 
             for (name, scan_info, backup_info, decision) in info {
-                if !reporter.add_game(name, &scan_info, backup_info.as_ref(), &decision, &duplicate_detector) {
+                if !reporter.add_game(
+                    name,
+                    &scan_info,
+                    backup_info.as_ref(),
+                    &decision,
+                    &duplicate_detector,
+                    dump_registry,
+                ) {
                     failed = true;
                 }
             }
@@ -369,6 +377,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             backup,
             cloud_sync,
             no_cloud_sync,
+            dump_registry,
             games,
         } => {
             let games = parse_games(games);
@@ -517,7 +526,14 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
 
             for (name, scan_info, backup_info, decision, _) in info {
-                if !reporter.add_game(name, &scan_info, Some(&backup_info), &decision, &duplicate_detector) {
+                if !reporter.add_game(
+                    name,
+                    &scan_info,
+                    Some(&backup_info),
+                    &decision,
+                    &duplicate_detector,
+                    dump_registry,
+                ) {
                     failed = true;
                 }
             }
@@ -928,6 +944,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         backup: Default::default(),
                         cloud_sync: Default::default(),
                         no_cloud_sync: Default::default(),
+                        dump_registry: Default::default(),
                     },
                     no_manifest_update,
                     try_manifest_update,
@@ -979,6 +996,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         differential_limit: Default::default(),
                         cloud_sync: Default::default(),
                         no_cloud_sync: Default::default(),
+                        dump_registry: Default::default(),
                     },
                     no_manifest_update,
                     try_manifest_update,

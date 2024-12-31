@@ -518,6 +518,8 @@ pub fn scan_game_for_backup(
     let mut found_files = HashMap::new();
     #[cfg_attr(not(target_os = "windows"), allow(unused))]
     let mut found_registry_keys = HashMap::new();
+    #[allow(unused)]
+    let mut dumped_registry = None;
     let has_backups = previous.is_some();
 
     let mut paths_to_check = HashSet::<(StrictPath, Option<bool>)>::new();
@@ -783,6 +785,7 @@ pub fn scan_game_for_backup(
     #[cfg(target_os = "windows")]
     {
         let previous_registry = previous.and_then(|x| x.registry_content);
+        let mut current_registry = registry::Hives::default();
 
         for key in game.registry.keys() {
             if key.trim().is_empty() {
@@ -805,10 +808,10 @@ pub fn scan_game_for_backup(
                 ));
             }
 
-            for candidate in candidates {
+            for candidate in &candidates {
                 log::trace!("[{name}] checking registry: {candidate}");
                 for (scan_key, mut scanned) in
-                    registry::win::scan_registry(name, &candidate, filter, ignored_registry, previous_registry.as_ref())
+                    registry::win::scan_registry(name, candidate, filter, ignored_registry, previous_registry.as_ref())
                         .unwrap_or_default()
                 {
                     log::debug!("[{name}] found registry: {}", scan_key.raw());
@@ -831,6 +834,8 @@ pub fn scan_game_for_backup(
                             );
                         }
                     }
+
+                    let _ = current_registry.back_up_key(name, &scan_key, &scanned);
 
                     found_registry_keys.insert(scan_key, scanned);
                 }
@@ -857,6 +862,8 @@ pub fn scan_game_for_backup(
                 }
             }
         }
+
+        dumped_registry = (!current_registry.is_empty()).then_some(current_registry);
     }
 
     log::trace!("[{name}] completed scan for backup");
@@ -868,6 +875,7 @@ pub fn scan_game_for_backup(
         available_backups: vec![],
         backup: None,
         has_backups,
+        dumped_registry,
     }
 }
 
@@ -1527,6 +1535,18 @@ mod tests {
                         .with_value_new("qword")
                         .with_value_new("sz")
                 },
+                dumped_registry: Some(registry::Hives(btree_map! {
+                    r"HKEY_CURRENT_USER".into(): registry::Keys(btree_map! {
+                        r"Software\Ludusavi\game3".into(): registry::Entries(btree_map! {
+                            "binary".into(): registry::Entry::Binary(vec![65]),
+                            "dword".into(): registry::Entry::Dword(1),
+                            "expandSz".into(): registry::Entry::ExpandSz("baz".to_string()),
+                            "multiSz".into(): registry::Entry::MultiSz("bar".to_string()),
+                            "qword".into(): registry::Entry::Qword(2),
+                            "sz".into(): registry::Entry::Sz("foo".to_string()),
+                        }),
+                    })
+                })),
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1567,6 +1587,23 @@ mod tests {
                         .with_value_new("dword"),
                     "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().change_as(ScanChange::New),
                 },
+                dumped_registry: Some(registry::Hives(btree_map! {
+                    r"HKEY_CURRENT_USER".into(): registry::Keys(btree_map! {
+                        r"Software\Ludusavi".into(): registry::Entries(btree_map! {}),
+                        r"Software\Ludusavi\game3".into(): registry::Entries(btree_map! {
+                            "binary".into(): registry::Entry::Binary(vec![65]),
+                            "dword".into(): registry::Entry::Dword(1),
+                            "expandSz".into(): registry::Entry::ExpandSz("baz".to_string()),
+                            "multiSz".into(): registry::Entry::MultiSz("bar".to_string()),
+                            "qword".into(): registry::Entry::Qword(2),
+                            "sz".into(): registry::Entry::Sz("foo".to_string()),
+                        }),
+                        r"Software\Ludusavi\invalid".into(): registry::Entries(btree_map! {
+                            "dword".into(): registry::Entry::Raw { kind: registry::RegistryKind::Dword, data: vec![0, 0, 0, 0, 0, 0, 0, 0] },
+                        }),
+                        r"Software\Ludusavi\other".into(): registry::Entries(btree_map! {}),
+                    })
+                })),
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1610,6 +1647,19 @@ mod tests {
                         .with_value_new("qword")
                         .with_value_new("sz"),
                 },
+                Some(registry::Hives(btree_map! {
+                    r"HKEY_CURRENT_USER".into(): registry::Keys(btree_map! {
+                        r"Software\Ludusavi".into(): registry::Entries(btree_map! {}),
+                        r"Software\Ludusavi\game3".into(): registry::Entries(btree_map! {
+                            "binary".into(): registry::Entry::Binary(vec![65]),
+                            "dword".into(): registry::Entry::Dword(1),
+                            "expandSz".into(): registry::Entry::ExpandSz("baz".to_string()),
+                            "multiSz".into(): registry::Entry::MultiSz("bar".to_string()),
+                            "qword".into(): registry::Entry::Qword(2),
+                            "sz".into(): registry::Entry::Sz("foo".to_string()),
+                        }),
+                    })
+                })),
             ),
             (
                 BackupFilter::default(),
@@ -1631,6 +1681,7 @@ mod tests {
                         .with_value("dword", ScanChange::New, true),
                     "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().ignored().change_as(ScanChange::New),
                 },
+                None,
             ),
             (
                 BackupFilter::default(),
@@ -1658,15 +1709,31 @@ mod tests {
                         .with_value_new("dword"),
                     "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().ignored().change_as(ScanChange::New),
                 },
+                Some(registry::Hives(btree_map! {
+                    r"HKEY_CURRENT_USER".into(): registry::Keys(btree_map! {
+                        r"Software\Ludusavi".into(): registry::Entries(btree_map! {}),
+                        r"Software\Ludusavi\game3".into(): registry::Entries(btree_map! {
+                            "binary".into(): registry::Entry::Binary(vec![65]),
+                            "dword".into(): registry::Entry::Dword(1),
+                            "expandSz".into(): registry::Entry::ExpandSz("baz".to_string()),
+                            "multiSz".into(): registry::Entry::MultiSz("bar".to_string()),
+                            "sz".into(): registry::Entry::Sz("foo".to_string()),
+                        }),
+                        r"Software\Ludusavi\invalid".into(): registry::Entries(btree_map! {
+                            "dword".into(): registry::Entry::Raw { kind: registry::RegistryKind::Dword, data: vec![0, 0, 0, 0, 0, 0, 0, 0] },
+                        }),
+                    })
+                })),
             ),
         ];
 
-        for (filter, ignored, found) in cases {
+        for (filter, ignored, found, dumped_registry) in cases {
             assert_eq!(
                 ScanInfo {
                     game_name: s("game3-outer"),
                     found_files: hash_map! {},
                     found_registry_keys: found,
+                    dumped_registry,
                     ..Default::default()
                 },
                 scan_game_for_backup(

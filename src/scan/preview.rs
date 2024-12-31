@@ -4,8 +4,9 @@ use crate::{
     path::StrictPath,
     resource::config::{ToggledPaths, ToggledRegistry},
     scan::{
-        layout::Backup, registry::RegistryItem, BackupInfo, ScanChange, ScanChangeCount, ScanKind, ScannedFile,
-        ScannedRegistry,
+        layout::Backup,
+        registry::{self, RegistryItem},
+        BackupInfo, ScanChange, ScanChangeCount, ScanKind, ScannedFile, ScannedRegistry,
     },
 };
 
@@ -23,6 +24,8 @@ pub struct ScanInfo {
     pub backup: Option<Backup>,
     /// Cheaper version of `!available_backups.is_empty()`, always populated.
     pub has_backups: bool,
+    /// Full registry data, if any.
+    pub dumped_registry: Option<registry::Hives>,
 }
 
 impl ScanInfo {

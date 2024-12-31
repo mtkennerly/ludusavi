@@ -202,8 +202,11 @@ impl ScannedRegistry {
     }
 
     pub fn change(&self, scan_kind: ScanKind) -> ScanChange {
-        self.change
-            .normalize(self.ignored && self.values.values().all(|x| x.ignored), scan_kind)
+        self.change.normalize(self.all_ignored(), scan_kind)
+    }
+
+    pub fn all_ignored(&self) -> bool {
+        self.ignored && self.values.values().all(|x| x.ignored)
     }
 }
 

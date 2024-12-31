@@ -10,6 +10,10 @@
     For more info, [see the custom games document](/docs/help/custom-games.md).
   * CLI: The `backup`, `restore`, `cloud upload`, and `cloud download` commands
     now support a `--gui` option for graphical dialog prompts.
+  * CLI: The `backup` and `restore` commands now support a `--dump-registry` option,
+    which includes the serialized registry content in the output.
+    This may be useful if you're consuming the `--api` output to back up with another tool,
+    but don't have a good way to check the registry keys directly.
 * Changed:
   * When the game list is filtered,
     the summary line (e.g., "1 of 10 games") now reflects the filtered totals.

@@ -623,6 +623,8 @@ impl GameLayout {
                 available_backups: vec![],
                 backup: None,
                 has_backups: true,
+                // Registry is handled separately.
+                dumped_registry: None,
             })
         }
     }
@@ -1581,9 +1583,10 @@ impl GameLayout {
         let mut found_files = HashMap::new();
         #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut found_registry_keys = HashMap::new();
-        #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut available_backups = vec![];
         let mut backup = None;
+        #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
+        let mut dumped_registry = None;
 
         let id = self.verify_id(id);
 
@@ -1651,6 +1654,8 @@ impl GameLayout {
                         );
                     }
                 }
+
+                dumped_registry = Some(hives);
             }
         }
 
@@ -1665,6 +1670,7 @@ impl GameLayout {
             available_backups,
             backup,
             has_backups,
+            dumped_registry,
         }
     }
 
@@ -3369,6 +3375,7 @@ mod tests {
                     available_backups: backups.clone(),
                     backup: Some(backups[0].clone()),
                     has_backups: true,
+                    dumped_registry: None,
                 },
                 layout.scan_for_restoration(
                     "game1",
@@ -3416,6 +3423,18 @@ mod tests {
                             ..Default::default()
                         })),
                         has_backups: true,
+                        dumped_registry: Some(registry::Hives(btree_map! {
+                            r"HKEY_CURRENT_USER".into(): registry::Keys(btree_map! {
+                                r"Software\Ludusavi\game3".into(): registry::Entries(btree_map! {
+                                    "binary".into(): registry::Entry::Binary(vec![65]),
+                                    "dword".into(): registry::Entry::Dword(1),
+                                    "expandSz".into(): registry::Entry::ExpandSz("baz".to_string()),
+                                    "multiSz".into(): registry::Entry::MultiSz("bar".to_string()),
+                                    "qword".into(): registry::Entry::Qword(2),
+                                    "sz".into(): registry::Entry::Sz("foo".to_string()),
+                                }),
+                            })
+                        })),
                     },
                     layout.scan_for_restoration(
                         "game3",
@@ -3449,6 +3468,7 @@ mod tests {
                             ..Default::default()
                         })),
                         has_backups: true,
+                        dumped_registry: None,
                     },
                     layout.scan_for_restoration(
                         "game3",

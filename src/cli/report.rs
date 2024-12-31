@@ -8,8 +8,8 @@ use crate::{
     prelude::StrictPath,
     resource::manifest::Os,
     scan::{
-        layout::Backup, BackupError, BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision, ScanChange,
-        ScanInfo,
+        layout::Backup, registry, BackupError, BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision,
+        ScanChange, ScanInfo,
     },
 };
 
@@ -136,6 +136,22 @@ struct ApiRegistryValue {
     duplicated_by: BTreeSet<String>,
 }
 
+#[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+struct ApiDump {
+    /// Serialized registry content, if any, when enabled by `--dump-registry`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    registry: Option<String>,
+}
+
+impl ApiDump {
+    pub fn is_empty(&self) -> bool {
+        let Self { registry } = self;
+
+        registry.is_none()
+    }
+}
+
 #[derive(Debug, serde::Serialize, schemars::JsonSchema)]
 #[serde(untagged, rename_all = "camelCase")]
 enum ApiGame {
@@ -150,6 +166,9 @@ enum ApiGame {
         files: BTreeMap<String, ApiFile>,
         /// Each key is a registry path.
         registry: BTreeMap<String, ApiRegistry>,
+        /// Raw data.
+        #[serde(skip_serializing_if = "ApiDump::is_empty")]
+        dump: ApiDump,
     },
     /// Used by the `backups` command.
     Stored {
@@ -288,6 +307,7 @@ impl Reporter {
         backup_info: Option<&BackupInfo>,
         decision: &OperationStepDecision,
         duplicate_detector: &DuplicateDetector,
+        dump_registry: bool,
     ) -> bool {
         if !scan_info.can_report_game() {
             return true;
@@ -372,6 +392,13 @@ impl Reporter {
                             ),
                         );
                     }
+                }
+
+                if let Some(dumped_registry) = scan_info.dumped_registry.as_ref() {
+                    let label = TRANSLATOR.custom_registry_label();
+                    parts.push(format!("---------- {} ----------", &label));
+                    parts.push(dumped_registry.serialize(registry::Format::Reg));
+                    parts.push("-".repeat(22 + label.len()));
                 }
 
                 // Blank line between games.
@@ -476,6 +503,17 @@ impl Reporter {
                     registry.insert(scan_key.render(), api_registry);
                 }
 
+                let dump = ApiDump {
+                    registry: dump_registry
+                        .then(|| {
+                            scan_info
+                                .dumped_registry
+                                .as_ref()
+                                .map(|hives| hives.serialize(registry::Format::Reg))
+                        })
+                        .flatten(),
+                };
+
                 if let Some(overall) = output.overall.as_mut() {
                     overall.add_game(scan_info, backup_info, decision == OperationStepDecision::Processed);
                 }
@@ -486,6 +524,7 @@ impl Reporter {
                         change: scan_info.overall_change(),
                         files,
                         registry,
+                        dump,
                     },
                 );
             }
@@ -633,7 +672,7 @@ pub fn report_cloud_changes(changes: &[CloudChange], api: bool) {
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::hash_map;
+    use velcro::{btree_map, hash_map};
 
     use super::*;
     use crate::{
@@ -650,6 +689,7 @@ mod tests {
             None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
+            false,
         );
         assert_eq!(
             r#"
@@ -708,6 +748,7 @@ Overall:
             }),
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
+            false,
         );
         assert_eq!(
             r#"
@@ -756,6 +797,7 @@ Overall:
             None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
+            false,
         );
         reporter.add_game(
             "bar",
@@ -778,6 +820,7 @@ Overall:
             None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
+            false,
         );
         assert_eq!(
             r#"
@@ -831,6 +874,7 @@ Overall:
             None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
+            false,
         );
         assert_eq!(
             r#"
@@ -884,6 +928,7 @@ Overall:
             None,
             &OperationStepDecision::Processed,
             &duplicate_detector,
+            false,
         );
         assert_eq!(
             r#"
@@ -921,6 +966,7 @@ Overall:
             None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
+            false,
         );
         reporter.add_game(
             "bar",
@@ -935,6 +981,7 @@ Overall:
             None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
+            false,
         );
         assert_eq!(
             r#"
@@ -958,6 +1005,54 @@ Overall:
     }
 
     #[test]
+    fn can_render_in_standard_mode_with_dumps() {
+        let mut reporter = Reporter::standard();
+
+        reporter.add_game(
+            "foo",
+            &ScanInfo {
+                game_name: s("foo"),
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Key".into(): ScannedRegistry::new().with_value_same("value"),
+                },
+                dumped_registry: Some(registry::Hives(btree_map! {
+                    r"HKEY_CURRENT_USER".into(): registry::Keys(btree_map! {
+                        r"Key".into(): registry::Entries(btree_map! {
+                            "value".into(): registry::Entry::Sz("data".to_string()),
+                        }),
+                    })
+                })),
+                ..Default::default()
+            },
+            None,
+            &OperationStepDecision::Processed,
+            &DuplicateDetector::default(),
+            true,
+        );
+        assert_eq!(
+            r#"
+foo [0 B]:
+  - HKEY_CURRENT_USER/Key
+    - value
+---------- Registry: ----------
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Key]
+"value"="data"
+
+-------------------------------
+
+Overall:
+  Games: 1
+  Size: 0 B
+  Location: /dev/null
+            "#
+            .trim(),
+            reporter.render(&StrictPath::new(s("/dev/null")))
+        );
+    }
+
+    #[test]
     fn can_render_in_json_mode_with_minimal_input() {
         let mut reporter = Reporter::json();
 
@@ -967,6 +1062,7 @@ Overall:
             None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
+            true,
         );
         assert_eq!(
             r#"
@@ -1019,6 +1115,7 @@ Overall:
             }),
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
+            false,
         );
         assert_eq!(
             r#"
@@ -1118,6 +1215,7 @@ Overall:
             None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
+            false,
         );
         assert_eq!(
             r#"
@@ -1193,6 +1291,7 @@ Overall:
             None,
             &OperationStepDecision::Processed,
             &duplicate_detector,
+            false,
         );
         assert_eq!(
             r#"
@@ -1258,6 +1357,7 @@ Overall:
             None,
             &OperationStepDecision::Processed,
             &DuplicateDetector::default(),
+            false,
         );
         assert_eq!(
             r#"
@@ -1296,6 +1396,72 @@ Overall:
         }
       },
       "registry": {}
+    }
+  }
+}
+            "#
+            .trim(),
+            reporter.render(&StrictPath::new(s("/dev/null")))
+        );
+    }
+
+    #[test]
+    fn can_render_in_json_mode_with_dumps() {
+        let mut reporter = Reporter::json();
+
+        reporter.add_game(
+            "foo",
+            &ScanInfo {
+                game_name: s("foo"),
+                found_registry_keys: hash_map! {
+                    "HKEY_CURRENT_USER/Key".into(): ScannedRegistry::new().change_as(ScanChange::Same).with_value_same("value"),
+                },
+                dumped_registry: Some(registry::Hives(btree_map! {
+                    r"HKEY_CURRENT_USER".into(): registry::Keys(btree_map! {
+                        r"Key".into(): registry::Entries(btree_map! {
+                            "value".into(): registry::Entry::Sz("data".to_string()),
+                        }),
+                    })
+                })),
+                ..Default::default()
+            },
+            None,
+            &OperationStepDecision::Processed,
+            &DuplicateDetector::default(),
+            true,
+        );
+        assert_eq!(
+            r#"
+{
+  "overall": {
+    "totalGames": 1,
+    "totalBytes": 0,
+    "processedGames": 1,
+    "processedBytes": 0,
+    "changedGames": {
+      "new": 0,
+      "different": 0,
+      "same": 1
+    }
+  },
+  "games": {
+    "foo": {
+      "decision": "Processed",
+      "change": "Same",
+      "files": {},
+      "registry": {
+        "HKEY_CURRENT_USER/Key": {
+          "change": "Same",
+          "values": {
+            "value": {
+              "change": "Same"
+            }
+          }
+        }
+      },
+      "dump": {
+        "registry": "Windows Registry Editor Version 5.00\n\n[HKEY_CURRENT_USER\\Key]\n\"value\"=\"data\"\n"
+      }
     }
   }
 }
