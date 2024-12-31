@@ -192,10 +192,10 @@ show-unchanged-games = Pokaż niezmienione gry
 show-unscanned-games = Pokaż nieprzeskanowane gry
 override-max-threads = Zastąp maksymalną liczbę wątków
 synchronize-automatically = Synchronizuj automatycznie
-prefer-alias-display = Wyświetlaj alias zamiast oryginalnej nazwy.
+prefer-alias-display = Wyświetlaj alias zamiast oryginalnej nazwy
 explanation-for-exclude-store-screenshots = Nie zawieraj w kopiach zapasowych zrzutów ekranu dla konkretnego sklepu
 explanation-for-exclude-cloud-games = Na tych platformach nie należy tworzyć kopii zapasowych gier z obsługą chmury
-consider-doing-a-preview = Jeśli jeszcze tego nie zrobiono, rozważ wykonanie pierwszego testu, aby zobaczyć, czy wszystko działa
+consider-doing-a-preview = Jeśli jeszcze tego nie zrobiono, rozważ wykonanie pierwszego testu, aby zobaczyć, czy wszystko działa.
 confirm-backup =
     Czy na pewno chcesz kontynuować z kopią zapasową? { $path-action ->
         [merge] Nowe dane zapisu zostaną scalone z folderem docelowym:

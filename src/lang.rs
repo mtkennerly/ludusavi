@@ -113,6 +113,9 @@ pub enum Language {
     /// Ukrainian
     #[serde(rename = "uk-UA")]
     Ukrainian,
+    /// Vietnamese
+    #[serde(rename = "vi-VN")]
+    Vietnamese,
 }
 
 impl Language {
@@ -130,6 +133,7 @@ impl Language {
         Self::PortugueseBrazilian,
         Self::Russian,
         Self::Finnish,
+        Self::Vietnamese,
         Self::Turkish,
         Self::Ukrainian,
         // Self::Arabic,
@@ -163,6 +167,7 @@ impl Language {
             Self::Thai => "th-TH",
             Self::Turkish => "tr-TR",
             Self::Ukrainian => "uk-UA",
+            Self::Vietnamese => "vi-VN",
         };
         id.parse().unwrap()
     }
@@ -190,13 +195,14 @@ impl Language {
             Language::Thai => "ภาษาไทย",
             Language::Turkish => "Türkçe",
             Language::Ukrainian => "Украї́нська мо́ва",
+            Language::Vietnamese => "Tiếng Việt",
         }
     }
 
     fn completion(&self) -> u8 {
         match self {
-            Language::Arabic => 94,
-            Language::ChineseSimplified => 94,
+            Language::Arabic => 100,
+            Language::ChineseSimplified => 100,
             Language::ChineseTraditional => 94,
             Language::Czech => 4,
             Language::Dutch => 94,
@@ -209,13 +215,14 @@ impl Language {
             Language::Italian => 100,
             Language::Japanese => 50,
             Language::Korean => 86,
-            Language::Polish => 90,
-            Language::PortugueseBrazilian => 92,
+            Language::Polish => 99,
+            Language::PortugueseBrazilian => 100,
             Language::Russian => 100,
             Language::Spanish => 94,
             Language::Thai => 22,
             Language::Turkish => 100,
             Language::Ukrainian => 38,
+            Language::Vietnamese => 9,
         }
     }
 }
@@ -273,6 +280,7 @@ fn set_language(language: Language) {
         Language::Thai => include_str!("../lang/th-TH.ftl"),
         Language::Turkish => include_str!("../lang/tr-TR.ftl"),
         Language::Ukrainian => include_str!("../lang/uk-UA.ftl"),
+        Language::Vietnamese => include_str!("../lang/vi-VN.ftl"),
     }
     .to_owned();
 

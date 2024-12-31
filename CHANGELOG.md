@@ -23,6 +23,8 @@
     errors at the end of the process will also be reported via dialogs.
     This does not apply to CLI parse errors.
   * Application crash and CLI parse errors are now logged.
+  * Updated translations, including a new translation for Vietnamese.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:
   * If a custom game's title begins or ends with a space,
     that custom game will now be ignored.
