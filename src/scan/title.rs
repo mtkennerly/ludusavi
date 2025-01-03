@@ -181,7 +181,18 @@ impl TitleFinder {
             partial,
         } = query;
 
-        let mut output = BTreeMap::new();
+        let mut output: BTreeMap<String, TitleMatch> = BTreeMap::new();
+        let mut update = |title: String, info: TitleMatch| {
+            output
+                .entry(title)
+                .and_modify(|entry| {
+                    if entry.score.is_none() || entry.score.is_some_and(|old| info.score.is_some_and(|new| new > old)) {
+                        entry.score = info.score;
+                    }
+                })
+                .or_insert(info);
+        };
+
         let singular = !names.is_empty() || steam_id.is_some() || gog_id.is_some() || lutris_id.is_some();
 
         'outer: {
@@ -189,7 +200,7 @@ impl TitleFinder {
                 if let Some(steam_id) = steam_id {
                     if let Some(found) = self.steam_ids.get(&steam_id) {
                         if self.eligible(found, backup, restore) {
-                            output.insert(found.to_owned(), TitleMatch::perfect());
+                            update(found.to_owned(), TitleMatch::perfect());
                             if !multiple {
                                 break 'outer;
                             }
@@ -200,7 +211,7 @@ impl TitleFinder {
                 if let Some(gog_id) = gog_id {
                     if let Some(found) = self.gog_ids.get(&gog_id) {
                         if self.eligible(found, backup, restore) {
-                            output.insert(found.to_owned(), TitleMatch::perfect());
+                            update(found.to_owned(), TitleMatch::perfect());
                             if !multiple {
                                 break 'outer;
                             }
@@ -211,7 +222,7 @@ impl TitleFinder {
                 if let Some(lutris_id) = lutris_id {
                     if let Some(found) = self.lutris_ids.get(&lutris_id) {
                         if self.eligible(found, backup, restore) {
-                            output.insert(found.to_owned(), TitleMatch::perfect());
+                            update(found.to_owned(), TitleMatch::perfect());
                             if !multiple {
                                 break 'outer;
                             }
@@ -221,7 +232,7 @@ impl TitleFinder {
 
                 for name in &names {
                     if self.games.contains_key(name) && self.eligible(name, backup, restore) {
-                        output.insert(name.to_owned(), TitleMatch::perfect());
+                        update(name.to_owned(), TitleMatch::perfect());
                         if !multiple {
                             break 'outer;
                         }
@@ -232,7 +243,7 @@ impl TitleFinder {
                     for name in &names {
                         if let Some(found) = self.normalized.get(&normalize_title(name)) {
                             if self.eligible(&found.canonical, backup, restore) {
-                                output.insert(found.canonical.to_owned(), TitleMatch { score: found.score });
+                                update(found.canonical.to_owned(), TitleMatch { score: found.score });
                                 if !multiple {
                                     break 'outer;
                                 }
@@ -269,9 +280,11 @@ impl TitleFinder {
                         .collect();
 
                     if multiple {
-                        output.extend(sorted);
+                        for (name, info) in sorted {
+                            update(name, info);
+                        }
                     } else if let Some((name, info)) = sorted.first() {
-                        output.insert(name.clone(), info.clone());
+                        update(name.clone(), info.clone());
                         break 'outer;
                     }
                 }
