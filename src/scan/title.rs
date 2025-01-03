@@ -1,8 +1,9 @@
 use std::{
-    collections::{BTreeSet, HashMap},
+    collections::{BTreeMap, BTreeSet, HashMap},
     sync::LazyLock,
 };
 
+use itertools::Itertools;
 use regex::Regex;
 
 use crate::{
@@ -41,6 +42,12 @@ struct TitleGameInfo {
 }
 
 #[derive(Clone, Debug, Default)]
+struct NormalizedTitleGameInfo {
+    canonical: String,
+    score: Option<f64>,
+}
+
+#[derive(Clone, Debug, Default)]
 struct TitleGameOperationInfo {
     known: bool,
     enabled: bool,
@@ -53,7 +60,7 @@ pub struct TitleFinder {
     steam_ids: HashMap<u32, String>,
     gog_ids: HashMap<u64, String>,
     lutris_ids: HashMap<String, String>,
-    normalized: HashMap<String, String>,
+    normalized: HashMap<String, NormalizedTitleGameInfo>,
     aliases: HashMap<String, String>,
 }
 
@@ -80,11 +87,26 @@ impl TitleFinder {
         let steam_ids = manifest.map_steam_ids_to_names();
         let gog_ids = manifest.map_gog_ids_to_names();
         let lutris_ids = manifest.map_lutris_ids_to_names();
-        let normalized: HashMap<_, _> = games
-            .keys()
-            .map(|title| (normalize_title(title), title.to_owned()))
-            .collect();
         let aliases = manifest.aliases();
+
+        let mut normalized: HashMap<String, NormalizedTitleGameInfo> = HashMap::new();
+        for title in games.keys() {
+            let norm = normalize_title(title);
+            let entry = normalized.entry(norm.clone()).or_default();
+            let new_score = strsim::jaro_winkler(title, &norm);
+            match entry.score {
+                Some(old_score) => {
+                    if new_score > old_score {
+                        entry.canonical = title.to_owned();
+                        entry.score = Some(new_score);
+                    }
+                }
+                None => {
+                    entry.canonical = title.to_owned();
+                    entry.score = Some(new_score);
+                }
+            }
+        }
 
         Self {
             games,
@@ -115,7 +137,11 @@ impl TitleFinder {
     }
 
     pub fn find_one(&self, query: TitleQuery) -> Option<String> {
-        self.find(query).into_iter().next()
+        self.find(query)
+            .into_iter()
+            .sorted_by(compare_ranked_titles)
+            .map(|(name, _info)| name)
+            .next()
     }
 
     pub fn find_one_by_name(&self, name: &str) -> Option<String> {
@@ -140,20 +166,22 @@ impl TitleFinder {
     /// Precedence: Steam ID -> GOG ID -> exact title -> normalized title.
     ///
     /// Otherwise, returns all results that match the query.
-    pub fn find(&self, query: TitleQuery) -> BTreeSet<String> {
+    pub fn find(&self, query: TitleQuery) -> BTreeMap<String, TitleMatch> {
         let TitleQuery {
+            multiple,
             names,
             steam_id,
             gog_id,
             lutris_id,
             normalized,
+            fuzzy,
             backup,
             restore,
             disabled,
             partial,
         } = query;
 
-        let mut output = BTreeSet::new();
+        let mut output = BTreeMap::new();
         let singular = !names.is_empty() || steam_id.is_some() || gog_id.is_some() || lutris_id.is_some();
 
         'outer: {
@@ -161,8 +189,10 @@ impl TitleFinder {
                 if let Some(steam_id) = steam_id {
                     if let Some(found) = self.steam_ids.get(&steam_id) {
                         if self.eligible(found, backup, restore) {
-                            output.insert(found.to_owned());
-                            break 'outer;
+                            output.insert(found.to_owned(), TitleMatch::perfect());
+                            if !multiple {
+                                break 'outer;
+                            }
                         }
                     }
                 }
@@ -170,8 +200,10 @@ impl TitleFinder {
                 if let Some(gog_id) = gog_id {
                     if let Some(found) = self.gog_ids.get(&gog_id) {
                         if self.eligible(found, backup, restore) {
-                            output.insert(found.to_owned());
-                            break 'outer;
+                            output.insert(found.to_owned(), TitleMatch::perfect());
+                            if !multiple {
+                                break 'outer;
+                            }
                         }
                     }
                 }
@@ -179,27 +211,68 @@ impl TitleFinder {
                 if let Some(lutris_id) = lutris_id {
                     if let Some(found) = self.lutris_ids.get(&lutris_id) {
                         if self.eligible(found, backup, restore) {
-                            output.insert(found.to_owned());
-                            break 'outer;
+                            output.insert(found.to_owned(), TitleMatch::perfect());
+                            if !multiple {
+                                break 'outer;
+                            }
                         }
                     }
                 }
 
                 for name in &names {
                     if self.games.contains_key(name) && self.eligible(name, backup, restore) {
-                        output.insert(name.to_owned());
-                        break 'outer;
+                        output.insert(name.to_owned(), TitleMatch::perfect());
+                        if !multiple {
+                            break 'outer;
+                        }
                     }
                 }
 
                 if normalized {
                     for name in &names {
                         if let Some(found) = self.normalized.get(&normalize_title(name)) {
-                            if self.eligible(found, backup, restore) {
-                                output.insert((*found).to_owned());
-                                break 'outer;
+                            if self.eligible(&found.canonical, backup, restore) {
+                                output.insert(found.canonical.to_owned(), TitleMatch { score: found.score });
+                                if !multiple {
+                                    break 'outer;
+                                }
                             }
                         }
+                    }
+                }
+
+                if fuzzy {
+                    let mut matches = BTreeMap::new();
+
+                    for name in &names {
+                        for known in self.games.keys() {
+                            let score = if normalized {
+                                strsim::jaro_winkler(&normalize_title(known), &normalize_title(name))
+                            } else {
+                                strsim::jaro_winkler(known, name)
+                            };
+
+                            if score < 0.75 {
+                                continue;
+                            }
+
+                            if self.eligible(known, backup, restore) {
+                                matches.insert(known.to_string(), score);
+                            }
+                        }
+                    }
+
+                    let sorted: Vec<_> = matches
+                        .into_iter()
+                        .map(|(name, score)| (name, TitleMatch { score: Some(score) }))
+                        .sorted_by(compare_ranked_titles)
+                        .collect();
+
+                    if multiple {
+                        output.extend(sorted);
+                    } else if let Some((name, info)) = sorted.first() {
+                        output.insert(name.clone(), info.clone());
+                        break 'outer;
                     }
                 }
             } else {
@@ -232,7 +305,7 @@ impl TitleFinder {
                         }
                     }
 
-                    output.insert(game.to_owned());
+                    output.insert(game.to_owned(), TitleMatch::default());
                 }
             }
         }
@@ -240,9 +313,9 @@ impl TitleFinder {
         // Resolve aliases to primary name.
         output = output
             .into_iter()
-            .map(|name| match self.aliases.get(&name) {
-                Some(aliased) => aliased.to_string(),
-                None => name,
+            .map(|(name, info)| match self.aliases.get(&name) {
+                Some(aliased) => (aliased.to_string(), info),
+                None => (name, info),
             })
             .collect();
 
@@ -252,6 +325,9 @@ impl TitleFinder {
 
 #[derive(Clone, Debug, Default)]
 pub struct TitleQuery {
+    /// Keep looking for all potential matches,
+    /// instead of stopping at the first match.
+    pub multiple: bool,
     /// Search for exact titles or aliases.
     /// This will cause only one result to be returned.
     pub names: Vec<String>,
@@ -266,6 +342,8 @@ pub struct TitleQuery {
     pub lutris_id: Option<String>,
     /// Search by normalizing the `names`.
     pub normalized: bool,
+    /// Search with fuzzy matching.
+    pub fuzzy: bool,
     /// Only return games that are possible to back up.
     pub backup: bool,
     /// Only return games that are possible to restore.
@@ -276,10 +354,35 @@ pub struct TitleQuery {
     pub partial: bool,
 }
 
+#[derive(Debug, Default, Clone, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+pub struct TitleMatch {
+    /// How well the title matches the query.
+    /// Range: 0.0 to 1.0 (higher is better).
+    pub score: Option<f64>,
+}
+
+impl TitleMatch {
+    pub fn perfect() -> Self {
+        Self { score: Some(1.0) }
+    }
+}
+
+pub fn compare_ranked_titles(x: &(String, TitleMatch), y: &(String, TitleMatch)) -> std::cmp::Ordering {
+    compare_ranked_titles_ref(&(&x.0, &x.1), &(&y.0, &y.1))
+}
+
+pub fn compare_ranked_titles_ref(x: &(&String, &TitleMatch), y: &(&String, &TitleMatch)) -> std::cmp::Ordering {
+    y.1.score
+        .partial_cmp(&x.1.score)
+        .unwrap_or(std::cmp::Ordering::Equal)
+        .then_with(|| x.0.to_lowercase().cmp(&y.0.to_lowercase()))
+        .then_with(|| x.0.cmp(y.0))
+}
+
 #[cfg(test)]
 mod tests {
     use pretty_assertions::assert_eq;
-    use velcro::btree_set;
+    use velcro::{btree_map, btree_set};
 
     use crate::resource::ResourceFile;
 
@@ -345,49 +448,58 @@ mod tests {
         let finder = TitleFinder::new(&Default::default(), &manifest, Default::default());
 
         assert_eq!(
-            btree_set!["by-name".to_string()],
+            btree_map! { "by-name".to_string(): TitleMatch::perfect() },
             finder.find(TitleQuery {
                 names: vec!["by-name".to_string()],
                 ..Default::default()
             }),
         );
         assert_eq!(
-            btree_set!["by-name".to_string()],
+            btree_map! {"by-name".to_string(): TitleMatch::perfect() },
             finder.find(TitleQuery {
                 names: vec!["by-name-alias".to_string()],
                 ..Default::default()
             }),
         );
         assert_eq!(
-            btree_set!["by-steam".to_string()],
+            btree_map! {"by-name".to_string(): TitleMatch { score: Some(0.9428571428571428) } },
+            finder.find(TitleQuery {
+                names: vec!["By Na".to_string()],
+                normalized: true,
+                fuzzy: true,
+                ..Default::default()
+            }),
+        );
+        assert_eq!(
+            btree_map! {"by-steam".to_string(): TitleMatch::perfect() },
             finder.find(TitleQuery {
                 steam_id: Some(1),
                 ..Default::default()
             }),
         );
         assert_eq!(
-            btree_set!["by-gog".to_string()],
+            btree_map! {"by-gog".to_string(): TitleMatch::perfect() },
             finder.find(TitleQuery {
                 gog_id: Some(2),
                 ..Default::default()
             }),
         );
         assert_eq!(
-            btree_set!["by-steam-extra".to_string()],
+            btree_map! {"by-steam-extra".to_string(): TitleMatch::perfect() },
             finder.find(TitleQuery {
                 steam_id: Some(3),
                 ..Default::default()
             }),
         );
         assert_eq!(
-            btree_set!["by-gog-extra".to_string()],
+            btree_map! {"by-gog-extra".to_string(): TitleMatch::perfect() },
             finder.find(TitleQuery {
                 gog_id: Some(4),
                 ..Default::default()
             }),
         );
         assert_eq!(
-            btree_set!["by-lutris".to_string()],
+            btree_map! {"by-lutris".to_string(): TitleMatch::perfect() },
             finder.find(TitleQuery {
                 lutris_id: Some("slug".to_string()),
                 ..Default::default()
@@ -440,44 +552,44 @@ mod tests {
         let finder = TitleFinder::new(&config, &manifest, restorables);
 
         assert_eq!(
-            btree_set![
-                "both".to_string(),
-                "backup".to_string(),
-                "backup-disabled".to_string(),
-                "backup-partial".to_string(),
-                "restore".to_string(),
-                "restore-disabled".to_string(),
-                "restore-partial".to_string()
-            ],
+            btree_map! {
+                "both".to_string(): TitleMatch::default(),
+                "backup".to_string(): TitleMatch::default(),
+                "backup-disabled".to_string(): TitleMatch::default(),
+                "backup-partial".to_string(): TitleMatch::default(),
+                "restore".to_string(): TitleMatch::default(),
+                "restore-disabled".to_string(): TitleMatch::default(),
+                "restore-partial".to_string(): TitleMatch::default(),
+            },
             finder.find(TitleQuery::default()),
         );
 
         assert_eq!(
-            btree_set![
-                "both".to_string(),
-                "backup".to_string(),
-                "backup-disabled".to_string(),
-                "backup-partial".to_string()
-            ],
+            btree_map! {
+                "both".to_string(): TitleMatch::default(),
+                "backup".to_string(): TitleMatch::default(),
+                "backup-disabled".to_string(): TitleMatch::default(),
+                "backup-partial".to_string(): TitleMatch::default(),
+            },
             finder.find(TitleQuery {
                 backup: true,
                 ..Default::default()
             }),
         );
         assert_eq!(
-            btree_set![
-                "both".to_string(),
-                "restore".to_string(),
-                "restore-disabled".to_string(),
-                "restore-partial".to_string()
-            ],
+            btree_map! {
+                "both".to_string(): TitleMatch::default(),
+                "restore".to_string(): TitleMatch::default(),
+                "restore-disabled".to_string(): TitleMatch::default(),
+                "restore-partial".to_string(): TitleMatch::default(),
+            },
             finder.find(TitleQuery {
                 restore: true,
                 ..Default::default()
             }),
         );
         assert_eq!(
-            btree_set!["both".to_string()],
+            btree_map! {"both".to_string(): TitleMatch::default() },
             finder.find(TitleQuery {
                 backup: true,
                 restore: true,
@@ -486,21 +598,21 @@ mod tests {
         );
 
         assert_eq!(
-            btree_set![
-                "backup".to_string(),
-                "backup-disabled".to_string(),
-                "backup-partial".to_string(),
-                "restore".to_string(),
-                "restore-disabled".to_string(),
-                "restore-partial".to_string()
-            ],
+            btree_map! {
+                "backup".to_string(): TitleMatch::default(),
+                "backup-disabled".to_string(): TitleMatch::default(),
+                "backup-partial".to_string(): TitleMatch::default(),
+                "restore".to_string(): TitleMatch::default(),
+                "restore-disabled".to_string(): TitleMatch::default(),
+                "restore-partial".to_string(): TitleMatch::default(),
+            },
             finder.find(TitleQuery {
                 disabled: true,
                 ..Default::default()
             }),
         );
         assert_eq!(
-            btree_set!["backup-disabled".to_string()],
+            btree_map! {"backup-disabled".to_string(): TitleMatch::default() },
             finder.find(TitleQuery {
                 backup: true,
                 disabled: true,
@@ -509,24 +621,39 @@ mod tests {
         );
 
         assert_eq!(
-            btree_set![
-                "backup".to_string(),
-                "backup-disabled".to_string(),
-                "backup-partial".to_string(),
-                "restore".to_string(),
-                "restore-disabled".to_string(),
-                "restore-partial".to_string()
-            ],
+            btree_map! {
+                "backup".to_string(): TitleMatch::default(),
+                "backup-disabled".to_string(): TitleMatch::default(),
+                "backup-partial".to_string(): TitleMatch::default(),
+                "restore".to_string(): TitleMatch::default(),
+                "restore-disabled".to_string(): TitleMatch::default(),
+                "restore-partial".to_string(): TitleMatch::default(),
+            },
             finder.find(TitleQuery {
                 partial: true,
                 ..Default::default()
             }),
         );
         assert_eq!(
-            btree_set!["restore-partial".to_string()],
+            btree_map! {"restore-partial".to_string(): TitleMatch::default() },
             finder.find(TitleQuery {
                 restore: true,
                 partial: true,
+                ..Default::default()
+            }),
+        );
+
+        assert_eq!(
+            btree_map! {
+                "backup".to_string(): TitleMatch { score: Some(0.8888888888888888) },
+                "backup-disabled".to_string(): TitleMatch { score: Some(0.7555555555555555) },
+                "backup-partial".to_string(): TitleMatch { score: Some(0.7619047619047619) },
+            },
+            finder.find(TitleQuery {
+                names: vec!["acku".to_string()],
+                multiple: true,
+                normalized: true,
+                fuzzy: true,
                 ..Default::default()
             }),
         );

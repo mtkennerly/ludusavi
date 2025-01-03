@@ -8,8 +8,8 @@ use crate::{
     prelude::StrictPath,
     resource::manifest::Os,
     scan::{
-        layout::Backup, registry, BackupError, BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision,
-        ScanChange, ScanInfo,
+        compare_ranked_titles_ref, layout::Backup, registry, BackupError, BackupInfo, DuplicateDetector,
+        OperationStatus, OperationStepDecision, ScanChange, ScanInfo, TitleMatch,
     },
 };
 
@@ -177,7 +177,11 @@ enum ApiGame {
         backups: Vec<ApiBackup>,
     },
     /// Used by the `find` command.
-    Found {},
+    Found {
+        /// How well the title matches the query.
+        /// Range: 0.0 to 1.0 (higher is better).
+        score: Option<f64>,
+    },
 }
 
 #[derive(Debug, serde::Serialize, schemars::JsonSchema)]
@@ -599,16 +603,20 @@ impl Reporter {
         }
     }
 
-    pub fn add_found_titles(&mut self, names: &BTreeSet<String>) {
+    pub fn add_found_titles(&mut self, games: &BTreeMap<String, TitleMatch>) {
         match self {
             Self::Standard { parts, .. } => {
-                for name in names {
+                let games: Vec<_> = games.iter().sorted_by(compare_ranked_titles_ref).collect();
+
+                for (name, _info) in games {
                     parts.push(name.to_owned());
                 }
             }
             Self::Json { output } => {
-                for name in names {
-                    output.games.insert(name.to_owned(), ApiGame::Found {});
+                for (name, info) in games {
+                    output
+                        .games
+                        .insert(name.to_owned(), ApiGame::Found { score: info.score });
                 }
             }
         }

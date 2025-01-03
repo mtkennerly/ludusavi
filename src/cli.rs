@@ -597,6 +597,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
         }
         Subcommand::Find {
             api,
+            multiple,
             path,
             backup,
             restore,
@@ -604,6 +605,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             gog_id,
             lutris_id,
             normalized,
+            fuzzy,
             disabled,
             partial,
             names,
@@ -623,11 +625,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
             let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
             let found = title_finder.find(TitleQuery {
+                multiple,
                 names: names.clone(),
                 steam_id,
                 gog_id,
                 lutris_id,
                 normalized,
+                fuzzy,
                 backup,
                 restore,
                 disabled,

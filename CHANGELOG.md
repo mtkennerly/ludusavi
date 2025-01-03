@@ -15,6 +15,8 @@
     which includes the serialized registry content in the output.
     This may be useful if you're consuming the `--api` output to back up with another tool,
     but don't have a good way to check the registry keys directly.
+  * CLI: The `find` command now supports `--fuzzy` and `--multiple` options.
+    This is also available for the `api` command's `findTitle` request.
 * Changed:
   * When the game list is filtered,
     the summary line (e.g., "1 of 10 games") now reflects the filtered totals.
@@ -32,6 +34,8 @@
     Previously, Ludusavi would make a backup folder for the game including the space,
     but the OS (namely Windows) would remove the space from the folder title,
     causing unpredictable behavior when Ludusavi couldn't find the expected folder name.
+  * CLI: `find --normalized` now better prioritizes the closest match
+    when multiple manifest entries have the same normalized title.
 
 ## v0.27.0 (2024-11-19)
 

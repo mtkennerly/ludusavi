@@ -26,7 +26,7 @@ pub use self::{
     preview::ScanInfo,
     saves::{ScannedFile, ScannedRegistry, ScannedRegistryValue, ScannedRegistryValues},
     steam::{SteamShortcut, SteamShortcuts},
-    title::{TitleFinder, TitleQuery},
+    title::{compare_ranked_titles, compare_ranked_titles_ref, TitleFinder, TitleMatch, TitleQuery},
 };
 
 use crate::{

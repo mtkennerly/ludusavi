@@ -301,7 +301,9 @@ pub enum Subcommand {
     ///
     /// Precedence: Steam ID -> GOG ID -> Lutris ID -> exact names -> normalized names.
     /// Once a match is found for one of these options,
-    /// Ludusavi will stop looking and return that match.
+    /// Ludusavi will stop looking and return that match,
+    /// unless you set `--multiple`, in which case,
+    /// the results will be sorted by how well they match.
     ///
     /// If there are no matches, Ludusavi will exit with an error.
     /// Depending on the options chosen, there may be multiple matches, but the default is a single match.
@@ -314,6 +316,11 @@ pub enum Subcommand {
         /// This replaces the default, human-readable output.
         #[clap(long)]
         api: bool,
+
+        /// Keep looking for all potential matches,
+        /// instead of stopping at the first match.
+        #[clap(long)]
+        multiple: bool,
 
         /// Directory in which to find backups.
         /// When unset, this defaults to the restore path from the config file.
@@ -345,6 +352,11 @@ pub enum Subcommand {
         /// This may find multiple games for a single input.
         #[clap(long)]
         normalized: bool,
+
+        /// Look up games with fuzzy matching.
+        /// This may find multiple games for a single input.
+        #[clap(long)]
+        fuzzy: bool,
 
         /// Select games that are disabled.
         #[clap(long)]
@@ -1153,6 +1165,7 @@ mod tests {
                 try_manifest_update: false,
                 sub: Some(Subcommand::Find {
                     api: false,
+                    multiple: false,
                     path: None,
                     backup: false,
                     restore: false,
@@ -1160,6 +1173,7 @@ mod tests {
                     gog_id: None,
                     lutris_id: None,
                     normalized: false,
+                    fuzzy: false,
                     disabled: false,
                     partial: false,
                     names: vec![],
@@ -1175,6 +1189,7 @@ mod tests {
                 "ludusavi",
                 "find",
                 "--api",
+                "--multiple",
                 "--path",
                 "tests/backup",
                 "--backup",
@@ -1186,6 +1201,7 @@ mod tests {
                 "--lutris-id",
                 "slug",
                 "--normalized",
+                "--fuzzy",
                 "--disabled",
                 "--partial",
                 "game1",
@@ -1197,6 +1213,7 @@ mod tests {
                 try_manifest_update: false,
                 sub: Some(Subcommand::Find {
                     api: true,
+                    multiple: true,
                     path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
                     backup: true,
                     restore: true,
@@ -1204,6 +1221,7 @@ mod tests {
                     gog_id: Some(102),
                     lutris_id: Some("slug".to_string()),
                     normalized: true,
+                    fuzzy: true,
                     disabled: true,
                     partial: true,
                     names: vec![s("game1"), s("game2")],

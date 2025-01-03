@@ -2463,6 +2463,7 @@ dependencies = [
  "shlex",
  "signal-hook",
  "steamlocate",
+ "strsim",
  "tokio",
  "typed-path",
  "unic-langid",

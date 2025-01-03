@@ -1,11 +1,13 @@
 use std::io::Read;
 
+use itertools::Itertools;
+
 use crate::{
     lang::TRANSLATOR,
     path::StrictPath,
     prelude::Error,
     resource::{config::Config, manifest::Manifest},
-    scan::{layout::BackupLayout, TitleFinder, TitleQuery},
+    scan::{compare_ranked_titles, layout::BackupLayout, TitleFinder, TitleQuery},
 };
 
 /// The full input to the `api` command.
@@ -63,7 +65,9 @@ pub mod request {
     ///
     /// Precedence: Steam ID -> GOG ID -> Lutris ID -> exact names -> normalized names.
     /// Once a match is found for one of these options,
-    /// Ludusavi will stop looking and return that match.
+    /// Ludusavi will stop looking and return that match,
+    /// unless you set `multiple: true`, in which case,
+    /// the results will be sorted by how well they match.
     ///
     /// Depending on the options chosen, there may be multiple matches, but the default is a single match.
     ///
@@ -71,6 +75,9 @@ pub mod request {
     #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     #[serde(default, rename_all = "camelCase")]
     pub struct FindTitle {
+        /// Keep looking for all potential matches,
+        /// instead of stopping at the first match.
+        pub multiple: bool,
         /// Ensure the game is recognized in a backup context.
         pub backup: bool,
         /// Ensure the game is recognized in a restore context.
@@ -85,6 +92,9 @@ pub mod request {
         /// Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols.
         /// This may find multiple games for a single input.
         pub normalized: bool,
+        /// Look up games with fuzzy matching.
+        /// This may find multiple games for a single input.
+        pub fuzzy: bool,
         /// Select games that are disabled.
         pub disabled: bool,
         /// Select games that have some saves disabled.
@@ -101,8 +111,6 @@ pub mod request {
 }
 
 pub mod response {
-    use std::collections::BTreeSet;
-
     #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     #[serde(default, rename_all = "camelCase")]
     pub struct Error {
@@ -114,7 +122,7 @@ pub mod response {
     #[serde(default, rename_all = "camelCase")]
     pub struct FindTitle {
         /// Any matching titles found.
-        pub titles: BTreeSet<String>,
+        pub titles: Vec<String>,
     }
 
     #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -185,27 +193,37 @@ pub fn process(input: Option<String>, config: &Config, manifest: &Manifest) -> R
     for request in input.requests {
         match request {
             Request::FindTitle(request::FindTitle {
+                multiple,
                 backup,
                 restore,
                 steam_id,
                 gog_id,
                 lutris_id,
                 normalized,
+                fuzzy,
                 disabled,
                 partial,
                 names,
             }) => {
                 let titles = title_finder.find(TitleQuery {
+                    multiple,
                     names,
                     steam_id,
                     gog_id,
                     lutris_id,
                     normalized,
+                    fuzzy,
                     backup,
                     restore,
                     disabled,
                     partial,
                 });
+
+                let titles: Vec<_> = titles
+                    .into_iter()
+                    .sorted_by(compare_ranked_titles)
+                    .map(|(name, _info)| name)
+                    .collect();
 
                 responses.push(Response::FindTitle(response::FindTitle { titles }));
             }
@@ -230,8 +248,6 @@ pub fn process(input: Option<String>, config: &Config, manifest: &Manifest) -> R
 
 #[cfg(test)]
 mod tests {
-    use std::collections::BTreeSet;
-
     use super::*;
     use pretty_assertions::assert_eq;
 
@@ -270,7 +286,7 @@ mod tests {
     pub fn serialize_output() {
         let output = Output::Success {
             responses: vec![Response::FindTitle(response::FindTitle {
-                titles: BTreeSet::from(["foo".to_string()]),
+                titles: vec!["foo".to_string()],
             })],
         };
         let serialized = serde_json::to_string_pretty(&output).unwrap();
