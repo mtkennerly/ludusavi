@@ -153,12 +153,17 @@ unsafe fn detach_console() {
 
 fn main() {
     let mut failed = false;
+    let args = cli::parse();
 
-    let mut logger = prepare_logging();
+    if let Some(config_dir) = args.as_ref().ok().and_then(|args| args.config.as_ref()) {
+        *CONFIG_DIR.lock().unwrap() = Some(config_dir.clone());
+    }
+
+    let logger = prepare_logging();
     #[allow(clippy::useless_asref)]
     prepare_panic_hook(logger.as_ref().map(|x| x.clone()).ok());
-    let mut flush_logger = || {
-        if let Ok(logger) = &mut logger {
+    let flush_logger = || {
+        if let Ok(logger) = &logger {
             logger.flush();
         }
     };
@@ -166,7 +171,7 @@ fn main() {
     log::debug!("Version: {}", *VERSION);
     log::debug!("Invocation: {:?}", std::env::args());
 
-    let args = match cli::parse() {
+    let args = match args {
         Ok(x) => x,
         Err(e) => {
             match e.kind() {
@@ -180,9 +185,6 @@ fn main() {
         }
     };
 
-    if let Some(config_dir) = args.config.as_deref() {
-        *CONFIG_DIR.lock().unwrap() = Some(config_dir.to_path_buf());
-    }
     match args.sub {
         None => {
             #[cfg(target_os = "windows")]
