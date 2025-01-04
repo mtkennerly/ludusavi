@@ -315,6 +315,7 @@ impl App {
 
                 if !preview {
                     if let Err(e) = prepare_backup_target(&self.config.backup.path) {
+                        self.go_idle();
                         return self.show_error(e);
                     }
                 }

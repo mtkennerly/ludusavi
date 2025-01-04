@@ -34,6 +34,8 @@
     Previously, Ludusavi would make a backup folder for the game including the space,
     but the OS (namely Windows) would remove the space from the folder title,
     causing unpredictable behavior when Ludusavi couldn't find the expected folder name.
+  * GUI: In backup mode, if Ludusavi failed to prepare the backup target folder,
+    it would get stuck where you couldn't cancel/restart the operation.
   * CLI: `find --normalized` now better prioritizes the closest match
     when multiple manifest entries have the same normalized title.
 
