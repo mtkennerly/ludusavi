@@ -22,7 +22,7 @@ pub const MANIFEST_URL: &str =
     "https://raw.githubusercontent.com/mtkennerly/ludusavi-manifest/master/data/manifest.yaml";
 
 fn default_backup_dir() -> StrictPath {
-    StrictPath::new(format!("{}/ludusavi-backup", CommonPath::Home.get().unwrap()))
+    StrictPath::new(format!("{}/ludusavi-backup", CommonPath::Home.get().unwrap())).rendered()
 }
 
 #[derive(Debug, Clone)]
@@ -1199,7 +1199,9 @@ impl App {
 
     fn default_rclone() -> Self {
         Self {
-            path: which::which("rclone").map(StrictPath::from).unwrap_or_default(),
+            path: which::which("rclone")
+                .map(|x| StrictPath::from(x).rendered())
+                .unwrap_or_default(),
             arguments: "--fast-list --ignore-checksum".to_string(),
         }
     }
@@ -1361,9 +1363,7 @@ impl ResourceFile for Config {
             .retain(|x| !x.name.trim().is_empty() || !x.files.is_empty() || !x.registry.is_empty());
 
         if self.apps.rclone.path.raw().is_empty() {
-            if let Ok(path) = which::which("rclone") {
-                self.apps.rclone.path = StrictPath::from(path);
-            }
+            self.apps.rclone.path = App::default_rclone().path;
         }
 
         self.backup.filter.build_globs();

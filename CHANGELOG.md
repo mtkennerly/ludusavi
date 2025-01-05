@@ -38,6 +38,7 @@
     it would get stuck where you couldn't cancel/restart the operation.
   * CLI: `find --normalized` now better prioritizes the closest match
     when multiple manifest entries have the same normalized title.
+  * Some default paths are now formatted more consistently.
 
 ## v0.27.0 (2024-11-19)
 
