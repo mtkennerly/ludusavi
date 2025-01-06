@@ -1342,6 +1342,7 @@ impl ResourceFile for Config {
 
     fn initialize(mut self) -> Self {
         self.add_common_roots();
+        self.rebase_paths();
         self
     }
 
@@ -1367,6 +1368,7 @@ impl ResourceFile for Config {
         }
 
         self.backup.filter.build_globs();
+        self.rebase_paths();
 
         self
     }
@@ -1750,6 +1752,12 @@ impl Config {
 
         query
     }
+
+    fn rebase_paths(&mut self) {
+        let cwd = StrictPath::cwd();
+        self.backup.path.rebase(&cwd);
+        self.restore.path.rebase(&cwd);
+    }
 }
 
 impl ToggledPaths {
@@ -2050,7 +2058,7 @@ mod tests {
                 roots: vec![],
                 redirects: vec![],
                 backup: BackupConfig {
-                    path: StrictPath::new(s("~/backup")),
+                    path: StrictPath::relative(s("~/backup"), Some(StrictPath::cwd().render())),
                     ignored_games: BTreeSet::new(),
                     filter: BackupFilter {
                         exclude_store_screenshots: false,
@@ -2063,7 +2071,7 @@ mod tests {
                     format: Default::default(),
                 },
                 restore: RestoreConfig {
-                    path: StrictPath::new(s("~/restore")),
+                    path: StrictPath::relative(s("~/restore"), Some(StrictPath::cwd().render())),
                     ignored_games: BTreeSet::new(),
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
@@ -2172,7 +2180,7 @@ mod tests {
                     target: StrictPath::new(s("~/new")),
                 }],
                 backup: BackupConfig {
-                    path: StrictPath::new(s("~/backup")),
+                    path: StrictPath::relative(s("~/backup"), Some(StrictPath::cwd().render())),
                     ignored_games: btree_set! {
                         s("Backup Game 1"),
                         s("Backup Game 2"),
@@ -2188,7 +2196,7 @@ mod tests {
                     format: Default::default(),
                 },
                 restore: RestoreConfig {
-                    path: StrictPath::new(s("~/restore")),
+                    path: StrictPath::relative(s("~/restore"), Some(StrictPath::cwd().render())),
                     ignored_games: btree_set! {
                         s("Restore Game 1"),
                         s("Restore Game 2"),

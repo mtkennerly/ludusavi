@@ -175,6 +175,11 @@ impl StrictPath {
         }
     }
 
+    pub fn rebase(&mut self, basis: &StrictPath) {
+        self.basis = Some(basis.render());
+        self.invalidate_cache();
+    }
+
     pub fn cwd() -> Self {
         Self::from(std::env::current_dir().unwrap())
     }
@@ -851,6 +856,10 @@ impl StrictPath {
     }
 
     pub fn glob_case_sensitive(&self, case_sensitive: bool) -> Vec<StrictPath> {
+        if self.raw.trim().is_empty() {
+            return vec![];
+        }
+
         let options = globetter::MatchOptions {
             case_sensitive,
             require_literal_separator: true,

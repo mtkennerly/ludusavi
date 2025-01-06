@@ -39,6 +39,7 @@
   * CLI: `find --normalized` now better prioritizes the closest match
     when multiple manifest entries have the same normalized title.
   * Some default paths are now formatted more consistently.
+  * GUI: There was an error when the backup/restore paths were relative to the working directory.
 
 ## v0.27.0 (2024-11-19)
 
