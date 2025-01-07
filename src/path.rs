@@ -717,50 +717,56 @@ impl StrictPath {
 
         if let Err(e) = target_file.create_parent_dir() {
             log::error!(
-                "[{context}] unable to create parent directories: {} -> {} | {e}",
-                self.raw(),
-                target_file.raw()
+                "[{context}] unable to create parent directories: {:?} -> {:?} | {e}",
+                &self,
+                &target_file
             );
             return Err(e);
         }
 
+        if let Err(e) = self.unset_readonly(context) {
+            log::warn!("[{context}] failed to unset read-only on source: {:?} | {e}", &self);
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Failed to unset read-only",
+            ));
+        }
         if let Err(e) = target_file.unset_readonly(context) {
             log::warn!(
-                "[{context}] failed to unset read-only on target: {} | {e}",
-                target_file.raw()
+                "[{context}] failed to unset read-only on target: {:?} | {e}",
+                &target_file
             );
             return Err(std::io::Error::new(
                 std::io::ErrorKind::Other,
                 "Failed to unset read-only",
             ));
-        } else if let Err(e) = self.copy_to(target_file) {
-            log::error!(
-                "[{context}] unable to copy: {} -> {} | {e}",
-                self.raw(),
-                target_file.raw()
-            );
+        }
+
+        if let Err(e) = self.copy_to(target_file) {
+            log::error!("[{context}] unable to copy: {:?} -> {:?} | {e}", &self, &target_file);
             return Err(e);
-        } else {
-            let mtime = match self.get_mtime() {
-                Ok(x) => x,
-                Err(e) => {
-                    log::error!(
-                        "[{context}] unable to get modification time: {} -> {} | {e}",
-                        self.raw(),
-                        target_file.raw(),
-                    );
-                    return Err(e);
-                }
-            };
-            if let Err(e) = target_file.set_mtime(mtime) {
+        }
+
+        let mtime = match self.get_mtime() {
+            Ok(x) => x,
+            Err(e) => {
                 log::error!(
-                    "[{context}] unable to set modification time: {} -> {} to {mtime:#?} | {e}",
-                    self.raw(),
-                    target_file.raw(),
+                    "[{context}] unable to get modification time: {:?} -> {:?} | {e}",
+                    &self,
+                    &target_file,
                 );
                 return Err(e);
             }
+        };
+        if let Err(e) = target_file.set_mtime(mtime) {
+            log::error!(
+                "[{context}] unable to set modification time: {:?} -> {:?} to {mtime:#?} | {e}",
+                &self,
+                &target_file,
+            );
+            return Err(e);
         }
+
         Ok(())
     }
 
