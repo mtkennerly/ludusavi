@@ -1826,7 +1826,7 @@ impl GameLayout {
             );
             return Err(Box::new(e));
         }
-        if let Err(e) = target.unset_readonly(&self.mapping.name) {
+        if let Err(e) = target.unset_readonly() {
             log::warn!(
                 "[{}] failed to unset read-only on target: {:?} | {e}",
                 self.mapping.name,

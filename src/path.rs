@@ -724,14 +724,7 @@ impl StrictPath {
             return Err(e);
         }
 
-        if let Err(e) = self.unset_readonly(context) {
-            log::warn!("[{context}] failed to unset read-only on source: {:?} | {e}", &self);
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to unset read-only",
-            ));
-        }
-        if let Err(e) = target_file.unset_readonly(context) {
+        if let Err(e) = target_file.unset_readonly() {
             log::warn!(
                 "[{context}] failed to unset read-only on target: {:?} | {e}",
                 &target_file
@@ -745,6 +738,18 @@ impl StrictPath {
         if let Err(e) = self.copy_to(target_file) {
             log::error!("[{context}] unable to copy: {:?} -> {:?} | {e}", &self, &target_file);
             return Err(e);
+        }
+
+        // We do this again in case the source file was also read-only.
+        if let Err(e) = target_file.unset_readonly() {
+            log::warn!(
+                "[{context}] failed to unset read-only on target after copy: {:?} | {e}",
+                &target_file
+            );
+            return Err(std::io::Error::new(
+                std::io::ErrorKind::Other,
+                "Failed to unset read-only",
+            ));
         }
 
         let mtime = match self.get_mtime() {
@@ -790,32 +795,29 @@ impl StrictPath {
         }
     }
 
-    pub fn unset_readonly(&self, context: &str) -> Result<(), AnyError> {
+    pub fn unset_readonly(&self) -> Result<(), AnyError> {
+        if !self.is_file() {
+            return Ok(());
+        }
+
         let subject = self.as_std_path_buf()?;
-        if self.is_file() {
-            let mut perms = std::fs::metadata(&subject)?.permissions();
-            if perms.readonly() {
+        let mut perms = std::fs::metadata(&subject)?.permissions();
+
+        if perms.readonly() {
+            #[cfg(windows)]
+            {
                 #[allow(clippy::permissions_set_readonly_false)]
                 perms.set_readonly(false);
-                std::fs::set_permissions(&subject, perms)?;
             }
-        } else {
-            for entry in walkdir::WalkDir::new(subject)
-                .max_depth(100)
-                .follow_links(false)
-                .into_iter()
-                .skip(1) // the base path itself
-                .filter_map(|x| crate::prelude::filter_map_walkdir(context, x))
-                .filter(|x| x.file_type().is_file())
+
+            #[cfg(unix)]
             {
-                let file = entry.path().display().to_string();
-                let mut perms = std::fs::metadata(&file)?.permissions();
-                if perms.readonly() {
-                    #[allow(clippy::permissions_set_readonly_false)]
-                    perms.set_readonly(false);
-                    std::fs::set_permissions(&file, perms)?;
-                }
+                use std::os::unix::fs::PermissionsExt;
+
+                perms.set_mode(perms.mode() | 0b110_000_000);
             }
+
+            std::fs::set_permissions(&subject, perms)?;
         }
 
         Ok(())
