@@ -3,8 +3,8 @@ mod parse;
 mod report;
 mod ui;
 
-use std::{collections::BTreeSet, process::Command, time::Duration};
-
+use std::{borrow::BorrowMut, collections::BTreeSet, process::Command,sync::{Arc, Mutex}, time::Duration,io::Write};
+use chrono::{DateTime,Utc};
 use clap::CommandFactory;
 use indicatif::{ParallelProgressIterator, ProgressBar};
 use rayon::{
@@ -16,19 +16,14 @@ use crate::{
     cli::{
         parse::{Cli, CompletionShell, ManifestSubcommand, Subcommand},
         report::{report_cloud_changes, Reporter},
-    },
-    cloud::{CloudChange, Rclone, Remote},
-    lang::{Language, TRANSLATOR},
-    prelude::{
+    }, cloud::{CloudChange, Rclone, Remote}, lang::{Language, TRANSLATOR}, prelude::{
         app_dir, get_threads_from_env, initialize_rayon, register_sigint, unregister_sigint, Error, Finality,
         StrictPath, SyncDirection,
-    },
-    resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
-    scan::{
+    }, resource::{cache::{Backup, Cache}, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile}, scan::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
         OperationStepDecision, ScanKind, SteamShortcuts, TitleFinder, TitleQuery,
-    },
-    wrap,
+    }, wrap
+
 };
 
 const PROGRESS_BAR_REFRESH_INTERVAL: Duration = Duration::from_millis(50);
@@ -361,12 +356,17 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             cloud_sync,
             no_cloud_sync,
             games,
+            local_conflict_detect,
         } => {
             let games = parse_games(games);
 
-            let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
+            let reporter = if api {
+                Arc::new(Mutex::new(Reporter::json()))
+            } else {
+                Arc::new(Mutex::new(Reporter::standard()))
+            };
 
-            let restore_dir = match path {
+            let g_dir = match path {
                 None => config.restore.path.clone(),
                 Some(p) => p,
             };
@@ -396,8 +396,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let games = match evaluate_games(layout.restorable_game_set(), games, &title_finder) {
                 Ok(games) => games,
                 Err(games) => {
+                    let mut reporter = reporter.lock().unwrap();
                     reporter.trip_unknown_games(games.clone());
                     reporter.print_failure();
+                    
                     return Err(Error::CliUnrecognizedGames { games });
                 }
             };
@@ -421,10 +423,12 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 match changes {
                     Ok(changes) => {
                         if !changes.is_empty() {
+                            let mut reporter = reporter.lock().unwrap();
                             reporter.trip_cloud_conflict();
                         }
                     }
                     Err(_) => {
+                        let mut reporter = reporter.lock().unwrap();
                         reporter.trip_cloud_sync_failed();
                     }
                 }
@@ -472,9 +476,99 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
                     let restore_info = if scan_info.backup.is_none() || preview || ignored {
                         crate::scan::BackupInfo::default()
-                    } else {
+                    } else if local_conflict_detect {
+                        // Initialize a flag to skip restoration if any file violates the failsafe
+                        let mut skip_restore = false;
+                            //we need to check if --save-conflict is true and then u
+                        let mut local_timestamp ;
+                        let mut llocal_size;
+                        let mut backup_size;
+                        let mut backup_timestamp;
+                        // Iterate over found files in the scan info
+                        for (path, file) in &scan_info.found_files {
+                            if let Some(original_path) = &file.original_path {
+                                // Retrieve local file metadata
+                                if let Ok(local_metadata) = std::fs::metadata(&original_path.raw()) {
+                                    let local_size = local_metadata.len();
+                                    let local_modified_time = local_metadata.modified().unwrap_or_else(|_| std::time::SystemTime::UNIX_EPOCH);
+                                    
+                                    
+                                    llocal_size = local_size;
+                                    // Compare with the backup's metadata
+                                    if let Some((backup_file, backup_modified_time)) = scan_info.backup.as_ref().and_then(|backup| {
+                                        match backup {
+                                            crate::scan::layout::Backup::Full(full_backup) => {
+                                                full_backup.files.get(&original_path.raw()).map(|file| {
+                                                    (file, full_backup.when)
+                                                    
+                                                })
+             
+                                            }
+                                            crate::scan::layout::Backup::Differential(differential_backup) => {
+                                                differential_backup
+                                                    .files
+                                                    .get(&original_path.raw())
+                                                    .and_then(|opt| opt.as_ref())
+                                                    .map(|file| {
+                                                        (file, differential_backup.when)
+                                                    }) 
+                                                    
+                                            }
+                                        }
+                                    })  {
+                                        let backup_size = backup_file.size;
+                                        
+                                            
+                                        // Check the failsafe conditions
+                                        let local_modified_time_utc: DateTime<Utc> = local_modified_time.into();
+                                        local_timestamp = local_modified_time_utc.to_rfc3339();
+                                        if local_size > backup_size || local_modified_time_utc > backup_modified_time {
+                                            log::warn!(
+                                                "Skipping restoration of {}. Local file is larger or newer than the backup.",
+                                                original_path.raw()
+                                            );
+                                            skip_restore = true;
+                                            break; // Optional: Break early if any file triggers the failsafe
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        //when failsafe is triggered we report a confict
+                        if skip_restore {
+                             
+                            //we would add dialog to choose what to do here. we either hit it with a backup or we restore the old one thats on the cloud/backup
+                            if api {
+                            
+                                let mut reporter = reporter.lock().unwrap();
+                                reporter.local_save_conflict(name);
+                            }
+                            else {
+                                    match dialoguer::Confirm::new()
+                                    .with_prompt(TRANSLATOR.confirm_local_save_conflict(local_timestamp, llocal_size.to_string(), backup_timestamp, backup_size.into(), name.clone()))
+                                    .interact()
+                                {
+                                    Ok(true) => {layout.restore(&scan_info, &config.restore.toggled_registry)}
+                                    ,
+                                    Ok(false) => {return Ok(())},
+                                    Err(_) => return Err(Error::CliUnableToRequestConfirmation),
+                                }   
+                            }
+                            
+                            
+                            //set backup info to default
+                            crate::scan::BackupInfo::default()
+                        } 
+                        //if skip restore is false , failsafe wasnt triggered.
+                        else {
+                            layout.restore(&scan_info, &config.restore.toggled_registry)
+                        }
+                    }
+                    else {
                         layout.restore(&scan_info, &config.restore.toggled_registry)
                     };
+
                     log::trace!("step {i} completed");
                     if !scan_info.can_report_game() {
                         None
@@ -513,12 +607,14 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             if sort.reversed {
                 info.reverse();
             }
-
+            let mut reporter = reporter.lock().unwrap();
             for (name, scan_info, backup_info, decision, _) in info {
+                
                 if !reporter.add_game(name, &scan_info, Some(&backup_info), &decision, &duplicate_detector) {
                     failed = true;
                 }
             }
+            
             reporter.print(&restore_dir);
         }
         Subcommand::Complete { shell } => {
@@ -922,10 +1018,12 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         backup: Default::default(),
                         cloud_sync: Default::default(),
                         no_cloud_sync: Default::default(),
+                        local_conflict_detect:Default::default(),
                     },
                     no_manifest_update,
                     try_manifest_update,
                 ) {
+                    //TODO: catch error for no internet- relating to rclone and still launch game regardless.
                     log::error!("WRAP::restore: failed for game {:?} with: {:?}", wrap_game_info, err);
                     ui::alert_with_error(gui, force, &TRANSLATOR.restore_one_game_failed(game_name), &err)?;
                     return Err(err);
