@@ -248,6 +248,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         &config.redirects,
                         config.restore.reverse_redirects,
                         &config.restore.toggled_paths,
+                        config.backup.only_constructive,
                     );
 
                     if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
@@ -269,6 +270,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         &config.redirects,
                         config.restore.reverse_redirects,
                         &steam_shortcuts,
+                        config.backup.only_constructive,
                     );
                     let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified;
                     let decision = if ignored {
@@ -292,9 +294,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                                 .set_level(&backup_format.zip.compression, level);
                         }
 
-                        layout
-                            .game_layout(name)
-                            .back_up(&scan_info, &chrono::Utc::now(), &backup_format, retention)
+                        layout.game_layout(name).back_up(
+                            &scan_info,
+                            &chrono::Utc::now(),
+                            &backup_format,
+                            retention,
+                            config.backup.only_constructive,
+                        )
                     };
                     log::trace!("step {i} completed");
                     if !scan_info.can_report_game() {

@@ -577,7 +577,12 @@ pub fn other<'a>(
                                                 _ => None,
                                             },
                                         ),
-                                ),
+                                )
+                                .push(Row::new().spacing(5).align_y(Alignment::Center).push(checkbox(
+                                    TRANSLATOR.skip_unconstructive_backups(),
+                                    config.backup.only_constructive,
+                                    Message::config(config::Event::OnlyConstructiveBackups),
+                                ))),
                         )
                         .class(style::Container::GameListEntry),
                     ),

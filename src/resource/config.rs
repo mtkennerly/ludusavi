@@ -97,6 +97,7 @@ pub enum Event {
     CloudRemoteId(String),
     CloudPath(String),
     SortCustomGames,
+    OnlyConstructiveBackups(bool),
 }
 
 /// Settings for `config.yaml`
@@ -1108,6 +1109,8 @@ pub struct BackupConfig {
     pub sort: Sort,
     pub retention: Retention,
     pub format: BackupFormats,
+    /// Don't create a new backup if there are only removed saves and no new/edited ones.
+    pub only_constructive: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -1320,6 +1323,7 @@ impl Default for BackupConfig {
             sort: Default::default(),
             retention: Retention::default(),
             format: Default::default(),
+            only_constructive: Default::default(),
         }
     }
 }
@@ -2069,6 +2073,7 @@ mod tests {
                     sort: Default::default(),
                     retention: Retention::default(),
                     format: Default::default(),
+                    only_constructive: false,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::relative(s("~/restore"), Some(StrictPath::cwd().render())),
@@ -2120,6 +2125,7 @@ mod tests {
                 - Backup Game 2
               filter:
                 excludeStoreScreenshots: true
+              onlyConstructive: true
             restore:
               path: ~/restore
               ignoredGames:
@@ -2194,6 +2200,7 @@ mod tests {
                     sort: Default::default(),
                     retention: Retention::default(),
                     format: Default::default(),
+                    only_constructive: true,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::relative(s("~/restore"), Some(StrictPath::cwd().render())),
@@ -2316,6 +2323,7 @@ backup:
         level: 6
       zstd:
         level: 10
+  onlyConstructive: false
 restore:
   path: ~/restore
   ignoredGames:
@@ -2402,6 +2410,7 @@ customGames:
                     sort: Default::default(),
                     retention: Retention::default(),
                     format: Default::default(),
+                    only_constructive: false,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),

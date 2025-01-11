@@ -120,13 +120,17 @@ impl ScanChangeCount {
         }
     }
 
-    pub fn overall(&self) -> ScanChange {
+    pub fn overall(&self, only_constructive: bool) -> ScanChange {
         if self.brand_new() {
             ScanChange::New
         } else if self.only(ScanChange::Removed) {
             ScanChange::Removed
         } else if self.updated() {
-            ScanChange::Different
+            if only_constructive && self.new == 0 && self.different == 0 {
+                ScanChange::Same
+            } else {
+                ScanChange::Different
+            }
         } else if self.same != 0 {
             ScanChange::Same
         } else {

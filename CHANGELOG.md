@@ -8,6 +8,10 @@
     This can be used to satisfy the `<base>` and `<game>` path placeholders
     in cases where Ludusavi can't automatically detect the right folder.
     For more info, [see the custom games document](/docs/help/custom-games.md).
+  * On the "other" screen,
+    there is a new option to skip backups when saves are only removed but not added/updated.
+    This can be useful because uninstalling a game may cause some of its data (but not all) to be removed,
+    but you may not want to exclude that data from your backups yet.
   * CLI: `config show` command.
   * CLI: The `backup`, `restore`, `cloud upload`, and `cloud download` commands
     now support a `--gui` option for graphical dialog prompts.

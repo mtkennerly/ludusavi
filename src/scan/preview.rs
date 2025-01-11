@@ -26,6 +26,8 @@ pub struct ScanInfo {
     pub has_backups: bool,
     /// Full registry data, if any.
     pub dumped_registry: Option<registry::Hives>,
+    /// Last known configuration.
+    pub only_constructive_backups: bool,
 }
 
 impl ScanInfo {
@@ -134,6 +136,22 @@ impl ScanInfo {
                 .all(|x| x.change == ScanChange::Removed && x.values.values().all(|y| y.change == ScanChange::Removed))
     }
 
+    pub fn found_constructive(&self) -> bool {
+        let relevant = |change: ScanChange, ignored: bool| match change.normalize(ignored, self.scan_kind()) {
+            ScanChange::New => true,
+            ScanChange::Different => true,
+            ScanChange::Removed => false,
+            ScanChange::Same => false,
+            ScanChange::Unknown => false,
+        };
+
+        self.found_files.values().any(|x| relevant(x.change, x.ignored))
+            || self
+                .found_registry_keys
+                .values()
+                .any(|x| relevant(x.change, x.ignored) || x.values.values().any(|y| relevant(y.change, y.ignored)))
+    }
+
     pub fn total_items(&self) -> usize {
         self.found_files.len()
             + self
@@ -224,7 +242,8 @@ impl ScanInfo {
         } else if self.all_inert() {
             ScanChange::Same
         } else {
-            self.count_changes().overall()
+            self.count_changes()
+                .overall(self.scan_kind().is_backup() && self.only_constructive_backups)
         }
     }
 

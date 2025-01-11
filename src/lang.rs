@@ -1277,6 +1277,10 @@ impl Translator {
         translate("prefer-alias-display")
     }
 
+    pub fn skip_unconstructive_backups(&self) -> String {
+        translate("skip-unconstructive-backups")
+    }
+
     pub fn total_games(&self) -> String {
         translate("total-games")
     }

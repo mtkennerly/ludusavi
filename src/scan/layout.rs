@@ -605,6 +605,7 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
+        only_constructive_backups: bool,
     ) -> Option<ScanInfo> {
         if self.mapping.backups.is_empty() {
             None
@@ -625,6 +626,7 @@ impl GameLayout {
                 has_backups: true,
                 // Registry is handled separately.
                 dumped_registry: None,
+                only_constructive_backups,
             })
         }
     }
@@ -1512,9 +1514,15 @@ impl GameLayout {
         now: &chrono::DateTime<chrono::Utc>,
         format: &BackupFormats,
         retention: Retention,
+        only_constructive: bool,
     ) -> Option<BackupInfo> {
         if !scan.found_anything() {
             log::trace!("[{}] nothing to back up", &scan.game_name);
+            return None;
+        }
+
+        if only_constructive && !scan.found_constructive() {
+            log::info!("[{}] nothing constructive to back up", &scan.game_name);
             return None;
         }
 
@@ -1671,6 +1679,7 @@ impl GameLayout {
             backup,
             has_backups,
             dumped_registry,
+            only_constructive_backups: false,
         }
     }
 
@@ -2196,10 +2205,17 @@ impl BackupLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
+        only_constructive: bool,
     ) -> Option<LatestBackup> {
         if self.contains_game(name) {
             let game_layout = self.game_layout(name);
-            let scan = game_layout.latest_backup(scan_kind, redirects, reverse_redirects_on_restore, toggled_paths);
+            let scan = game_layout.latest_backup(
+                scan_kind,
+                redirects,
+                reverse_redirects_on_restore,
+                toggled_paths,
+                only_constructive,
+            );
             scan.map(|scan| LatestBackup {
                 scan,
                 registry_content: if cfg!(target_os = "windows") {
@@ -3376,6 +3392,7 @@ mod tests {
                     backup: Some(backups[0].clone()),
                     has_backups: true,
                     dumped_registry: None,
+                    only_constructive_backups: false,
                 },
                 layout.scan_for_restoration(
                     "game1",
@@ -3435,6 +3452,7 @@ mod tests {
                                 }),
                             })
                         })),
+                        only_constructive_backups: false,
                     },
                     layout.scan_for_restoration(
                         "game3",
@@ -3469,6 +3487,7 @@ mod tests {
                         })),
                         has_backups: true,
                         dumped_registry: None,
+                        only_constructive_backups: false,
                     },
                     layout.scan_for_restoration(
                         "game3",

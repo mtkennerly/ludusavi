@@ -487,6 +487,7 @@ impl App {
                                 &config.redirects,
                                 config.restore.reverse_redirects,
                                 &config.restore.toggled_paths,
+                                config.backup.only_constructive,
                             );
 
                             if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
@@ -508,6 +509,7 @@ impl App {
                                 &config.redirects,
                                 config.restore.reverse_redirects,
                                 &steam_shortcuts,
+                                config.backup.only_constructive,
                             );
                             if !config.is_game_enabled_for_backup(&key) && !single {
                                 return (Some(scan_info), None);
@@ -519,6 +521,7 @@ impl App {
                                     &chrono::Utc::now(),
                                     &config.backup.format,
                                     retention,
+                                    config.backup.only_constructive,
                                 )
                             } else {
                                 None
@@ -1879,6 +1882,12 @@ impl App {
                         self.text_histories
                             .custom_games
                             .sort_by(|x, y| x.name.current().cmp(&y.name.current()));
+                    }
+                    config::Event::OnlyConstructiveBackups(value) => {
+                        self.config.backup.only_constructive = value;
+                        for entry in &mut self.backup_screen.log.entries {
+                            entry.scan_info.only_constructive_backups = value;
+                        }
                     }
                 }
 

@@ -512,6 +512,7 @@ pub fn scan_game_for_backup(
     redirects: &[RedirectConfig],
     reverse_redirects_on_restore: bool,
     steam_shortcuts: &SteamShortcuts,
+    only_constructive_backups: bool,
 ) -> ScanInfo {
     log::trace!("[{name}] beginning scan for backup");
 
@@ -876,6 +877,7 @@ pub fn scan_game_for_backup(
         backup: None,
         has_backups,
         dumped_registry,
+        only_constructive_backups,
     }
 }
 
@@ -956,6 +958,8 @@ mod tests {
         resource::{config::Config, manifest::Manifest, ResourceFile},
         testing::{repo, s, EMPTY_HASH},
     };
+
+    const ONLY_CONSTRUCTIVE: bool = false;
 
     fn config() -> Config {
         Config::load_from_string(&format!(
@@ -1147,6 +1151,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
 
@@ -1173,6 +1178,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1203,6 +1209,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1245,6 +1252,7 @@ mod tests {
                 }],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1275,6 +1283,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1309,6 +1318,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1342,6 +1352,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1371,6 +1382,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1400,6 +1412,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1437,6 +1450,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1476,6 +1490,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1515,6 +1530,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1563,6 +1579,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1620,6 +1637,7 @@ mod tests {
                 &[],
                 false,
                 &Default::default(),
+                ONLY_CONSTRUCTIVE,
             ),
         );
     }
@@ -1750,6 +1768,7 @@ mod tests {
                     &[],
                     false,
                     &Default::default(),
+                    ONLY_CONSTRUCTIVE,
                 ),
             );
         }
