@@ -150,6 +150,8 @@ label-source = Lähde
 label-primary-manifest = Ensisijainen manifesti
 # This refers to how we integrate a custom game with the manifest data.
 label-integration = Integraatio
+# This is a folder name where a specific game is installed
+label-installed-name = Installed name
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -193,6 +195,7 @@ show-unscanned-games = Näytä skannaamattomat pelit
 override-max-threads = Ohita säikeiden enimmäismäärä
 synchronize-automatically = Synkronoi automaattisesti
 prefer-alias-display = Näytä alias alkuperäisen nimen sijaan
+skip-unconstructive-backups = Skip backup when data would be removed, but not added or updated
 explanation-for-exclude-store-screenshots = Jätä kauppakohtaiset kuvakaappaukset pois varmuuskopiosta
 explanation-for-exclude-cloud-games = Älä varmuuskopioi pelejä, joissa on pilvituki näillä alustoilla
 consider-doing-a-preview =

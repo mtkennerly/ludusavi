@@ -150,6 +150,8 @@ label-source = Source
 label-primary-manifest = Primary manifest
 # This refers to how we integrate a custom game with the manifest data.
 label-integration = Integration
+# This is a folder name where a specific game is installed
+label-installed-name = Installed name
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -193,6 +195,7 @@ show-unscanned-games = スキャンされていないゲームを表示
 override-max-threads = 使用するCPUの最大スレッド数を上書き
 synchronize-automatically = Synchronize automatically
 prefer-alias-display = Display alias instead of original name
+skip-unconstructive-backups = Skip backup when data would be removed, but not added or updated
 explanation-for-exclude-store-screenshots = In backups, exclude store-specific screenshots
 explanation-for-exclude-cloud-games = 以下のプラットフォームでは、クラウドゲームのバックアップを行いません
 consider-doing-a-preview = まだ行っていない場合は、予期しない結果を防ぐためにプレビューを行うことをおすすめします。

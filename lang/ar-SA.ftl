@@ -150,6 +150,8 @@ label-source = المصدر
 label-primary-manifest = البيانات الرئيسية
 # This refers to how we integrate a custom game with the manifest data.
 label-integration = دمج
+# This is a folder name where a specific game is installed
+label-installed-name = Installed name
 store-ea = EA
 store-epic = متجر Epic
 store-gog = متجر GOG
@@ -193,6 +195,7 @@ show-unscanned-games = إظهار الألعاب الغير منسوخة
 override-max-threads = تجاوز الحد الأقصى للموضوعات
 synchronize-automatically = المزامنة تلقائياً
 prefer-alias-display = عرض الاسم المستعار بدلاً من الاسم الأصلي
+skip-unconstructive-backups = Skip backup when data would be removed, but not added or updated
 explanation-for-exclude-store-screenshots = في النسخ الاحتياطية، استبعاد لقطات الشاشة الخاصة بالمتجر
 explanation-for-exclude-cloud-games = لا تقم بعمل نسخة احتياطية للألعاب التي تدعم السحابة على هذه المنصات
 consider-doing-a-preview =

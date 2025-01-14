@@ -150,6 +150,8 @@ label-source = 출처
 label-primary-manifest = Primary manifest
 # This refers to how we integrate a custom game with the manifest data.
 label-integration = Integration
+# This is a folder name where a specific game is installed
+label-installed-name = Installed name
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -193,6 +195,7 @@ show-unscanned-games = 스캔 되지 않은 게임 보기
 override-max-threads = Override max threads
 synchronize-automatically = 자동 동기화
 prefer-alias-display = 원래 이름 대신 별칭 표시
+skip-unconstructive-backups = Skip backup when data would be removed, but not added or updated
 explanation-for-exclude-store-screenshots = 백업에서 스토어별 스크린샷 제외하기
 explanation-for-exclude-cloud-games = 클라우드를 지원하는 플랫폼 게임들은 백업 안 함
 consider-doing-a-preview = 먼저 미리 보기를 수행하여 예상치 못한 일이 발생하지 않도록 하세요.

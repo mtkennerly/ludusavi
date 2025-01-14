@@ -150,6 +150,8 @@ label-source = Źródło
 label-primary-manifest = Główny manifest
 # This refers to how we integrate a custom game with the manifest data.
 label-integration = Integracja
+# This is a folder name where a specific game is installed
+label-installed-name = Installed name
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -193,6 +195,7 @@ show-unscanned-games = Pokaż nieprzeskanowane gry
 override-max-threads = Zastąp maksymalną liczbę wątków
 synchronize-automatically = Synchronizuj automatycznie
 prefer-alias-display = Wyświetlaj alias zamiast oryginalnej nazwy
+skip-unconstructive-backups = Skip backup when data would be removed, but not added or updated
 explanation-for-exclude-store-screenshots = Nie zawieraj w kopiach zapasowych zrzutów ekranu dla konkretnego sklepu
 explanation-for-exclude-cloud-games = Na tych platformach nie należy tworzyć kopii zapasowych gier z obsługą chmury
 consider-doing-a-preview = Jeśli jeszcze tego nie zrobiono, rozważ wykonanie pierwszego testu, aby zobaczyć, czy wszystko działa.

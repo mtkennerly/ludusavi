@@ -142,6 +142,8 @@ label-source = 游戏数据来源
 label-primary-manifest = 主要清单
 # This refers to how we integrate a custom game with the manifest data.
 label-integration = 集成方式
+# This is a folder name where a specific game is installed
+label-installed-name = Installed name
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -185,6 +187,7 @@ show-unscanned-games = 显示未扫描的游戏
 override-max-threads = 覆盖最大线程
 synchronize-automatically = 自动同步
 prefer-alias-display = 显示别名而不是原始名称
+skip-unconstructive-backups = Skip backup when data would be removed, but not added or updated
 explanation-for-exclude-store-screenshots = 在备份中，排除特定商店的屏幕截图
 explanation-for-exclude-cloud-games = 不要在这些平台上备份云支持的游戏
 consider-doing-a-preview = 如果您还没有预览，请考虑先进行预览，防止发生任何意料之外的结果。
