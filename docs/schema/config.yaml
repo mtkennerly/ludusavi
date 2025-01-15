@@ -8,7 +8,7 @@ properties:
     default:
       rclone:
         arguments: "--fast-list --ignore-checksum"
-        path: "C:\\opt\\rclone.exe"
+        path: "C:/opt/rclone.exe"
     allOf:
       - $ref: "#/definitions/Apps"
   backup:
@@ -36,7 +36,8 @@ properties:
         zip:
           compression: deflate
       ignoredGames: []
-      path: "C:\\Users\\mtken/ludusavi-backup"
+      onlyConstructive: false
+      path: "C:/Users/mtken/ludusavi-backup"
       retention:
         differential: 0
         full: 1
@@ -81,7 +82,7 @@ properties:
   restore:
     default:
       ignoredGames: []
-      path: "C:\\Users\\mtken/ludusavi-backup"
+      path: "C:/Users/mtken/ludusavi-backup"
       reverseRedirects: false
       sort:
         key: status
@@ -131,7 +132,7 @@ definitions:
         description: Settings for  Rclone.
         default:
           arguments: "--fast-list --ignore-checksum"
-          path: "C:\\opt\\rclone.exe"
+          path: "C:/opt/rclone.exe"
         allOf:
           - $ref: "#/definitions/App"
   BackupConfig:
@@ -172,9 +173,13 @@ definitions:
         items:
           type: string
         uniqueItems: true
+      onlyConstructive:
+        description: "Don't create a new backup if there are only removed saves and no new/edited ones."
+        default: false
+        type: boolean
       path:
         description: Full path to a directory in which to save backups.
-        default: "C:\\Users\\mtken/ludusavi-backup"
+        default: "C:/Users/mtken/ludusavi-backup"
         allOf:
           - $ref: "#/definitions/FilePath"
       retention:
@@ -346,6 +351,12 @@ definitions:
       ignore:
         description: Whether to disable this game.
         type: boolean
+      installDir:
+        description: Bare folder names where the game has been installed.
+        default: []
+        type: array
+        items:
+          type: string
       integration:
         default: override
         allOf:
@@ -452,6 +463,10 @@ definitions:
         type: string
         enum:
           - es-ES
+      - description: Swedish
+        type: string
+        enum:
+          - sv-SE
       - description: Thai
         type: string
         enum:
@@ -464,6 +479,10 @@ definitions:
         type: string
         enum:
           - uk-UA
+      - description: Vietnamese
+        type: string
+        enum:
+          - vi-VN
   ManifestConfig:
     type: object
     properties:
@@ -529,7 +548,7 @@ definitions:
         uniqueItems: true
       path:
         description: Full path to a directory from which to restore data.
-        default: "C:\\Users\\mtken/ludusavi-backup"
+        default: "C:/Users/mtken/ludusavi-backup"
         allOf:
           - $ref: "#/definitions/FilePath"
       reverseRedirects:

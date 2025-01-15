@@ -49,6 +49,14 @@ definitions:
       when:
         type: string
         format: date-time
+  ApiDump:
+    type: object
+    properties:
+      registry:
+        description: "Serialized registry content, if any, when enabled by `--dump-registry`."
+        type:
+          - string
+          - "null"
   ApiErrors:
     type: object
     properties:
@@ -125,6 +133,7 @@ definitions:
         required:
           - change
           - decision
+          - dump
           - files
           - registry
         properties:
@@ -136,6 +145,10 @@ definitions:
             description: How Ludusavi decided to handle this game.
             allOf:
               - $ref: "#/definitions/OperationStepDecision"
+          dump:
+            description: Raw data.
+            allOf:
+              - $ref: "#/definitions/ApiDump"
           files:
             description: Each key is a file path.
             type: object
@@ -160,6 +173,13 @@ definitions:
               $ref: "#/definitions/ApiBackup"
       - description: "Used by the `find` command."
         type: object
+        properties:
+          score:
+            description: "How well the title matches the query. Range: 0.0 to 1.0 (higher is better)."
+            type:
+              - number
+              - "null"
+            format: double
   ApiRegistry:
     type: object
     required:

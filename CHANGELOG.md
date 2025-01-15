@@ -1,4 +1,4 @@
-## Unreleased
+## v0.28.0 (2025-01-15)
 
 * Added:
   * On Linux, for Lutris roots that point to a Flatpak installation,

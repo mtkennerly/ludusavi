@@ -33,7 +33,7 @@ definitions:
   FilePath:
     type: string
   FindTitle:
-    description: "Find game titles\n\nPrecedence: Steam ID -> GOG ID -> Lutris ID -> exact names -> normalized names. Once a match is found for one of these options, Ludusavi will stop looking and return that match.\n\nDepending on the options chosen, there may be multiple matches, but the default is a single match.\n\nAliases will be resolved to the target title."
+    description: "Find game titles\n\nPrecedence: Steam ID -> GOG ID -> Lutris ID -> exact names -> normalized names. Once a match is found for one of these options, Ludusavi will stop looking and return that match, unless you set `multiple: true`, in which case, the results will be sorted by how well they match.\n\nDepending on the options chosen, there may be multiple matches, but the default is a single match.\n\nAliases will be resolved to the target title."
     type: object
     properties:
       backup:
@@ -42,6 +42,10 @@ definitions:
         type: boolean
       disabled:
         description: Select games that are disabled.
+        default: false
+        type: boolean
+      fuzzy:
+        description: Look up games with fuzzy matching. This may find multiple games for a single input.
         default: false
         type: boolean
       gogId:
@@ -58,6 +62,10 @@ definitions:
         type:
           - string
           - "null"
+      multiple:
+        description: "Keep looking for all potential matches, instead of stopping at the first match."
+        default: false
+        type: boolean
       names:
         description: "Look up game by an exact title. With multiple values, they will be checked in the order given."
         default: []

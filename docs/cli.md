@@ -19,6 +19,8 @@ Commands:
           Find game titles
   manifest
           Options for Ludusavi's data set
+  config
+          Options for Ludusavi's configuration
   cloud
           Cloud sync
   wrap
@@ -74,6 +76,9 @@ Options:
           Print information to stdout in machine-readable JSON. This replaces the default,
           human-readable output
 
+      --gui
+          Use GUI dialogs for prompts and some information
+
       --sort <SORT>
           Sort the game list by different criteria. When not specified, this defers to the config
           file
@@ -112,6 +117,10 @@ Options:
           Don't perform any cloud checks or synchronization. When not specified, this defers to the
           config file
 
+      --dump-registry
+          Include the serialized registry content in the output. Only includes the native Windows
+          registry, not Wine
+
   -h, --help
           Print help (see a summary with '-h')
 ```
@@ -136,6 +145,8 @@ Options:
       --api
           Print information to stdout in machine-readable JSON. This replaces the default,
           human-readable output
+      --gui
+          Use GUI dialogs for prompts and some information
       --sort <SORT>
           Sort the game list by different criteria. When not specified, this defers to Ludusavi's
           config file [possible values: name, name-rev, size, size-rev, status, status-rev]
@@ -149,6 +160,9 @@ Options:
       --no-cloud-sync
           Don't perform any cloud checks or synchronization. When not specified, this defers to the
           config file
+      --dump-registry
+          Include the serialized registry content in the output. Only includes the native Windows
+          registry, not Wine
   -h, --help
           Print help
 ```
@@ -204,7 +218,8 @@ Options:
 Find game titles
 
 Precedence: Steam ID -> GOG ID -> Lutris ID -> exact names -> normalized names. Once a match is
-found for one of these options, Ludusavi will stop looking and return that match.
+found for one of these options, Ludusavi will stop looking and return that match, unless you set
+`--multiple`, in which case, the results will be sorted by how well they match.
 
 If there are no matches, Ludusavi will exit with an error. Depending on the options chosen, there
 may be multiple matches, but the default is a single match.
@@ -224,6 +239,9 @@ Options:
       --api
           Print information to stdout in machine-readable JSON. This replaces the default,
           human-readable output
+
+      --multiple
+          Keep looking for all potential matches, instead of stopping at the first match
 
       --path <PATH>
           Directory in which to find backups. When unset, this defaults to the restore path from the
@@ -247,6 +265,9 @@ Options:
       --normalized
           Look up game by an approximation of the title. Ignores capitalization, "edition" suffixes,
           year suffixes, and some special symbols. This may find multiple games for a single input
+
+      --fuzzy
+          Look up games with fuzzy matching. This may find multiple games for a single input
 
       --disabled
           Select games that are disabled
@@ -320,6 +341,31 @@ Options:
           Don't ask for confirmation
       --gui
           Show a GUI notification during restore/backup
+      --path <PATH>
+          Directory in which to find/store backups. It will be created if it does not already exist.
+          When not specified, this defers to the config file
+      --format <FORMAT>
+          Format in which to store new backups. When not specified, this defers to the config file
+          [possible values: simple, zip]
+      --compression <COMPRESSION>
+          Compression method to use for new zip backups. When not specified, this defers to the
+          config file [possible values: none, deflate, bzip2, zstd]
+      --compression-level <COMPRESSION_LEVEL>
+          Compression level to use for new zip backups. When not specified, this defers to the
+          config file. Valid ranges: 1 to 9 for deflate/bzip2, -7 to 22 for zstd
+      --full-limit <FULL_LIMIT>
+          Maximum number of full backups to retain per game. Must be between 1 and 255 (inclusive).
+          When not specified, this defers to the config file
+      --differential-limit <DIFFERENTIAL_LIMIT>
+          Maximum number of differential backups to retain per full backup. Must be between 0 and
+          255 (inclusive). When not specified, this defers to the config file
+      --cloud-sync
+          Upload any changes to the cloud when the backup is complete. If the local and cloud
+          backups are not in sync to begin with, then nothing will be uploaded. When not specified,
+          this defers to the config file
+      --no-cloud-sync
+          Don't perform any cloud checks or synchronization. When not specified, this defers to the
+          config file
   -h, --help
           Print help
 ```
