@@ -39,7 +39,7 @@
     errors at the end of the process will also be reported via dialogs.
     This does not apply to CLI parse errors.
   * Application crash and CLI parse errors are now logged.
-  * Updated translations, including a new translation for Vietnamese.
+  * Updated translations, including partial support for Vietnamese and Swedish.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 * Fixed:
   * If a custom game's title begins or ends with a space,

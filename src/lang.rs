@@ -104,6 +104,9 @@ pub enum Language {
     /// Spanish
     #[serde(rename = "es-ES")]
     Spanish,
+    /// Swedish
+    #[serde(rename = "sv-SE")]
+    Swedish,
     /// Thai
     #[serde(rename = "th-TH")]
     Thai,
@@ -119,6 +122,7 @@ pub enum Language {
 }
 
 impl Language {
+    // These are sorted based on each language's native name.
     pub const ALL: &'static [Self] = &[
         Self::Czech,
         Self::German,
@@ -132,6 +136,7 @@ impl Language {
         Self::Polish,
         Self::PortugueseBrazilian,
         Self::Russian,
+        Self::Swedish,
         Self::Finnish,
         Self::Vietnamese,
         Self::Turkish,
@@ -164,6 +169,7 @@ impl Language {
             Self::PortugueseBrazilian => "pt-BR",
             Self::Russian => "ru-RU",
             Self::Spanish => "es-ES",
+            Self::Swedish => "sv-SE",
             Self::Thai => "th-TH",
             Self::Turkish => "tr-TR",
             Self::Ukrainian => "uk-UA",
@@ -192,6 +198,7 @@ impl Language {
             Language::PortugueseBrazilian => "Português brasileiro",
             Language::Russian => "Русский язык",
             Language::Spanish => "Español",
+            Language::Swedish => "Svenska",
             Language::Thai => "ภาษาไทย",
             Language::Turkish => "Türkçe",
             Language::Ukrainian => "Украї́нська мо́ва",
@@ -219,6 +226,7 @@ impl Language {
             Language::PortugueseBrazilian => 98,
             Language::Russian => 100,
             Language::Spanish => 98,
+            Language::Swedish => 1,
             Language::Thai => 22,
             Language::Turkish => 98,
             Language::Ukrainian => 37,
@@ -277,6 +285,7 @@ fn set_language(language: Language) {
         Language::PortugueseBrazilian => include_str!("../lang/pt-BR.ftl"),
         Language::Russian => include_str!("../lang/ru-RU.ftl"),
         Language::Spanish => include_str!("../lang/es-ES.ftl"),
+        Language::Swedish => include_str!("../lang/sv-SE.ftl"),
         Language::Thai => include_str!("../lang/th-TH.ftl"),
         Language::Turkish => include_str!("../lang/tr-TR.ftl"),
         Language::Ukrainian => include_str!("../lang/uk-UA.ftl"),
