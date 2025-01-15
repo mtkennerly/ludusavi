@@ -400,6 +400,52 @@ pub enum Subcommand {
         #[clap(long)]
         gui: bool,
 
+        /// Directory in which to find/store backups.
+        /// It will be created if it does not already exist.
+        /// When not specified, this defers to the config file.
+        #[clap(long, value_parser = parse_strict_path)]
+        path: Option<StrictPath>,
+
+        /// Format in which to store new backups.
+        /// When not specified, this defers to the config file.
+        #[clap(long, value_parser = possible_values!(BackupFormat, ALL_NAMES))]
+        format: Option<BackupFormat>,
+
+        /// Compression method to use for new zip backups.
+        /// When not specified, this defers to the config file.
+        #[clap(long, value_parser = possible_values!(ZipCompression, ALL_NAMES))]
+        compression: Option<ZipCompression>,
+
+        /// Compression level to use for new zip backups.
+        /// When not specified, this defers to the config file.
+        /// Valid ranges: 1 to 9 for deflate/bzip2, -7 to 22 for zstd.
+        #[clap(long, allow_hyphen_values(true))]
+        compression_level: Option<i32>,
+
+        /// Maximum number of full backups to retain per game.
+        /// Must be between 1 and 255 (inclusive).
+        /// When not specified, this defers to the config file.
+        #[clap(long)]
+        full_limit: Option<u8>,
+
+        /// Maximum number of differential backups to retain per full backup.
+        /// Must be between 0 and 255 (inclusive).
+        /// When not specified, this defers to the config file.
+        #[clap(long)]
+        differential_limit: Option<u8>,
+
+        /// Upload any changes to the cloud when the backup is complete.
+        /// If the local and cloud backups are not in sync to begin with,
+        /// then nothing will be uploaded.
+        /// When not specified, this defers to the config file.
+        #[clap(long)]
+        cloud_sync: bool,
+
+        /// Don't perform any cloud checks or synchronization.
+        /// When not specified, this defers to the config file.
+        #[clap(long, conflicts_with("cloud_sync"))]
+        no_cloud_sync: bool,
+
         /// Commands to launch the game.
         /// Use `--` first to separate these from the `wrap` options;
         /// e.g., `ludusavi wrap --name foo -- foo.exe --windowed`.

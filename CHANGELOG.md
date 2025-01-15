@@ -21,6 +21,15 @@
     but don't have a good way to check the registry keys directly.
   * CLI: The `find` command now supports `--fuzzy` and `--multiple` options.
     This is also available for the `api` command's `findTitle` request.
+  * CLI: The `wrap` command now supports several options from the `backup` command:
+    `--path`,
+    `--format`,
+    `--compression`,
+    `--compression-level`,
+    `--full-limit`,
+    `--differential-limit`,
+    `--cloud-sync`,
+    `--no-cloud-sync`.
 * Changed:
   * When the game list is filtered,
     the summary line (e.g., "1 of 10 games") now reflects the filtered totals.

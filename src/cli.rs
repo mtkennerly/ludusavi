@@ -871,6 +871,14 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             name_source,
             force,
             gui,
+            path,
+            format,
+            compression,
+            compression_level,
+            full_limit,
+            differential_limit,
+            cloud_sync,
+            no_cloud_sync,
             commands,
         } => {
             let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
@@ -959,20 +967,20 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     Subcommand::Restore {
                         games: vec![game_name.clone()],
                         force: true,
-                        preview: Default::default(),
-                        path: Default::default(),
+                        preview,
+                        path: path.clone(),
                         api: Default::default(),
                         gui: Default::default(),
                         sort: Default::default(),
                         backup: Default::default(),
-                        cloud_sync: Default::default(),
-                        no_cloud_sync: Default::default(),
+                        cloud_sync,
+                        no_cloud_sync,
                         dump_registry: Default::default(),
                     },
                     no_manifest_update,
                     try_manifest_update,
                 ) {
-                    log::error!("WRAP::restore: failed for game {:?} with: {:?}", wrap_game_info, err);
+                    log::error!("Wrap failed to restore game {:?} with: {:?}", wrap_game_info, err);
                     ui::alert_with_error(gui, force, &TRANSLATOR.restore_one_game_failed(game_name), &err)?;
                     return Err(err);
                 }
@@ -983,10 +991,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let result = Command::new(&commands[0]).args(&commands[1..]).status();
             match result {
                 Ok(status) => {
-                    log::debug!("WRAP::execute: Game command executed, returning status: {:#?}", status);
+                    log::debug!("Wrapped game command executed, returning status: {:#?}", status);
                 }
                 Err(err) => {
-                    log::error!("WRAP::execute: Game command execution failed with: {:#?}", err);
+                    log::error!("Wrapped game command execution failed with: {:#?}", err);
                     ui::alert_with_raw_error(gui, force, &TRANSLATOR.game_did_not_launch(), &err.to_string())?;
                     return Err(Error::GameDidNotLaunch { why: err.to_string() });
                 }
@@ -1006,25 +1014,25 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     Subcommand::Backup {
                         games: vec![game_name.clone()],
                         force: true,
-                        preview: Default::default(),
-                        path: Default::default(),
+                        preview,
+                        path,
                         wine_prefix: Default::default(),
                         api: Default::default(),
                         gui: Default::default(),
                         sort: Default::default(),
-                        format: Default::default(),
-                        compression: Default::default(),
-                        compression_level: Default::default(),
-                        full_limit: Default::default(),
-                        differential_limit: Default::default(),
-                        cloud_sync: Default::default(),
-                        no_cloud_sync: Default::default(),
+                        format,
+                        compression,
+                        compression_level,
+                        full_limit,
+                        differential_limit,
+                        cloud_sync,
+                        no_cloud_sync,
                         dump_registry: Default::default(),
                     },
                     no_manifest_update,
                     try_manifest_update,
                 ) {
-                    log::error!("WRAP::backup: failed with: {:#?}", err);
+                    log::error!("Wrap failed to back up with: {:#?}", err);
                     ui::alert_with_error(gui, force, &TRANSLATOR.back_up_one_game_failed(game_name), &err)?;
                     return Err(err);
                 }
