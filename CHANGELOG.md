@@ -1,3 +1,14 @@
+## Unreleased
+
+* Fixed:
+  * For home folder roots, Ludusavi skipped any paths containing `<storeUserId>`,
+    on the assumption that it shouldn't be applicable to non-store-specific roots.
+    However, there are some cases where it's worth scanning regardless,
+    so Ludusavi will now use a wildcard match like it does for other root types.
+* Changed:
+  * Updated translations.
+    (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
+
 ## v0.28.0 (2025-01-15)
 
 * Added:

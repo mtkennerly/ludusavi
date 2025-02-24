@@ -310,7 +310,7 @@ pub fn parse_paths(
                 .replace(p::ROOT, &root_interpreted)
                 .replace(p::GAME, install_dir)
                 .replace(p::BASE, &format!("{}/{}", &root_interpreted, install_dir))
-                .replace(p::STORE_USER_ID, SKIP)
+                .replace(p::STORE_USER_ID, "*")
                 .replace(p::OS_USER_NAME, &crate::prelude::OS_USERNAME)
                 .replace(p::WIN_APP_DATA, check_windows_path("<home>/AppData/Roaming"))
                 .replace(p::WIN_LOCAL_APP_DATA, check_windows_path("<home>/AppData/Local"))
