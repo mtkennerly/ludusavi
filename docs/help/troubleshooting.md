@@ -38,3 +38,37 @@ you can follow these instructions:
 * In the upper `user variables` section, click the `new...` button,
   then enter the variable name and value.
   If the variable already exists, select it and click `edit...`.
+
+## Common Issues and Solutions
+
+### Issue 1: Backup Fails Due to Long File Paths
+**Solution:** Ensure that long file paths are enabled in Windows. Refer to the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation?tabs=registry#registry-setting-to-enable-long-paths) for instructions.
+
+### Issue 2: GUI Not Launching
+**Solution:** Check your graphics drivers and support. Try using the software renderer by setting the `ICED_BACKEND` environment variable to `tiny-skia`. You can also try prioritizing different hardware renderers by setting the `WGPU_BACKEND` environment variable to `dx12`, `vulkan`, or `metal`.
+
+### Issue 3: File/Folder Picker Not Working on Steam Deck
+**Solution:** Use desktop mode instead of game mode.
+
+### Issue 4: Console Window Stays Open on Windows 11
+**Solution:** This is a limitation of the new Windows Terminal app. Refer to the [GitHub issue](https://github.com/microsoft/terminal/issues/14416) for more details. You can work around it by changing the "default terminal application" to "Windows Console Host" in the Windows Terminal settings.
+
+## FAQ
+
+### How do I enable long file paths in Windows?
+Refer to the [Microsoft documentation](https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation?tabs=registry#registry-setting-to-enable-long-paths) for instructions on enabling long file paths in Windows.
+
+### How do I set environment variables on Windows?
+Follow these steps:
+1. Open the Start Menu, search for `edit the system environment variables`, and select the matching result.
+2. In the new window, click the `environment variables...` button.
+3. In the upper `user variables` section, click the `new...` button, then enter the variable name and value. If the variable already exists, select it and click `edit...`.
+
+### What should I do if the GUI won't launch?
+Check your graphics drivers and support. Try using the software renderer by setting the `ICED_BACKEND` environment variable to `tiny-skia`. You can also try prioritizing different hardware renderers by setting the `WGPU_BACKEND` environment variable to `dx12`, `vulkan`, or `metal`.
+
+### How do I use the file/folder picker on Steam Deck?
+Use desktop mode instead of game mode.
+
+### How do I prevent the console window from staying open on Windows 11?
+This is a limitation of the new Windows Terminal app. Refer to the [GitHub issue](https://github.com/microsoft/terminal/issues/14416) for more details. You can work around it by changing the "default terminal application" to "Windows Console Host" in the Windows Terminal settings.

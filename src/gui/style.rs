@@ -38,6 +38,8 @@ pub struct Theme {
     failure: Color,
     skipped: Color,
     added: Color,
+    primary_font: String,
+    secondary_font: String,
 }
 
 impl Default for Theme {
@@ -65,6 +67,8 @@ impl From<config::Theme> for Theme {
                 failure: rgb8!(201, 77, 77),
                 skipped: rgb8!(230, 230, 230),
                 added: rgb8!(28, 223, 86),
+                primary_font: "Noto Sans".to_string(),
+                secondary_font: "Material Icons".to_string(),
             },
             config::Theme::Dark => Self {
                 background: rgb8!(41, 41, 41),

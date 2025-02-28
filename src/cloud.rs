@@ -219,6 +219,8 @@ pub enum RemoteChoice {
     OneDrive,
     Smb,
     WebDav,
+    AmazonS3,
+    GoogleCloudStorage,
 }
 
 impl RemoteChoice {
@@ -231,6 +233,8 @@ impl RemoteChoice {
         Self::Ftp,
         Self::Smb,
         Self::WebDav,
+        Self::AmazonS3,
+        Self::GoogleCloudStorage,
         Self::Custom,
     ];
 }
@@ -247,6 +251,8 @@ impl ToString for RemoteChoice {
             Self::OneDrive => "OneDrive".to_string(),
             Self::Smb => "SMB".to_string(),
             Self::WebDav => "WebDAV".to_string(),
+            Self::AmazonS3 => "Amazon S3".to_string(),
+            Self::GoogleCloudStorage => "Google Cloud Storage".to_string(),
         }
     }
 }
@@ -293,6 +299,20 @@ pub enum Remote {
         password: String,
         provider: WebDavProvider,
     },
+    AmazonS3 {
+        id: String,
+        access_key: String,
+        secret_key: String,
+        region: String,
+        bucket: String,
+    },
+    GoogleCloudStorage {
+        id: String,
+        project_id: String,
+        client_email: String,
+        private_key: String,
+        bucket: String,
+    },
 }
 
 impl Remote {
@@ -306,6 +326,8 @@ impl Remote {
             Remote::Ftp { id, .. } => id,
             Remote::Smb { id, .. } => id,
             Remote::WebDav { id, .. } => id,
+            Remote::AmazonS3 { id, .. } => id,
+            Remote::GoogleCloudStorage { id, .. } => id,
         }
     }
 
@@ -319,6 +341,8 @@ impl Remote {
             Self::OneDrive { .. } => "onedrive",
             Self::Smb { .. } => "smb",
             Self::WebDav { .. } => "webdav",
+            Self::AmazonS3 { .. } => "s3",
+            Self::GoogleCloudStorage { .. } => "gcs",
         }
     }
 
@@ -369,6 +393,30 @@ impl Remote {
                 format!("pass={password}"),
                 format!("vendor={}", provider.slug()),
             ]),
+            Self::AmazonS3 {
+                access_key,
+                secret_key,
+                region,
+                bucket,
+                ..
+            } => Some(vec![
+                format!("access_key_id={access_key}"),
+                format!("secret_access_key={secret_key}"),
+                format!("region={region}"),
+                format!("bucket={bucket}"),
+            ]),
+            Self::GoogleCloudStorage {
+                project_id,
+                client_email,
+                private_key,
+                bucket,
+                ..
+            } => Some(vec![
+                format!("project_id={project_id}"),
+                format!("client_email={client_email}"),
+                format!("private_key={private_key}"),
+                format!("bucket={bucket}"),
+            ]),
         }
     }
 
@@ -381,7 +429,9 @@ impl Remote {
             | Self::GoogleDrive { .. }
             | Self::OneDrive { .. }
             | Self::Smb { .. }
-            | Self::WebDav { .. } => true,
+            | Self::WebDav { .. }
+            | Self::AmazonS3 { .. }
+            | Self::GoogleCloudStorage { .. } => true,
         }
     }
 
@@ -394,6 +444,8 @@ impl Remote {
                 host, port, username, ..
             } => Some(format!("{}@{}:{}", username, host, port)),
             Remote::WebDav { url, provider, .. } => Some(format!("{} - {}", provider.to_string(), url)),
+            Remote::AmazonS3 { bucket, region, .. } => Some(format!("{} - {}", bucket, region)),
+            Remote::GoogleCloudStorage { bucket, project_id, .. } => Some(format!("{} - {}", bucket, project_id)),
             _ => None,
         }
     }
@@ -415,6 +467,8 @@ impl From<Option<&Remote>> for RemoteChoice {
                 Remote::OneDrive { .. } => RemoteChoice::OneDrive,
                 Remote::Smb { .. } => RemoteChoice::Smb,
                 Remote::WebDav { .. } => RemoteChoice::WebDav,
+                Remote::AmazonS3 { .. } => RemoteChoice::AmazonS3,
+                Remote::GoogleCloudStorage { .. } => RemoteChoice::GoogleCloudStorage,
             }
         } else {
             RemoteChoice::None
@@ -463,6 +517,20 @@ impl TryFrom<RemoteChoice> for Remote {
                 username: String::new(),
                 password: String::new(),
                 provider: WebDavProvider::Other,
+            }),
+            RemoteChoice::AmazonS3 => Ok(Remote::AmazonS3 {
+                id: Remote::generate_id(),
+                access_key: String::new(),
+                secret_key: String::new(),
+                region: String::new(),
+                bucket: String::new(),
+            }),
+            RemoteChoice::GoogleCloudStorage => Ok(Remote::GoogleCloudStorage {
+                id: Remote::generate_id(),
+                project_id: String::new(),
+                client_email: String::new(),
+                private_key: String::new(),
+                bucket: String::new(),
             }),
         }
     }
@@ -605,6 +673,15 @@ impl Rclone {
             Remote::WebDav { password, .. } => {
                 privacy = Privacy::Private;
                 *password = self.obscure(password)?;
+            }
+            Remote::AmazonS3 { access_key, secret_key, .. } => {
+                privacy = Privacy::Private;
+                *access_key = self.obscure(access_key)?;
+                *secret_key = self.obscure(secret_key)?;
+            }
+            Remote::GoogleCloudStorage { private_key, .. } => {
+                privacy = Privacy::Private;
+                *private_key = self.obscure(private_key)?;
             }
         }
 

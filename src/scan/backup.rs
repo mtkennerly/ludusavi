@@ -29,6 +29,7 @@ impl BackupError {
 pub struct BackupInfo {
     pub failed_files: HashMap<StrictPath, BackupError>,
     pub failed_registry: HashMap<RegistryItem, BackupError>,
+    pub incremental: bool,
 }
 
 impl BackupInfo {

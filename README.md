@@ -154,3 +154,63 @@ cross-platform and cross-store solution:
 
 ## Development
 Please refer to [CONTRIBUTING.md](./CONTRIBUTING.md).
+
+## Examples and Use Cases
+
+### Example 1: Basic Backup and Restore
+
+1. Open Ludusavi.
+2. Select the "Backup" tab.
+3. Choose the games you want to back up.
+4. Click the "Backup" button.
+5. To restore, select the "Restore" tab, choose the backup, and click the "Restore" button.
+
+### Example 2: Custom Game Entries
+
+1. Open Ludusavi.
+2. Select the "Custom Games" tab.
+3. Click "Add Game" and fill in the details.
+4. Save the custom game entry.
+5. You can now back up and restore this custom game like any other game.
+
+### Example 3: Command Line Interface
+
+1. Open a terminal.
+2. Use the following command to back up all games:
+   ```
+   ludusavi backup --path /path/to/backup
+   ```
+3. Use the following command to restore a specific game:
+   ```
+   ludusavi restore --path /path/to/backup --game "Game Name"
+   ```
+
+### Example 4: Incremental Backups
+
+1. Open Ludusavi.
+2. Select the "Backup" tab.
+3. Choose the games you want to back up.
+4. Click the "Backup" button.
+5. Ludusavi will automatically perform incremental backups, saving only the changes since the last backup.
+
+### Example 5: Scheduling Backups
+
+1. Use your operating system's task scheduler to automate backups.
+2. For Windows, use Task Scheduler to run Ludusavi at specific intervals.
+3. For Linux, use cron jobs to schedule Ludusavi backups.
+
+### Example 6: Cloud Storage Integration
+
+1. Open Ludusavi.
+2. Go to the "Settings" tab.
+3. Configure your cloud storage provider (e.g., Amazon S3, Google Cloud Storage).
+4. Enable cloud backups.
+5. Ludusavi will automatically back up your game saves to the cloud.
+
+## Effective Usage Tips
+
+1. Regularly update Ludusavi to benefit from the latest features and improvements.
+2. Customize your backup settings to suit your preferences and storage capacity.
+3. Use the command line interface for advanced scripting and automation.
+4. Take advantage of incremental backups to save time and storage space.
+5. Explore the community resources for additional manifests and plugins.

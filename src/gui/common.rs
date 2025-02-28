@@ -207,6 +207,7 @@ pub enum Message {
     ShowCustomGame {
         name: String,
     },
+    ResetSettingsToDefault, // Added option for resetting settings to default
 }
 
 impl Message {

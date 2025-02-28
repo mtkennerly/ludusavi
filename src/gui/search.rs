@@ -1,5 +1,5 @@
 use fuzzy_matcher::FuzzyMatcher;
-use iced::{padding, Alignment};
+use iced::{padding, Alignment, TextInput, Length};
 
 use crate::{
     gui::{
@@ -289,5 +289,30 @@ impl CustomGamesFilter {
             .padding(padding::left(15).right(15))
             .into(),
         )
+    }
+}
+
+#[derive(Default)]
+pub struct SearchComponent {
+    pub query: String,
+}
+
+impl SearchComponent {
+    pub fn new() -> Self {
+        Self {
+            query: String::new(),
+        }
+    }
+
+    pub fn view(&self) -> Element {
+        Row::new()
+            .spacing(10)
+            .align_y(Alignment::Center)
+            .push(TextInput::new("Search...", &self.query)
+                .on_input(Message::SearchQueryChanged)
+                .padding(10)
+                .width(Length::Fill)
+                .class(style::TextInput))
+            .into()
     }
 }
