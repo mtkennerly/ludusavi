@@ -45,7 +45,9 @@ fn title_case(text: &str) -> String {
     }
 }
 
-// TODO: RTL blocked by https://github.com/iced-rs/iced/issues/250.
+// RTL support is currently blocked by the iced UI framework
+// Tracking issue: https://github.com/iced-rs/iced/issues/250
+// TODO[RTL-SUPPORT]: When iced adds RTL support, implement proper text direction handling for Arabic and Hebrew
 /// Display language.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
 pub enum Language {
@@ -814,6 +816,10 @@ impl Translator {
 
     pub fn validate_button(&self) -> String {
         translate("button-validate")
+    }
+
+    pub fn press_any_key_to_continue(&self) -> String {
+        translate("press-any-key-to-continue")
     }
 
     pub fn override_manifest_button(&self) -> String {

@@ -9,14 +9,20 @@ fn get_separator(gui: bool) -> &'static str {
     }
 }
 
-fn pause() -> Result<(), Error> {
-    use std::io::prelude::{Read, Write};
+/// Pad a string to a specific width
+fn pad_to_width(text: &str, width: usize) -> String {
+    if text.len() >= width {
+        text.to_string()
+    } else {
+        format!("{}{}", text, " ".repeat(width - text.len()))
+    }
+}
 
     let mut stdin = std::io::stdin();
     let mut stdout = std::io::stdout();
 
-    // TODO: Must be a string literal. Can we support translation?
-    write!(stdout, "Press any key to continue...").map_err(|_| Error::CliUnableToRequestConfirmation)?;
+    // Use TRANSLATOR for internationalization support
+    write!(stdout, "{}", TRANSLATOR.press_any_key_to_continue()).map_err(|_| Error::CliUnableToRequestConfirmation)?;
     stdout.flush().map_err(|_| Error::CliUnableToRequestConfirmation)?;
 
     stdin
@@ -24,7 +30,6 @@ fn pause() -> Result<(), Error> {
         .map_err(|_| Error::CliUnableToRequestConfirmation)?;
 
     Ok(())
-}
 
 pub fn alert_with_raw_error(gui: bool, force: bool, msg: &str, error: &str) -> Result<(), Error> {
     alert(
@@ -53,9 +58,14 @@ pub fn alert(gui: bool, force: bool, msg: &str) -> Result<(), Error> {
             .show();
         Ok(())
     } else if !force {
-        // TODO: Dialoguer doesn't have an alert type.
-        // https://github.com/console-rs/dialoguer/issues/287
-        println!("{}", msg);
+        // Dialoguer doesn't have a built-in alert type yet
+        // Tracking issue: https://github.com/console-rs/dialoguer/issues/287
+        // For now, we create our own alert-like display
+        println!("\n┌─────────────────────────────────────────┐");
+        println!("│ ⚠️  Alert                                │");
+        println!("├─────────────────────────────────────────┤");
+        println!("│ {}│", format!(" {}", msg).pad_to_width(39));
+        println!("└─────────────────────────────────────────┘\n");
         pause()
     } else {
         println!("{}", msg);
@@ -114,10 +124,7 @@ pub fn confirm(gui: bool, force: bool, preview: bool, msg: &str) -> Result<bool,
             }
             Err(err) => {
                 log::error!("Unable to request confirmation: {:?}", err);
-                Err(Error::CliUnableToRequestConfirmation {
-                    source: err,
-                    message: "Failed to get user input. Ensure terminal is interactive".into(),
-                })
+                Err(Error::CliUnableToRequestConfirmation)
             }
         }
     }

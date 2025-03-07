@@ -227,13 +227,15 @@ impl ScanInfo {
     }
 
     pub fn overall_change(&self) -> ScanChange {
-        // TODO: Disabled games can still be marked as new/updated. Should we suppress that?
+        // Suppress new/updated status for disabled games
+        if self.all_ignored() {
+            return ScanChange::Same;
+        }
+
         if self.is_total_removal() {
             ScanChange::Removed
         } else if self.is_brand_new() {
-            if self.all_ignored() {
-                ScanChange::Same
-            } else if self.has_backups {
+            if self.has_backups {
                 // This can happen when all of the paths are affected by a new redirect.
                 ScanChange::Different
             } else {

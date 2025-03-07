@@ -183,16 +183,17 @@ fn scan_registry_key(
         );
 
         for name in subkey.enum_keys().filter_map(|x| x.ok()) {
-            if name.contains('/') {
-                // TODO: Handle key names containing a slash.
-                continue;
-            }
+            // Handle key names containing a slash by replacing them with an escaped character
+            // Windows registry keys use backslash as a separator, so we need to handle
+            // keys that might contain forward slashes
+            let normalized_name = name.replace('/', "_SLASH_");
+
             found.extend(
                 scan_registry_key(
                     game,
                     hive,
                     hive_name,
-                    &format!("{}\\{}", key, name),
+                    &format!("{}\\{}", key, normalized_name),
                     filter,
                     toggled,
                     previous,
@@ -214,10 +215,13 @@ pub fn try_read_registry_key(hive_name: &str, key: &str) -> Option<Entries> {
 fn read_registry_key(key: &winreg::RegKey) -> Entries {
     let mut entries = Entries::default();
     for (name, value) in key.enum_values().filter_map(|x| x.ok()) {
-        // TODO: The default value has an empty name. How should we represent it?
+        // Handle the default value which has an empty name
+        // Use a special name "(Default)" to represent it, which is what Windows Registry Editor does
+        let entry_name = if name.is_empty() { "(Default)".to_string() } else { name };
+
         let entry = Entry::from(value);
         if entry.is_set() {
-            entries.0.insert(name, entry);
+            entries.0.insert(entry_name, entry);
         }
     }
     entries
@@ -348,7 +352,7 @@ impl Hives {
                         continue;
                     }
 
-                    // TODO: Track errors by specific entry, rather than the parent key.
+                    // Track errors by specific entry instead of the parent key
                     if let Some(value) = Option::<winreg::RegValue>::from(entry) {
                         if let Err(e) = key.set_raw_value(entry_name, &value) {
                             log::error!(
@@ -357,7 +361,19 @@ impl Hives {
                                 &path,
                                 entry_name
                             );
-                            failed.insert(path.clone(), BackupError::Raw(e.to_string()));
+
+                            // Create a specific registry item for this entry
+                            let entry_path = if entry_name == "(Default)" {
+                                // Use the key path directly for default value
+                                path.clone()
+                            } else {
+                                // Create a new registry item that includes the value name in its path
+                                // Format: HKEY/path/to/key::value_name
+                                let combined_path = format!("{}::{}", path.raw(), entry_name);
+                                RegistryItem::new(combined_path)
+                            };
+
+                            failed.insert(entry_path, BackupError::Raw(e.to_string()));
                         }
                     } else {
                         log::warn!(

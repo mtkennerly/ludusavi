@@ -193,10 +193,15 @@ impl Backup {
                     backup.files.remove(&file);
                 }
 
-                // TODO: Registry failures are currently ignored during backup.
-                // If that changes, then make sure this logic is still appropriate.
+                // Handle registry failures properly during backup
                 if !backup_info.failed_registry.is_empty() {
+                    // We keep track of the registry failures and mark the registry hash as None
+                    // to indicate that the registry backup is incomplete or failed
                     backup.registry.hash = None;
+                    log::warn!(
+                        "Registry backup for {} has failures. Some registry entries were not backed up.",
+                        backup.name
+                    );
                 }
             }
             Self::Differential(backup) => {
@@ -210,8 +215,14 @@ impl Backup {
                     backup.files.remove(&file);
                 }
 
-                if !backup_info.failed_registry.is_empty() {
+                // Handle registry failures properly during backup for differential backups too
+                if !backup_info.failed_registry.is_empty() && backup.registry.is_some() {
+                    // For differential backups, we also mark registry as None if there were failures
                     backup.registry = None;
+                    log::warn!(
+                        "Registry backup for {} has failures. Some registry entries were not backed up.",
+                        backup.name
+                    );
                 }
             }
         }

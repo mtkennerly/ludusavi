@@ -222,6 +222,14 @@ impl StrictPath {
 
         let mut analysis = Analysis::default();
 
+        // Preprocess the path to handle forward-slash UNC paths
+        // Convert //?/UNC/server/share to \\?\UNC\server\share for better compatibility
+        let raw_path = if self.raw.starts_with("//?/UNC/") {
+            self.raw.replace("//?/UNC/", r"\\?\UNC\").replace('/', "\\")
+        } else {
+            self.raw.trim().to_string()
+        };
+
         // `\\?\UNC\server\share/foo` will end up with `share/foo` as the share name.
         macro_rules! correct_windows_slashes {
             ($start:expr, $server:expr, $share:expr) => {{
@@ -238,7 +246,7 @@ impl StrictPath {
             }};
         }
 
-        for (i, component) in TypedPath::derive(self.raw.trim()).components().enumerate() {
+        for (i, component) in TypedPath::derive(raw_path.as_str()).components().enumerate() {
             match component {
                 Component::Windows(WComponent::Prefix(prefix)) => {
                     let mapped = match prefix.kind() {
@@ -394,9 +402,23 @@ impl StrictPath {
         }
     }
 
-    // TODO: Better error reporting for incompatible UNC path variants.
+    // Improved error reporting for incompatible UNC path variants
     pub fn globbable(&self) -> String {
-        self.display().trim().trim_end_matches(['/', '\\']).replace('\\', "/")
+        let path = self.display().trim().trim_end_matches(['/', '\\']).replace('\\', "/");
+
+        // Check for UNC paths and log a warning if they might be incompatible
+        if cfg!(windows) && path.starts_with("//") {
+            // UNC path on Windows
+            log::debug!("Using UNC path for globbing: {}", path);
+        } else if !cfg!(windows) && path.starts_with("//") {
+            // UNC-like path on non-Windows - might cause issues
+            log::warn!(
+                "Using Windows UNC path format on non-Windows platform may cause compatibility issues: {}",
+                path
+            );
+        }
+
+        path
     }
 
     fn canonical(&self) -> Canonical {
@@ -1551,8 +1573,8 @@ mod tests {
 
             // Verbatim UNC
             check!(r"\\?\UNC\server\share", r"\\?\UNC\server\share");
-            // TODO: Fix or remove this case?
-            // check!(r"//?/UNC/server/share", r"\\?\UNC\server\share");
+            // Forward slash UNC path format is now supported
+            check!(r"//?/UNC/server/share", r"\\?\UNC\server\share");
 
             // Verbatim disk
             check!(r"\\?\C:", r"C:");
