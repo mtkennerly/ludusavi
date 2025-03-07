@@ -1,4 +1,5 @@
 # Backup retention
+
 In the "other" screen's backup section,
 you can configure how many backups to keep.
 A full backup contains all save data for a game,
@@ -10,12 +11,12 @@ When a full backup is deleted, its associated differential backups are deleted a
 For example, if you configure a retention limit of 2 full and 2 differential,
 then Ludusavi will create 2 differential backups for each full backup, like so:
 
-* Backup #1: full
-  * Backup #2: differential
-  * Backup #3: differential
-* Backup #4: full
-  * Backup #5: differential
-  * Backup #6: differential
+- Backup #1: full
+  - Backup #2: differential
+  - Backup #3: differential
+- Backup #4: full
+  - Backup #5: differential
+  - Backup #6: differential
 
 When backup #7 is created, because the full retention is set to 2,
 Ludusavi will delete backups 1 through 3.

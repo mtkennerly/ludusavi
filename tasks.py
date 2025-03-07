@@ -43,7 +43,8 @@ def legal(ctx):
 
 @task
 def flatpak(ctx, generator="/opt/flatpak-cargo-generator.py"):
-    ctx.run(f'python "{generator}" "{ROOT}/Cargo.lock" -o "{DIST}/generated-sources.json"', hide=True)
+    ctx.run(
+        f'python "{generator}" "{ROOT}/Cargo.lock" -o "{DIST}/generated-sources.json"', hide=True)
 
 
 @task
@@ -133,7 +134,8 @@ def docs_schema(ctx):
     for command in commands:
         doc = docs / f"{command}.yaml"
         print(f"schema: {command}")
-        output = ctx.run(f"cargo run -- schema --format yaml {command}", hide=True)
+        output = ctx.run(
+            f"cargo run -- schema --format yaml {command}", hide=True)
 
         with doc.open("w") as f:
             f.write(output.stdout.strip() + "\n")
@@ -169,9 +171,11 @@ def release_flatpak(ctx, target="/git/com.github.mtkennerly.ludusavi"):
         ctx.run("git pull")
         ctx.run(f"git checkout -b release/v{version}")
 
-        shutil.copy(DIST / "generated-sources.json", target / "generated-sources.json")
+        shutil.copy(DIST / "generated-sources.json",
+                    target / "generated-sources.json")
         spec_content = spec.read_bytes().decode("utf-8")
-        spec_content = re.sub(r"(        tag:) (.*)", fr"\1 v{version}", spec_content)
+        spec_content = re.sub(r"(        tag:) (.*)",
+                              fr"\1 v{version}", spec_content)
         spec.write_bytes(spec_content.encode("utf-8"))
 
         ctx.run("git add .")
@@ -188,9 +192,12 @@ def release_winget(ctx, target="/git/_forks/winget-pkgs"):
         ctx.run("git checkout master")
         ctx.run("git pull upstream master")
         ctx.run(f"git checkout -b mtkennerly.ludusavi-{version}")
-        ctx.run(f"wingetcreate update mtkennerly.ludusavi --version {version} --urls https://github.com/mtkennerly/ludusavi/releases/download/v{version}/ludusavi-v{version}-win64.zip https://github.com/mtkennerly/ludusavi/releases/download/v{version}/ludusavi-v{version}-win32.zip")
-        ctx.run(f"code --wait manifests/m/mtkennerly/ludusavi/{version}/mtkennerly.ludusavi.locale.en-US.yaml")
-        ctx.run(f"winget validate --manifest manifests/m/mtkennerly/ludusavi/{version}")
+        ctx.run(
+            f"wingetcreate update mtkennerly.ludusavi --version {version} --urls https://github.com/mtkennerly/ludusavi/releases/download/v{version}/ludusavi-v{version}-win64.zip https://github.com/mtkennerly/ludusavi/releases/download/v{version}/ludusavi-v{version}-win32.zip")
+        ctx.run(
+            f"code --wait manifests/m/mtkennerly/ludusavi/{version}/mtkennerly.ludusavi.locale.en-US.yaml")
+        ctx.run(
+            f"winget validate --manifest manifests/m/mtkennerly/ludusavi/{version}")
         ctx.run("git add .")
         ctx.run(f'git commit -m "mtkennerly.ludusavi version {version}"')
         ctx.run("git push origin HEAD")

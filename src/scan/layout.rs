@@ -2254,6 +2254,11 @@ impl BackupLayout {
     }
 
     pub fn restorable_game_set(&self) -> BTreeSet<String> {
+        self.restorable_games().into_iter().collect()
+    }
+
+    // Add a method to get all game names
+    pub fn games(&self) -> Vec<String> {
         self.games.keys().cloned().collect()
     }
 }

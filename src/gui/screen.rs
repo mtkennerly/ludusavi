@@ -1,29 +1,28 @@
+use iced::{keyboard, Alignment};
 use std::collections::HashSet;
 
-use iced::{keyboard, padding, Alignment, Length};
-
 use crate::{
-    cloud::{Remote, RemoteChoice},
     gui::{
-        badge::Badge,
         button,
         common::{BrowseFileSubject, BrowseSubject, Message, Operation, ScrollSubject, UndoSubject},
         editor,
-        game_list::GameList,
+        game_list::{DuplicateDetector, Duplication, GameList, OperationStatus},
         icon::Icon,
         search::CustomGamesFilter,
         shortcuts::TextHistories,
         style,
-        widget::{checkbox, number_input, pick_list, text, Button, Column, Container, Element, IcedParentExt, Row},
+        widget::{
+            checkbox, number_input, pick_list, text, Button, Column, Container, Element, IcedParentExt, Row, Space,
+        },
     },
     lang::{Language, TRANSLATOR},
-    prelude::{AVAILABLE_PARALELLISM, STEAM_DECK},
+    prelude::{BackupFilter, ScanKind, AVAILABLE_PARALELLISM, STEAM_DECK},
     resource::{
         cache::Cache,
         config::{self, BackupFormat, CloudFilter, Config, SortKey, Theme, ZipCompression},
         manifest::{Manifest, Store},
     },
-    scan::{DuplicateDetector, Duplication, OperationStatus, ScanKind},
+    scan::layout::BackupLayout,
 };
 
 const RCLONE_URL: &str = "https://rclone.org/downloads";
@@ -195,6 +194,11 @@ impl Restore {
                         self.log.is_filtered(),
                     ))
                     .push(button::validate_backups(operation))
+                    .push(if let Operation::Idle = operation {
+                        button::validate_all_backups(BackupLayout::new(config.restore.source.clone()))
+                    } else {
+                        Element::new(Container::new(Space::new(0, 0)))
+                    })
                     .push(button::filter(self.log.search.show)),
             )
             .push(make_status_row(
@@ -701,17 +705,7 @@ pub fn other<'a>(
                             .class(style::Container::GameListEntry),
                         ),
                 )
-                .push(
-                    Column::new().spacing(5).push(text(TRANSLATOR.roots_label())).push(
-                        Container::new(
-                            Column::new()
-                                .padding(5)
-                                .spacing(4)
-                                .push(editor::root(config, histories, modifiers)),
-                        )
-                        .class(style::Container::GameListEntry),
-                    ),
-                )
+                .push(Column::new().spacing(5).push(text(TRANSLATOR.roots_label())))
                 .push(
                     Column::new()
                         .push(text(TRANSLATOR.ignored_items_label()))

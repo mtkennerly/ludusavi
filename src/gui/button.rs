@@ -551,10 +551,12 @@ pub fn restore_preview<'a>(ongoing: &Operation, filtered: bool) -> Element<'a> {
 
 pub fn validate_backups<'a>(ongoing: &Operation) -> Element<'a> {
     template(
-        text(match ongoing {
-            Operation::ValidateBackups { cancelling: false, .. } => TRANSLATOR.cancel_button(),
-            Operation::ValidateBackups { cancelling: true, .. } => TRANSLATOR.cancelling_button(),
-            _ => TRANSLATOR.validate_button(),
+        Text::new({
+            match ongoing {
+                Operation::ValidateBackups { cancelling: false, .. } => TRANSLATOR.cancel_button(),
+                Operation::ValidateBackups { cancelling: true, .. } => TRANSLATOR.cancelling_button(),
+                _ => TRANSLATOR.validate_button(),
+            }
         })
         .width(WIDTH)
         .align_x(alignment::Horizontal::Center),
@@ -564,6 +566,16 @@ pub fn validate_backups<'a>(ongoing: &Operation) -> Element<'a> {
             _ => None,
         },
         matches!(ongoing, Operation::ValidateBackups { .. }).then_some(style::Button::Negative),
+    )
+}
+
+pub fn validate_all_backups<'a>(layout: BackupLayout) -> Element<'a> {
+    template(
+        Text::new("Validate All")
+            .width(WIDTH)
+            .align_x(alignment::Horizontal::Center),
+        Some(Message::ValidateBackups(ValidatePhase::ValidateAll { layout })),
+        Some(style::Button::Primary),
     )
 }
 

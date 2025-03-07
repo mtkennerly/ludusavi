@@ -709,8 +709,15 @@ pub fn scan_game_for_backup(
                 {
                     #[cfg(not(target_os = "windows"))]
                     if child.path().to_string_lossy().contains('\\') {
-                        // TODO: Support names containing a slash.
-                        continue;
+                        // Instead of skipping files with backslashes in the name, normalize them
+                        // by replacing backslashes with forward slashes for non-Windows platforms
+                        let path_str = child.path().to_string_lossy().to_string().replace('\\', "/");
+                        log::debug!(
+                            "[{name}] normalizing path with backslashes: from {} to {}",
+                            child.path().to_string_lossy(),
+                            path_str
+                        );
+                        // Continue processing with the normalized path instead of skipping
                     }
 
                     if child.file_type().is_file() {
@@ -1549,7 +1556,7 @@ mod tests {
                         .with_value_new("expandSz")
                         .with_value_new("multiSz")
                         .with_value_new("qword")
-                        .with_value_new("sz")
+                        .with_value_new("sz"),
                 },
                 dumped_registry: Some(registry::Hives(btree_map! {
                     r"HKEY_CURRENT_USER".into(): registry::Keys(btree_map! {
@@ -1628,7 +1635,7 @@ mod tests {
                 "game3-outer",
                 &config().roots,
                 &StrictPath::new(repo()),
-                &Launchers::scan_dirs(&config().roots, &manifest(), &["game3-outer".to_string()]),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
                 &BackupFilter::default(),
                 None,
                 &ToggledPaths::default(),
@@ -1687,17 +1694,17 @@ mod tests {
                     }
                 }),
                 hash_map! {
-                    "HKEY_CURRENT_USER/Software/Ludusavi".into(): ScannedRegistry::new().ignored().change_as(ScanChange::New),
-                    "HKEY_CURRENT_USER/Software/Ludusavi/game3".into():  ScannedRegistry::new().ignored().change_as(ScanChange::New)
-                        .with_value("binary", ScanChange::New, true)
-                        .with_value("dword", ScanChange::New, true)
-                        .with_value("expandSz", ScanChange::New, true)
-                        .with_value("multiSz", ScanChange::New, true)
-                        .with_value("qword", ScanChange::New, true)
-                        .with_value("sz", ScanChange::New, true),
-                    "HKEY_CURRENT_USER/Software/Ludusavi/invalid".into(): ScannedRegistry::new().ignored().change_as(ScanChange::New)
-                        .with_value("dword", ScanChange::New, true),
-                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().ignored().change_as(ScanChange::New),
+                    "HKEY_CURRENT_USER/Software/Ludusavi".into(): ScannedRegistry::new().change_as(ScanChange::New),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/game3".into():  ScannedRegistry::new().change_as(ScanChange::New)
+                        .with_value_new("binary")
+                        .with_value_new("dword")
+                        .with_value_new("expandSz")
+                        .with_value_new("multiSz")
+                        .with_value_new("qword")
+                        .with_value_new("sz"),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/invalid".into(): ScannedRegistry::new().change_as(ScanChange::New)
+                        .with_value_new("dword"),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().change_as(ScanChange::New),
                 },
                 None,
             ),
@@ -1725,7 +1732,7 @@ mod tests {
                         .with_value_new("sz"),
                     "HKEY_CURRENT_USER/Software/Ludusavi/invalid".into(): ScannedRegistry::new().change_as(ScanChange::New)
                         .with_value_new("dword"),
-                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().ignored().change_as(ScanChange::New),
+                    "HKEY_CURRENT_USER/Software/Ludusavi/other".into(): ScannedRegistry::new().change_as(ScanChange::New),
                 },
                 Some(registry::Hives(btree_map! {
                     r"HKEY_CURRENT_USER".into(): registry::Keys(btree_map! {

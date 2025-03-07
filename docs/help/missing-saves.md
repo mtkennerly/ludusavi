@@ -1,11 +1,12 @@
 # What if my saves aren't found?
+
 Ludusavi mainly gets its data from [PCGamingWiki](https://www.pcgamingwiki.com).
 The first step is to make sure that the game in question has an article,
 and if so, that it has save and/or config locations in the `Game data` section
 for your version of the game (e.g., Windows vs Linux, Steam vs Epic).
 
 When the wiki has Windows save locations, but no Linux/Mac locations,
-Ludusavi can *derive* some potential paths that aren't listed on the wiki,
+Ludusavi can _derive_ some potential paths that aren't listed on the wiki,
 such as checking Steam's `compatdata` folder for the game's app ID.
 Sometimes, the fact that the game is running via Proton
 or was loaded as a non-Steam game can affect the exact save location,
@@ -31,6 +32,7 @@ Ludusavi may only be able to scan some paths if an applicable root is configured
 For example, having a Steam root will enable Ludusavi to check its `compatdata` folder.
 
 ## Flatpak
+
 If you're using Flatpak on Linux, then by default,
 Ludusavi only has permission to view certain folders.
 You can use a tool like Flatseal to grant access to additional folders.

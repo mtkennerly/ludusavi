@@ -1,4 +1,5 @@
 # Cloud backup
+
 Ludusavi integrates with [Rclone](https://rclone.org) to provide cloud backups.
 You can configure this on the "other" screen.
 Any Rclone remote is supported, but Ludusavi can help you configure some of the more common ones:
@@ -23,16 +24,17 @@ You can also use other cloud backup tools of your choice,
 as long as they can make the storage available as what looks like a normal folder.
 For example:
 
-* If you use something like [Google Drive for Desktop](https://www.google.com/drive/download),
+- If you use something like [Google Drive for Desktop](https://www.google.com/drive/download),
   which creates a special drive (`G:`) to stream from/to the cloud,
   then you can set Ludusavi's backup target to a folder in that drive.
-* If you use something like [Syncthing](https://syncthing.net),
+- If you use something like [Syncthing](https://syncthing.net),
   which continuously synchronizes a local folder across systems,
   then you can set Ludusavi's backup target to that local folder.
-* If you use Rclone's mounting functionality,
+- If you use Rclone's mounting functionality,
   then you can set Ludusavi's backup target to the mount folder.
 
 ## Rclone and Flatpak
+
 For Linux users who have installed Ludusavi via Flatpak,
 the default Flatpak permissions will keep Ludusavi from seeing your
 system copy of Rclone.

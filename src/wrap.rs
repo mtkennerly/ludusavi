@@ -39,11 +39,6 @@ pub mod lutris {
 
     use crate::path::StrictPath;
 
-    use std::sync::Mutex;
-
-    // TODO: Refactor to avoid shared state.
-    static INFERRED_NORMALIZED_TITLE: Mutex<Option<String>> = Mutex::new(None);
-
     pub struct Metadata {
         pub title: String,
         pub base: Option<StrictPath>,
@@ -69,16 +64,22 @@ pub mod lutris {
         Some(result)
     }
 
-    pub fn save_normalized_title(title: String) {
-        let Ok(mut guard) = INFERRED_NORMALIZED_TITLE.lock() else {
-            return;
-        };
-        *guard = Some(title.clone());
+    pub fn get_normalized_title() -> Option<String> {
+        if let Ok(title) = std::env::var("GAME_NAME") {
+            Some(title)
+        } else if let Ok(title) = std::env::var("game_name") {
+            Some(title)
+        } else {
+            None
+        }
+    }
+
+    pub fn save_normalized_title(_title: String) {
+        // Intentionally empty - no longer using shared state
     }
 
     pub fn infer_metadata() -> Option<Metadata> {
-        let guard = INFERRED_NORMALIZED_TITLE.lock().ok()?;
-        let title = (*guard).as_ref()?.clone();
+        let title = get_normalized_title()?;
 
         let base = std::env::var("GAME_DIRECTORY").ok();
         let prefix = std::env::var("WINEPREFIX").ok();

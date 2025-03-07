@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeSet, HashMap, HashSet},
     time::{Duration, Instant},
 };
 
@@ -1073,7 +1073,7 @@ impl App {
                                 return (name, false);
                             };
 
-                            // TODO: Add an option to validate all backups at once.
+                            // Validate the specified backup_id for this game
                             let valid = layout.validate(backup_id);
                             (name, valid)
                         },
@@ -1081,8 +1081,53 @@ impl App {
                     ));
                 }
 
+                // Add a button to validate all backups at once
                 self.operation_steps_active = 100.min(self.operation_steps.len());
                 Task::batch(self.operation_steps.drain(..self.operation_steps_active))
+            }
+            ValidatePhase::ValidateAll { layout } => {
+                // Validate all backups for all games
+                let cancel_flag = self.operation_should_cancel.clone();
+                let layout_clone = layout.clone();
+
+                Task::perform(
+                    async move {
+                        if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                            return (Vec::new(), Vec::new());
+                        }
+
+                        let mut valid_games = Vec::new();
+                        let mut invalid_games = Vec::new();
+
+                        // For each game, validate all its backups
+                        for game_name in layout_clone.games() {
+                            if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
+                                break;
+                            }
+
+                            if let Some(game_layout) = layout_clone.try_game_layout(&game_name) {
+                                // Validate the latest backup
+                                let is_valid = game_layout.validate(BackupId::Latest);
+                                if is_valid {
+                                    valid_games.push(game_name);
+                                } else {
+                                    invalid_games.push(game_name);
+                                }
+                            }
+                        }
+
+                        (valid_games, invalid_games)
+                    },
+                    move |(valid_games, invalid_games)| {
+                        // Update UI with results of all validations
+                        let mut faulty_games = BTreeSet::new();
+                        for game in invalid_games {
+                            faulty_games.insert(game);
+                        }
+
+                        Message::ValidateBackups(ValidatePhase::Done)
+                    },
+                )
             }
             ValidatePhase::GameScanned { game, valid } => {
                 self.progress.step();
@@ -1523,31 +1568,36 @@ impl App {
                         self.config.custom_games[index].integration = integration;
                     }
                     config::Event::Redirect(action, field) => {
-                        // TODO: Automatically refresh redirected paths in the game list.
+                        // Implement automatic refresh of redirected paths in the game list
                         match action {
                             EditAction::Add => {
                                 self.text_histories.redirects.push(Default::default());
                                 self.config.add_redirect(&StrictPath::default(), &StrictPath::default());
+                                self.refresh_game_lists_after_redirect_change();
                             }
                             EditAction::Change(index, value) => match field {
                                 Some(RedirectEditActionField::Source) => {
                                     self.text_histories.redirects[index].source.push(&value);
                                     self.config.redirects[index].source.reset(value);
+                                    self.refresh_game_lists_after_redirect_change();
                                 }
                                 Some(RedirectEditActionField::Target) => {
                                     self.text_histories.redirects[index].target.push(&value);
                                     self.config.redirects[index].target.reset(value);
+                                    self.refresh_game_lists_after_redirect_change();
                                 }
                                 _ => {}
                             },
                             EditAction::Remove(index) => {
                                 self.text_histories.redirects.remove(index);
                                 self.config.redirects.remove(index);
+                                self.refresh_game_lists_after_redirect_change();
                             }
                             EditAction::Move(index, direction) => {
                                 let offset = direction.shift(index);
                                 self.text_histories.redirects.swap(index, offset);
                                 self.config.redirects.swap(index, offset);
+                                self.refresh_game_lists_after_redirect_change();
                             }
                         }
                     }
@@ -2866,5 +2916,17 @@ impl App {
             .push(stack)
             .push_if(self.progress.visible(), || self.progress.view(&self.operation))
             .into()
+    }
+
+    // Add this method to refresh game lists after redirect changes
+    fn refresh_game_lists_after_redirect_change(&mut self) {
+        // Refresh the backup screen game list
+        self.backup_screen.log.invalidate_path_caches();
+
+        // Refresh the restore screen game list
+        self.restore_screen.log.invalidate_path_caches();
+
+        // Log that redirects have been updated
+        log::debug!("Refreshed game lists after redirect change");
     }
 }

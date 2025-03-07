@@ -1,4 +1,5 @@
 # Command line
+
 Ludusavi provides a [command line interface](https://en.wikipedia.org/wiki/Command-line_interface),
 which you can use for automating tasks.
 
@@ -8,9 +9,11 @@ or view info for specific subcommands, such as `ludusavi manifest update --help`
 You can also view the help text in [the CLI docs](/docs/cli.md).
 
 ## Demo
+
 > ![CLI demo of previewing a backup](/docs/demo-cli.gif)
 
 ## JSON output
+
 CLI mode defaults to a human-readable format, but you can switch to a
 machine-readable JSON format with the `--api` flag.
 
@@ -26,23 +29,25 @@ since not all human-readable warnings have an API equivalent.
 There is also an `api` command that supports using JSON for the input as well.
 
 ## Schemas
-* [`--api` mode](/docs/schema/general-output.yaml)
-* [`api` command input](/docs/schema/api-input.yaml)
-* [`api` command output](/docs/schema/api-output.yaml)
+
+- [`--api` mode](/docs/schema/general-output.yaml)
+- [`api` command input](/docs/schema/api-input.yaml)
+- [`api` command output](/docs/schema/api-output.yaml)
 
 ## Example
+
 Output for `backup --force --api`:
 
 ```json
 {
   "errors": {
-    "someGamesFailed": true,
+    "someGamesFailed": true
   },
   "overall": {
     "totalGames": 2,
     "totalBytes": 150,
     "processedGames": 1,
-    "processedBytes": 100,
+    "processedBytes": 100
   },
   "games": {
     "Game 1": {

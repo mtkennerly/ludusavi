@@ -99,6 +99,9 @@ pub enum ValidatePhase {
         game: String,
         valid: bool,
     },
+    ValidateAll {
+        layout: BackupLayout,
+    },
     Done,
 }
 

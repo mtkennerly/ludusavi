@@ -114,7 +114,10 @@ pub fn confirm(gui: bool, force: bool, preview: bool, msg: &str) -> Result<bool,
             }
             Err(err) => {
                 log::error!("Unable to request confirmation: {:?}", err);
-                Err(Error::CliUnableToRequestConfirmation)
+                Err(Error::CliUnableToRequestConfirmation {
+                    source: err,
+                    message: "Failed to get user input. Ensure terminal is interactive".into(),
+                })
             }
         }
     }

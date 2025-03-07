@@ -1,10 +1,11 @@
 # Application folder
+
 Ludusavi stores its configuration/logs/etc in the following locations:
 
-* Windows: `%APPDATA%/ludusavi`
-* Linux: `$XDG_CONFIG_HOME/ludusavi` or `~/.config/ludusavi`
-  * Flatpak: `~/.var/app/com.github.mtkennerly.ludusavi/config/ludusavi`
-* Mac: `~/Library/Application Support/ludusavi`
+- Windows: `%APPDATA%/ludusavi`
+- Linux: `$XDG_CONFIG_HOME/ludusavi` or `~/.config/ludusavi`
+  - Flatpak: `~/.var/app/com.github.mtkennerly.ludusavi/config/ludusavi`
+- Mac: `~/Library/Application Support/ludusavi`
 
 Alternatively, if you'd like Ludusavi to store its configuration in the same
 place as the executable, then simply create a file called `ludusavi.portable`

@@ -1,4 +1,5 @@
 # Duplicates
+
 You may see a "duplicates" badge next to some games. This means that some of
 the same files were also backed up for another game. That could be intentional
 (e.g., an HD remaster may reuse the original save locations), but it could

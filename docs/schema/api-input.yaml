@@ -73,7 +73,7 @@ definitions:
         items:
           type: string
       normalized:
-        description: "Look up game by an approximation of the title. Ignores capitalization, \"edition\" suffixes, year suffixes, and some special symbols. This may find multiple games for a single input."
+        description: 'Look up game by an approximation of the title. Ignores capitalization, "edition" suffixes, year suffixes, and some special symbols. This may find multiple games for a single input.'
         default: false
         type: boolean
       partial:

@@ -1,9 +1,7 @@
 {
   "app-1": {
     "app_name": "app-1",
-    "base_urls": [
-      "https://example.com/"
-    ],
+    "base_urls": ["https://example.com/"],
     "can_run_offline": true,
     "egl_guid": "",
     "executable": "game-1.exe",

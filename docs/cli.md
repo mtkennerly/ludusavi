@@ -1,6 +1,7 @@
 This is the raw help text for the command line interface.
 
 ## `--help`
+
 ```
 Back up and restore PC game saves
 
@@ -46,6 +47,7 @@ Options:
 ```
 
 ## `backup --help`
+
 ```
 Back up data
 
@@ -126,6 +128,7 @@ Options:
 ```
 
 ## `restore --help`
+
 ```
 Restore data
 
@@ -168,6 +171,7 @@ Options:
 ```
 
 ## `complete --help`
+
 ```
 Generate shell completion scripts
 
@@ -193,6 +197,7 @@ Options:
 ```
 
 ## `backups --help`
+
 ```
 Show backups
 
@@ -214,6 +219,7 @@ Options:
 ```
 
 ## `find --help`
+
 ```
 Find game titles
 
@@ -280,6 +286,7 @@ Options:
 ```
 
 ## `manifest --help`
+
 ```
 Options for Ludusavi's data set
 
@@ -300,6 +307,7 @@ Options:
 ```
 
 ## `cloud --help`
+
 ```
 Cloud sync
 
@@ -321,6 +329,7 @@ Options:
 ```
 
 ## `wrap --help`
+
 ```
 Wrap restore/backup around game execution
 
@@ -371,6 +380,7 @@ Options:
 ```
 
 ## `api --help`
+
 ```
 Execute bulk requests using JSON input.
 
@@ -396,6 +406,7 @@ Options:
 ```
 
 ## `schema --help`
+
 ```
 Display schemas that Ludusavi uses
 

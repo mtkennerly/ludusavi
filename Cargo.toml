@@ -17,12 +17,19 @@ clap_complete = "4.5.28"
 dialoguer = "0.11.0"
 dirs = "5.0.1"
 filetime = "0.2.25"
-flexi_logger = { version = "0.29.3", features = ["textfilter"], default-features = false }
+flexi_logger = { version = "0.29.3", features = [
+    "textfilter",
+], default-features = false }
 fluent = "0.16.1"
 fuzzy-matcher = "0.3.7"
 globetter = "0.2.0"
 globset = "0.4.15"
-iced = { version = "0.13.1", features = ["advanced", "tiny-skia", "tokio", "wgpu"], default-features = false }
+iced = { version = "0.13.1", features = [
+    "advanced",
+    "tiny-skia",
+    "tokio",
+    "wgpu",
+], default-features = false }
 image = { version = "0.25.2", features = ["ico"], default-features = false }
 indicatif = { version = "0.17.8", features = ["rayon"] }
 intl-memoizer = "0.5.2"
@@ -32,7 +39,11 @@ opener = "0.7.2"
 rayon = "1.10.0"
 regashii = "0.2.0"
 regex = "1.10.6"
-reqwest = { version = "0.12.7", features = ["blocking", "gzip", "rustls-tls"], default-features = false }
+reqwest = { version = "0.12.7", features = [
+    "blocking",
+    "gzip",
+    "rustls-tls",
+], default-features = false }
 rfd = { version = "0.15.0", features = ["gtk3"], default-features = false }
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 schemars = { version = "0.8.21", features = ["chrono"] }
@@ -56,7 +67,10 @@ zip = "0.6.6"
 [target.'cfg(windows)'.dependencies]
 known-folders = "1.2.0"
 winreg = "0.52.0"
-windows = { version = "0.58.0", features = ["Win32_System_Console", "Win32_System_Threading"] }
+windows = { version = "0.58.0", features = [
+    "Win32_System_Console",
+    "Win32_System_Threading",
+] }
 
 [target.'cfg(windows)'.build-dependencies]
 winres = "0.1.12"
