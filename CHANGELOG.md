@@ -1,5 +1,8 @@
 ## Unreleased
 
+* Added:
+  * A custom game's installed name may now be set to a relative path with multiple folders,
+    rather than only supporting a single bare folder name.
 * Fixed:
   * For home folder roots, Ludusavi skipped any paths containing `<storeUserId>`,
     on the assumption that it shouldn't be applicable to non-store-specific roots.

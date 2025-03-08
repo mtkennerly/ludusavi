@@ -146,6 +146,9 @@ pub fn parse_paths(
         .replace(&format!("{}*", p::STORE_USER_ID), p::STORE_USER_ID);
 
     let install_dir = install_dir.map(|x| x.as_str()).unwrap_or(SKIP);
+    let full_install_dir = full_install_dir
+        .and_then(|x| x.interpret().ok())
+        .unwrap_or_else(|| SKIP.to_string());
 
     let Ok(root_interpreted) = root.path().interpret_unless_skip() else {
         return HashSet::new();
@@ -161,29 +164,7 @@ pub fn parse_paths(
     add_path!(path
         .replace(p::ROOT, &root_interpreted)
         .replace(p::GAME, install_dir)
-        .replace(
-            p::BASE,
-            &match root.store() {
-                Store::Steam => format!("{}/steamapps/common/{}", &root_interpreted, install_dir),
-                Store::Heroic | Store::Legendary | Store::Lutris => full_install_dir
-                    .and_then(|x| x.interpret().ok())
-                    .unwrap_or_else(|| SKIP.to_string()),
-                Store::Ea
-                | Store::Epic
-                | Store::Gog
-                | Store::GogGalaxy
-                | Store::Microsoft
-                | Store::Origin
-                | Store::Prime
-                | Store::Uplay
-                | Store::OtherHome
-                | Store::OtherWine
-                | Store::OtherWindows
-                | Store::OtherLinux
-                | Store::OtherMac
-                | Store::Other => format!("{}/{}", &root_interpreted, install_dir),
-            },
-        )
+        .replace(p::BASE, &full_install_dir)
         .replace(p::HOME, home)
         .replace(p::STORE_USER_ID, "*")
         .replace(p::OS_USER_NAME, &crate::prelude::OS_USERNAME)
@@ -262,10 +243,7 @@ pub fn parse_paths(
                     let path2 = path
                         .replace(p::ROOT, &root_interpreted)
                         .replace(p::GAME, install_dir)
-                        .replace(
-                            p::BASE,
-                            &format!("{}/steamapps/common/{}", &root_interpreted, install_dir),
-                        )
+                        .replace(p::BASE, &full_install_dir)
                         .replace(p::HOME, &format!("{}/users/steamuser", prefix))
                         .replace(p::STORE_USER_ID, "*")
                         .replace(p::OS_USER_NAME, "steamuser")
@@ -575,8 +553,8 @@ pub fn scan_game_for_backup(
 
             if launcher_entries.peek().is_none() {
                 let platform = Os::HOST;
-                let install_dir = None;
                 let full_install_dir = None;
+                let install_dir = None;
 
                 candidates.extend(parse_paths(
                     raw_path,
@@ -593,8 +571,8 @@ pub fn scan_game_for_backup(
                 for launcher_entry in launcher_entries {
                     log::trace!("[{name}] parsing candidates with launcher info: {:?}", &launcher_entry);
                     let platform = launcher_entry.platform.unwrap_or(Os::HOST);
-                    let install_dir = launcher_entry.install_dir.as_ref().and_then(|x| x.leaf());
                     let full_install_dir = launcher_entry.install_dir.as_ref();
+                    let install_dir = full_install_dir.and_then(|x| root.path().suffix_for(x));
 
                     candidates.extend(parse_paths(
                         raw_path,

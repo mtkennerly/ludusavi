@@ -859,6 +859,16 @@ impl StrictPath {
         nearest
     }
 
+    pub fn suffix_for(&self, other: &Self) -> Option<String> {
+        self.is_prefix_of(other).then(|| {
+            other
+                .render()
+                .replacen(&self.render(), "", 1)
+                .trim_start_matches(['/', '\\'])
+                .to_string()
+        })
+    }
+
     pub fn glob(&self) -> Vec<StrictPath> {
         self.glob_case_sensitive(Os::HOST.is_case_sensitive())
     }

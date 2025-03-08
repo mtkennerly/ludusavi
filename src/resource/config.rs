@@ -476,6 +476,13 @@ impl Root {
         }
     }
 
+    pub fn games_path(&self) -> StrictPath {
+        match self.store() {
+            Store::Steam => self.path().joined("steamapps/common"),
+            _ => self.path().clone(),
+        }
+    }
+
     pub fn lutris_database(&self) -> Option<&StrictPath> {
         match self {
             Self::Lutris(root) => root.database.as_ref(),
