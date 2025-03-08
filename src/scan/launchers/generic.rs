@@ -78,10 +78,14 @@ pub fn scan(root: &Root, manifest: &Manifest, subjects: &[String]) -> HashMap<St
             'dirs: for expected_dir in expected_install_dirs {
                 log::trace!("[{name}] looking for install dir: {expected_dir}");
 
-                if expected_dir.contains(['/', '\\']) && root.path().joined(expected_dir).is_dir() {
-                    log::trace!("[{name}] using exact nested install dir");
-                    best = Some((i64::MAX, expected_dir));
-                    break 'dirs;
+                if expected_dir.contains(['/', '\\']) {
+                    if root.path().joined(expected_dir).is_dir() {
+                        log::trace!("[{name}] using exact nested install dir");
+                        best = Some((i64::MAX, expected_dir));
+                        break;
+                    } else {
+                        continue;
+                    }
                 }
 
                 let ideal = matcher.fuzzy_match(expected_dir, expected_dir);
