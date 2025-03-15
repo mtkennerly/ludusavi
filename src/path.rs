@@ -638,8 +638,69 @@ impl StrictPath {
         std::fs::rename(self.as_std_path_buf()?, new_path.as_std_path_buf()?)
     }
 
+    #[cfg(not(windows))]
     pub fn copy_to(&self, target: &StrictPath) -> std::io::Result<u64> {
         std::fs::copy(self.as_std_path_buf()?, target.as_std_path_buf()?)
+    }
+
+    #[cfg(target_os = "windows")]
+    pub fn copy_to(&self, target: &StrictPath) -> std::io::Result<u64> {
+        use windows::{
+            core::PCWSTR,
+            Win32::{Foundation::HANDLE, Storage::FileSystem::*},
+        };
+
+        fn prepare_verbatim_path(path: &StrictPath) -> Result<Vec<u16>, std::io::Error> {
+            use typed_path::Utf8WindowsPrefix::*;
+            let interpreted = path.interpret().map_err(|_| {
+                std::io::Error::new(std::io::ErrorKind::Other, format!("Cannot interpret path: {:?}", path))
+            })?;
+            let path_buf = typed_path::Utf8WindowsPath::new(&interpreted);
+            let (trim, prefix) = match path_buf.components().prefix_kind() {
+                Some(DeviceNS(_)) => (r"\\.\".len(), r"\\?\"),
+                Some(UNC(_, _)) => (r"\\".len(), r"\\?\UNC\"),
+                Some(Disk(_)) => (0, r"\\?\"),
+                _ => (0, ""),
+            };
+
+            Ok(format!("{prefix}{}", &interpreted[trim..])
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect())
+        }
+        let src = prepare_verbatim_path(self)?;
+        let dst = prepare_verbatim_path(target)?;
+
+        unsafe extern "system" fn callback(
+            _totalfilesize: i64,
+            _totalbytestransferred: i64,
+            _streamsize: i64,
+            streambytestransferred: i64,
+            dwstreamnumber: u32,
+            _dwcallbackreason: LPPROGRESS_ROUTINE_CALLBACK_REASON,
+            _hsourcefile: HANDLE,
+            _hdestinationfile: HANDLE,
+            lpdata: *const core::ffi::c_void,
+        ) -> COPYPROGRESSROUTINE_PROGRESS {
+            if dwstreamnumber == 1 {
+                *(lpdata as *mut i64) = streambytestransferred;
+            }
+            PROGRESS_CONTINUE
+        }
+
+        let mut size = 0i64;
+        unsafe {
+            CopyFileExW(
+                PCWSTR(src.as_ptr()),
+                PCWSTR(dst.as_ptr()),
+                Some(callback),
+                Some((&raw mut size) as *mut _),
+                None,
+                COPY_FILE_ALLOW_DECRYPTED_DESTINATION,
+            )
+            .map(|_| size as u64)
+            .map_err(|_| std::io::Error::last_os_error())
+        }
     }
 
     pub fn create_dirs(&self) -> std::io::Result<()> {
