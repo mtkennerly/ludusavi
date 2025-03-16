@@ -663,8 +663,9 @@ impl StrictPath {
                 _ => (0, ""),
             };
 
-            Ok(format!("{prefix}{}", &interpreted[trim..])
+            Ok(prefix
                 .encode_utf16()
+                .chain(interpreted[trim..].encode_utf16())
                 .chain(std::iter::once(0))
                 .collect())
         }
