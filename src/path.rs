@@ -643,6 +643,9 @@ impl StrictPath {
         std::fs::copy(self.as_std_path_buf()?, target.as_std_path_buf()?)
     }
 
+    // Reimplementation of standard library:
+    // https://github.com/rust-lang/rust/blob/4d30011f6c616be074ba655a75e5d55441232bbb/library/std/src/sys/fs/windows.rs#L1515
+    // but with `COPY_FILE_ALLOW_DECRYPTED_DESTINATION` flag set.
     #[cfg(target_os = "windows")]
     pub fn copy_to(&self, target: &StrictPath) -> std::io::Result<u64> {
         use windows::{

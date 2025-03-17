@@ -8,6 +8,10 @@
     on the assumption that it shouldn't be applicable to non-store-specific roots.
     However, there are some cases where it's worth scanning regardless,
     so Ludusavi will now use a wildcard match like it does for other root types.
+  * On Windows, a backup would fail if the original file were encrypted
+    and the backup destination could not be encrypted.
+    Now, in this situation, the backup will proceed without encryption.
+    ([Contributed by Summon528](https://github.com/mtkennerly/ludusavi/pull/476))
 * Changed:
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
