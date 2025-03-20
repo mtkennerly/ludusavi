@@ -233,48 +233,54 @@ impl FileTreeNode {
                             },
                         ))
                         .push_maybe(make_enabler())
-                        .push(text(if label.is_empty() && self.node_type == FileTreeNodeType::File {
-                            "/".to_string()
-                        } else {
-                            label
-                        }))
-                        .push_maybe(
-                            self.error
-                                .as_ref()
-                                .map(|x| Badge::new(&TRANSLATOR.badge_failed()).tooltip(x.clone()).view()),
-                        )
-                        .push_maybe(match &self.path {
-                            FileTreeNodePath::File(path) => Some(
-                                Button::new(Icon::OpenInNew.text_small())
-                                    .on_press(Message::OpenDir { path: path.clone() })
-                                    .class(style::Button::Primary)
-                                    .padding(5)
-                                    .height(25),
-                            ),
-                            FileTreeNodePath::RegistryKey(..) | FileTreeNodePath::RegistryValue(..) => None,
-                        })
-                        .push_maybe({
-                            let total_bytes = self.calculate_directory_size(true);
-                            let total_size = total_bytes.map(|bytes| TRANSLATOR.adjusted_size(bytes));
+                        .push(
+                            Row::new()
+                                .align_y(Alignment::Center)
+                                .spacing(10)
+                                .push(text(if label.is_empty() && self.node_type == FileTreeNodeType::File {
+                                    "/".to_string()
+                                } else {
+                                    label
+                                }))
+                                .push_maybe(
+                                    self.error
+                                        .as_ref()
+                                        .map(|x| Badge::new(&TRANSLATOR.badge_failed()).tooltip(x.clone()).view()),
+                                )
+                                .push_maybe(match &self.path {
+                                    FileTreeNodePath::File(path) => Some(
+                                        Button::new(Icon::OpenInNew.text_small())
+                                            .on_press(Message::OpenDir { path: path.clone() })
+                                            .class(style::Button::Primary)
+                                            .padding(5)
+                                            .height(25),
+                                    ),
+                                    FileTreeNodePath::RegistryKey(..) | FileTreeNodePath::RegistryValue(..) => None,
+                                })
+                                .push_maybe({
+                                    let total_bytes = self.calculate_directory_size(true);
+                                    let total_size = total_bytes.map(|bytes| TRANSLATOR.adjusted_size(bytes));
 
-                            let included_bytes = self.calculate_directory_size(false);
-                            let included_size = included_bytes.map(|bytes| TRANSLATOR.adjusted_size(bytes));
+                                    let included_bytes = self.calculate_directory_size(false);
+                                    let included_size = included_bytes.map(|bytes| TRANSLATOR.adjusted_size(bytes));
 
-                            let text = match (included_size, total_size) {
-                                (Some(included), Some(total)) => {
-                                    if included_bytes == total_bytes {
-                                        Some(included)
-                                    } else {
-                                        Some(format!("{} / {}", included, total))
-                                    }
-                                }
-                                (Some(included), None) => Some(format!("{} / ?", included)),
-                                (None, Some(total)) => Some(total.to_string()),
-                                (None, None) => None,
-                            };
+                                    let text = match (included_size, total_size) {
+                                        (Some(included), Some(total)) => {
+                                            if included_bytes == total_bytes {
+                                                Some(included)
+                                            } else {
+                                                Some(format!("{} / {}", included, total))
+                                            }
+                                        }
+                                        (Some(included), None) => Some(format!("{} / ?", included)),
+                                        (None, Some(total)) => Some(total.to_string()),
+                                        (None, None) => None,
+                                    };
 
-                            text.map(|text| Badge::new(&text).faded(included_bytes.is_none()).view())
-                        }),
+                                    text.map(|text| Badge::new(&text).faded(included_bytes.is_none()).view())
+                                })
+                                .wrap(),
+                        ),
                 ),
                 |parent, (k, v)| {
                     parent.push_if(expanded, || {

@@ -12,6 +12,7 @@
     and the backup destination could not be encrypted.
     Now, in this situation, the backup will proceed without encryption.
     ([Contributed by Summon528](https://github.com/mtkennerly/ludusavi/pull/476))
+  * GUI: In the scan results, some elements could get squished with long file paths.
 * Changed:
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
