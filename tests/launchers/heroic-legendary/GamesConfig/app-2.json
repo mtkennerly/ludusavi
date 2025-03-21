@@ -1,5 +1,5 @@
 {
-  "app-1": {
+  "app-2": {
     "wineVersion": {
       "bin": "/usr/bin/wine",
       "name": "Wine Default - wine-ge-7.0 (Staging)",
@@ -7,7 +7,7 @@
       "wineserver": "/usr/bin/wineserver",
       "wineboot": "/usr/bin/wineboot"
     },
-    "winePrefix": "/prefixes/game-1"
+    "winePrefix": "/prefixes/game-2"
   },
   "version": "v0",
   "explicit": true
