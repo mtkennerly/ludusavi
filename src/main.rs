@@ -151,6 +151,22 @@ unsafe fn detach_console() {
     }
 }
 
+#[cfg(target_os = "linux")]
+fn prepare_winit() {
+    let name = "WINIT_X11_SCALE_FACTOR";
+
+    match std::env::var(name) {
+        Ok(value) => {
+            if value == "ludusavi-auto" {
+                std::env::remove_var(name);
+            }
+        }
+        Err(_) => {
+            std::env::set_var(name, "1");
+        }
+    }
+}
+
 fn main() {
     let mut failed = false;
     let args = cli::parse();
@@ -192,6 +208,11 @@ fn main() {
                 unsafe {
                     detach_console();
                 }
+            }
+
+            #[cfg(target_os = "linux")]
+            {
+                prepare_winit();
             }
 
             let flags = Flags {
