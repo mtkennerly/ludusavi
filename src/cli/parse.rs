@@ -392,9 +392,17 @@ pub enum Subcommand {
         #[clap(flatten)]
         name_source: WrapSubcommand,
 
-        /// Don't ask for confirmation.
+        /// Don't ask for any confirmation.
         #[clap(long)]
         force: bool,
+
+        /// Don't ask for confirmation when backing up.
+        #[clap(long)]
+        force_backup: bool,
+
+        /// Don't ask for confirmation when restoring.
+        #[clap(long)]
+        force_restore: bool,
 
         /// Show a GUI notification during restore/backup
         #[clap(long)]

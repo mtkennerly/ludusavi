@@ -870,6 +870,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
         Subcommand::Wrap {
             name_source,
             force,
+            force_backup,
+            force_restore,
             gui,
             path,
             format,
@@ -885,6 +887,9 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let layout = BackupLayout::new(config.restore.path.clone());
             let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
             let preview = false;
+
+            let force_backup = force || force_backup;
+            let force_restore = force || force_restore;
 
             // Determine raw game identifiers
             let wrap_game_info = if let Some(name) = name_source.name.as_ref() {
@@ -948,7 +953,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 if !game_layout.has_backups() {
                     if ui::confirm_with_question(
                         gui,
-                        force,
+                        force_restore,
                         preview,
                         &TRANSLATOR.game_has_nothing_to_restore(),
                         &TRANSLATOR.launch_game_after_error(),
@@ -959,7 +964,12 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     }
                 }
 
-                if !ui::confirm(gui, force, preview, &TRANSLATOR.restore_one_game_confirm(game_name))? {
+                if !ui::confirm(
+                    gui,
+                    force_restore,
+                    preview,
+                    &TRANSLATOR.restore_one_game_confirm(game_name),
+                )? {
                     break 'restore;
                 }
 
@@ -981,7 +991,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("Wrap failed to restore game {:?} with: {:?}", wrap_game_info, err);
-                    ui::alert_with_error(gui, force, &TRANSLATOR.restore_one_game_failed(game_name), &err)?;
+                    ui::alert_with_error(gui, force_restore, &TRANSLATOR.restore_one_game_failed(game_name), &err)?;
                     return Err(err);
                 }
             }
@@ -1006,7 +1016,12 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     break 'backup;
                 };
 
-                if !ui::confirm(gui, force, preview, &TRANSLATOR.back_up_one_game_confirm(game_name))? {
+                if !ui::confirm(
+                    gui,
+                    force_backup,
+                    preview,
+                    &TRANSLATOR.back_up_one_game_confirm(game_name),
+                )? {
                     break 'backup;
                 }
 
@@ -1033,7 +1048,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("Wrap failed to back up with: {:#?}", err);
-                    ui::alert_with_error(gui, force, &TRANSLATOR.back_up_one_game_failed(game_name), &err)?;
+                    ui::alert_with_error(gui, force_backup, &TRANSLATOR.back_up_one_game_failed(game_name), &err)?;
                     return Err(err);
                 }
             }
