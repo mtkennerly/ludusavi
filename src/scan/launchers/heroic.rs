@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet};
 use crate::prelude::StrictPath;
 
 use crate::{
-    resource::{config::root, manifest::Os},
+    resource::config::root,
     scan::{launchers::LauncherGame, TitleFinder},
 };
 
@@ -72,83 +72,68 @@ fn find_prefix(
     platform: Option<&str>,
     app_name: &str,
 ) -> Option<StrictPath> {
-    let platform = platform?;
+    log::trace!(
+        "Will try to find prefix for Heroic game: {} (app={}, platform={:?})",
+        game_name,
+        app_name,
+        platform
+    );
 
-    match Os::from(platform) {
-        Os::Windows => {
-            log::trace!(
-                "Will try to find prefix for Heroic Windows game: {} ({})",
-                game_name,
-                app_name
-            );
+    let games_config_path = heroic_path.joined(&games_config::path(app_name));
 
-            let games_config_path = heroic_path.joined(&games_config::path(app_name));
-            match serde_json::from_str::<games_config::Data>(&games_config_path.read().unwrap_or_default()) {
-                Ok(games_config_wrapper) => {
-                    let game_config = games_config_wrapper.0.get(app_name)?;
+    let content = match games_config_path.try_read() {
+        Ok(content) => content,
+        Err(e) => {
+            log::trace!("Failed to read {:?}: {}", &games_config_path, e);
+            return None;
+        }
+    };
 
-                    match game_config {
-                        games_config::Game::Config {
-                            wine_version,
-                            wine_prefix,
-                        } => match wine_version.wine_type.as_str() {
-                            "wine" => {
-                                log::trace!(
-                                    "Found Heroic Wine prefix for {} ({}) -> adding {}",
-                                    game_name,
-                                    app_name,
-                                    wine_prefix
-                                );
-                                Some(StrictPath::new(wine_prefix.clone()))
-                            }
+    match serde_json::from_str::<games_config::Data>(&content) {
+        Ok(games_config_wrapper) => {
+            let game_config = games_config_wrapper.0.get(app_name)?;
 
-                            "proton" => {
-                                let prefix = format!("{}/pfx", wine_prefix);
-                                log::trace!(
-                                    "Found Heroic Proton prefix for {} ({}), adding {}",
-                                    game_name,
-                                    app_name,
-                                    &prefix
-                                );
-                                Some(StrictPath::new(prefix))
-                            }
-
-                            _ => {
-                                log::info!(
-                                    "Found Heroic Windows game {} ({}) with unknown wine_type: {:#?}",
-                                    game_name,
-                                    app_name,
-                                    wine_version.wine_type
-                                );
-                                None
-                            }
-                        },
-                        games_config::Game::IgnoreOther(_) => None,
+            match game_config {
+                games_config::Game::Config {
+                    wine_version,
+                    wine_prefix,
+                } => match wine_version.wine_type.as_str() {
+                    "wine" => {
+                        log::trace!(
+                            "Found Heroic Wine prefix for {} ({}) -> adding {}",
+                            game_name,
+                            app_name,
+                            wine_prefix
+                        );
+                        Some(StrictPath::new(wine_prefix.clone()))
                     }
-                }
-                Err(e) => {
-                    log::trace!("Failed to read {:?}: {}", &games_config_path, e);
-                    None
-                }
+
+                    "proton" => {
+                        let prefix = format!("{}/pfx", wine_prefix);
+                        log::trace!(
+                            "Found Heroic Proton prefix for {} ({}), adding {}",
+                            game_name,
+                            app_name,
+                            &prefix
+                        );
+                        Some(StrictPath::new(prefix))
+                    }
+
+                    _ => {
+                        log::info!(
+                            "Found Heroic Windows game {} ({}) with unknown wine_type: {:#?}",
+                            game_name,
+                            app_name,
+                            wine_version.wine_type
+                        );
+                        None
+                    }
+                },
+                games_config::Game::IgnoreOther(_) => None,
             }
         }
-
-        Os::Linux => {
-            log::trace!("Found Heroic Linux game {}, ignoring prefix", game_name);
-            None
-        }
-
-        Os::Mac => {
-            log::trace!("Found Heroic Mac game {}, ignoring prefix", game_name);
-            None
-        }
-
-        _ => {
-            log::trace!(
-                "Found Heroic game {} with unhandled platform {}, ignoring prefix",
-                game_name,
-                platform,
-            );
+        Err(e) => {
+            log::trace!("Failed to parse {:?}: {}", &games_config_path, e);
             None
         }
     }
