@@ -13,7 +13,7 @@ use crate::{
             BackupPhase, BrowseFileSubject, BrowseSubject, Flags, GameAction, GameSelection, Message, Operation,
             RestorePhase, Screen, ScrollSubject, UndoSubject, ValidatePhase,
         },
-        modal::{CloudModalState, Modal, ModalField, ModalInputKind},
+        modal::{self, CloudModalState, Modal, ModalField, ModalInputKind},
         notification::Notification,
         screen,
         shortcuts::{RootHistory, Shortcut, TextHistories, TextHistory},
@@ -84,7 +84,7 @@ pub struct App {
     cache: Cache,
     operation: Operation,
     screen: Screen,
-    modal: Option<Modal>,
+    modals: Vec<Modal>,
     backup_screen: screen::Backup,
     restore_screen: screen::Restore,
     custom_games_screen: screen::CustomGames,
@@ -116,7 +116,6 @@ impl App {
         self.operation = Operation::Idle;
         self.operation_steps.clear();
         self.operation_steps_active = 0;
-        self.modal = None;
         self.progress.reset();
         self.operation_should_cancel
             .swap(false, std::sync::atomic::Ordering::Relaxed);
@@ -124,16 +123,15 @@ impl App {
     }
 
     fn show_modal(&mut self, modal: Modal) -> Task<Message> {
-        self.modal = Some(modal);
+        self.modals.push(modal);
         self.reset_scroll_position(ScrollSubject::Modal);
         self.refresh_scroll_position()
     }
 
     fn close_modal(&mut self) -> Task<Message> {
-        if self.modal.is_some() {
+        if let Some(modal) = self.modals.pop() {
             self.reset_scroll_position(ScrollSubject::Modal);
-            let need_cancel_cloud = self.modal.as_ref().map(|x| x.is_cloud_active()).unwrap_or_default();
-            self.modal = None;
+            let need_cancel_cloud = modal.is_cloud_active();
             Task::batch([
                 self.refresh_scroll_position(),
                 if need_cancel_cloud {
@@ -147,12 +145,9 @@ impl App {
         }
     }
 
-    fn close_specific_modal(&mut self, modal: Modal) -> Task<Message> {
-        if self.modal == Some(modal) {
-            self.close_modal()
-        } else {
-            Task::none()
-        }
+    fn close_specific_modal(&mut self, kind: modal::Kind) -> Task<Message> {
+        self.modals.retain(|modal| modal.kind() != kind);
+        self.refresh_scroll_position()
     }
 
     fn show_error(&mut self, error: Error) -> Task<Message> {
@@ -1260,7 +1255,7 @@ impl App {
     }
 
     fn scroll_subject(&self) -> ScrollSubject {
-        if self.modal.is_some() {
+        if !self.modals.is_empty() {
             ScrollSubject::Modal
         } else {
             ScrollSubject::from(self.screen)
@@ -1310,7 +1305,7 @@ impl App {
     pub fn new(flags: Flags) -> (Self, Task<Message>) {
         let mut errors = vec![];
 
-        let mut modal: Option<Modal> = None;
+        let mut modals: Vec<Modal> = vec![];
         let mut config = match Config::load() {
             Ok(x) => x,
             Err(x) => {
@@ -1334,13 +1329,13 @@ impl App {
             }
         } else {
             if flags.update_manifest {
-                modal = Some(Modal::UpdatingManifest);
+                modals.push(Modal::UpdatingManifest);
             }
             LoadedManifest::default()
         };
 
         if !errors.is_empty() {
-            modal = Some(Modal::Errors { errors });
+            modals.push(Modal::Errors { errors });
         } else {
             let missing: Vec<_> = config
                 .find_missing_roots()
@@ -1351,7 +1346,7 @@ impl App {
             if !missing.is_empty() {
                 cache.add_roots(&missing);
                 cache.save();
-                modal = Some(Modal::ConfirmAddMissingRoots(missing));
+                modals.push(Modal::ConfirmAddMissingRoots(missing));
             }
         }
 
@@ -1387,7 +1382,7 @@ impl App {
                 config,
                 manifest,
                 cache,
-                modal,
+                modals,
                 updating_manifest: flags.update_manifest,
                 text_histories,
                 flags,
@@ -1969,7 +1964,7 @@ impl App {
                 }
 
                 if errors.is_empty() {
-                    self.close_specific_modal(Modal::UpdatingManifest)
+                    self.close_specific_modal(modal::Kind::UpdatingManifest)
                 } else {
                     self.show_modal(Modal::Errors { errors })
                 }
@@ -2008,8 +2003,7 @@ impl App {
                     }
                 }
                 self.save_config();
-                self.go_idle();
-                Task::none()
+                self.close_specific_modal(modal::Kind::ConfirmAddMissingRoots)
             }
             Message::SwitchScreen(screen) => self.switch_screen(screen),
             Message::ToggleGameListEntryExpanded { name } => {
@@ -2683,7 +2677,7 @@ impl App {
                                 }
                                 crate::cloud::RcloneProcessEvent::Change(change) => {
                                     self.operation.add_cloud_change();
-                                    if let Some(modal) = self.modal.as_mut() {
+                                    if let Some(modal) = self.modals.last_mut() {
                                         modal.add_cloud_change(change);
                                     }
                                 }
@@ -2695,7 +2689,7 @@ impl App {
                             return cmd;
                         }
 
-                        if let Some(modal) = self.modal.as_mut() {
+                        if let Some(modal) = self.modals.last_mut() {
                             self.operation = Operation::Idle;
                             self.progress.reset();
                             modal.finish_cloud_scan();
@@ -2710,10 +2704,14 @@ impl App {
                         }
 
                         self.go_idle();
-                        return self.show_error(Error::UnableToSynchronizeCloud(e));
+                        return Task::batch([
+                            self.close_specific_modal(modal::Kind::ConfirmCloudSync),
+                            self.show_error(Error::UnableToSynchronizeCloud(e)),
+                        ]);
                     }
                     rclone_monitor::Event::Cancelled => {
                         self.go_idle();
+                        return self.close_specific_modal(modal::Kind::ConfirmCloudSync);
                     }
                 }
                 Task::none()
@@ -2736,7 +2734,7 @@ impl App {
                         self.text_histories.modal.password.push(&new);
                     }
                     ModalField::WebDavProvider(new) => {
-                        if let Some(Modal::ConfigureWebDavRemote { provider }) = self.modal.as_mut() {
+                        if let Some(Modal::ConfigureWebDavRemote { provider }) = self.modals.last_mut() {
                             *provider = new;
                         }
                     }
@@ -2745,7 +2743,7 @@ impl App {
             }
             Message::FinalizeRemote(remote) => self.configure_remote(remote),
             Message::ModalChangePage(page) => {
-                if let Some(modal) = self.modal.as_mut() {
+                if let Some(modal) = self.modals.last_mut() {
                     modal.set_page(page);
                 }
                 Task::none()
@@ -2855,8 +2853,8 @@ impl App {
         let stack = Stack::new()
             .push(Container::new(content).class(style::Container::Primary))
             .push_maybe(
-                self.modal
-                    .as_ref()
+                self.modals
+                    .last()
                     .map(|modal| modal.view(&self.config, &self.text_histories)),
             );
 

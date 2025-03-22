@@ -116,6 +116,25 @@ impl CloudModalState {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Kind {
+    Error,
+    Errors,
+    Exiting,
+    ConfirmBackup,
+    ConfirmRestore,
+    NoMissingRoots,
+    ConfirmAddMissingRoots,
+    BackupValidation,
+    AppUpdate,
+    UpdatingManifest,
+    ConfirmCloudSync,
+    ConfigureFtpRemote,
+    ConfigureSmbRemote,
+    ConfigureWebDavRemote,
+    GameNotes,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Modal {
     Error {
@@ -161,6 +180,26 @@ pub enum Modal {
 }
 
 impl Modal {
+    pub fn kind(&self) -> Kind {
+        match self {
+            Modal::Error { .. } => Kind::Error,
+            Modal::Errors { .. } => Kind::Errors,
+            Modal::Exiting => Kind::Exiting,
+            Modal::ConfirmBackup { .. } => Kind::ConfirmBackup,
+            Modal::ConfirmRestore { .. } => Kind::ConfirmRestore,
+            Modal::NoMissingRoots => Kind::NoMissingRoots,
+            Modal::ConfirmAddMissingRoots(..) => Kind::ConfirmAddMissingRoots,
+            Modal::BackupValidation { .. } => Kind::BackupValidation,
+            Modal::AppUpdate { .. } => Kind::AppUpdate,
+            Modal::UpdatingManifest => Kind::UpdatingManifest,
+            Modal::ConfirmCloudSync { .. } => Kind::ConfirmCloudSync,
+            Modal::ConfigureFtpRemote => Kind::ConfigureFtpRemote,
+            Modal::ConfigureSmbRemote => Kind::ConfigureSmbRemote,
+            Modal::ConfigureWebDavRemote { .. } => Kind::ConfigureWebDavRemote,
+            Modal::GameNotes { .. } => Kind::GameNotes,
+        }
+    }
+
     pub fn variant(&self) -> ModalVariant {
         match self {
             Self::Exiting | Self::UpdatingManifest => ModalVariant::Loading,

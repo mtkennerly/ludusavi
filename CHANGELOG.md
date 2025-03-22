@@ -24,6 +24,10 @@
     but it did not then escape each expanded root path before integrating it into a larger pattern.
   * GUI: In the scan results, some elements could get squished with long file paths.
 * Changed:
+  * GUI: In some cases, Ludusavi would automatically close any open modal
+    in order to show a different one,
+    which could be inconvenient if you were filling out fields in certain modals.
+    Now, Ludusavi will redisplay the older modal when the new one is closed.
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
