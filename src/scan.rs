@@ -145,25 +145,29 @@ pub fn parse_paths(
         .replace(&format!("*{}", p::STORE_USER_ID), p::STORE_USER_ID)
         .replace(&format!("{}*", p::STORE_USER_ID), p::STORE_USER_ID);
 
-    let install_dir = install_dir.map(|x| x.as_str()).unwrap_or(SKIP);
+    let install_dir = install_dir.map(|x| globset::escape(x)).unwrap_or(SKIP.to_string());
     let full_install_dir = full_install_dir
         .and_then(|x| x.interpret().ok())
+        .map(|x| globset::escape(&x))
         .unwrap_or_else(|| SKIP.to_string());
 
-    let Ok(root_interpreted) = root.path().interpret_unless_skip() else {
+    let Ok(root_interpreted) = root.path().interpret_unless_skip().map(|x| globset::escape(&x)) else {
         return HashSet::new();
     };
-    let manifest_dir_interpreted = manifest_dir.interpret().ok();
-    let data_dir = CommonPath::Data.get_or_skip();
-    let data_local_dir = CommonPath::DataLocal.get_or_skip();
-    let data_local_low_dir = CommonPath::DataLocalLow.get_or_skip();
-    let config_dir = CommonPath::Config.get_or_skip();
-    let home = CommonPath::Home.get_or_skip();
-    let saved_games_dir = CommonPath::SavedGames.get();
+    let manifest_dir_interpreted = manifest_dir.interpret().ok().map(|x| globset::escape(&x));
+
+    let data_dir = CommonPath::Data.get_unglobbed().unwrap_or(SKIP);
+    let data_local_dir = CommonPath::DataLocal.get_unglobbed().unwrap_or(SKIP);
+    let data_local_low_dir = CommonPath::DataLocalLow.get_unglobbed().unwrap_or(SKIP);
+    let config_dir = CommonPath::Config.get_unglobbed().unwrap_or(SKIP);
+    let home = CommonPath::Home.get_unglobbed().unwrap_or(SKIP);
+    let document_dir = CommonPath::Document.get_unglobbed().unwrap_or(SKIP);
+    let public_dir = CommonPath::Public.get_unglobbed().unwrap_or(SKIP);
+    let saved_games_dir = CommonPath::SavedGames.get_unglobbed();
 
     add_path!(path
         .replace(p::ROOT, &root_interpreted)
-        .replace(p::GAME, install_dir)
+        .replace(p::GAME, &install_dir)
         .replace(p::BASE, &full_install_dir)
         .replace(p::HOME, home)
         .replace(p::STORE_USER_ID, "*")
@@ -171,8 +175,8 @@ pub fn parse_paths(
         .replace(p::WIN_APP_DATA, check_windows_path(data_dir))
         .replace(p::WIN_LOCAL_APP_DATA, check_windows_path(data_local_dir))
         .replace(p::WIN_LOCAL_APP_DATA_LOW, check_windows_path(data_local_low_dir))
-        .replace(p::WIN_DOCUMENTS, check_windows_path(CommonPath::Document.get_or_skip()))
-        .replace(p::WIN_PUBLIC, check_windows_path(CommonPath::Public.get_or_skip()))
+        .replace(p::WIN_DOCUMENTS, check_windows_path(document_dir))
+        .replace(p::WIN_PUBLIC, check_windows_path(public_dir))
         .replace(p::WIN_PROGRAM_DATA, check_windows_path("C:/ProgramData"))
         .replace(p::WIN_DIR, check_windows_path("C:/Windows"))
         .replace(p::XDG_DATA, check_nonwindows_path(data_dir))
@@ -242,7 +246,7 @@ pub fn parse_paths(
                     let prefix = format!("{}/steamapps/compatdata/{}/pfx/drive_c", &root_interpreted, id);
                     let path2 = path
                         .replace(p::ROOT, &root_interpreted)
-                        .replace(p::GAME, install_dir)
+                        .replace(p::GAME, &install_dir)
                         .replace(p::BASE, &full_install_dir)
                         .replace(p::HOME, &format!("{}/users/steamuser", prefix))
                         .replace(p::STORE_USER_ID, "*")
@@ -275,7 +279,7 @@ pub fn parse_paths(
                         let ubisoft = format!("{}/Program Files (x86)/Ubisoft/Ubisoft Game Launcher", prefix);
                         add_path!(path
                             .replace(p::ROOT, &ubisoft)
-                            .replace(p::GAME, install_dir)
+                            .replace(p::GAME, &install_dir)
                             .replace(p::BASE, &format!("{}/{}", &ubisoft, install_dir))
                             .replace(p::STORE_USER_ID, "*")
                             .replace(p::OS_USER_NAME, "steamuser"));
@@ -286,7 +290,7 @@ pub fn parse_paths(
         Store::OtherHome => {
             add_path!(path
                 .replace(p::ROOT, &root_interpreted)
-                .replace(p::GAME, install_dir)
+                .replace(p::GAME, &install_dir)
                 .replace(p::BASE, &format!("{}/{}", &root_interpreted, install_dir))
                 .replace(p::STORE_USER_ID, "*")
                 .replace(p::OS_USER_NAME, &crate::prelude::OS_USERNAME)
@@ -294,7 +298,7 @@ pub fn parse_paths(
                 .replace(p::WIN_LOCAL_APP_DATA, check_windows_path("<home>/AppData/Local"))
                 .replace(p::WIN_LOCAL_APP_DATA_LOW, check_windows_path("<home>/AppData/LocalLow"))
                 .replace(p::WIN_DOCUMENTS, check_windows_path("<home>/Documents"))
-                .replace(p::WIN_PUBLIC, check_windows_path(CommonPath::Public.get_or_skip()))
+                .replace(p::WIN_PUBLIC, check_windows_path(public_dir))
                 .replace(p::WIN_PROGRAM_DATA, check_windows_path("C:/ProgramData"))
                 .replace(p::WIN_DIR, check_windows_path("C:/Windows"))
                 .replace(p::XDG_DATA, check_nonwindows_path("<home>/.local/share"))
@@ -305,7 +309,7 @@ pub fn parse_paths(
             let prefix = format!("{}/drive_*", &root_interpreted);
             let path2 = path
                 .replace(p::ROOT, &root_interpreted)
-                .replace(p::GAME, install_dir)
+                .replace(p::GAME, &install_dir)
                 .replace(p::BASE, &format!("{}/{}", &root_interpreted, install_dir))
                 .replace(p::HOME, &format!("{}/users/*", prefix))
                 .replace(p::STORE_USER_ID, "*")
@@ -384,10 +388,10 @@ pub fn parse_paths(
     }
 
     if Os::HOST == Os::Windows {
-        if let Some(saved_games_dir) = saved_games_dir.as_ref() {
+        if let Some(saved_games_dir) = saved_games_dir {
             add_path!(path
                 .replace('\\', "/")
-                .replace(p::GAME, install_dir)
+                .replace(p::GAME, &install_dir)
                 .replace(p::STORE_USER_ID, "*")
                 .replace(p::OS_USER_NAME, &crate::prelude::OS_USERNAME)
                 .replace("<home>/Saved Games/", &format!("{}/", saved_games_dir))
@@ -411,7 +415,7 @@ pub fn parse_paths(
         if Os::HOST == Os::Linux {
             // Default XDG paths, in case we're in a Flatpak context.
             add_path!(path
-                .replace(p::GAME, install_dir)
+                .replace(p::GAME, &install_dir)
                 .replace(p::STORE_USER_ID, "*")
                 .replace(p::OS_USER_NAME, &crate::prelude::OS_USERNAME)
                 .replace(p::XDG_DATA, "<home>/.local/share")
@@ -993,6 +997,12 @@ mod tests {
             fake-registry:
               registry:
                 HKEY_CURRENT_USER/Software/Ludusavi/fake: {}
+            install-dir-with-glob-characters:
+              installDir:
+                'game-[not]-glob': {}
+              files:
+                <base>/file1.txt: {}
+                <root>/<game>/file2.txt: {}
             "#,
         )
         .unwrap()
@@ -1253,6 +1263,51 @@ mod tests {
                 roots,
                 &StrictPath::new(repo()),
                 &Launchers::scan_dirs(roots, &manifest(), &["game 2".to_string()]),
+                &BackupFilter::default(),
+                None,
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
+                None,
+                &[],
+                false,
+                &Default::default(),
+                ONLY_CONSTRUCTIVE,
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_escaped_glob_characters() {
+        let config = Config::load_from_string(&format!(
+            r#"
+            roots:
+              - path: {0}/tests/root-[[]not[]]-glob
+                store: other
+            "#,
+            repo()
+        ))
+        .unwrap();
+
+        dbg!(&config.roots);
+        let roots = config.expanded_roots();
+        dbg!(&roots);
+
+        assert_eq!(
+            ScanInfo {
+                game_name: s("install-dir-with-glob-characters"),
+                found_files: hash_map! {
+                    format!("{}/tests/root-[not]-glob/game-[not]-glob/file1.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
+                    format!("{}/tests/root-[not]-glob/game-[not]-glob/file2.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
+                },
+                found_registry_keys: hash_map! {},
+                ..Default::default()
+            },
+            scan_game_for_backup(
+                &manifest().0["install-dir-with-glob-characters"],
+                "install-dir-with-glob-characters",
+                &roots,
+                &StrictPath::new(repo()),
+                &Launchers::scan_dirs(&roots, &manifest(), &["install-dir-with-glob-characters".to_string()]),
                 &BackupFilter::default(),
                 None,
                 &ToggledPaths::default(),

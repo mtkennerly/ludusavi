@@ -74,8 +74,30 @@ impl CommonPath {
         .map(|x| x.as_str())
     }
 
-    pub fn get_or_skip(&self) -> &str {
-        self.get().unwrap_or(SKIP)
+    pub fn get_unglobbed(&self) -> Option<&str> {
+        static CONFIG: LazyLock<Option<String>> = LazyLock::new(|| CommonPath::Config.get().map(globset::escape));
+        static DATA: LazyLock<Option<String>> = LazyLock::new(|| CommonPath::Data.get().map(globset::escape));
+        static DATA_LOCAL: LazyLock<Option<String>> =
+            LazyLock::new(|| CommonPath::DataLocal.get().map(globset::escape));
+        static DATA_LOCAL_LOW: LazyLock<Option<String>> =
+            LazyLock::new(|| CommonPath::DataLocalLow.get().map(globset::escape));
+        static DOCUMENT: LazyLock<Option<String>> = LazyLock::new(|| CommonPath::Document.get().map(globset::escape));
+        static HOME: LazyLock<Option<String>> = LazyLock::new(|| CommonPath::Home.get().map(globset::escape));
+        static PUBLIC: LazyLock<Option<String>> = LazyLock::new(|| CommonPath::Public.get().map(globset::escape));
+        static SAVED_GAMES: LazyLock<Option<String>> =
+            LazyLock::new(|| CommonPath::SavedGames.get().map(globset::escape));
+
+        match self {
+            Self::Config => CONFIG.as_ref(),
+            Self::Data => DATA.as_ref(),
+            Self::DataLocal => DATA_LOCAL.as_ref(),
+            Self::DataLocalLow => DATA_LOCAL_LOW.as_ref(),
+            Self::Document => DOCUMENT.as_ref(),
+            Self::Home => HOME.as_ref(),
+            Self::Public => PUBLIC.as_ref(),
+            Self::SavedGames => SAVED_GAMES.as_ref(),
+        }
+        .map(|x| x.as_str())
     }
 }
 

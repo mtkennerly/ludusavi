@@ -15,6 +15,13 @@
     Now, in this situation, the backup will proceed without encryption.
     ([Contributed by Summon528](https://github.com/mtkennerly/ludusavi/pull/476))
   * Ludusavi did not detect some save data for Heroic Epic games that had been uninstalled.
+  * System folders and game installed names were not scanned properly if they contained `[` or `]`,
+    because Ludusavi did not escape them before integrating them into larger glob patterns.
+
+    For roots, there was a similar issue with escaped brackets (`[[]` or `[]]`).
+    Although root paths do support globs,
+    Ludusavi internally expands each configured root into one root per glob match,
+    but it did not then escape each expanded root path before integrating it into a larger pattern.
   * GUI: In the scan results, some elements could get squished with long file paths.
 * Changed:
   * Updated translations.
