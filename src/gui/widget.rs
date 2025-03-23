@@ -256,15 +256,25 @@ impl Progress {
         let text_size = 12;
 
         Container::new(
-            Row::new()
-                .width(Length::Fill)
-                .spacing(5)
-                .padding([0, 5])
-                .align_y(Alignment::Center)
-                .push_maybe(label.map(|x| text(x).size(text_size)))
-                .push_maybe(elapsed.map(|x| text(x).size(text_size)))
-                .push(ProgressBar::new(0.0..=self.max, self.current).height(8))
-                .push_maybe(count.map(|x| text(x).size(text_size))),
+            Button::new(
+                Row::new()
+                    .width(Length::Fill)
+                    .spacing(5)
+                    .padding([0, 5])
+                    .align_y(Alignment::Center)
+                    .push_maybe(label.map(|x| text(x).size(text_size)))
+                    .push_maybe(elapsed.map(|x| text(x).size(text_size)))
+                    .push(ProgressBar::new(0.0..=self.max, self.current).height(8))
+                    .push_maybe(count.map(|x| text(x).size(text_size))),
+            )
+            .on_press_maybe(match operation {
+                Operation::Idle | Operation::Cloud { .. } => None,
+                Operation::Backup { .. } | Operation::Restore { .. } | Operation::ValidateBackups { .. } => {
+                    Some(Message::ShowScanActiveGames)
+                }
+            })
+            .padding(0)
+            .class(style::Button::Bare),
         )
         .height(16)
         .class(style::Container::ModalBackground)

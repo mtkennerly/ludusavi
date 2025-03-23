@@ -5,6 +5,9 @@
     rather than only supporting a single bare folder name.
   * CLI: The `wrap` command now supports `--force-backup` and `--force-restore`
     for more granular control than `--force`.
+  * GUI: During a scan, you can click on the progress bar to see a list
+    of the games currently being scanned and how long each one is taking.
+    This can be useful to identify why a scan might be taking longer than expected.
 * Fixed:
   * For home folder roots, Ludusavi skipped any paths containing `<storeUserId>`,
     on the assumption that it shouldn't be applicable to non-store-specific roots.

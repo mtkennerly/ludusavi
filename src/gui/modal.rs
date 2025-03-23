@@ -12,7 +12,7 @@ use crate::{
     gui::{
         badge::Badge,
         button,
-        common::{BackupPhase, GameSelection, Message, RestorePhase, ScrollSubject, UndoSubject},
+        common::{BackupPhase, GameSelection, Message, Operation, RestorePhase, ScrollSubject, UndoSubject},
         icon::Icon,
         shortcuts::TextHistories,
         style,
@@ -133,6 +133,7 @@ pub enum Kind {
     ConfigureSmbRemote,
     ConfigureWebDavRemote,
     GameNotes,
+    ActiveScanGames,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -177,6 +178,7 @@ pub enum Modal {
         game: String,
         notes: Vec<manifest::Note>,
     },
+    ActiveScanGames,
 }
 
 impl Modal {
@@ -197,15 +199,18 @@ impl Modal {
             Modal::ConfigureSmbRemote => Kind::ConfigureSmbRemote,
             Modal::ConfigureWebDavRemote { .. } => Kind::ConfigureWebDavRemote,
             Modal::GameNotes { .. } => Kind::GameNotes,
+            Modal::ActiveScanGames => Kind::ActiveScanGames,
         }
     }
 
     pub fn variant(&self) -> ModalVariant {
         match self {
             Self::Exiting | Self::UpdatingManifest => ModalVariant::Loading,
-            Self::Error { .. } | Self::Errors { .. } | Self::NoMissingRoots | Self::GameNotes { .. } => {
-                ModalVariant::Info
-            }
+            Self::Error { .. }
+            | Self::Errors { .. }
+            | Self::NoMissingRoots
+            | Self::GameNotes { .. }
+            | Self::ActiveScanGames => ModalVariant::Info,
             Self::ConfirmBackup { .. }
             | Self::ConfirmRestore { .. }
             | Self::ConfirmAddMissingRoots(..)
@@ -270,6 +275,7 @@ impl Modal {
             Self::ConfigureSmbRemote { .. } => RemoteChoice::Smb.to_string(),
             Self::ConfigureWebDavRemote { .. } => RemoteChoice::WebDav.to_string(),
             Self::GameNotes { game, .. } => game.clone(),
+            Self::ActiveScanGames => "".to_string(),
         }
     }
 
@@ -279,7 +285,8 @@ impl Modal {
             | Self::Errors { .. }
             | Self::NoMissingRoots
             | Self::BackupValidation { .. }
-            | Self::GameNotes { .. } => Some(Message::CloseModal),
+            | Self::GameNotes { .. }
+            | Self::ActiveScanGames => Some(Message::CloseModal),
             Self::Exiting => None,
             Self::ConfirmBackup { games } => Some(Message::Backup(BackupPhase::Start {
                 preview: false,
@@ -404,11 +411,12 @@ impl Modal {
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
-            | Self::GameNotes { .. } => vec![],
+            | Self::GameNotes { .. }
+            | Self::ActiveScanGames => vec![],
         }
     }
 
-    pub fn body(&self, config: &Config, histories: &TextHistories) -> Column {
+    pub fn body(&self, config: &Config, histories: &TextHistories, operation: &Operation) -> Column {
         let mut col = Column::new()
             .width(Length::Fill)
             .spacing(15)
@@ -505,12 +513,32 @@ impl Modal {
                     )
                 });
             }
+            Self::ActiveScanGames => {
+                if let Some(games) = operation.active_games() {
+                    let now = chrono::Utc::now();
+                    col = games
+                        .iter()
+                        .sorted_by_key(|(_, v)| *v)
+                        .fold(col, |parent, (game, started)| {
+                            let elapsed = now - started;
+                            let readable = format!(
+                                "{:0>2}:{:0>2}:{:0>2}.{:0>3}",
+                                elapsed.num_hours(),
+                                elapsed.num_minutes() % 60,
+                                elapsed.num_seconds() % 60,
+                                elapsed.num_milliseconds() % 1000,
+                            );
+                            parent.push(text(format!("{readable} - {game}")))
+                        });
+                    col = col.align_x(Alignment::Start).spacing(2);
+                }
+            }
         }
 
         col
     }
 
-    fn content(&self, config: &Config, histories: &TextHistories) -> Container {
+    fn content(&self, config: &Config, histories: &TextHistories, operation: &Operation) -> Container {
         let positive_button = button::primary(
             match self.variant() {
                 ModalVariant::Loading => TRANSLATOR.okay_button(), // dummy
@@ -527,10 +555,12 @@ impl Modal {
                 .width(Length::Fill)
                 .height(Length::Fill)
                 .push(
-                    Container::new(ScrollSubject::Modal.into_widget(self.body(config, histories).padding([0, 30])))
-                        .padding(padding::top(30).right(5))
-                        .width(Length::Fill)
-                        .height(Length::Fill),
+                    Container::new(
+                        ScrollSubject::Modal.into_widget(self.body(config, histories, operation).padding([0, 30])),
+                    )
+                    .padding(padding::top(30).right(5))
+                    .width(Length::Fill)
+                    .height(Length::Fill),
                 )
                 .push(
                     Container::new(
@@ -573,7 +603,8 @@ impl Modal {
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
-            | Self::GameNotes { .. } => (),
+            | Self::GameNotes { .. }
+            | Self::ActiveScanGames => (),
         }
     }
 
@@ -611,7 +642,8 @@ impl Modal {
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
-            | Self::GameNotes { .. } => (),
+            | Self::GameNotes { .. }
+            | Self::ActiveScanGames => (),
         }
     }
 
@@ -633,7 +665,8 @@ impl Modal {
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
-            | Self::GameNotes { .. } => (),
+            | Self::GameNotes { .. }
+            | Self::ActiveScanGames => (),
         }
     }
 
@@ -653,7 +686,8 @@ impl Modal {
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
-            | Self::GameNotes { .. } => false,
+            | Self::GameNotes { .. }
+            | Self::ActiveScanGames => false,
         }
     }
 
@@ -673,11 +707,12 @@ impl Modal {
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
-            | Self::GameNotes { .. } => 2,
+            | Self::GameNotes { .. }
+            | Self::ActiveScanGames => 2,
         }
     }
 
-    pub fn view(&self, config: &Config, histories: &TextHistories) -> Element {
+    pub fn view(&self, config: &Config, histories: &TextHistories, operation: &Operation) -> Element {
         let horizontal = || {
             Container::new(Space::new(Length::FillPortion(1), Length::Fill)).class(style::Container::ModalBackground)
         };
@@ -697,7 +732,7 @@ impl Modal {
                         .width(Length::FillPortion(8))
                         .push(vertical())
                         .push(
-                            Container::new(opaque(self.content(config, histories)))
+                            Container::new(opaque(self.content(config, histories, operation)))
                                 .class(style::Container::ModalBackground)
                                 .width(Length::Fill)
                                 .height(Length::FillPortion(self.body_height_portion())),

@@ -1,4 +1,4 @@
-use std::collections::{BTreeSet, HashSet};
+use std::collections::{BTreeSet, HashMap, HashSet};
 
 use iced::{widget::text_input, Length};
 
@@ -207,6 +207,7 @@ pub enum Message {
     ShowCustomGame {
         name: String,
     },
+    ShowScanActiveGames,
 }
 
 impl Message {
@@ -317,6 +318,7 @@ pub enum Operation {
         errors: Vec<Error>,
         cloud_changes: i64,
         force_new_full_backup: bool,
+        active_games: HashMap<String, chrono::DateTime<chrono::Utc>>,
     },
     Restore {
         finality: Finality,
@@ -325,10 +327,12 @@ pub enum Operation {
         games: Option<GameSelection>,
         errors: Vec<Error>,
         cloud_changes: i64,
+        active_games: HashMap<String, chrono::DateTime<chrono::Utc>>,
     },
     ValidateBackups {
         cancelling: bool,
         faulty_games: BTreeSet<String>,
+        active_games: HashMap<String, chrono::DateTime<chrono::Utc>>,
     },
     Cloud {
         direction: SyncDirection,
@@ -355,6 +359,7 @@ impl Operation {
             errors: vec![],
             cloud_changes: 0,
             force_new_full_backup: false,
+            active_games: HashMap::new(),
         }
     }
 
@@ -366,6 +371,7 @@ impl Operation {
             games,
             errors: vec![],
             cloud_changes: 0,
+            active_games: HashMap::new(),
         }
     }
 
@@ -373,6 +379,7 @@ impl Operation {
         Self::ValidateBackups {
             cancelling: false,
             faulty_games: Default::default(),
+            active_games: HashMap::new(),
         }
     }
 
@@ -595,6 +602,38 @@ impl Operation {
             Operation::Restore { .. } => (),
             Operation::ValidateBackups { .. } => (),
             Operation::Cloud { .. } => (),
+        }
+    }
+
+    pub fn active_games(&self) -> Option<&HashMap<String, chrono::DateTime<chrono::Utc>>> {
+        match self {
+            Operation::Idle => None,
+            Operation::Backup { active_games, .. } => Some(active_games),
+            Operation::Restore { active_games, .. } => Some(active_games),
+            Operation::ValidateBackups { .. } => None,
+            Operation::Cloud { .. } => None,
+        }
+    }
+
+    pub fn add_active_game(&mut self, title: String) {
+        match self {
+            Operation::Idle | Operation::Cloud { .. } => {}
+            Operation::Backup { active_games, .. }
+            | Operation::Restore { active_games, .. }
+            | Operation::ValidateBackups { active_games, .. } => {
+                active_games.insert(title, chrono::Utc::now());
+            }
+        }
+    }
+
+    pub fn remove_active_game(&mut self, title: &str) {
+        match self {
+            Operation::Idle | Operation::Cloud { .. } => {}
+            Operation::Backup { active_games, .. }
+            | Operation::Restore { active_games, .. }
+            | Operation::ValidateBackups { active_games, .. } => {
+                active_games.remove(title);
+            }
         }
     }
 }
