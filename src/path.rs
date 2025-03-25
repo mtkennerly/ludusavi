@@ -75,17 +75,22 @@ impl CommonPath {
     }
 
     pub fn get_unglobbed(&self) -> Option<&str> {
-        static CONFIG: LazyLock<Option<String>> = LazyLock::new(|| CommonPath::Config.get().map(globset::escape));
-        static DATA: LazyLock<Option<String>> = LazyLock::new(|| CommonPath::Data.get().map(globset::escape));
+        static CONFIG: LazyLock<Option<String>> =
+            LazyLock::new(|| CommonPath::Config.get().map(|x| StrictPath::new(x).globbable()));
+        static DATA: LazyLock<Option<String>> =
+            LazyLock::new(|| CommonPath::Data.get().map(|x| StrictPath::new(x).globbable()));
         static DATA_LOCAL: LazyLock<Option<String>> =
-            LazyLock::new(|| CommonPath::DataLocal.get().map(globset::escape));
+            LazyLock::new(|| CommonPath::DataLocal.get().map(|x| StrictPath::new(x).globbable()));
         static DATA_LOCAL_LOW: LazyLock<Option<String>> =
-            LazyLock::new(|| CommonPath::DataLocalLow.get().map(globset::escape));
-        static DOCUMENT: LazyLock<Option<String>> = LazyLock::new(|| CommonPath::Document.get().map(globset::escape));
-        static HOME: LazyLock<Option<String>> = LazyLock::new(|| CommonPath::Home.get().map(globset::escape));
-        static PUBLIC: LazyLock<Option<String>> = LazyLock::new(|| CommonPath::Public.get().map(globset::escape));
+            LazyLock::new(|| CommonPath::DataLocalLow.get().map(|x| StrictPath::new(x).globbable()));
+        static DOCUMENT: LazyLock<Option<String>> =
+            LazyLock::new(|| CommonPath::Document.get().map(|x| StrictPath::new(x).globbable()));
+        static HOME: LazyLock<Option<String>> =
+            LazyLock::new(|| CommonPath::Home.get().map(|x| StrictPath::new(x).globbable()));
+        static PUBLIC: LazyLock<Option<String>> =
+            LazyLock::new(|| CommonPath::Public.get().map(|x| StrictPath::new(x).globbable()));
         static SAVED_GAMES: LazyLock<Option<String>> =
-            LazyLock::new(|| CommonPath::SavedGames.get().map(globset::escape));
+            LazyLock::new(|| CommonPath::SavedGames.get().map(|x| StrictPath::new(x).globbable()));
 
         match self {
             Self::Config => CONFIG.as_ref(),
@@ -130,6 +135,12 @@ impl Analysis {
     fn new(drive: Option<Drive>, parts: Vec<String>) -> Self {
         Self { drive, parts }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum AnalysisMode {
+    Normal,
+    Glob,
 }
 
 /// This is a wrapper around paths to make it more obvious when we're
@@ -237,6 +248,10 @@ impl StrictPath {
     }
 
     fn analyze(&self) -> Analysis {
+        self.analyze_with_mode(AnalysisMode::Normal)
+    }
+
+    fn analyze_with_mode(&self, mode: AnalysisMode) -> Analysis {
         use typed_path::{
             Utf8TypedComponent as Component, Utf8TypedPath as TypedPath, Utf8UnixComponent as UComponent,
             Utf8WindowsComponent as WComponent, Utf8WindowsPrefix as WindowsPrefix,
@@ -264,10 +279,14 @@ impl StrictPath {
             match component {
                 Component::Windows(WComponent::Prefix(prefix)) => {
                     let mapped = match prefix.kind() {
-                        WindowsPrefix::Verbatim(id) => correct_windows_slashes!(r"\\?\", None::<&str>, id),
-                        WindowsPrefix::VerbatimUNC(server, share) => {
-                            correct_windows_slashes!(r"\\?\UNC\", Some(server), share)
-                        }
+                        WindowsPrefix::Verbatim(id) => match mode {
+                            AnalysisMode::Normal => correct_windows_slashes!(r"\\?\", None::<&str>, id),
+                            AnalysisMode::Glob => correct_windows_slashes!(r"\\", None::<&str>, id),
+                        },
+                        WindowsPrefix::VerbatimUNC(server, share) => match mode {
+                            AnalysisMode::Normal => correct_windows_slashes!(r"\\?\UNC\", Some(server), share),
+                            AnalysisMode::Glob => correct_windows_slashes!(r"\\", Some(server), share),
+                        },
                         WindowsPrefix::VerbatimDisk(id) => format!("{}:", id.to_ascii_uppercase()),
                         WindowsPrefix::DeviceNS(id) => format!(r"\\.\{}", id),
                         WindowsPrefix::UNC(server, share) => correct_windows_slashes!(r"\\", Some(server), share),
@@ -283,14 +302,14 @@ impl StrictPath {
                 Component::Unix(UComponent::CurDir) | Component::Windows(WComponent::CurDir) => {
                     if i == 0 {
                         if let Some(basis) = &self.basis {
-                            analysis = Self::new(basis.clone()).analyze();
+                            analysis = Self::new(basis.clone()).analyze_with_mode(mode);
                         }
                     }
                 }
                 Component::Unix(UComponent::ParentDir) | Component::Windows(WComponent::ParentDir) => {
                     if i == 0 {
                         if let Some(basis) = &self.basis {
-                            analysis = Self::new(basis.clone()).analyze();
+                            analysis = Self::new(basis.clone()).analyze_with_mode(mode);
                         }
                     }
                     analysis.parts.pop();
@@ -311,10 +330,10 @@ impl StrictPath {
                         };
 
                         if let Some(mapped) = mapped {
-                            analysis = Self::new(mapped.to_string()).analyze();
+                            analysis = Self::new(mapped.to_string()).analyze_with_mode(mode);
                             continue;
                         } else if let Some(basis) = &self.basis {
-                            analysis = Self::new(basis.clone()).analyze();
+                            analysis = Self::new(basis.clone()).analyze_with_mode(mode);
                         }
                     }
 
@@ -362,19 +381,28 @@ impl StrictPath {
     }
 
     fn access(&self) -> Result<String, StrictPathError> {
+        self.access_with_mode(AnalysisMode::Normal)
+    }
+
+    fn access_with_mode(&self, mode: AnalysisMode) -> Result<String, StrictPathError> {
         if cfg!(target_os = "windows") {
-            self.access_windows()
+            self.access_windows_with_mode(mode)
         } else {
-            self.access_nonwindows()
+            self.access_nonwindows_with_mode(mode)
         }
     }
 
+    #[cfg(test)]
     fn access_windows(&self) -> Result<String, StrictPathError> {
+        self.access_windows_with_mode(AnalysisMode::Normal)
+    }
+
+    fn access_windows_with_mode(&self, mode: AnalysisMode) -> Result<String, StrictPathError> {
         if self.raw.is_empty() {
             return Err(StrictPathError::Empty);
         }
 
-        let analysis = self.analyze();
+        let analysis = self.analyze_with_mode(mode);
         if analysis.parts.iter().any(|x| x.contains(':')) {
             return Err(StrictPathError::Unsupported);
         }
@@ -395,12 +423,17 @@ impl StrictPath {
         }
     }
 
-    pub fn access_nonwindows(&self) -> Result<String, StrictPathError> {
+    #[cfg(test)]
+    fn access_nonwindows(&self) -> Result<String, StrictPathError> {
+        self.access_nonwindows_with_mode(AnalysisMode::Normal)
+    }
+
+    fn access_nonwindows_with_mode(&self, mode: AnalysisMode) -> Result<String, StrictPathError> {
         if self.raw.is_empty() {
             return Err(StrictPathError::Empty);
         }
 
-        match self.analyze() {
+        match self.analyze_with_mode(mode) {
             Analysis {
                 drive: Some(Drive::Root),
                 parts,
@@ -416,9 +449,26 @@ impl StrictPath {
         }
     }
 
-    // TODO: Better error reporting for incompatible UNC path variants.
+    /// Simplify the drive segment to avoid `\\?` in Windows paths,
+    /// and glob-escape the remainder of the path.
     pub fn globbable(&self) -> String {
-        self.display().trim().trim_end_matches(['/', '\\']).replace('\\', "/")
+        if self.raw.is_empty() {
+            return "".to_string();
+        }
+
+        match self.analyze_with_mode(AnalysisMode::Glob) {
+            Analysis {
+                drive: Some(Drive::Root),
+                parts,
+            } => format!("/{}", globset::escape(&parts.join("/"))),
+            Analysis {
+                drive: Some(Drive::Windows(id)),
+                parts,
+            } => {
+                format!("{}/{}", id, globset::escape(&parts.join("/")))
+            }
+            Analysis { drive: None, parts } => globset::escape(&parts.join("/")),
+        }
     }
 
     fn canonical(&self) -> Canonical {

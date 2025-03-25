@@ -147,14 +147,11 @@ pub fn parse_paths(
 
     let install_dir = install_dir.map(|x| globset::escape(x)).unwrap_or(SKIP.to_string());
     let full_install_dir = full_install_dir
-        .and_then(|x| x.interpret().ok())
-        .map(|x| globset::escape(&x))
+        .map(|x| x.globbable())
         .unwrap_or_else(|| SKIP.to_string());
 
-    let Ok(root_interpreted) = root.path().interpret_unless_skip().map(|x| globset::escape(&x)) else {
-        return HashSet::new();
-    };
-    let manifest_dir_interpreted = manifest_dir.interpret().ok().map(|x| globset::escape(&x));
+    let root_interpreted = root.path().globbable();
+    let manifest_dir_interpreted = manifest_dir.globbable();
 
     let data_dir = CommonPath::Data.get_unglobbed().unwrap_or(SKIP);
     let data_local_dir = CommonPath::DataLocal.get_unglobbed().unwrap_or(SKIP);
@@ -476,7 +473,7 @@ pub fn parse_paths(
         .into_iter()
         // This excludes `SKIP` and any other unmatched placeholders.
         .filter(|(p, _)| !p.contains('<'))
-        .map(|(p, c)| (StrictPath::relative(p, manifest_dir_interpreted.clone()), c))
+        .map(|(p, c)| (StrictPath::relative(p, Some(manifest_dir_interpreted.clone())), c))
         .collect()
 }
 
