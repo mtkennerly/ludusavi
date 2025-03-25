@@ -390,11 +390,11 @@ pub fn parse_paths(
     if Os::HOST == Os::Windows {
         if let Some(saved_games_dir) = saved_games_dir {
             add_path!(path
-                .replace('\\', "/")
                 .replace(p::GAME, &install_dir)
                 .replace(p::STORE_USER_ID, "*")
                 .replace(p::OS_USER_NAME, &crate::prelude::OS_USERNAME)
                 .replace("<home>/Saved Games/", &format!("{}/", saved_games_dir))
+                .replace("<home>\\Saved Games\\", &format!("{}/", saved_games_dir))
                 .replace(p::HOME, home));
         }
 

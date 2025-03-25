@@ -26,6 +26,7 @@
     Ludusavi internally expands each configured root into one root per glob match,
     but it did not then escape each expanded root path before integrating it into a larger pattern.
   * GUI: In the scan results, some elements could get squished with long file paths.
+  * On Windows, some paths were unnecessarily scanned twice.
 * Changed:
   * GUI: In some cases, Ludusavi would automatically close any open modal
     in order to show a different one,
