@@ -16,9 +16,10 @@
   * There may be an issue with your graphics drivers/support.
     Try using the software renderer instead by setting the `ICED_BACKEND` environment variable to `tiny-skia`.
   * Try forcing Ludusavi to use your dedicated GPU instead of the integrated graphics.
-    On Windows 11, go to: Settings app -> System -> Display -> Graphics.
+    One way to do this is by setting the `WGPU_POWER_PREF` environment variable to `high`.
+    Alternatively, on Windows 11, go to: Settings app -> System -> Display -> Graphics.
   * You can try prioritizing different hardware renderers
-    by setting the `WGPU_BACKEND` environment variable to `dx12`, `vulkan`, or `metal`.
+    by setting the `WGPU_BACKEND` environment variable to `dx12`, `vulkan`, `metal`, or `gl`.
   * **Flatpak:** You can try forcing X11 instead of Wayland:
     `flatpak run --nosocket=wayland --socket=x11 com.github.mtkennerly.ludusavi`
 * On Windows, I can't back up really long folder/file paths.
