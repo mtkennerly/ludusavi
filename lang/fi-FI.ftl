@@ -46,7 +46,7 @@ button-get-app = Hanki { $app }
 button-validate = Vahvista
 button-override-manifest = Override manifest
 button-extend-manifest = Extend manifest
-button-sort = Sort
+button-sort = Järjestä
 no-roots-are-configured = Lisää joitakin juuria varmuuskopioidaksesi vielä enemmän tietoa.
 config-is-invalid = Virhe: Asetustiedosto on virheellinen.
 manifest-is-invalid = Virhe: manifestitiedosto on virheellinen.
@@ -202,13 +202,13 @@ consider-doing-a-preview =
     Jos et ole vielä esikatsellut, niin nyt on vielä mahdollisuus,
     jotta vältyt yllätyksiltä.
 confirm-backup =
-    Are you sure you want to proceed with the backup? { $path-action ->
-        [merge] New save data will be merged into the target folder:
-       *[create] The target folder will be created:
+    Haluatko varmasti jatkaa varmuuskopiointia? { $path-action ->
+        [merge] Uusi tallennusdata yhdistetään kohdekansioon:
+       *[create] Luodaan kohdekansio:
     }
 confirm-restore =
-    Are you sure you want to proceed with the restoration?
-    This will overwrite any current files with the backups from here:
+    Haluatko varmasti jatkaa palauttamista?
+    Tämä korvaa kaikki nykyiset tiedostot varmuuskopioiden avulla täältä:
 confirm-cloud-upload =
     Haluatko korvata pilvessä olevat tiedostot paikallisilla tiedostoillasi?
     Pilvitiedostoistasi ({ $cloud-path }) tulee tarkka kopio paikallisista tiedostoistasi ({ $local-path }).
@@ -253,4 +253,4 @@ new-version-check = Tarkista sovelluksen päivitykset automaattisesti
 new-version-available = Sovelluspäivitys saatavilla: { $version }. Haluatko nähdä julkaisutiedot?
 custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
-operation-will-only-include-listed-games = This will only process the games that are currently listed
+operation-will-only-include-listed-games = Tämä käsittelee vain pelit, jotka on tällä hetkellä lueteltu
