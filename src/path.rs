@@ -74,7 +74,7 @@ impl CommonPath {
         .map(|x| x.as_str())
     }
 
-    pub fn get_unglobbed(&self) -> Option<&str> {
+    pub fn get_globbable(&self) -> Option<&str> {
         static CONFIG: LazyLock<Option<String>> =
             LazyLock::new(|| CommonPath::Config.get().map(|x| StrictPath::new(x).globbable()));
         static DATA: LazyLock<Option<String>> =

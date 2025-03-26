@@ -153,14 +153,14 @@ pub fn parse_paths(
     let root_interpreted = root.path().globbable();
     let manifest_dir_interpreted = manifest_dir.globbable();
 
-    let data_dir = CommonPath::Data.get_unglobbed().unwrap_or(SKIP);
-    let data_local_dir = CommonPath::DataLocal.get_unglobbed().unwrap_or(SKIP);
-    let data_local_low_dir = CommonPath::DataLocalLow.get_unglobbed().unwrap_or(SKIP);
-    let config_dir = CommonPath::Config.get_unglobbed().unwrap_or(SKIP);
-    let home = CommonPath::Home.get_unglobbed().unwrap_or(SKIP);
-    let document_dir = CommonPath::Document.get_unglobbed().unwrap_or(SKIP);
-    let public_dir = CommonPath::Public.get_unglobbed().unwrap_or(SKIP);
-    let saved_games_dir = CommonPath::SavedGames.get_unglobbed();
+    let data_dir = CommonPath::Data.get_globbable().unwrap_or(SKIP);
+    let data_local_dir = CommonPath::DataLocal.get_globbable().unwrap_or(SKIP);
+    let data_local_low_dir = CommonPath::DataLocalLow.get_globbable().unwrap_or(SKIP);
+    let config_dir = CommonPath::Config.get_globbable().unwrap_or(SKIP);
+    let home = CommonPath::Home.get_globbable().unwrap_or(SKIP);
+    let document_dir = CommonPath::Document.get_globbable().unwrap_or(SKIP);
+    let public_dir = CommonPath::Public.get_globbable().unwrap_or(SKIP);
+    let saved_games_dir = CommonPath::SavedGames.get_globbable();
 
     add_path!(path
         .replace(p::ROOT, &root_interpreted)
