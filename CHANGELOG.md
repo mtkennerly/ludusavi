@@ -28,6 +28,8 @@
   * GUI: In the scan results, some elements could get squished with long file paths.
   * CLI: In the scan results, if you enabled the option to skip backups when there are only removals,
     those games would still count towards the change tally.
+  * CLI: In the default scan results output format,
+    registry content would be dumped even without `--dump-registry`.
   * On Windows, some paths were unnecessarily scanned twice.
   * On Windows, some network share paths were not scanned properly in certain contexts.
 * Changed:
