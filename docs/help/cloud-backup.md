@@ -34,10 +34,12 @@ For example:
 
 ## Rclone and Flatpak
 For Linux users who have installed Ludusavi via Flatpak,
-the default Flatpak permissions will keep Ludusavi from seeing your
-system copy of Rclone.
+the default Flatpak permissions will keep Ludusavi from seeing your system copy of Rclone.
+Therefore, a copy of Rclone is included in the Flatpak environment,
+which you can reference as `/app/bin/rclone` in Ludusavi.
 
-One solution is to give Ludusavi host filesystem access
+If you prefer to use your system copy of Rclone,
+one solution is to give Ludusavi host filesystem access
 (`flatpak override com.github.mtkennerly.ludusavi --filesystem=host`).
 Then, in Ludusavi, you can set the Rclone executable path to
 `/var/run/host/usr/bin/rclone`.
