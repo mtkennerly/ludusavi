@@ -128,7 +128,10 @@ impl Badge {
                     _ if self.faded => style::Container::BadgeFaded,
                     _ => style::Container::Badge,
                 },
-                Some(change) => style::Container::ChangeBadge(change),
+                Some(change) => style::Container::ChangeBadge {
+                    change,
+                    faded: self.faded,
+                },
             });
 
             let content = match self.tooltip {

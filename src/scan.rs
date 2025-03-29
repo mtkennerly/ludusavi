@@ -33,7 +33,7 @@ use crate::{
     path::{CommonPath, StrictPath},
     prelude::{filter_map_walkdir, Error, SKIP},
     resource::{
-        config::{BackupFilter, RedirectConfig, RedirectKind, Root, SortKey, ToggledPaths, ToggledRegistry},
+        config::{BackupFilter, Config, RedirectConfig, RedirectKind, Root, SortKey, ToggledPaths, ToggledRegistry},
         manifest::{Game, GameFileEntry, IdSet, Os, Store},
     },
     scan::layout::LatestBackup,
@@ -881,6 +881,7 @@ pub fn prepare_backup_target(target: &StrictPath) -> Result<(), Error> {
 
 pub fn compare_games(
     key: SortKey,
+    config: &Config,
     display_title1: &str,
     scan_info1: &ScanInfo,
     backup_info1: Option<&BackupInfo>,
@@ -891,7 +892,7 @@ pub fn compare_games(
     match key {
         SortKey::Name => compare_games_by_name(display_title1, display_title2),
         SortKey::Size => compare_games_by_size(scan_info1, backup_info1, scan_info2, backup_info2),
-        SortKey::Status => compare_games_by_status(scan_info1, scan_info2),
+        SortKey::Status => compare_games_by_status(config, scan_info1, scan_info2),
     }
 }
 
@@ -911,10 +912,20 @@ fn compare_games_by_size(
         .then_with(|| compare_games_by_name(&scan_info1.game_name, &scan_info2.game_name))
 }
 
-fn compare_games_by_status(scan_info1: &ScanInfo, scan_info2: &ScanInfo) -> std::cmp::Ordering {
-    scan_info1
-        .overall_change()
-        .cmp(&scan_info2.overall_change())
+fn compare_games_by_status(config: &Config, scan_info1: &ScanInfo, scan_info2: &ScanInfo) -> std::cmp::Ordering {
+    let change1 = if !config.is_game_enabled_for_operation(&scan_info1.game_name, scan_info1.scan_kind()) {
+        ScanChange::Same
+    } else {
+        scan_info1.overall_change()
+    };
+    let change2 = if !config.is_game_enabled_for_operation(&scan_info2.game_name, scan_info2.scan_kind()) {
+        ScanChange::Same
+    } else {
+        scan_info2.overall_change()
+    };
+
+    change1
+        .cmp(&change2)
         .then_with(|| compare_games_by_name(&scan_info1.game_name, &scan_info2.game_name))
 }
 

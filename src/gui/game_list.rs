@@ -132,8 +132,8 @@ impl GameListEntry {
                                 .padding(2),
                         )
                         .push_maybe(match changes {
-                            ScanChange::New => Some(Badge::new_entry().view()),
-                            ScanChange::Different => Some(Badge::changed_entry().view()),
+                            ScanChange::New => Some(Badge::new_entry().faded(!enabled).view()),
+                            ScanChange::Different => Some(Badge::changed_entry().faded(!enabled).view()),
                             ScanChange::Removed => None,
                             ScanChange::Same => None,
                             ScanChange::Unknown => None,
@@ -566,9 +566,8 @@ impl GameList {
             {
                 status.processed_games += 1;
                 status.processed_bytes += entry.scan_info.sum_bytes(None);
+                status.changed_games.add(entry.scan_info.overall_change());
             }
-
-            status.changed_games.add(entry.scan_info.overall_change());
         }
         status
     }
@@ -577,6 +576,7 @@ impl GameList {
         self.entries.sort_by(|x, y| {
             crate::scan::compare_games(
                 sort.key,
+                config,
                 config.display_name(&x.scan_info.game_name),
                 &x.scan_info,
                 x.backup_info.as_ref(),

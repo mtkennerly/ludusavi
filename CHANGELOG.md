@@ -26,9 +26,14 @@
     Ludusavi internally expands each configured root into one root per glob match,
     but it did not then escape each expanded root path before integrating it into a larger pattern.
   * GUI: In the scan results, some elements could get squished with long file paths.
+  * CLI: In the scan results, if you enabled the option to skip backups when there are only removals,
+    those games would still count towards the change tally.
   * On Windows, some paths were unnecessarily scanned twice.
   * On Windows, some network share paths were not scanned properly in certain contexts.
 * Changed:
+  * When a disabled game is new or updated in the scan results,
+    that game's change badge will now be faded,
+    and it will be sorted with games that do not have changes.
   * GUI: In some cases, Ludusavi would automatically close any open modal
     in order to show a different one,
     which could be inconvenient if you were filling out fields in certain modals.

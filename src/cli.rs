@@ -346,6 +346,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 |(name1, scan_info1, backup_info1, ..), (name2, scan_info2, backup_info2, ..)| {
                     crate::scan::compare_games(
                         sort.key,
+                        &config,
                         name1,
                         scan_info1,
                         backup_info1.as_ref(),
@@ -518,6 +519,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 |(name1, scan_info1, backup_info1, ..), (name2, scan_info2, backup_info2, ..)| {
                     crate::scan::compare_games(
                         sort.key,
+                        &config,
                         name1,
                         scan_info1,
                         Some(backup_info1),

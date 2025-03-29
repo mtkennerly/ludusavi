@@ -280,7 +280,10 @@ pub enum Container {
     Badge,
     BadgeActivated,
     BadgeFaded,
-    ChangeBadge(ScanChange),
+    ChangeBadge {
+        change: ScanChange,
+        faded: bool,
+    },
     DisabledBackup,
     Notification,
     Tooltip,
@@ -308,12 +311,18 @@ impl container::Catalog for Theme {
                 color: match class {
                     Container::Wrapper => Color::TRANSPARENT,
                     Container::GameListEntry | Container::Notification => self.field,
-                    Container::ChangeBadge(change) => match change {
-                        ScanChange::New => self.added,
-                        ScanChange::Different => self.positive,
-                        ScanChange::Removed => self.negative,
-                        ScanChange::Same | ScanChange::Unknown => self.disabled,
-                    },
+                    Container::ChangeBadge { change, faded } => {
+                        if *faded {
+                            self.disabled
+                        } else {
+                            match change {
+                                ScanChange::New => self.added,
+                                ScanChange::Different => self.positive,
+                                ScanChange::Removed => self.negative,
+                                ScanChange::Same | ScanChange::Unknown => self.disabled,
+                            }
+                        }
+                    }
                     Container::BadgeActivated => self.negative,
                     Container::ModalForeground | Container::BadgeFaded => self.disabled,
                     _ => self.text,
@@ -324,7 +333,7 @@ impl container::Catalog for Theme {
                     | Container::Badge
                     | Container::BadgeActivated
                     | Container::BadgeFaded
-                    | Container::ChangeBadge(..)
+                    | Container::ChangeBadge { .. }
                     | Container::Notification => 1.0,
                     _ => 0.0,
                 },
@@ -334,7 +343,7 @@ impl container::Catalog for Theme {
                     | Container::Badge
                     | Container::BadgeActivated
                     | Container::BadgeFaded
-                    | Container::ChangeBadge(..)
+                    | Container::ChangeBadge { .. }
                     | Container::DisabledBackup => 10.0.into(),
                     Container::Notification | Container::Tooltip => 20.0.into(),
                     _ => 0.0.into(),
@@ -343,12 +352,18 @@ impl container::Catalog for Theme {
             text_color: match class {
                 Container::Wrapper => None,
                 Container::DisabledBackup => Some(self.text_inverted),
-                Container::ChangeBadge(change) => match change {
-                    ScanChange::New => Some(self.added),
-                    ScanChange::Different => Some(self.positive),
-                    ScanChange::Removed => Some(self.negative),
-                    ScanChange::Same | ScanChange::Unknown => Some(self.disabled),
-                },
+                Container::ChangeBadge { change, faded } => {
+                    if *faded {
+                        Some(self.disabled)
+                    } else {
+                        match change {
+                            ScanChange::New => Some(self.added),
+                            ScanChange::Different => Some(self.positive),
+                            ScanChange::Removed => Some(self.negative),
+                            ScanChange::Same | ScanChange::Unknown => Some(self.disabled),
+                        }
+                    }
+                }
                 Container::BadgeActivated => Some(self.text_button),
                 Container::BadgeFaded => Some(self.disabled),
                 _ => Some(self.text),

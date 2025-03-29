@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use crate::{
     lang::TRANSLATOR,
     path::StrictPath,
-    scan::{registry::RegistryItem, ScanChangeCount, ScanInfo},
+    scan::{registry::RegistryItem, ScanChange, ScanChangeCount, ScanInfo},
 };
 
 #[derive(Clone, Debug)]
@@ -80,15 +80,22 @@ impl OperationStatus {
         if processed {
             self.processed_games += 1;
             self.processed_bytes += scan_info.sum_bytes(backup_info);
-        }
 
-        let changes = scan_info.count_changes();
-        if changes.brand_new() {
-            self.changed_games.new += 1;
-        } else if changes.updated() {
-            self.changed_games.different += 1;
-        } else {
-            self.changed_games.same += 1;
+            match scan_info.overall_change() {
+                ScanChange::New => {
+                    self.changed_games.new += 1;
+                }
+                ScanChange::Different => {
+                    self.changed_games.different += 1;
+                }
+                ScanChange::Removed => {
+                    self.changed_games.removed += 1;
+                }
+                ScanChange::Same => {
+                    self.changed_games.same += 1;
+                }
+                ScanChange::Unknown => {}
+            }
         }
     }
 

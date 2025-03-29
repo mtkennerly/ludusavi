@@ -227,7 +227,6 @@ impl ScanInfo {
     }
 
     pub fn overall_change(&self) -> ScanChange {
-        // TODO: Disabled games can still be marked as new/updated. Should we suppress that?
         if self.is_total_removal() {
             ScanChange::Removed
         } else if self.is_brand_new() {
