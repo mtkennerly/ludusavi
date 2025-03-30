@@ -33,11 +33,11 @@ use crate::{
 
 const PROGRESS_BAR_REFRESH_INTERVAL: Duration = Duration::from_millis(50);
 
-pub fn show_error(error: &Error, gui: bool, force: bool) {
+pub fn show_error(games: &[String], error: &Error, gui: bool, force: bool) {
     let message = TRANSLATOR.handle_error(error);
 
     if gui {
-        let _ = ui::alert(gui, force, &message);
+        let _ = ui::alert(games, gui, force, &message);
     } else {
         eprintln!("{}", message);
     }
@@ -169,6 +169,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let roots = config.expanded_roots();
 
             if !ui::confirm(
+                &games,
                 gui,
                 force,
                 preview,
@@ -223,7 +224,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 match changes {
                     Ok(changes) => {
                         if !changes.is_empty() {
-                            match ui::ask_cloud_conflict(gui, force && !no_force_cloud_conflict, preview)? {
+                            match ui::ask_cloud_conflict(&games, gui, force && !no_force_cloud_conflict, preview)? {
                                 Some(direction @ SyncDirection::Download) => {
                                     // We need to download before the new backup
                                     // to keep mapping.yaml in a coherent state.
@@ -237,6 +238,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                                     ) {
                                         log::error!("Failed to resolve save conflict pre-backup with direction {direction:?}: {e:?}");
                                         ui::alert(
+                                            &games,
                                             gui,
                                             force && !no_force_cloud_conflict,
                                             &TRANSLATOR.unable_to_synchronize_with_cloud(),
@@ -428,7 +430,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 Some(p) => p,
             };
 
-            if !ui::confirm(gui, force, preview, &TRANSLATOR.confirm_restore(&restore_dir, false))? {
+            if !ui::confirm(
+                &games,
+                gui,
+                force,
+                preview,
+                &TRANSLATOR.confirm_restore(&restore_dir, false),
+            )? {
                 return Ok(());
             }
 
@@ -471,7 +479,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 match changes {
                     Ok(changes) => {
                         if !changes.is_empty() {
-                            match ui::ask_cloud_conflict(gui, force && !no_force_cloud_conflict, preview)? {
+                            match ui::ask_cloud_conflict(&games, gui, force && !no_force_cloud_conflict, preview)? {
                                 Some(direction) => {
                                     if let Err(e) = sync_cloud(
                                         &config,
@@ -483,6 +491,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                                     ) {
                                         log::error!("Failed to resolve save conflict pre-restore with direction {direction:?}: {e:?}");
                                         ui::alert(
+                                            &games,
                                             gui,
                                             force && !no_force_cloud_conflict,
                                             &TRANSLATOR.unable_to_synchronize_with_cloud(),
@@ -868,6 +877,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 };
 
                 if !ui::confirm(
+                    &games,
                     gui,
                     force,
                     finality.preview(),
@@ -911,6 +921,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 };
 
                 if !ui::confirm(
+                    &games,
                     gui,
                     force,
                     finality.preview(),
@@ -980,6 +991,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     ..Default::default()
                 })
             });
+            let games = game_name.as_ref().map(|game| vec![game.clone()]).unwrap_or_default();
             log::debug!("Title finder result: {:?}", &game_name);
 
             match game_name.as_ref() {
@@ -988,6 +1000,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
                 None => {
                     if !ui::confirm_with_question(
+                        &games,
                         gui,
                         force,
                         preview,
@@ -1009,6 +1022,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 let game_layout = layout.game_layout(game_name);
                 if !game_layout.has_backups() {
                     if ui::confirm_with_question(
+                        &games,
                         gui,
                         force_restore,
                         preview,
@@ -1022,6 +1036,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
 
                 if !ui::confirm(
+                    &games,
                     gui,
                     force_restore,
                     preview,
@@ -1049,7 +1064,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("Wrap failed to restore game {:?} with: {:?}", wrap_game_info, err);
-                    ui::alert_with_error(gui, force_restore, &TRANSLATOR.restore_one_game_failed(game_name), &err)?;
+                    ui::alert_with_error(
+                        &games,
+                        gui,
+                        force_restore,
+                        &TRANSLATOR.restore_one_game_failed(game_name),
+                        &err,
+                    )?;
                     return Err(err);
                 }
             }
@@ -1063,7 +1084,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
                 Err(err) => {
                     log::error!("Wrapped game command execution failed with: {:#?}", err);
-                    ui::alert_with_raw_error(gui, force, &TRANSLATOR.game_did_not_launch(), &err.to_string())?;
+                    ui::alert_with_raw_error(&games, gui, force, &TRANSLATOR.game_did_not_launch(), &err.to_string())?;
                     return Err(Error::GameDidNotLaunch { why: err.to_string() });
                 }
             }
@@ -1075,6 +1096,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 };
 
                 if !ui::confirm(
+                    &games,
                     gui,
                     force_backup,
                     preview,
@@ -1107,7 +1129,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     try_manifest_update,
                 ) {
                     log::error!("Wrap failed to back up with: {:#?}", err);
-                    ui::alert_with_error(gui, force_backup, &TRANSLATOR.back_up_one_game_failed(game_name), &err)?;
+                    ui::alert_with_error(
+                        &games,
+                        gui,
+                        force_backup,
+                        &TRANSLATOR.back_up_one_game_failed(game_name),
+                        &err,
+                    )?;
                     return Err(err);
                 }
             }

@@ -12,6 +12,14 @@ fn get_separator(gui: bool) -> &'static str {
     }
 }
 
+fn title(games: &[String]) -> String {
+    match games.len() {
+        0 => TRANSLATOR.app_name(),
+        1 => format!("{} - {}", TRANSLATOR.app_name(), &games[0]),
+        total => format!("{} - {}: {}", TRANSLATOR.app_name(), TRANSLATOR.total_games(), total),
+    }
+}
+
 fn pause() -> Result<(), Error> {
     use std::io::prelude::{Read, Write};
 
@@ -29,27 +37,29 @@ fn pause() -> Result<(), Error> {
     Ok(())
 }
 
-pub fn alert_with_raw_error(gui: bool, force: bool, msg: &str, error: &str) -> Result<(), Error> {
+pub fn alert_with_raw_error(games: &[String], gui: bool, force: bool, msg: &str, error: &str) -> Result<(), Error> {
     alert(
+        games,
         gui,
         force,
         &format!("{}{}{}", msg, get_separator(gui), TRANSLATOR.prefix_error(error)),
     )
 }
 
-pub fn alert_with_error(gui: bool, force: bool, msg: &str, error: &Error) -> Result<(), Error> {
+pub fn alert_with_error(games: &[String], gui: bool, force: bool, msg: &str, error: &Error) -> Result<(), Error> {
     alert(
+        games,
         gui,
         force,
         &format!("{}{}{}", msg, get_separator(gui), TRANSLATOR.handle_error(error)),
     )
 }
 
-pub fn alert(gui: bool, force: bool, msg: &str) -> Result<(), Error> {
+pub fn alert(games: &[String], gui: bool, force: bool, msg: &str) -> Result<(), Error> {
     log::debug!("Showing alert to user (GUI={}, force={}): {}", gui, force, msg);
     if gui {
         rfd::MessageDialog::new()
-            .set_title(TRANSLATOR.app_name())
+            .set_title(title(games))
             .set_description(msg)
             .set_level(rfd::MessageLevel::Error)
             .set_buttons(rfd::MessageButtons::Ok)
@@ -66,13 +76,21 @@ pub fn alert(gui: bool, force: bool, msg: &str) -> Result<(), Error> {
     }
 }
 
-pub fn confirm_with_question(gui: bool, force: bool, preview: bool, msg: &str, question: &str) -> Result<bool, Error> {
+pub fn confirm_with_question(
+    games: &[String],
+    gui: bool,
+    force: bool,
+    preview: bool,
+    msg: &str,
+    question: &str,
+) -> Result<bool, Error> {
     if force || preview {
-        _ = alert(gui, force, msg);
+        _ = alert(games, gui, force, msg);
         return Ok(true);
     }
 
     confirm(
+        games,
         gui,
         force,
         preview,
@@ -80,7 +98,7 @@ pub fn confirm_with_question(gui: bool, force: bool, preview: bool, msg: &str, q
     )
 }
 
-pub fn confirm(gui: bool, force: bool, preview: bool, msg: &str) -> Result<bool, Error> {
+pub fn confirm(games: &[String], gui: bool, force: bool, preview: bool, msg: &str) -> Result<bool, Error> {
     log::debug!(
         "Showing confirmation to user (GUI={}, force={}, preview={}): {}",
         gui,
@@ -95,7 +113,7 @@ pub fn confirm(gui: bool, force: bool, preview: bool, msg: &str) -> Result<bool,
 
     if gui {
         let choice = match rfd::MessageDialog::new()
-            .set_title(TRANSLATOR.app_name())
+            .set_title(title(games))
             .set_description(msg)
             .set_level(rfd::MessageLevel::Info)
             .set_buttons(rfd::MessageButtons::YesNo)
@@ -123,7 +141,12 @@ pub fn confirm(gui: bool, force: bool, preview: bool, msg: &str) -> Result<bool,
     }
 }
 
-pub fn ask_cloud_conflict(gui: bool, force: bool, preview: bool) -> Result<Option<SyncDirection>, Error> {
+pub fn ask_cloud_conflict(
+    games: &[String],
+    gui: bool,
+    force: bool,
+    preview: bool,
+) -> Result<Option<SyncDirection>, Error> {
     let msg = TRANSLATOR.cloud_synchronize_conflict();
 
     log::debug!(
@@ -150,7 +173,7 @@ pub fn ask_cloud_conflict(gui: bool, force: bool, preview: bool) -> Result<Optio
 
     if gui {
         let choice = match rfd::MessageDialog::new()
-            .set_title(TRANSLATOR.app_name())
+            .set_title(title(games))
             .set_description(msg)
             .set_level(rfd::MessageLevel::Info)
             .set_buttons(rfd::MessageButtons::YesNoCancelCustom(

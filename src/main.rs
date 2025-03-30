@@ -205,7 +205,7 @@ fn main() {
 
             if let Err(e) = cli::run(sub, args.no_manifest_update, args.try_manifest_update) {
                 failed = true;
-                cli::show_error(&e, gui, force);
+                cli::show_error(&[], &e, gui, force);
             }
         }
     };

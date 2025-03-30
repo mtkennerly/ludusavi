@@ -15,6 +15,9 @@
     and `--force` will automatically ignore any conflicts.
     You can combine `--force` and `--no-force-cloud-conflict`
     to be prompted only when there is a conflict.
+  * CLI: When using `--gui` in the commands that support it,
+    dialog titles now include the game's name (if you've specified only one)
+    or the total number of games (if you've specified more than one).
 * Fixed:
   * For home folder roots, Ludusavi skipped any paths containing `<storeUserId>`,
     on the assumption that it shouldn't be applicable to non-store-specific roots.
