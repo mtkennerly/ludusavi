@@ -17,7 +17,7 @@ def get_version() -> str:
         if line.startswith("version ="):
             return line.replace("version = ", "").strip('"')
 
-    return "0.0.0"
+    raise RuntimeError("Could not determine version")
 
 
 def replace_pattern_in_file(file: Path, old: str, new: str, count: int = 1):
