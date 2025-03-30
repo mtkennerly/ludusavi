@@ -225,9 +225,9 @@ dependencies = [
 
 [[package]]
 name = "atk-sys"
-version = "0.18.0"
+version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "251e0b7d90e33e0ba930891a505a9a35ece37b2dd37a14f3ffc306c13b980009"
+checksum = "c5e48b684b0ca77d2bbadeef17424c2ea3c897d44d566a1617e7e8f30614d086"
 dependencies = [
  "glib-sys",
  "gobject-sys",
@@ -1462,9 +1462,9 @@ dependencies = [
 
 [[package]]
 name = "gdk-sys"
-version = "0.18.0"
+version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "31ff856cb3386dae1703a920f803abafcc580e9b5f711ca62ed1620c25b51ff2"
+checksum = "5c2d13f38594ac1e66619e188c6d5a1adb98d11b2fcf7894fc416ad76aa2f3f7"
 dependencies = [
  "cairo-sys-rs",
  "gdk-pixbuf-sys",
@@ -1659,9 +1659,9 @@ dependencies = [
 
 [[package]]
 name = "gtk-sys"
-version = "0.18.0"
+version = "0.18.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "771437bf1de2c1c0b496c11505bdf748e26066bbe942dfc8f614c9460f6d7722"
+checksum = "8f29a1c21c59553eb7dd40e918be54dccd60c52b049b75119d5d96ce6b624414"
 dependencies = [
  "atk-sys",
  "cairo-sys-rs",

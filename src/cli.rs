@@ -141,6 +141,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             preview,
             path,
             force,
+            no_force_cloud_conflict,
             wine_prefix,
             api,
             gui,
@@ -209,6 +210,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     && crate::cloud::validate_cloud_config(&config, &config.cloud.path).is_ok(),
             );
             let mut should_sync_cloud_after = cloud_sync && !preview;
+            let mut should_sync_cloud_after_even_if_unchanged = false;
             if cloud_sync {
                 let changes = sync_cloud(
                     &config,
@@ -221,8 +223,37 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 match changes {
                     Ok(changes) => {
                         if !changes.is_empty() {
-                            should_sync_cloud_after = false;
-                            reporter.trip_cloud_conflict();
+                            match ui::ask_cloud_conflict(gui, force && !no_force_cloud_conflict, preview)? {
+                                Some(direction @ SyncDirection::Download) => {
+                                    // We need to download before the new backup
+                                    // to keep mapping.yaml in a coherent state.
+                                    if let Err(e) = sync_cloud(
+                                        &config,
+                                        &backup_dir,
+                                        &config.cloud.path,
+                                        direction,
+                                        Finality::Final,
+                                        if games_specified { &games } else { &[] },
+                                    ) {
+                                        log::error!("Failed to resolve save conflict pre-backup with direction {direction:?}: {e:?}");
+                                        ui::alert(
+                                            gui,
+                                            force && !no_force_cloud_conflict,
+                                            &TRANSLATOR.unable_to_synchronize_with_cloud(),
+                                        )?;
+                                        should_sync_cloud_after = false;
+                                        reporter.trip_cloud_sync_failed();
+                                    }
+                                }
+                                Some(SyncDirection::Upload) => {
+                                    // We'll make the new backup first and then sync after.
+                                    should_sync_cloud_after_even_if_unchanged = true;
+                                }
+                                None => {
+                                    should_sync_cloud_after = false;
+                                    reporter.trip_cloud_conflict();
+                                }
+                            }
                         }
                     }
                     Err(_) => {
@@ -319,7 +350,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     .filter(|(_, scan_info, _, _)| scan_info.needs_cloud_sync())
                     .map(|(_, scan_info, _, _)| scan_info.game_name.clone())
                     .collect();
-                if !changed_games.is_empty() {
+                if !changed_games.is_empty() || should_sync_cloud_after_even_if_unchanged {
                     let sync_result = sync_cloud(
                         &config,
                         &backup_dir,
@@ -378,6 +409,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             preview,
             path,
             force,
+            no_force_cloud_conflict,
             api,
             gui,
             sort,
@@ -439,7 +471,29 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 match changes {
                     Ok(changes) => {
                         if !changes.is_empty() {
-                            reporter.trip_cloud_conflict();
+                            match ui::ask_cloud_conflict(gui, force && !no_force_cloud_conflict, preview)? {
+                                Some(direction) => {
+                                    if let Err(e) = sync_cloud(
+                                        &config,
+                                        &restore_dir,
+                                        &config.cloud.path,
+                                        direction,
+                                        Finality::Final,
+                                        if games_specified { &games } else { &[] },
+                                    ) {
+                                        log::error!("Failed to resolve save conflict pre-restore with direction {direction:?}: {e:?}");
+                                        ui::alert(
+                                            gui,
+                                            force && !no_force_cloud_conflict,
+                                            &TRANSLATOR.unable_to_synchronize_with_cloud(),
+                                        )?;
+                                        reporter.trip_cloud_sync_failed();
+                                    }
+                                }
+                                None => {
+                                    reporter.trip_cloud_conflict();
+                                }
+                            }
                         }
                     }
                     Err(_) => {
@@ -874,6 +928,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             force,
             force_backup,
             force_restore,
+            no_force_cloud_conflict,
             gui,
             path,
             format,
@@ -979,6 +1034,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     Subcommand::Restore {
                         games: vec![game_name.clone()],
                         force: true,
+                        no_force_cloud_conflict,
                         preview,
                         path: path.clone(),
                         api: Default::default(),
@@ -1031,6 +1087,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     Subcommand::Backup {
                         games: vec![game_name.clone()],
                         force: true,
+                        no_force_cloud_conflict,
                         preview,
                         path,
                         wine_prefix: Default::default(),

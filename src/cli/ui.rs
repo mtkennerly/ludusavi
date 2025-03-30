@@ -1,4 +1,7 @@
-use crate::{lang::TRANSLATOR, prelude::Error};
+use crate::{
+    lang::TRANSLATOR,
+    prelude::{Error, SyncDirection},
+};
 
 /// GUI looks nicer with an extra empty line as separator, but for terminals a single
 /// newline is sufficient
@@ -111,6 +114,74 @@ pub fn confirm(gui: bool, force: bool, preview: bool, msg: &str) -> Result<bool,
             Ok(value) => {
                 log::debug!("User responded: {}", value);
                 Ok(value)
+            }
+            Err(err) => {
+                log::error!("Unable to request confirmation: {:?}", err);
+                Err(Error::CliUnableToRequestConfirmation)
+            }
+        }
+    }
+}
+
+pub fn ask_cloud_conflict(gui: bool, force: bool, preview: bool) -> Result<Option<SyncDirection>, Error> {
+    let msg = TRANSLATOR.cloud_synchronize_conflict();
+
+    log::debug!(
+        "Asking user about cloud conflict (GUI={}, force={}, preview={}): {}",
+        gui,
+        force,
+        preview,
+        msg,
+    );
+
+    if force || preview {
+        return Ok(None);
+    }
+
+    fn parse_response(raw: &str) -> Option<SyncDirection> {
+        if raw == TRANSLATOR.download_button() {
+            Some(SyncDirection::Download)
+        } else if raw == TRANSLATOR.upload_button() {
+            Some(SyncDirection::Upload)
+        } else {
+            None
+        }
+    }
+
+    if gui {
+        let choice = match rfd::MessageDialog::new()
+            .set_title(TRANSLATOR.app_name())
+            .set_description(msg)
+            .set_level(rfd::MessageLevel::Info)
+            .set_buttons(rfd::MessageButtons::YesNoCancelCustom(
+                TRANSLATOR.ignore_button(),
+                TRANSLATOR.download_button(),
+                TRANSLATOR.upload_button(),
+            ))
+            .show()
+        {
+            rfd::MessageDialogResult::Yes => None,
+            rfd::MessageDialogResult::No => None,
+            rfd::MessageDialogResult::Ok => None,
+            rfd::MessageDialogResult::Cancel => None,
+            rfd::MessageDialogResult::Custom(raw) => parse_response(&raw),
+        };
+        log::debug!("User responded: {:?}", choice);
+        Ok(choice)
+    } else {
+        let options = vec![
+            TRANSLATOR.ignore_button(),
+            TRANSLATOR.download_button(),
+            TRANSLATOR.upload_button(),
+        ];
+
+        let dialog = dialoguer::Select::new().with_prompt(msg).items(&options);
+
+        match dialog.interact() {
+            Ok(index) => {
+                let choice = parse_response(&options[index]);
+                log::debug!("User responded: {} -> {:?}", index, choice);
+                Ok(choice)
             }
             Err(err) => {
                 log::error!("Unable to request confirmation: {:?}", err);

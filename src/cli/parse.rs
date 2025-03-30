@@ -149,6 +149,12 @@ pub enum Subcommand {
         #[clap(long)]
         force: bool,
 
+        /// Even if the `--force` option has been specified,
+        /// ask how to resolve any cloud conflict
+        /// rather than ignoring it and continuing silently.
+        #[clap(long)]
+        no_force_cloud_conflict: bool,
+
         /// Extra Wine/Proton prefix to check for saves. This should be a folder
         /// with an immediate child folder named "drive_c" (or another letter).
         #[clap(long, value_parser = parse_strict_path)]
@@ -233,6 +239,12 @@ pub enum Subcommand {
         /// Don't ask for confirmation.
         #[clap(long)]
         force: bool,
+
+        /// Even if the `--force` option has been specified,
+        /// ask how to resolve any cloud conflict
+        /// rather than ignoring it and continuing silently.
+        #[clap(long)]
+        no_force_cloud_conflict: bool,
 
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
@@ -403,6 +415,12 @@ pub enum Subcommand {
         /// Don't ask for confirmation when restoring.
         #[clap(long)]
         force_restore: bool,
+
+        /// Even if another `--force` option has been specified,
+        /// ask how to resolve any cloud conflict
+        /// rather than ignoring it and continuing silently.
+        #[clap(long)]
+        no_force_cloud_conflict: bool,
 
         /// Show a GUI notification during restore/backup
         #[clap(long)]
@@ -807,6 +825,7 @@ mod tests {
                     preview: false,
                     path: None,
                     force: false,
+                    no_force_cloud_conflict: false,
                     wine_prefix: None,
                     api: false,
                     gui: false,
@@ -835,6 +854,7 @@ mod tests {
                 "--path",
                 "tests/backup",
                 "--force",
+                "--no-force-cloud-conflict",
                 "--wine-prefix",
                 "tests/wine-prefix",
                 "--api",
@@ -864,6 +884,7 @@ mod tests {
                     preview: true,
                     path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
                     force: true,
+                    no_force_cloud_conflict: true,
                     wine_prefix: Some(StrictPath::relative(s("tests/wine-prefix"), Some(repo_raw()))),
                     api: true,
                     gui: true,
@@ -894,6 +915,7 @@ mod tests {
                     preview: false,
                     path: Some(StrictPath::relative(s("tests/fake"), Some(repo_raw()))),
                     force: false,
+                    no_force_cloud_conflict: false,
                     wine_prefix: None,
                     api: false,
                     gui: false,
@@ -932,6 +954,7 @@ mod tests {
                         preview: false,
                         path: None,
                         force: false,
+                        no_force_cloud_conflict: false,
                         wine_prefix: None,
                         api: false,
                         gui: false,
@@ -963,6 +986,7 @@ mod tests {
                     preview: false,
                     path: None,
                     force: false,
+                    no_force_cloud_conflict: false,
                     wine_prefix: None,
                     api: false,
                     gui: false,
@@ -993,6 +1017,7 @@ mod tests {
                     preview: false,
                     path: None,
                     force: false,
+                    no_force_cloud_conflict: false,
                     api: false,
                     gui: false,
                     sort: None,
@@ -1016,6 +1041,7 @@ mod tests {
                 "--path",
                 "tests/backup",
                 "--force",
+                "--no-force-cloud-conflict",
                 "--api",
                 "--sort",
                 "name",
@@ -1037,6 +1063,7 @@ mod tests {
                         Some(StrictPath::cwd().interpret().unwrap()),
                     )),
                     force: true,
+                    no_force_cloud_conflict: true,
                     api: true,
                     gui: false,
                     sort: Some(CliSort::Name),
@@ -1078,6 +1105,7 @@ mod tests {
                         preview: false,
                         path: None,
                         force: false,
+                        no_force_cloud_conflict: false,
                         api: false,
                         gui: false,
                         sort: Some(sort),

@@ -8,6 +8,13 @@
   * GUI: During a scan, you can click on the progress bar to see a list
     of the games currently being scanned and how long each one is taking.
     This can be useful to identify why a scan might be taking longer than expected.
+  * CLI: When backing up or restoring,
+    if your local and cloud backups are in conflict,
+    Ludusavi will now ask you if you'd like to resolve it by downloading or uploading.
+    You can also choose to ignore the conflict (which is the existing behavior),
+    and `--force` will automatically ignore any conflicts.
+    You can combine `--force` and `--no-force-cloud-conflict`
+    to be prompted only when there is a conflict.
 * Fixed:
   * For home folder roots, Ludusavi skipped any paths containing `<storeUserId>`,
     on the assumption that it shouldn't be applicable to non-store-specific roots.

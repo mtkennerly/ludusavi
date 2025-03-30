@@ -33,7 +33,7 @@ rayon = "1.10.0"
 regashii = "0.2.0"
 regex = "1.10.6"
 reqwest = { version = "0.12.7", features = ["blocking", "gzip", "rustls-tls"], default-features = false }
-rfd = { version = "0.15.0", features = ["gtk3"], default-features = false }
+rfd = { version = "0.15.0", features = ["common-controls-v6", "gtk3"], default-features = false }
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 schemars = { version = "0.8.21", features = ["chrono"] }
 semver = { version = "1.0.23", features = ["serde"] }

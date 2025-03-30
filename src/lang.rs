@@ -828,6 +828,18 @@ impl Translator {
         translate("button-sort")
     }
 
+    pub fn download_button(&self) -> String {
+        translate("button-download")
+    }
+
+    pub fn upload_button(&self) -> String {
+        translate("button-upload")
+    }
+
+    pub fn ignore_button(&self) -> String {
+        translate("button-ignore")
+    }
+
     pub fn no_roots_are_configured(&self) -> String {
         translate("no-roots-are-configured")
     }

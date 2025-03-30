@@ -53,6 +53,9 @@ button-validate = Validate
 button-override-manifest = Override manifest
 button-extend-manifest = Extend manifest
 button-sort = Sort
+button-download = Download
+button-upload = Upload
+button-ignore = Ignore
 
 no-roots-are-configured = Add some roots to back up even more data.
 
