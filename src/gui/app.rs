@@ -2022,10 +2022,12 @@ impl App {
                     }
                 }
 
-                Task::batch([
-                    self.close_specific_modal(modal::Kind::UpdatingManifest),
-                    self.show_modal(Modal::Errors { errors }),
-                ])
+                let mut tasks = vec![self.close_specific_modal(modal::Kind::UpdatingManifest)];
+                if !errors.is_empty() {
+                    tasks.push(self.show_modal(Modal::Errors { errors }));
+                }
+
+                Task::batch(tasks)
             }
             Message::Backup(phase) => self.handle_backup(phase),
             Message::Restore(phase) => self.handle_restore(phase),
