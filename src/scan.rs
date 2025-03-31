@@ -913,16 +913,22 @@ fn compare_games_by_size(
 }
 
 fn compare_games_by_status(config: &Config, scan_info1: &ScanInfo, scan_info2: &ScanInfo) -> std::cmp::Ordering {
-    let change1 = if !config.is_game_enabled_for_operation(&scan_info1.game_name, scan_info1.scan_kind()) {
-        ScanChange::Same
-    } else {
-        scan_info1.overall_change()
+    let evaluate = |scan_info: &ScanInfo| {
+        let change = scan_info.overall_change();
+        match change {
+            ScanChange::Unknown => ScanChange::Unknown,
+            change => {
+                if !config.is_game_enabled_for_operation(&scan_info.game_name, scan_info.scan_kind()) {
+                    ScanChange::Same
+                } else {
+                    change
+                }
+            }
+        }
     };
-    let change2 = if !config.is_game_enabled_for_operation(&scan_info2.game_name, scan_info2.scan_kind()) {
-        ScanChange::Same
-    } else {
-        scan_info2.overall_change()
-    };
+
+    let change1 = evaluate(scan_info1);
+    let change2 = evaluate(scan_info2);
 
     change1
         .cmp(&change2)
