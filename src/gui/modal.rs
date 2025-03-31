@@ -203,6 +203,28 @@ impl Modal {
         }
     }
 
+    /// Should we allow two of the same kind back-to-back in the list?
+    pub fn stackable(&self) -> bool {
+        match self {
+            Modal::Error { .. } => true,
+            Modal::Errors { .. } => true,
+            Modal::Exiting => false,
+            Modal::ConfirmBackup { .. } => false,
+            Modal::ConfirmRestore { .. } => false,
+            Modal::NoMissingRoots => false,
+            Modal::ConfirmAddMissingRoots(..) => false,
+            Modal::BackupValidation { .. } => false,
+            Modal::AppUpdate { .. } => false,
+            Modal::UpdatingManifest => false,
+            Modal::ConfirmCloudSync { .. } => false,
+            Modal::ConfigureFtpRemote => false,
+            Modal::ConfigureSmbRemote => false,
+            Modal::ConfigureWebDavRemote { .. } => false,
+            Modal::GameNotes { .. } => false,
+            Modal::ActiveScanGames => false,
+        }
+    }
+
     pub fn variant(&self) -> ModalVariant {
         match self {
             Self::Exiting | Self::UpdatingManifest => ModalVariant::Loading,

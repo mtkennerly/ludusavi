@@ -129,6 +129,16 @@ impl App {
     }
 
     fn show_modal(&mut self, modal: Modal) -> Task<Message> {
+        let replace = self
+            .modals
+            .last()
+            .map(|last| last.kind() == modal.kind() && !modal.stackable())
+            .unwrap_or(false);
+
+        if replace {
+            self.modals.pop();
+        }
+
         self.modals.push(modal);
         self.reset_scroll_position(ScrollSubject::Modal);
         self.refresh_scroll_position()
@@ -2012,11 +2022,10 @@ impl App {
                     }
                 }
 
-                if errors.is_empty() {
-                    self.close_specific_modal(modal::Kind::UpdatingManifest)
-                } else {
-                    self.show_modal(Modal::Errors { errors })
-                }
+                Task::batch([
+                    self.close_specific_modal(modal::Kind::UpdatingManifest),
+                    self.show_modal(Modal::Errors { errors }),
+                ])
             }
             Message::Backup(phase) => self.handle_backup(phase),
             Message::Restore(phase) => self.handle_restore(phase),
