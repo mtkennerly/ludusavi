@@ -42,6 +42,9 @@
     registry content would be dumped even without `--dump-registry`.
   * On Windows, some paths were unnecessarily scanned twice.
   * On Windows, some network share paths were not scanned properly in certain contexts.
+  * When an Rclone command failed,
+    the error message did not include quotes around arguments with spaces,
+    even though the actual command did account for spaces.
 * Changed:
   * When a disabled game is new or updated in the scan results,
     that game's change badge will now be faded,

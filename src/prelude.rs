@@ -141,11 +141,16 @@ pub enum CommandError {
 
 impl CommandError {
     pub fn command(&self) -> String {
-        match self {
-            Self::Launched { program, args, .. } => format!("{} {}", program, args.join(" ")),
-            Self::Terminated { program, args } => format!("{} {}", program, args.join(" ")),
-            Self::Exited { program, args, .. } => format!("{} {}", program, args.join(" ")),
-        }
+        let (program, args) = match self {
+            Self::Launched { program, args, .. } => (program, args),
+            Self::Terminated { program, args } => (program, args),
+            Self::Exited { program, args, .. } => (program, args),
+        };
+
+        let program = quote(program);
+        let args = args.iter().map(quote).join(" ");
+
+        format!("{} {}", program, args)
     }
 }
 
@@ -203,6 +208,16 @@ pub fn initialize_rayon(threads: NonZeroUsize) {
     let _ = rayon::ThreadPoolBuilder::new()
         .num_threads(threads.get())
         .build_global();
+}
+
+fn quote(text: impl AsRef<str>) -> String {
+    let text = text.as_ref();
+
+    if text.contains(' ') {
+        format!("\"{}\"", text)
+    } else {
+        text.to_owned()
+    }
 }
 
 pub struct CommandOutput {
