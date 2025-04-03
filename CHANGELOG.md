@@ -53,6 +53,8 @@
     in order to show a different one,
     which could be inconvenient if you were filling out fields in certain modals.
     Now, Ludusavi will redisplay the older modal when the new one is closed.
+  * When Ludusavi checks your non-Steam games added as shortcuts in Steam,
+    it now normalizes the titles to allow for more lenient matching.
   * Updated translations.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 

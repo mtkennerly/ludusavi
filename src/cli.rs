@@ -201,7 +201,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let filter = config.backup.filter.clone();
             let toggled_paths = config.backup.toggled_paths.clone();
             let toggled_registry = config.backup.toggled_registry.clone();
-            let steam_shortcuts = SteamShortcuts::scan();
+            let steam_shortcuts = SteamShortcuts::scan(&title_finder);
 
             let cloud_sync = negatable_flag(
                 cloud_sync && !preview,

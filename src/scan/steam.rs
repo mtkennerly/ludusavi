@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::prelude::StrictPath;
+use crate::{prelude::StrictPath, scan::TitleFinder};
 
 #[derive(Clone, Debug, Default)]
 pub struct SteamShortcuts(HashMap<String, SteamShortcut>);
@@ -12,7 +12,7 @@ pub struct SteamShortcut {
 }
 
 impl SteamShortcuts {
-    pub fn scan() -> Self {
+    pub fn scan(title_finder: &TitleFinder) -> Self {
         let mut instance = Self::default();
 
         let steam = match steamlocate::SteamDir::locate() {
@@ -29,15 +29,21 @@ impl SteamShortcuts {
         };
 
         for shortcut in shortcuts.filter_map(|x| x.ok()) {
+            let Some(official_title) = title_finder.find_one_by_normalized_name(&shortcut.app_name) else {
+                log::debug!("Ignoring unrecognized Steam shortcut: {}", &shortcut.app_name);
+                continue;
+            };
+
             log::trace!(
-                "Found Steam shortcut: name={}, id={}, start_dir={}",
+                "Found Steam shortcut: app_name='{}', official_title='{}', id={}, start_dir='{}'",
                 &shortcut.app_name,
+                &official_title,
                 shortcut.app_id,
                 &shortcut.start_dir
             );
             let start_dir = std::path::Path::new(shortcut.start_dir.trim_start_matches('"').trim_end_matches('"'));
             instance.0.insert(
-                shortcut.app_name.clone(),
+                official_title,
                 SteamShortcut {
                     id: shortcut.app_id,
                     start_dir: if start_dir.is_absolute() {
