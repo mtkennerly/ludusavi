@@ -46,10 +46,7 @@ pub fn run(flags: Flags) {
                     let width = buffer.width();
                     let height = buffer.height();
                     let dynamic_image = image::DynamicImage::ImageRgba8(buffer);
-                    match iced::window::icon::from_rgba(dynamic_image.into_bytes(), width, height) {
-                        Ok(icon) => Some(icon),
-                        Err(_) => None,
-                    }
+                    iced::window::icon::from_rgba(dynamic_image.into_bytes(), width, height).ok()
                 }
                 Err(_) => None,
             },
