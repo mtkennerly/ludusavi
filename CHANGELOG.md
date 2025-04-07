@@ -1,4 +1,4 @@
-## Unreleased
+## v0.29.0 (2025-04-07)
 
 * Added:
   * A custom game's installed name may now be set to a relative path with multiple folders,

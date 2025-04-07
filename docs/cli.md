@@ -68,6 +68,10 @@ Options:
       --force
           Don't ask for confirmation
 
+      --no-force-cloud-conflict
+          Even if the `--force` option has been specified, ask how to resolve any cloud conflict
+          rather than ignoring it and continuing silently
+
       --wine-prefix <WINE_PREFIX>
           Extra Wine/Proton prefix to check for saves. This should be a folder with an immediate
           child folder named "drive_c" (or another letter)
@@ -142,6 +146,9 @@ Options:
           Directory containing a Ludusavi backup. When not specified, this defers to the config file
       --force
           Don't ask for confirmation
+      --no-force-cloud-conflict
+          Even if the `--force` option has been specified, ask how to resolve any cloud conflict
+          rather than ignoring it and continuing silently
       --api
           Print information to stdout in machine-readable JSON. This replaces the default,
           human-readable output
@@ -338,7 +345,14 @@ Options:
       --name <NAME>
           Directly set game name as known to Ludusavi
       --force
-          Don't ask for confirmation
+          Don't ask for any confirmation
+      --force-backup
+          Don't ask for confirmation when backing up
+      --force-restore
+          Don't ask for confirmation when restoring
+      --no-force-cloud-conflict
+          Even if another `--force` option has been specified, ask how to resolve any cloud conflict
+          rather than ignoring it and continuing silently
       --gui
           Show a GUI notification during restore/backup
       --path <PATH>
