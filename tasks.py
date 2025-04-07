@@ -214,7 +214,7 @@ def release(ctx):
     ctx.run(f'git commit -m "Release v{version}"')
     ctx.run(f'git tag v{version} -m "Release"')
     ctx.run("git push")
-    ctx.run("git push origin tag v{version}")
+    ctx.run(f"git push origin tag v{version}")
 
 
 @task
