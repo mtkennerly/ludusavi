@@ -26,6 +26,16 @@
   * Ludusavi supports long paths,
     but you also need to enable that feature in Windows itself:
     https://learn.microsoft.com/en-us/windows/win32/fileio/maximum-file-path-limitation?tabs=registry#registry-setting-to-enable-long-paths
+* When I try to restore backups, I get this error: `Access is denied. (os error 5)`
+  * On Windows, Ludusavi may not be able to create folders directly inside of `C:/Program Files`.
+    Most commonly, this would be for Steam or other launchers installed in that folder.
+    You should reinstall the launchers first (so the parent folders are created),
+    then restore the backups.
+  * On Windows, Ludusavi cannot create folders directly inside of `C:/Users`.
+    If your backups use a different username,
+    then you should create a [redirect](/docs/help/redirects.md)
+    to restore from your old username to your new username.
+  * In general, make sure that your system account has permission to modify the target folders.
 
 ## Environment variables on Windows
 Some of the instructions above mention setting environment variables.
