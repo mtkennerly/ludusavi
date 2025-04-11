@@ -23,6 +23,8 @@ impl SteamShortcuts {
             }
         };
 
+        log::info!("Inspecting Steam shortcuts from: {:?}", steam.path());
+
         let Ok(shortcuts) = steam.shortcuts() else {
             log::warn!("Unable to load Steam shortcuts");
             return instance;
