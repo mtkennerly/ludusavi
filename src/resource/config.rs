@@ -643,7 +643,7 @@ impl BackupFilter {
 
         let mut builder = globset::GlobSetBuilder::new();
         for item in &self.ignored_paths {
-            let normalized = item.globbable();
+            let normalized = item.render();
 
             let variants = vec![
                 normalized.to_string(),

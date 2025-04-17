@@ -1,3 +1,9 @@
+## Unreleased
+
+* Fixed:
+  * Glob-based backup exclusions did not work correctly.
+    (This issue was introduced in v0.29.0.)
+
 ## v0.29.0 (2025-04-07)
 
 * Added:

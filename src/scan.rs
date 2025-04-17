@@ -1813,4 +1813,76 @@ mod tests {
             );
         }
     }
+
+    #[test]
+    fn can_scan_game_for_backup_with_exact_exclusions() {
+        let mut filter = BackupFilter {
+            ignored_paths: vec![format!("{}/tests/root1/game1/subdir/file2.txt", repo()).into()],
+            ..Default::default()
+        };
+        filter.build_globs();
+
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game1"),
+                found_files: hash_map! {
+                    format!("{}/tests/root2/game1/file1.txt", repo()).into(): ScannedFile::new(1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                },
+                found_registry_keys: hash_map! {},
+                ..Default::default()
+            },
+            scan_game_for_backup(
+                &manifest().0["game1"],
+                "game1",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
+                &filter,
+                None,
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
+                None,
+                &[],
+                false,
+                &Default::default(),
+                ONLY_CONSTRUCTIVE,
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_glob_exclusions() {
+        let mut filter = BackupFilter {
+            ignored_paths: vec!["**/*2.txt".into()],
+            ..Default::default()
+        };
+        filter.build_globs();
+
+        assert_eq!(
+            ScanInfo {
+                game_name: s("game1"),
+                found_files: hash_map! {
+                    format!("{}/tests/root2/game1/file1.txt", repo()).into(): ScannedFile::new(1, "3a52ce780950d4d969792a2559cd519d7ee8c727").change_new(),
+                },
+                found_registry_keys: hash_map! {},
+                ..Default::default()
+            },
+            scan_game_for_backup(
+                &manifest().0["game1"],
+                "game1",
+                &config().roots,
+                &StrictPath::new(repo()),
+                &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
+                &filter,
+                None,
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
+                None,
+                &[],
+                false,
+                &Default::default(),
+                ONLY_CONSTRUCTIVE,
+            ),
+        );
+    }
 }
