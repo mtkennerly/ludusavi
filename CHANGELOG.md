@@ -3,6 +3,9 @@
 * Fixed:
   * Glob-based backup exclusions did not work correctly.
     (This issue was introduced in v0.29.0.)
+* Changed:
+  * The standalone Linux release is now compiled on Ubuntu 22.04 instead of Ubuntu 20.04
+    because of [a change by GitHub](https://github.com/actions/runner-images/issues/11101).
 
 ## v0.29.0 (2025-04-07)
 
