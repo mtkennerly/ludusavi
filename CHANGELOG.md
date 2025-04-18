@@ -1,4 +1,4 @@
-## Unreleased
+## v0.29.1 (2025-04-17)
 
 * Fixed:
   * Glob-based backup exclusions did not work correctly.
