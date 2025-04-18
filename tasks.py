@@ -248,7 +248,12 @@ def release_winget(ctx, target="/git/_forks/winget-pkgs"):
         ctx.run("git pull upstream master")
         ctx.run(f"git checkout -b mtkennerly.ludusavi-{version}")
         ctx.run(f"wingetcreate update mtkennerly.ludusavi --version {version} --urls https://github.com/mtkennerly/ludusavi/releases/download/v{version}/ludusavi-v{version}-win64.zip https://github.com/mtkennerly/ludusavi/releases/download/v{version}/ludusavi-v{version}-win32.zip")
-        ctx.run(f"code --wait manifests/m/mtkennerly/ludusavi/{version}/mtkennerly.ludusavi.locale.en-US.yaml")
+
+        spec = target / f"manifests/m/mtkennerly/ludusavi/{version}/mtkennerly.ludusavi.locale.en-US.yaml"
+        spec_content = spec.read_bytes().decode("utf-8")
+        spec_content = spec_content.replace("Moniker: ludusavi", f"Moniker: ludusavi\nReleaseNotesUrl: https://github.com/mtkennerly/ludusavi/releases/tag/v{version}")
+        spec.write_bytes(spec_content.encode("utf-8"))
+
         ctx.run(f"winget validate --manifest manifests/m/mtkennerly/ludusavi/{version}")
         ctx.run("git add .")
         ctx.run(f'git commit -m "mtkennerly.ludusavi version {version}"')
