@@ -2,6 +2,7 @@ import datetime as dt
 import re
 import shutil
 import sys
+import textwrap
 import zipfile
 from pathlib import Path
 
@@ -242,6 +243,7 @@ def release_flatpak(ctx, target="/git/com.github.mtkennerly.ludusavi"):
 def release_winget(ctx, target="/git/_forks/winget-pkgs"):
     target = Path(target)
     version = get_version()
+    changelog = textwrap.indent(latest_changelog(), "  ")
 
     with ctx.cd(target):
         ctx.run("git checkout master")
@@ -251,10 +253,28 @@ def release_winget(ctx, target="/git/_forks/winget-pkgs"):
 
         spec = target / f"manifests/m/mtkennerly/ludusavi/{version}/mtkennerly.ludusavi.locale.en-US.yaml"
         spec_content = spec.read_bytes().decode("utf-8")
-        spec_content = spec_content.replace("Moniker: ludusavi", f"Moniker: ludusavi\nReleaseNotesUrl: https://github.com/mtkennerly/ludusavi/releases/tag/v{version}")
+        spec_content = spec_content.replace("Moniker: ludusavi", f"Moniker: ludusavi\nReleaseNotes: |-\n{changelog}\nReleaseNotesUrl: https://github.com/mtkennerly/ludusavi/releases/tag/v{version}")
         spec.write_bytes(spec_content.encode("utf-8"))
 
         ctx.run(f"winget validate --manifest manifests/m/mtkennerly/ludusavi/{version}")
         ctx.run("git add .")
         ctx.run(f'git commit -m "mtkennerly.ludusavi version {version}"')
         ctx.run("git push origin HEAD")
+
+
+def latest_changelog() -> str:
+    changelog = ROOT / "CHANGELOG.md"
+    content = changelog.read_bytes().decode("utf-8")
+
+    lines = []
+    header = False
+    for line in content.splitlines():
+        if line.startswith("#"):
+            if header:
+                break
+            header = True
+            continue
+
+        lines.append(line)
+
+    return "\n".join(lines).strip()
