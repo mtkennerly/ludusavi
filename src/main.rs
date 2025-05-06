@@ -77,6 +77,12 @@ fn prepare_panic_hook(handle: Option<flexi_logger::LoggerHandle>) {
     }));
 }
 
+fn prepare_winit() {
+    if std::env::var("WGPU_POWER_PREF").is_err() {
+        std::env::set_var("WGPU_POWER_PREF", "high");
+    }
+}
+
 /// Detach the current process from its console on Windows.
 ///
 /// ## Testing
@@ -159,6 +165,7 @@ fn main() {
         *CONFIG_DIR.lock().unwrap() = Some(config_dir.clone());
     }
 
+    prepare_winit();
     let logger = prepare_logging();
     #[allow(clippy::useless_asref)]
     prepare_panic_hook(logger.as_ref().map(|x| x.clone()).ok());

@@ -1,3 +1,12 @@
+## Unreleased
+
+* Changed:
+  * If the `WGPU_POWER_PREF` environment variable is not set,
+    then Ludusavi will automatically set it to `high` while running.
+    This has fixed application crashes on several users' systems,
+    but is ultimately dependent on graphics hardware and drivers.
+    If you experience any issues with this, please report it.
+
 ## v0.29.1 (2025-04-17)
 
 * Fixed:
