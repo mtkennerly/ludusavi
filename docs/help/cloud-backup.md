@@ -43,3 +43,7 @@ one solution is to give Ludusavi host filesystem access
 (`flatpak override com.github.mtkennerly.ludusavi --filesystem=host`).
 Then, in Ludusavi, you can set the Rclone executable path to
 `/var/run/host/usr/bin/rclone`.
+
+You can also configure Ludusavi's list of Rclone arguments to include
+`--config /home/<USER>/.config/rclone/rclone.conf`
+if you want to share the configuration from your system copy.
