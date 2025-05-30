@@ -740,6 +740,9 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             }
         },
         Subcommand::Config { sub: config_sub } => match config_sub {
+            ConfigSubcommand::Path => {
+                println!("{}", Config::path().render());
+            }
             ConfigSubcommand::Show { api, default } => {
                 if default {
                     config = Config::default();

@@ -560,6 +560,8 @@ pub enum ManifestSubcommand {
 
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
 pub enum ConfigSubcommand {
+    /// Print the path to the config file.
+    Path,
     /// Print the active configuration.
     Show {
         /// Print information to stdout in machine-readable JSON.

@@ -1,5 +1,7 @@
 ## Unreleased
 
+* Added:
+  * CLI: `config path` command to print the path to the active config file.
 * Changed:
   * If the `WGPU_POWER_PREF` environment variable is not set,
     then Ludusavi will automatically set it to `high` while running.
