@@ -1,4 +1,4 @@
-#![allow(clippy::too_many_arguments, clippy::to_string_trait_impl)]
+#![allow(clippy::large_enum_variant, clippy::too_many_arguments, clippy::to_string_trait_impl)]
 
 mod cli;
 mod cloud;

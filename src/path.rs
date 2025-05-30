@@ -592,10 +592,7 @@ impl StrictPath {
 
         match converted {
             Ok(x) => Ok(x),
-            Err(_) => Err(Box::new(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to get mtime in zip format",
-            ))),
+            Err(_) => Err(Box::new(std::io::Error::other("Failed to get mtime in zip format"))),
         }
     }
 
@@ -727,9 +724,9 @@ impl StrictPath {
 
         fn prepare_verbatim_path(path: &StrictPath) -> Result<Vec<u16>, std::io::Error> {
             use typed_path::Utf8WindowsPrefix::*;
-            let interpreted = path.interpret().map_err(|_| {
-                std::io::Error::new(std::io::ErrorKind::Other, format!("Cannot interpret path: {:?}", path))
-            })?;
+            let interpreted = path
+                .interpret()
+                .map_err(|_| std::io::Error::other(format!("Cannot interpret path: {:?}", path)))?;
             let path_buf = typed_path::Utf8WindowsPath::new(&interpreted);
             let (trim, prefix) = match path_buf.components().prefix_kind() {
                 Some(DeviceNS(_)) => (r"\\.\".len(), r"\\?\"),
@@ -866,10 +863,7 @@ impl StrictPath {
                 "[{context}] failed to unset read-only on target: {:?} | {e}",
                 &target_file
             );
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to unset read-only",
-            ));
+            return Err(std::io::Error::other("Failed to unset read-only"));
         }
 
         if let Err(e) = self.copy_to(target_file) {
@@ -883,10 +877,7 @@ impl StrictPath {
                 "[{context}] failed to unset read-only on target after copy: {:?} | {e}",
                 &target_file
             );
-            return Err(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                "Failed to unset read-only",
-            ));
+            return Err(std::io::Error::other("Failed to unset read-only"));
         }
 
         let mtime = match self.get_mtime() {
