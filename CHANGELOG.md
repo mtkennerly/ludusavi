@@ -2,6 +2,8 @@
 
 * Added:
   * CLI: `config path` command to print the path to the active config file.
+  * CLI: The `backup` and `restore` commands now have an `--include-disabled` option
+    when you want to bulk process games that were disabled in the config.
 * Changed:
   * If the `WGPU_POWER_PREF` environment variable is not set,
     then Ludusavi will automatically set it to `high` while running.

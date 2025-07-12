@@ -154,6 +154,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             cloud_sync,
             no_cloud_sync,
             dump_registry,
+            include_disabled,
             games,
         } => {
             let games = parse_games(games);
@@ -305,7 +306,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         &steam_shortcuts,
                         config.backup.only_constructive,
                     );
-                    let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified;
+                    let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified && !include_disabled;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
                     } else {
@@ -419,6 +420,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             cloud_sync,
             no_cloud_sync,
             dump_registry,
+            include_disabled,
             games,
         } => {
             let games = parse_games(games);
@@ -528,7 +530,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         &config.restore.toggled_paths,
                         &config.restore.toggled_registry,
                     );
-                    let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified;
+                    let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified && !include_disabled;
                     let decision = if ignored {
                         OperationStepDecision::Ignored
                     } else {
@@ -1062,6 +1064,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         cloud_sync,
                         no_cloud_sync,
                         dump_registry: Default::default(),
+                        include_disabled: Default::default(),
                     },
                     no_manifest_update,
                     try_manifest_update,
@@ -1127,6 +1130,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         cloud_sync,
                         no_cloud_sync,
                         dump_registry: Default::default(),
+                        include_disabled: Default::default(),
                     },
                     no_manifest_update,
                     try_manifest_update,

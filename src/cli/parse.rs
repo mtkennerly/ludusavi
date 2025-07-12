@@ -220,6 +220,11 @@ pub enum Subcommand {
         #[clap(long)]
         dump_registry: bool,
 
+        /// By default, disabled games are skipped unless you name them explicitly.
+        /// You can use this option to include all disabled games.
+        #[clap(long)]
+        include_disabled: bool,
+
         /// Only back up these specific games.
         /// Alternatively supports stdin (one value per line).
         #[clap()]
@@ -281,6 +286,11 @@ pub enum Subcommand {
         /// Only includes the native Windows registry, not Wine.
         #[clap(long)]
         dump_registry: bool,
+
+        /// By default, disabled games are skipped unless you name them explicitly.
+        /// You can use this option to include all disabled games.
+        #[clap(long)]
+        include_disabled: bool,
 
         /// Only restore these specific games.
         /// Alternatively supports stdin (one value per line).
@@ -840,6 +850,7 @@ mod tests {
                     cloud_sync: false,
                     no_cloud_sync: false,
                     dump_registry: false,
+                    include_disabled: false,
                     games: vec![],
                 }),
             },
@@ -875,6 +886,7 @@ mod tests {
                 "2",
                 "--cloud-sync",
                 "--dump-registry",
+                "--include-disabled",
                 "game1",
                 "game2",
             ],
@@ -899,6 +911,7 @@ mod tests {
                     cloud_sync: true,
                     no_cloud_sync: false,
                     dump_registry: true,
+                    include_disabled: true,
                     games: vec![s("game1"), s("game2")],
                 }),
             },
@@ -930,6 +943,7 @@ mod tests {
                     cloud_sync: false,
                     no_cloud_sync: false,
                     dump_registry: false,
+                    include_disabled: false,
                     games: vec![],
                 }),
             },
@@ -969,6 +983,7 @@ mod tests {
                         cloud_sync: false,
                         no_cloud_sync: false,
                         dump_registry: false,
+                        include_disabled: false,
                         games: vec![],
                     }),
                 },
@@ -1001,6 +1016,7 @@ mod tests {
                     cloud_sync: false,
                     no_cloud_sync: false,
                     dump_registry: false,
+                    include_disabled: false,
                     games: vec![],
                 }),
             },
@@ -1027,6 +1043,7 @@ mod tests {
                     cloud_sync: false,
                     no_cloud_sync: false,
                     dump_registry: false,
+                    include_disabled: false,
                     games: vec![],
                 }),
             },
@@ -1051,6 +1068,7 @@ mod tests {
                 ".",
                 "--cloud-sync",
                 "--dump-registry",
+                "--include-disabled",
                 "game1",
                 "game2",
             ],
@@ -1073,6 +1091,7 @@ mod tests {
                     cloud_sync: true,
                     no_cloud_sync: false,
                     dump_registry: true,
+                    include_disabled: true,
                     games: vec![s("game1"), s("game2")],
                 }),
             },
@@ -1115,6 +1134,7 @@ mod tests {
                         cloud_sync: false,
                         no_cloud_sync: false,
                         dump_registry: false,
+                        include_disabled: false,
                         games: vec![],
                     }),
                 },
