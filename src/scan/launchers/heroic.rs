@@ -109,7 +109,7 @@ fn find_prefix(
                     }
 
                     "proton" => {
-                        let prefix = format!("{}/pfx", wine_prefix);
+                        let prefix = format!("{wine_prefix}/pfx");
                         log::trace!(
                             "Found Heroic Proton prefix for {} ({}), adding {}",
                             game_name,

@@ -288,7 +288,7 @@ impl StrictPath {
                             AnalysisMode::Glob => correct_windows_slashes!(r"\\", Some(server), share),
                         },
                         WindowsPrefix::VerbatimDisk(id) => format!("{}:", id.to_ascii_uppercase()),
-                        WindowsPrefix::DeviceNS(id) => format!(r"\\.\{}", id),
+                        WindowsPrefix::DeviceNS(id) => format!(r"\\.\{id}"),
                         WindowsPrefix::UNC(server, share) => correct_windows_slashes!(r"\\", Some(server), share),
                         WindowsPrefix::Disk(id) => format!("{}:", id.to_ascii_uppercase()),
                     };
@@ -726,7 +726,7 @@ impl StrictPath {
             use typed_path::Utf8WindowsPrefix::*;
             let interpreted = path
                 .interpret()
-                .map_err(|_| std::io::Error::other(format!("Cannot interpret path: {:?}", path)))?;
+                .map_err(|_| std::io::Error::other(format!("Cannot interpret path: {path:?}")))?;
             let path_buf = typed_path::Utf8WindowsPath::new(&interpreted);
             let (trim, prefix) = match path_buf.components().prefix_kind() {
                 Some(DeviceNS(_)) => (r"\\.\".len(), r"\\?\"),

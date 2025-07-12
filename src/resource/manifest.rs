@@ -422,7 +422,7 @@ impl Manifest {
             Self::FILE_NAME.to_string()
         } else {
             let encoded = escape_folder_name(url.trim_end_matches(".yaml"));
-            format!("manifest-{}.yaml", encoded)
+            format!("manifest-{encoded}.yaml")
         }
     }
 
@@ -443,7 +443,7 @@ impl Manifest {
                 manifest
             })
             .map_err(|e| Error::ManifestInvalid {
-                why: format!("{}", e),
+                why: format!("{e}"),
                 identifier: None,
             })
     }

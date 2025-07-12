@@ -183,7 +183,7 @@ pub fn parse_paths(
         Store::Gog => {
             if Os::HOST == Os::Linux {
                 add_path!(path
-                    .replace(p::GAME, &format!("{}/game", install_dir))
+                    .replace(p::GAME, &format!("{install_dir}/game"))
                     .replace(p::BASE, &format!("{}/{}/game", &root_globbable, install_dir)));
             }
         }
@@ -244,35 +244,35 @@ pub fn parse_paths(
                         .replace(p::ROOT, &root_globbable)
                         .replace(p::GAME, &install_dir)
                         .replace(p::BASE, &full_install_dir)
-                        .replace(p::HOME, &format!("{}/users/steamuser", prefix))
+                        .replace(p::HOME, &format!("{prefix}/users/steamuser"))
                         .replace(p::STORE_USER_ID, "*")
                         .replace(p::OS_USER_NAME, "steamuser")
-                        .replace(p::WIN_PUBLIC, &format!("{}/users/Public", prefix))
-                        .replace(p::WIN_PROGRAM_DATA, &format!("{}/ProgramData", prefix))
-                        .replace(p::WIN_DIR, &format!("{}/windows", prefix))
+                        .replace(p::WIN_PUBLIC, &format!("{prefix}/users/Public"))
+                        .replace(p::WIN_PROGRAM_DATA, &format!("{prefix}/ProgramData"))
+                        .replace(p::WIN_DIR, &format!("{prefix}/windows"))
                         .replace(p::XDG_DATA, check_nonwindows_path(data_dir))
                         .replace(p::XDG_CONFIG, check_nonwindows_path(config_dir));
                     add_path_insensitive!(path2
-                        .replace(p::WIN_DOCUMENTS, &format!("{}/users/steamuser/Documents", prefix))
-                        .replace(p::WIN_APP_DATA, &format!("{}/users/steamuser/AppData/Roaming", prefix))
+                        .replace(p::WIN_DOCUMENTS, &format!("{prefix}/users/steamuser/Documents"))
+                        .replace(p::WIN_APP_DATA, &format!("{prefix}/users/steamuser/AppData/Roaming"))
                         .replace(
                             p::WIN_LOCAL_APP_DATA,
-                            &format!("{}/users/steamuser/AppData/Local", prefix)
+                            &format!("{prefix}/users/steamuser/AppData/Local")
                         )
                         .replace(
                             p::WIN_LOCAL_APP_DATA_LOW,
-                            &format!("{}/users/steamuser/AppData/LocalLow", prefix)
+                            &format!("{prefix}/users/steamuser/AppData/LocalLow")
                         ));
                     add_path_insensitive!(path2
-                        .replace(p::WIN_DOCUMENTS, &format!("{}/users/steamuser/My Documents", prefix))
-                        .replace(p::WIN_APP_DATA, &format!("{}/users/steamuser/Application Data", prefix))
+                        .replace(p::WIN_DOCUMENTS, &format!("{prefix}/users/steamuser/My Documents"))
+                        .replace(p::WIN_APP_DATA, &format!("{prefix}/users/steamuser/Application Data"))
                         .replace(
                             p::WIN_LOCAL_APP_DATA,
-                            &format!("{}/users/steamuser/Local Settings/Application Data", prefix),
+                            &format!("{prefix}/users/steamuser/Local Settings/Application Data"),
                         ));
 
                     if data.when.iter().any(|x| x.store == Some(Store::Uplay)) {
-                        let ubisoft = format!("{}/Program Files (x86)/Ubisoft/Ubisoft Game Launcher", prefix);
+                        let ubisoft = format!("{prefix}/Program Files (x86)/Ubisoft/Ubisoft Game Launcher");
                         add_path!(path
                             .replace(p::ROOT, &ubisoft)
                             .replace(p::GAME, &install_dir)
@@ -307,28 +307,25 @@ pub fn parse_paths(
                 .replace(p::ROOT, &root_globbable)
                 .replace(p::GAME, &install_dir)
                 .replace(p::BASE, &format!("{}/{}", &root_globbable, install_dir))
-                .replace(p::HOME, &format!("{}/users/*", prefix))
+                .replace(p::HOME, &format!("{prefix}/users/*"))
                 .replace(p::STORE_USER_ID, "*")
                 .replace(p::OS_USER_NAME, "*")
-                .replace(p::WIN_PUBLIC, &format!("{}/users/Public", prefix))
-                .replace(p::WIN_PROGRAM_DATA, &format!("{}/ProgramData", prefix))
-                .replace(p::WIN_DIR, &format!("{}/windows", prefix))
+                .replace(p::WIN_PUBLIC, &format!("{prefix}/users/Public"))
+                .replace(p::WIN_PROGRAM_DATA, &format!("{prefix}/ProgramData"))
+                .replace(p::WIN_DIR, &format!("{prefix}/windows"))
                 .replace(p::XDG_DATA, check_nonwindows_path(data_dir))
                 .replace(p::XDG_CONFIG, check_nonwindows_path(config_dir));
             add_path_insensitive!(path2
-                .replace(p::WIN_DOCUMENTS, &format!("{}/users/*/Documents", prefix))
-                .replace(p::WIN_APP_DATA, &format!("{}/users/*/AppData/Roaming", prefix))
-                .replace(p::WIN_LOCAL_APP_DATA, &format!("{}/users/*/AppData/Local", prefix))
-                .replace(
-                    p::WIN_LOCAL_APP_DATA_LOW,
-                    &format!("{}/users/*/AppData/LocalLow", prefix)
-                ));
+                .replace(p::WIN_DOCUMENTS, &format!("{prefix}/users/*/Documents"))
+                .replace(p::WIN_APP_DATA, &format!("{prefix}/users/*/AppData/Roaming"))
+                .replace(p::WIN_LOCAL_APP_DATA, &format!("{prefix}/users/*/AppData/Local"))
+                .replace(p::WIN_LOCAL_APP_DATA_LOW, &format!("{prefix}/users/*/AppData/LocalLow")));
             add_path_insensitive!(path2
-                .replace(p::WIN_DOCUMENTS, &format!("{}/users/*/My Documents", prefix))
-                .replace(p::WIN_APP_DATA, &format!("{}/users/*/Application Data", prefix))
+                .replace(p::WIN_DOCUMENTS, &format!("{prefix}/users/*/My Documents"))
+                .replace(p::WIN_APP_DATA, &format!("{prefix}/users/*/Application Data"))
                 .replace(
                     p::WIN_LOCAL_APP_DATA,
-                    &format!("{}/users/*/Local Settings/Application Data", prefix),
+                    &format!("{prefix}/users/*/Local Settings/Application Data"),
                 ));
         }
         Store::OtherWindows => {
@@ -386,8 +383,8 @@ pub fn parse_paths(
                 .replace(p::GAME, &install_dir)
                 .replace(p::STORE_USER_ID, "*")
                 .replace(p::OS_USER_NAME, &crate::prelude::OS_USERNAME)
-                .replace("<home>/Saved Games/", &format!("{}/", saved_games_dir))
-                .replace("<home>\\Saved Games\\", &format!("{}/", saved_games_dir))
+                .replace("<home>/Saved Games/", &format!("{saved_games_dir}/"))
+                .replace("<home>\\Saved Games\\", &format!("{saved_games_dir}/"))
                 .replace(p::HOME, home));
         }
 
@@ -613,7 +610,7 @@ pub fn scan_game_for_backup(
                 if !game.registry.is_empty() {
                     let prefix = format!("{}/steamapps/compatdata/{}/pfx", &root_globbable, id);
                     paths_to_check.insert((
-                        StrictPath::relative(format!("{}/*.reg", prefix), Some(manifest_dir_globbable.clone())),
+                        StrictPath::relative(format!("{prefix}/*.reg"), Some(manifest_dir_globbable.clone())),
                         None,
                     ));
                 }
@@ -770,14 +767,12 @@ pub fn scan_game_for_backup(
             let normalized = key.replace('\\', "/").to_lowercase();
             if normalized.starts_with("hkey_local_machine/software/") && !normalized.contains("/wow6432node/") {
                 let tail = &key[28..];
-                candidates.push(format!("HKEY_LOCAL_MACHINE/SOFTWARE/Wow6432Node/{}", tail));
+                candidates.push(format!("HKEY_LOCAL_MACHINE/SOFTWARE/Wow6432Node/{tail}"));
                 candidates.push(format!(
-                    "HKEY_CURRENT_USER/Software/Classes/VirtualStore/MACHINE/SOFTWARE/{}",
-                    tail
+                    "HKEY_CURRENT_USER/Software/Classes/VirtualStore/MACHINE/SOFTWARE/{tail}"
                 ));
                 candidates.push(format!(
-                    "HKEY_CURRENT_USER/Software/Classes/VirtualStore/MACHINE/SOFTWARE/Wow6432Node/{}",
-                    tail
+                    "HKEY_CURRENT_USER/Software/Classes/VirtualStore/MACHINE/SOFTWARE/Wow6432Node/{tail}"
                 ));
             }
 

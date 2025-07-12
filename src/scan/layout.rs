@@ -384,31 +384,25 @@ impl IndividualMapping {
     pub fn game_file(&mut self, base: &StrictPath, original_file: &StrictPath, backup: &str) -> StrictPath {
         let (drive, plain_path) = original_file.split_drive();
         let drive_folder = self.drive_folder_name(&drive);
-        StrictPath::relative(
-            format!("{}/{}/{}", backup, drive_folder, plain_path),
-            base.interpret().ok(),
-        )
+        StrictPath::relative(format!("{backup}/{drive_folder}/{plain_path}"), base.interpret().ok())
     }
 
     pub fn game_file_immutable(&self, base: &StrictPath, original_file: &StrictPath, backup: &str) -> StrictPath {
         let (drive, plain_path) = original_file.split_drive();
         let drive_folder = self.drive_folder_name_immutable(&drive);
-        StrictPath::relative(
-            format!("{}/{}/{}", backup, drive_folder, plain_path),
-            base.interpret().ok(),
-        )
+        StrictPath::relative(format!("{backup}/{drive_folder}/{plain_path}"), base.interpret().ok())
     }
 
     fn game_file_for_zip(&mut self, original_file: &StrictPath) -> String {
         let (drive, plain_path) = original_file.split_drive();
         let drive_folder = self.drive_folder_name(&drive);
-        format!("{}/{}", drive_folder, plain_path).replace('\\', "/")
+        format!("{drive_folder}/{plain_path}").replace('\\', "/")
     }
 
     fn game_file_for_zip_immutable(&self, original_file: &StrictPath) -> String {
         let (drive, plain_path) = original_file.split_drive();
         let drive_folder = self.drive_folder_name_immutable(&drive);
-        format!("{}/{}", drive_folder, plain_path).replace('\\', "/")
+        format!("{drive_folder}/{plain_path}").replace('\\', "/")
     }
 
     fn latest_backup(&self) -> Option<(&FullBackup, Option<&DifferentialBackup>)> {
@@ -958,8 +952,8 @@ impl GameLayout {
         } else {
             let timestamp = Self::generate_file_friendly_timestamp(now);
             let name = match *kind {
-                BackupKind::Full => format!("backup-{}", timestamp),
-                BackupKind::Differential => format!("backup-{}-diff", timestamp),
+                BackupKind::Full => format!("backup-{timestamp}"),
+                BackupKind::Differential => format!("backup-{timestamp}-diff"),
             };
             match format.chosen {
                 BackupFormat::Simple => name,
@@ -2042,7 +2036,7 @@ impl GameLayout {
                         let stored = self.mapping.game_file_for_zip_immutable(&original_path);
                         if archive.by_name(&stored).is_err() {
                             #[cfg(test)]
-                            eprintln!("can't find {}", stored);
+                            eprintln!("can't find {stored}");
                             return false;
                         }
                     }
@@ -2087,7 +2081,7 @@ impl GameLayout {
                             let stored = self.mapping.game_file_for_zip_immutable(&original_path);
                             if archive.by_name(&stored).is_err() {
                                 #[cfg(test)]
-                                eprintln!("can't find {}", stored);
+                                eprintln!("can't find {stored}");
                                 return false;
                             }
                         }
@@ -3071,7 +3065,7 @@ mod tests {
         }
 
         fn make_path(file: &str) -> StrictPath {
-            repo_path(&format!("tests/backup/game1/{}", file))
+            repo_path(&format!("tests/backup/game1/{file}"))
         }
 
         fn make_restorable_path(backup: &str, file: &str) -> StrictPath {
@@ -3517,7 +3511,6 @@ mod tests {
                     ..Default::default()
                 },
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
-                ..Default::default()
             };
             assert!(layout.validate(BackupId::Latest));
         }
@@ -3537,7 +3530,6 @@ mod tests {
                     ..Default::default()
                 },
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
-                ..Default::default()
             };
             assert!(!layout.validate(BackupId::Latest));
         }
@@ -3566,7 +3558,6 @@ mod tests {
                     ..Default::default()
                 },
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
-                ..Default::default()
             };
             assert!(layout.validate(BackupId::Latest));
         }
@@ -3594,7 +3585,6 @@ mod tests {
                     ..Default::default()
                 },
                 path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
-                ..Default::default()
             };
             assert!(!layout.validate(BackupId::Latest));
         }
@@ -3615,7 +3605,6 @@ mod tests {
                     ..Default::default()
                 },
                 path: StrictPath::new(format!("{}/tests/backup/game1-zipped", repo_raw())),
-                ..Default::default()
             };
             assert!(layout.validate(BackupId::Latest));
         }
@@ -3635,7 +3624,6 @@ mod tests {
                     ..Default::default()
                 },
                 path: StrictPath::new(format!("{}/tests/backup/game1-zipped", repo_raw())),
-                ..Default::default()
             };
             assert!(!layout.validate(BackupId::Latest));
         }
@@ -3664,7 +3652,6 @@ mod tests {
                     ..Default::default()
                 },
                 path: StrictPath::new(format!("{}/tests/backup/game1-zipped", repo_raw())),
-                ..Default::default()
             };
             assert!(layout.validate(BackupId::Latest));
         }
@@ -3692,7 +3679,6 @@ mod tests {
                     ..Default::default()
                 },
                 path: StrictPath::new(format!("{}/tests/backup/game1-zipped", repo_raw())),
-                ..Default::default()
             };
             assert!(!layout.validate(BackupId::Latest));
         }
@@ -3716,7 +3702,6 @@ mod tests {
                     },
                     ..Default::default()
                 }]),
-                ..Default::default()
             };
 
             let mut game_layout = layout.game_layout("migrate-legacy-backup");
@@ -3759,7 +3744,6 @@ mod tests {
                         ..Default::default()
                     },
                 ]),
-                ..Default::default()
             };
             let after = IndividualMapping {
                 name: "migrate-initial-empty-backup".to_string(),
@@ -3775,13 +3759,11 @@ mod tests {
                     },
                     ..Default::default()
                 }]),
-                ..Default::default()
             };
 
             let mut game_layout = GameLayout {
                 path: format!("{}/tests/backup/migrate-initial-empty-backup/mapping.yaml", repo_raw()).into(),
                 mapping: before.clone(),
-                ..Default::default()
             };
             assert_eq!(before, game_layout.mapping);
 
@@ -3820,7 +3802,6 @@ mod tests {
                     }]),
                     ..Default::default()
                 }]),
-                ..Default::default()
             };
             let after = IndividualMapping {
                 name: "migrate-initial-empty-backup".to_string(),
@@ -3836,13 +3817,11 @@ mod tests {
                     },
                     ..Default::default()
                 }]),
-                ..Default::default()
             };
 
             let mut game_layout = GameLayout {
                 path: format!("{}/tests/backup/migrate-initial-empty-backup/mapping.yaml", repo_raw()).into(),
                 mapping: before.clone(),
-                ..Default::default()
             };
             assert_eq!(before, game_layout.mapping);
 

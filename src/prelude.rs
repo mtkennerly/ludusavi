@@ -150,7 +150,7 @@ impl CommandError {
         let program = quote(program);
         let args = args.iter().map(quote).join(" ");
 
-        format!("{} {}", program, args)
+        format!("{program} {args}")
     }
 }
 
@@ -214,7 +214,7 @@ fn quote(text: impl AsRef<str>) -> String {
     let text = text.as_ref();
 
     if text.contains(' ') {
-        format!("\"{}\"", text)
+        format!("\"{text}\"")
     } else {
         text.to_owned()
     }

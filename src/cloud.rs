@@ -389,10 +389,10 @@ impl Remote {
         match self {
             Remote::Ftp {
                 host, port, username, ..
-            } => Some(format!("{}@{}:{}", username, host, port)),
+            } => Some(format!("{username}@{host}:{port}")),
             Remote::Smb {
                 host, port, username, ..
-            } => Some(format!("{}@{}:{}", username, host, port)),
+            } => Some(format!("{username}@{host}:{port}")),
             Remote::WebDav { url, provider, .. } => Some(format!("{} - {}", provider.to_string(), url)),
             _ => None,
         }
@@ -535,7 +535,7 @@ impl std::str::FromStr for WebDavProvider {
             Self::OWNCLOUD => Ok(Self::Owncloud),
             Self::SHAREPOINT => Ok(Self::Sharepoint),
             Self::SHAREPOINT_NTLM => Ok(Self::SharepointNtlm),
-            _ => Err(format!("invalid provider: {}", s)),
+            _ => Err(format!("invalid provider: {s}")),
         }
     }
 }

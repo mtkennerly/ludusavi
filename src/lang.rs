@@ -325,17 +325,17 @@ fn translate_args(id: &str, args: &FluentArgs) -> String {
 
     let message = match bundle.get_message(name) {
         Some(x) => x,
-        None => return format!("fluent-no-message={}", name),
+        None => return format!("fluent-no-message={name}"),
     };
 
     let pattern = match attr {
         None => match message.value() {
             Some(x) => x,
-            None => return format!("fluent-no-message-value={}", id),
+            None => return format!("fluent-no-message-value={id}"),
         },
         Some(attr) => match message.get_attribute(attr) {
             Some(x) => x.value(),
-            None => return format!("fluent-no-attr={}", id),
+            None => return format!("fluent-no-attr={id}"),
         },
     };
     let mut errors = vec![];
@@ -453,8 +453,8 @@ impl Translator {
 
     pub fn cli_unrecognized_games(&self, games: &[String]) -> String {
         let prefix = translate("cli-unrecognized-games");
-        let lines = games.iter().map(|x| format!("  - {}", x)).join("\n");
-        format!("{}\n{}", prefix, lines)
+        let lines = games.iter().map(|x| format!("  - {x}")).join("\n");
+        format!("{prefix}\n{lines}")
     }
 
     pub fn cli_unable_to_request_confirmation(&self) -> String {
@@ -488,7 +488,7 @@ impl Translator {
     }
 
     fn label(&self, text: &str) -> String {
-        format!("[{}]", text)
+        format!("[{text}]")
     }
 
     pub fn label_failed(&self) -> String {
@@ -510,8 +510,8 @@ impl Translator {
     pub fn field(&self, text: &str) -> String {
         let language = LANGUAGE.lock().unwrap();
         match *language {
-            Language::French => format!("{} :", text),
-            _ => format!("{}:", text),
+            Language::French => format!("{text} :"),
+            _ => format!("{text}:"),
         }
     }
 
@@ -595,9 +595,9 @@ impl Translator {
         let mut parts = vec![];
         match change {
             ScanChange::Same | ScanChange::Unknown => (),
-            ScanChange::New => parts.push(format!("[{}]", ADD_SYMBOL)),
-            ScanChange::Different => parts.push(format!("[{}]", CHANGE_SYMBOL)),
-            ScanChange::Removed => parts.push(format!("[{}]", REMOVAL_SYMBOL)),
+            ScanChange::New => parts.push(format!("[{ADD_SYMBOL}]")),
+            ScanChange::Different => parts.push(format!("[{CHANGE_SYMBOL}]")),
+            ScanChange::Removed => parts.push(format!("[{REMOVAL_SYMBOL}]")),
         }
         if !successful {
             parts.push(self.label_failed());
@@ -850,14 +850,14 @@ impl Translator {
 
     pub fn manifest_is_invalid(&self, why: &str, identifier: Option<&str>) -> String {
         let message = translate("manifest-is-invalid");
-        let identifier = identifier.map(|x| format!(" ({})", x)).unwrap_or("".to_string());
-        format!("{}{}\n{}", message, identifier, why)
+        let identifier = identifier.map(|x| format!(" ({x})")).unwrap_or("".to_string());
+        format!("{message}{identifier}\n{why}")
     }
 
     pub fn manifest_cannot_be_updated(&self, identifier: Option<&str>) -> String {
         let message = translate("manifest-cannot-be-updated");
-        let identifier = identifier.map(|x| format!(" ({})", x)).unwrap_or("".to_string());
-        format!("{}{}", message, identifier)
+        let identifier = identifier.map(|x| format!(" ({x})")).unwrap_or("".to_string());
+        format!("{message}{identifier}")
     }
 
     pub fn cannot_prepare_backup_target(&self, target: &StrictPath) -> String {

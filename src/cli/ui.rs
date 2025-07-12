@@ -68,10 +68,10 @@ pub fn alert(games: &[String], gui: bool, force: bool, msg: &str) -> Result<(), 
     } else if !force {
         // TODO: Dialoguer doesn't have an alert type.
         // https://github.com/console-rs/dialoguer/issues/287
-        println!("{}", msg);
+        println!("{msg}");
         pause()
     } else {
-        println!("{}", msg);
+        println!("{msg}");
         Ok(())
     }
 }

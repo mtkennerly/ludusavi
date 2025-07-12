@@ -136,7 +136,7 @@ fn scan_registry_key(
     previous: Option<&Hives>,
 ) -> Result<HashMap<RegistryItem, ScannedRegistry>, Error> {
     let mut found = HashMap::new();
-    let path = RegistryItem::new(format!("{}\\{}", hive_name, key));
+    let path = RegistryItem::new(format!("{hive_name}\\{key}"));
 
     let subkey = winreg::RegKey::predef(hive)
         .open_subkey(key)
@@ -192,7 +192,7 @@ fn scan_registry_key(
                     game,
                     hive,
                     hive_name,
-                    &format!("{}\\{}", key, name),
+                    &format!("{key}\\{name}"),
                     filter,
                     toggled,
                     previous,
@@ -320,7 +320,7 @@ impl Hives {
                 let path = RegistryItem::from_hive_and_key(hive_name, key_name);
 
                 let Some(hive) = hive.as_ref() else {
-                    failed.insert(path.clone(), BackupError::Raw(format!("Unknown hive: {}", hive_name)));
+                    failed.insert(path.clone(), BackupError::Raw(format!("Unknown hive: {hive_name}")));
                     continue;
                 };
 
@@ -367,7 +367,7 @@ impl Hives {
                             entry_name,
                             entry
                         );
-                        failed.insert(path.clone(), BackupError::Raw(format!("Unparsed entry: {:?}", entry)));
+                        failed.insert(path.clone(), BackupError::Raw(format!("Unparsed entry: {entry:?}")));
                     }
                 }
             }

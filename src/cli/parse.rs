@@ -77,7 +77,7 @@ impl std::str::FromStr for CliSort {
             "size-rev" => Ok(Self::SizeReversed),
             "status" => Ok(Self::Status),
             "status-rev" => Ok(Self::StatusReversed),
-            _ => Err(format!("invalid sort key: {}", s)),
+            _ => Err(format!("invalid sort key: {s}")),
         }
     }
 }

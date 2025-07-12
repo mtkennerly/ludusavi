@@ -915,7 +915,7 @@ impl std::str::FromStr for BackupFormat {
         match s {
             "simple" => Ok(Self::Simple),
             "zip" => Ok(Self::Zip),
-            _ => Err(format!("invalid backup format: {}", s)),
+            _ => Err(format!("invalid backup format: {s}")),
         }
     }
 }
@@ -1013,7 +1013,7 @@ impl std::str::FromStr for ZipCompression {
             "deflate" => Ok(Self::Deflate),
             "bzip2" => Ok(Self::Bzip2),
             "zstd" => Ok(Self::Zstd),
-            _ => Err(format!("invalid compression method: {}", s)),
+            _ => Err(format!("invalid compression method: {s}")),
         }
     }
 }
@@ -1393,7 +1393,7 @@ impl Config {
     }
 
     pub fn load() -> Result<Self, Error> {
-        ResourceFile::load().map_err(|e| Error::ConfigInvalid { why: format!("{}", e) })
+        ResourceFile::load().map_err(|e| Error::ConfigInvalid { why: format!("{e}") })
     }
 
     pub fn archive_invalid() -> Result<(), Box<dyn std::error::Error>> {
@@ -1415,8 +1415,8 @@ impl Config {
 
         let mut candidates = vec![
             // Steam:
-            (format!("{}/Steam", pf32), Store::Steam),
-            (format!("{}/Steam", pf64), Store::Steam),
+            (format!("{pf32}/Steam"), Store::Steam),
+            (format!("{pf64}/Steam"), Store::Steam),
             ("~/.steam/steam".to_string(), Store::Steam),
             (
                 "~/.var/app/com.valvesoftware.Steam/.steam/steam".to_string(),
@@ -1424,14 +1424,14 @@ impl Config {
             ),
             ("~/Library/Application Support/Steam".to_string(), Store::Steam),
             // Epic:
-            (format!("{}/Epic Games", pf32), Store::Epic),
-            (format!("{}/Epic Games", pf64), Store::Epic),
+            (format!("{pf32}/Epic Games"), Store::Epic),
+            (format!("{pf64}/Epic Games"), Store::Epic),
             // GOG:
             ("C:/GOG Games".to_string(), Store::Gog),
             ("~/GOG Games".to_string(), Store::Gog),
             // GOG Galaxy:
-            (format!("{}/GOG Galaxy/Games", pf32), Store::GogGalaxy),
-            (format!("{}/GOG Galaxy/Games", pf64), Store::GogGalaxy),
+            (format!("{pf32}/GOG Galaxy/Games"), Store::GogGalaxy),
+            (format!("{pf64}/GOG Galaxy/Games"), Store::GogGalaxy),
             // Heroic:
             ("~/.config/heroic".to_string(), Store::Heroic),
             (
@@ -1439,23 +1439,23 @@ impl Config {
                 Store::Heroic,
             ),
             // Uplay:
-            (format!("{}/Ubisoft/Ubisoft Game Launcher", pf32), Store::Uplay),
-            (format!("{}/Ubisoft/Ubisoft Game Launcher", pf64), Store::Uplay),
+            (format!("{pf32}/Ubisoft/Ubisoft Game Launcher"), Store::Uplay),
+            (format!("{pf64}/Ubisoft/Ubisoft Game Launcher"), Store::Uplay),
             // Origin:
-            (format!("{}/Origin Games", pf32), Store::Origin),
-            (format!("{}/Origin Games", pf64), Store::Origin),
+            (format!("{pf32}/Origin Games"), Store::Origin),
+            (format!("{pf64}/Origin Games"), Store::Origin),
             // Microsoft:
-            (format!("{}/WindowsApps", pf32), Store::Microsoft),
-            (format!("{}/WindowsApps", pf64), Store::Microsoft),
+            (format!("{pf32}/WindowsApps"), Store::Microsoft),
+            (format!("{pf64}/WindowsApps"), Store::Microsoft),
             // Prime Gaming:
             ("C:/Amazon Games/Library".to_string(), Store::Prime),
             // EA app:
-            (format!("{}/EA Games", pf32), Store::Ea),
-            (format!("{}/EA Games", pf64), Store::Ea),
+            (format!("{pf32}/EA Games"), Store::Ea),
+            (format!("{pf64}/EA Games"), Store::Ea),
         ];
 
         if let Some(data_dir) = CommonPath::Data.get() {
-            candidates.push((format!("{}/heroic", data_dir), Store::Heroic));
+            candidates.push((format!("{data_dir}/heroic"), Store::Heroic));
         }
 
         let detected_steam = match steamlocate::SteamDir::locate() {

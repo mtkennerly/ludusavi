@@ -553,7 +553,7 @@ impl Reporter {
                     return;
                 }
 
-                parts.push(format!("{}:", display_title));
+                parts.push(format!("{display_title}:"));
                 parts.push(format!("  {} {}", TRANSLATOR.folder_label(), backup_dir.render()));
                 for backup in available_backups {
                     let mut line = format!(

@@ -269,10 +269,10 @@ impl FileTreeNode {
                                             if included_bytes == total_bytes {
                                                 Some(included)
                                             } else {
-                                                Some(format!("{} / {}", included, total))
+                                                Some(format!("{included} / {total}"))
                                             }
                                         }
-                                        (Some(included), None) => Some(format!("{} / ?", included)),
+                                        (Some(included), None) => Some(format!("{included} / ?")),
                                         (None, Some(total)) => Some(total.to_string()),
                                         (None, None) => None,
                                     };

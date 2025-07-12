@@ -39,7 +39,7 @@ pub fn show_error(games: &[String], error: &Error, gui: bool, force: bool) {
     if gui {
         let _ = ui::alert(games, gui, force, &message);
     } else {
-        eprintln!("{}", message);
+        eprintln!("{message}");
     }
 }
 

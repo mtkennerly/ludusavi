@@ -310,7 +310,7 @@ impl RegistryItem {
 
     pub fn from_hive_and_key(hive: &str, key: &str) -> Self {
         Self {
-            raw: format!("{}/{}", hive, key).replace('\\', "/"),
+            raw: format!("{hive}/{key}").replace('\\', "/"),
         }
     }
 

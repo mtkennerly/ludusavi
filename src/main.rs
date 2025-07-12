@@ -1,4 +1,9 @@
-#![allow(clippy::large_enum_variant, clippy::too_many_arguments, clippy::to_string_trait_impl)]
+#![allow(
+    clippy::large_enum_variant,
+    clippy::new_without_default,
+    clippy::too_many_arguments,
+    clippy::to_string_trait_impl
+)]
 
 mod cli;
 mod cloud;
@@ -135,7 +140,7 @@ unsafe fn detach_console() {
     };
 
     fn tell(msg: &str) {
-        eprintln!("{}", msg);
+        eprintln!("{msg}");
         log::error!("{}", msg);
     }
 
