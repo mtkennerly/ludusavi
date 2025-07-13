@@ -2823,6 +2823,7 @@ impl App {
                 })
             }
             Message::ShowScanActiveGames => self.show_modal(Modal::ActiveScanGames),
+            Message::CopyText(text) => iced::clipboard::write(text),
         }
     }
 

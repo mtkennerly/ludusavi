@@ -208,6 +208,7 @@ pub enum Message {
         name: String,
     },
     ShowScanActiveGames,
+    CopyText(String),
 }
 
 impl Message {

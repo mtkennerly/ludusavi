@@ -255,7 +255,14 @@ impl FileTreeNode {
                                             .padding(5)
                                             .height(25),
                                     ),
-                                    FileTreeNodePath::RegistryKey(..) | FileTreeNodePath::RegistryValue(..) => None,
+                                    FileTreeNodePath::RegistryKey(item) => Some(
+                                        Button::new(Icon::Copy.text_small())
+                                            .on_press(Message::CopyText(item.interpret()))
+                                            .class(style::Button::Primary)
+                                            .padding(5)
+                                            .height(25),
+                                    ),
+                                    FileTreeNodePath::RegistryValue(..) => None,
                                 })
                                 .push_maybe({
                                     let total_bytes = self.calculate_directory_size(true);
