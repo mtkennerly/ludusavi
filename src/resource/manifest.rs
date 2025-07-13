@@ -205,6 +205,8 @@ pub struct Game {
     pub notes: Vec<Note>,
     #[serde(skip)]
     pub sources: BTreeSet<Source>,
+    #[serde(skip)]
+    pub wine_prefix: Vec<String>,
 }
 
 impl Game {
@@ -673,6 +675,7 @@ impl Manifest {
                     // you probably still want to back up your customized versions of such games.
                     stored.cloud = CloudMetadata::default();
                     stored.sources.insert(Source::Custom);
+                    stored.wine_prefix = custom.wine_prefix;
                 }
                 Integration::Extend => {
                     stored.alias = custom.alias;
@@ -687,6 +690,7 @@ impl Manifest {
                     }
                     stored.cloud = CloudMetadata::default();
                     stored.sources.insert(Source::Custom);
+                    stored.wine_prefix.extend(custom.wine_prefix);
                 }
             }
         } else {
@@ -813,6 +817,7 @@ impl Manifest {
                 cloud: _,
                 notes: _,
                 sources: _,
+                wine_prefix: _,
             } = &v;
             alias.is_none()
                 && (!files.is_empty() || !registry.is_empty() || !steam.is_empty() || !gog.is_empty() || !id.is_empty())
@@ -888,6 +893,7 @@ mod tests {
                 cloud: Default::default(),
                 notes: Default::default(),
                 sources: Default::default(),
+                wine_prefix: Default::default(),
             },
             manifest.0["game"],
         );
@@ -977,6 +983,7 @@ mod tests {
                 },
                 notes: Default::default(),
                 sources: Default::default(),
+                wine_prefix: Default::default(),
             },
             manifest.0["game"],
         );

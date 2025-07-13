@@ -1,6 +1,7 @@
 ## Unreleased
 
 * Added:
+  * You can now configure game-specific Wine prefixes in a custom entry.
   * GUI: In the scan results, there is a button to copy registry key paths.
   * CLI: `config path` command to print the path to the active config file.
   * CLI: The `backup` and `restore` commands now have an `--include-disabled` option

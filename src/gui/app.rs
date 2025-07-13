@@ -1222,6 +1222,7 @@ impl App {
                 files: standard.files.keys().cloned().collect(),
                 registry: standard.registry.keys().cloned().collect(),
                 install_dir: standard.install_dir.keys().filter(|x| *x != &name).cloned().collect(),
+                wine_prefix: vec![],
                 expanded: true,
             }
         } else {
@@ -1234,6 +1235,7 @@ impl App {
                 files: vec![],
                 registry: vec![],
                 install_dir: vec![],
+                wine_prefix: vec![],
                 expanded: true,
             }
         };
@@ -1259,6 +1261,7 @@ impl App {
             files: vec![],
             registry: vec![],
             install_dir: vec![],
+            wine_prefix: vec![],
             expanded: true,
         };
 
@@ -1710,6 +1713,29 @@ impl App {
                                 .install_dir
                                 .swap(index, offset);
                             self.config.custom_games[game_index].install_dir.swap(index, offset);
+                        }
+                    },
+                    config::Event::CustomGameWinePrefix(game_index, action) => match action {
+                        EditAction::Add => {
+                            self.text_histories.custom_games[game_index]
+                                .wine_prefix
+                                .push(Default::default());
+                            self.config.custom_games[game_index].wine_prefix.push("".to_string());
+                        }
+                        EditAction::Change(index, value) => {
+                            self.text_histories.custom_games[game_index].wine_prefix[index].push(&value);
+                            self.config.custom_games[game_index].wine_prefix[index] = value;
+                        }
+                        EditAction::Remove(index) => {
+                            self.text_histories.custom_games[game_index].wine_prefix.remove(index);
+                            self.config.custom_games[game_index].wine_prefix.remove(index);
+                        }
+                        EditAction::Move(index, direction) => {
+                            let offset = direction.shift(index);
+                            self.text_histories.custom_games[game_index]
+                                .wine_prefix
+                                .swap(index, offset);
+                            self.config.custom_games[game_index].wine_prefix.swap(index, offset);
                         }
                     },
                     config::Event::ExcludeStoreScreenshots(enabled) => {
@@ -2480,6 +2506,10 @@ impl App {
                     UndoSubject::CustomGameInstallDir(i, j) => shortcut.apply_to_string_field(
                         &mut self.config.custom_games[i].install_dir[j],
                         &mut self.text_histories.custom_games[i].install_dir[j],
+                    ),
+                    UndoSubject::CustomGameWinePrefix(i, j) => shortcut.apply_to_string_field(
+                        &mut self.config.custom_games[i].wine_prefix[j],
+                        &mut self.text_histories.custom_games[i].wine_prefix[j],
                     ),
                     UndoSubject::BackupFilterIgnoredPath(i) => shortcut.apply_to_strict_path_field(
                         &mut self.config.backup.filter.ignored_paths[i],

@@ -1144,6 +1144,10 @@ impl Translator {
         translate("field-roots")
     }
 
+    pub fn wine_prefix(&self) -> String {
+        self.store(&Store::OtherWine)
+    }
+
     pub fn ignored_items_label(&self) -> String {
         translate("field-backup-excluded-items")
     }

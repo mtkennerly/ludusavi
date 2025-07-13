@@ -48,6 +48,7 @@ pub enum Event {
     CustomGameFile(usize, EditAction),
     CustomGameRegistry(usize, EditAction),
     CustomGameInstallDir(usize, EditAction),
+    CustomGameWinePrefix(usize, EditAction),
     ExcludeStoreScreenshots(bool),
     CloudFilter(CloudFilter),
     BackupFilterIgnoredPath(EditAction),
@@ -1239,6 +1240,8 @@ pub struct CustomGame {
     pub registry: Vec<String>,
     /// Bare folder names where the game has been installed.
     pub install_dir: Vec<String>,
+    /// Any Wine prefixes that Ludusavi wouldn't be able to determine from your roots.
+    pub wine_prefix: Vec<String>,
     #[serde(skip)]
     pub expanded: bool,
 }
@@ -1269,6 +1272,28 @@ impl CustomGame {
         } else {
             self.integration
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        let Self {
+            name,
+            ignore: _,
+            integration: _,
+            alias,
+            prefer_alias: _,
+            files,
+            registry,
+            install_dir,
+            wine_prefix,
+            expanded: _,
+        } = self;
+
+        name.trim().is_empty()
+            && alias.is_none()
+            && files.is_empty()
+            && registry.is_empty()
+            && install_dir.is_empty()
+            && wine_prefix.is_empty()
     }
 }
 
@@ -1370,9 +1395,10 @@ impl ResourceFile for Config {
         for item in &mut self.custom_games {
             item.files.retain(|x| !x.trim().is_empty());
             item.registry.retain(|x| !x.trim().is_empty());
+            item.install_dir.retain(|x| !x.trim().is_empty());
+            item.wine_prefix.retain(|x| !x.trim().is_empty());
         }
-        self.custom_games
-            .retain(|x| !x.name.trim().is_empty() || !x.files.is_empty() || !x.registry.is_empty());
+        self.custom_games.retain(|x| !x.is_empty());
 
         if self.apps.rclone.path.raw().is_empty() {
             self.apps.rclone.path = App::default_rclone().path;
@@ -2168,6 +2194,10 @@ mod tests {
                   - Custom Install Dir 1
                   - Custom Install Dir 2
                   - Custom Install Dir 2
+                winePrefix:
+                  - Wine Prefix 1
+                  - Wine Prefix 2
+                  - Wine Prefix 2
             "#,
         )
         .unwrap();
@@ -2248,6 +2278,7 @@ mod tests {
                         files: vec![],
                         registry: vec![],
                         install_dir: vec![],
+                        wine_prefix: vec![],
                         expanded: false,
                     },
                     CustomGame {
@@ -2263,6 +2294,7 @@ mod tests {
                             s("Custom Install Dir 2"),
                             s("Custom Install Dir 2")
                         ],
+                        wine_prefix: vec![s("Wine Prefix 1"), s("Wine Prefix 2"), s("Wine Prefix 2")],
                         expanded: false,
                     },
                 ],
@@ -2363,6 +2395,7 @@ customGames:
     files: []
     registry: []
     installDir: []
+    winePrefix: []
   - name: Custom Game 2
     integration: extend
     files:
@@ -2377,12 +2410,17 @@ customGames:
       - Custom Install Dir 1
       - Custom Install Dir 2
       - Custom Install Dir 2
+    winePrefix:
+      - Wine Prefix 1
+      - Wine Prefix 2
+      - Wine Prefix 2
   - name: Alias
     integration: override
     alias: Other
     files: []
     registry: []
     installDir: []
+    winePrefix: []
 "#
             .trim(),
             serde_yaml::to_string(&Config {
@@ -2459,6 +2497,7 @@ customGames:
                         files: vec![],
                         registry: vec![],
                         install_dir: vec![],
+                        wine_prefix: vec![],
                         expanded: false,
                     },
                     CustomGame {
@@ -2474,6 +2513,7 @@ customGames:
                             s("Custom Install Dir 2"),
                             s("Custom Install Dir 2")
                         ],
+                        wine_prefix: vec![s("Wine Prefix 1"), s("Wine Prefix 2"), s("Wine Prefix 2")],
                         expanded: false,
                     },
                     CustomGame {
@@ -2485,6 +2525,7 @@ customGames:
                         files: vec![],
                         registry: vec![],
                         install_dir: vec![],
+                        wine_prefix: vec![],
                         expanded: false,
                     },
                 ],

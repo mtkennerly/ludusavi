@@ -505,15 +505,23 @@ pub fn scan_game_for_backup(
     let all_ids = game.all_ids();
     let steam_shortcut = steam_shortcuts.get(name);
 
-    // We can add this for Wine prefixes from the CLI because they're
-    // typically going to be used for only one or a few games at a time.
-    // For other Wine roots, it would trigger for every game.
+    for wp in &game.wine_prefix {
+        if wp.trim().is_empty() {
+            continue;
+        }
+        scan_game_for_backup_add_prefix(
+            &mut roots_to_check,
+            &mut paths_to_check,
+            &StrictPath::new(wp),
+            !game.registry.is_empty(),
+        );
+    }
     if let Some(wp) = wine_prefix {
-        log::trace!("[{name}] adding extra Wine prefix: {wp:?}");
+        // We can add this for Wine prefixes from the CLI because they're
+        // typically going to be used for only one or a few games at a time.
+        // For other Wine roots, it would trigger for every game.
         scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, !game.registry.is_empty());
     }
-
-    // handle what was found for heroic
     for root in roots {
         for wp in launchers.get_game(root, name).filter_map(|x| x.prefix.as_ref()) {
             let with_pfx = wp.joined("pfx");

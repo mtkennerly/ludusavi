@@ -551,6 +551,49 @@ pub fn custom_games<'a>(
                                             i,
                                         )),
                                 )
+                        })
+                        .push_if(config.custom_games[i].kind() == CustomGameKind::Game, || {
+                            Row::new()
+                                .spacing(10)
+                                .push(
+                                    Column::new()
+                                        .width(left_side)
+                                        .padding(padding::top(top_side))
+                                        .push(text(TRANSLATOR.field(&TRANSLATOR.wine_prefix()))),
+                                )
+                                .push(
+                                    x.wine_prefix
+                                        .iter()
+                                        .enumerate()
+                                        .fold(Column::new().spacing(4), |column, (ii, _)| {
+                                            column.push(
+                                                Row::new()
+                                                    .align_y(Alignment::Center)
+                                                    .spacing(20)
+                                                    .push(button::move_up_nested(
+                                                        Message::config2(config::Event::CustomGameWinePrefix),
+                                                        i,
+                                                        ii,
+                                                    ))
+                                                    .push(button::move_down_nested(
+                                                        Message::config2(config::Event::CustomGameWinePrefix),
+                                                        i,
+                                                        ii,
+                                                        x.wine_prefix.len(),
+                                                    ))
+                                                    .push(histories.input(UndoSubject::CustomGameWinePrefix(i, ii)))
+                                                    .push(button::remove_nested(
+                                                        Message::config2(config::Event::CustomGameWinePrefix),
+                                                        i,
+                                                        ii,
+                                                    )),
+                                            )
+                                        })
+                                        .push(button::add_nested(
+                                            Message::config2(config::Event::CustomGameWinePrefix),
+                                            i,
+                                        )),
+                                )
                         });
                 }
 
