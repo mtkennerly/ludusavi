@@ -4,7 +4,7 @@ use iced::{widget as w, Alignment, Length};
 
 use crate::{
     gui::{
-        common::{Message, Operation},
+        common::{Message, Operation, UndoSubject},
         icon::Icon,
         style::{self, Theme},
     },
@@ -139,6 +139,39 @@ pub fn number_input<'a>(
             }),
     )
     .into()
+}
+
+pub fn text_editor<'a>(
+    content: &'a w::text_editor::Content,
+    on_action: impl Fn(w::text_editor::Action) -> Message + 'a,
+    undo_subject: UndoSubject,
+) -> Element<'a> {
+    w::text_editor(content)
+        .on_action(on_action)
+        .key_binding(move |event| {
+            use crate::gui::undoable;
+            use iced::keyboard::Key;
+            use w::text_editor::{Binding, Status};
+
+            match event.status {
+                Status::Active | Status::Hovered | Status::Disabled => None,
+                Status::Focused => match event.key.as_ref() {
+                    Key::Character("z") if event.modifiers.command() && event.modifiers.shift() => Some(
+                        Binding::Custom(Message::UndoRedo(undoable::Action::Redo, undo_subject.clone())),
+                    ),
+                    Key::Character("z") if event.modifiers.command() => Some(Binding::Custom(Message::UndoRedo(
+                        undoable::Action::Undo,
+                        undo_subject.clone(),
+                    ))),
+                    Key::Character("y") if event.modifiers.command() => Some(Binding::Custom(Message::UndoRedo(
+                        undoable::Action::Redo,
+                        undo_subject.clone(),
+                    ))),
+                    _ => Binding::from_key_press(event),
+                },
+            }
+        })
+        .into()
 }
 
 #[derive(Default)]

@@ -3,6 +3,7 @@
 * Added:
   * You can now configure game-specific Wine prefixes in a custom entry.
   * GUI: In the scan results, there is a button to copy registry key paths.
+  * GUI: Backup comments may now contain multiple paragraphs.
   * CLI: `backups edit` command to update a backup's lock state and comment.
     The `api` command now also supports an `editBackup` request.
   * CLI: `config path` command to print the path to the active config file.

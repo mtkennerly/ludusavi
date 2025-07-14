@@ -2626,14 +2626,12 @@ impl App {
                 self.scroll_offsets.insert(subject, position);
                 scrollable::scroll_to(subject.id(), position)
             }
-            Message::EditedBackupComment { game, comment } => {
-                if let Some(info) = self.text_histories.backup_comments.get_mut(&game) {
-                    info.push(&comment);
-                }
-
-                let updated = self.restore_screen.log.set_comment(&game, comment);
-                if updated {
+            Message::EditedBackupComment { game, action } => {
+                if let Some(comment) = self.restore_screen.log.apply_comment_action(&game, action) {
                     self.save_backup(&game);
+                    if let Some(info) = self.text_histories.backup_comments.get_mut(&game) {
+                        info.push(&comment);
+                    }
                 }
 
                 Task::none()

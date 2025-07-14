@@ -443,10 +443,8 @@ impl TextHistories {
                     ModalInputKind::Password => ModalField::Password(value),
                 })
             }),
-            UndoSubject::BackupComment(game) => Box::new(move |comment| Message::EditedBackupComment {
-                game: game.clone(),
-                comment,
-            }),
+            // TODO: This is now handled separately with a `TextEditor`.
+            UndoSubject::BackupComment(_) => Box::new(|_| Message::Ignore),
         };
 
         let placeholder = match &subject {

@@ -21,7 +21,10 @@ use crate::{
         search::FilterComponent,
         shortcuts::TextHistories,
         style,
-        widget::{checkbox, pick_list, text, Button, Column, Container, IcedButtonExt, IcedParentExt, Row, Tooltip},
+        widget::{
+            checkbox, pick_list, text, text_editor, Button, Column, Container, IcedButtonExt, IcedParentExt, Row,
+            Tooltip,
+        },
     },
     lang::TRANSLATOR,
     resource::{
@@ -39,7 +42,7 @@ pub struct GameListEntry {
     pub scan_info: ScanInfo,
     pub backup_info: Option<BackupInfo>,
     pub tree: Option<FileTree>,
-    pub show_comment_editor: bool,
+    pub comment_editor: Option<iced::widget::text_editor::Content<iced::Renderer>>,
     pub game_layout: Option<GameLayout>,
     /// The `scan_info` gets mutated in response to things like toggling saves off,
     /// so we need a persistent flag to say if the game has been scanned yet.
@@ -57,7 +60,6 @@ impl GameListEntry {
         expanded: bool,
         modifiers: &Modifiers,
         filtering_duplicates: bool,
-        histories: &TextHistories,
     ) -> Container {
         let successful = match &self.backup_info {
             Some(x) => x.successful(),
@@ -329,18 +331,25 @@ impl GameListEntry {
                                 ),
                         ),
                 )
-                .push_if(self.show_comment_editor, || {
+                .push_maybe(self.comment_editor.as_ref().map(|x| {
                     Row::new()
                         .align_y(Alignment::Center)
                         .padding([0, 20])
                         .spacing(20)
                         .push(text(TRANSLATOR.comment_label()))
-                        .push(histories.input(UndoSubject::BackupComment(self.scan_info.game_name.clone())))
+                        .push(text_editor(
+                            x,
+                            |action| Message::EditedBackupComment {
+                                game: self.scan_info.game_name.clone(),
+                                action,
+                            },
+                            UndoSubject::BackupComment(self.scan_info.game_name.clone()),
+                        ))
                         .push(button::hide(Message::GameAction {
                             action: GameAction::Comment,
                             game: name.clone(),
                         }))
-                })
+                }))
                 .push_maybe({
                     expanded
                         .then(|| {
@@ -452,7 +461,6 @@ impl GameList {
                                     self.expanded_games.contains(&x.scan_info.game_name),
                                     modifiers,
                                     duplicatees.is_some(),
-                                    histories,
                                 ))
                             },
                         );
@@ -815,7 +823,18 @@ impl GameList {
         let index = self.find_game(game);
 
         if let Some(i) = index {
-            self.entries[i].show_comment_editor = !self.entries[i].show_comment_editor;
+            self.entries[i].comment_editor = match self.entries[i].comment_editor {
+                Some(_) => None,
+                None => Some(
+                    self.entries[i]
+                        .scan_info
+                        .backup
+                        .as_ref()
+                        .and_then(|x| x.comment())
+                        .map(|x| iced::widget::text_editor::Content::with_text(x))
+                        .unwrap_or_default(),
+                ),
+            };
         }
     }
 
@@ -824,6 +843,12 @@ impl GameList {
             return false;
         };
         let entry = &mut self.entries[index];
+
+        let Some(editor) = entry.comment_editor.as_mut() else {
+            return false;
+        };
+        *editor = iced::widget::text_editor::Content::with_text(&comment);
+
         let Some(backup) = &mut entry.scan_info.backup else {
             return false;
         };
@@ -835,6 +860,23 @@ impl GameList {
         backup.set_comment(comment);
 
         true
+    }
+
+    pub fn apply_comment_action(&mut self, game: &str, action: iced::widget::text_editor::Action) -> Option<String> {
+        let index = self.find_game(game)?;
+        let entry = &mut self.entries[index];
+
+        let editor = entry.comment_editor.as_mut()?;
+        let backup = entry.scan_info.backup.as_mut()?;
+        let layout = entry.game_layout.as_mut()?;
+
+        editor.perform(action);
+        let comment = editor.text().trim().to_string();
+
+        layout.set_backup_comment(&backup.id(), &comment);
+        backup.set_comment(comment.clone());
+
+        Some(comment)
     }
 
     pub fn toggle_locked(&mut self, game: &str) -> bool {

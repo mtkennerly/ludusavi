@@ -1,5 +1,5 @@
 use iced::{
-    widget::{button, checkbox, container, pick_list, scrollable, text_input},
+    widget::{button, checkbox, container, pick_list, scrollable, text_editor, text_input},
     Background, Border, Color, Shadow, Vector,
 };
 
@@ -604,6 +604,54 @@ impl iced::widget::progress_bar::Catalog for Theme {
             border: Border {
                 radius: 4.0.into(),
                 ..Default::default()
+            },
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+pub struct TextEditor;
+impl text_editor::Catalog for Theme {
+    type Class<'a> = TextEditor;
+
+    fn default<'a>() -> Self::Class<'a> {
+        Default::default()
+    }
+
+    fn style(&self, _class: &Self::Class<'_>, status: text_editor::Status) -> text_editor::Style {
+        let active = text_editor::Style {
+            background: self.field.alpha(0.3).into(),
+            border: Border {
+                radius: 2.0.into(),
+                width: 1.0,
+                color: self.field,
+            },
+            icon: self.text,
+            placeholder: self.text_skipped,
+            value: self.text,
+            selection: self.text_selection,
+        };
+
+        match status {
+            text_editor::Status::Active => active,
+            text_editor::Status::Hovered => text_editor::Style {
+                border: Border {
+                    color: self.text,
+                    ..active.border
+                },
+                ..active
+            },
+            text_editor::Status::Focused => text_editor::Style {
+                border: Border {
+                    color: self.text,
+                    ..active.border
+                },
+                ..active
+            },
+            text_editor::Status::Disabled => text_editor::Style {
+                background: Background::Color(self.disabled),
+                value: active.placeholder,
+                ..active
             },
         }
     }

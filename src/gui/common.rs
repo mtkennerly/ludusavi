@@ -182,7 +182,7 @@ pub enum Message {
     },
     EditedBackupComment {
         game: String,
-        comment: String,
+        action: iced::widget::text_editor::Action,
     },
     FilterDuplicates {
         scan_kind: ScanKind,
