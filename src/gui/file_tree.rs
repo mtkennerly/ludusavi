@@ -14,7 +14,10 @@ use crate::{
     },
     lang::TRANSLATOR,
     path::StrictPath,
-    resource::config::{self, Config},
+    resource::{
+        config::{self, Config},
+        manifest::Os,
+    },
     scan::{
         registry::RegistryItem, BackupError, BackupInfo, DuplicateDetector, Duplication, ScanChange, ScanInfo,
         ScanKind, ScannedFile, ScannedRegistryValues,
@@ -255,6 +258,19 @@ impl FileTreeNode {
                                             .padding(5)
                                             .height(25),
                                     ),
+                                    _ => None,
+                                })
+                                .push_maybe(match &self.path {
+                                    FileTreeNodePath::RegistryKey(item) if Os::HOST == Os::Windows => Some(
+                                        Button::new(Icon::OpenInNew.text_small())
+                                            .on_press(Message::OpenRegistry(item.clone()))
+                                            .class(style::Button::Primary)
+                                            .padding(5)
+                                            .height(25),
+                                    ),
+                                    _ => None,
+                                })
+                                .push_maybe(match &self.path {
                                     FileTreeNodePath::RegistryKey(item) => Some(
                                         Button::new(Icon::Copy.text_small())
                                             .on_press(Message::CopyText(item.interpret()))
@@ -262,7 +278,7 @@ impl FileTreeNode {
                                             .padding(5)
                                             .height(25),
                                     ),
-                                    FileTreeNodePath::RegistryValue(..) => None,
+                                    _ => None,
                                 })
                                 .push_maybe({
                                     let total_bytes = self.calculate_directory_size(true);

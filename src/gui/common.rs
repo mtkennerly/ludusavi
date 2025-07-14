@@ -17,6 +17,7 @@ use crate::{
     scan::{
         game_filter,
         layout::{Backup, BackupLayout, GameLayout},
+        registry::RegistryItem,
         BackupInfo, Launchers, ScanInfo, ScanKind, SteamShortcuts,
     },
 };
@@ -209,6 +210,7 @@ pub enum Message {
     },
     ShowScanActiveGames,
     CopyText(String),
+    OpenRegistry(RegistryItem),
 }
 
 impl Message {

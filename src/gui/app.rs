@@ -2852,6 +2852,67 @@ impl App {
             }
             Message::ShowScanActiveGames => self.show_modal(Modal::ActiveScanGames),
             Message::CopyText(text) => iced::clipboard::write(text),
+            Message::OpenRegistry(item) => {
+                #[cfg(windows)]
+                {
+                    use windows::{
+                        core::s,
+                        Win32::UI::{
+                            Shell::{ShellExecuteExA, SHELLEXECUTEINFOA},
+                            WindowsAndMessaging::{SW_HIDE, SW_SHOWNORMAL},
+                        },
+                    };
+
+                    let mut system = sysinfo::System::new_all();
+                    system.refresh_all();
+                    if system.processes_by_exact_name("regedit.exe".as_ref()).next().is_some() {
+                        let mut info = SHELLEXECUTEINFOA {
+                            cbSize: size_of::<SHELLEXECUTEINFOA>() as u32,
+                            lpVerb: s!("runas"),
+                            lpFile: s!("taskkill.exe"),
+                            lpParameters: s!("/im regedit.exe"),
+                            nShow: SW_HIDE.0,
+                            ..Default::default()
+                        };
+                        unsafe {
+                            if let Err(e) = ShellExecuteExA(&mut info) {
+                                log::error!("Failed to close Regedit: {e:?}");
+                                return Task::none();
+                            }
+                        }
+
+                        // When already running as admin (i.e., no UAC prompts),
+                        // this is needed or else Regedit won't reopen.
+                        // Maybe `taskkill` returns while the process is still shutting down?
+                        std::thread::sleep(std::time::Duration::from_millis(500));
+                    }
+
+                    let hive = winreg::RegKey::predef(winreg::enums::HKEY_CURRENT_USER);
+                    let Ok(key) = hive.create_subkey(r"Software\Microsoft\Windows\CurrentVersion\Applets\Regedit")
+                    else {
+                        return Task::none();
+                    };
+                    if let Err(e) = key.0.set_value("LastKey", &format!("Computer\\{}", item.interpret())) {
+                        log::error!("Failed to edit Regedit last key: {e:?}");
+                        return Task::none();
+                    }
+
+                    let mut info = SHELLEXECUTEINFOA {
+                        cbSize: size_of::<SHELLEXECUTEINFOA>() as u32,
+                        lpVerb: s!("runas"),
+                        lpFile: s!("regedit.exe"),
+                        nShow: SW_SHOWNORMAL.0,
+                        ..Default::default()
+                    };
+                    unsafe {
+                        if let Err(e) = ShellExecuteExA(&mut info) {
+                            log::error!("Failed to open Regedit: {e:?}");
+                            return Task::none();
+                        }
+                    }
+                }
+                Task::none()
+            }
         }
     }
 
