@@ -7,7 +7,7 @@ use crate::{
     path::StrictPath,
     prelude::Error,
     resource::{config::Config, manifest::Manifest},
-    scan::{compare_ranked_titles, layout::BackupLayout, TitleFinder, TitleQuery},
+    scan::{compare_ranked_titles, layout::BackupLayout, BackupId, TitleFinder, TitleQuery},
 };
 
 /// The full input to the `api` command.
@@ -49,6 +49,7 @@ pub enum Output {
 pub enum Request {
     FindTitle(request::FindTitle),
     CheckAppUpdate(request::CheckAppUpdate),
+    EditBackup(request::EditBackup),
 }
 
 /// A response to an individual request.
@@ -58,6 +59,7 @@ pub enum Response {
     Error(response::Error),
     FindTitle(response::FindTitle),
     CheckAppUpdate(response::CheckAppUpdate),
+    EditBackup(response::EditBackup),
 }
 
 pub mod request {
@@ -108,6 +110,22 @@ pub mod request {
     #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
     #[serde(default, rename_all = "camelCase")]
     pub struct CheckAppUpdate {}
+
+    /// Edit a backup's metadata.
+    #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    #[serde(default, rename_all = "camelCase")]
+    pub struct EditBackup {
+        /// Which game to edit.
+        pub game: String,
+        /// Edit a specific backup, using an ID returned by the `backups` command.
+        /// When not specified, this defaults to the latest backup.
+        pub backup: Option<String>,
+        /// If set, indicates whether the backup should be locked.
+        pub locked: Option<bool>,
+        /// If set, update the backup's comment.
+        /// To delete an existing comment, set this to an empty string.
+        pub comment: Option<String>,
+    }
 }
 
 pub mod response {
@@ -140,6 +158,10 @@ pub mod response {
         /// Release URL to open in browser.
         pub url: String,
     }
+
+    #[derive(Debug, Default, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+    #[serde(default, rename_all = "camelCase")]
+    pub struct EditBackup {}
 }
 
 fn parse_input(input: Option<String>) -> Result<Input, String> {
@@ -240,6 +262,38 @@ pub fn process(input: Option<String>, config: &Config, manifest: &Manifest) -> R
                     responses.push(Response::Error(response::Error { message: e.to_string() }));
                 }
             },
+            Request::EditBackup(request::EditBackup {
+                game,
+                backup,
+                locked,
+                comment,
+            }) => {
+                let backup = backup.map(BackupId::Named).unwrap_or(BackupId::Latest);
+                let Some(game) = title_finder.find_one_by_name(&game) else {
+                    responses.push(Response::Error(response::Error {
+                        message: TRANSLATOR.game_is_unrecognized(),
+                    }));
+                    continue;
+                };
+
+                let mut layout = layout.game_layout(&game);
+                if let Err(error) = layout.validate_id(&backup) {
+                    responses.push(Response::Error(response::Error {
+                        message: TRANSLATOR.handle_error(&error),
+                    }));
+                    continue;
+                }
+
+                if let Some(locked) = locked {
+                    layout.set_backup_locked(&backup, locked);
+                }
+                if let Some(comment) = comment {
+                    layout.set_backup_comment(&backup, &comment);
+                }
+                layout.save();
+
+                responses.push(Response::EditBackup(response::EditBackup {}));
+            }
         }
     }
 

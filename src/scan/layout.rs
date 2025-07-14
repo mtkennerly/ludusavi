@@ -7,7 +7,7 @@ use chrono::{Datelike, Timelike};
 
 use crate::{
     path::StrictPath,
-    prelude::{AnyError, INVALID_FILE_CHARS},
+    prelude::{AnyError, Error, INVALID_FILE_CHARS},
     resource::{
         config::{
             BackupFormat, BackupFormats, RedirectConfig, Retention, ToggledPaths, ToggledRegistry, ZipCompression,
@@ -550,6 +550,16 @@ impl GameLayout {
                 }
                 BackupId::Latest
             }
+        }
+    }
+
+    pub fn validate_id(&self, id: &BackupId) -> Result<(), Error> {
+        match self.find_by_id(id) {
+            Some(_) => Ok(()),
+            None => match id {
+                BackupId::Latest => Err(Error::NoSaveDataFound),
+                BackupId::Named(_) => Err(Error::CliInvalidBackupId),
+            },
         }
     }
 
@@ -1970,40 +1980,53 @@ impl GameLayout {
         log::trace!("[{}] done removing empty backup subdirs", self.mapping.name);
     }
 
-    pub fn set_backup_comment(&mut self, backup_name: &str, comment: &str) {
-        let comment = if comment.is_empty() {
-            None
-        } else {
-            Some(comment.to_string())
-        };
-
-        'outer: for backup in &mut self.mapping.backups {
-            if backup.name == backup_name {
-                backup.comment = comment;
-                break 'outer;
+    pub fn modify_backup(
+        &mut self,
+        id: &BackupId,
+        on_full: impl FnOnce(&mut FullBackup),
+        on_diff: impl FnOnce(&mut DifferentialBackup),
+    ) {
+        match id {
+            BackupId::Latest => {
+                if let Some(full) = self.mapping.backups.back_mut() {
+                    if let Some(diff) = full.children.back_mut() {
+                        on_diff(diff);
+                    } else {
+                        on_full(full);
+                    }
+                }
             }
-            for child in &mut backup.children {
-                if child.name == backup_name {
-                    child.comment = comment;
-                    break 'outer;
+            BackupId::Named(id) => {
+                for full in &mut self.mapping.backups {
+                    if full.name == *id {
+                        on_full(full);
+                        return;
+                    }
+                    for diff in &mut full.children {
+                        if diff.name == *id {
+                            on_diff(diff);
+                            return;
+                        }
+                    }
                 }
             }
         }
     }
 
-    pub fn set_backup_locked(&mut self, backup_name: &str, locked: bool) {
-        'outer: for backup in &mut self.mapping.backups {
-            if backup.name == backup_name {
-                backup.locked = locked;
-                break 'outer;
+    pub fn set_backup_comment(&mut self, id: &BackupId, comment: &str) {
+        let value = || {
+            if comment.is_empty() {
+                None
+            } else {
+                Some(comment.to_string())
             }
-            for child in &mut backup.children {
-                if child.name == backup_name {
-                    child.locked = locked;
-                    break 'outer;
-                }
-            }
-        }
+        };
+
+        self.modify_backup(id, |x| x.comment = value(), |x| x.comment = value());
+    }
+
+    pub fn set_backup_locked(&mut self, id: &BackupId, locked: bool) {
+        self.modify_backup(id, |x| x.locked = locked, |x| x.locked = locked);
     }
 
     /// Returns whether the backup is valid.

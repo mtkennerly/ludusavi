@@ -98,6 +98,8 @@ pub enum Error {
     CliUnableToRequestConfirmation,
     CliBackupIdWithMultipleGames,
     CliInvalidBackupId,
+    NoSaveDataFound,
+    GameIsUnrecognized,
     SomeEntriesFailed,
     CannotPrepareBackupTarget {
         path: StrictPath,

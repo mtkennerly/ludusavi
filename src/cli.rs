@@ -72,6 +72,24 @@ fn load_manifest(
     }
 }
 
+fn parse_game(game: Option<String>) -> Option<String> {
+    match game {
+        Some(game) => Some(game),
+        None => {
+            use std::io::IsTerminal;
+
+            let stdin = std::io::stdin();
+            if stdin.is_terminal() {
+                None
+            } else {
+                let game = stdin.lines().next().and_then(Result::ok);
+                log::debug!("Game from stdin: {:?}", &game);
+                game
+            }
+        }
+    }
+}
+
 fn parse_games(games: Vec<String>) -> Vec<String> {
     if !games.is_empty() {
         games
@@ -627,47 +645,92 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 &mut std::io::stdout(),
             )
         }
-        Subcommand::Backups { path, api, games } => {
-            let games = parse_games(games);
+        Subcommand::Backups { sub, path, api, games } => match sub {
+            Some(parse::BackupsSubcommand::Edit {
+                path,
+                backup,
+                lock,
+                unlock,
+                comment,
+                game,
+            }) => {
+                let backup = backup.map(BackupId::Named).unwrap_or(BackupId::Latest);
 
-            let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
-            reporter.suppress_overall();
+                let Some(game) = parse_game(game) else {
+                    return Err(Error::GameIsUnrecognized);
+                };
 
-            let restore_dir = match path {
-                None => config.restore.path.clone(),
-                Some(p) => p,
-            };
+                let restore_dir = match path {
+                    None => config.restore.path.clone(),
+                    Some(p) => p,
+                };
 
-            let layout = BackupLayout::new(restore_dir.clone());
-            let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
-            let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
+                let layout = BackupLayout::new(restore_dir.clone());
+                let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
+                let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
 
-            let games = match evaluate_games(layout.restorable_game_set(), games, &title_finder) {
-                Ok(games) => games,
-                Err(games) => {
-                    reporter.trip_unknown_games(games.clone());
-                    reporter.print_failure();
-                    return Err(Error::CliUnrecognizedGames { games });
+                let Some(game) = title_finder.find_one_by_name(&game) else {
+                    return Err(Error::GameIsUnrecognized);
+                };
+
+                let mut layout = layout.game_layout(&game);
+                layout.validate_id(&backup)?;
+
+                if lock {
+                    layout.set_backup_locked(&backup, true);
                 }
-            };
+                if unlock {
+                    layout.set_backup_locked(&backup, false);
+                }
+                if let Some(comment) = comment {
+                    layout.set_backup_comment(&backup, &comment);
+                }
+                layout.save();
 
-            let info: Vec<_> = games
-                .par_iter()
-                .progress_count(games.len() as u64)
-                .map(|name| {
-                    let mut layout = layout.game_layout(name);
-                    let backups = layout.get_backups();
-                    let display_title = config.display_name(name);
-                    let backup_dir = layout.path;
-                    (name, display_title, backup_dir, backups)
-                })
-                .collect();
-
-            for (name, display_title, backup_dir, backups) in info {
-                reporter.add_backups(name, display_title, backup_dir, &backups);
+                return Ok(());
             }
-            reporter.print(&restore_dir);
-        }
+            None => {
+                let games = parse_games(games);
+
+                let mut reporter = if api { Reporter::json() } else { Reporter::standard() };
+                reporter.suppress_overall();
+
+                let restore_dir = match path {
+                    None => config.restore.path.clone(),
+                    Some(p) => p,
+                };
+
+                let layout = BackupLayout::new(restore_dir.clone());
+                let manifest = load_manifest(&config, &mut cache, true, false).unwrap_or_default();
+                let title_finder = TitleFinder::new(&config, &manifest, layout.restorable_game_set());
+
+                let games = match evaluate_games(layout.restorable_game_set(), games, &title_finder) {
+                    Ok(games) => games,
+                    Err(games) => {
+                        reporter.trip_unknown_games(games.clone());
+                        reporter.print_failure();
+                        return Err(Error::CliUnrecognizedGames { games });
+                    }
+                };
+
+                let info: Vec<_> = games
+                    .par_iter()
+                    .progress_count(games.len() as u64)
+                    .map(|name| {
+                        let mut layout = layout.game_layout(name);
+                        let backups = layout.get_backups();
+                        let display_title = config.display_name(name);
+                        let backup_dir = layout.path;
+                        (name, display_title, backup_dir, backups)
+                    })
+                    .collect();
+
+                for (name, display_title, backup_dir, backups) in info {
+                    reporter.add_backups(name, display_title, backup_dir, &backups);
+                }
+                reporter.print(&restore_dir);
+            }
+        },
         Subcommand::Find {
             api,
             multiple,

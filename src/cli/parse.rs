@@ -304,6 +304,9 @@ pub enum Subcommand {
     },
     /// Show backups
     Backups {
+        #[clap(subcommand)]
+        sub: Option<BackupsSubcommand>,
+
         /// Directory in which to find backups.
         /// When unset, this defaults to the restore path from the config file.
         #[clap(long, value_parser = parse_strict_path)]
@@ -549,6 +552,39 @@ impl Subcommand {
             Self::Schema { .. } => false,
         }
     }
+}
+
+#[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
+pub enum BackupsSubcommand {
+    /// Edit a backup.
+    ///
+    /// These changes are not automatically synced with the cloud,
+    /// so you may want to use `cloud upload` afterward.
+    Edit {
+        /// Directory in which to find backups.
+        /// When unset, this defaults to the restore path from the config file.
+        #[clap(long, value_parser = parse_strict_path)]
+        path: Option<StrictPath>,
+
+        /// Edit a specific backup, using an ID returned by the `backups` command.
+        /// When not specified, this defaults to the latest backup.
+        #[clap(long)]
+        backup: Option<String>,
+
+        #[clap(long, conflicts_with("unlock"))]
+        lock: bool,
+
+        #[clap(long, conflicts_with("lock"))]
+        unlock: bool,
+
+        #[clap(long)]
+        comment: Option<String>,
+
+        /// Which game to edit.
+        /// Alternatively supports stdin (one line).
+        #[clap()]
+        game: Option<String>,
+    },
 }
 
 #[derive(clap::Subcommand, Clone, Debug, PartialEq, Eq)]
@@ -1226,6 +1262,7 @@ mod tests {
                 no_manifest_update: false,
                 try_manifest_update: false,
                 sub: Some(Subcommand::Backups {
+                    sub: None,
                     path: None,
                     api: false,
                     games: vec![],
@@ -1251,9 +1288,72 @@ mod tests {
                 no_manifest_update: false,
                 try_manifest_update: false,
                 sub: Some(Subcommand::Backups {
+                    sub: None,
                     path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
                     api: true,
                     games: vec![s("game1"), s("game2")],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_backups_edit_with_minimal_arguments() {
+        check_args(
+            &["ludusavi", "backups", "edit", "game1"],
+            Cli {
+                config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
+                sub: Some(Subcommand::Backups {
+                    sub: Some(BackupsSubcommand::Edit {
+                        path: None,
+                        backup: None,
+                        lock: false,
+                        unlock: false,
+                        comment: None,
+                        game: Some("game1".to_string()),
+                    }),
+                    path: None,
+                    api: false,
+                    games: vec![],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_backups_edit_with_all_arguments() {
+        check_args(
+            &[
+                "ludusavi",
+                "backups",
+                "edit",
+                "--path",
+                "tests/backup",
+                "--backup",
+                ".",
+                "--lock",
+                "--comment",
+                "foo",
+                "game1",
+            ],
+            Cli {
+                config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
+                sub: Some(Subcommand::Backups {
+                    sub: Some(BackupsSubcommand::Edit {
+                        path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
+                        backup: Some(".".to_string()),
+                        lock: true,
+                        unlock: false,
+                        comment: Some("foo".to_string()),
+                        game: Some("game1".to_string()),
+                    }),
+                    path: None,
+                    api: false,
+                    games: vec![],
                 }),
             },
         );

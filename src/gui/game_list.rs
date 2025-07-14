@@ -831,7 +831,7 @@ impl GameList {
             return false;
         };
 
-        layout.set_backup_comment(backup.name(), &comment);
+        layout.set_backup_comment(&backup.id(), &comment);
         backup.set_comment(comment);
 
         true
@@ -851,7 +851,7 @@ impl GameList {
 
         let new = !backup.locked();
 
-        layout.set_backup_locked(backup.name(), new);
+        layout.set_backup_locked(&backup.id(), new);
         backup.set_locked(new);
 
         true

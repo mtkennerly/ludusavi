@@ -394,6 +394,8 @@ impl Translator {
             Error::CliUnableToRequestConfirmation => self.cli_unable_to_request_confirmation(),
             Error::CliBackupIdWithMultipleGames => self.cli_backup_id_with_multiple_games(),
             Error::CliInvalidBackupId => self.cli_invalid_backup_id(),
+            Error::NoSaveDataFound => self.notify_single_game_status(false),
+            Error::GameIsUnrecognized => self.game_is_unrecognized(),
             Error::SomeEntriesFailed => self.some_entries_failed(),
             Error::CannotPrepareBackupTarget { path } => self.cannot_prepare_backup_target(path),
             Error::RestorationSourceInvalid { path } => self.restoration_source_is_invalid(path),
