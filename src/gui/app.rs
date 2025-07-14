@@ -2852,6 +2852,7 @@ impl App {
             }
             Message::ShowScanActiveGames => self.show_modal(Modal::ActiveScanGames),
             Message::CopyText(text) => iced::clipboard::write(text),
+            #[cfg_attr(not(windows), allow(unused))]
             Message::OpenRegistry(item) => {
                 #[cfg(windows)]
                 {
