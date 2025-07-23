@@ -74,7 +74,6 @@ Also install the Crowdin CLI tool manually.
 * Run `invoke release-flatpak`
   * This will automatically push a branch to https://github.com/flathub/com.github.mtkennerly.ludusavi .
   * Manually open a PR for that branch.
-  * After the PR is merged, publish via https://buildbot.flathub.org/#/apps/com.github.mtkennerly.ludusavi .
 * Run `invoke release-winget`
   * This will automatically push a branch to a fork of https://github.com/microsoft/winget-pkgs .
   * Manually open a pull request for that branch.
