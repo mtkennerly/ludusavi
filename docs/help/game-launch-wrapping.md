@@ -72,3 +72,21 @@ and configure the following:
   ```
 
 (Use the actual path to your copy of `ludusavi.exe` instead of `C:\ludusavi.exe`)
+
+## Lutris
+Ludusavi can be configured globally for all games in [Lutris](https://lutris.net/).
+Note these instructions are for Lutris and ludusavi which are installed directly on the system, not the Flatpak versions.
+In Lutris, open the `Global options` tab in the `Preferences` menu.
+Enable `Advanced` in the top-right corner.
+Scroll down to the `Game execution` section.
+In the `Command prefix` entry, enter `ludusavi wrap --infer lutris --gui --`.
+If `ludusavi` isn't available on the `PATH`, be sure to fully qualify the path to the `ludusavi` executable.
+Finally, hit `Save`.
+Ludusavi will now run for every game.
+
+If you'd rather just set this directly in a Lutris config file, add the following to `~/.local/share/lutris/system.yml`.
+
+```yaml
+system:
+  prefix_command: 'ludusavi wrap --infer lutris --gui --'
+```
