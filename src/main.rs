@@ -2,7 +2,8 @@
     clippy::large_enum_variant,
     clippy::new_without_default,
     clippy::too_many_arguments,
-    clippy::to_string_trait_impl
+    clippy::to_string_trait_impl,
+    mismatched_lifetime_syntaxes
 )]
 
 mod cli;
