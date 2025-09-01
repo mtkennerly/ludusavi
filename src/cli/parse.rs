@@ -815,7 +815,8 @@ pub enum SchemaSubcommand {
 #[derive(clap::Parser, Clone, Debug, PartialEq, Eq)]
 #[clap(name = "ludusavi", version, max_term_width = 100, next_line_help = true, styles = styles())]
 pub struct Cli {
-    /// Use configuration found in DIRECTORY
+    /// Use configuration found in a specific directory.
+    /// It will be created if it does not exist.
     #[clap(long, value_name = "DIRECTORY")]
     pub config: Option<PathBuf>,
 
@@ -826,6 +827,13 @@ pub struct Cli {
     /// Ignore any errors during automatic/implicit manifest update checks.
     #[clap(long)]
     pub try_manifest_update: bool,
+
+    /// Use max log level and open log folder after running.
+    /// This will create a separate `ludusavi_debug.log` file,
+    /// without any rotation or maximum size.
+    /// Be mindful that the file size may increase rapidly during a full scan.
+    #[clap(long)]
+    pub debug: bool,
 
     #[clap(subcommand)]
     pub sub: Option<Subcommand>,
@@ -856,6 +864,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: None,
             },
         );
@@ -869,6 +878,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Backup {
                     preview: false,
                     path: None,
@@ -930,6 +940,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Backup {
                     preview: true,
                     path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
@@ -962,6 +973,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Backup {
                     preview: false,
                     path: Some(StrictPath::relative(s("tests/fake"), Some(repo_raw()))),
@@ -1002,6 +1014,7 @@ mod tests {
                     config: None,
                     no_manifest_update: false,
                     try_manifest_update: false,
+                    debug: false,
                     sub: Some(Subcommand::Backup {
                         preview: false,
                         path: None,
@@ -1035,6 +1048,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Backup {
                     preview: false,
                     path: None,
@@ -1067,6 +1081,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Restore {
                     preview: false,
                     path: None,
@@ -1112,6 +1127,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Restore {
                     preview: true,
                     path: Some(StrictPath::relative(
@@ -1158,6 +1174,7 @@ mod tests {
                     config: None,
                     no_manifest_update: false,
                     try_manifest_update: false,
+                    debug: false,
                     sub: Some(Subcommand::Restore {
                         preview: false,
                         path: None,
@@ -1186,6 +1203,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Complete {
                     shell: CompletionShell::Bash,
                 }),
@@ -1201,6 +1219,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Complete {
                     shell: CompletionShell::Fish,
                 }),
@@ -1216,6 +1235,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Complete {
                     shell: CompletionShell::Zsh,
                 }),
@@ -1231,6 +1251,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Complete {
                     shell: CompletionShell::PowerShell,
                 }),
@@ -1246,6 +1267,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Complete {
                     shell: CompletionShell::Elvish,
                 }),
@@ -1261,6 +1283,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Backups {
                     sub: None,
                     path: None,
@@ -1287,6 +1310,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Backups {
                     sub: None,
                     path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
@@ -1305,6 +1329,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Backups {
                     sub: Some(BackupsSubcommand::Edit {
                         path: None,
@@ -1342,6 +1367,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Backups {
                     sub: Some(BackupsSubcommand::Edit {
                         path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
@@ -1367,6 +1393,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Find {
                     api: false,
                     multiple: false,
@@ -1415,6 +1442,7 @@ mod tests {
                 config: None,
                 no_manifest_update: false,
                 try_manifest_update: false,
+                debug: false,
                 sub: Some(Subcommand::Find {
                     api: true,
                     multiple: true,

@@ -28,28 +28,52 @@ use crate::{
 
 /// The logger handle must be retained until the application closes.
 /// https://docs.rs/flexi_logger/0.23.1/flexi_logger/error_info/index.html#write
-fn prepare_logging() -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLoggerError> {
-    flexi_logger::Logger::try_with_env_or_str("ludusavi=warn")
-        .unwrap()
-        .log_to_file(flexi_logger::FileSpec::default().directory(app_dir().as_std_path_buf().unwrap()))
-        .write_mode(flexi_logger::WriteMode::BufferAndFlush)
-        .rotate(
-            flexi_logger::Criterion::Size(1024 * 1024 * 10),
-            flexi_logger::Naming::Timestamps,
-            flexi_logger::Cleanup::KeepLogFiles(4),
-        )
-        .use_utc()
-        .format_for_files(|w, now, record| {
-            write!(
-                w,
-                "[{}] {} [{}] {}",
-                now.format("%Y-%m-%dT%H:%M:%S%.3fZ"),
-                record.level(),
-                record.module_path().unwrap_or("<unnamed>"),
-                &record.args(),
+fn prepare_logging(debug: bool) -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLoggerError> {
+    if debug {
+        flexi_logger::Logger::try_with_str("ludusavi=trace")
+            .unwrap()
+            .log_to_file(
+                flexi_logger::FileSpec::default()
+                    .directory(app_dir().as_std_path_buf().unwrap())
+                    .basename("ludusavi_debug")
+                    .suppress_timestamp(),
             )
-        })
-        .start()
+            .write_mode(flexi_logger::WriteMode::BufferAndFlush)
+            .use_utc()
+            .format_for_files(|w, now, record| {
+                write!(
+                    w,
+                    "[{}] {} [{}] {}",
+                    now.format("%Y-%m-%dT%H:%M:%S%.3fZ"),
+                    record.level(),
+                    record.module_path().unwrap_or("<unnamed>"),
+                    &record.args(),
+                )
+            })
+            .start()
+    } else {
+        flexi_logger::Logger::try_with_env_or_str("ludusavi=warn")
+            .unwrap()
+            .log_to_file(flexi_logger::FileSpec::default().directory(app_dir().as_std_path_buf().unwrap()))
+            .write_mode(flexi_logger::WriteMode::BufferAndFlush)
+            .rotate(
+                flexi_logger::Criterion::Size(1024 * 1024 * 10),
+                flexi_logger::Naming::Timestamps,
+                flexi_logger::Cleanup::KeepLogFiles(4),
+            )
+            .use_utc()
+            .format_for_files(|w, now, record| {
+                write!(
+                    w,
+                    "[{}] {} [{}] {}",
+                    now.format("%Y-%m-%dT%H:%M:%S%.3fZ"),
+                    record.level(),
+                    record.module_path().unwrap_or("<unnamed>"),
+                    &record.args(),
+                )
+            })
+            .start()
+    }
 }
 
 /// Based on: https://github.com/Traverse-Research/panic-log/blob/874a61b24a8bc8f9b07f9c26dc10b13cbc2622f9/src/lib.rs#L26
@@ -134,7 +158,7 @@ fn prepare_winit() {
 /// flexi_logger's `colors` feature would cause the console to stick around
 /// if logging was enabled before detaching.
 #[cfg(target_os = "windows")]
-unsafe fn detach_console() {
+unsafe fn detach_console(debug: bool) {
     use windows::Win32::{
         Foundation::HANDLE,
         System::Console::{FreeConsole, SetStdHandle, STD_ERROR_HANDLE, STD_INPUT_HANDLE, STD_OUTPUT_HANDLE},
@@ -147,18 +171,22 @@ unsafe fn detach_console() {
 
     if FreeConsole().is_err() {
         tell("Unable to detach the console");
+        debug_on_exit(debug);
         std::process::exit(1);
     }
     if SetStdHandle(STD_INPUT_HANDLE, HANDLE::default()).is_err() {
         tell("Unable to reset stdin handle");
+        debug_on_exit(debug);
         std::process::exit(1);
     }
     if SetStdHandle(STD_OUTPUT_HANDLE, HANDLE::default()).is_err() {
         tell("Unable to reset stdout handle");
+        debug_on_exit(debug);
         std::process::exit(1);
     }
     if SetStdHandle(STD_ERROR_HANDLE, HANDLE::default()).is_err() {
         tell("Unable to reset stderr handle");
+        debug_on_exit(debug);
         std::process::exit(1);
     }
 }
@@ -170,9 +198,10 @@ fn main() {
     if let Some(config_dir) = args.as_ref().ok().and_then(|args| args.config.as_ref()) {
         *CONFIG_DIR.lock().unwrap() = Some(config_dir.clone());
     }
+    let debug = args.as_ref().map(|x| x.debug).unwrap_or_default();
 
     prepare_winit();
-    let logger = prepare_logging();
+    let logger = prepare_logging(debug);
     #[allow(clippy::useless_asref)]
     prepare_panic_hook(logger.as_ref().map(|x| x.clone()).ok());
     let flush_logger = || {
@@ -194,6 +223,7 @@ fn main() {
                 }
             }
             flush_logger();
+            debug_on_exit(debug);
             e.exit()
         }
     };
@@ -203,7 +233,7 @@ fn main() {
             #[cfg(target_os = "windows")]
             if std::env::var(crate::prelude::ENV_DEBUG).is_err() {
                 unsafe {
-                    detach_console();
+                    detach_console(debug);
                 }
             }
 
@@ -224,8 +254,15 @@ fn main() {
     };
 
     flush_logger();
+    debug_on_exit(debug);
 
     if failed {
         std::process::exit(1);
+    }
+}
+
+fn debug_on_exit(debug: bool) {
+    if debug {
+        let _ = opener::open(app_dir().raw());
     }
 }
