@@ -23,6 +23,7 @@ mod testing;
 
 use crate::{
     gui::Flags,
+    lang::TRANSLATOR,
     prelude::{app_dir, CONFIG_DIR, VERSION},
 };
 
@@ -263,6 +264,10 @@ fn main() {
 
 fn debug_on_exit(debug: bool) {
     if debug {
-        let _ = opener::open(app_dir().raw());
+        let path = app_dir();
+        if let Err(e) = opener::open(path.raw()) {
+            eprintln!("{}", TRANSLATOR.unable_to_open_dir(&path));
+            log::error!("Unable to open directory: `{:?}` - {:?}", &path, e);
+        }
     }
 }
