@@ -64,6 +64,7 @@ pub fn escape_folder_name(name: &str) -> String {
 
 pub struct LatestBackup {
     pub scan: ScanInfo,
+    pub when: chrono::DateTime<chrono::Utc>,
     #[cfg_attr(not(target_os = "windows"), allow(unused))]
     pub registry_content: Option<registry::Hives>,
 }
@@ -2226,6 +2227,7 @@ impl BackupLayout {
     ) -> Option<LatestBackup> {
         if self.contains_game(name) {
             let game_layout = self.game_layout(name);
+            let latest_timestamp = *game_layout.find_by_id_flattened(&BackupId::Latest)?.when();
             let scan = game_layout.latest_backup(
                 scan_kind,
                 redirects,
@@ -2235,6 +2237,7 @@ impl BackupLayout {
             );
             scan.map(|scan| LatestBackup {
                 scan,
+                when: latest_timestamp,
                 registry_content: if cfg!(target_os = "windows") {
                     game_layout.registry_content(&BackupId::Latest)
                 } else {

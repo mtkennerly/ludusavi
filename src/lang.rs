@@ -1436,6 +1436,14 @@ impl Translator {
         translate("game-did-not-launch")
     }
 
+    pub fn backup_is_newer_than_current_data(&self) -> String {
+        translate("backup-is-newer-than-current-data")
+    }
+
+    pub fn backup_is_older_than_current_data(&self) -> String {
+        translate("backup-is-older-than-current-data")
+    }
+
     pub fn back_up_one_game_confirm(&self, game: &str) -> String {
         let mut args = FluentArgs::new();
         args.set(GAME, game);

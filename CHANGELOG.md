@@ -12,6 +12,10 @@
     when you want to bulk process games that were disabled in the config.
   * CLI: Global `--debug` option to increase log level and open log folder after running.
     This is mainly to help users who are submitting bug reports.
+  * CLI: The `backup`/`restore`/`wrap` commands now support an `--ask-downgrade` option.
+    This is intended as a protection for cases such as when you launch games with `wrap` and `--force`,
+    but if the backup didn't happen after your last session (e.g., your computer crashed),
+    then on the next launch, an outdated backup would be restored.
 * Changed:
   * If the `WGPU_POWER_PREF` environment variable is not set,
     then Ludusavi will automatically set it to `high` while running.

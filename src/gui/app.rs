@@ -522,7 +522,7 @@ impl App {
                                     None,
                                     &config.backup.toggled_paths,
                                     &config.backup.toggled_registry,
-                                    previous,
+                                    previous.as_ref(),
                                     &config.redirects,
                                     config.restore.reverse_redirects,
                                     &steam_shortcuts,

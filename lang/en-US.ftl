@@ -279,6 +279,8 @@ game-is-unrecognized = Ludusavi does not recognize this game.
 game-has-nothing-to-restore = This game does not have a backup to restore.
 launch-game-after-error = Launch the game anyway?
 game-did-not-launch = Game failed to launch.
+backup-is-newer-than-current-data = The existing backup is newer than the current data.
+backup-is-older-than-current-data = The existing backup is older than the current data.
 
 back-up-specific-game =
     .confirm = Back up save data for {$game}?

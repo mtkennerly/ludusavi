@@ -173,6 +173,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             no_cloud_sync,
             dump_registry,
             include_disabled,
+            ask_downgrade,
             games,
         } => {
             let games = parse_games(games);
@@ -284,85 +285,117 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
             }
 
-            log::info!("beginning backup with {} steps", games.len());
+            let step = |i, name| {
+                log::trace!("step {i} / {}: {name}", games.len());
+                let game = &manifest.0[name];
 
-            let mut info: Vec<_> = games
-                .par_iter()
-                .enumerate()
-                .progress_with(scan_progress_bar(games.len() as u64))
-                .filter_map(|(i, name)| {
-                    log::trace!("step {i} / {}: {name}", games.len());
-                    let game = &manifest.0[name];
+                let previous = layout.latest_backup(
+                    name,
+                    ScanKind::Backup,
+                    &config.redirects,
+                    config.restore.reverse_redirects,
+                    &config.restore.toggled_paths,
+                    config.backup.only_constructive,
+                );
 
-                    let previous = layout.latest_backup(
-                        name,
-                        ScanKind::Backup,
-                        &config.redirects,
-                        config.restore.reverse_redirects,
-                        &config.restore.toggled_paths,
-                        config.backup.only_constructive,
-                    );
+                if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
+                    log::trace!("[{name}] excluded by backup filter");
+                    return None;
+                }
 
-                    if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
-                        log::trace!("[{name}] excluded by backup filter");
-                        return None;
+                let scan_info = scan_game_for_backup(
+                    game,
+                    name,
+                    &roots,
+                    &app_dir(),
+                    &launchers,
+                    &filter,
+                    wine_prefix.as_ref(),
+                    &toggled_paths,
+                    &toggled_registry,
+                    previous.as_ref(),
+                    &config.redirects,
+                    config.restore.reverse_redirects,
+                    &steam_shortcuts,
+                    config.backup.only_constructive,
+                );
+                let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified && !include_disabled;
+                let decision = if ignored {
+                    OperationStepDecision::Ignored
+                } else {
+                    OperationStepDecision::Processed
+                };
+                let backup_format = || {
+                    let mut backup_format = config.backup.format.clone();
+                    if let Some(format) = format {
+                        backup_format.chosen = format;
                     }
-
-                    let scan_info = scan_game_for_backup(
-                        game,
-                        name,
-                        &roots,
-                        &app_dir(),
-                        &launchers,
-                        &filter,
-                        wine_prefix.as_ref(),
-                        &toggled_paths,
-                        &toggled_registry,
-                        previous,
-                        &config.redirects,
-                        config.restore.reverse_redirects,
-                        &steam_shortcuts,
-                        config.backup.only_constructive,
-                    );
-                    let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified && !include_disabled;
-                    let decision = if ignored {
-                        OperationStepDecision::Ignored
-                    } else {
-                        OperationStepDecision::Processed
-                    };
-                    let backup_info = if preview || ignored {
-                        None
-                    } else {
-                        let mut backup_format = config.backup.format.clone();
-                        if let Some(format) = format {
-                            backup_format.chosen = format;
-                        }
-                        if let Some(compression) = compression {
-                            backup_format.zip.compression = compression;
-                        }
-                        if let Some(level) = compression_level {
-                            backup_format
-                                .compression
-                                .set_level(&backup_format.zip.compression, level);
-                        }
-
-                        layout.game_layout(name).back_up(
+                    if let Some(compression) = compression {
+                        backup_format.zip.compression = compression;
+                    }
+                    if let Some(level) = compression_level {
+                        backup_format
+                            .compression
+                            .set_level(&backup_format.zip.compression, level);
+                    }
+                    backup_format
+                };
+                let backup_info = if preview || ignored {
+                    None
+                } else if ask_downgrade
+                    && previous
+                        .map(|x| scan_info.is_downgraded_backup(x.when))
+                        .unwrap_or_default()
+                {
+                    match ui::confirm_with_question(
+                        &[name.to_string()],
+                        gui,
+                        false,
+                        preview,
+                        &TRANSLATOR.backup_is_newer_than_current_data(),
+                        &TRANSLATOR.back_up_one_game_confirm(name),
+                    ) {
+                        Ok(true) => layout.game_layout(name).back_up(
                             &scan_info,
                             &chrono::Utc::now(),
-                            &backup_format,
+                            &backup_format(),
                             retention,
                             config.backup.only_constructive,
-                        )
-                    };
-                    log::trace!("step {i} completed");
-                    if !scan_info.can_report_game() {
-                        None
-                    } else {
-                        let display_title = config.display_name(name);
-                        Some((display_title, scan_info, backup_info, decision))
+                        ),
+                        Ok(false) | Err(_) => None,
                     }
-                })
-                .collect();
+                } else {
+                    layout.game_layout(name).back_up(
+                        &scan_info,
+                        &chrono::Utc::now(),
+                        &backup_format(),
+                        retention,
+                        config.backup.only_constructive,
+                    )
+                };
+                log::trace!("step {i} completed");
+                if !scan_info.can_report_game() {
+                    None
+                } else {
+                    let display_title = config.display_name(name);
+                    Some((display_title, scan_info, backup_info, decision))
+                }
+            };
+
+            log::info!("beginning backup with {} steps", games.len());
+
+            let mut info: Vec<_> = if ask_downgrade {
+                // Don't parallelize to avoid dialog spam.
+                // Don't show progress bar because it blocks the prompt.
+                games.iter().enumerate().filter_map(|(i, name)| step(i, name)).collect()
+            } else {
+                games
+                    .par_iter()
+                    .enumerate()
+                    .progress_with(scan_progress_bar(games.len() as u64))
+                    .filter_map(|(i, name)| step(i, name))
+                    .collect()
+            };
             log::info!("completed backup");
 
             if should_sync_cloud_after {
@@ -439,6 +472,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             no_cloud_sync,
             dump_registry,
             include_disabled,
+            ask_downgrade,
             games,
         } => {
             let games = parse_games(games);
@@ -531,60 +565,80 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
             }
 
-            log::info!("beginning restore with {} steps", games.len());
+            let step = |i, name| {
+                log::trace!("step {i} / {}: {name}", games.len());
+                let mut layout = layout.game_layout(name);
+                let scan_info = layout.scan_for_restoration(
+                    name,
+                    backup_id.as_ref().unwrap_or(&BackupId::Latest),
+                    &config.redirects,
+                    config.restore.reverse_redirects,
+                    &config.restore.toggled_paths,
+                    &config.restore.toggled_registry,
+                );
+                let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified && !include_disabled;
+                let decision = if ignored {
+                    OperationStepDecision::Ignored
+                } else {
+                    OperationStepDecision::Processed
+                };
 
-            let mut info: Vec<_> = games
-                .par_iter()
-                .enumerate()
-                .progress_with(scan_progress_bar(games.len() as u64))
-                .filter_map(|(i, name)| {
-                    log::trace!("step {i} / {}: {name}", games.len());
-                    let mut layout = layout.game_layout(name);
-                    let scan_info = layout.scan_for_restoration(
-                        name,
-                        backup_id.as_ref().unwrap_or(&BackupId::Latest),
-                        &config.redirects,
-                        config.restore.reverse_redirects,
-                        &config.restore.toggled_paths,
-                        &config.restore.toggled_registry,
-                    );
-                    let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified && !include_disabled;
-                    let decision = if ignored {
-                        OperationStepDecision::Ignored
-                    } else {
-                        OperationStepDecision::Processed
-                    };
-
-                    if let Some(backup) = &backup {
-                        if let Some(BackupId::Named(scanned_backup)) = scan_info.backup.as_ref().map(|x| x.id()) {
-                            if backup != &scanned_backup {
-                                log::trace!("step {i} completed (backup mismatch)");
-                                let display_title = config.display_name(name);
-                                return Some((
-                                    display_title,
-                                    scan_info,
-                                    Default::default(),
-                                    decision,
-                                    Some(Err(Error::CliInvalidBackupId)),
-                                ));
-                            }
+                if let Some(backup) = &backup {
+                    if let Some(BackupId::Named(scanned_backup)) = scan_info.backup.as_ref().map(|x| x.id()) {
+                        if backup != &scanned_backup {
+                            log::trace!("step {i} completed (backup mismatch)");
+                            let display_title = config.display_name(name);
+                            return Some((
+                                display_title,
+                                scan_info,
+                                Default::default(),
+                                decision,
+                                Some(Err(Error::CliInvalidBackupId)),
+                            ));
                         }
                     }
+                }
 
-                    let restore_info = if scan_info.backup.is_none() || preview || ignored {
-                        crate::scan::BackupInfo::default()
-                    } else {
-                        layout.restore(&scan_info, &config.restore.toggled_registry)
-                    };
-                    log::trace!("step {i} completed");
-                    if !scan_info.can_report_game() {
-                        None
-                    } else {
-                        let display_title = config.display_name(name);
-                        Some((display_title, scan_info, restore_info, decision, None))
+                let restore_info = if scan_info.backup.is_none() || preview || ignored {
+                    crate::scan::BackupInfo::default()
+                } else if ask_downgrade && scan_info.is_downgraded_restore() {
+                    match ui::confirm_with_question(
+                        &[name.to_string()],
+                        gui,
+                        false,
+                        preview,
+                        &TRANSLATOR.backup_is_older_than_current_data(),
+                        &TRANSLATOR.restore_one_game_confirm(name),
+                    ) {
+                        Ok(true) => layout.restore(&scan_info, &config.restore.toggled_registry),
+                        Ok(false) | Err(_) => crate::scan::BackupInfo::default(),
                     }
-                })
-                .collect();
+                } else {
+                    layout.restore(&scan_info, &config.restore.toggled_registry)
+                };
+                log::trace!("step {i} completed");
+                if !scan_info.can_report_game() {
+                    None
+                } else {
+                    let display_title = config.display_name(name);
+                    Some((display_title, scan_info, restore_info, decision, None))
+                }
+            };
+
+            log::info!("beginning restore with {} steps", games.len());
+
+            let mut info: Vec<_> = if ask_downgrade {
+                // Don't parallelize to avoid dialog spam.
+                // Don't show progress bar because it blocks the prompt.
+                games.iter().enumerate().filter_map(|(i, name)| step(i, name)).collect()
+            } else {
+                games
+                    .par_iter()
+                    .enumerate()
+                    .progress_with(scan_progress_bar(games.len() as u64))
+                    .filter_map(|(i, name)| step(i, name))
+                    .collect()
+            };
             log::info!("completed restore");
 
             for (_, scan_info, _, _, failure) in info.iter() {
@@ -1017,6 +1071,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             differential_limit,
             cloud_sync,
             no_cloud_sync,
+            ask_downgrade,
             commands,
         } => {
             let manifest = load_manifest(&config, &mut cache, no_manifest_update, try_manifest_update)?;
@@ -1128,6 +1183,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         no_cloud_sync,
                         dump_registry: Default::default(),
                         include_disabled: Default::default(),
+                        ask_downgrade,
                     },
                     no_manifest_update,
                     try_manifest_update,
@@ -1194,6 +1250,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         no_cloud_sync,
                         dump_registry: Default::default(),
                         include_disabled: Default::default(),
+                        ask_downgrade,
                     },
                     no_manifest_update,
                     try_manifest_update,

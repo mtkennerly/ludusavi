@@ -296,6 +296,45 @@ impl ScanInfo {
             })
             .collect();
     }
+
+    /// Is the backup newer than the current live data?
+    pub fn is_downgraded_backup(&self, backup: chrono::DateTime<chrono::Utc>) -> bool {
+        if self.overall_change() == ScanChange::Same {
+            return false;
+        }
+
+        if self.backup.is_some() {
+            // It's a restore.
+            return false;
+        }
+
+        self.found_files.iter().all(|(scan_key, file)| {
+            let Ok(live) = file.effective(scan_key).get_mtime() else {
+                return true;
+            };
+            let live = chrono::DateTime::<chrono::Utc>::from(live);
+            live < backup
+        })
+    }
+
+    /// Is the backup older than the current live data?
+    pub fn is_downgraded_restore(&self) -> bool {
+        if self.overall_change() == ScanChange::Same {
+            return false;
+        }
+
+        let Some(backup) = self.backup.as_ref().map(|x| *x.when()) else {
+            return false;
+        };
+
+        self.found_files.iter().any(|(scan_key, file)| {
+            let Ok(live) = file.effective(scan_key).get_mtime() else {
+                return false;
+            };
+            let live = chrono::DateTime::<chrono::Utc>::from(live);
+            live > backup
+        })
+    }
 }
 
 #[cfg(test)]

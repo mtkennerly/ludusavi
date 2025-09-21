@@ -480,7 +480,7 @@ pub fn scan_game_for_backup(
     wine_prefix: Option<&StrictPath>,
     ignored_paths: &ToggledPaths,
     #[cfg_attr(not(target_os = "windows"), allow(unused))] ignored_registry: &ToggledRegistry,
-    previous: Option<LatestBackup>,
+    previous: Option<&LatestBackup>,
     redirects: &[RedirectConfig],
     reverse_redirects_on_restore: bool,
     steam_shortcuts: &SteamShortcuts,
@@ -762,7 +762,7 @@ pub fn scan_game_for_backup(
 
     #[cfg(target_os = "windows")]
     {
-        let previous_registry = previous.and_then(|x| x.registry_content);
+        let previous_registry = previous.and_then(|x| x.registry_content.clone());
         let mut current_registry = registry::Hives::default();
 
         for key in game.registry.keys() {

@@ -225,6 +225,17 @@ pub enum Subcommand {
         #[clap(long)]
         include_disabled: bool,
 
+        /// Ask what to do when a game's backup is newer than the live data.
+        /// Currently, this only considers file-based saves, not the Windows registry.
+        /// This option ignores `--force`.
+        ///
+        /// You might want to use this if you force a backup on game exit,
+        /// but you sometimes restore an older save temporarily to check something,
+        /// and you don't want to accidentally back up that old save again.
+        /// (If the save file gets updated during play, it will be considered newer.)
+        #[clap(long)]
+        ask_downgrade: bool,
+
         /// Only back up these specific games.
         /// Alternatively supports stdin (one value per line).
         #[clap()]
@@ -291,6 +302,16 @@ pub enum Subcommand {
         /// You can use this option to include all disabled games.
         #[clap(long)]
         include_disabled: bool,
+
+        /// Ask what to do when a game's backup is older than the live data.
+        /// Currently, this only considers file-based saves, not the Windows registry.
+        /// This option ignores `--force`.
+        ///
+        /// You might want to use this if you force a restore on game launch,
+        /// but you don't always back up on game exit,
+        /// so you might end up restoring an outdated backup by accident.
+        #[clap(long)]
+        ask_downgrade: bool,
 
         /// Only restore these specific games.
         /// Alternatively supports stdin (one value per line).
@@ -484,6 +505,13 @@ pub enum Subcommand {
         /// When not specified, this defers to the config file.
         #[clap(long, conflicts_with("cloud_sync"))]
         no_cloud_sync: bool,
+
+        /// When restoring, ask what to do when a game's backup is older than the live data.
+        /// When backing up, ask what to do when a game's backup is newer than the live data.
+        /// Currently, this only considers file-based saves, not the Windows registry.
+        /// This option ignores `--force`.
+        #[clap(long)]
+        ask_downgrade: bool,
 
         /// Commands to launch the game.
         /// Use `--` first to separate these from the `wrap` options;
@@ -897,6 +925,7 @@ mod tests {
                     no_cloud_sync: false,
                     dump_registry: false,
                     include_disabled: false,
+                    ask_downgrade: false,
                     games: vec![],
                 }),
             },
@@ -933,6 +962,7 @@ mod tests {
                 "--cloud-sync",
                 "--dump-registry",
                 "--include-disabled",
+                "--ask-downgrade",
                 "game1",
                 "game2",
             ],
@@ -959,6 +989,7 @@ mod tests {
                     no_cloud_sync: false,
                     dump_registry: true,
                     include_disabled: true,
+                    ask_downgrade: true,
                     games: vec![s("game1"), s("game2")],
                 }),
             },
@@ -992,6 +1023,7 @@ mod tests {
                     no_cloud_sync: false,
                     dump_registry: false,
                     include_disabled: false,
+                    ask_downgrade: false,
                     games: vec![],
                 }),
             },
@@ -1033,6 +1065,7 @@ mod tests {
                         no_cloud_sync: false,
                         dump_registry: false,
                         include_disabled: false,
+                        ask_downgrade: false,
                         games: vec![],
                     }),
                 },
@@ -1067,6 +1100,7 @@ mod tests {
                     no_cloud_sync: false,
                     dump_registry: false,
                     include_disabled: false,
+                    ask_downgrade: false,
                     games: vec![],
                 }),
             },
@@ -1095,6 +1129,7 @@ mod tests {
                     no_cloud_sync: false,
                     dump_registry: false,
                     include_disabled: false,
+                    ask_downgrade: false,
                     games: vec![],
                 }),
             },
@@ -1120,6 +1155,7 @@ mod tests {
                 "--cloud-sync",
                 "--dump-registry",
                 "--include-disabled",
+                "--ask-downgrade",
                 "game1",
                 "game2",
             ],
@@ -1144,6 +1180,7 @@ mod tests {
                     no_cloud_sync: false,
                     dump_registry: true,
                     include_disabled: true,
+                    ask_downgrade: true,
                     games: vec![s("game1"), s("game2")],
                 }),
             },
@@ -1188,6 +1225,7 @@ mod tests {
                         no_cloud_sync: false,
                         dump_registry: false,
                         include_disabled: false,
+                        ask_downgrade: false,
                         games: vec![],
                     }),
                 },
