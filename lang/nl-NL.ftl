@@ -46,10 +46,10 @@ button-get-app = Verkrijg { $app }
 button-validate = Controleer
 button-override-manifest = Override manifest
 button-extend-manifest = Extend manifest
-button-sort = Sort
-button-download = Download
-button-upload = Upload
-button-ignore = Ignore
+button-sort = Sorteren
+button-download = Downloaden
+button-upload = Uploaden
+button-ignore = Negeren
 no-roots-are-configured = Voeg hoofdmappen toe om meer gegevens te back-uppen.
 config-is-invalid = Foutmelding: het configuratiebestand is ongeldig.
 manifest-is-invalid = Foutmelding: het manifestbestand is ongeldig.
@@ -148,13 +148,13 @@ label-game = Spel
 label-alias = Alias
 label-original-name = Originele naam
 # Which manifest a game's data came from
-label-source = Source
+label-source = Bron
 # This refers to the main Ludusavi manifest: https://github.com/mtkennerly/ludusavi-manifest
 label-primary-manifest = Primary manifest
 # This refers to how we integrate a custom game with the manifest data.
-label-integration = Integration
+label-integration = Integratie
 # This is a folder name where a specific game is installed
-label-installed-name = Installed name
+label-installed-name = Geïnstalleerde naam
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -244,6 +244,8 @@ game-is-unrecognized = Ludasavi herkent dit spel niet.
 game-has-nothing-to-restore = Dit spel heeft geen back-up om te herstellen.
 launch-game-after-error = Moet het spel toch gestart worden?
 game-did-not-launch = Het spel kon niet gestart worden.
+backup-is-newer-than-current-data = The existing backup is newer than the current data.
+backup-is-older-than-current-data = The existing backup is older than the current data.
 back-up-specific-game =
     .confirm = Savedata voor { $game } back-uppen?
     .failed = Kon geen back-up maken van savedata voor { $game }

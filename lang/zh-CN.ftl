@@ -47,9 +47,9 @@ button-validate = 验证
 button-override-manifest = 覆盖清单
 button-extend-manifest = 扩展清单
 button-sort = 排序
-button-download = Download
-button-upload = Upload
-button-ignore = Ignore
+button-download = 下载
+button-upload = 上传
+button-ignore = 忽略
 no-roots-are-configured = 添加一些根，以备份甚至更多的数据。
 config-is-invalid = 错误：配置文件无效。
 manifest-is-invalid = 错误：manifest 文件无效。
@@ -91,7 +91,7 @@ field-backup-format = 格式：
 field-backup-compression = 压缩：
 # The compression level determines how much compresison we perform.
 field-backup-compression-level = 压缩等级：
-label-manifest = Manifest
+label-manifest = 预设列表
 # This shows the time when we checked for an update to the manifest.
 label-checked = 已检查
 # This shows the time when we found an update to the manifest.
@@ -103,7 +103,7 @@ label-unchanged = 未改变
 label-backup = 备份
 label-scan = 扫描
 label-filter = 筛选
-label-unique = 单一
+label-unique = 单一文件
 label-complete = 全部
 label-partial = 部分
 label-enabled = 启用
@@ -146,7 +146,7 @@ label-primary-manifest = 主要清单
 # This refers to how we integrate a custom game with the manifest data.
 label-integration = 集成方式
 # This is a folder name where a specific game is installed
-label-installed-name = Installed name
+label-installed-name = 安装名称
 store-ea = EA
 store-epic = Epic
 store-gog = GOG
@@ -190,7 +190,7 @@ show-unscanned-games = 显示未扫描的游戏
 override-max-threads = 覆盖最大线程
 synchronize-automatically = 自动同步
 prefer-alias-display = 显示别名而不是原始名称
-skip-unconstructive-backups = Skip backup when data would be removed, but not added or updated
+skip-unconstructive-backups = 当数据被删除而非添加或更新时，跳过备份
 explanation-for-exclude-store-screenshots = 在备份中，排除特定商店的屏幕截图
 explanation-for-exclude-cloud-games = 不要在这些平台上备份云支持的游戏
 consider-doing-a-preview = 如果您还没有预览，请考虑先进行预览，防止发生任何意料之外的结果。
@@ -236,6 +236,8 @@ game-is-unrecognized = Ludusavi 不能识别此游戏
 game-has-nothing-to-restore = 此游戏没有备份可以恢复。
 launch-game-after-error = 仍然要启动游戏吗？
 game-did-not-launch = 游戏启动失败。
+backup-is-newer-than-current-data = The existing backup is newer than the current data.
+backup-is-older-than-current-data = The existing backup is older than the current data.
 back-up-specific-game =
     .confirm = 要备份 { $game } 的存档数据吗？
     .failed = 备份 { $game } 的存档数据失败
