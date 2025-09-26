@@ -3,7 +3,11 @@ use std::{
     time::{Duration, Instant},
 };
 
-use iced::{keyboard, widget::scrollable, Alignment, Length, Subscription, Task};
+use iced::{
+    keyboard,
+    widget::{container, scrollable},
+    Alignment, Length, Subscription, Task,
+};
 
 use crate::{
     cloud::{rclone_monitor, Rclone, Remote},
@@ -18,7 +22,9 @@ use crate::{
         screen,
         shortcuts::{RootHistory, Shortcut, TextHistories, TextHistory},
         style,
-        widget::{id, Column, Container, Element, IcedParentExt, Progress, Row, Stack},
+        widget::{
+            id, operation::container_scroll_offset, Column, Container, Element, IcedParentExt, Progress, Row, Stack,
+        },
     },
     lang::TRANSLATOR,
     prelude::{
@@ -1366,8 +1372,16 @@ impl App {
 
     pub fn new(flags: Flags) -> (Self, Task<Message>) {
         let mut errors = vec![];
+        let mut commands = vec![
+            iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::TEXT_DATA)).map(|_| Message::Ignore),
+            iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::ICONS_DATA)).map(|_| Message::Ignore),
+            iced::window::get_oldest().and_then(iced::window::gain_focus),
+        ];
 
+        let mut screen = Screen::default();
         let mut modals: Vec<Modal> = vec![];
+        let mut pending_save = HashMap::new();
+
         let mut config = match Config::load() {
             Ok(x) => x,
             Err(x) => {
@@ -1378,6 +1392,32 @@ impl App {
         };
         let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
         TRANSLATOR.set_language(config.language);
+
+        if let Some(custom_game) = flags.custom_game.as_ref() {
+            screen = Screen::CustomGames;
+
+            if let Some(entry) = config.custom_games.iter_mut().find(|entry| &entry.name == custom_game) {
+                entry.expanded = true;
+            } else {
+                config.custom_games.push(CustomGame {
+                    name: custom_game.clone(),
+                    expanded: true,
+                    ..Default::default()
+                });
+                pending_save.insert(SaveKind::Config, Instant::now());
+            }
+
+            commands.push(
+                container_scroll_offset(container::Id::new(custom_game.clone())).map(move |offset| match offset {
+                    Some(position) => Message::Scroll {
+                        subject: ScrollSubject::CustomGames,
+                        position,
+                    },
+                    None => Message::Ignore,
+                }),
+            );
+        }
+
         let manifest = if Manifest::path().exists() {
             match Manifest::load() {
                 Ok(y) => LoadedManifest {
@@ -1416,11 +1456,6 @@ impl App {
 
         log::debug!("Config on startup: {config:?}");
 
-        let mut commands = vec![
-            iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::TEXT_DATA)).map(|_| Message::Ignore),
-            iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::ICONS_DATA)).map(|_| Message::Ignore),
-            iced::window::get_oldest().and_then(iced::window::gain_focus),
-        ];
         if flags.update_manifest {
             commands.push(Self::update_manifest(
                 config.manifest.clone(),
@@ -1448,6 +1483,8 @@ impl App {
                 updating_manifest: flags.update_manifest,
                 text_histories,
                 flags,
+                screen,
+                pending_save,
                 ..Self::default()
             },
             Task::batch(commands),

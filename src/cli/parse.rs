@@ -546,6 +546,14 @@ pub enum Subcommand {
         #[clap(subcommand)]
         kind: SchemaSubcommand,
     },
+    /// Open the GUI.
+    Gui {
+        /// Open the custom game screen,
+        /// then either create a new entry with this name
+        /// or scroll to an existing entry.
+        #[clap(long)]
+        custom_game: Option<String>,
+    },
 }
 
 impl Subcommand {
@@ -562,6 +570,7 @@ impl Subcommand {
             Self::Wrap { force, .. } => *force,
             Self::Api { .. } => false,
             Self::Schema { .. } => false,
+            Self::Gui { .. } => false,
         }
     }
 
@@ -578,6 +587,7 @@ impl Subcommand {
             Self::Wrap { gui, .. } => *gui,
             Self::Api { .. } => false,
             Self::Schema { .. } => false,
+            Self::Gui { .. } => true,
         }
     }
 }
@@ -1495,6 +1505,36 @@ mod tests {
                     disabled: true,
                     partial: true,
                     names: vec![s("game1"), s("game2")],
+                }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_gui_with_minimal_arguments() {
+        check_args(
+            &["ludusavi", "gui"],
+            Cli {
+                config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
+                debug: false,
+                sub: Some(Subcommand::Gui { custom_game: None }),
+            },
+        );
+    }
+
+    #[test]
+    fn accepts_cli_gui_with_all_arguments() {
+        check_args(
+            &["ludusavi", "gui", "--custom-game", "foo"],
+            Cli {
+                config: None,
+                no_manifest_update: false,
+                try_manifest_update: false,
+                debug: false,
+                sub: Some(Subcommand::Gui {
+                    custom_game: Some("foo".to_string()),
                 }),
             },
         );

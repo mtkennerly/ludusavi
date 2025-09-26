@@ -16,6 +16,7 @@
     This is intended as a protection for cases such as when you launch games with `wrap` and `--force`,
     but if the backup didn't happen after your last session (e.g., your computer crashed),
     then on the next launch, an outdated backup would be restored.
+  * CLI: `gui --custom-game Title` command to open a specific entry on the custom game screen.
 * Changed:
   * If the `WGPU_POWER_PREF` environment variable is not set,
     then Ludusavi will automatically set it to `high` while running.

@@ -1,5 +1,5 @@
 mod api;
-mod parse;
+pub mod parse;
 mod report;
 mod ui;
 
@@ -1301,6 +1301,9 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 parse::SerializationFormat::Yaml => serde_yaml::to_string(&schema).unwrap(),
             };
             println!("{serialized}");
+        }
+        Subcommand::Gui { .. } => {
+            unreachable!("`gui` command must be handled in main");
         }
     }
     if failed {

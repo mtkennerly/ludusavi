@@ -33,6 +33,7 @@ pub const ERROR_ICON: text_input::Icon<iced::Font> = text_input::Icon {
 #[derive(Clone, Debug, Default)]
 pub struct Flags {
     pub update_manifest: bool,
+    pub custom_game: Option<String>,
 }
 
 #[derive(Debug, Clone)]
