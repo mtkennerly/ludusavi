@@ -512,23 +512,39 @@ impl Manifest {
                 req = req.header(reqwest::header::IF_NONE_MATCH, etag);
             }
         }
-        let mut res = req.send().map_err(|_e| cannot_update())?;
+        let mut res = req.send().map_err(|e| {
+            log::error!("Unable to download manifest: {url} - {e}");
+            cannot_update()
+        })?;
         match res.status() {
             reqwest::StatusCode::OK => {
-                app_dir().create_dirs().map_err(|_| cannot_update())?;
+                app_dir().create_dirs().map_err(|e| {
+                    log::error!("Unable to create directory for manifest: {url} - {e}");
+                    cannot_update()
+                })?;
 
                 // Ensure that the manifest data is valid before we save it.
                 let mut manifest_bytes = vec![];
-                res.copy_to(&mut manifest_bytes).map_err(|_| cannot_update())?;
-                let manifest_string = String::from_utf8(manifest_bytes).map_err(|_| cannot_update())?;
+                res.copy_to(&mut manifest_bytes).map_err(|e| {
+                    log::error!("Unable to read manifest to bytes: {url} - {e}");
+                    cannot_update()
+                })?;
+                let manifest_string = String::from_utf8(manifest_bytes).map_err(|e| {
+                    log::error!("Unable to read manifest to string: {url} - {e}");
+                    cannot_update()
+                })?;
                 if let Err(e) = Self::load_from_string(&manifest_string) {
+                    log::error!("Unable to parse manifest: {url} - {e}");
                     return Err(Error::ManifestInvalid {
                         why: e.to_string(),
                         identifier: identifier.clone(),
                     });
                 }
 
-                path.write_with_content(&manifest_string).map_err(|_| cannot_update())?;
+                path.write_with_content(&manifest_string).map_err(|e| {
+                    log::error!("Unable to write manifest: {url} -> {path:?} - {e}");
+                    cannot_update()
+                })?;
 
                 let new_etag = res
                     .headers()
@@ -548,7 +564,10 @@ impl Manifest {
                 timestamp: chrono::offset::Utc::now(),
                 modified: false,
             })),
-            _ => Err(cannot_update()),
+            status => {
+                log::error!("Got unexpected status for manifest: {url} - {status}");
+                Err(cannot_update())
+            }
         }
     }
 
