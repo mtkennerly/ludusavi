@@ -41,6 +41,8 @@ definitions:
         anyOf:
           - $ref: "#/definitions/AppUpdate"
           - type: "null"
+  EditBackup:
+    type: object
   Error:
     type: object
     properties:
@@ -80,4 +82,11 @@ definitions:
         properties:
           checkAppUpdate:
             $ref: "#/definitions/CheckAppUpdate"
+        additionalProperties: false
+      - type: object
+        required:
+          - editBackup
+        properties:
+          editBackup:
+            $ref: "#/definitions/EditBackup"
         additionalProperties: false

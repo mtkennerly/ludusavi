@@ -373,6 +373,12 @@ definitions:
         type: array
         items:
           type: string
+      winePrefix:
+        description: "Any Wine prefixes that Ludusavi wouldn't be able to determine from your roots."
+        default: []
+        type: array
+        items:
+          type: string
   DeflateCompression:
     type: object
     properties:
@@ -447,6 +453,10 @@ definitions:
         type: string
         enum:
           - ko-KR
+      - description: Norwegian
+        type: string
+        enum:
+          - no-NO
       - description: Polish
         type: string
         enum:

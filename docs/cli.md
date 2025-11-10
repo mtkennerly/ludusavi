@@ -29,16 +29,22 @@ Commands:
           Execute bulk requests using JSON input
   schema
           Display schemas that Ludusavi uses
+  gui
+          Open the GUI
   help
           Print this message or the help of the given subcommand(s)
 
 Options:
       --config <DIRECTORY>
-          Use configuration found in DIRECTORY
+          Use configuration found in a specific directory. It will be created if it does not exist
       --no-manifest-update
           Disable automatic/implicit manifest update checks
       --try-manifest-update
           Ignore any errors during automatic/implicit manifest update checks
+      --debug
+          Use max log level and open log folder after running. This will create a separate
+          `ludusavi_debug.log` file, without any rotation or maximum size. Be mindful that the file
+          size may increase rapidly during a full scan
   -h, --help
           Print help
   -V, --version
@@ -125,6 +131,19 @@ Options:
           Include the serialized registry content in the output. Only includes the native Windows
           registry, not Wine
 
+      --include-disabled
+          By default, disabled games are skipped unless you name them explicitly. You can use this
+          option to include all disabled games
+
+      --ask-downgrade
+          Ask what to do when a game's backup is newer than the live data. Currently, this only
+          considers file-based saves, not the Windows registry. This option ignores `--force`.
+
+          You might want to use this if you force a backup on game exit, but you sometimes restore
+          an older save temporarily to check something, and you don't want to accidentally back up
+          that old save again. (If the save file gets updated during play, it will be considered
+          newer.)
+
   -h, --help
           Print help (see a summary with '-h')
 ```
@@ -142,36 +161,60 @@ Arguments:
 Options:
       --preview
           List out what would be included, but don't actually perform the operation
+
       --path <PATH>
           Directory containing a Ludusavi backup. When not specified, this defers to the config file
+
       --force
           Don't ask for confirmation
+
       --no-force-cloud-conflict
           Even if the `--force` option has been specified, ask how to resolve any cloud conflict
           rather than ignoring it and continuing silently
+
       --api
           Print information to stdout in machine-readable JSON. This replaces the default,
           human-readable output
+
       --gui
           Use GUI dialogs for prompts and some information
+
       --sort <SORT>
           Sort the game list by different criteria. When not specified, this defers to Ludusavi's
-          config file [possible values: name, name-rev, size, size-rev, status, status-rev]
+          config file
+
+          [possible values: name, name-rev, size, size-rev, status, status-rev]
+
       --backup <BACKUP>
           Restore a specific backup, using an ID returned by the `backups` command. This is only
           valid when restoring a single game
+
       --cloud-sync
           Warn if the local and cloud backups are out of sync. The restore will still proceed
           regardless. This has no effect on previews. When not specified, this defers to the config
           file
+
       --no-cloud-sync
           Don't perform any cloud checks or synchronization. When not specified, this defers to the
           config file
+
       --dump-registry
           Include the serialized registry content in the output. Only includes the native Windows
           registry, not Wine
+
+      --include-disabled
+          By default, disabled games are skipped unless you name them explicitly. You can use this
+          option to include all disabled games
+
+      --ask-downgrade
+          Ask what to do when a game's backup is older than the live data. Currently, this only
+          considers file-based saves, not the Windows registry. This option ignores `--force`.
+
+          You might want to use this if you force a restore on game launch, but you don't always
+          back up on game exit, so you might end up restoring an outdated backup by accident.
+
   -h, --help
-          Print help
+          Print help (see a summary with '-h')
 ```
 
 ## `complete --help`
@@ -203,7 +246,13 @@ Options:
 ```
 Show backups
 
-Usage: ludusavi.exe backups [OPTIONS] [GAMES]...
+Usage: ludusavi.exe backups [OPTIONS] [GAMES]... [COMMAND]
+
+Commands:
+  edit
+          Edit a backup
+  help
+          Print this message or the help of the given subcommand(s)
 
 Arguments:
   [GAMES]...
@@ -380,6 +429,11 @@ Options:
       --no-cloud-sync
           Don't perform any cloud checks or synchronization. When not specified, this defers to the
           config file
+      --ask-downgrade
+          When restoring, ask what to do when a game's backup is older than the live data. When
+          backing up, ask what to do when a game's backup is newer than the live data. Currently,
+          this only considers file-based saves, not the Windows registry. This option ignores
+          `--force`
   -h, --help
           Print help
 ```

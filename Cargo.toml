@@ -1,6 +1,6 @@
 [package]
 name = "ludusavi"
-version = "0.29.1"
+version = "0.30.0"
 authors = ["mtkennerly <mtkennerly@gmail.com>"]
 edition = "2021"
 description = "Game save backup tool"

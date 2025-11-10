@@ -30,6 +30,32 @@ definitions:
         anyOf:
           - $ref: "#/definitions/FilePath"
           - type: "null"
+  EditBackup:
+    description: "Edit a backup's metadata."
+    type: object
+    properties:
+      backup:
+        description: "Edit a specific backup, using an ID returned by the `backups` command. When not specified, this defaults to the latest backup."
+        default: ~
+        type:
+          - string
+          - "null"
+      comment:
+        description: "If set, update the backup's comment. To delete an existing comment, set this to an empty string."
+        default: ~
+        type:
+          - string
+          - "null"
+      game:
+        description: Which game to edit.
+        default: ""
+        type: string
+      locked:
+        description: "If set, indicates whether the backup should be locked."
+        default: ~
+        type:
+          - boolean
+          - "null"
   FilePath:
     type: string
   FindTitle:
@@ -108,4 +134,11 @@ definitions:
         properties:
           checkAppUpdate:
             $ref: "#/definitions/CheckAppUpdate"
+        additionalProperties: false
+      - type: object
+        required:
+          - editBackup
+        properties:
+          editBackup:
+            $ref: "#/definitions/EditBackup"
         additionalProperties: false

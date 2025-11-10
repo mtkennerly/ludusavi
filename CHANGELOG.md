@@ -1,4 +1,4 @@
-## Unreleased
+## v0.30.0 (2025-11-09)
 
 * Added:
   * You can now configure game-specific Wine prefixes in a custom entry.
