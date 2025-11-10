@@ -1198,8 +1198,8 @@ impl App {
         Task::none()
     }
 
-    fn customize_game(&mut self, name: String) -> Task<Message> {
-        let game = if let Some(standard) = self.manifest.extended.0.get(&name) {
+    fn make_custom_game(name: String, manifest: &LoadedManifest) -> CustomGame {
+        if let Some(standard) = manifest.extended.0.get(&name) {
             CustomGame {
                 name: name.clone(),
                 ignore: false,
@@ -1225,7 +1225,11 @@ impl App {
                 wine_prefix: vec![],
                 expanded: true,
             }
-        };
+        }
+    }
+
+    fn customize_game(&mut self, name: String) -> Task<Message> {
+        let game = Self::make_custom_game(name, &self.manifest);
 
         self.text_histories.add_custom_game(&game);
         self.config.custom_games.push(game);
@@ -1374,31 +1378,6 @@ impl App {
         let mut cache = Cache::load().unwrap_or_default().migrate_config(&mut config);
         TRANSLATOR.set_language(config.language);
 
-        if let Some(custom_game) = flags.custom_game.as_ref() {
-            screen = Screen::CustomGames;
-
-            if let Some(entry) = config.custom_games.iter_mut().find(|entry| &entry.name == custom_game) {
-                entry.expanded = true;
-            } else {
-                config.custom_games.push(CustomGame {
-                    name: custom_game.clone(),
-                    expanded: true,
-                    ..Default::default()
-                });
-                pending_save.insert(SaveKind::Config, Instant::now());
-            }
-
-            commands.push(
-                container_scroll_offset(container::Id::new(custom_game.clone())).map(move |offset| match offset {
-                    Some(position) => Message::Scroll {
-                        subject: ScrollSubject::CustomGames,
-                        position,
-                    },
-                    None => Message::Ignore,
-                }),
-            );
-        }
-
         let manifest = if Manifest::path().exists() {
             match Manifest::load() {
                 Ok(y) => LoadedManifest {
@@ -1416,6 +1395,28 @@ impl App {
             }
             LoadedManifest::default()
         };
+
+        if let Some(custom_game) = flags.custom_game.as_ref() {
+            screen = Screen::CustomGames;
+
+            if let Some(entry) = config.custom_games.iter_mut().find(|entry| &entry.name == custom_game) {
+                entry.expanded = true;
+            } else {
+                let game = Self::make_custom_game(custom_game.clone(), &manifest);
+                config.custom_games.push(game);
+                pending_save.insert(SaveKind::Config, Instant::now());
+            }
+
+            commands.push(
+                container_scroll_offset(container::Id::new(custom_game.clone())).map(move |offset| match offset {
+                    Some(position) => Message::Scroll {
+                        subject: ScrollSubject::CustomGames,
+                        position,
+                    },
+                    None => Message::Ignore,
+                }),
+            );
+        }
 
         if !errors.is_empty() {
             modals.push(Modal::Errors { errors });
