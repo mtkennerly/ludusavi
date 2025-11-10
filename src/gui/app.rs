@@ -581,6 +581,9 @@ impl App {
                     self.operation.remove_active_game(&scan_info.game_name);
                     if scan_info.can_report_game() {
                         if let Some(backup_info) = backup_info.as_ref() {
+                            if scan_info.needs_cloud_sync() {
+                                self.operation.add_syncable_game(scan_info.game_name.clone());
+                            }
                             scan_info.clear_processed_changes(backup_info, SCAN_KIND);
                         }
 
@@ -641,35 +644,13 @@ impl App {
                 }
 
                 let local = self.config.backup.path.clone();
-                let games = self.operation.games();
+                let games = GameSelection::group(self.operation.syncable_games().cloned().unwrap_or_default());
 
-                let changed_games = GameSelection::group(
-                    self.backup_screen
-                        .log
-                        .entries
-                        .iter()
-                        .filter(|x| {
-                            let relevant = games
-                                .as_ref()
-                                .map(|games| games.contains(&x.scan_info.game_name))
-                                .unwrap_or(true);
-                            relevant && x.scan_info.needs_cloud_sync()
-                        })
-                        .map(|x| x.scan_info.game_name.clone())
-                        .collect(),
-                );
-
-                if changed_games.is_empty() {
+                if games.is_empty() {
                     return self.handle_backup(BackupPhase::Done);
                 }
 
-                match self.start_sync_cloud(
-                    &local,
-                    SyncDirection::Upload,
-                    Finality::Final,
-                    Some(changed_games),
-                    false,
-                ) {
+                match self.start_sync_cloud(&local, SyncDirection::Upload, Finality::Final, Some(games), false) {
                     Ok(_) => {
                         // deferring to `transition_from_cloud_step`
                         Task::none()

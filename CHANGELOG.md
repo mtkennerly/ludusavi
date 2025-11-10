@@ -17,6 +17,11 @@
     but if the backup didn't happen after your last session (e.g., your computer crashed),
     then on the next launch, an outdated backup would be restored.
   * CLI: `gui --custom-game Title` command to open a specific entry on the custom game screen.
+* Fixed:
+  * The cloud "synchronize automatically" setting did not work in GUI mode,
+    even though it did work correctly in CLI mode.
+    This issue was introduced in v0.26.0.
+    Please use the upload icon on the "other" screen to ensure your existing backups are synchronized.
 * Changed:
   * If the `WGPU_POWER_PREF` environment variable is not set,
     then Ludusavi will automatically set it to `high` while running.

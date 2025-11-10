@@ -322,6 +322,7 @@ pub enum Operation {
         errors: Vec<Error>,
         cloud_changes: i64,
         force_new_full_backup: bool,
+        syncable_games: HashSet<String>,
         active_games: HashMap<String, chrono::DateTime<chrono::Utc>>,
     },
     Restore {
@@ -363,6 +364,7 @@ impl Operation {
             errors: vec![],
             cloud_changes: 0,
             force_new_full_backup: false,
+            syncable_games: HashSet::new(),
             active_games: HashMap::new(),
         }
     }
@@ -606,6 +608,28 @@ impl Operation {
             Operation::Restore { .. } => (),
             Operation::ValidateBackups { .. } => (),
             Operation::Cloud { .. } => (),
+        }
+    }
+
+    pub fn syncable_games(&self) -> Option<&HashSet<String>> {
+        match self {
+            Operation::Idle => None,
+            Operation::Backup { syncable_games, .. } => Some(syncable_games),
+            Operation::Restore { .. } => None,
+            Operation::ValidateBackups { .. } => None,
+            Operation::Cloud { .. } => None,
+        }
+    }
+
+    pub fn add_syncable_game(&mut self, title: String) {
+        match self {
+            Operation::Idle => {}
+            Operation::Backup { syncable_games, .. } => {
+                syncable_games.insert(title);
+            }
+            Operation::Restore { .. } => {}
+            Operation::ValidateBackups { .. } => {}
+            Operation::Cloud { .. } => {}
         }
     }
 
