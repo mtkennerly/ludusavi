@@ -92,6 +92,9 @@ pub enum Language {
     /// Korean
     #[serde(rename = "ko-KR")]
     Korean,
+    /// Norwegian
+    #[serde(rename = "no-NO")]
+    Norwegian,
     /// Polish
     #[serde(rename = "pl-PL")]
     Polish,
@@ -133,6 +136,7 @@ impl Language {
         Self::French,
         Self::Italian,
         Self::Dutch,
+        Self::Norwegian,
         Self::Polish,
         Self::PortugueseBrazilian,
         Self::Russian,
@@ -165,6 +169,7 @@ impl Language {
             Self::Italian => "it-IT",
             Self::Japanese => "ja-JP",
             Self::Korean => "ko-KR",
+            Self::Norwegian => "no-NO",
             Self::Polish => "pl-PL",
             Self::PortugueseBrazilian => "pt-BR",
             Self::Russian => "ru-RU",
@@ -194,6 +199,7 @@ impl Language {
             Language::Italian => "Italiano",
             Language::Japanese => "日本語",
             Language::Korean => "한국어",
+            Language::Norwegian => "Norsk",
             Language::Polish => "Polski",
             Language::PortugueseBrazilian => "Português brasileiro",
             Language::Russian => "Русский язык",
@@ -208,28 +214,29 @@ impl Language {
 
     fn completion(&self) -> u8 {
         match self {
-            Language::Arabic => 97,
+            Language::Arabic => 95,
             Language::ChineseSimplified => 97,
-            Language::ChineseTraditional => 92,
+            Language::ChineseTraditional => 89,
             Language::Czech => 3,
-            Language::Dutch => 92,
+            Language::Dutch => 91,
             Language::English => 100,
             Language::Esperanto => 16,
-            Language::Filipino => 31,
-            Language::Finnish => 85,
-            Language::French => 100,
-            Language::German => 99,
+            Language::Filipino => 30,
+            Language::Finnish => 83,
+            Language::French => 97,
+            Language::German => 97,
             Language::Italian => 100,
-            Language::Japanese => 49,
-            Language::Korean => 84,
-            Language::Polish => 99,
-            Language::PortugueseBrazilian => 100,
+            Language::Japanese => 48,
+            Language::Korean => 82,
+            Language::Norwegian => 57,
+            Language::Polish => 97,
+            Language::PortugueseBrazilian => 98,
             Language::Russian => 100,
-            Language::Spanish => 97,
+            Language::Spanish => 98,
             Language::Swedish => 1,
             Language::Thai => 21,
-            Language::Turkish => 99,
-            Language::Ukrainian => 37,
+            Language::Turkish => 100,
+            Language::Ukrainian => 36,
             Language::Vietnamese => 9,
         }
     }
@@ -281,6 +288,7 @@ fn set_language(language: Language) {
         Language::Italian => include_str!("../lang/it-IT.ftl"),
         Language::Japanese => include_str!("../lang/ja-JP.ftl"),
         Language::Korean => include_str!("../lang/ko-KR.ftl"),
+        Language::Norwegian => include_str!("../lang/no-NO.ftl"),
         Language::Polish => include_str!("../lang/pl-PL.ftl"),
         Language::PortugueseBrazilian => include_str!("../lang/pt-BR.ftl"),
         Language::Russian => include_str!("../lang/ru-RU.ftl"),

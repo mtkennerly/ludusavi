@@ -23,7 +23,7 @@
     This has fixed application crashes on several users' systems,
     but is ultimately dependent on graphics hardware and drivers.
     If you experience any issues with this, please report it.
-  * Updated translations.
+  * Updated translations, including partial support for Norwegian.
     (Thanks to contributors on the [Crowdin project](https://crowdin.com/project/ludusavi))
 
 ## v0.29.1 (2025-04-17)
