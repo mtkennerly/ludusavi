@@ -513,7 +513,10 @@ impl Manifest {
             }
         }
         let mut res = req.send().map_err(|e| {
-            log::error!("Unable to download manifest: {url} - {e}");
+            log::error!(
+                "Unable to download manifest: {url} - {e} | {:?}",
+                std::error::Error::source(&e)
+            );
             cannot_update()
         })?;
         match res.status() {
@@ -526,7 +529,10 @@ impl Manifest {
                 // Ensure that the manifest data is valid before we save it.
                 let mut manifest_bytes = vec![];
                 res.copy_to(&mut manifest_bytes).map_err(|e| {
-                    log::error!("Unable to read manifest to bytes: {url} - {e}");
+                    log::error!(
+                        "Unable to read manifest to bytes: {url} - {e} | {:?}",
+                        std::error::Error::source(&e)
+                    );
                     cannot_update()
                 })?;
                 let manifest_string = String::from_utf8(manifest_bytes).map_err(|e| {
