@@ -204,7 +204,10 @@ pub fn parse_paths(
             }
         }
         Store::Lutris => {
-            if Os::HOST == Os::Linux && root_globbable.ends_with(".var/app/net.lutris.Lutris/data/lutris") {
+            if Os::HOST == Os::Linux
+                && (root_globbable.ends_with(".var/app/net.lutris.Lutris/data/lutris")
+                    || root_globbable.ends_with(".var/app/net.lutris.Lutris/config/lutris"))
+            {
                 // Lutris is installed via Flatpak.
                 add_path!(path
                     .replace(
