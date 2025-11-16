@@ -1,3 +1,9 @@
+## Unreleased
+
+* Fixed:
+  * Native Linux saves were not detected in some Flatpak roots.
+    ([Contributed by madscientist16](https://github.com/mtkennerly/ludusavi/pull/556))
+
 ## v0.30.0 (2025-11-09)
 
 * Added:
