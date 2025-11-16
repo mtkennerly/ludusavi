@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::{
     lang::TRANSLATOR,
-    prelude::{app_dir, Error, StrictPath},
+    prelude::{app_dir, get_reqwest_blocking_client, Error, StrictPath},
     resource::{
         cache::{self, Cache},
         config::{Config, CustomGame, ManifestConfig},
@@ -503,7 +503,7 @@ impl Manifest {
 
         let path = Self::path_for(url, primary);
 
-        let mut req = reqwest::blocking::Client::new()
+        let mut req = get_reqwest_blocking_client()
             .get(url)
             .header(reqwest::header::USER_AGENT, &*crate::prelude::USER_AGENT);
         let old_etag = cache.get(url).and_then(|x| x.etag.clone());

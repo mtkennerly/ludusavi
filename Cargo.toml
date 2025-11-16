@@ -8,6 +8,11 @@ repository = "https://github.com/mtkennerly/ludusavi"
 readme = "README.md"
 license = "MIT"
 
+[features]
+default = []
+# Disable certificate and hostname validation when performing downloads.
+unsafe-download = []
+
 [dependencies]
 base64 = "0.22.1"
 byte-unit = "5.1.4"

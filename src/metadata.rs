@@ -1,3 +1,5 @@
+use crate::prelude::{get_reqwest_blocking_client, get_reqwest_client};
+
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 pub struct Release {
     pub version: semver::Version,
@@ -14,7 +16,7 @@ impl Release {
             pub tag_name: String,
         }
 
-        let req = reqwest::Client::new()
+        let req = get_reqwest_client()
             .get(Self::URL)
             .header(reqwest::header::USER_AGENT, &*crate::prelude::USER_AGENT);
         let res = req.send().await?;
@@ -41,7 +43,7 @@ impl Release {
             pub tag_name: String,
         }
 
-        let req = reqwest::blocking::Client::new()
+        let req = get_reqwest_blocking_client()
             .get(Self::URL)
             .header(reqwest::header::USER_AGENT, &*crate::prelude::USER_AGENT);
         let res = req.send()?;

@@ -383,3 +383,27 @@ pub enum RedirectEditActionField {
     Source,
     Target,
 }
+
+pub fn get_reqwest_client() -> reqwest::Client {
+    if cfg!(feature = "unsafe-download") {
+        reqwest::ClientBuilder::new()
+            .danger_accept_invalid_certs(true)
+            .danger_accept_invalid_hostnames(true)
+            .build()
+            .unwrap()
+    } else {
+        reqwest::Client::new()
+    }
+}
+
+pub fn get_reqwest_blocking_client() -> reqwest::blocking::Client {
+    if cfg!(feature = "unsafe-download") {
+        reqwest::blocking::ClientBuilder::new()
+            .danger_accept_invalid_certs(true)
+            .danger_accept_invalid_hostnames(true)
+            .build()
+            .unwrap()
+    } else {
+        reqwest::blocking::Client::new()
+    }
+}
