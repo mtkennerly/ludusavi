@@ -25,15 +25,13 @@ jobs:
             artifact-file: ludusavi
             tar: true
           - os: macos-14
-            rust-target: x86_64-apple-darwin
+            rust-target: aarch64-apple-darwin
             artifact-name: mac
             artifact-file: ludusavi
             tar: true
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/setup-python@v5
-        with:
-          python-version: '3.7'
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0

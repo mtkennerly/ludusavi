@@ -5,7 +5,7 @@
     ([Contributed by madscientist16](https://github.com/mtkennerly/ludusavi/pull/556))
   * For Lutris roots, some GOG install folders were not properly detected.
 * Changed:
-  * The standalone Mac release is now compiled on Mac OS 14 instead of Mac OS 13
+  * The Mac release is now compiled on Mac OS 14 (ARM) instead of Mac OS 13 (Intel)
     because of [a change by GitHub](https://github.com/actions/runner-images/issues/13046).
 
 ## v0.30.0 (2025-11-09)
