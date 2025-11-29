@@ -621,9 +621,9 @@ impl StrictPath {
         Ok(())
     }
 
-    pub fn joined(&self, other: &str) -> Self {
+    pub fn joined(&self, other: impl AsRef<str>) -> Self {
         Self {
-            raw: format!("{}/{}", &self.raw, other).replace('\\', "/"),
+            raw: format!("{}/{}", &self.raw, other.as_ref()).replace('\\', "/"),
             basis: self.basis.clone(),
             canonical: Arc::new(Mutex::new(None)),
         }
@@ -997,6 +997,38 @@ impl StrictPath {
         })
     }
 
+    pub fn tail_for(&self, prefix: &Self) -> Option<Vec<String>> {
+        let us = self.analyze();
+        let them = prefix.analyze();
+
+        if us.drive != them.drive {
+            return None;
+        }
+
+        if us.parts.len() < them.parts.len() {
+            return None;
+        }
+
+        let mut tail = vec![];
+        for part in us.parts.iter().zip_longest(&them.parts) {
+            match part {
+                itertools::EitherOrBoth::Both(us, them) => {
+                    if us != them {
+                        return None;
+                    }
+                }
+                itertools::EitherOrBoth::Left(part) => {
+                    tail.push(part.clone());
+                }
+                itertools::EitherOrBoth::Right(_) => {
+                    return None;
+                }
+            }
+        }
+
+        (!tail.is_empty()).then_some(tail)
+    }
+
     pub fn glob(&self) -> Vec<StrictPath> {
         self.glob_case_sensitive(Os::HOST.is_case_sensitive())
     }
@@ -1364,6 +1396,28 @@ mod tests {
                 StrictPath::new("/foo"),
                 StrictPath::new("/foo").replace(&StrictPath::new("/foo"), &StrictPath::new("")),
             );
+        }
+
+        #[test]
+        fn can_determine_tail_for() {
+            let base = StrictPath::new("/foo/bar/baz");
+
+            assert_eq!(
+                Some(vec!["baz".to_string()]),
+                base.tail_for(&StrictPath::new("/foo/bar")),
+            );
+            assert_eq!(
+                Some(vec!["bar".to_string(), "baz".to_string()]),
+                base.tail_for(&StrictPath::new("/foo")),
+            );
+            assert_eq!(
+                Some(vec!["foo".to_string(), "bar".to_string(), "baz".to_string()]),
+                base.tail_for(&StrictPath::new("/")),
+            );
+
+            assert_eq!(None, base.tail_for(&StrictPath::new("C:/foo")));
+            assert_eq!(None, base.tail_for(&StrictPath::new("/quux")));
+            assert_eq!(None, base.tail_for(&StrictPath::new("")));
         }
     }
 

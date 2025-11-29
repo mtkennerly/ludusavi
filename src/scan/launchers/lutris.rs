@@ -102,10 +102,17 @@ impl Pending {
             self.platform
         };
 
+        let install_dir = self
+            .install_dir
+            .as_ref()
+            .zip(self.prefix.as_ref())
+            .and_then(|(install, prefix)| normalize_install_dir(install, prefix))
+            .or(self.install_dir);
+
         Some((
             title,
             LauncherGame {
-                install_dir: self.install_dir,
+                install_dir,
                 prefix: self.prefix,
                 platform,
             },
@@ -117,6 +124,20 @@ impl Pending {
 struct PendingGroup {
     db: Option<Pending>,
     spec: Option<Pending>,
+}
+
+/// Since we try to infer the install dir from the working dir,
+/// we check if the working dir is inside of a known install dir parent.
+fn normalize_install_dir(candidate: &StrictPath, prefix: &StrictPath) -> Option<StrictPath> {
+    let parents = &[prefix.joined("drive_c/GOG Games")];
+
+    for parent in parents {
+        if let Some(folder) = candidate.tail_for(parent).and_then(|tail| tail.into_iter().next()) {
+            return Some(parent.joined(folder));
+        }
+    }
+
+    None
 }
 
 pub fn scan(root: &root::Lutris, title_finder: &TitleFinder) -> HashMap<String, HashSet<LauncherGame>> {
@@ -156,9 +177,16 @@ pub fn scan(root: &root::Lutris, title_finder: &TitleFinder) -> HashMap<String, 
     }
 
     if let Some(metadata) = wrap::lutris::infer_metadata() {
+        let install_dir = metadata
+            .base
+            .as_ref()
+            .zip(metadata.prefix.as_ref())
+            .and_then(|(install, prefix)| normalize_install_dir(install, prefix))
+            .or(metadata.base);
+
         games.entry(metadata.title).or_default().insert(LauncherGame {
             platform: metadata.prefix.is_some().then_some(Os::Windows),
-            install_dir: metadata.base,
+            install_dir,
             prefix: metadata.prefix,
         });
     }
@@ -484,5 +512,19 @@ mod tests {
             }),
             scan_spec(spec, &absolute_path("/tmp")),
         );
+    }
+
+    #[test]
+    fn can_normalize_install_dirs() {
+        let prefix = StrictPath::new("/prefix/some-game");
+
+        let install_dir = StrictPath::new("/prefix/some-game/drive_c/GOG Games/some-game/bin/x86");
+        let expected = Some(StrictPath::new("/prefix/some-game/drive_c/GOG Games/some-game"));
+        let actual = normalize_install_dir(&install_dir, &prefix);
+        assert_eq!(expected, actual);
+
+        let install_dir = StrictPath::new("/prefix/some-game/drive_c/unknown");
+        let actual = normalize_install_dir(&install_dir, &prefix);
+        assert_eq!(None, actual);
     }
 }

@@ -432,7 +432,7 @@ impl Manifest {
         if primary {
             Self::path()
         } else {
-            app_dir().joined(&Self::file_name_for(url, primary))
+            app_dir().joined(Self::file_name_for(url, primary))
         }
     }
 

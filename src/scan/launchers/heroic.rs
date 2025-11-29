@@ -79,7 +79,7 @@ fn find_prefix(
         platform
     );
 
-    let games_config_path = heroic_path.joined(&games_config::path(app_name));
+    let games_config_path = heroic_path.joined(games_config::path(app_name));
 
     let content = match games_config_path.try_read() {
         Ok(content) => content,
