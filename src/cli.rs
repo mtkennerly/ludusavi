@@ -401,7 +401,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             if should_sync_cloud_after {
                 let changed_games: Vec<_> = info
                     .iter()
-                    .filter(|(_, scan_info, _, _)| scan_info.needs_cloud_sync())
+                    .filter(|(_, scan_info, backup_info, _)| scan_info.needs_cloud_sync() && backup_info.is_some())
                     .map(|(_, scan_info, _, _)| scan_info.game_name.clone())
                     .collect();
                 if !changed_games.is_empty() || should_sync_cloud_after_even_if_unchanged {

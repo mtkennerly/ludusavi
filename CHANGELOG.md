@@ -4,6 +4,10 @@
   * Native Linux saves were not detected in some Flatpak roots.
     ([Contributed by madscientist16](https://github.com/mtkennerly/ludusavi/pull/556))
   * For Lutris roots, some GOG install folders were not properly detected.
+  * CLI: The `backup` command would sync games to the cloud
+    if the scan found any new/changed files,
+    even if it didn't create a new backup for the game.
+    This now behaves like the GUI and only syncs games that are newly backed up.
 * Changed:
   * The Mac release is now compiled on Mac OS 14 (ARM) instead of Mac OS 13 (Intel)
     because of [a change by GitHub](https://github.com/actions/runner-images/issues/13046).
