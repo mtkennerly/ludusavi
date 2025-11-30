@@ -255,10 +255,16 @@ fn scan_db(root: &root::Lutris) -> Result<HashMap<spec::Id, Pending>, Error> {
                     install_dir: None,
                 };
 
-                if pending.platform.is_some_and(|x| x == Os::Windows) && row.runner.is_some_and(|x| x == "wine") {
-                    if let Some(directory) = row.directory {
-                        if !directory.trim().is_empty() {
-                            pending.prefix = Some(StrictPath::new(directory));
+                if let Some(directory) = row.directory {
+                    if !directory.trim().is_empty() {
+                        match (row.runner.as_deref(), pending.platform) {
+                            (Some("wine"), Some(Os::Windows)) => {
+                                pending.prefix = Some(StrictPath::new(directory));
+                            }
+                            (Some("linux"), _) => {
+                                pending.install_dir = Some(StrictPath::new(directory));
+                            }
+                            _ => {}
                         }
                     }
                 }
