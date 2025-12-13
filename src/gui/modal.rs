@@ -472,7 +472,7 @@ impl Modal {
                                 .align_y(Alignment::Center)
                                 .push(text(TRANSLATOR.change_count_label(changes.len())))
                                 .push_if(changes.is_empty(), || text(TRANSLATOR.loading()))
-                                .push(Space::new(Length::Fill, Length::Shrink))
+                                .push(Space::new().width(Length::Fill))
                                 .push(button::previous_page(Message::ModalChangePage, *page))
                                 .push(button::next_page(
                                     Message::ModalChangePage,
@@ -530,7 +530,7 @@ impl Modal {
                                 Column::new()
                                     .spacing(5)
                                     .push(text(&note.message).size(16))
-                                    .push_maybe(note.source.as_ref().map(|source| text(source).size(12))),
+                                    .push(note.source.as_ref().map(|source| text(source).size(12))),
                             ),
                     )
                 });
@@ -736,11 +736,12 @@ impl Modal {
 
     pub fn view(&self, config: &Config, histories: &TextHistories, operation: &Operation) -> Element {
         let horizontal = || {
-            Container::new(Space::new(Length::FillPortion(1), Length::Fill)).class(style::Container::ModalBackground)
+            Container::new(Space::new().width(Length::FillPortion(1)).height(Length::Fill))
+                .class(style::Container::ModalBackground)
         };
 
         let vertical = || {
-            Container::new(Space::new(Length::Shrink, Length::Shrink))
+            Container::new(Space::new())
                 .width(Length::Fill)
                 .height(Length::FillPortion(1))
                 .class(style::Container::ModalBackground)

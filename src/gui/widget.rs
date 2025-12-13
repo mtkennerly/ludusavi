@@ -31,8 +31,13 @@ pub type Undoable<'a, F> = crate::gui::undoable::Undoable<'a, Message, Theme, Re
 
 pub use w::Space;
 
-pub fn checkbox<'a>(label: impl Into<String>, is_checked: bool, f: impl Fn(bool) -> Message + 'a) -> Checkbox<'a> {
-    Checkbox::new(label, is_checked)
+pub fn checkbox<'a>(
+    label: impl w::text::IntoFragment<'a>,
+    is_checked: bool,
+    f: impl Fn(bool) -> Message + 'a,
+) -> Checkbox<'a> {
+    Checkbox::new(is_checked)
+        .label(label)
         .on_toggle(f)
         .size(20)
         .text_shaping(w::text::Shaping::Advanced)
@@ -60,55 +65,48 @@ pub fn text<'a>(content: impl iced::widget::text::IntoFragment<'a>) -> Text<'a> 
 }
 
 pub mod id {
+    use iced::widget::Id;
     use std::sync::LazyLock;
 
-    pub static BACKUP_SCROLL: LazyLock<iced::widget::scrollable::Id> =
-        LazyLock::new(iced::widget::scrollable::Id::unique);
-    pub static RESTORE_SCROLL: LazyLock<iced::widget::scrollable::Id> =
-        LazyLock::new(iced::widget::scrollable::Id::unique);
-    pub static CUSTOM_GAMES_SCROLL: LazyLock<iced::widget::scrollable::Id> =
-        LazyLock::new(iced::widget::scrollable::Id::unique);
-    pub static OTHER_SCROLL: LazyLock<iced::widget::scrollable::Id> =
-        LazyLock::new(iced::widget::scrollable::Id::unique);
-    pub static MODAL_SCROLL: LazyLock<iced::widget::scrollable::Id> =
-        LazyLock::new(iced::widget::scrollable::Id::unique);
+    pub static BACKUP_SCROLL: LazyLock<Id> = LazyLock::new(Id::unique);
+    pub static RESTORE_SCROLL: LazyLock<Id> = LazyLock::new(Id::unique);
+    pub static CUSTOM_GAMES_SCROLL: LazyLock<Id> = LazyLock::new(Id::unique);
+    pub static OTHER_SCROLL: LazyLock<Id> = LazyLock::new(Id::unique);
+    pub static MODAL_SCROLL: LazyLock<Id> = LazyLock::new(Id::unique);
 
-    pub static BACKUP_SEARCH: LazyLock<iced::widget::text_input::Id> =
-        LazyLock::new(iced::widget::text_input::Id::unique);
-    pub static RESTORE_SEARCH: LazyLock<iced::widget::text_input::Id> =
-        LazyLock::new(iced::widget::text_input::Id::unique);
-    pub static CUSTOM_GAMES_SEARCH: LazyLock<iced::widget::text_input::Id> =
-        LazyLock::new(iced::widget::text_input::Id::unique);
+    pub static BACKUP_SEARCH: LazyLock<Id> = LazyLock::new(Id::unique);
+    pub static RESTORE_SEARCH: LazyLock<Id> = LazyLock::new(Id::unique);
+    pub static CUSTOM_GAMES_SEARCH: LazyLock<Id> = LazyLock::new(Id::unique);
 
-    pub fn backup_scroll() -> iced::widget::scrollable::Id {
+    pub fn backup_scroll() -> Id {
         (*BACKUP_SCROLL).clone()
     }
 
-    pub fn restore_scroll() -> iced::widget::scrollable::Id {
+    pub fn restore_scroll() -> Id {
         (*RESTORE_SCROLL).clone()
     }
 
-    pub fn custom_games_scroll() -> iced::widget::scrollable::Id {
+    pub fn custom_games_scroll() -> Id {
         (*CUSTOM_GAMES_SCROLL).clone()
     }
 
-    pub fn other_scroll() -> iced::widget::scrollable::Id {
+    pub fn other_scroll() -> Id {
         (*OTHER_SCROLL).clone()
     }
 
-    pub fn modal_scroll() -> iced::widget::scrollable::Id {
+    pub fn modal_scroll() -> Id {
         (*MODAL_SCROLL).clone()
     }
 
-    pub fn backup_search() -> iced::widget::text_input::Id {
+    pub fn backup_search() -> Id {
         (*BACKUP_SEARCH).clone()
     }
 
-    pub fn restore_search() -> iced::widget::text_input::Id {
+    pub fn restore_search() -> Id {
         (*RESTORE_SEARCH).clone()
     }
 
-    pub fn custom_games_search() -> iced::widget::text_input::Id {
+    pub fn custom_games_search() -> Id {
         (*CUSTOM_GAMES_SEARCH).clone()
     }
 }
@@ -155,7 +153,7 @@ pub fn text_editor<'a>(
 
             match event.status {
                 Status::Active | Status::Hovered | Status::Disabled => None,
-                Status::Focused => match event.key.as_ref() {
+                Status::Focused { .. } => match event.key.as_ref() {
                     Key::Character("z") if event.modifiers.command() && event.modifiers.shift() => Some(
                         Binding::Custom(Message::UndoRedo(undoable::Action::Redo, undo_subject.clone())),
                     ),
@@ -295,10 +293,10 @@ impl Progress {
                     .spacing(5)
                     .padding([0, 5])
                     .align_y(Alignment::Center)
-                    .push_maybe(label.map(|x| text(x).size(text_size)))
-                    .push_maybe(elapsed.map(|x| text(x).size(text_size)))
-                    .push(ProgressBar::new(0.0..=self.max, self.current).height(8))
-                    .push_maybe(count.map(|x| text(x).size(text_size))),
+                    .push(label.map(|x| text(x).size(text_size)))
+                    .push(elapsed.map(|x| text(x).size(text_size)))
+                    .push(ProgressBar::new(0.0..=self.max, self.current).girth(8))
+                    .push(count.map(|x| text(x).size(text_size))),
             )
             .on_press_maybe(match operation {
                 Operation::Idle | Operation::Cloud { .. } => None,
@@ -363,14 +361,18 @@ impl<'a> IcedButtonExt<'a> for Button<'a> {
 
 pub mod operation {
     use iced::{
-        advanced::widget::{self, operate, Operation},
-        widget::{container, scrollable::AbsoluteOffset},
+        advanced::widget::{
+            operate,
+            operation::{Outcome, Scrollable},
+            Operation,
+        },
+        widget::{scrollable::AbsoluteOffset, Id},
         Rectangle, Task, Vector,
     };
 
-    pub fn container_scroll_offset(id: container::Id) -> Task<Option<AbsoluteOffset>> {
+    pub fn container_scroll_offset(id: Id) -> Task<Option<AbsoluteOffset>> {
         struct ContainerScrollOffset {
-            target: widget::Id,
+            target: Id,
             offset: Option<AbsoluteOffset>,
             anchor: Option<f32>,
         }
@@ -378,21 +380,16 @@ pub mod operation {
         impl Operation<Option<AbsoluteOffset>> for ContainerScrollOffset {
             fn scrollable(
                 &mut self,
-                _state: &mut dyn widget::operation::Scrollable,
-                _id: Option<&widget::Id>,
+                _id: Option<&Id>,
                 bounds: Rectangle,
                 _content_bounds: Rectangle,
                 _translation: Vector,
+                _state: &mut dyn Scrollable,
             ) {
                 self.anchor = Some(bounds.y);
             }
 
-            fn container(
-                &mut self,
-                id: Option<&widget::Id>,
-                bounds: Rectangle,
-                operate_on_children: &mut dyn FnMut(&mut dyn Operation<Option<AbsoluteOffset>>),
-            ) {
+            fn container(&mut self, id: Option<&Id>, bounds: Rectangle) {
                 if self.offset.is_some() {
                     return;
                 }
@@ -402,19 +399,20 @@ pub mod operation {
                         x: 0.0,
                         y: bounds.y - self.anchor.unwrap_or(0.0),
                     });
-                    return;
                 }
-
-                operate_on_children(self);
             }
 
-            fn finish(&self) -> widget::operation::Outcome<Option<AbsoluteOffset>> {
-                widget::operation::Outcome::Some(self.offset)
+            fn traverse(&mut self, operate: &mut dyn FnMut(&mut dyn Operation<Option<AbsoluteOffset>>)) {
+                operate(self)
+            }
+
+            fn finish(&self) -> Outcome<Option<AbsoluteOffset>> {
+                Outcome::Some(self.offset)
             }
         }
 
         operate(ContainerScrollOffset {
-            target: id.into(),
+            target: id,
             offset: None,
             anchor: None,
         })

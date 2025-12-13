@@ -15,7 +15,7 @@ use crate::{
     scan::game_filter,
 };
 
-const WIDTH: u16 = 125;
+const WIDTH: u32 = 125;
 
 fn template(content: Text, action: Option<Message>, style: Option<style::Button>) -> Element {
     Button::new(content.align_x(alignment::Horizontal::Center))

@@ -774,7 +774,7 @@ impl ScrollSubject {
         }
     }
 
-    pub fn id(&self) -> iced::widget::scrollable::Id {
+    pub fn id(&self) -> iced::widget::Id {
         match self {
             Self::Backup => crate::gui::widget::id::backup_scroll(),
             Self::Restore => crate::gui::widget::id::restore_scroll(),

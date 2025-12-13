@@ -3,11 +3,7 @@ use std::{
     time::{Duration, Instant},
 };
 
-use iced::{
-    keyboard,
-    widget::{container, scrollable},
-    Alignment, Length, Subscription, Task,
-};
+use iced::{keyboard, widget::scrollable, Alignment, Length, Subscription, Task};
 
 use crate::{
     cloud::{rclone_monitor, Rclone, Remote},
@@ -66,6 +62,10 @@ impl iced::Executor for Executor {
     fn enter<R>(&self, f: impl FnOnce() -> R) -> R {
         let _guard = tokio::runtime::Runtime::enter(&self.0);
         f()
+    }
+
+    fn block_on<T>(&self, future: impl std::prelude::rust_2024::Future<Output = T>) -> T {
+        self.0.block_on(future)
     }
 }
 
@@ -704,7 +704,6 @@ impl App {
                 if let Some(jump) = self.jump_to_game_after_scan.take() {
                     if found_single {
                         use crate::gui::widget::operation::container_scroll_offset;
-                        use iced::widget::container;
 
                         self.backup_screen.log.expand_game(
                             &jump,
@@ -713,15 +712,15 @@ impl App {
                             SCAN_KIND,
                         );
 
-                        return self.switch_screen(Screen::Backup).chain(
-                            container_scroll_offset(container::Id::new(jump)).map(move |offset| match offset {
+                        return self
+                            .switch_screen(Screen::Backup)
+                            .chain(container_scroll_offset(jump.into()).map(move |offset| match offset {
                                 Some(position) => Message::Scroll {
                                     subject: ScrollSubject::Backup,
                                     position,
                                 },
                                 None => Message::Ignore,
-                            }),
-                        );
+                            }));
                     }
                 }
 
@@ -1319,7 +1318,7 @@ impl App {
         let subject = self.scroll_subject();
         let offset = self.scroll_offsets.get(&subject).copied().unwrap_or_default();
 
-        scrollable::scroll_to(subject.id(), offset)
+        iced::widget::operation::scroll_to(subject.id(), offset)
     }
 
     fn refresh_scroll_position_on_log(&mut self, cleared: bool) -> Task<Message> {
@@ -1360,7 +1359,7 @@ impl App {
         let mut commands = vec![
             iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::TEXT_DATA)).map(|_| Message::Ignore),
             iced::font::load(std::borrow::Cow::Borrowed(crate::gui::font::ICONS_DATA)).map(|_| Message::Ignore),
-            iced::window::get_oldest().and_then(iced::window::gain_focus),
+            iced::window::oldest().and_then(iced::window::gain_focus),
         ];
 
         let mut screen = Screen::default();
@@ -1408,7 +1407,7 @@ impl App {
             }
 
             commands.push(
-                container_scroll_offset(container::Id::new(custom_game.clone())).map(move |offset| match offset {
+                container_scroll_offset(custom_game.clone().into()).map(move |offset| match offset {
                     Some(position) => Message::Scroll {
                         subject: ScrollSubject::CustomGames,
                         position,
@@ -2169,15 +2168,15 @@ impl App {
                     game_filter::Event::Toggled => match self.screen {
                         Screen::Backup => {
                             self.backup_screen.log.search.show = !self.backup_screen.log.search.show;
-                            task = Some(iced::widget::text_input::focus(id::backup_search()));
+                            task = Some(iced::widget::operation::focus(id::backup_search()));
                         }
                         Screen::Restore => {
                             self.restore_screen.log.search.show = !self.restore_screen.log.search.show;
-                            task = Some(iced::widget::text_input::focus(id::restore_search()));
+                            task = Some(iced::widget::operation::focus(id::restore_search()));
                         }
                         Screen::CustomGames => {
                             self.custom_games_screen.filter.enabled = !self.custom_games_screen.filter.enabled;
-                            task = Some(iced::widget::text_input::focus(id::custom_games_search()));
+                            task = Some(iced::widget::operation::focus(id::custom_games_search()));
                         }
                         Screen::Other => {}
                     },
@@ -2443,9 +2442,9 @@ impl App {
                         ..
                     } => {
                         if modifiers.shift() {
-                            iced::widget::focus_previous()
+                            iced::widget::operation::focus_previous()
                         } else {
-                            iced::widget::focus_next()
+                            iced::widget::operation::focus_next()
                         }
                     }
                     _ => Task::none(),
@@ -2643,7 +2642,7 @@ impl App {
             }
             Message::Scroll { subject, position } => {
                 self.scroll_offsets.insert(subject, position);
-                scrollable::scroll_to(subject.id(), position)
+                iced::widget::operation::scroll_to(subject.id(), position)
             }
             Message::EditedBackupComment { game, action } => {
                 if let Some(comment) = self.restore_screen.log.apply_comment_action(&game, action) {
@@ -2857,14 +2856,13 @@ impl App {
             }
             Message::ShowCustomGame { name } => {
                 use crate::gui::widget::operation::container_scroll_offset;
-                use iced::widget::container;
 
                 let subject = ScrollSubject::CustomGames;
 
                 self.scroll_offsets.remove(&subject);
                 self.screen = Screen::CustomGames;
 
-                container_scroll_offset(container::Id::new(name.clone())).map(move |offset| match offset {
+                container_scroll_offset(name.clone().into()).map(move |offset| match offset {
                     Some(position) => Message::Scroll { subject, position },
                     None => Message::Ignore,
                 })
@@ -3018,12 +3016,12 @@ impl App {
                     &self.modifiers,
                 ),
             })
-            .push_maybe(self.timed_notification.as_ref().map(|x| x.view()))
-            .push_maybe(self.manifest_notification.as_ref().map(|x| x.view()));
+            .push(self.timed_notification.as_ref().map(|x| x.view()))
+            .push(self.manifest_notification.as_ref().map(|x| x.view()));
 
         let stack = Stack::new()
             .push(Container::new(content).class(style::Container::Primary))
-            .push_maybe(
+            .push(
                 self.modals
                     .last()
                     .map(|modal| modal.view(&self.config, &self.text_histories, &self.operation)),

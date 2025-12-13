@@ -102,7 +102,7 @@ impl FileTreeNode {
 
     pub fn view(
         &self,
-        level: u16,
+        level: u32,
         label: String,
         game_name: &str,
         _config: &Config,
@@ -167,9 +167,9 @@ impl FileTreeNode {
                                 .width(25),
                         ),
                     })
-                    .push_maybe(make_enabler())
+                    .push(make_enabler())
                     .push(text(label))
-                    .push_maybe({
+                    .push({
                         match self.change {
                             ScanChange::Same | ScanChange::Unknown => None,
                             ScanChange::New => Some(Badge::new_entry().view()),
@@ -182,12 +182,12 @@ impl FileTreeNode {
                             .faded(self.duplicated.resolved())
                             .view()
                     })
-                    .push_maybe(
+                    .push(
                         self.error
                             .as_ref()
                             .map(|x| Badge::new(&TRANSLATOR.badge_failed()).tooltip(x.clone()).view()),
                     )
-                    .push_maybe({
+                    .push({
                         self.scanned_file.as_ref().and_then(|(scan_key, scanned)| {
                             let scan_kind = scanned.scan_kind();
                             scanned.alt(scan_key, scan_kind).as_ref().map(|alt| {
@@ -199,7 +199,7 @@ impl FileTreeNode {
                             })
                         })
                     })
-                    .push_maybe({
+                    .push({
                         self.scanned_file.as_ref().map(|(_, f)| {
                             let size = TRANSLATOR.adjusted_size(f.size);
                             Badge::new(&size).faded(f.ignored).view()
@@ -235,7 +235,7 @@ impl FileTreeNode {
                                 keys: self.keys.clone(),
                             },
                         ))
-                        .push_maybe(make_enabler())
+                        .push(make_enabler())
                         .push(
                             Row::new()
                                 .align_y(Alignment::Center)
@@ -245,12 +245,12 @@ impl FileTreeNode {
                                 } else {
                                     label
                                 }))
-                                .push_maybe(
+                                .push(
                                     self.error
                                         .as_ref()
                                         .map(|x| Badge::new(&TRANSLATOR.badge_failed()).tooltip(x.clone()).view()),
                                 )
-                                .push_maybe(match &self.path {
+                                .push(match &self.path {
                                     FileTreeNodePath::File(path) => Some(
                                         Button::new(Icon::OpenInNew.text_small())
                                             .on_press(Message::OpenDir { path: path.clone() })
@@ -260,7 +260,7 @@ impl FileTreeNode {
                                     ),
                                     _ => None,
                                 })
-                                .push_maybe(match &self.path {
+                                .push(match &self.path {
                                     FileTreeNodePath::RegistryKey(item) if Os::HOST == Os::Windows => Some(
                                         Button::new(Icon::OpenInNew.text_small())
                                             .on_press(Message::OpenRegistry(item.clone()))
@@ -270,7 +270,7 @@ impl FileTreeNode {
                                     ),
                                     _ => None,
                                 })
-                                .push_maybe(match &self.path {
+                                .push(match &self.path {
                                     FileTreeNodePath::RegistryKey(item) => Some(
                                         Button::new(Icon::Copy.text_small())
                                             .on_press(Message::CopyText(item.interpret()))
@@ -280,7 +280,7 @@ impl FileTreeNode {
                                     ),
                                     _ => None,
                                 })
-                                .push_maybe({
+                                .push({
                                     let total_bytes = self.calculate_directory_size(true);
                                     let total_size = total_bytes.map(|bytes| TRANSLATOR.adjusted_size(bytes));
 

@@ -4,7 +4,7 @@ use iced::{
         widget::{Operation, Tree},
         Clipboard, Layout, Shell, Widget,
     },
-    event::{self, Event},
+    event::Event,
     keyboard::Key,
     mouse, overlay, Element, Length, Rectangle,
 };
@@ -67,25 +67,25 @@ where
         self.content.as_widget().tag()
     }
 
-    fn layout(&self, tree: &mut Tree, renderer: &Renderer, limits: &layout::Limits) -> layout::Node {
-        self.content.as_widget().layout(tree, renderer, limits)
+    fn layout(&mut self, tree: &mut Tree, renderer: &Renderer, limits: &layout::Limits) -> layout::Node {
+        self.content.as_widget_mut().layout(tree, renderer, limits)
     }
 
-    fn operate(&self, tree: &mut Tree, layout: Layout<'_>, renderer: &Renderer, operation: &mut dyn Operation) {
-        self.content.as_widget().operate(tree, layout, renderer, operation)
+    fn operate(&mut self, tree: &mut Tree, layout: Layout<'_>, renderer: &Renderer, operation: &mut dyn Operation) {
+        self.content.as_widget_mut().operate(tree, layout, renderer, operation)
     }
 
-    fn on_event(
+    fn update(
         &mut self,
         tree: &mut Tree,
-        event: Event,
+        event: &Event,
         layout: Layout<'_>,
         cursor: mouse::Cursor,
         renderer: &Renderer,
         clipboard: &mut dyn Clipboard,
         shell: &mut Shell<'_, Message>,
         viewport: &Rectangle,
-    ) -> event::Status {
+    ) {
         if let Event::Keyboard(iced::keyboard::Event::KeyPressed { key, modifiers, .. }) = &event {
             let focused = tree
                 .state
@@ -95,11 +95,13 @@ where
                 match (key.as_ref(), modifiers.command(), modifiers.shift()) {
                     (Key::Character("z"), true, false) => {
                         shell.publish((self.on_change)(Action::Undo));
-                        return event::Status::Captured;
+                        shell.capture_event();
+                        return;
                     }
                     (Key::Character("y"), true, false) | (Key::Character("z"), true, true) => {
                         shell.publish((self.on_change)(Action::Redo));
-                        return event::Status::Captured;
+                        shell.capture_event();
+                        return;
                     }
                     _ => (),
                 };
@@ -108,7 +110,7 @@ where
 
         self.content
             .as_widget_mut()
-            .on_event(tree, event, layout, cursor, renderer, clipboard, shell, viewport)
+            .update(tree, event, layout, cursor, renderer, clipboard, shell, viewport)
     }
 
     fn mouse_interaction(
@@ -142,13 +144,14 @@ where
     fn overlay<'b>(
         &'b mut self,
         tree: &'b mut Tree,
-        layout: Layout<'_>,
+        layout: Layout<'b>,
         renderer: &Renderer,
+        viewport: &Rectangle,
         translation: iced::Vector,
     ) -> Option<overlay::Element<'b, Message, Theme, Renderer>> {
         self.content
             .as_widget_mut()
-            .overlay(tree, layout, renderer, translation)
+            .overlay(tree, layout, renderer, viewport, translation)
     }
 }
 

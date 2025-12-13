@@ -23,6 +23,7 @@ impl ColorExt for Color {
 }
 
 pub struct Theme {
+    source: config::Theme,
     background: Color,
     field: Color,
     text: Color,
@@ -50,6 +51,7 @@ impl From<config::Theme> for Theme {
     fn from(source: config::Theme) -> Self {
         match source {
             config::Theme::Light => Self {
+                source,
                 background: Color::WHITE,
                 field: rgb8!(230, 230, 230),
                 text: Color::BLACK,
@@ -67,6 +69,7 @@ impl From<config::Theme> for Theme {
                 added: rgb8!(28, 223, 86),
             },
             config::Theme::Dark => Self {
+                source,
                 background: rgb8!(41, 41, 41),
                 field: rgb8!(74, 74, 74),
                 text: Color::WHITE,
@@ -77,11 +80,33 @@ impl From<config::Theme> for Theme {
     }
 }
 
-impl iced::application::DefaultStyle for Theme {
-    fn default_style(&self) -> iced::daemon::Appearance {
-        iced::application::Appearance {
+impl iced::theme::Base for Theme {
+    fn default(_preference: iced::theme::Mode) -> Self {
+        <Theme as Default>::default()
+    }
+
+    fn mode(&self) -> iced::theme::Mode {
+        match self.source {
+            config::Theme::Light => iced::theme::Mode::Light,
+            config::Theme::Dark => iced::theme::Mode::Dark,
+        }
+    }
+
+    fn base(&self) -> iced::theme::Style {
+        iced::theme::Style {
             background_color: self.background,
             text_color: self.text,
+        }
+    }
+
+    fn palette(&self) -> Option<iced::theme::Palette> {
+        None
+    }
+
+    fn name(&self) -> &str {
+        match self.source {
+            config::Theme::Light => "light",
+            config::Theme::Dark => "dark",
         }
     }
 }
@@ -129,6 +154,7 @@ impl iced::widget::overlay::menu::Catalog for Theme {
             text_color: self.text,
             selected_background: self.positive.into(),
             selected_text_color: Color::WHITE,
+            shadow: Shadow::default(),
         }
     }
 }
@@ -202,6 +228,7 @@ impl button::Catalog for Theme {
                 },
                 ..Default::default()
             },
+            snap: true,
         };
 
         match status {
@@ -239,6 +266,7 @@ impl button::Catalog for Theme {
                     },
                     ..Default::default()
                 },
+                snap: true,
             },
             button::Status::Pressed => button::Style {
                 shadow: Shadow {
@@ -373,6 +401,7 @@ impl container::Catalog for Theme {
                 offset: Vector::ZERO,
                 blur_radius: 0.0,
             },
+            snap: true,
         }
     }
 }
@@ -388,6 +417,12 @@ impl scrollable::Catalog for Theme {
 
     fn style(&self, _class: &Self::Class<'_>, status: scrollable::Status) -> scrollable::Style {
         let active = scrollable::Style {
+            auto_scroll: scrollable::AutoScroll {
+                background: self.background.into(),
+                border: Border::default(),
+                shadow: Shadow::default(),
+                icon: self.text,
+            },
             container: container::Style::default(),
             vertical_rail: scrollable::Rail {
                 background: Some(Color::TRANSPARENT.into()),
@@ -397,7 +432,7 @@ impl scrollable::Catalog for Theme {
                     radius: 5.0.into(),
                 },
                 scroller: scrollable::Scroller {
-                    color: self.text.alpha(0.7),
+                    background: self.text.alpha(0.7).into(),
                     border: Border {
                         color: Color::TRANSPARENT,
                         width: 0.0,
@@ -413,7 +448,7 @@ impl scrollable::Catalog for Theme {
                     radius: 5.0.into(),
                 },
                 scroller: scrollable::Scroller {
-                    color: self.text.alpha(0.7),
+                    background: self.text.alpha(0.7).into(),
                     border: Border {
                         color: Color::TRANSPARENT,
                         width: 0.0,
@@ -425,10 +460,11 @@ impl scrollable::Catalog for Theme {
         };
 
         match status {
-            scrollable::Status::Active => active,
+            scrollable::Status::Active { .. } => active,
             scrollable::Status::Hovered {
                 is_horizontal_scrollbar_hovered,
                 is_vertical_scrollbar_hovered,
+                ..
             } => {
                 if !is_horizontal_scrollbar_hovered && !is_vertical_scrollbar_hovered {
                     return active;
@@ -459,6 +495,8 @@ impl scrollable::Catalog for Theme {
                 scrollable::Status::Hovered {
                     is_horizontal_scrollbar_hovered: true,
                     is_vertical_scrollbar_hovered: true,
+                    is_horizontal_scrollbar_disabled: false,
+                    is_vertical_scrollbar_disabled: false,
                 },
             ),
         }
@@ -501,7 +539,7 @@ impl pick_list::Catalog for Theme {
                 background: self.field.into(),
                 ..active
             },
-            pick_list::Status::Opened => active,
+            pick_list::Status::Opened { .. } => active,
         }
     }
 }
@@ -572,7 +610,7 @@ impl text_input::Catalog for Theme {
 
         match status {
             text_input::Status::Active => active,
-            text_input::Status::Hovered | text_input::Status::Focused => text_input::Style {
+            text_input::Status::Hovered | text_input::Status::Focused { .. } => text_input::Style {
                 border: Border {
                     color: self.text,
                     ..active.border
@@ -626,7 +664,6 @@ impl text_editor::Catalog for Theme {
                 width: 1.0,
                 color: self.field,
             },
-            icon: self.text,
             placeholder: self.text_skipped,
             value: self.text,
             selection: self.text_selection,
@@ -641,7 +678,7 @@ impl text_editor::Catalog for Theme {
                 },
                 ..active
             },
-            text_editor::Status::Focused => text_editor::Style {
+            text_editor::Status::Focused { .. } => text_editor::Style {
                 border: Border {
                     color: self.text,
                     ..active.border

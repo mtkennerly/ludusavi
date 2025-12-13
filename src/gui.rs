@@ -23,9 +23,10 @@ use self::app::App;
 pub use self::common::Flags;
 
 pub fn run(flags: Flags) {
-    let app = iced::application(App::title, App::update, App::view)
+    let app = iced::application(move || App::new(flags.clone()), App::update, App::view)
         .subscription(App::subscription)
         .theme(App::theme)
+        .title(App::title)
         .executor::<app::Executor>()
         .settings(iced::Settings {
             default_font: font::TEXT,
@@ -53,7 +54,7 @@ pub fn run(flags: Flags) {
             ..Default::default()
         });
 
-    if let Err(e) = app.run_with(move || app::App::new(flags)) {
+    if let Err(e) = app.run() {
         log::error!("Failed to initialize GUI: {e:?}");
         eprintln!("Failed to initialize GUI: {e:?}");
 

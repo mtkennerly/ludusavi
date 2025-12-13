@@ -1,6 +1,6 @@
 use iced::{
     keyboard, padding,
-    widget::{horizontal_space, tooltip, Space},
+    widget::{space, tooltip, Space},
     Alignment, Length,
 };
 
@@ -59,7 +59,7 @@ pub fn root<'a>(config: &Config, histories: &TextHistories, modifiers: &keyboard
                         Row::new()
                             .spacing(20)
                             .align_y(Alignment::Center)
-                            .push(horizontal_space().width(70))
+                            .push(space::horizontal().width(70))
                             .push(text(TRANSLATOR.field("pga.db")))
                             .push(histories.input(UndoSubject::RootLutrisDatabase(i)))
                             .push(button::choose_file(BrowseFileSubject::RootLutrisDatabase(i), modifiers)),
@@ -138,11 +138,11 @@ pub fn manifest<'a>(
             Row::new()
                 .spacing(20)
                 .align_y(Alignment::Center)
-                .push(Space::with_width(Length::Fill))
+                .push(Space::new().width(Length::Fill))
                 .push(Container::new(text(TRANSLATOR.checked_label())).width(label_width))
                 .push(Container::new(text(TRANSLATOR.updated_label())).width(label_width))
                 .push_if(!config.manifest.secondary.is_empty(), || {
-                    Space::with_width(right_offset)
+                    Space::new().width(right_offset)
                 }),
         )
         .push(
@@ -159,10 +159,10 @@ pub fn manifest<'a>(
                     .class(style::Checkbox),
                 )
                 .push(iced::widget::TextInput::new("", config.manifest.url()).width(Length::Fill))
-                .push_maybe(get_checked(Some(config.manifest.url()), cache))
-                .push_maybe(get_updated(Some(config.manifest.url()), cache))
+                .push(get_checked(Some(config.manifest.url()), cache))
+                .push(get_updated(Some(config.manifest.url()), cache))
                 .push_if(!config.manifest.secondary.is_empty(), || {
-                    Space::with_width(right_offset)
+                    Space::new().width(right_offset)
                 }),
         );
 
@@ -204,9 +204,9 @@ pub fn manifest<'a>(
                         .width(75),
                     )
                     .push(histories.input(UndoSubject::SecondaryManifest(i)))
-                    .push_maybe(get_checked(config.manifest.secondary[i].url(), cache))
-                    .push_maybe(get_updated(config.manifest.secondary[i].url(), cache))
-                    .push_maybe(match config.manifest.secondary[i].kind() {
+                    .push(get_checked(config.manifest.secondary[i].url(), cache))
+                    .push(get_updated(config.manifest.secondary[i].url(), cache))
+                    .push(match config.manifest.secondary[i].kind() {
                         SecondaryManifestConfigKind::Local => {
                             Some(button::choose_file(BrowseFileSubject::SecondaryManifest(i), modifiers))
                         }
@@ -279,7 +279,7 @@ pub fn custom_games<'a>(
     filter: &CustomGamesFilter,
 ) -> Container<'a> {
     if config.custom_games.is_empty() {
-        return Container::new(Space::new(Length::Shrink, Length::Shrink));
+        return Container::new(Space::new());
     }
 
     let content = config.custom_games.iter().enumerate().fold(
@@ -333,7 +333,7 @@ pub fn custom_games<'a>(
                                 )),
                         )
                         .push(histories.input(UndoSubject::CustomGameName(i)))
-                        .push_maybe(if manifest.0.get(&x.name).is_some_and(|game| game.is_from_manifest()) {
+                        .push(if manifest.0.get(&x.name).is_some_and(|game| game.is_from_manifest()) {
                             Some(match x.effective_integration() {
                                 Integration::Override => Badge::icon(Icon::CallSplit)
                                     .tooltip(TRANSLATOR.custom_game_will_override())
@@ -396,7 +396,8 @@ pub fn custom_games<'a>(
                             Row::new()
                                 .spacing(10)
                                 .push(
-                                    Container::new(horizontal_space().width(left_side)).padding(padding::top(top_side)),
+                                    Container::new(space::horizontal().width(left_side))
+                                        .padding(padding::top(top_side)),
                                 )
                                 .push(checkbox(
                                     TRANSLATOR.prefer_alias_display(),
@@ -598,7 +599,7 @@ pub fn custom_games<'a>(
                 }
 
                 Container::new(content)
-                    .id(iced::widget::container::Id::new(config.custom_games[i].name.clone()))
+                    .id(config.custom_games[i].name.clone())
                     .class(style::Container::GameListEntry)
             })
         },

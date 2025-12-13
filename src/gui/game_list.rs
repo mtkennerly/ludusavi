@@ -1,11 +1,7 @@
 use std::collections::{BTreeSet, HashSet};
 
 use iced::{
-    alignment::Horizontal as HorizontalAlignment,
-    keyboard::Modifiers,
-    padding,
-    widget::{container, tooltip},
-    Alignment, Length,
+    alignment::Horizontal as HorizontalAlignment, keyboard::Modifiers, padding, widget::tooltip, Alignment, Length,
 };
 
 use crate::{
@@ -133,7 +129,7 @@ impl GameListEntry {
                                 .width(Length::Fill)
                                 .padding(2),
                         )
-                        .push_maybe(match changes {
+                        .push(match changes {
                             ScanChange::New => Some(Badge::new_entry().faded(!enabled).view()),
                             ScanChange::Different => Some(Badge::changed_entry().faded(!enabled).view()),
                             ScanChange::Removed => None,
@@ -169,7 +165,7 @@ impl GameListEntry {
                                 .view()
                         })
                         .push_if(!successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
-                        .push_maybe({
+                        .push({
                             self.scan_info
                                 .backup
                                 .as_ref()
@@ -184,13 +180,13 @@ impl GameListEntry {
                                     .class(style::Container::Tooltip)
                                 })
                         })
-                        .push_maybe({
+                        .push({
                             manifest.0.get(&name).and_then(|data| {
                                 (scan_kind.is_backup() && !data.notes.is_empty())
                                     .then(|| button::show_game_notes(name.clone(), data.notes.clone()))
                             })
                         })
-                        .push_maybe({
+                        .push({
                             self.scan_info
                                 .backup
                                 .as_ref()
@@ -199,7 +195,7 @@ impl GameListEntry {
                                     (os != Os::HOST && os != Os::Other).then(|| Badge::new(&format!("{os:?}")).view())
                                 })
                         })
-                        .push_maybe({
+                        .push({
                             self.scan_info
                                 .backup
                                 .as_ref()
@@ -207,7 +203,7 @@ impl GameListEntry {
                         })
                         .push(
                             Row::new()
-                                .push_maybe({
+                                .push({
                                     if self.scan_info.available_backups.len() == 1 {
                                         self.scan_info.backup.as_ref().map(|backup| {
                                             Container::new(
@@ -331,7 +327,7 @@ impl GameListEntry {
                                 ),
                         ),
                 )
-                .push_maybe(self.comment_editor.as_ref().map(|x| {
+                .push(self.comment_editor.as_ref().map(|x| {
                     Row::new()
                         .align_y(Alignment::Center)
                         .padding([0, 20])
@@ -350,7 +346,7 @@ impl GameListEntry {
                             game: name.clone(),
                         }))
                 }))
-                .push_maybe({
+                .push({
                     expanded
                         .then(|| {
                             self.tree.as_ref().map(|tree| {
@@ -361,7 +357,7 @@ impl GameListEntry {
                         .flatten()
                 }),
         )
-        .id(container::Id::new(name))
+        .id(name)
         .class(style::Container::GameListEntry)
     }
 
@@ -428,7 +424,7 @@ impl GameList {
         Container::new(
             Column::new()
                 .spacing(15)
-                .push_maybe({
+                .push({
                     self.search.view(
                         match scan_kind {
                             ScanKind::Backup => Screen::Backup,
