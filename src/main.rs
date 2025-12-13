@@ -110,7 +110,9 @@ fn prepare_panic_hook(handle: Option<flexi_logger::LoggerHandle>) {
 
 fn prepare_winit() {
     if std::env::var("WGPU_POWER_PREF").is_err() {
-        std::env::set_var("WGPU_POWER_PREF", "high");
+        unsafe {
+            std::env::set_var("WGPU_POWER_PREF", "high");
+        }
     }
 }
 
