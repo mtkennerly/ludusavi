@@ -17,3 +17,31 @@
   files will be backed up along with the other game files instead.
 
 During a restore, Ludusavi only considers folders with a `mapping.yaml` file.
+
+## Absolute vs relative paths
+A common question is why Ludusavi stores files by their absolute path (e.g., `C:\Users\foo\save.txt`),
+rather than using relative paths or placeholders (e.g., `%USERPROFILE%\save.dat`).
+The motivation for this question is usually because people use multiple systems,
+and the backed up files are tied to different usernames on each system
+(or different Steam library locations, etc).
+Although you can typically solve this by [configuring redirects](/docs/help/redirects.md),
+people often wonder why Ludusavi doesn't do that automatically.
+
+The reason is that it may work in simple cases, but not in complex or unusual ones,
+so Ludusavi errs on the side of caution.
+For example, consider these potential challenges:
+
+* You can configure Ludusavi to back up data from two different users on the same system at the same time.
+  It could become ambiguous which user folder to use when restoring the backup.
+* On Windows, you can relocate special system folders,
+  or on Linux, you can change the `XDG` variables,
+  but some games may not respect that.
+  Let's say Ludusavi backed up `C:\Users\foo\Documents\Some Game`,
+  and then you used Windows Explorer -> Properties -> Location to move the Documents folder somewhere else.
+  Ludusavi wouldn't know if that game would use the Windows API to find and honor the new Documents location,
+  or if it would ignore that and use the standard location.
+* You can have multiple Steam libraries on the same system,
+  or the same game may belong to the primary library on one system and the secondary library on another.
+
+Using absolute paths is the safest way to ensure that backups are always restored to the same place on the same system.
+The trade-off is that you must define redirects to help Ludusavi understand your unique setup.
