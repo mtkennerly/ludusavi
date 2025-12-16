@@ -8,8 +8,24 @@ repository = "https://github.com/mtkennerly/ludusavi"
 readme = "README.md"
 license = "MIT"
 
+[[bin]]
+name = "ludusavi"
+required-features = ["app"]
+
 [features]
-default = []
+default = ["app"]
+# GUI and CLI
+app = [
+    "dep:clap",
+    "dep:clap_complete",
+    "dep:dialoguer",
+    "dep:flexi_logger",
+    "dep:iced",
+    "dep:image",
+    "dep:indicatif",
+    "dep:rfd",
+    "dep:signal-hook",
+]
 # Disable certificate and hostname validation when performing downloads.
 unsafe-download = []
 
@@ -17,19 +33,19 @@ unsafe-download = []
 base64 = "0.22.1"
 byte-unit = "5.1.4"
 chrono = { version = "0.4.38", features = ["serde"] }
-clap = { version = "4.5.17", features = ["derive", "wrap_help"] }
-clap_complete = "4.5.28"
-dialoguer = "0.11.0"
+clap = { version = "4.5.17", features = ["derive", "wrap_help"], optional = true }
+clap_complete = { version = "4.5.28", optional = true }
+dialoguer = { version = "0.11.0", optional = true }
 dirs = "5.0.1"
 filetime = "0.2.25"
-flexi_logger = { version = "0.29.3", features = ["textfilter"], default-features = false }
+flexi_logger = { version = "0.29.3", features = ["textfilter"], default-features = false, optional = true }
 fluent = "0.16.1"
 fuzzy-matcher = "0.3.7"
 globetter = "0.2.0"
 globset = "0.4.15"
-iced = { version = "0.14.0", features = ["advanced", "advanced-shaping", "crisp", "image", "lazy", "svg", "tiny-skia", "tokio", "wayland", "wgpu", "x11"], default-features = false }
-image = { version = "0.25.2", features = ["ico"], default-features = false }
-indicatif = { version = "0.17.8", features = ["rayon"] }
+iced = { version = "0.14.0", features = ["advanced", "advanced-shaping", "crisp", "image", "lazy", "svg", "tiny-skia", "tokio", "wayland", "wgpu", "x11"], default-features = false, optional = true }
+image = { version = "0.25.2", features = ["ico"], default-features = false, optional = true }
+indicatif = { version = "0.17.8", features = ["rayon"], optional = true }
 intl-memoizer = "0.5.2"
 itertools = "0.13.0"
 log = "0.4.22"
@@ -38,7 +54,7 @@ rayon = "1.10.0"
 regashii = "0.2.0"
 regex = "1.10.6"
 reqwest = { version = "0.12.7", features = ["blocking", "gzip", "rustls-tls"], default-features = false }
-rfd = { version = "0.15.0", features = ["common-controls-v6", "gtk3"], default-features = false }
+rfd = { version = "0.15.0", features = ["common-controls-v6", "gtk3"], default-features = false, optional = true }
 rusqlite = { version = "0.32.1", features = ["bundled"] }
 schemars = { version = "0.8.21", features = ["chrono"] }
 semver = { version = "1.0.23", features = ["serde"] }
@@ -47,7 +63,7 @@ serde_json = "1.0.128"
 serde_yaml = "0.8.25"
 sha1 = "0.10.6"
 shlex = "1.3.0"
-signal-hook = "0.3.17"
+signal-hook = { version = "0.3.17", optional = true }
 steamlocate = "2.0.0"
 strsim = "0.11.1"
 sysinfo = "0.36.0"
@@ -65,7 +81,7 @@ winreg = "0.52.0"
 windows = { version = "0.60.0", features = ["Win32_System_Console", "Win32_System_Threading", "Win32_Storage_FileSystem", "Win32_UI_Shell", "Win32_UI_WindowsAndMessaging"] }
 
 [target.'cfg(windows)'.build-dependencies]
-winres = "0.1.12"
+embed-resource = "3.0.6"
 
 [dev-dependencies]
 pretty_assertions = "1.4.1"
@@ -98,3 +114,12 @@ pkg-fmt = "tgz"
 [package.metadata.binstall.overrides.x86_64-apple-darwin]
 pkg-url = "{ repo }/releases/download/v{ version }/{ name }-v{ version }-mac{ archive-suffix }"
 pkg-fmt = "tgz"
+
+[lints.rust]
+mismatched_lifetime_syntaxes = "allow"
+
+[lints.clippy]
+large_enum_variant = "allow"
+new_without_default = "allow"
+to_string_trait_impl = "allow"
+too_many_arguments = "allow"

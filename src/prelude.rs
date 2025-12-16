@@ -42,6 +42,8 @@ pub static AVAILABLE_PARALELLISM: LazyLock<Option<NonZeroUsize>> =
     LazyLock::new(|| std::thread::available_parallelism().ok());
 
 pub static CONFIG_DIR: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+#[cfg(feature = "app")]
 static HANDLER_SIGINT: Mutex<Option<signal_hook::SigId>> = Mutex::new(None);
 
 pub const ENV_DEBUG: &str = "LUDUSAVI_DEBUG";
@@ -308,6 +310,7 @@ pub fn run_command(
     }
 }
 
+#[cfg(feature = "app")]
 pub fn register_sigint() -> Arc<AtomicBool> {
     let flag = Arc::new(AtomicBool::new(false));
 
@@ -327,6 +330,7 @@ pub fn register_sigint() -> Arc<AtomicBool> {
     flag
 }
 
+#[cfg(feature = "app")]
 pub fn unregister_sigint() {
     let guard = HANDLER_SIGINT.lock();
     if let Ok(mut guard) = guard {

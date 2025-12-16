@@ -1,14 +1,14 @@
-mod backup;
-mod change;
-mod duplicate;
+pub mod backup;
+pub mod change;
+pub mod duplicate;
 pub mod game_filter;
 pub mod launchers;
 pub mod layout;
-mod preview;
+pub mod preview;
 pub mod registry;
-mod saves;
-mod steam;
-mod title;
+pub mod saves;
+pub mod steam;
+pub mod title;
 
 use std::{
     collections::{HashMap, HashSet},

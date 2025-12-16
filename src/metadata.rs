@@ -64,7 +64,7 @@ impl Release {
     }
 
     pub fn is_update(&self) -> bool {
-        if let Ok(current) = semver::Version::parse(*crate::VERSION) {
+        if let Ok(current) = semver::Version::parse(*crate::prelude::VERSION) {
             self.version > current
         } else {
             false

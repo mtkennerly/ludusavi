@@ -1,6 +1,5 @@
 mod api;
 pub mod parse;
-mod report;
 mod ui;
 
 use std::{collections::BTreeSet, process::Command, time::Duration};
@@ -13,16 +12,14 @@ use rayon::{
 };
 
 use crate::{
-    cli::{
-        parse::{Cli, CompletionShell, ConfigSubcommand, ManifestSubcommand, Subcommand},
-        report::{report_cloud_changes, Reporter},
-    },
+    cli::parse::{Cli, CompletionShell, ConfigSubcommand, ManifestSubcommand, Subcommand},
     cloud::{CloudChange, Rclone, Remote},
     lang::{Language, TRANSLATOR},
     prelude::{
         app_dir, get_threads_from_env, initialize_rayon, register_sigint, unregister_sigint, Error, Finality,
         StrictPath, SyncDirection,
     },
+    report::{self, report_cloud_changes, Reporter},
     resource::{cache::Cache, config::Config, manifest::Manifest, ResourceFile, SaveableResourceFile},
     scan::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
@@ -600,7 +597,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
 
                 let restore_info = if scan_info.backup.is_none() || preview || ignored {
-                    crate::scan::BackupInfo::default()
+                    None
                 } else if ask_downgrade && scan_info.is_downgraded_restore() {
                     match ui::confirm_with_question(
                         &[name.to_string()],
@@ -610,11 +607,11 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         &TRANSLATOR.backup_is_older_than_current_data(),
                         &TRANSLATOR.restore_one_game_confirm(name),
                     ) {
-                        Ok(true) => layout.restore(&scan_info, &config.restore.toggled_registry),
-                        Ok(false) | Err(_) => crate::scan::BackupInfo::default(),
+                        Ok(true) => Some(layout.restore(&scan_info, &config.restore.toggled_registry)),
+                        Ok(false) | Err(_) => None,
                     }
                 } else {
-                    layout.restore(&scan_info, &config.restore.toggled_registry)
+                    Some(layout.restore(&scan_info, &config.restore.toggled_registry))
                 };
                 log::trace!("step {i} completed");
                 if !scan_info.can_report_game() {
@@ -659,10 +656,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         &config,
                         name1,
                         scan_info1,
-                        Some(backup_info1),
+                        backup_info1.as_ref(),
                         name2,
                         scan_info2,
-                        Some(backup_info2),
+                        backup_info2.as_ref(),
                     )
                 },
             );
@@ -674,7 +671,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 if !reporter.add_game(
                     name,
                     &scan_info,
-                    Some(&backup_info),
+                    backup_info.as_ref(),
                     &decision,
                     &duplicate_detector,
                     dump_registry,
@@ -1292,7 +1289,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let schema = match kind {
                 parse::SchemaSubcommand::ApiInput => schemars::schema_for!(api::Input),
                 parse::SchemaSubcommand::ApiOutput => schemars::schema_for!(api::Output),
-                parse::SchemaSubcommand::GeneralOutput => schemars::schema_for!(report::JsonOutput),
+                parse::SchemaSubcommand::GeneralOutput => schemars::schema_for!(report::ApiOutput),
                 parse::SchemaSubcommand::Config => schemars::schema_for!(Config),
             };
 

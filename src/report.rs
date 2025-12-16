@@ -18,18 +18,18 @@ use crate::{
 pub struct ApiErrors {
     /// Whether any games failed.
     #[serde(skip_serializing_if = "Option::is_none")]
-    some_games_failed: Option<bool>,
+    pub some_games_failed: Option<bool>,
     /// Names of unknown games, if any.
     #[serde(skip_serializing_if = "Option::is_none")]
-    unknown_games: Option<Vec<String>>,
+    pub unknown_games: Option<Vec<String>>,
     /// When this field is present,
     /// Ludusavi could not automatically synchronize with the cloud because of conflicting data.
     #[serde(skip_serializing_if = "Option::is_none")]
-    cloud_conflict: Option<concern::CloudConflict>,
+    pub cloud_conflict: Option<concern::CloudConflict>,
     /// When this field is present,
     /// Ludusavi tried and failed to automatically synchronize with the cloud.
     #[serde(skip_serializing_if = "Option::is_none")]
-    cloud_sync_failed: Option<concern::CloudSyncFailed>,
+    pub cloud_sync_failed: Option<concern::CloudSyncFailed>,
 }
 
 impl ApiErrors {
@@ -58,9 +58,9 @@ pub mod concern {
 }
 
 #[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
-struct SaveError {
+pub struct SaveError {
     /// If the entry failed, then this explains why.
-    message: String,
+    pub message: String,
 }
 
 impl From<&BackupError> for SaveError {
@@ -73,75 +73,75 @@ impl From<&BackupError> for SaveError {
 
 #[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct ApiFile {
+pub struct ApiFile {
     /// Whether this entry failed to process.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
-    failed: bool,
+    pub failed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<SaveError>,
+    pub error: Option<SaveError>,
     /// Whether this entry was ignored.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
-    ignored: bool,
+    pub ignored: bool,
     /// How this item compares to its previous backup (if doing a new backup)
     /// or how its previous backup compares to the current system state (if doing a restore).
-    change: ScanChange,
+    pub change: ScanChange,
     /// Size of the file.
-    bytes: u64,
+    pub bytes: u64,
     /// If the file was restored to a
     /// redirected location, then this is its original path.
     #[serde(skip_serializing_if = "Option::is_none")]
-    original_path: Option<String>,
+    pub original_path: Option<String>,
     /// If the file was backed up to a redirected location,
     /// then this is its location within the backup.
     #[serde(skip_serializing_if = "Option::is_none")]
-    redirected_path: Option<String>,
+    pub redirected_path: Option<String>,
     /// Any other games that also have the same file path.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
-    duplicated_by: BTreeSet<String>,
+    pub duplicated_by: BTreeSet<String>,
 }
 
 #[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct ApiRegistry {
+pub struct ApiRegistry {
     /// Whether this entry failed to process.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
-    failed: bool,
+    pub failed: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
-    error: Option<SaveError>,
+    pub error: Option<SaveError>,
     /// Whether this entry was ignored.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
-    ignored: bool,
+    pub ignored: bool,
     /// How this item compares to its previous backup (if doing a new backup)
     /// or how its previous backup compares to the current system state (if doing a restore).
-    change: ScanChange,
+    pub change: ScanChange,
     /// Any other games that also have the same registry path.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
-    duplicated_by: BTreeSet<String>,
+    pub duplicated_by: BTreeSet<String>,
     /// Any registry values inside of the registry key.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    values: BTreeMap<String, ApiRegistryValue>,
+    pub values: BTreeMap<String, ApiRegistryValue>,
 }
 
 #[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct ApiRegistryValue {
+pub struct ApiRegistryValue {
     /// Whether this entry was ignored.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
-    ignored: bool,
+    pub ignored: bool,
     /// How this item compares to its previous backup (if doing a new backup)
     /// or how its previous backup compares to the current system state (if doing a restore).
-    change: ScanChange,
+    pub change: ScanChange,
     /// Any other games that also have the same registry key+value.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
-    duplicated_by: BTreeSet<String>,
+    pub duplicated_by: BTreeSet<String>,
 }
 
 #[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct ApiDump {
+pub struct ApiDump {
     /// Serialized registry content, if any, when enabled by `--dump-registry`.
     #[serde(skip_serializing_if = "Option::is_none")]
-    registry: Option<String>,
+    pub registry: Option<String>,
 }
 
 impl ApiDump {
@@ -154,7 +154,7 @@ impl ApiDump {
 
 #[derive(Debug, serde::Serialize, schemars::JsonSchema)]
 #[serde(untagged, rename_all = "camelCase")]
-enum ApiGame {
+pub enum ApiGame {
     /// Used by the `backup` and `restore` commands.
     Operative {
         /// How Ludusavi decided to handle this game.
@@ -186,40 +186,40 @@ enum ApiGame {
 
 #[derive(Debug, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct ApiBackup {
-    name: String,
-    when: chrono::DateTime<chrono::Utc>,
+pub struct ApiBackup {
+    pub name: String,
+    pub when: chrono::DateTime<chrono::Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    os: Option<Os>,
+    pub os: Option<Os>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    comment: Option<String>,
+    pub comment: Option<String>,
     pub locked: bool,
 }
 
 /// General output used by commands in `--api` mode
 #[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct JsonOutput {
+pub struct ApiOutput {
     /// Any errors.
     #[serde(skip_serializing_if = "Option::is_none")]
-    errors: Option<ApiErrors>,
+    pub errors: Option<ApiErrors>,
     /// Overall stats, populated by the `backup` and `restore` commands.
     #[serde(skip_serializing_if = "Option::is_none")]
-    overall: Option<OperationStatus>,
+    pub overall: Option<OperationStatus>,
     /// Each key is the name of a game.
-    games: BTreeMap<String, ApiGame>,
+    pub games: BTreeMap<String, ApiGame>,
     /// Each key is the path of a file relative to the cloud folder.
     /// Populated by the `cloud` commands.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
-    cloud: BTreeMap<String, CloudEntry>,
+    pub cloud: BTreeMap<String, CloudEntry>,
 }
 
 #[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
 #[serde(rename_all = "camelCase")]
-struct CloudEntry {
+pub struct CloudEntry {
     /// How this file compares to the cloud version (if doing an upload)
     /// or the local version (if doing a download).
-    change: ScanChange,
+    pub change: ScanChange,
 }
 
 #[derive(Debug)]
@@ -230,7 +230,7 @@ pub enum Reporter {
         errors: ApiErrors,
     },
     Json {
-        output: JsonOutput,
+        output: ApiOutput,
     },
 }
 
@@ -245,7 +245,7 @@ impl Reporter {
 
     pub fn json() -> Self {
         Self::Json {
-            output: JsonOutput {
+            output: ApiOutput {
                 errors: Default::default(),
                 overall: Some(Default::default()),
                 games: Default::default(),
@@ -638,6 +638,14 @@ impl Reporter {
         }
     }
 
+    #[allow(unused)]
+    pub fn json_output(self) -> Option<ApiOutput> {
+        match self {
+            Self::Standard { .. } => None,
+            Self::Json { output } => Some(output),
+        }
+    }
+
     pub fn print_failure(&self) {
         // The standard reporter doesn't need to print on failure because
         // that's handled generically in main.
@@ -653,7 +661,7 @@ impl Reporter {
 
 pub fn report_cloud_changes(changes: &[CloudChange], api: bool) {
     if api {
-        let mut output = JsonOutput {
+        let mut output = ApiOutput {
             errors: None,
             overall: None,
             games: Default::default(),

@@ -1,11 +1,3 @@
-#![allow(
-    clippy::large_enum_variant,
-    clippy::new_without_default,
-    clippy::too_many_arguments,
-    clippy::to_string_trait_impl,
-    mismatched_lifetime_syntaxes
-)]
-
 mod cli;
 mod cloud;
 mod gui;
@@ -13,6 +5,7 @@ mod lang;
 mod metadata;
 mod path;
 mod prelude;
+mod report;
 mod resource;
 mod scan;
 mod serialization;

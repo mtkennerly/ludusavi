@@ -1,5 +1,10 @@
 ## Unreleased
 
+* Added:
+  * For developers, the crates.io release now includes a library crate
+    that you can use to access some of Ludusavi's internals.
+    This is highly experimental and subject to change,
+    but you're welcome to give it a try in its early stages.
 * Fixed:
   * Native Linux saves were not detected in some Flatpak roots.
     ([Contributed by madscientist16](https://github.com/mtkennerly/ludusavi/pull/556))

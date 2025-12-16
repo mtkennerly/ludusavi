@@ -653,7 +653,7 @@ impl Manifest {
         self
     }
 
-    fn add_custom_games(&mut self, config: &Config) {
+    pub fn add_custom_games(&mut self, config: &Config) {
         for custom_game in &config.custom_games {
             let name = &custom_game.name;
 
@@ -673,7 +673,7 @@ impl Manifest {
         }
     }
 
-    fn add_custom_game(&mut self, custom: CustomGame) {
+    pub fn add_custom_game(&mut self, custom: CustomGame) {
         use crate::resource::config::Integration;
 
         if let Some(stored) = self.0.get_mut(&custom.name) {
@@ -744,7 +744,7 @@ impl Manifest {
         }
     }
 
-    fn load_secondary_manifests(&mut self, config: &Config) {
+    pub fn load_secondary_manifests(&mut self, config: &Config) {
         for secondary in config.manifest.load_secondary_manifests() {
             self.incorporate_secondary_manifest(secondary);
         }
@@ -760,7 +760,7 @@ impl Manifest {
         }
     }
 
-    fn incorporate_secondary_manifest(&mut self, secondary: Secondary) {
+    pub fn incorporate_secondary_manifest(&mut self, secondary: Secondary) {
         log::debug!("incorporating secondary manifest: {}", &secondary.id);
         let manifest = secondary.data.0;
 

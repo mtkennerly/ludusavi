@@ -678,6 +678,7 @@ impl Rclone {
     }
 }
 
+#[cfg(feature = "app")]
 pub mod rclone_monitor {
     use iced::{
         futures::{channel::mpsc, stream, StreamExt},
