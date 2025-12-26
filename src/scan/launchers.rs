@@ -31,6 +31,14 @@ impl LauncherGame {
     pub fn is_empty(&self) -> bool {
         self.install_dir.is_none() && self.prefix.is_none() && self.platform.is_none()
     }
+
+    pub fn replace_in_paths(&self, old: &StrictPath, new: &StrictPath) -> Self {
+        Self {
+            install_dir: self.install_dir.as_ref().map(|x| x.replace(old, new)),
+            prefix: self.prefix.as_ref().map(|x| x.replace(old, new)),
+            platform: self.platform,
+        }
+    }
 }
 
 impl Launchers {

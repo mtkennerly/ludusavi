@@ -5,10 +5,10 @@ pub mod sideload;
 
 use std::collections::{HashMap, HashSet};
 
-use crate::prelude::StrictPath;
+use crate::{path::CommonPath, prelude::StrictPath};
 
 use crate::{
-    resource::config::root,
+    resource::{config::root, manifest::Os},
     scan::{launchers::LauncherGame, TitleFinder},
 };
 
@@ -61,6 +61,27 @@ pub fn scan(
 
     for (title, info) in sideload::scan(root, title_finder) {
         games.entry(title).or_default().extend(info);
+    }
+
+    if Os::HOST == Os::Linux {
+        if let Some(normal_home) = CommonPath::Home.get().map(StrictPath::new) {
+            if let Some(flatpak_home) = root.flatpak_home() {
+                log::debug!("For Flatpak root {root:?}, translating home {normal_home:?} to {flatpak_home:?}");
+                return games
+                    .into_iter()
+                    .map(|(title, mut info)| {
+                        let flatpak: HashSet<_> = info
+                            .iter()
+                            .map(|info| info.replace_in_paths(&normal_home, &flatpak_home))
+                            .collect();
+
+                        info.extend(flatpak);
+
+                        (title, info)
+                    })
+                    .collect();
+            }
+        }
     }
 
     games

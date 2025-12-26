@@ -95,6 +95,17 @@ pub struct Heroic {
     pub path: StrictPath,
 }
 
+impl Heroic {
+    pub const FLATPAK_SUFFIX: &str = ".var/app/com.heroicgameslauncher.hgl/config/heroic";
+
+    pub fn flatpak_home(&self) -> Option<StrictPath> {
+        self.path
+            .raw()
+            .ends_with(Self::FLATPAK_SUFFIX)
+            .then(|| self.path.popped().popped())
+    }
+}
+
 #[derive(
     Clone,
     Debug,
@@ -133,6 +144,11 @@ pub struct Lutris {
     pub path: StrictPath,
     /// Full path to the Lutris `pga.db` file, if not contained within the main `path`.
     pub database: Option<StrictPath>,
+}
+
+impl Lutris {
+    pub const FLATPAK_SUFFIX_DATA: &str = ".var/app/net.lutris.Lutris/data/lutris";
+    pub const FLATPAK_SUFFIX_CONFIG: &str = ".var/app/net.lutris.Lutris/config/lutris";
 }
 
 #[derive(
@@ -209,6 +225,10 @@ pub struct Prime {
 pub struct Steam {
     /// Where the root is located on your system.
     pub path: StrictPath,
+}
+
+impl Steam {
+    pub const FLATPAK_SUFFIX: &str = ".var/app/com.valvesoftware.Steam/.steam/steam";
 }
 
 #[derive(

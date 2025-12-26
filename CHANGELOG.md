@@ -9,6 +9,10 @@
   * Native Linux saves were not detected in some Flatpak roots.
     ([Contributed by madscientist16](https://github.com/mtkennerly/ludusavi/pull/556))
   * For Lutris roots, some GOG and native Linux install folders were not properly detected.
+  * For Heroic roots that point to a Flatpak installation,
+    if Heroic's game installation directory contained `/home/user/games`,
+    then Ludusavi would expect `/home/user/games` to actually exist,
+    whereas Flatpak rules would cause Heroic to use `/home/user/.var/app/com.heroicgameslauncher.hgl/games` instead.
   * CLI: The `backup` command would sync games to the cloud
     if the scan found any new/changed files,
     even if it didn't create a new backup for the game.

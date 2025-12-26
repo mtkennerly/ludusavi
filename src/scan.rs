@@ -33,7 +33,9 @@ use crate::{
     path::{CommonPath, StrictPath},
     prelude::{filter_map_walkdir, Error, SKIP},
     resource::{
-        config::{BackupFilter, Config, RedirectConfig, RedirectKind, Root, SortKey, ToggledPaths, ToggledRegistry},
+        config::{
+            root, BackupFilter, Config, RedirectConfig, RedirectKind, Root, SortKey, ToggledPaths, ToggledRegistry,
+        },
         manifest::{Game, GameFileEntry, IdSet, Os, Store},
     },
     scan::layout::LatestBackup,
@@ -188,7 +190,7 @@ pub fn parse_paths(
             }
         }
         Store::Heroic => {
-            if Os::HOST == Os::Linux && root_globbable.ends_with(".var/app/com.heroicgameslauncher.hgl/config/heroic") {
+            if Os::HOST == Os::Linux && root_globbable.ends_with(root::Heroic::FLATPAK_SUFFIX) {
                 // Heroic is installed via Flatpak.
                 add_path!(path
                     .replace(
@@ -205,8 +207,8 @@ pub fn parse_paths(
         }
         Store::Lutris => {
             if Os::HOST == Os::Linux
-                && (root_globbable.ends_with(".var/app/net.lutris.Lutris/data/lutris")
-                    || root_globbable.ends_with(".var/app/net.lutris.Lutris/config/lutris"))
+                && (root_globbable.ends_with(root::Lutris::FLATPAK_SUFFIX_DATA)
+                    || root_globbable.ends_with(root::Lutris::FLATPAK_SUFFIX_CONFIG))
             {
                 // Lutris is installed via Flatpak.
                 add_path!(path
@@ -232,7 +234,7 @@ pub fn parse_paths(
             }
 
             if Os::HOST == Os::Linux {
-                if root_globbable.ends_with(".var/app/com.valvesoftware.Steam/.steam/steam") {
+                if root_globbable.ends_with(root::Steam::FLATPAK_SUFFIX) {
                     // Steam is installed via Flatpak.
                     add_path!(path
                         .replace(p::STORE_USER_ID, "*")
