@@ -529,13 +529,17 @@ pub fn scan_game_for_backup(
     }
     for root in roots {
         for wp in launchers.get_game(root, name).filter_map(|x| x.prefix.as_ref()) {
-            let with_pfx = wp.joined("pfx");
-            scan_game_for_backup_add_prefix(
-                &mut roots_to_check,
-                &mut paths_to_check,
-                if with_pfx.exists() { &with_pfx } else { wp },
-                !game.registry.is_empty(),
-            );
+            scan_game_for_backup_add_prefix(&mut roots_to_check, &mut paths_to_check, wp, !game.registry.is_empty());
+
+            let pfx = wp.joined("pfx");
+            if pfx.exists() {
+                scan_game_for_backup_add_prefix(
+                    &mut roots_to_check,
+                    &mut paths_to_check,
+                    &pfx,
+                    !game.registry.is_empty(),
+                );
+            }
         }
     }
 

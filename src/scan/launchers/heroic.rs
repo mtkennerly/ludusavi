@@ -130,14 +130,16 @@ fn find_prefix(
                     }
 
                     "proton" => {
-                        let prefix = format!("{wine_prefix}/pfx");
+                        // This would usually be `{wine_prefix}/pfx`,
+                        // but in at least one case in a Flatpak install,
+                        // that was a broken link and the real prefix was just `wine_prefix`.
                         log::trace!(
                             "Found Heroic Proton prefix for {} ({}), adding {}",
                             game_name,
                             app_name,
-                            &prefix
+                            wine_prefix
                         );
-                        Some(StrictPath::new(prefix))
+                        Some(StrictPath::new(wine_prefix.clone()))
                     }
 
                     _ => {
