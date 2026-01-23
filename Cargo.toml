@@ -26,8 +26,6 @@ app = [
     "dep:rfd",
     "dep:signal-hook",
 ]
-# Disable certificate and hostname validation when performing downloads.
-unsafe-download = []
 
 [dependencies]
 base64 = "0.22.1"

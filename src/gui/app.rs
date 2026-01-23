@@ -25,7 +25,7 @@ use crate::{
     lang::TRANSLATOR,
     prelude::{
         app_dir, get_threads_from_env, initialize_rayon, EditAction, Error, Finality, RedirectEditActionField,
-        StrictPath, SyncDirection,
+        Security, StrictPath, SyncDirection,
     },
     resource::{
         cache::{self, Cache},
@@ -1266,9 +1266,16 @@ impl App {
         self.switch_screen(Screen::CustomGames)
     }
 
-    fn update_manifest(config: config::ManifestConfig, cache: cache::Manifests, force: bool) -> Task<Message> {
+    fn update_manifest(
+        config: config::ManifestConfig,
+        cache: cache::Manifests,
+        force: bool,
+        network_security: Security,
+    ) -> Task<Message> {
         Task::perform(
-            async move { tokio::task::spawn_blocking(move || Manifest::update(config, cache, force)).await },
+            async move {
+                tokio::task::spawn_blocking(move || Manifest::update(config, cache, force, network_security)).await
+            },
             |join| match join {
                 Ok(x) => Message::ManifestUpdated(x),
                 Err(_) => Message::Ignore,
@@ -1442,12 +1449,13 @@ impl App {
                 config.manifest.clone(),
                 cache.manifests.clone(),
                 false,
+                config.runtime.network_security,
             ));
         }
 
         if config.release.check && cache.should_check_app_update() {
             commands.push(Task::future(async move {
-                let result = crate::metadata::Release::fetch().await;
+                let result = crate::metadata::Release::fetch(config.runtime.network_security).await;
 
                 Message::AppReleaseChecked(result.map_err(|x| x.to_string()))
             }))
@@ -1997,8 +2005,10 @@ impl App {
                     return Task::none();
                 }
 
+                let security = self.config.runtime.network_security;
+
                 Task::future(async move {
-                    let result = crate::metadata::Release::fetch().await;
+                    let result = crate::metadata::Release::fetch(security).await;
 
                     Message::AppReleaseChecked(result.map_err(|x| x.to_string()))
                 })
@@ -2033,7 +2043,12 @@ impl App {
 
                 self.updating_manifest = true;
                 self.manifest_notification = Some(Notification::new(TRANSLATOR.updating_manifest()));
-                Self::update_manifest(self.config.manifest.clone(), self.cache.manifests.clone(), force)
+                Self::update_manifest(
+                    self.config.manifest.clone(),
+                    self.cache.manifests.clone(),
+                    force,
+                    self.config.runtime.network_security,
+                )
             }
             Message::ManifestUpdated(updates) => {
                 self.updating_manifest = false;

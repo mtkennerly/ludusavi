@@ -388,26 +388,34 @@ pub enum RedirectEditActionField {
     Target,
 }
 
-pub fn get_reqwest_client() -> reqwest::Client {
-    if cfg!(feature = "unsafe-download") {
-        reqwest::ClientBuilder::new()
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(rename_all = "camelCase")]
+pub enum Security {
+    /// Enable certificate and hostname validation when performing downloads.
+    #[default]
+    Safe,
+    /// Disable certificate and hostname validation when performing downloads.
+    Unsafe,
+}
+
+pub fn get_reqwest_client(security: Security) -> reqwest::Client {
+    match security {
+        Security::Safe => reqwest::Client::new(),
+        Security::Unsafe => reqwest::ClientBuilder::new()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
             .build()
-            .unwrap()
-    } else {
-        reqwest::Client::new()
+            .unwrap(),
     }
 }
 
-pub fn get_reqwest_blocking_client() -> reqwest::blocking::Client {
-    if cfg!(feature = "unsafe-download") {
-        reqwest::blocking::ClientBuilder::new()
+pub fn get_reqwest_blocking_client(security: Security) -> reqwest::blocking::Client {
+    match security {
+        Security::Safe => reqwest::blocking::Client::new(),
+        Security::Unsafe => reqwest::blocking::ClientBuilder::new()
             .danger_accept_invalid_certs(true)
             .danger_accept_invalid_hostnames(true)
             .build()
-            .unwrap()
-    } else {
-        reqwest::blocking::Client::new()
+            .unwrap(),
     }
 }

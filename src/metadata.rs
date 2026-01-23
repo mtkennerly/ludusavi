@@ -1,4 +1,4 @@
-use crate::prelude::{get_reqwest_blocking_client, get_reqwest_client};
+use crate::prelude::{get_reqwest_blocking_client, get_reqwest_client, Security};
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 pub struct Release {
@@ -9,14 +9,14 @@ pub struct Release {
 impl Release {
     const URL: &'static str = "https://api.github.com/repos/mtkennerly/ludusavi/releases/latest";
 
-    pub async fn fetch() -> Result<Self, crate::prelude::AnyError> {
+    pub async fn fetch(security: Security) -> Result<Self, crate::prelude::AnyError> {
         #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
         pub struct Response {
             pub html_url: String,
             pub tag_name: String,
         }
 
-        let req = get_reqwest_client()
+        let req = get_reqwest_client(security)
             .get(Self::URL)
             .header(reqwest::header::USER_AGENT, &*crate::prelude::USER_AGENT);
         let res = req.send().await?;
@@ -36,14 +36,14 @@ impl Release {
         }
     }
 
-    pub fn fetch_sync() -> Result<Self, crate::prelude::AnyError> {
+    pub fn fetch_sync(security: Security) -> Result<Self, crate::prelude::AnyError> {
         #[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
         pub struct Response {
             pub html_url: String,
             pub tag_name: String,
         }
 
-        let req = get_reqwest_blocking_client()
+        let req = get_reqwest_blocking_client(security)
             .get(Self::URL)
             .header(reqwest::header::USER_AGENT, &*crate::prelude::USER_AGENT);
         let res = req.send()?;

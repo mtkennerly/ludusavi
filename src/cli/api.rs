@@ -249,19 +249,21 @@ pub fn process(input: Option<String>, config: &Config, manifest: &Manifest) -> R
 
                 responses.push(Response::FindTitle(response::FindTitle { titles }));
             }
-            Request::CheckAppUpdate(request::CheckAppUpdate {}) => match crate::metadata::Release::fetch_sync() {
-                Ok(release) => {
-                    let update = release.is_update().then(|| response::AppUpdate {
-                        version: release.version.to_string(),
-                        url: release.url,
-                    });
+            Request::CheckAppUpdate(request::CheckAppUpdate {}) => {
+                match crate::metadata::Release::fetch_sync(config.runtime.network_security) {
+                    Ok(release) => {
+                        let update = release.is_update().then(|| response::AppUpdate {
+                            version: release.version.to_string(),
+                            url: release.url,
+                        });
 
-                    responses.push(Response::CheckAppUpdate(response::CheckAppUpdate { update }));
+                        responses.push(Response::CheckAppUpdate(response::CheckAppUpdate { update }));
+                    }
+                    Err(e) => {
+                        responses.push(Response::Error(response::Error { message: e.to_string() }));
+                    }
                 }
-                Err(e) => {
-                    responses.push(Response::Error(response::Error { message: e.to_string() }));
-                }
-            },
+            }
             Request::EditBackup(request::EditBackup {
                 game,
                 backup,

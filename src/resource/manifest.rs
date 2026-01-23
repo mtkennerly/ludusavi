@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, BTreeSet, HashMap};
 
 use crate::{
     lang::TRANSLATOR,
-    prelude::{app_dir, get_reqwest_blocking_client, Error, StrictPath},
+    prelude::{app_dir, get_reqwest_blocking_client, Error, Security, StrictPath},
     resource::{
         cache::{self, Cache},
         config::{Config, CustomGame, ManifestConfig},
@@ -472,15 +472,16 @@ impl Manifest {
         config: ManifestConfig,
         cache: cache::Manifests,
         force: bool,
+        network_security: Security,
     ) -> Vec<Result<Option<ManifestUpdate>, Error>> {
         let mut out = vec![];
 
         if config.enable || force {
-            out.push(Self::update_one(config.url(), &cache, force, true));
+            out.push(Self::update_one(config.url(), &cache, force, true, network_security));
         }
 
         for secondary in config.secondary_manifest_urls(force) {
-            out.push(Self::update_one(secondary, &cache, force, false));
+            out.push(Self::update_one(secondary, &cache, force, false, network_security));
         }
 
         out
@@ -491,6 +492,7 @@ impl Manifest {
         cache: &cache::Manifests,
         force: bool,
         primary: bool,
+        network_security: Security,
     ) -> Result<Option<ManifestUpdate>, Error> {
         let identifier = (!primary).then(|| url.to_string());
         let cannot_update = || Error::ManifestCannotBeUpdated {
@@ -503,7 +505,7 @@ impl Manifest {
 
         let path = Self::path_for(url, primary);
 
-        let mut req = get_reqwest_blocking_client()
+        let mut req = get_reqwest_blocking_client(network_security)
             .get(url)
             .header(reqwest::header::USER_AGENT, &*crate::prelude::USER_AGENT);
         let old_etag = cache.get(url).and_then(|x| x.etag.clone());
@@ -580,7 +582,12 @@ impl Manifest {
     pub fn update_mut(config: &Config, cache: &mut Cache, force: bool) -> Result<(), Error> {
         let mut error = None;
 
-        let updates = Self::update(config.manifest.clone(), cache.manifests.clone(), force);
+        let updates = Self::update(
+            config.manifest.clone(),
+            cache.manifests.clone(),
+            force,
+            config.runtime.network_security,
+        );
         for update in updates {
             match update {
                 Ok(Some(update)) => {

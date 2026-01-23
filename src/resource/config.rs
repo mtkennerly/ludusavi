@@ -10,7 +10,7 @@ use crate::{
     cloud::Remote,
     lang::{Language, TRANSLATOR},
     path::CommonPath,
-    prelude::{app_dir, EditAction, Error, RedirectEditActionField, StrictPath, AVAILABLE_PARALELLISM},
+    prelude::{app_dir, EditAction, Error, RedirectEditActionField, Security, StrictPath, AVAILABLE_PARALELLISM},
     resource::{
         manifest::{self, CloudMetadata, Manifest, Store},
         ResourceFile, SaveableResourceFile,
@@ -125,6 +125,8 @@ pub struct Config {
 pub struct Runtime {
     /// How many threads to use for parallel scanning.
     pub threads: Option<NonZeroUsize>,
+    /// Control certificate and hostname validation when performing downloads.
+    pub network_security: Security,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -2310,6 +2312,7 @@ mod tests {
 ---
 runtime:
   threads: ~
+  networkSecurity: safe
 release:
   check: true
 manifest:
