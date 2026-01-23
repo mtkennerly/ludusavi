@@ -39,7 +39,7 @@ Currently, this has only been confirmed to happen in game mode, not desktop mode
 Create a file named `ludusavi-wrap.sh` with this content:
 
 ```
-$!/bin/sh
+#!/bin/sh
 ludusavi --config $HOME/.config/ludusavi wrap --gui --infer heroic -- "$@"
 ```
 
