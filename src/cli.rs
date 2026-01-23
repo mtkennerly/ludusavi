@@ -1058,6 +1058,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             force,
             force_backup,
             force_restore,
+            no_backup,
+            no_restore,
             no_force_cloud_conflict,
             gui,
             path,
@@ -1135,6 +1137,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             // Restore
             // TODO: Detect if saves are unchanged and skip the question?
             'restore: {
+                if no_restore {
+                    break 'restore;
+                }
+
                 let Some(game_name) = game_name.as_ref() else {
                     break 'restore;
                 };
@@ -1213,6 +1219,10 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
 
             // Backup
             'backup: {
+                if no_backup {
+                    break 'backup;
+                }
+
                 let Some(game_name) = game_name.as_ref() else {
                     break 'backup;
                 };

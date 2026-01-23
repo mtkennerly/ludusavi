@@ -450,6 +450,14 @@ pub enum Subcommand {
         #[clap(long)]
         force_restore: bool,
 
+        /// Don't back up after closing the game.
+        #[clap(long)]
+        no_backup: bool,
+
+        /// Don't restore before launching the game.
+        #[clap(long)]
+        no_restore: bool,
+
         /// Even if another `--force` option has been specified,
         /// ask how to resolve any cloud conflict
         /// rather than ignoring it and continuing silently.

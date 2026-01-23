@@ -1,6 +1,7 @@
 ## Unreleased
 
 * Added:
+  * CLI: `wrap` now supports `--no-backup` and `--no-restore`.
   * For developers, the crates.io release now includes a library crate
     that you can use to access some of Ludusavi's internals.
     This is highly experimental and subject to change,
