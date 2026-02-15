@@ -6,7 +6,6 @@ use crate::{
     cloud::{CloudChange, Rclone},
     prelude::{app_dir, Error},
     report,
-    resource::ResourceFile,
     scan::{
         layout::BackupLayout, prepare_backup_target, scan_game_for_backup, BackupId, DuplicateDetector, Launchers,
         OperationStepDecision, ScanKind, SteamShortcuts, TitleFinder, TitleMatch,

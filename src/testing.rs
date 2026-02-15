@@ -1,3 +1,6 @@
+// This module is included in both the lib and bin, but not all code is used in both.
+#![allow(unused)]
+
 use std::collections::BTreeMap;
 
 use velcro::btree_map;

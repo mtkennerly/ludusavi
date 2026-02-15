@@ -5,9 +5,6 @@
 //! In time, this will be refactored and improved,
 //! so please understand that the API will be unstable.
 
-// Some code is only used by the binary crate.
-#![allow(unused)]
-
 pub mod api;
 pub mod cloud;
 pub mod lang;
