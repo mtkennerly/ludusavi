@@ -9,7 +9,7 @@
 #![allow(unused)]
 
 pub mod api;
-mod cloud;
+pub mod cloud;
 pub mod lang;
 pub mod metadata;
 pub mod path;
@@ -17,8 +17,8 @@ pub mod prelude;
 pub mod report;
 pub mod resource;
 pub mod scan;
-mod serialization;
-mod wrap;
+pub mod serialization;
+pub mod wrap;
 
 #[cfg(test)]
 mod testing;

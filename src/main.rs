@@ -1,23 +1,16 @@
 mod cli;
-mod cloud;
 mod gui;
-mod lang;
-mod metadata;
-mod path;
-mod prelude;
-mod report;
-mod resource;
-mod scan;
-mod serialization;
-mod wrap;
 
 #[cfg(test)]
 mod testing;
 
-use crate::{
-    gui::Flags,
-    lang::TRANSLATOR,
-    prelude::{app_dir, CONFIG_DIR, VERSION},
+use self::gui::Flags;
+use ludusavi::{
+    cloud,
+    lang::{self, TRANSLATOR},
+    metadata, path,
+    prelude::{self, app_dir, CONFIG_DIR, VERSION},
+    report, resource, scan, wrap,
 };
 
 /// The logger handle must be retained until the application closes.
