@@ -60,6 +60,11 @@ impl Launchers {
         let mut instance = Self::default();
 
         for root in roots {
+            if root.is_game_specific() {
+                log::trace!("Skipping launcher info for game-specific root: {:?}", root);
+                continue;
+            }
+
             log::debug!("Scanning launcher info: {:?}", &root);
             let mut found = match root {
                 Root::Heroic(root) => heroic::scan(root, title_finder, legendary.as_ref()),

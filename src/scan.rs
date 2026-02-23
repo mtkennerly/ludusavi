@@ -120,7 +120,7 @@ pub fn parse_paths(
     path: &str,
     data: &GameFileEntry,
     root: &Root,
-    install_dir: Option<&String>,
+    install_dir: Option<impl AsRef<str>>,
     full_install_dir: Option<&StrictPath>,
     ids: &IdSet,
     manifest_dir: &StrictPath,
@@ -147,12 +147,20 @@ pub fn parse_paths(
         .replace(&format!("*{}", p::STORE_USER_ID), p::STORE_USER_ID)
         .replace(&format!("{}*", p::STORE_USER_ID), p::STORE_USER_ID);
 
-    let install_dir = install_dir.map(|x| globset::escape(x)).unwrap_or(SKIP.to_string());
+    let install_dir = install_dir
+        .map(|x| globset::escape(x.as_ref()))
+        .unwrap_or(SKIP.to_string());
     let full_install_dir = full_install_dir
         .map(|x| x.globbable())
         .unwrap_or_else(|| SKIP.to_string());
 
-    let root_globbable = root.path().globbable();
+    let root_globbable = if root.is_game_specific() {
+        // Pre-expansion, so still needs globbing
+        root.path().render().replace(p::GAME, &install_dir)
+    } else {
+        // Post-expansion, so no need for further globbing
+        root.path().globbable()
+    };
     let manifest_dir_globbable = manifest_dir.globbable();
 
     let data_dir = CommonPath::Data.get_globbable().unwrap_or(SKIP);
@@ -562,19 +570,22 @@ pub fn scan_game_for_backup(
             if launcher_entries.peek().is_none() {
                 let platform = Os::HOST;
                 let full_install_dir = None;
-                let install_dir = None;
+                let install_dirs = std::iter::once(name).chain(game.install_dir.keys().map(|k| k.as_ref()));
 
-                candidates.extend(parse_paths(
-                    raw_path,
-                    path_data,
-                    &root,
-                    install_dir,
-                    full_install_dir,
-                    &all_ids,
-                    manifest_dir,
-                    steam_shortcut,
-                    platform,
-                ));
+                for install_dir in install_dirs {
+                    log::trace!("[{name}] parsing candidates with install dir: {}", install_dir);
+                    candidates.extend(parse_paths(
+                        raw_path,
+                        path_data,
+                        &root,
+                        Some(install_dir),
+                        full_install_dir,
+                        &all_ids,
+                        manifest_dir,
+                        steam_shortcut,
+                        platform,
+                    ));
+                }
             } else {
                 for launcher_entry in launcher_entries {
                     log::trace!("[{name}] parsing candidates with launcher info: {:?}", &launcher_entry);
@@ -1886,6 +1897,53 @@ mod tests {
                 &StrictPath::new(repo()),
                 &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
                 &filter,
+                None,
+                &ToggledPaths::default(),
+                &ToggledRegistry::default(),
+                None,
+                &[],
+                false,
+                &Default::default(),
+                ONLY_CONSTRUCTIVE,
+            ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_with_game_specific_root() {
+        let title = "by-title-1".to_string();
+
+        let manifest = Manifest::load_from_string(&format!(
+            r#"
+            {title}:
+              files:
+                <root>/save.txt: {{}}
+              installDir:
+                by-install-1: {{}}
+            "#
+        ))
+        .unwrap();
+
+        let roots = &[Root::new(
+            format!("{}/tests/root-by-game/<game>", repo()),
+            Store::OtherHome,
+        )];
+        assert_eq!(
+            ScanInfo {
+                game_name: title.clone(),
+                found_files: hash_map! {
+                    format!("{}/tests/root-by-game/by-title-1/save.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
+                    format!("{}/tests/root-by-game/by-install-1/save.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
+                },
+                ..Default::default()
+            },
+            scan_game_for_backup(
+                &manifest.0[&title],
+                &title,
+                roots,
+                &StrictPath::new(repo()),
+                &Launchers::scan_dirs(roots, &manifest, &[title.clone()]),
+                &BackupFilter::default(),
                 None,
                 &ToggledPaths::default(),
                 &ToggledRegistry::default(),

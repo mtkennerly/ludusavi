@@ -1,6 +1,10 @@
 ## Unreleased
 
 * Added:
+  * Roots may now use the `<game>` placeholder,
+    allowing a single root entry to match game-specific folders during the scan.
+    This is mainly useful in cases where you have separate roots per game,
+    such as with Wine prefixes.
   * CLI: `wrap` now supports `--no-backup` and `--no-restore`.
   * For developers, the crates.io release now includes a library crate
     that you can use to access some of Ludusavi's internals.

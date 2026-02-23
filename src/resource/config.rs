@@ -528,6 +528,10 @@ impl Root {
             })
             .collect()
     }
+
+    pub fn is_game_specific(&self) -> bool {
+        self.path().raw().contains(manifest::placeholder::GAME)
+    }
 }
 
 #[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -1734,7 +1738,17 @@ impl Config {
             );
         }
 
-        let expanded: Vec<Root> = self.roots.iter().flat_map(|x| x.glob()).collect();
+        let expanded: Vec<Root> = self
+            .roots
+            .iter()
+            .flat_map(|x| {
+                if x.is_game_specific() {
+                    vec![x.clone()]
+                } else {
+                    x.glob()
+                }
+            })
+            .collect();
 
         for root in &expanded {
             log::trace!(

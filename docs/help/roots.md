@@ -58,6 +58,19 @@ You may use [globs] in root paths to identify multiple roots at once.
 If you have a folder name that contains a special glob character,
 you can escape it by wrapping it in brackets (e.g., `[` becomes `[[]`).
 
+<!--
+You may also use the placeholder `<game>` as part of a root path.
+In this case, for each game, Ludusavi will try replacing `<game>`
+with the game's title and any known install folder names from the manifest.
+For example, you may want to use this feature if you have a collection of
+game-specific Wine prefixes, so you could add a single Wine root entry
+with a path like `~/prefixes/<game>`.
+This has an advantage over the glob version `~/prefixes/*`
+because the glob would cause every prefix to be scanned for every game
+(resulting in a slower scan and potentially finding false positives),
+whereas `<game>` would only scan the prefix that applies to each game.
+-->
+
 The order of the configured roots is not significant.
 The only case where it may make a difference is if Ludusavi finds secondary manifests (`.ludusavi.yaml` files)
 *and* those manfiests contain overlapping entries for the same game,
