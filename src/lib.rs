@@ -11,6 +11,7 @@ pub mod lang;
 pub mod metadata;
 pub mod path;
 pub mod prelude;
+pub mod proton;
 pub mod report;
 pub mod resource;
 pub mod scan;
