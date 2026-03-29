@@ -320,11 +320,7 @@ pub fn extract_manifest_save_paths(game: &crate::resource::manifest::Game) -> Ve
     game.files
         .iter()
         .filter(|(_, entry)| {
-            entry.tags.iter().any(|tags| {
-                tags.iter().any(|t| {
-                    matches!(t, crate::resource::manifest::Tag::Save)
-                })
-            })
+            entry.tags.contains(&crate::resource::manifest::Tag::Save)
         })
         .map(|(path, _)| path.clone())
         .collect()
