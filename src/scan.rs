@@ -22,6 +22,7 @@ use regex::Regex;
 pub use self::{
     backup::{BackupError, BackupId, BackupInfo, OperationStatus, OperationStepDecision},
     change::{ScanChange, ScanChangeCount},
+    cross_os::{find_save_locations, extract_manifest_save_paths, SaveLocation, OsPathMap},
     duplicate::{DuplicateDetector, Duplication},
     launchers::{LauncherGame, Launchers},
     preview::ScanInfo,
