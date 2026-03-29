@@ -6,7 +6,7 @@
 
 use std::{
     io::{Read, Write},
-    path::{Path, PathBuf},
+    path::PathBuf,
     time::SystemTime,
 };
 
@@ -50,18 +50,77 @@ impl std::fmt::Display for SyncError {
 }
 
 // ---------------------------------------------------------------------------
-// Zip neutro
-// Empaqueta saves sin rutas absolutas embebidas.
-// Estructura interna: saves/nombre_relativo_al_save_dir
+// Escaneo de directorio
+// Port de LocalDataAccessor.ScanDirectory() de EmuSync
 // ---------------------------------------------------------------------------
 
-/// Crea un zip neutro con todos los saves de las ubicaciones dadas.
-/// Devuelve los bytes del zip y el timestamp más reciente encontrado.
-pub fn pack_saves(locations: &[SaveLocation]) -> Result<(Vec<u8>, SystemTime), SyncError> {
-    if locations.is_empty() {
-        return Err(SyncError::NoSaveLocations);
+#[derive(Debug, Default)]
+pub struct DirectoryScanResult {
+    pub directory_is_set: bool,
+    pub directory_exists: bool,
+    pub latest_file_mtime: Option<SystemTime>,
+    pub storage_bytes: u64,
+    pub file_count: u64,
+}
+
+impl DirectoryScanResult {
+    /// El timestamp más reciente entre archivos — equivale a LatestWriteTimeUtc de EmuSync
+    pub fn latest_write_time(&self) -> Option<SystemTime> {
+        self.latest_file_mtime
+    }
+}
+
+/// Escanea un directorio recursivamente y devuelve stats.
+/// Port de LocalDataAccessor.ScanDirectory() + SearchDirectory() de EmuSync.
+pub fn scan_directory(path: Option<&std::path::Path>) -> DirectoryScanResult {
+    let mut result = DirectoryScanResult::default();
+
+    let Some(path) = path else {
+        result.directory_is_set = false;
+        return result;
+    };
+
+    result.directory_is_set = true;
+    result.directory_exists = path.is_dir();
+
+    if !result.directory_exists {
+        return result;
     }
 
+    for entry in walkdir::WalkDir::new(path)
+        .follow_links(true)
+        .into_iter()
+        .flatten()
+    {
+        let Ok(meta) = entry.metadata() else { continue };
+
+        if meta.is_file() {
+            result.file_count += 1;
+            result.storage_bytes += meta.len();
+
+            if let Ok(mtime) = meta.modified() {
+                match result.latest_file_mtime {
+                    None => result.latest_file_mtime = Some(mtime),
+                    Some(current) if mtime > current => result.latest_file_mtime = Some(mtime),
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    result
+}
+
+// ---------------------------------------------------------------------------
+// Zip neutro
+// Port de ZipHelper.CreateZipFromFolder() de EmuSync.
+// Estructura interna: archivos directamente sin prefijo, rutas relativas al save_dir.
+// ---------------------------------------------------------------------------
+
+/// Crea un zip neutro con todos los saves de la ubicación dada.
+/// Devuelve los bytes del zip.
+/// Port de ZipHelper.CreateZipFromFolder().
+pub fn pack_saves(save_dir: &std::path::Path) -> Result<Vec<u8>, SyncError> {
     let buf = Vec::new();
     let cursor = std::io::Cursor::new(buf);
     let mut zip = ZipWriter::new(cursor);
@@ -70,64 +129,37 @@ pub fn pack_saves(locations: &[SaveLocation]) -> Result<(Vec<u8>, SystemTime), S
         .compression_method(zip::CompressionMethod::Deflated)
         .unix_permissions(0o644);
 
-    let mut latest_mtime = SystemTime::UNIX_EPOCH;
-
-    for location in locations {
-        let save_dir = &location.path;
-
-        if !save_dir.is_dir() {
+    for entry in walkdir::WalkDir::new(save_dir)
+        .follow_links(true)
+        .into_iter()
+        .flatten()
+    {
+        if !entry.file_type().is_file() {
             continue;
         }
 
-        for entry in walkdir::WalkDir::new(save_dir)
-            .follow_links(true)
-            .into_iter()
-            .flatten()
-        {
-            if !entry.file_type().is_file() {
-                continue;
-            }
+        let file_path = entry.path();
 
-            let file_path = entry.path();
+        // Ruta relativa dentro del zip — sin prefijo, igual que EmuSync
+        let relative = file_path
+            .strip_prefix(save_dir)
+            .unwrap_or(file_path);
+        let zip_path = relative.to_string_lossy().replace('\\', "/");
 
-            // Ruta relativa dentro del zip: saves/<relativa al save_dir>
-            let relative = file_path
-                .strip_prefix(save_dir)
-                .unwrap_or(file_path);
-            let zip_path = format!("saves/{}", relative.to_string_lossy().replace('\\', "/"));
-
-            // Actualizar timestamp más reciente
-            if let Ok(meta) = entry.metadata() {
-                if let Ok(mtime) = meta.modified() {
-                    if mtime > latest_mtime {
-                        latest_mtime = mtime;
-                    }
-                }
-            }
-
-            // Añadir al zip
-            zip.start_file(&zip_path, options)?;
-            let mut f = std::fs::File::open(file_path)?;
-            let mut contents = Vec::new();
-            f.read_to_end(&mut contents)?;
-            zip.write_all(&contents)?;
-        }
+        zip.start_file(&zip_path, options)?;
+        let mut f = std::fs::File::open(file_path)?;
+        let mut contents = Vec::new();
+        f.read_to_end(&mut contents)?;
+        zip.write_all(&contents)?;
     }
 
     let cursor = zip.finish()?;
-    Ok((cursor.into_inner(), latest_mtime))
+    Ok(cursor.into_inner())
 }
 
-/// Extrae un zip neutro en las ubicaciones de save del dispositivo actual.
-/// Cada archivo en saves/* se extrae en save_dir/ruta_relativa.
-pub fn unpack_saves(zip_bytes: &[u8], locations: &[SaveLocation]) -> Result<(), SyncError> {
-    if locations.is_empty() {
-        return Err(SyncError::NoSaveLocations);
-    }
-
-    // Usamos la primera ubicación como destino principal
-    let target_dir = &locations[0].path;
-
+/// Extrae un zip neutro en el directorio de saves del dispositivo actual.
+/// Port de ZipHelper.ExtractToDirectory() de EmuSync.
+pub fn unpack_saves(zip_bytes: &[u8], target_dir: &std::path::Path) -> Result<(), SyncError> {
     let cursor = std::io::Cursor::new(zip_bytes);
     let mut archive = ZipArchive::new(cursor)?;
 
@@ -135,18 +167,12 @@ pub fn unpack_saves(zip_bytes: &[u8], locations: &[SaveLocation]) -> Result<(), 
         let mut file = archive.by_index(i)?;
         let name = file.name().to_string();
 
-        // Solo procesamos entradas bajo saves/
-        let Some(relative) = name.strip_prefix("saves/") else {
-            continue;
-        };
-
-        if relative.is_empty() {
-            continue;
+        if name.ends_with('/') {
+            continue; // directorio
         }
 
-        let target_path = target_dir.join(relative);
+        let target_path = target_dir.join(&name);
 
-        // Crear directorios padre si no existen
         if let Some(parent) = target_path.parent() {
             std::fs::create_dir_all(parent)?;
         }
@@ -161,97 +187,116 @@ pub fn unpack_saves(zip_bytes: &[u8], locations: &[SaveLocation]) -> Result<(), 
 }
 
 // ---------------------------------------------------------------------------
-// Timestamps y lógica newest-wins
+// Lógica newest-wins
+// Port de DetermineSyncType() de EmuSync
 // ---------------------------------------------------------------------------
-
-/// Metadatos de sync almacenados junto al zip en la nube.
-/// Equivale al latestWriteTimeUtc de EmuSync.
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SyncMetadata {
-    /// Timestamp del save más reciente en el zip (Unix timestamp en segundos)
-    pub latest_mtime: u64,
-    /// Nombre del dispositivo que hizo el último upload
-    pub device: String,
-}
-
-impl SyncMetadata {
-    pub fn new(mtime: SystemTime, device: impl Into<String>) -> Result<Self, SyncError> {
-        let latest_mtime = mtime
-            .duration_since(SystemTime::UNIX_EPOCH)
-            .map_err(|_| SyncError::TimestampError)?
-            .as_secs();
-
-        Ok(Self {
-            latest_mtime,
-            device: device.into(),
-        })
-    }
-
-    pub fn as_system_time(&self) -> SystemTime {
-        SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(self.latest_mtime)
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum SyncDecision {
     /// Los saves locales son más nuevos → subir
     Upload,
-    /// Los saves en la nube son más nuevos → bajar
+    /// Los saves en la nube son más nuevos → bajar  
     Download,
     /// Mismo timestamp → nada que hacer
     AlreadySynced,
+    /// No hay directorio local ni registro en nube
+    Unknown,
+    /// El directorio local no está configurado
+    UnsetDirectory,
 }
 
-/// Decide qué dirección sincronizar comparando timestamps.
-/// Port de la lógica newest-wins de EmuSync.
-pub fn decide_sync_direction(
-    local_mtime: SystemTime,
-    remote_metadata: Option<&SyncMetadata>,
-) -> SyncDecision {
-    let Some(remote) = remote_metadata else {
-        // No hay nada en la nube → subir
-        return SyncDecision::Upload;
-    };
+/// Metadatos guardados en la nube junto al zip.
+/// Equivale a game.LatestWriteTimeUtc de EmuSync.
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SyncMetadata {
+    /// Timestamp del save más reciente (Unix segundos UTC)
+    pub latest_mtime_secs: u64,
+    /// Dispositivo que hizo el último upload
+    pub device: String,
+    /// Cuándo se hizo el último sync
+    pub last_sync_utc: u64,
+}
 
-    let remote_mtime = remote.as_system_time();
+impl SyncMetadata {
+    pub fn new(mtime: SystemTime, device: impl Into<String>) -> Result<Self, SyncError> {
+        let latest_mtime_secs = mtime
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map_err(|_| SyncError::TimestampError)?
+            .as_secs();
 
-    // Margen de 2 segundos para evitar falsos positivos por precisión de FAT32
-    let margin = std::time::Duration::from_secs(2);
+        let last_sync_utc = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map_err(|_| SyncError::TimestampError)?
+            .as_secs();
 
-    match local_mtime.duration_since(remote_mtime) {
-        Ok(diff) if diff > margin => SyncDecision::Upload,
-        Err(e) if e.duration() > margin => SyncDecision::Download,
-        _ => SyncDecision::AlreadySynced,
+        Ok(Self {
+            latest_mtime_secs,
+            device: device.into(),
+            last_sync_utc,
+        })
+    }
+
+    pub fn as_system_time(&self) -> SystemTime {
+        SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(self.latest_mtime_secs)
     }
 }
 
-/// Fuerza una dirección concreta ignorando timestamps.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ForcedDirection {
-    Upload,
-    Download,
+/// Decide qué dirección sincronizar.
+/// Port exacto de DetermineSyncType() de EmuSync.
+pub fn decide_sync_direction(
+    scan: &DirectoryScanResult,
+    remote_metadata: Option<&SyncMetadata>,
+) -> SyncDecision {
+    // Nunca se ha sincronizado
+    let Some(remote) = remote_metadata else {
+        if scan.directory_exists {
+            return SyncDecision::Upload;
+        }
+        return SyncDecision::Unknown;
+    };
+
+    if !scan.directory_is_set {
+        return SyncDecision::UnsetDirectory;
+    }
+
+    // El directorio local no existe pero hay registro en nube → descargar
+    if !scan.directory_exists {
+        return SyncDecision::Download;
+    }
+
+    let local_mtime = scan.latest_write_time().unwrap_or(SystemTime::UNIX_EPOCH);
+    let remote_mtime = remote.as_system_time();
+
+    // Sin margen — igual que EmuSync
+    if local_mtime > remote_mtime {
+        SyncDecision::Upload
+    } else if local_mtime < remote_mtime {
+        SyncDecision::Download
+    } else {
+        SyncDecision::AlreadySynced
+    }
 }
 
 // ---------------------------------------------------------------------------
-// Paths de trabajo local para los zips
+// Paths de trabajo local para los zips temporales
+// Port de GetTempZipPath() de EmuSync
 // ---------------------------------------------------------------------------
 
-/// Directorio temporal donde se guardan los zips antes de subirlos / tras bajarlos.
-pub fn local_zip_dir(game_name: &str) -> PathBuf {
+pub fn temp_zip_path(game_name: &str) -> PathBuf {
     let mut dir = dirs::cache_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
     dir.push("ludusavi-emusync");
-    dir.push(sanitize_game_name(game_name));
+    dir.push("temp");
+    std::fs::create_dir_all(&dir).ok();
+    dir.push(format!("{}.zip", sanitize_game_name(game_name)));
     dir
 }
 
-/// Nombre del zip para un juego.
-pub fn zip_filename(game_name: &str) -> String {
-    format!("{}.zip", sanitize_game_name(game_name))
-}
-
-/// Nombre del fichero de metadatos para un juego.
-pub fn metadata_filename(game_name: &str) -> String {
-    format!("{}.meta.json", sanitize_game_name(game_name))
+pub fn metadata_path(game_name: &str) -> PathBuf {
+    let mut dir = dirs::cache_dir().unwrap_or_else(|| PathBuf::from("/tmp"));
+    dir.push("ludusavi-emusync");
+    std::fs::create_dir_all(&dir).ok();
+    dir.push(format!("{}.meta.json", sanitize_game_name(game_name)));
+    dir
 }
 
 fn sanitize_game_name(name: &str) -> String {
@@ -269,44 +314,86 @@ mod tests {
     use super::*;
 
     #[test]
-    fn newest_wins_local_newer() {
-        let local = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1000);
-        let remote = SyncMetadata {
-            latest_mtime: 100,
-            device: "other".to_string(),
+    fn upload_when_no_remote() {
+        let scan = DirectoryScanResult {
+            directory_is_set: true,
+            directory_exists: true,
+            latest_file_mtime: Some(SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(100)),
+            ..Default::default()
         };
-        assert_eq!(SyncDecision::Upload, decide_sync_direction(local, Some(&remote)));
+        assert_eq!(SyncDecision::Upload, decide_sync_direction(&scan, None));
     }
 
     #[test]
-    fn newest_wins_remote_newer() {
-        let local = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(100);
-        let remote = SyncMetadata {
-            latest_mtime: 1000,
-            device: "other".to_string(),
+    fn unknown_when_no_remote_and_no_local() {
+        let scan = DirectoryScanResult {
+            directory_is_set: true,
+            directory_exists: false,
+            ..Default::default()
         };
-        assert_eq!(SyncDecision::Download, decide_sync_direction(local, Some(&remote)));
+        assert_eq!(SyncDecision::Unknown, decide_sync_direction(&scan, None));
     }
 
     #[test]
-    fn newest_wins_no_remote() {
-        let local = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(100);
-        assert_eq!(SyncDecision::Upload, decide_sync_direction(local, None));
-    }
-
-    #[test]
-    fn newest_wins_same_timestamp() {
-        let local = SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1000);
-        let remote = SyncMetadata {
-            latest_mtime: 1000,
-            device: "other".to_string(),
+    fn upload_when_local_newer() {
+        let scan = DirectoryScanResult {
+            directory_is_set: true,
+            directory_exists: true,
+            latest_file_mtime: Some(SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1000)),
+            ..Default::default()
         };
-        assert_eq!(SyncDecision::AlreadySynced, decide_sync_direction(local, Some(&remote)));
+        let remote = SyncMetadata {
+            latest_mtime_secs: 100,
+            device: "other".into(),
+            last_sync_utc: 0,
+        };
+        assert_eq!(SyncDecision::Upload, decide_sync_direction(&scan, Some(&remote)));
     }
 
     #[test]
-    fn sanitize_game_name_works() {
-        assert_eq!("The_Witcher_3", sanitize_game_name("The Witcher 3"));
-        assert_eq!("game-saves_v2", sanitize_game_name("game-saves_v2"));
+    fn download_when_remote_newer() {
+        let scan = DirectoryScanResult {
+            directory_is_set: true,
+            directory_exists: true,
+            latest_file_mtime: Some(SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(100)),
+            ..Default::default()
+        };
+        let remote = SyncMetadata {
+            latest_mtime_secs: 1000,
+            device: "other".into(),
+            last_sync_utc: 0,
+        };
+        assert_eq!(SyncDecision::Download, decide_sync_direction(&scan, Some(&remote)));
+    }
+
+    #[test]
+    fn already_synced_when_equal() {
+        let scan = DirectoryScanResult {
+            directory_is_set: true,
+            directory_exists: true,
+            latest_file_mtime: Some(SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(1000)),
+            ..Default::default()
+        };
+        let remote = SyncMetadata {
+            latest_mtime_secs: 1000,
+            device: "other".into(),
+            last_sync_utc: 0,
+        };
+        assert_eq!(SyncDecision::AlreadySynced, decide_sync_direction(&scan, Some(&remote)));
+    }
+
+    #[test]
+    fn download_when_no_local_dir_but_remote_exists() {
+        let scan = DirectoryScanResult {
+            directory_is_set: true,
+            directory_exists: false,
+            ..Default::default()
+        };
+        let remote = SyncMetadata {
+            latest_mtime_secs: 1000,
+            device: "other".into(),
+            last_sync_utc: 0,
+        };
+        assert_eq!(SyncDecision::Download, decide_sync_direction(&scan, Some(&remote)));
     }
 }
