@@ -1,5 +1,6 @@
 pub mod backup;
 pub mod change;
+pub mod cross_os;
 pub mod duplicate;
 pub mod game_filter;
 pub mod launchers;
