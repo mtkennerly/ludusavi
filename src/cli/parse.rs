@@ -262,6 +262,12 @@ pub enum Subcommand {
         #[clap(long)]
         no_force_cloud_conflict: bool,
 
+        /// Wine/Proton prefix for restoring Windows saves on Linux.
+        /// This should be a folder with a "drive_c" subfolder.
+        /// Required for restoring semantic (portable) Windows backups on Linux.
+        #[clap(long, value_parser = parse_strict_path)]
+        wine_prefix: Option<StrictPath>,
+
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
         #[clap(long)]
@@ -1139,6 +1145,7 @@ mod tests {
                     path: None,
                     force: false,
                     no_force_cloud_conflict: false,
+                    wine_prefix: None,
                     api: false,
                     gui: false,
                     sort: None,
@@ -1190,6 +1197,7 @@ mod tests {
                     )),
                     force: true,
                     no_force_cloud_conflict: true,
+                    wine_prefix: None,
                     api: true,
                     gui: false,
                     sort: Some(CliSort::Name),
@@ -1235,6 +1243,7 @@ mod tests {
                         path: None,
                         force: false,
                         no_force_cloud_conflict: false,
+                        wine_prefix: None,
                         api: false,
                         gui: false,
                         sort: Some(sort),

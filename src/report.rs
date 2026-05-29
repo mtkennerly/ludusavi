@@ -11,6 +11,7 @@ use crate::{
         BackupError, BackupInfo, DuplicateDetector, OperationStatus, OperationStepDecision, ScanChange, ScanInfo,
         TitleMatch, compare_ranked_titles_ref, layout::Backup, registry,
     },
+    semantic::preview::SemanticPreviewAnalysis,
 };
 
 #[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
@@ -95,6 +96,9 @@ pub struct ApiFile {
     /// then this is its location within the backup.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub redirected_path: Option<String>,
+    /// Portable semantic identity used for cross-platform backups, if available.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub semantic_key: Option<String>,
     /// Any other games that also have the same file path.
     #[serde(skip_serializing_if = "BTreeSet::is_empty")]
     pub duplicated_by: BTreeSet<String>,
@@ -212,6 +216,9 @@ pub struct ApiOutput {
     /// Populated by the `cloud` commands.
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub cloud: BTreeMap<String, CloudEntry>,
+    /// Portable backup changes detected during preview.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub semantic_preview: Option<SemanticPreviewAnalysis>,
 }
 
 #[derive(Debug, Default, serde::Serialize, schemars::JsonSchema)]
@@ -250,6 +257,7 @@ impl Reporter {
                 overall: Some(Default::default()),
                 games: Default::default(),
                 cloud: Default::default(),
+                semantic_preview: None,
             },
         }
     }
@@ -291,6 +299,21 @@ impl Reporter {
         self.set_errors(|e| {
             e.cloud_sync_failed = Some(concern::CloudSyncFailed {});
         });
+    }
+
+    pub fn add_semantic_preview(&mut self, analysis: SemanticPreviewAnalysis) {
+        match self {
+            Self::Standard { parts, .. } => {
+                if !analysis.is_empty() {
+                    parts.push(TRANSLATOR.semantic_preview(&analysis));
+                }
+            }
+            Self::Json { output } => {
+                if !analysis.is_empty() {
+                    output.semantic_preview = Some(analysis);
+                }
+            }
+        }
     }
 
     pub fn suppress_overall(&mut self) {
@@ -355,6 +378,10 @@ impl Reporter {
                                 parts.push(TRANSLATOR.cli_game_line_item_redirected(&alt))
                             }
                         }
+                    }
+
+                    if let Some(semantic) = &entry.semantic_key {
+                        parts.push(TRANSLATOR.cli_game_line_item_portable(&semantic.serialize()));
                     }
 
                     if let Some(error) = backup_info.as_ref().and_then(|x| x.failed_files.get(scan_key)) {
@@ -429,6 +456,7 @@ impl Reporter {
                             .and_then(|x| x.failed_files.get(scan_key).map(SaveError::from)),
                         ignored: entry.ignored,
                         change: entry.change(),
+                        semantic_key: entry.semantic_key.as_ref().map(|x| x.serialize()),
                         ..Default::default()
                     };
                     if !duplicate_detector.is_file_duplicated(scan_key, entry).resolved() {
@@ -666,6 +694,7 @@ pub fn report_cloud_changes(changes: &[CloudChange], api: bool) {
             overall: None,
             games: Default::default(),
             cloud: Default::default(),
+            semantic_preview: None,
         };
 
         output.cloud = changes
@@ -693,6 +722,7 @@ mod tests {
     use super::*;
     use crate::{
         scan::{BackupError, ScannedFile, ScannedRegistry},
+        semantic::SemanticPath,
         testing::s,
     };
 
@@ -736,6 +766,9 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                     "/file2".into(): ScannedFile {
                         size: 51_200,
@@ -745,6 +778,9 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                 },
                 found_registry_keys: hash_map! {
@@ -805,6 +841,9 @@ Overall:
                         change: ScanChange::Same,
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                 },
                 found_registry_keys: hash_map! {},
@@ -828,6 +867,9 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                 },
                 found_registry_keys: hash_map! {},
@@ -873,6 +915,9 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                     "/backup/file2".into(): ScannedFile {
                         size: 51_200,
@@ -882,6 +927,9 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                 },
                 found_registry_keys: hash_map! {},
@@ -1198,6 +1246,70 @@ Overall:
     }
 
     #[test]
+    fn json_mode_includes_semantic_key_separately_from_physical_path() {
+        let mut reporter = Reporter::json();
+
+        reporter.add_game(
+            "foo",
+            &ScanInfo {
+                game_name: s("foo"),
+                found_files: hash_map! {
+                    "/home/deck/prefix/drive_c/users/steamuser/Documents/Game/save.dat".into(): ScannedFile {
+                        size: 4,
+                        hash: "hash".to_string(),
+                        semantic_key: Some(SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap()),
+                        ..Default::default()
+                    },
+                },
+                ..Default::default()
+            },
+            None,
+            &OperationStepDecision::Processed,
+            &DuplicateDetector::default(),
+            false,
+        );
+        let output: serde_json::Value =
+            serde_json::from_str(&reporter.render(&StrictPath::new(s("/dev/null")))).unwrap();
+
+        assert_eq!(
+            "<winDocuments>/Game/save.dat",
+            output["games"]["foo"]["files"]["/home/deck/prefix/drive_c/users/steamuser/Documents/Game/save.dat"]
+                ["semanticKey"]
+                .as_str()
+                .unwrap()
+        );
+    }
+
+    #[test]
+    fn standard_mode_shows_semantic_key_separately_from_physical_path() {
+        let mut reporter = Reporter::standard();
+
+        reporter.add_game(
+            "foo",
+            &ScanInfo {
+                game_name: s("foo"),
+                found_files: hash_map! {
+                    "/home/deck/prefix/drive_c/users/steamuser/Documents/Game/save.dat".into(): ScannedFile {
+                        size: 4,
+                        hash: "hash".to_string(),
+                        semantic_key: Some(SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap()),
+                        ..Default::default()
+                    },
+                },
+                ..Default::default()
+            },
+            None,
+            &OperationStepDecision::Processed,
+            &DuplicateDetector::default(),
+            false,
+        );
+
+        let output = reporter.render(&StrictPath::new(s("/dev/null")));
+        assert!(output.contains("/home/deck/prefix/drive_c/users/steamuser/Documents/Game/save.dat"));
+        assert!(output.contains("Stored as portable save location: <winDocuments>/Game/save.dat"));
+    }
+
+    #[test]
     fn can_render_in_json_mode_with_one_game_in_restore_mode() {
         let mut reporter = Reporter::json();
 
@@ -1214,6 +1326,9 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                     "/backup/file2".into(): ScannedFile {
                         size: 50,
@@ -1223,6 +1338,9 @@ Overall:
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                 },
                 found_registry_keys: hash_map! {},

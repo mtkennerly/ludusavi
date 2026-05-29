@@ -13,6 +13,7 @@ use crate::{
         manifest::Store,
     },
     scan::{BackupError, OperationStatus, OperationStepDecision, ScanChange, game_filter},
+    semantic::preview::SemanticPreviewAnalysis,
 };
 
 const PATH: &str = "path";
@@ -30,6 +31,10 @@ const MESSAGE: &str = "message";
 const APP: &str = "app";
 const GAME: &str = "game";
 const VERSION: &str = "version";
+const DRIVE: &str = "drive";
+const LEGACY: &str = "legacy";
+const SEMANTIC: &str = "semantic";
+const KEY: &str = "key";
 
 pub const TRANSLATOR: Translator = Translator {};
 pub const ADD_SYMBOL: &str = "+";
@@ -402,6 +407,7 @@ impl Translator {
             Error::CliUnableToRequestConfirmation => self.cli_unable_to_request_confirmation(),
             Error::CliBackupIdWithMultipleGames => self.cli_backup_id_with_multiple_games(),
             Error::CliInvalidBackupId => self.cli_invalid_backup_id(),
+            Error::WinePrefixConflict { game, cli, configured } => self.wine_prefix_conflict(game, cli, configured),
             Error::NoSaveDataFound => self.notify_single_game_status(false),
             Error::GameIsUnrecognized => self.game_is_unrecognized(),
             Error::SomeEntriesFailed => self.some_entries_failed(),
@@ -485,6 +491,17 @@ impl Translator {
         translate("cli-invalid-backup-id")
     }
 
+    pub fn wine_prefix_conflict(&self, game: &str, cli: &StrictPath, configured: &StrictPath) -> String {
+        let mut args = FluentArgs::new();
+        args.set(GAME, game);
+        let primary = translate_args("wine-prefix-conflict", &args);
+        args.set(PATH, cli.render());
+        let cli = translate_args("wine-prefix-conflict-cli", &args);
+        args.set(PATH, configured.render());
+        let configured = translate_args("wine-prefix-conflict-configured", &args);
+        format!("{}\n{}\n{}", self.prefix_error(&primary), cli, configured)
+    }
+
     pub fn cloud_not_configured(&self) -> String {
         translate("cloud-not-configured")
     }
@@ -559,6 +576,28 @@ impl Translator {
         let mut args = FluentArgs::new();
         args.set(PATH, path.render());
         translate_args("badge-redirecting-to", &args)
+    }
+
+    pub fn badge_portable(&self, path: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(PATH, path);
+        translate_args("badge-portable", &args)
+    }
+
+    pub fn portable_label(&self) -> String {
+        translate("label-portable")
+    }
+
+    pub fn new_full_backup_label(&self) -> String {
+        translate("label-new-full-backup")
+    }
+
+    pub fn semantic_conflict_label(&self) -> String {
+        translate("label-portable-conflict")
+    }
+
+    pub fn invalid_prefix_label(&self) -> String {
+        translate("label-invalid-prefix")
     }
 
     pub fn cli_game_header(
@@ -639,8 +678,85 @@ impl Translator {
         format!("    - {}", translate_args("cli-game-line-item-redirecting", &args),)
     }
 
+    pub fn cli_game_line_item_portable(&self, item: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(PATH, item);
+        format!("    - {}", translate_args("cli-game-line-item-portable", &args),)
+    }
+
     pub fn cli_game_line_item_error(&self, error: &BackupError) -> String {
         format!("    - {}", error.message())
+    }
+
+    pub fn semantic_format_switch_notice(&self) -> String {
+        translate("semantic-format-switch-notice")
+    }
+
+    pub fn semantic_prefix_invalid(&self, path: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(PATH, path);
+        translate_args("semantic-prefix-invalid", &args)
+    }
+
+    pub fn semantic_drive_missing(&self, drive: char) -> String {
+        let mut args = FluentArgs::new();
+        args.set(DRIVE, drive.to_string());
+        translate_args("semantic-drive-missing", &args)
+    }
+
+    pub fn semantic_key_conflict(&self, key: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(KEY, key);
+        translate_args("semantic-key-conflict", &args)
+    }
+
+    pub fn semantic_preview_would_become(&self, legacy: &str, semantic: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(LEGACY, legacy);
+        args.set(SEMANTIC, semantic);
+        translate_args("semantic-preview-would-become", &args)
+    }
+
+    pub fn semantic_preview(&self, analysis: &SemanticPreviewAnalysis) -> String {
+        let mut lines = Vec::new();
+
+        for game in &analysis.new_full_chains {
+            lines.push(self.prefix_warning(&format!("{game}: {}", self.semantic_format_switch_notice())));
+        }
+
+        for migration in &analysis.migrations {
+            lines.push(format!(
+                "{}: {}",
+                migration.game_name,
+                self.semantic_preview_would_become(&migration.legacy_key, &migration.semantic_key)
+            ));
+        }
+
+        for prefix in &analysis.invalid_prefixes {
+            lines.push(self.prefix_warning(&format!(
+                "{}: {} ({})",
+                prefix.game_name,
+                self.semantic_prefix_invalid(&prefix.path),
+                prefix.reason
+            )));
+        }
+
+        for conflict in &analysis.conflicts {
+            lines.push(self.prefix_error(&format!(
+                "{}: {}",
+                conflict.game_name,
+                self.semantic_key_conflict(&conflict.semantic_key)
+            )));
+            for path in &conflict.physical_paths {
+                lines.push(format!("    - {path}"));
+            }
+        }
+
+        if lines.is_empty() {
+            "".to_string()
+        } else {
+            format!("{}\n", lines.join("\n"))
+        }
     }
 
     pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {

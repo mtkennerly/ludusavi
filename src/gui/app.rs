@@ -37,7 +37,12 @@ use crate::{
         BackupId, Launchers, ScanKind, SteamShortcuts, TitleFinder, game_filter, layout::BackupLayout,
         prepare_backup_target, registry::RegistryItem, scan_game_for_backup,
     },
+    semantic::materialize::{MaterializeTarget, resolve_wine_prefix_without_cli},
+    semantic::preview::will_start_new_semantic_full_backup,
 };
+
+#[cfg(target_os = "windows")]
+use crate::semantic::materialize::known_folders_from_common_path;
 
 pub struct Executor(tokio::runtime::Runtime);
 
@@ -529,7 +534,13 @@ impl App {
                                     config.restore.reverse_redirects,
                                     &steam_shortcuts,
                                     config.backup.only_constructive,
+                                    config.backup.semantic_paths,
                                 );
+                                let mut scan_info = scan_info;
+                                if preview {
+                                    scan_info.will_start_new_semantic_full_backup =
+                                        will_start_new_semantic_full_backup(&layout, &scan_info);
+                                }
                                 if !config.is_game_enabled_for_backup(&key) && !single {
                                     return (Some(scan_info), None);
                                 }
@@ -853,12 +864,16 @@ impl App {
 
                 let config = std::sync::Arc::new(self.config.clone());
                 let layout = std::sync::Arc::new(layout);
+                #[cfg(target_os = "windows")]
+                let kf = known_folders_from_common_path();
 
                 for name in restorables {
                     let config = config.clone();
                     let layout = layout.clone();
                     let cancel_flag = self.operation_should_cancel.clone();
                     let backup_id = self.backups_to_restore.get(&name).cloned().unwrap_or(BackupId::Latest);
+                    #[cfg(target_os = "windows")]
+                    let kf = kf.clone();
                     self.operation_steps.push(OperationStep {
                         title: name.clone(),
                         task: Task::perform(
@@ -869,6 +884,24 @@ impl App {
                                     return (None, None, layout);
                                 }
 
+                                #[cfg(target_os = "windows")]
+                                let win_target = MaterializeTarget::CurrentWindows { known_folders: &kf };
+                                #[cfg(target_os = "windows")]
+                                let materialize_target: Option<&MaterializeTarget> = Some(&win_target);
+                                #[cfg(not(target_os = "windows"))]
+                                let linux_wine_prefix = resolve_wine_prefix_without_cli(&config, &name);
+                                #[cfg(not(target_os = "windows"))]
+                                let empty_drive_mappings = std::collections::HashMap::new();
+                                #[cfg(not(target_os = "windows"))]
+                                let linux_wine_target =
+                                    linux_wine_prefix.as_ref().map(|prefix| MaterializeTarget::WinePrefix {
+                                        prefix,
+                                        wine_user: &prefix.wine_user,
+                                        drive_mappings: &empty_drive_mappings,
+                                    });
+                                #[cfg(not(target_os = "windows"))]
+                                let materialize_target: Option<&MaterializeTarget> = linux_wine_target.as_ref();
+
                                 let scan_info = layout.scan_for_restoration(
                                     &name,
                                     &backup_id,
@@ -876,6 +909,7 @@ impl App {
                                     config.restore.reverse_redirects,
                                     &config.restore.toggled_paths,
                                     &config.restore.toggled_registry,
+                                    materialize_target,
                                 );
                                 if !config.is_game_enabled_for_restore(&name) && !single {
                                     return (Some(scan_info), None, layout);

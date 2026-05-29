@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::OnceLock;
 
 use crate::{
     path::StrictPath,
@@ -8,9 +9,10 @@ use crate::{
         layout::Backup,
         registry::{self, RegistryItem},
     },
+    semantic::{self, SemanticPath},
 };
 
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default)]
 pub struct ScanInfo {
     pub game_name: String,
     /// The key is the actual location on disk.
@@ -28,7 +30,27 @@ pub struct ScanInfo {
     pub dumped_registry: Option<registry::Hives>,
     /// Last known configuration.
     pub only_constructive_backups: bool,
+    /// Preview-only notice that this game will start a portable full backup chain.
+    pub will_start_new_semantic_full_backup: bool,
+    /// Lazily computed semantic conflicts.
+    pub cached_semantic_conflicts: OnceLock<Vec<semantic::conflict::SemanticConflict>>,
 }
+
+impl PartialEq for ScanInfo {
+    fn eq(&self, other: &Self) -> bool {
+        self.game_name == other.game_name
+            && self.found_files == other.found_files
+            && self.found_registry_keys == other.found_registry_keys
+            && self.available_backups == other.available_backups
+            && self.backup == other.backup
+            && self.has_backups == other.has_backups
+            && self.dumped_registry == other.dumped_registry
+            && self.only_constructive_backups == other.only_constructive_backups
+            && self.will_start_new_semantic_full_backup == other.will_start_new_semantic_full_backup
+    }
+}
+
+impl Eq for ScanInfo {}
 
 impl ScanInfo {
     pub fn sum_bytes(&self, backup_info: Option<&BackupInfo>) -> u64 {
@@ -72,6 +94,28 @@ impl ScanInfo {
 
     pub fn found_anything(&self) -> bool {
         !self.found_files.is_empty() || !self.found_registry_keys.is_empty()
+    }
+
+    /// Returns true if any found file has a semantic key derived.
+    pub fn has_semantic_keys(&self) -> bool {
+        self.found_files.values().any(|f| f.semantic_key.is_some())
+    }
+
+    pub fn semantic_conflicts(&self) -> &[semantic::conflict::SemanticConflict] {
+        self.cached_semantic_conflicts.get_or_init(|| {
+            let files = self
+                .found_files
+                .iter()
+                .map(|(path, file)| (path.clone(), file.semantic_key.clone()))
+                .collect();
+            semantic::conflict::detect_conflicts(&files)
+        })
+    }
+
+    pub fn has_semantic_conflict(&self, semantic: &SemanticPath) -> bool {
+        self.semantic_conflicts()
+            .iter()
+            .any(|conflict| conflict.semantic_key.eq_semantic(semantic))
     }
 
     pub fn found_anything_processable(&self) -> bool {
@@ -462,6 +506,8 @@ mod tests {
             found_files: hash_map! {
                 "/new".into(): ScannedFile {
                     redirected: Some(StrictPath::new("/old")),
+                    origin: None,
+                    semantic_key: None,
                     change: ScanChange::New,
                     ..Default::default()
                 },
@@ -476,6 +522,8 @@ mod tests {
             found_files: hash_map! {
                 "/new".into(): ScannedFile {
                     redirected: Some(StrictPath::new("/old")),
+                    origin: None,
+                    semantic_key: None,
                     change: ScanChange::New,
                     ..Default::default()
                 },

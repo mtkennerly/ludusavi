@@ -22,11 +22,19 @@ use crate::{
     report::{self, Reporter, report_cloud_changes},
     resource::{ResourceFile, SaveableResourceFile, cache::Cache, config::Config, manifest::Manifest},
     scan::{
-        BackupId, DuplicateDetector, Launchers, OperationStepDecision, ScanKind, SteamShortcuts, TitleFinder,
+        BackupId, DuplicateDetector, Launchers, OperationStepDecision, ScanInfo, ScanKind, SteamShortcuts, TitleFinder,
         TitleQuery, layout::BackupLayout, prepare_backup_target, scan_game_for_backup,
     },
+    semantic::{
+        materialize::{MaterializeTarget, discover_wine_prefix, resolve_wine_prefix_for_game},
+        prefix::{ValidatedPrefix, validate_prefix},
+    },
+    semantic::preview::{SemanticPreviewAnalysis, will_start_new_semantic_full_backup},
     wrap,
 };
+
+#[cfg(target_os = "windows")]
+use crate::semantic::materialize::known_folders_from_common_path;
 
 const PROGRESS_BAR_REFRESH_INTERVAL: Duration = Duration::from_millis(50);
 
@@ -317,7 +325,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     config.restore.reverse_redirects,
                     &steam_shortcuts,
                     config.backup.only_constructive,
+                    config.backup.semantic_paths,
                 );
+                let mut scan_info = scan_info;
+                if preview {
+                    scan_info.will_start_new_semantic_full_backup =
+                        will_start_new_semantic_full_backup(&layout, &scan_info);
+                }
                 let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified && !include_disabled;
                 let decision = if ignored {
                     OperationStepDecision::Ignored
@@ -444,16 +458,23 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 info.reverse();
             }
 
-            for (name, scan_info, backup_info, decision) in info {
+            for (name, scan_info, backup_info, decision) in &info {
                 if !reporter.add_game(
                     name,
-                    &scan_info,
+                    scan_info,
                     backup_info.as_ref(),
-                    &decision,
+                    decision,
                     &duplicate_detector,
                     dump_registry,
                 ) {
                     failed = true;
+                }
+            }
+            if preview {
+                let analysis_inputs: Vec<_> = info.iter().map(|(name, scan_info, _, _)| (*name, scan_info)).collect();
+                let analysis = SemanticPreviewAnalysis::from_backup_preview(&config, &layout, &analysis_inputs);
+                if !analysis.is_empty() {
+                    eprint!("{}", TRANSLATOR.semantic_preview(&analysis));
                 }
             }
             reporter.print(&backup_dir);
@@ -463,6 +484,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             path,
             force,
             no_force_cloud_conflict,
+            wine_prefix,
             api,
             gui,
             sort,
@@ -566,9 +588,59 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
             }
 
+            // Pre-build Windows materialization state for semantic backup restoration.
+            #[cfg(target_os = "windows")]
+            let kf = known_folders_from_common_path();
+            #[cfg(target_os = "windows")]
+            let win_target = MaterializeTarget::CurrentWindows { known_folders: &kf };
+            #[cfg(not(target_os = "windows"))]
+            let linux_wine_prefix: Option<ValidatedPrefix> = if let Some(ref wp) = wine_prefix {
+                validate_prefix(wp)
+            } else {
+                let roots: Vec<StrictPath> = config.roots.iter().map(|r| r.path().clone()).collect();
+                discover_wine_prefix(&roots)
+            };
+            #[cfg(not(target_os = "windows"))]
+            let _linux_wine_target = linux_wine_prefix.as_ref().map(|prefix| MaterializeTarget::WinePrefix {
+                prefix,
+                wine_user: &prefix.wine_user,
+                drive_mappings: &config.restore.drive_mappings,
+            });
+
             let step = |i, name| {
                 log::trace!("step {i} / {}: {name}", games.len());
                 let mut layout = layout.game_layout(name);
+
+                #[cfg(target_os = "windows")]
+                let materialize_target: Option<&MaterializeTarget> = Some(&win_target);
+                #[cfg(not(target_os = "windows"))]
+                let linux_wine_prefix = match resolve_wine_prefix_for_game(&config, name, wine_prefix.as_ref()) {
+                    Ok(prefix) => prefix,
+                    Err(error) => {
+                        log::trace!("step {i} completed (wine prefix conflict)");
+                        let display_title = config.display_name(name);
+                        return Some((
+                            display_title,
+                            ScanInfo {
+                                game_name: name.to_string(),
+                                has_backups: layout.has_backups(),
+                                ..Default::default()
+                            },
+                            Default::default(),
+                            OperationStepDecision::Processed,
+                            Some(Err(error)),
+                        ));
+                    }
+                };
+                #[cfg(not(target_os = "windows"))]
+                let linux_wine_target = linux_wine_prefix.as_ref().map(|prefix| MaterializeTarget::WinePrefix {
+                    prefix,
+                    wine_user: &prefix.wine_user,
+                    drive_mappings: &config.restore.drive_mappings,
+                });
+                #[cfg(not(target_os = "windows"))]
+                let materialize_target: Option<&MaterializeTarget> = linux_wine_target.as_ref();
+
                 let scan_info = layout.scan_for_restoration(
                     name,
                     backup_id.as_ref().unwrap_or(&BackupId::Latest),
@@ -576,6 +648,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     config.restore.reverse_redirects,
                     &config.restore.toggled_paths,
                     &config.restore.toggled_registry,
+                    materialize_target,
                 );
                 let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified && !include_disabled;
                 let decision = if ignored {
@@ -621,7 +694,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     None
                 } else {
                     let display_title = config.display_name(name);
-                    Some((display_title, scan_info, restore_info, decision, None))
+                    Some((
+                        display_title,
+                        scan_info,
+                        restore_info,
+                        decision,
+                        None::<Result<(), Error>>,
+                    ))
                 }
             };
 
@@ -1179,6 +1258,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         games: vec![game_name.clone()],
                         force: true,
                         no_force_cloud_conflict: no_force_cloud_conflict || !force,
+                        wine_prefix: Default::default(),
                         preview,
                         path: path.clone(),
                         api: Default::default(),

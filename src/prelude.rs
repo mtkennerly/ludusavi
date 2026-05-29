@@ -119,6 +119,11 @@ pub enum Error {
     UnableToConfigureCloud(CommandError),
     UnableToSynchronizeCloud(CommandError),
     CloudConflict,
+    WinePrefixConflict {
+        game: String,
+        cli: Box<StrictPath>,
+        configured: Box<StrictPath>,
+    },
     GameDidNotLaunch {
         why: String,
     },

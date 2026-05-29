@@ -39,10 +39,21 @@ use crate::{
         manifest::{Game, GameFileEntry, IdSet, Os, Store},
     },
     scan::layout::LatestBackup,
+    scan::saves::ScanOrigin,
+    semantic::{
+        convert::{derive_from_manifest_origin, expected_base_from_manifest, wine_physical_to_semantic},
+        prefix::{ValidatedPrefix, validate_prefix},
+    },
 };
 
 #[cfg(target_os = "windows")]
 use crate::scan::registry::RegistryItem;
+
+#[cfg(target_os = "windows")]
+use crate::semantic::{
+    convert::{KnownFolders, windows_physical_to_semantic},
+    materialize::known_folders_from_common_path,
+};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScanKind {
@@ -519,6 +530,7 @@ pub fn scan_game_for_backup(
     reverse_redirects_on_restore: bool,
     steam_shortcuts: &SteamShortcuts,
     only_constructive_backups: bool,
+    semantic_paths_enabled: bool,
 ) -> ScanInfo {
     log::trace!("[{name}] beginning scan for backup");
 
@@ -529,7 +541,44 @@ pub fn scan_game_for_backup(
     let mut dumped_registry = None;
     let has_backups = previous.is_some();
 
-    let mut paths_to_check = HashSet::<(StrictPath, Option<bool>)>::new();
+    // Collect Wine prefixes for semantic key derivation.
+    let wine_prefixes: Vec<ValidatedPrefix> = {
+        let mut prefixes = Vec::new();
+        for wp in &game.wine_prefix {
+            if wp.trim().is_empty() {
+                continue;
+            }
+            if let Some(prefix) = validate_prefix(&StrictPath::new(wp)) {
+                prefixes.push(prefix);
+            }
+        }
+        if let Some(prefix) = wine_prefix.and_then(validate_prefix) {
+            prefixes.push(prefix);
+        }
+        for root in roots {
+            for wp in launchers.get_game(root, name).filter_map(|x| x.prefix.as_ref()) {
+                if let Some(prefix) = validate_prefix(wp) {
+                    prefixes.push(prefix);
+                }
+                let pfx = wp.joined("pfx");
+                if let Some(prefix) = validate_prefix(&pfx) {
+                    prefixes.push(prefix);
+                }
+            }
+        }
+        prefixes
+    };
+
+    // Cache known folders on Windows for semantic key derivation.
+    #[cfg(target_os = "windows")]
+    let known_folders: Option<KnownFolders> = if semantic_paths_enabled {
+        Some(known_folders_from_common_path())
+    } else {
+        None
+    };
+
+    #[allow(clippy::type_complexity)]
+    let mut paths_to_check: HashMap<StrictPath, (Option<bool>, Vec<(String, Store)>)> = HashMap::new();
 
     // Add a dummy root for checking paths without `<root>`.
     let mut roots_to_check: Vec<Root> = vec![Root::new(SKIP, Store::Other)];
@@ -630,38 +679,52 @@ pub fn scan_game_for_backup(
 
             for (candidate, case_sensitive) in candidates {
                 log::trace!("[{name}] parsed candidate: {candidate:?}");
-                paths_to_check.insert((candidate, Some(case_sensitive)));
+                paths_to_check
+                    .entry(candidate)
+                    .or_insert((Some(case_sensitive), Vec::new()))
+                    .1
+                    .push((raw_path.clone(), root.store()));
             }
         }
         if root.store() == Store::Steam {
             for id in all_ids.steam(steam_shortcut.map(|x| x.id)) {
                 // Cloud saves:
-                paths_to_check.insert((
-                    StrictPath::relative(
+                paths_to_check
+                    .entry(StrictPath::relative(
                         format!("{}/userdata/*/{}/remote/", &root_globbable, id),
                         Some(manifest_dir_globbable.clone()),
-                    ),
-                    None,
-                ));
+                    ))
+                    .or_insert((None, Vec::new()))
+                    .1
+                    .push((
+                        "<root>/userdata/<storeUserId>/<storeGameId>/remote".to_string(),
+                        Store::Steam,
+                    ));
 
                 // Screenshots:
                 if !filter.exclude_store_screenshots {
-                    paths_to_check.insert((
-                        StrictPath::relative(
+                    paths_to_check
+                        .entry(StrictPath::relative(
                             format!("{}/userdata/*/760/remote/{}/screenshots/*.*", &root_globbable, id),
                             Some(manifest_dir_globbable.clone()),
-                        ),
-                        None,
-                    ));
+                        ))
+                        .or_insert((None, Vec::new()))
+                        .1
+                        .push((
+                            "<root>/userdata/<storeUserId>/760/remote/<storeGameId>/screenshots/*.*".to_string(),
+                            Store::Steam,
+                        ));
                 }
 
                 // Registry:
                 if !game.registry.is_empty() {
                     let prefix = format!("{}/steamapps/compatdata/{}/pfx", &root_globbable, id);
-                    paths_to_check.insert((
-                        StrictPath::relative(format!("{prefix}/*.reg"), Some(manifest_dir_globbable.clone())),
-                        None,
-                    ));
+                    paths_to_check
+                        .entry(StrictPath::relative(
+                            format!("{prefix}/*.reg"),
+                            Some(manifest_dir_globbable.clone()),
+                        ))
+                        .or_insert((None, Vec::new()));
                 }
             }
         }
@@ -679,7 +742,7 @@ pub fn scan_game_for_backup(
         })
         .unwrap_or_default();
 
-    for (path, case_sensitive) in paths_to_check {
+    for (path, (case_sensitive, origins)) in paths_to_check {
         log::trace!("[{name}] checking: {path:?}");
         if filter.is_path_ignored(&path) {
             log::debug!("[{name}] excluded: {path:?}");
@@ -705,6 +768,70 @@ pub fn scan_game_for_backup(
                 let redirected = game_file_target(&scan_key, redirects, reverse_redirects_on_restore, ScanKind::Backup);
                 let change =
                     ScanChange::evaluate_backup(&hash, previous_files.get(redirected.as_ref().unwrap_or(&scan_key)));
+                let (semantic_key, scan_origin) = if semantic_paths_enabled {
+                    let mut key = None;
+                    let mut origin = None;
+                    // 1. Try manifest-derived first
+                    for (manifest_path, store) in &origins {
+                        if let Some(expected_base) = expected_base_from_manifest(manifest_path, *store) {
+                            #[allow(unused_mut)]
+                            let mut tail: Option<String> = None;
+                            #[cfg(target_os = "windows")]
+                            {
+                                if let Some(ref kf) = known_folders {
+                                    tail = windows_physical_to_semantic(&scan_key, kf)
+                                        .filter(|s| s.base == expected_base)
+                                        .map(|s| s.tail);
+                                }
+                            }
+                            let tail = tail.or_else(|| {
+                                for prefix in &wine_prefixes {
+                                    if let Some(semantic) =
+                                        wine_physical_to_semantic(&scan_key, &prefix.path, &prefix.wine_user)
+                                        && semantic.base == expected_base
+                                    {
+                                        return Some(semantic.tail);
+                                    }
+                                }
+                                None
+                            });
+                            if let Some(tail) = tail {
+                                let scan_origin = ScanOrigin {
+                                    manifest_path: manifest_path.clone(),
+                                    store: *store,
+                                    expanded_prefix: "".to_string(),
+                                    matched_prefix_len: 0,
+                                    tail: tail.clone(),
+                                };
+                                if let Some(derived_key) = derive_from_manifest_origin(&scan_origin) {
+                                    key = Some(derived_key);
+                                    origin = Some(scan_origin);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    // 2. Fall back to reverse mapping
+                    if key.is_none() {
+                        #[cfg(target_os = "windows")]
+                        {
+                            if let Some(ref kf) = known_folders {
+                                key = windows_physical_to_semantic(&scan_key, kf);
+                            }
+                        }
+                        if key.is_none() {
+                            for prefix in &wine_prefixes {
+                                if let Some(k) = wine_physical_to_semantic(&scan_key, &prefix.path, &prefix.wine_user) {
+                                    key = Some(k);
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    (key, origin)
+                } else {
+                    (None, None)
+                };
                 found_files.insert(
                     scan_key,
                     ScannedFile {
@@ -715,6 +842,9 @@ pub fn scan_game_for_backup(
                         original_path: None,
                         ignored,
                         container: None,
+                        origin: scan_origin,
+                        semantic_key,
+                        restore_error: None,
                     },
                 );
             } else if p.is_dir() {
@@ -750,6 +880,72 @@ pub fn scan_game_for_backup(
                             &hash,
                             previous_files.get(redirected.as_ref().unwrap_or(&scan_key)),
                         );
+                        let (semantic_key, scan_origin) = if semantic_paths_enabled {
+                            let mut key = None;
+                            let mut origin = None;
+                            // 1. Try manifest-derived first
+                            for (manifest_path, store) in &origins {
+                                if let Some(expected_base) = expected_base_from_manifest(manifest_path, *store) {
+                                    #[allow(unused_mut)]
+                                    let mut tail: Option<String> = None;
+                                    #[cfg(target_os = "windows")]
+                                    {
+                                        if let Some(ref kf) = known_folders {
+                                            tail = windows_physical_to_semantic(&scan_key, kf)
+                                                .filter(|s| s.base == expected_base)
+                                                .map(|s| s.tail);
+                                        }
+                                    }
+                                    let tail = tail.or_else(|| {
+                                        for prefix in &wine_prefixes {
+                                            if let Some(semantic) =
+                                                wine_physical_to_semantic(&scan_key, &prefix.path, &prefix.wine_user)
+                                                && semantic.base == expected_base
+                                            {
+                                                return Some(semantic.tail);
+                                            }
+                                        }
+                                        None
+                                    });
+                                    if let Some(tail) = tail {
+                                        let scan_origin = ScanOrigin {
+                                            manifest_path: manifest_path.clone(),
+                                            store: *store,
+                                            expanded_prefix: "".to_string(),
+                                            matched_prefix_len: 0,
+                                            tail: tail.clone(),
+                                        };
+                                        if let Some(derived_key) = derive_from_manifest_origin(&scan_origin) {
+                                            key = Some(derived_key);
+                                            origin = Some(scan_origin);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            // 2. Fall back to reverse mapping
+                            if key.is_none() {
+                                #[cfg(target_os = "windows")]
+                                {
+                                    if let Some(ref kf) = known_folders {
+                                        key = windows_physical_to_semantic(&scan_key, kf);
+                                    }
+                                }
+                                if key.is_none() {
+                                    for prefix in &wine_prefixes {
+                                        if let Some(k) =
+                                            wine_physical_to_semantic(&scan_key, &prefix.path, &prefix.wine_user)
+                                        {
+                                            key = Some(k);
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+                            (key, origin)
+                        } else {
+                            (None, None)
+                        };
                         found_files.insert(
                             scan_key,
                             ScannedFile {
@@ -760,6 +956,9 @@ pub fn scan_game_for_backup(
                                 original_path: None,
                                 ignored,
                                 container: None,
+                                origin: scan_origin,
+                                semantic_key,
+                                restore_error: None,
                             },
                         );
                     }
@@ -786,6 +985,13 @@ pub fn scan_game_for_backup(
         if !current_files.contains(&previous_file_interpreted)
             && !current_files_with_redirects.contains(&previous_file_interpreted)
         {
+            // Preserve semantic key from previous backup if available.
+            let previous_semantic_key = previous.and_then(|prev| {
+                prev.scan
+                    .found_files
+                    .get(previous_file)
+                    .and_then(|f| f.semantic_key.clone())
+            });
             found_files.insert(
                 previous_file.to_owned(),
                 ScannedFile {
@@ -796,6 +1002,9 @@ pub fn scan_game_for_backup(
                     original_path: None,
                     ignored: ignored_paths.is_ignored(name, previous_file),
                     container: None,
+                    origin: None,
+                    semantic_key: previous_semantic_key,
+                    restore_error: None,
                 },
             );
         }
@@ -894,18 +1103,22 @@ pub fn scan_game_for_backup(
         has_backups,
         dumped_registry,
         only_constructive_backups,
+        will_start_new_semantic_full_backup: false,
+        ..Default::default()
     }
 }
 
+type PathToCheck = HashMap<StrictPath, (Option<bool>, Vec<(String, Store)>)>;
+
 fn scan_game_for_backup_add_prefix(
     roots_to_check: &mut Vec<Root>,
-    paths_to_check: &mut HashSet<(StrictPath, Option<bool>)>,
+    paths_to_check: &mut PathToCheck,
     wp: &StrictPath,
     has_registry: bool,
 ) {
     roots_to_check.push(Root::new(wp.clone(), Store::OtherWine));
     if has_registry {
-        paths_to_check.insert((wp.joined("*.reg"), None));
+        paths_to_check.entry(wp.joined("*.reg")).or_insert((None, Vec::new()));
     }
 }
 
@@ -1191,6 +1404,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
 
@@ -1218,6 +1432,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1249,6 +1464,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1268,6 +1484,9 @@ mod tests {
                         change: ScanChange::New,
                         container: None,
                         redirected: Some(StrictPath::new(format!("{}/tests/root3/game5/data-symlink/file1.txt", repo()))),
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                 },
                 found_registry_keys: hash_map! {},
@@ -1292,6 +1511,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1323,6 +1543,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1368,6 +1589,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1403,6 +1625,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1437,6 +1660,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1467,6 +1691,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1497,6 +1722,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1535,6 +1761,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1575,6 +1802,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1615,6 +1843,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1664,6 +1893,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1722,6 +1952,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1853,6 +2084,7 @@ mod tests {
                     false,
                     &Default::default(),
                     ONLY_CONSTRUCTIVE,
+                    false,
                 ),
             );
         }
@@ -1890,6 +2122,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1926,6 +2159,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }
@@ -1963,7 +2197,7 @@ mod tests {
                 &title,
                 roots,
                 &StrictPath::new(repo()),
-                &Launchers::scan_dirs(roots, &manifest, &[title.clone()]),
+                &Launchers::scan_dirs(roots, &manifest, std::slice::from_ref(&title)),
                 &BackupFilter::default(),
                 None,
                 &ToggledPaths::default(),
@@ -1973,6 +2207,7 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
+                false,
             ),
         );
     }

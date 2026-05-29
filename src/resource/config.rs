@@ -1125,6 +1125,9 @@ pub struct BackupConfig {
     pub format: BackupFormats,
     /// Don't create a new backup if there are only removed saves and no new/edited ones.
     pub only_constructive: bool,
+    /// Use portable semantic paths for Windows/Wine saves instead of absolute paths.
+    /// When enabled, backups are cross-platform between Windows and Wine.
+    pub semantic_paths: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -1134,10 +1137,33 @@ pub struct RestoreConfig {
     pub path: StrictPath,
     /// Names of games to skip when restoring.
     pub ignored_games: BTreeSet<String>,
+    /// Preferred Wine/Proton prefixes for restoring portable Windows saves on non-Windows systems.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub preferred_wine_prefixes: BTreeMap<String, GameWinePrefixPreference>,
     pub toggled_paths: ToggledPaths,
     pub toggled_registry: ToggledRegistry,
     pub sort: Sort,
     pub reverse_redirects: bool,
+    /// Global Wine prefix for restoring Windows semantic backups on Linux.
+    /// Used as a fallback when no game-specific prefix is configured.
+    pub wine_prefix: Option<StrictPath>,
+    /// Manual drive letter mappings for WinDrive semantic keys
+    /// when dosdevices symlinks are not available. Keys are lowercase
+    /// drive letters (a-z), values are target paths.
+    pub drive_mappings: HashMap<char, String>,
+}
+
+#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
+#[serde(default, rename_all = "camelCase")]
+pub struct GameWinePrefixPreference {
+    /// Wine/Proton prefix to use for this game when restoring portable Windows saves.
+    pub path: StrictPath,
+    /// Preferred Wine user inside the prefix, if the prefix has multiple user profiles.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub wine_user: Option<String>,
+    /// Optional non-C drive mappings for this game.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub drive_mappings: BTreeMap<char, StrictPath>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -1362,6 +1388,7 @@ impl Default for BackupConfig {
             retention: Retention::default(),
             format: Default::default(),
             only_constructive: Default::default(),
+            semantic_paths: false,
         }
     }
 }
@@ -1371,10 +1398,13 @@ impl Default for RestoreConfig {
         Self {
             path: default_backup_dir(),
             ignored_games: BTreeSet::new(),
+            preferred_wine_prefixes: Default::default(),
             toggled_paths: Default::default(),
             toggled_registry: Default::default(),
             sort: Default::default(),
             reverse_redirects: false,
+            wine_prefix: None,
+            drive_mappings: HashMap::new(),
         }
     }
 }
@@ -1811,6 +1841,12 @@ impl Config {
         let cwd = StrictPath::cwd();
         self.backup.path.rebase(&cwd);
         self.restore.path.rebase(&cwd);
+        for preference in self.restore.preferred_wine_prefixes.values_mut() {
+            preference.path.rebase(&cwd);
+            for path in preference.drive_mappings.values_mut() {
+                path.rebase(&cwd);
+            }
+        }
     }
 }
 
@@ -2124,14 +2160,18 @@ mod tests {
                     retention: Retention::default(),
                     format: Default::default(),
                     only_constructive: false,
+                    semantic_paths: false,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::relative(s("~/restore"), Some(StrictPath::cwd().render())),
                     ignored_games: BTreeSet::new(),
+                    preferred_wine_prefixes: Default::default(),
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
                     reverse_redirects: false,
+                    wine_prefix: None,
+                    drive_mappings: HashMap::new(),
                 },
                 scan: Default::default(),
                 apps: Apps {
@@ -2255,6 +2295,7 @@ mod tests {
                     retention: Retention::default(),
                     format: Default::default(),
                     only_constructive: true,
+                    semantic_paths: false,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::relative(s("~/restore"), Some(StrictPath::cwd().render())),
@@ -2262,10 +2303,13 @@ mod tests {
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
+                    preferred_wine_prefixes: Default::default(),
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
                     reverse_redirects: false,
+                    wine_prefix: None,
+                    drive_mappings: HashMap::new(),
                 },
                 scan: Scan {
                     show_deselected_games: false,
@@ -2381,6 +2425,7 @@ backup:
       zstd:
         level: 10
   onlyConstructive: false
+  semanticPaths: false
 restore:
   path: ~/restore
   ignoredGames:
@@ -2393,6 +2438,8 @@ restore:
     key: status
     reversed: false
   reverseRedirects: false
+  winePrefix: ~
+  driveMappings: {}
 scan:
   showDeselectedGames: false
   showUnchangedGames: false
@@ -2474,6 +2521,7 @@ customGames:
                     retention: Retention::default(),
                     format: Default::default(),
                     only_constructive: false,
+                    semantic_paths: false,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -2482,10 +2530,13 @@ customGames:
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
+                    preferred_wine_prefixes: Default::default(),
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
                     reverse_redirects: false,
+                    wine_prefix: None,
+                    drive_mappings: HashMap::new(),
                 },
                 scan: Scan {
                     show_deselected_games: false,

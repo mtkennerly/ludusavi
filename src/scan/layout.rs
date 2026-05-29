@@ -18,6 +18,8 @@ use crate::{
         BackupError, BackupId, BackupInfo, ScanChange, ScanInfo, ScanKind, ScannedFile, game_file_target,
         prepare_backup_target, registry,
     },
+    semantic::SemanticPath,
+    semantic::materialize::{MaterializeTarget, materialize_semantic},
 };
 
 #[cfg_attr(not(target_os = "windows"), allow(unused))]
@@ -233,6 +235,28 @@ impl ToString for Backup {
     }
 }
 
+/// Format of the file paths stored in a backup chain.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum PathFormat {
+    /// Legacy absolute paths (default for existing backups).
+    #[default]
+    Legacy,
+    /// Semantic portable paths (cross-platform compatible).
+    SemanticV1,
+}
+
+/// Format of registry data stored in a backup chain.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RegistryFormat {
+    /// Default/legacy behavior.
+    #[default]
+    Default,
+    /// Cross-platform registry transfer is not yet supported.
+    Unsupported,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct FullBackup {
@@ -245,9 +269,23 @@ pub struct FullBackup {
     /// Locked backups do not count toward retention limits and are never deleted.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub locked: bool,
+    /// Path format for this backup chain.
+    #[serde(skip_serializing_if = "is_default_path_format")]
+    pub path_format: PathFormat,
+    /// Registry format for this backup chain.
+    #[serde(skip_serializing_if = "is_default_registry_format")]
+    pub registry_format: RegistryFormat,
     pub files: BTreeMap<String, IndividualMappingFile>,
     pub registry: IndividualMappingRegistry,
     pub children: VecDeque<DifferentialBackup>,
+}
+
+fn is_default_path_format(f: &PathFormat) -> bool {
+    *f == PathFormat::Legacy
+}
+
+fn is_default_registry_format(f: &RegistryFormat) -> bool {
+    *f == RegistryFormat::Default
 }
 
 impl FullBackup {
@@ -611,6 +649,7 @@ impl GameLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         only_constructive_backups: bool,
+        materialize_target: Option<&MaterializeTarget>,
     ) -> Option<ScanInfo> {
         if self.mapping.backups.is_empty() {
             None
@@ -623,6 +662,7 @@ impl GameLayout {
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
+                    materialize_target,
                 ),
                 // Registry is handled separately.
                 found_registry_keys: Default::default(),
@@ -632,6 +672,8 @@ impl GameLayout {
                 // Registry is handled separately.
                 dumped_registry: None,
                 only_constructive_backups,
+                will_start_new_semantic_full_backup: false,
+                ..Default::default()
             })
         }
     }
@@ -656,6 +698,7 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
+        materialize_target: Option<&MaterializeTarget>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut files = HashMap::new();
 
@@ -668,15 +711,18 @@ impl GameLayout {
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
+                    materialize_target,
                 ));
             }
             Some((full, Some(diff))) => {
                 files.extend(self.restorable_files_from_diff_backup(
+                    full.path_format,
                     diff,
                     scan_kind,
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
+                    materialize_target,
                 ));
 
                 for (scan_key, full_file) in self.restorable_files_from_full_backup(
@@ -685,9 +731,14 @@ impl GameLayout {
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
+                    materialize_target,
                 ) {
-                    let original_path = full_file.original_path.as_ref().unwrap().render();
-                    if diff.file(original_path) == BackupInclusion::Inherited {
+                    let mapping_key = full_file
+                        .semantic_key
+                        .as_ref()
+                        .map(|semantic| semantic.serialize())
+                        .unwrap_or_else(|| full_file.original_path.as_ref().unwrap().render());
+                    if diff.file(mapping_key) == BackupInclusion::Inherited {
                         files.insert(scan_key, full_file);
                     }
                 }
@@ -704,11 +755,36 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
+        materialize_target: Option<&MaterializeTarget>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut restorables = HashMap::new();
+        let is_semantic = backup.path_format == PathFormat::SemanticV1;
 
         for (mapping_key, v) in &backup.files {
-            let original_path = StrictPath::new(mapping_key.to_string());
+            let semantic_key = if is_semantic {
+                SemanticPath::parse(mapping_key).ok()
+            } else {
+                None
+            };
+
+            let mut restore_error = None;
+            let original_path = if let Some(ref sk) = semantic_key {
+                if let Some(target) = materialize_target {
+                    match materialize_semantic(sk, target) {
+                        Ok(physical) => physical,
+                        Err(error) => {
+                            restore_error = Some(error.to_string());
+                            StrictPath::new(sk.serialize())
+                        }
+                    }
+                } else {
+                    restore_error = Some("No semantic restore target is available".to_string());
+                    StrictPath::new(sk.serialize())
+                }
+            } else {
+                StrictPath::new(mapping_key.to_string())
+            };
+
             let redirected = game_file_target(
                 &original_path,
                 redirects,
@@ -718,9 +794,18 @@ impl GameLayout {
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
-                    let scan_key = self
-                        .mapping
-                        .game_file_immutable(&self.path, &original_path, &backup.name);
+                    let scan_key = if is_semantic {
+                        // For semantic backups, use the storage path as the scan key
+                        if let Some(ref sk) = semantic_key {
+                            self.path.joined(&backup.name).joined(sk.storage_path())
+                        } else {
+                            self.mapping
+                                .game_file_immutable(&self.path, &original_path, &backup.name)
+                        }
+                    } else {
+                        self.mapping
+                            .game_file_immutable(&self.path, &original_path, &backup.name)
+                    };
 
                     restorables.insert(
                         scan_key,
@@ -737,11 +822,22 @@ impl GameLayout {
                             redirected,
                             original_path: Some(original_path),
                             container: None,
+                            origin: None,
+                            semantic_key,
+                            restore_error: restore_error.clone(),
                         },
                     );
                 }
                 BackupFormat::Zip => {
-                    let scan_key = StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path));
+                    let scan_key = if is_semantic {
+                        if let Some(ref sk) = semantic_key {
+                            StrictPath::new(sk.storage_path())
+                        } else {
+                            StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path))
+                        }
+                    } else {
+                        StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path))
+                    };
 
                     restorables.insert(
                         scan_key,
@@ -758,6 +854,9 @@ impl GameLayout {
                             redirected,
                             original_path: Some(original_path),
                             container: Some(self.path.joined(&backup.name)),
+                            origin: None,
+                            semantic_key,
+                            restore_error,
                         },
                     );
                 }
@@ -769,17 +868,42 @@ impl GameLayout {
 
     fn restorable_files_from_diff_backup(
         &self,
+        path_format: PathFormat,
         backup: &DifferentialBackup,
         scan_kind: ScanKind,
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
+        materialize_target: Option<&MaterializeTarget>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut restorables = HashMap::new();
+        let is_semantic = path_format == PathFormat::SemanticV1;
 
         for (mapping_key, v) in &backup.files {
             let v = some_or_continue!(v);
-            let original_path = StrictPath::new(mapping_key.to_string());
+            let semantic_key = if is_semantic {
+                SemanticPath::parse(mapping_key).ok()
+            } else {
+                None
+            };
+
+            let mut restore_error = None;
+            let original_path = if let Some(ref sk) = semantic_key {
+                if let Some(target) = materialize_target {
+                    match materialize_semantic(sk, target) {
+                        Ok(physical) => physical,
+                        Err(error) => {
+                            restore_error = Some(error.to_string());
+                            StrictPath::new(sk.serialize())
+                        }
+                    }
+                } else {
+                    restore_error = Some("No semantic restore target is available".to_string());
+                    StrictPath::new(sk.serialize())
+                }
+            } else {
+                StrictPath::new(mapping_key.to_string())
+            };
             let redirected = game_file_target(
                 &original_path,
                 redirects,
@@ -789,9 +913,12 @@ impl GameLayout {
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
-                    let scan_key = self
-                        .mapping
-                        .game_file_immutable(&self.path, &original_path, &backup.name);
+                    let scan_key = if let Some(ref sk) = semantic_key {
+                        self.path.joined(&backup.name).joined(sk.storage_path())
+                    } else {
+                        self.mapping
+                            .game_file_immutable(&self.path, &original_path, &backup.name)
+                    };
 
                     restorables.insert(
                         scan_key,
@@ -808,11 +935,18 @@ impl GameLayout {
                             redirected,
                             original_path: Some(original_path),
                             container: None,
+                            origin: None,
+                            semantic_key,
+                            restore_error: restore_error.clone(),
                         },
                     );
                 }
                 BackupFormat::Zip => {
-                    let scan_key = StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path));
+                    let scan_key = if let Some(ref sk) = semantic_key {
+                        StrictPath::new(sk.storage_path())
+                    } else {
+                        StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path))
+                    };
 
                     restorables.insert(
                         scan_key,
@@ -829,6 +963,9 @@ impl GameLayout {
                             redirected,
                             original_path: Some(original_path),
                             container: Some(self.path.joined(&backup.name)),
+                            origin: None,
+                            semantic_key,
+                            restore_error,
                         },
                     );
                 }
@@ -878,6 +1015,9 @@ impl GameLayout {
                         ignored: false,
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                 );
             }
@@ -984,7 +1124,7 @@ impl GameLayout {
             return None;
         }
 
-        let kind = self.plan_backup_kind(retention);
+        let kind = self.plan_backup_kind(retention, scan);
 
         let backup = match kind {
             BackupKind::Full => Backup::Full(self.plan_full_backup(scan, now, format, retention)),
@@ -996,8 +1136,16 @@ impl GameLayout {
         backup.needed().then_some(backup)
     }
 
-    fn plan_backup_kind(&self, retention: Retention) -> BackupKind {
+    fn plan_backup_kind(&self, retention: Retention, scan: &ScanInfo) -> BackupKind {
         if retention.force_new_full {
+            return BackupKind::Full;
+        }
+
+        // If existing chain is legacy but scan has semantic keys, force a new full backup.
+        if scan.has_semantic_keys()
+            && let Some(last_full) = self.mapping.backups.back()
+            && last_full.path_format == PathFormat::Legacy
+        {
             return BackupKind::Full;
         }
 
@@ -1026,8 +1174,16 @@ impl GameLayout {
         let mut files = BTreeMap::new();
         #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut registry = IndividualMappingRegistry::default();
+        let semantic_conflicts = scan.semantic_conflicts();
 
         for (scan_key, file) in scan.found_files.iter().filter(|(_, x)| !x.ignored) {
+            if file.semantic_key.as_ref().is_some_and(|semantic| {
+                semantic_conflicts
+                    .iter()
+                    .any(|conflict| conflict.semantic_key.eq_semantic(semantic))
+            }) {
+                continue;
+            }
             match file.change() {
                 ScanChange::New | ScanChange::Different | ScanChange::Same => {
                     files.insert(
@@ -1056,6 +1212,12 @@ impl GameLayout {
             os: Some(Os::HOST),
             comment: None,
             locked: false,
+            path_format: if scan.has_semantic_keys() {
+                PathFormat::SemanticV1
+            } else {
+                PathFormat::Legacy
+            },
+            registry_format: RegistryFormat::Default,
             files,
             registry,
             children: VecDeque::new(),
@@ -1072,8 +1234,16 @@ impl GameLayout {
         let mut files = BTreeMap::new();
         #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut registry = Some(IndividualMappingRegistry::default());
+        let semantic_conflicts = scan.semantic_conflicts();
 
         for (scan_key, file) in &scan.found_files {
+            if file.semantic_key.as_ref().is_some_and(|semantic| {
+                semantic_conflicts
+                    .iter()
+                    .any(|conflict| conflict.semantic_key.eq_semantic(semantic))
+            }) {
+                continue;
+            }
             match file.change() {
                 ScanChange::New | ScanChange::Different | ScanChange::Same => {
                     files.insert(
@@ -1144,9 +1314,12 @@ impl GameLayout {
                 continue;
             }
 
-            let target_file = self
-                .mapping
-                .game_file(&self.path, file.effective(scan_key), backup.name());
+            let target_file = match &file.semantic_key {
+                Some(semantic) => self.path.joined(backup.name()).joined(semantic.storage_path()),
+                None => self
+                    .mapping
+                    .game_file(&self.path, file.effective(scan_key), backup.name()),
+            };
             if scan_key.same_content(&target_file) {
                 log::info!(
                     "[{}] already matches: {:?} -> {:?}",
@@ -1232,7 +1405,10 @@ impl GameLayout {
                 continue;
             }
 
-            let target_file_id = self.mapping.game_file_for_zip(file.effective(scan_key));
+            let target_file_id = match &file.semantic_key {
+                Some(semantic) => semantic.storage_path(),
+                None => self.mapping.game_file_for_zip(file.effective(scan_key)),
+            };
 
             let mtime = match scan_key.get_mtime_zip() {
                 Ok(x) => x,
@@ -1402,12 +1578,26 @@ impl GameLayout {
     }
 
     fn execute_backup(&mut self, backup: &Backup, scan: &ScanInfo, format: &BackupFormats) -> BackupInfo {
-        if backup.only_inherits_and_overrides() {
+        let mut backup_info = if backup.only_inherits_and_overrides() {
             BackupInfo::default()
         } else {
             match format.chosen {
                 BackupFormat::Simple => self.execute_backup_as_simple(backup, scan),
                 BackupFormat::Zip => self.execute_backup_as_zip(backup, scan, format),
+            }
+        };
+        self.add_semantic_conflict_failures(scan, &mut backup_info);
+        backup_info
+    }
+
+    fn add_semantic_conflict_failures(&self, scan: &ScanInfo, backup_info: &mut BackupInfo) {
+        for conflict in scan.semantic_conflicts() {
+            let error = BackupError::Raw(format!(
+                "Multiple files map to the same portable save location: {}",
+                conflict.semantic_key.serialize()
+            ));
+            for physical in &conflict.physical_paths {
+                backup_info.failed_files.insert(physical.clone(), error.clone());
             }
         }
     }
@@ -1582,6 +1772,11 @@ impl GameLayout {
         !self.mapping.backups.is_empty()
     }
 
+    /// Return the path format of the latest full backup chain.
+    pub fn latest_full_path_format(&self) -> Option<PathFormat> {
+        self.mapping.latest_backup().map(|(full, _)| full.path_format)
+    }
+
     pub fn scan_for_restoration(
         &mut self,
         name: &str,
@@ -1590,6 +1785,7 @@ impl GameLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         #[cfg_attr(not(target_os = "windows"), allow(unused))] toggled_registry: &ToggledRegistry,
+        materialize_target: Option<&MaterializeTarget>,
     ) -> ScanInfo {
         log::trace!("[{name}] beginning scan for restore");
 
@@ -1611,6 +1807,7 @@ impl GameLayout {
                 redirects,
                 reverse_redirects_on_restore,
                 toggled_paths,
+                materialize_target,
             );
             available_backups = self.restorable_backups_flattened();
             backup = self.find_by_id_flattened(&id);
@@ -1685,6 +1882,8 @@ impl GameLayout {
             has_backups,
             dumped_registry,
             only_constructive_backups: false,
+            will_start_new_semantic_full_backup: false,
+            ..Default::default()
         }
     }
 
@@ -1714,6 +1913,18 @@ impl GameLayout {
                     scan_key,
                     &target
                 );
+                continue;
+            }
+
+            if let Some(error) = &file.restore_error {
+                log::error!(
+                    "[{}] cannot restore semantic path: {:?} -> {:?} | {}",
+                    self.mapping.name,
+                    scan_key,
+                    &target,
+                    error
+                );
+                failed_files.insert(scan_key.clone(), BackupError::Raw(error.clone()));
                 continue;
             }
 
@@ -2029,16 +2240,40 @@ impl GameLayout {
         self.modify_backup(id, |x| x.locked = locked, |x| x.locked = locked);
     }
 
+    fn stored_simple_file_for_validation(&self, backup: &FullBackup, file: &str) -> Option<StrictPath> {
+        match backup.path_format {
+            PathFormat::Legacy => {
+                let original_path = StrictPath::new(file.to_string());
+                Some(
+                    self.mapping
+                        .game_file_immutable(&self.path, &original_path, &backup.name),
+                )
+            }
+            PathFormat::SemanticV1 => SemanticPath::parse(file)
+                .ok()
+                .map(|semantic| self.path.joined(&backup.name).joined(semantic.storage_path())),
+        }
+    }
+
+    fn stored_zip_file_for_validation(&self, backup: &FullBackup, file: &str) -> Option<String> {
+        match backup.path_format {
+            PathFormat::Legacy => {
+                let original_path = StrictPath::new(file.to_string());
+                Some(self.mapping.game_file_for_zip_immutable(&original_path))
+            }
+            PathFormat::SemanticV1 => SemanticPath::parse(file).ok().map(|semantic| semantic.storage_path()),
+        }
+    }
+
     /// Returns whether the backup is valid.
     pub fn validate(&self, backup_id: BackupId) -> bool {
         if let Some((backup, diff)) = self.find_by_id(&backup_id) {
             match backup.format() {
                 BackupFormat::Simple => {
                     for file in backup.files.keys() {
-                        let original_path = StrictPath::new(file.to_string());
-                        let stored = self
-                            .mapping
-                            .game_file_immutable(&self.path, &original_path, &backup.name);
+                        let Some(stored) = self.stored_simple_file_for_validation(backup, file) else {
+                            return false;
+                        };
                         if !stored.is_file() {
                             #[cfg(test)]
                             eprintln!("can't find {}", stored.render());
@@ -2055,8 +2290,9 @@ impl GameLayout {
                     };
 
                     for file in backup.files.keys() {
-                        let original_path = StrictPath::new(file.to_string());
-                        let stored = self.mapping.game_file_for_zip_immutable(&original_path);
+                        let Some(stored) = self.stored_zip_file_for_validation(backup, file) else {
+                            return false;
+                        };
                         if archive.by_name(&stored).is_err() {
                             #[cfg(test)]
                             eprintln!("can't find {stored}");
@@ -2066,19 +2302,23 @@ impl GameLayout {
                 }
             }
 
-            if let Some(backup) = diff {
-                match backup.format() {
+            if let Some(diff_backup) = diff {
+                match diff_backup.format() {
                     BackupFormat::Simple => {
-                        for (file, data) in &backup.files {
+                        for (file, data) in &diff_backup.files {
                             if data.is_none() {
                                 // File is deliberately omitted.
                                 continue;
                             }
 
-                            let original_path = StrictPath::new(file.to_string());
-                            let stored = self
-                                .mapping
-                                .game_file_immutable(&self.path, &original_path, &backup.name);
+                            let diff_as_full = FullBackup {
+                                name: diff_backup.name.clone(),
+                                path_format: backup.path_format,
+                                ..Default::default()
+                            };
+                            let Some(stored) = self.stored_simple_file_for_validation(&diff_as_full, file) else {
+                                return false;
+                            };
                             if !stored.is_file() {
                                 #[cfg(test)]
                                 eprintln!("can't find {}", stored.render());
@@ -2087,21 +2327,26 @@ impl GameLayout {
                         }
                     }
                     BackupFormat::Zip => {
-                        let Ok(handle) = self.path.joined(&backup.name).open() else {
+                        let Ok(handle) = self.path.joined(&diff_backup.name).open() else {
                             return false;
                         };
                         let Ok(mut archive) = zip::ZipArchive::new(handle) else {
                             return false;
                         };
 
-                        for (file, data) in &backup.files {
+                        for (file, data) in &diff_backup.files {
                             if data.is_none() {
                                 // File is deliberately omitted.
                                 continue;
                             }
 
-                            let original_path = StrictPath::new(file.to_string());
-                            let stored = self.mapping.game_file_for_zip_immutable(&original_path);
+                            let diff_as_full = FullBackup {
+                                path_format: backup.path_format,
+                                ..Default::default()
+                            };
+                            let Some(stored) = self.stored_zip_file_for_validation(&diff_as_full, file) else {
+                                return false;
+                            };
                             if archive.by_name(&stored).is_err() {
                                 #[cfg(test)]
                                 eprintln!("can't find {stored}");
@@ -2233,6 +2478,7 @@ impl BackupLayout {
                 reverse_redirects_on_restore,
                 toggled_paths,
                 only_constructive,
+                None,
             );
             scan.map(|scan| LatestBackup {
                 scan,
@@ -2433,7 +2679,10 @@ mod tests {
         #[test]
         fn can_plan_backup_kind_when_first_time() {
             let layout = GameLayout::default();
-            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::default()));
+            assert_eq!(
+                BackupKind::Full,
+                layout.plan_backup_kind(Retention::default(), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2445,7 +2694,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(1, 0)));
+            assert_eq!(
+                BackupKind::Full,
+                layout.plan_backup_kind(Retention::new(1, 0), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2460,7 +2712,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(1, 0)));
+            assert_eq!(
+                BackupKind::Full,
+                layout.plan_backup_kind(Retention::new(1, 0), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2472,7 +2727,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(2, 0)));
+            assert_eq!(
+                BackupKind::Full,
+                layout.plan_backup_kind(Retention::new(2, 0), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2484,7 +2742,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(1, 1)));
+            assert_eq!(
+                BackupKind::Differential,
+                layout.plan_backup_kind(Retention::new(1, 1), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2499,7 +2760,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(1, 1)));
+            assert_eq!(
+                BackupKind::Differential,
+                layout.plan_backup_kind(Retention::new(1, 1), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2523,7 +2787,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(2, 2)));
+            assert_eq!(
+                BackupKind::Differential,
+                layout.plan_backup_kind(Retention::new(2, 2), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2550,7 +2817,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(2, 2)));
+            assert_eq!(
+                BackupKind::Full,
+                layout.plan_backup_kind(Retention::new(2, 2), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2571,7 +2841,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(1, 2)));
+            assert_eq!(
+                BackupKind::Differential,
+                layout.plan_backup_kind(Retention::new(1, 2), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2601,6 +2874,293 @@ mod tests {
                 },
                 layout.plan_full_backup(&scan, &now(), &BackupFormats::default(), Retention::default()),
             );
+        }
+
+        #[test]
+        fn execute_simple_semantic_backup_uses_semantic_storage_path() {
+            let temp = tempfile::tempdir().unwrap();
+            let source = StrictPath::new(temp.path().join("source/save.dat").to_string_lossy().to_string());
+            source.parent().unwrap().create_dirs().unwrap();
+            std::fs::write(source.as_std_path_buf().unwrap(), "save").unwrap();
+
+            let semantic_key = SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap();
+            let scan = ScanInfo {
+                found_files: hash_map! {
+                    source.clone(): ScannedFile {
+                        size: 4,
+                        hash: source.sha1(),
+                        change: ScanChange::New,
+                        semantic_key: Some(semantic_key.clone()),
+                        ..Default::default()
+                    },
+                },
+                ..Default::default()
+            };
+            let mut layout = GameLayout {
+                path: StrictPath::new(temp.path().join("backup/game").to_string_lossy().to_string()),
+                mapping: IndividualMapping::new("game".to_string()),
+            };
+
+            let backup =
+                Backup::Full(layout.plan_full_backup(&scan, &now(), &BackupFormats::default(), Retention::default()));
+            let info = layout.execute_backup(&backup, &scan, &BackupFormats::default());
+
+            assert!(info.failed_files.is_empty());
+            assert!(
+                layout
+                    .path
+                    .joined(backup.name())
+                    .joined(semantic_key.storage_path())
+                    .is_file()
+            );
+        }
+
+        #[test]
+        fn execute_zip_semantic_backup_uses_semantic_storage_path() {
+            let temp = tempfile::tempdir().unwrap();
+            let source = StrictPath::new(temp.path().join("source/save.dat").to_string_lossy().to_string());
+            source.parent().unwrap().create_dirs().unwrap();
+            std::fs::write(source.as_std_path_buf().unwrap(), "save").unwrap();
+
+            let semantic_key = SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap();
+            let scan = ScanInfo {
+                found_files: hash_map! {
+                    source.clone(): ScannedFile {
+                        size: 4,
+                        hash: source.sha1(),
+                        change: ScanChange::New,
+                        semantic_key: Some(semantic_key.clone()),
+                        ..Default::default()
+                    },
+                },
+                ..Default::default()
+            };
+            let mut layout = GameLayout {
+                path: StrictPath::new(temp.path().join("backup/game").to_string_lossy().to_string()),
+                mapping: IndividualMapping::new("game".to_string()),
+            };
+            layout.path.create_dirs().unwrap();
+            let format = BackupFormats {
+                chosen: BackupFormat::Zip,
+                ..Default::default()
+            };
+
+            let backup = Backup::Full(layout.plan_full_backup(&scan, &now(), &format, Retention::default()));
+            let info = layout.execute_backup(&backup, &scan, &format);
+            let archive_file = layout.path.joined(backup.name()).open().unwrap();
+            let mut archive = zip::ZipArchive::new(archive_file).unwrap();
+
+            assert!(info.failed_files.is_empty());
+            assert!(archive.by_name(&semantic_key.storage_path()).is_ok());
+        }
+
+        #[test]
+        fn semantic_conflict_is_reported_as_backup_failure() {
+            let temp = tempfile::tempdir().unwrap();
+            let source_a = StrictPath::new(temp.path().join("source-a/save.dat").to_string_lossy().to_string());
+            let source_b = StrictPath::new(temp.path().join("source-b/save.dat").to_string_lossy().to_string());
+            source_a.parent().unwrap().create_dirs().unwrap();
+            source_b.parent().unwrap().create_dirs().unwrap();
+            std::fs::write(source_a.as_std_path_buf().unwrap(), "a").unwrap();
+            std::fs::write(source_b.as_std_path_buf().unwrap(), "b").unwrap();
+
+            let semantic_key = SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap();
+            let scan = ScanInfo {
+                found_files: hash_map! {
+                    source_a.clone(): ScannedFile {
+                        size: 1,
+                        hash: source_a.sha1(),
+                        change: ScanChange::New,
+                        semantic_key: Some(semantic_key.clone()),
+                        ..Default::default()
+                    },
+                    source_b.clone(): ScannedFile {
+                        size: 1,
+                        hash: source_b.sha1(),
+                        change: ScanChange::New,
+                        semantic_key: Some(semantic_key),
+                        ..Default::default()
+                    },
+                },
+                ..Default::default()
+            };
+            let mut layout = GameLayout {
+                path: StrictPath::new(temp.path().join("backup/game").to_string_lossy().to_string()),
+                mapping: IndividualMapping::new("game".to_string()),
+            };
+
+            let backup =
+                Backup::Full(layout.plan_full_backup(&scan, &now(), &BackupFormats::default(), Retention::default()));
+            let info = layout.execute_backup(&backup, &scan, &BackupFormats::default());
+
+            assert!(matches!(&backup, Backup::Full(full) if full.files.is_empty()));
+            assert_eq!(2, info.failed_files.len());
+            assert!(info.failed_files.contains_key(&source_a));
+            assert!(info.failed_files.contains_key(&source_b));
+        }
+
+        #[test]
+        fn restore_simple_semantic_backup_reads_from_semantic_storage_path() {
+            let temp = tempfile::tempdir().unwrap();
+            let backup_root = StrictPath::new(temp.path().join("backup/game").to_string_lossy().to_string());
+            let prefix_root = StrictPath::new(temp.path().join("prefix").to_string_lossy().to_string());
+            let semantic_key = SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap();
+            let backup_name = "backup-1";
+            let stored = backup_root.joined(backup_name).joined(semantic_key.storage_path());
+            stored.parent().unwrap().create_dirs().unwrap();
+            std::fs::write(stored.as_std_path_buf().unwrap(), "save").unwrap();
+
+            let layout = GameLayout {
+                path: backup_root,
+                mapping: IndividualMapping {
+                    name: "game".to_string(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: backup_name.to_string(),
+                        when: past(),
+                        path_format: PathFormat::SemanticV1,
+                        files: btree_map! {
+                            semantic_key.serialize(): IndividualMappingFile {
+                                hash: stored.sha1(),
+                                size: 4,
+                            },
+                        },
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+            };
+            let prefix = crate::semantic::prefix::ValidatedPrefix {
+                path: prefix_root.clone(),
+                wine_user: "steamuser".to_string(),
+                has_drive_c: true,
+                drive_mappings: HashMap::new(),
+            };
+            let empty_drive_mappings: HashMap<char, String> = HashMap::new();
+            let target = MaterializeTarget::WinePrefix {
+                prefix: &prefix,
+                wine_user: "steamuser",
+                drive_mappings: &empty_drive_mappings,
+            };
+            let scan = ScanInfo {
+                game_name: "game".to_string(),
+                found_files: layout.restorable_files(
+                    &BackupId::Latest,
+                    ScanKind::Restore,
+                    &[],
+                    false,
+                    &Default::default(),
+                    Some(&target),
+                ),
+                backup: Some(Backup::Full(layout.mapping.backups[0].clone())),
+                has_backups: true,
+                ..Default::default()
+            };
+            let restore_info = layout.restore(&scan, &Default::default());
+            let restored = prefix_root.joined("drive_c/users/steamuser/Documents/Game/save.dat");
+
+            assert!(restore_info.failed_files.is_empty());
+            assert_eq!(
+                "save",
+                std::fs::read_to_string(restored.as_std_path_buf().unwrap()).unwrap()
+            );
+        }
+
+        #[test]
+        fn semantic_restore_materialization_error_is_reported_as_failed_file() {
+            let temp = tempfile::tempdir().unwrap();
+            let backup_root = StrictPath::new(temp.path().join("backup/game").to_string_lossy().to_string());
+            let prefix_root = StrictPath::new(temp.path().join("prefix").to_string_lossy().to_string());
+            let semantic_key = SemanticPath::parse("<winDrive-d>/Game/save.dat").unwrap();
+            let backup_name = "backup-1";
+            let stored = backup_root.joined(backup_name).joined(semantic_key.storage_path());
+            stored.parent().unwrap().create_dirs().unwrap();
+            std::fs::write(stored.as_std_path_buf().unwrap(), "save").unwrap();
+
+            let layout = GameLayout {
+                path: backup_root,
+                mapping: IndividualMapping {
+                    name: "game".to_string(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: backup_name.to_string(),
+                        when: past(),
+                        path_format: PathFormat::SemanticV1,
+                        files: btree_map! {
+                            semantic_key.serialize(): IndividualMappingFile {
+                                hash: stored.sha1(),
+                                size: 4,
+                            },
+                        },
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+            };
+            let prefix = crate::semantic::prefix::ValidatedPrefix {
+                path: prefix_root,
+                wine_user: "steamuser".to_string(),
+                has_drive_c: true,
+                drive_mappings: HashMap::new(),
+            };
+            let empty_drive_mappings: HashMap<char, String> = HashMap::new();
+            let target = MaterializeTarget::WinePrefix {
+                prefix: &prefix,
+                wine_user: "steamuser",
+                drive_mappings: &empty_drive_mappings,
+            };
+            let scan = ScanInfo {
+                game_name: "game".to_string(),
+                found_files: layout.restorable_files(
+                    &BackupId::Latest,
+                    ScanKind::Restore,
+                    &[],
+                    false,
+                    &Default::default(),
+                    Some(&target),
+                ),
+                backup: Some(Backup::Full(layout.mapping.backups[0].clone())),
+                has_backups: true,
+                ..Default::default()
+            };
+            let restore_info = layout.restore(&scan, &Default::default());
+
+            assert_eq!(1, restore_info.failed_files.len());
+            assert_eq!(
+                "Drive d is not available on the target",
+                restore_info.failed_files.values().next().unwrap().message()
+            );
+        }
+
+        #[test]
+        fn validate_simple_semantic_backup_checks_semantic_storage_path() {
+            let temp = tempfile::tempdir().unwrap();
+            let backup_root = StrictPath::new(temp.path().join("backup/game").to_string_lossy().to_string());
+            let semantic_key = SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap();
+            let backup_name = "backup-1";
+            let stored = backup_root.joined(backup_name).joined(semantic_key.storage_path());
+            stored.parent().unwrap().create_dirs().unwrap();
+            std::fs::write(stored.as_std_path_buf().unwrap(), "save").unwrap();
+
+            let layout = GameLayout {
+                path: backup_root,
+                mapping: IndividualMapping {
+                    name: "game".to_string(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: backup_name.to_string(),
+                        when: past(),
+                        path_format: PathFormat::SemanticV1,
+                        files: btree_map! {
+                            semantic_key.serialize(): IndividualMappingFile {
+                                hash: stored.sha1(),
+                                size: 4,
+                            },
+                        },
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+            };
+
+            assert!(layout.validate(BackupId::Latest));
         }
 
         #[test]
@@ -3138,6 +3698,9 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                     make_restorable_path("backup-1", "file2.txt"): ScannedFile {
                         size: 2,
@@ -3147,9 +3710,19 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
+                layout.restorable_files(
+                    &BackupId::Latest,
+                    ScanKind::Backup,
+                    &[],
+                    false,
+                    &Default::default(),
+                    None
+                ),
             );
         }
 
@@ -3181,6 +3754,9 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                     make_restorable_path_zip("file2.txt"): ScannedFile {
                         size: 2,
@@ -3190,9 +3766,19 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
+                layout.restorable_files(
+                    &BackupId::Latest,
+                    ScanKind::Backup,
+                    &[],
+                    false,
+                    &Default::default(),
+                    None
+                ),
             );
         }
 
@@ -3235,6 +3821,9 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                     make_restorable_path("backup-2", "changed.txt"): ScannedFile {
                         size: 2,
@@ -3244,6 +3833,9 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                     make_restorable_path("backup-2", "added.txt"): ScannedFile {
                         size: 5,
@@ -3253,9 +3845,19 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
+                layout.restorable_files(
+                    &BackupId::Latest,
+                    ScanKind::Backup,
+                    &[],
+                    false,
+                    &Default::default(),
+                    None
+                ),
             );
         }
 
@@ -3298,6 +3900,9 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                     make_restorable_path_zip("changed.txt"): ScannedFile {
                         size: 2,
@@ -3307,6 +3912,9 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-2.zip")),
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                     make_restorable_path_zip("added.txt"): ScannedFile {
                         size: 5,
@@ -3316,9 +3924,19 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-2.zip")),
                         redirected: None,
+                        origin: None,
+                        semantic_key: None,
+                        restore_error: None,
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
+                layout.restorable_files(
+                    &BackupId::Latest,
+                    ScanKind::Backup,
+                    &[],
+                    false,
+                    &Default::default(),
+                    None
+                ),
             );
         }
     }
@@ -3347,6 +3965,81 @@ mod tests {
                 ),
                 Some(repo_file_raw("tests/backup/game1")),
             )
+        }
+
+        #[test]
+        fn can_scan_semantic_differential_restore_with_materialized_target() {
+            let temp = tempfile::tempdir().unwrap();
+            let backup_root = StrictPath::new(temp.path().join("backup/game").to_string_lossy().to_string());
+            let prefix_root = StrictPath::new(temp.path().join("prefix").to_string_lossy().to_string());
+            let semantic_key = SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap();
+            let full_name = "backup-full";
+            let diff_name = "backup-diff";
+            let stored = backup_root.joined(diff_name).joined(semantic_key.storage_path());
+            stored.parent().unwrap().create_dirs().unwrap();
+            std::fs::write(stored.as_std_path_buf().unwrap(), "new").unwrap();
+
+            let mut layout = GameLayout {
+                path: backup_root.clone(),
+                mapping: IndividualMapping {
+                    name: "game".to_string(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: full_name.to_string(),
+                        when: now(),
+                        path_format: PathFormat::SemanticV1,
+                        files: btree_map! {
+                            semantic_key.serialize(): IndividualMappingFile {
+                                hash: "old".to_string(),
+                                size: 3,
+                            },
+                        },
+                        children: VecDeque::from(vec![DifferentialBackup {
+                            name: diff_name.to_string(),
+                            when: now(),
+                            files: btree_map! {
+                                semantic_key.serialize(): Some(IndividualMappingFile {
+                                    hash: stored.sha1(),
+                                    size: 3,
+                                }),
+                            },
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+            };
+            let prefix = crate::semantic::prefix::ValidatedPrefix {
+                path: prefix_root.clone(),
+                wine_user: "steamuser".to_string(),
+                has_drive_c: true,
+                drive_mappings: HashMap::new(),
+            };
+            let empty_drive_mappings: HashMap<char, String> = HashMap::new();
+            let target = MaterializeTarget::WinePrefix {
+                prefix: &prefix,
+                wine_user: "steamuser",
+                drive_mappings: &empty_drive_mappings,
+            };
+
+            let scan = layout.scan_for_restoration(
+                "game",
+                &BackupId::Named(diff_name.to_string()),
+                &[],
+                false,
+                &Default::default(),
+                &Default::default(),
+                Some(&target),
+            );
+
+            let restored = prefix_root.joined("drive_c/users/steamuser/Documents/Game/save.dat");
+            let stored_key = backup_root.joined(diff_name).joined(semantic_key.storage_path());
+            assert_eq!(1, scan.found_files.len());
+            assert!(scan.found_files.contains_key(&stored_key));
+            let scanned = scan.found_files.get(&stored_key).unwrap();
+            assert_eq!(Some(semantic_key), scanned.semantic_key);
+            assert_eq!(Some(&restored), scanned.original_path.as_ref());
+            assert_eq!(None, scanned.restore_error);
         }
 
         #[test]
@@ -3395,6 +4088,9 @@ mod tests {
                             change: ScanChange::New,
                             container: None,
                             redirected: None,
+                            origin: None,
+                            semantic_key: None,
+                        restore_error: None,
                         },
                         restorable_file_simple(SOLO, "file2.txt"): ScannedFile {
                             size: 2,
@@ -3404,6 +4100,9 @@ mod tests {
                             change: ScanChange::New,
                             container: None,
                             redirected: None,
+                            origin: None,
+                            semantic_key: None,
+                        restore_error: None,
                         },
                     },
                     found_registry_keys: Default::default(),
@@ -3412,6 +4111,8 @@ mod tests {
                     has_backups: true,
                     dumped_registry: None,
                     only_constructive_backups: false,
+                    will_start_new_semantic_full_backup: false,
+                    ..Default::default()
                 },
                 layout.scan_for_restoration(
                     "game1",
@@ -3419,7 +4120,8 @@ mod tests {
                     &[],
                     false,
                     &Default::default(),
-                    &Default::default()
+                    &Default::default(),
+                    None,
                 ),
             );
         }
@@ -3472,6 +4174,8 @@ mod tests {
                             })
                         })),
                         only_constructive_backups: false,
+                        will_start_new_semantic_full_backup: false,
+                        ..Default::default()
                     },
                     layout.scan_for_restoration(
                         "game3",
@@ -3479,7 +4183,8 @@ mod tests {
                         &[],
                         false,
                         &Default::default(),
-                        &Default::default()
+                        &Default::default(),
+                        None,
                     ),
                 );
             } else {
@@ -3507,6 +4212,8 @@ mod tests {
                         has_backups: true,
                         dumped_registry: None,
                         only_constructive_backups: false,
+                        will_start_new_semantic_full_backup: false,
+                        ..Default::default()
                     },
                     layout.scan_for_restoration(
                         "game3",
@@ -3514,7 +4221,8 @@ mod tests {
                         &[],
                         false,
                         &Default::default(),
-                        &Default::default()
+                        &Default::default(),
+                        None,
                     ),
                 );
             }

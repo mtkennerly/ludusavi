@@ -7,10 +7,15 @@ use crate::{
     prelude::{Error, app_dir},
     report,
     scan::{
-        BackupId, DuplicateDetector, Launchers, OperationStepDecision, ScanKind, SteamShortcuts, TitleFinder,
+        BackupId, DuplicateDetector, Launchers, OperationStepDecision, ScanInfo, ScanKind, SteamShortcuts, TitleFinder,
         TitleMatch, layout::BackupLayout, prepare_backup_target, scan_game_for_backup,
     },
+    semantic::materialize::{MaterializeTarget, resolve_wine_prefix_for_game},
+    semantic::preview::{SemanticPreviewAnalysis, will_start_new_semantic_full_backup},
 };
+
+#[cfg(target_os = "windows")]
+use crate::semantic::materialize::known_folders_from_common_path;
 
 pub use crate::{
     path::StrictPath,
@@ -230,7 +235,13 @@ impl Ludusavi {
                 self.config.restore.reverse_redirects,
                 &self.steam_shortcuts,
                 self.config.backup.only_constructive,
+                self.config.backup.semantic_paths,
             );
+            let mut scan_info = scan_info;
+            if finality.preview() {
+                scan_info.will_start_new_semantic_full_backup =
+                    will_start_new_semantic_full_backup(&self.layout, &scan_info);
+            }
             let ignored = !&self.config.is_game_enabled_for_backup(name) && !games_specified && !include_disabled;
             let decision = if ignored {
                 OperationStepDecision::Ignored
@@ -291,15 +302,22 @@ impl Ludusavi {
             );
         }
 
-        for (name, scan_info, backup_info, decision) in info {
+        for (name, scan_info, backup_info, decision) in &info {
             reporter.add_game(
                 name,
-                &scan_info,
+                scan_info,
                 backup_info.as_ref(),
-                &decision,
+                decision,
                 &duplicate_detector,
                 false,
             );
+        }
+        if finality.preview() {
+            let analysis_inputs: Vec<_> = info.iter().map(|(name, scan_info, _, _)| (*name, scan_info)).collect();
+            let analysis = SemanticPreviewAnalysis::from_backup_preview(&self.config, &self.layout, &analysis_inputs);
+            if !analysis.is_empty() {
+                reporter.add_semantic_preview(analysis);
+            }
         }
 
         self.refresh();
@@ -314,6 +332,7 @@ impl Ludusavi {
             finality,
             backup,
             resolve_cloud_conflict,
+            wine_prefix,
             include_disabled,
             skip_downgrade,
         }: parameters::Restore,
@@ -367,9 +386,46 @@ impl Ludusavi {
             }
         }
 
+        // Pre-build Windows materialization state for semantic backup restoration.
+        #[cfg(target_os = "windows")]
+        let kf = known_folders_from_common_path();
+        #[cfg(target_os = "windows")]
+        let win_target = MaterializeTarget::CurrentWindows { known_folders: &kf };
+
         let step = |i, name| {
             log::trace!("step {i} / {}: {name}", games.len());
             let mut layout = self.layout.game_layout(name);
+
+            #[cfg(target_os = "windows")]
+            let materialize_target: Option<&MaterializeTarget> = Some(&win_target);
+            #[cfg(not(target_os = "windows"))]
+            let linux_wine_prefix = match resolve_wine_prefix_for_game(&self.config, name, wine_prefix.as_ref()) {
+                Ok(prefix) => prefix,
+                Err(error) => {
+                    log::trace!("step {i} completed (wine prefix conflict)");
+                    let display_title = self.config.display_name(name);
+                    return Some((
+                        display_title,
+                        ScanInfo {
+                            game_name: name.to_string(),
+                            has_backups: layout.has_backups(),
+                            ..Default::default()
+                        },
+                        Default::default(),
+                        OperationStepDecision::Processed,
+                        Some(error),
+                    ));
+                }
+            };
+            #[cfg(not(target_os = "windows"))]
+            let linux_wine_target = linux_wine_prefix.as_ref().map(|prefix| MaterializeTarget::WinePrefix {
+                prefix,
+                wine_user: &prefix.wine_user,
+                drive_mappings: &self.config.restore.drive_mappings,
+            });
+            #[cfg(not(target_os = "windows"))]
+            let materialize_target: Option<&MaterializeTarget> = linux_wine_target.as_ref();
+
             let scan_info = layout.scan_for_restoration(
                 name,
                 backup_id.as_ref().unwrap_or(&BackupId::Latest),
@@ -377,6 +433,7 @@ impl Ludusavi {
                 self.config.restore.reverse_redirects,
                 &self.config.restore.toggled_paths,
                 &self.config.restore.toggled_registry,
+                materialize_target,
             );
             let ignored = !&self.config.is_game_enabled_for_restore(name) && !games_specified && !include_disabled;
             let decision = if ignored {
@@ -414,7 +471,7 @@ impl Ludusavi {
                 None
             } else {
                 let display_title = self.config.display_name(name);
-                Some((display_title, scan_info, restore_info, decision, None))
+                Some((display_title, scan_info, restore_info, decision, None::<Error>))
             }
         };
 
@@ -558,6 +615,8 @@ pub mod parameters {
         pub backup: Option<String>,
         /// Automatically resolve cloud conflicts by performing an upload or download.
         pub resolve_cloud_conflict: Option<SyncDirection>,
+        /// Wine/Proton prefix for restoring portable Windows saves on Linux.
+        pub wine_prefix: Option<StrictPath>,
         /// Process disabled games.
         pub include_disabled: bool,
         /// Skip a game when its backup is newer than the live data.

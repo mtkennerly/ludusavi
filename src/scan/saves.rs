@@ -2,8 +2,25 @@ use std::collections::BTreeMap;
 
 use crate::{
     prelude::StrictPath,
+    resource::manifest::Store,
     scan::{ScanChange, ScanKind},
+    semantic::SemanticPath,
 };
+
+/// Records the manifest origin of a scanned file, used for semantic key derivation.
+#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct ScanOrigin {
+    /// The manifest placeholder path, e.g. `<winDocuments>/Remedy/Alan Wake`.
+    pub manifest_path: String,
+    /// The store/root kind that provided this match.
+    pub store: Store,
+    /// The expanded prefix that was stripped to find the tail.
+    pub expanded_prefix: String,
+    /// The matched prefix length (characters stripped from the expanded path).
+    pub matched_prefix_len: usize,
+    /// The remaining tail after the matched prefix.
+    pub tail: String,
+}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ScannedFile {
@@ -16,6 +33,12 @@ pub struct ScannedFile {
     /// An enclosing archive file, if any, depending on the `BackupFormat`.
     pub container: Option<StrictPath>,
     pub redirected: Option<StrictPath>,
+    /// Origin metadata from manifest, used for semantic key derivation.
+    pub origin: Option<ScanOrigin>,
+    /// The semantic key for this file, if derived. Used as the portable backup identity.
+    pub semantic_key: Option<SemanticPath>,
+    /// A restoration error detected while planning, before copying starts.
+    pub restore_error: Option<String>,
 }
 
 impl ScannedFile {
@@ -29,6 +52,9 @@ impl ScannedFile {
             change: Default::default(),
             container: None,
             redirected: None,
+            origin: None,
+            semantic_key: None,
+            restore_error: None,
         }
     }
 
@@ -42,6 +68,9 @@ impl ScannedFile {
             change,
             container: None,
             redirected: None,
+            origin: None,
+            semantic_key: None,
+            restore_error: None,
         }
     }
 
@@ -80,6 +109,9 @@ impl ScannedFile {
 
     /// This is stored in the mapping file.
     pub fn mapping_key(&self, scan_key: &StrictPath) -> String {
+        if let Some(ref semantic) = self.semantic_key {
+            return semantic.serialize();
+        }
         self.effective(scan_key).render()
     }
 
