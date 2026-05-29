@@ -259,3 +259,11 @@ new-version-available = An application update is available: { $version }. Would 
 custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
+
+semantic-prefix-ambiguous = Multaj Wine-prefiksoj trovitaj por ĉi tiu ludo. Bonvolu elekti unu.
+semantic-prefix-invalid = La agordita Wine-prefikso ne validas: { $path }
+semantic-drive-missing = Disko { $drive } ne disponeblas en la celsistemo.
+semantic-key-conflict = Multaj dosieroj mapas al la sama portebla konservloko: { $key }
+semantic-foreign-namespace = Ĉi tiu sekurkopio enhavas konservojn de alia platformo, kiuj ne povas esti restarigitaj ĉi tie.
+semantic-format-switch-notice = Ĉi tiu ludo ŝanĝos al portebla sekurkopia formato. Nova plena sekurkopio kreiĝos.
+semantic-preview-would-become = { $legacy } → { $semantic }

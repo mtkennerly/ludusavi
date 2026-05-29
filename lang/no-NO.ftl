@@ -243,3 +243,11 @@ new-version-available = En programoppdatering er tilgjenglig: { $version }. Vil 
 custom-game-will-override = Dette tilpassede spillet overskriver en manifest oppføring
 custom-game-will-extend = Dette tilpassede spillet utvider en manifest oppføring
 operation-will-only-include-listed-games = Dette kommer bare til å prosessere spillene som er for øyeblikket oppført
+
+semantic-prefix-ambiguous = Flere Wine-prefikser funnet for dette spillet. Velg ett.
+semantic-prefix-invalid = Den konfigurerte Wine-prefiksen er ikke gyldig: { $path }
+semantic-drive-missing = Stasjon { $drive } er ikke tilgjengelig på målsystemet.
+semantic-key-conflict = Flere filer mapper til samme bærbare lagringsplassering: { $key }
+semantic-foreign-namespace = Denne sikkerhetskopien inneholder lagringer fra en annen plattform som ikke kan gjenopprettes her.
+semantic-format-switch-notice = Dette spillet vil bytte til et bærbart sikkerhetskopiformat. En ny full sikkerhetskopi vil bli opprettet.
+semantic-preview-would-become = { $legacy } → { $semantic }

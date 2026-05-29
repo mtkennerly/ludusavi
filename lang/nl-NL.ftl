@@ -257,3 +257,11 @@ new-version-available = Een applicatie-update is beschikbaar: { $version }. Wil 
 custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
+
+semantic-prefix-ambiguous = Meerdere Wine-prefixen gevonden voor dit spel. Selecteer er een.
+semantic-prefix-invalid = Het geconfigureerde Wine-prefix is niet geldig: { $path }
+semantic-drive-missing = Schijf { $drive } is niet beschikbaar op het doelsysteem.
+semantic-key-conflict = Meerdere bestanden worden toegewezen aan dezelfde draagbare opslaglocatie: { $key }
+semantic-foreign-namespace = Deze back-up bevat saves van een ander platform die hier niet kunnen worden hersteld.
+semantic-format-switch-notice = Dit spel schakelt over naar een draagbaar back-upformaat. Een nieuwe volledige back-up wordt gemaakt.
+semantic-preview-would-become = { $legacy } → { $semantic }

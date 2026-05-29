@@ -259,3 +259,11 @@ new-version-available = يتوفر تحديث للتطبيق: { $version }. هل
 custom-game-will-override = هذه اللعبة المخصصة تتجاوز عنصر في اللائحة
 custom-game-will-extend = هذه اللعبة المخصصة توسع عنصر في اللائحة
 operation-will-only-include-listed-games = سيؤدي هذا فقط إلى معالجة الألعاب المدرجة حاليا
+
+semantic-prefix-ambiguous = تم العثور على بادئات Wine متعددة لهذه اللعبة. يرجى اختيار واحدة.
+semantic-prefix-invalid = بادئة Wine المكونة غير صالحة: { $path }
+semantic-drive-missing = القرص { $drive } غير متاح على النظام المستهدف.
+semantic-key-conflict = تعيين ملفات متعددة إلى نفس موقع الحفظ المحمول: { $key }
+semantic-foreign-namespace = يحتوي هذا النسخ الاحتياطي على حفظات من منصة أخرى لا يمكن استعادتها هنا.
+semantic-format-switch-notice = ستنتقل هذه اللعبة إلى تنسيق نسخ احتياطي محمول. سيتم إنشاء نسخ احتياطي كامل جديد.
+semantic-preview-would-become = { $legacy } → { $semantic }

@@ -13,6 +13,9 @@ cli-unable-to-request-confirmation = Unable to request confirmation.
     .winpty-workaround = If you are using a Bash emulator (like Git Bash), try running winpty.
 cli-backup-id-with-multiple-games = Cannot specify backup ID when restoring multiple games.
 cli-invalid-backup-id = Invalid backup ID.
+wine-prefix-conflict = Cannot use --wine-prefix for {$game} because it conflicts with the game's preferred Wine prefix.
+wine-prefix-conflict-cli = Command prefix: {$path}
+wine-prefix-conflict-configured = Preferred prefix: {$path}
 
 badge-failed = FAILED
 badge-duplicates = DUPLICATES
@@ -20,11 +23,17 @@ badge-duplicated = DUPLICATED
 badge-ignored = IGNORED
 badge-redirected-from = FROM: {$path}
 badge-redirecting-to = TO: {$path}
+badge-portable = PORTABLE: {$path}
+label-portable = Portable
+label-new-full-backup = New full backup
+label-portable-conflict = Portable conflict
+label-invalid-prefix = Invalid prefix
 
 some-entries-failed = Some entries failed to process; look for {badge-failed} in the output for details. Double check whether you can access those files or whether their paths are very long.
 
 cli-game-line-item-redirected = Redirected from: {$path}
 cli-game-line-item-redirecting = Redirecting to: {$path}
+cli-game-line-item-portable = Stored as portable save location: {$path}
 
 button-backup = Back up
 button-preview = Preview
@@ -296,3 +305,12 @@ custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 
 operation-will-only-include-listed-games = This will only process the games that are currently listed
+
+## Semantic path / cross-platform messages
+semantic-prefix-ambiguous = Multiple Wine prefixes found for this game. Please select one.
+semantic-prefix-invalid = The configured Wine prefix is not valid: { $path }
+semantic-drive-missing = Drive { $drive } is not available on the target system.
+semantic-key-conflict = Multiple files map to the same portable save location: { $key }
+semantic-foreign-namespace = This backup contains saves from another platform that cannot be restored here.
+semantic-format-switch-notice = This game will switch to a portable backup format. A new full backup will be created.
+semantic-preview-would-become = { $legacy } → { $semantic }

@@ -259,3 +259,11 @@ new-version-available = An application update is available: { $version }. Would 
 custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
+
+semantic-prefix-ambiguous = Pro tuto hru bylo nalezeno více prefixů Wine. Vyberte jeden.
+semantic-prefix-invalid = Nakonfigurovaný prefix Wine není platný: { $path }
+semantic-drive-missing = Jednotka { $drive } není dostupná v cílovém systému.
+semantic-key-conflict = Více souborů mapuje na stejné přenosné umístění uložení: { $key }
+semantic-foreign-namespace = Tato záloha obsahuje uložení z jiné platformy, která zde nelze obnovit.
+semantic-format-switch-notice = Tato hra přejde na přenosný formát zálohy. Bude vytvořena nová úplná záloha.
+semantic-preview-would-become = { $legacy } → { $semantic }

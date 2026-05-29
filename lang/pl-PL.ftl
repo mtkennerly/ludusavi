@@ -257,3 +257,11 @@ new-version-available = Dostępna jest aktualizacja aplikacji: { $version }. Chc
 custom-game-will-override = Ta niestandardowa gra zastępuje wpis manifestu
 custom-game-will-extend = Ta niestandardowa gra rozszerza wpis manifestu
 operation-will-only-include-listed-games = Spowoduje to przetworzenie tylko tych gier, które aktualnie znajdują się na liście
+
+semantic-prefix-ambiguous = Znaleziono wiele prefiksów Wine dla tej gry. Wybierz jeden.
+semantic-prefix-invalid = Skonfigurowany prefiks Wine jest nieprawidłowy: { $path }
+semantic-drive-missing = Dysk { $drive } nie jest dostępny w systemie docelowym.
+semantic-key-conflict = Wiele plików mapuje to samo przenośne miejsce zapisu: { $key }
+semantic-foreign-namespace = Ta kopia zapasowa zawiera zapisy z innej platformy, których nie można tu przywrócić.
+semantic-format-switch-notice = Ta gra przełączy się na przenośny format kopii zapasowej. Zostanie utworzona nowa pełna kopia zapasowa.
+semantic-preview-would-become = { $legacy } → { $semantic }

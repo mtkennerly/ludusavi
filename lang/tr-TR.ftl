@@ -259,3 +259,11 @@ new-version-available = Güncelleme mevcut: { $version }. Sürüm notlarını g�
 custom-game-will-override = Bu özel oyun, bildirim girişini geçersiz kılıyor
 custom-game-will-extend = Bu özel oyun, manifest girişini genişletiyor
 operation-will-only-include-listed-games = Bu yalnızca şu anda listelenen oyunları işleyecektir
+
+semantic-prefix-ambiguous = Bu oyun için birden fazla Wine öneki bulundu. Lütfen birini seçin.
+semantic-prefix-invalid = Yapılandırılan Wine öneki geçersiz: { $path }
+semantic-drive-missing = { $drive } sürücüsü hedef sistemde kullanılamıyor.
+semantic-key-conflict = Birden fazla dosya aynı taşınabilir kaydetme konumuna eşleniyor: { $key }
+semantic-foreign-namespace = Bu yedek, burada geri yüklenemeyecek başka bir platformdan kayıtlar içeriyor.
+semantic-format-switch-notice = Bu oyun taşınabilir bir yedekleme formatına geçecek. Yeni bir tam yedekleme oluşturulacak.
+semantic-preview-would-become = { $legacy } → { $semantic }

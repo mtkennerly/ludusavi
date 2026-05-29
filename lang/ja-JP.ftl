@@ -257,3 +257,11 @@ new-version-available = An application update is available: { $version }. Would 
 custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
+
+semantic-prefix-ambiguous = このゲームに複数の Wine プレフィックスが見つかりました。1つを選択してください。
+semantic-prefix-invalid = 設定された Wine プレフィックスが無効です: { $path }
+semantic-drive-missing = ドライブ { $drive } はターゲットシステムで利用できません。
+semantic-key-conflict = 複数のファイルが同じポータブル保存場所にマップされています: { $key }
+semantic-foreign-namespace = このバックアップには、ここでは復元できない他のプラットフォームのセーブデータが含まれています。
+semantic-format-switch-notice = このゲームはポータブルバックアップ形式に切り替わります。新しいフルバックアップが作成されます。
+semantic-preview-would-become = { $legacy } → { $semantic }

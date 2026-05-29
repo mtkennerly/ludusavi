@@ -259,3 +259,11 @@ new-version-available = An application update is available: { $version }. Would 
 custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
+
+semantic-prefix-ambiguous = Для цієї гри знайдено кілька префіксів Wine. Виберіть один.
+semantic-prefix-invalid = Налаштований префікс Wine недійсний: { $path }
+semantic-drive-missing = Диск { $drive } недоступний у цільовій системі.
+semantic-key-conflict = Кілька файлів відображаються на одне й те саме портативне місце збереження: { $key }
+semantic-foreign-namespace = Ця резервна копія містить збереження з іншої платформи, які не можна відновити тут.
+semantic-format-switch-notice = Ця гра перейде на портативний формат резервного копіювання. Буде створено нову повну резервну копію.
+semantic-preview-would-become = { $legacy } → { $semantic }

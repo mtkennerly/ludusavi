@@ -257,3 +257,11 @@ new-version-available = Une mise à jour de l'application est disponible : { $ve
 custom-game-will-override = Ce jeu personnalisé remplace une entrée du manifeste
 custom-game-will-extend = Ce jeu personnalisé étend une entrée du manifeste
 operation-will-only-include-listed-games = Cette opération ne traitera que les jeux qui sont actuellement répertoriés
+
+semantic-prefix-ambiguous = Plusieurs préfixes Wine trouvés pour ce jeu. Veuillez en sélectionner un.
+semantic-prefix-invalid = Le préfixe Wine configuré n'est pas valide : { $path }
+semantic-drive-missing = Le lecteur { $drive } n'est pas disponible sur le système cible.
+semantic-key-conflict = Plusieurs fichiers correspondent au même emplacement de sauvegarde portable : { $key }
+semantic-foreign-namespace = Cette sauvegarde contient des sauvegardes d'une autre plateforme qui ne peuvent pas être restaurées ici.
+semantic-format-switch-notice = Ce jeu passera à un format de sauvegarde portable. Une nouvelle sauvegarde complète sera créée.
+semantic-preview-would-become = { $legacy } → { $semantic }

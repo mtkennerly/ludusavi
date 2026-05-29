@@ -249,3 +249,11 @@ new-version-available = 应用程序更新可用：{ $version }. 是否要查看
 custom-game-will-override = 这个自定义游戏会覆盖一个清单项
 custom-game-will-extend = 这个自定义游戏会扩展一个清单项
 operation-will-only-include-listed-games = 这将仅处理当前列出的游戏
+
+semantic-prefix-ambiguous = 检测到多个 Wine 前缀。请选择一个。
+semantic-prefix-invalid = 配置的 Wine 前缀无效：{ $path }
+semantic-drive-missing = 目标系统中不存在 { $drive } 盘符。
+semantic-key-conflict = 多个文件映射到同一可移植保存位置：{ $key }
+semantic-foreign-namespace = 此备份包含来自其他平台的存档，无法在此恢复。
+semantic-format-switch-notice = 此游戏将切换为可移植备份格式。将创建新的完整备份。
+semantic-preview-would-become = { $legacy } → { $semantic }
