@@ -45,3 +45,26 @@ For example, consider these potential challenges:
 
 Using absolute paths is the safest way to ensure that backups are always restored to the same place on the same system.
 The trade-off is that you must define redirects to help Ludusavi understand your unique setup.
+
+## Semantic paths (cross-platform backups)
+
+For Windows and Wine/Proton saves, Ludusavi supports a portable path format
+called **semantic paths**. Instead of storing the literal file path
+(e.g., `/home/deck/Prefixes/Game/drive_c/users/steamuser/Documents/Game/save.dat`),
+the backup stores a portable identity like `<winDocuments>/Game/save.dat`.
+
+This format:
+
+- Ignores Windows usernames (`Alice`, `Bob`) and Wine usernames (`steamuser`, `deck`)
+- Ignores Wine prefix locations (`/home/deck/Prefixes/Game`)
+- Preserves the semantic meaning of the save location (Documents, AppData, etc.)
+- Enables cloud-sync deduplication across machines
+
+When restoring a semantic backup:
+
+- On Windows: files go to the current user's actual Documents/AppData/etc. folders
+- In Wine: files go to the selected prefix's `drive_c/users/<wine-user>/Documents` etc.
+
+Semantic backups use `pathFormat: semantic-v1` in `mapping.yaml`
+and store files under a `__ludusavi_semantic__/` namespace
+within the backup folder.

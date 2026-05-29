@@ -20,4 +20,13 @@ backup:
   path: ~/ludusavi-backup
 restore:
   path: ~/ludusavi-backup
+  preferredWinePrefixes:
+    "Example Game":
+      path: ~/Games/Prefixes/Example Game
+      wineUser: steamuser
 ```
+
+`restore.preferredWinePrefixes` is optional. Use it when a portable Windows
+backup should always restore into a specific Wine/Proton prefix for a game.
+The CLI `--wine-prefix` option is still available as a per-command override,
+but Ludusavi rejects it if it conflicts with a saved preference for the game.

@@ -44,6 +44,14 @@ along with the root's type:
 * For a Wine prefix root, this should be the folder containing `drive_c`.
   Currently, Ludusavi does not back up registry-based saves from the prefix,
   but will back up any file-based saves.
+
+  When semantic (portable) backups are enabled, the Wine prefix is used
+  as a scan and restore target, but the prefix path itself is not stored
+  as the backup identity. This means backups from one prefix location
+  can be restored into a different prefix on another machine.
+
+  For Steam Proton, you do not need to add a separate Wine prefix root.
+  The Steam root acts as the prefix provider for Proton compatdata prefixes.
 * The Windows, Linux, and Mac drive roots can be used
   to make Ludusavi scan external hard drives with a separate OS installation.
   For example, let's say you had a Windows laptop that broke,

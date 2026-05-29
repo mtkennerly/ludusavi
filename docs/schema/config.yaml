@@ -178,6 +178,10 @@ definitions:
         description: "Don't create a new backup if there are only removed saves and no new/edited ones."
         default: false
         type: boolean
+      semanticPaths:
+        description: "Use portable semantic paths for Windows/Wine saves instead of absolute paths. When enabled, backups are cross-platform between Windows and Wine."
+        default: true
+        type: boolean
       path:
         description: Full path to a directory in which to save backups.
         default: "C:/Users/mtken/ludusavi-backup"
@@ -390,6 +394,23 @@ definitions:
         format: int32
   FilePath:
     type: string
+  GameWinePrefixPreference:
+    type: object
+    properties:
+      path:
+        description: Wine/Proton prefix to use for this game when restoring portable Windows saves.
+        allOf:
+          - $ref: "#/definitions/FilePath"
+      wineUser:
+        description: "Preferred Wine user inside the prefix, if the prefix has multiple user profiles."
+        type:
+          - string
+          - "null"
+      driveMappings:
+        description: Optional non-C drive mappings for this game.
+        type: object
+        additionalProperties:
+          $ref: "#/definitions/FilePath"
   Integration:
     type: string
     enum:
@@ -557,6 +578,23 @@ definitions:
         items:
           type: string
         uniqueItems: true
+      preferredWinePrefixes:
+        description: Preferred Wine/Proton prefixes for restoring portable Windows saves on non-Windows systems.
+        type: object
+        additionalProperties:
+          $ref: "#/definitions/GameWinePrefixPreference"
+      winePrefix:
+        description: "Global Wine prefix for restoring Windows semantic backups on Linux. Used as a fallback when no game-specific prefix is configured."
+        default: null
+        anyOf:
+          - $ref: "#/definitions/FilePath"
+          - type: "null"
+      driveMappings:
+        description: "Manual drive letter mappings for WinDrive semantic keys when dosdevices symlinks are not available. Keys are lowercase drive letters (a-z), values are target paths."
+        default: {}
+        type: object
+        additionalProperties:
+          type: string
       path:
         description: Full path to a directory from which to restore data.
         default: "C:/Users/mtken/ludusavi-backup"

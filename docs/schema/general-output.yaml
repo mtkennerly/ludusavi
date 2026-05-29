@@ -26,6 +26,11 @@ properties:
     anyOf:
       - $ref: "#/definitions/OperationStatus"
       - type: "null"
+  semanticPreview:
+    description: Portable backup changes detected during preview.
+    anyOf:
+      - $ref: "#/definitions/SemanticPreviewAnalysis"
+      - type: "null"
 definitions:
   ApiBackup:
     type: object
@@ -123,6 +128,11 @@ definitions:
           - "null"
       redirectedPath:
         description: "If the file was backed up to a redirected location, then this is its location within the backup."
+        type:
+          - string
+          - "null"
+      semanticKey:
+        description: "Portable semantic identity used for cross-platform backups, if available."
         type:
           - string
           - "null"
@@ -247,6 +257,20 @@ definitions:
           - $ref: "#/definitions/ScanChange"
   CloudSyncFailed:
     type: object
+  InvalidPrefix:
+    description: A configured prefix that failed validation.
+    type: object
+    required:
+      - gameName
+      - path
+      - reason
+    properties:
+      gameName:
+        type: string
+      path:
+        type: string
+      reason:
+        type: string
   OperationStatus:
     type: object
     required:
@@ -293,6 +317,22 @@ definitions:
       - linux
       - mac
       - other
+  PreviewConflict:
+    description: A duplicate semantic key produced by multiple physical files.
+    type: object
+    required:
+      - gameName
+      - semanticKey
+      - physicalPaths
+    properties:
+      gameName:
+        type: string
+      semanticKey:
+        type: string
+      physicalPaths:
+        type: array
+        items:
+          type: string
   SaveError:
     type: object
     required:
@@ -328,3 +368,46 @@ definitions:
         type: integer
         format: uint
         minimum: 0.0
+  SemanticMigration:
+    description: A pending migration from a legacy physical key to a semantic key.
+    type: object
+    required:
+      - gameName
+      - legacyKey
+      - semanticKey
+    properties:
+      gameName:
+        type: string
+      legacyKey:
+        type: string
+      semanticKey:
+        type: string
+  SemanticPreviewAnalysis:
+    description: Analysis result for semantic backup preview/dry-run.
+    type: object
+    required:
+      - migrations
+      - newFullChains
+      - invalidPrefixes
+      - conflicts
+    properties:
+      migrations:
+        description: Legacy keys that would become semantic keys.
+        type: array
+        items:
+          $ref: "#/definitions/SemanticMigration"
+      newFullChains:
+        description: Games that would start a new full backup chain.
+        type: array
+        items:
+          type: string
+      invalidPrefixes:
+        description: Configured prefixes that failed validation.
+        type: array
+        items:
+          $ref: "#/definitions/InvalidPrefix"
+      conflicts:
+        description: Semantic key conflicts.
+        type: array
+        items:
+          $ref: "#/definitions/PreviewConflict"
