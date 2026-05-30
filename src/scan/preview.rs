@@ -1,12 +1,12 @@
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::OnceLock;
 
 use crate::{
     path::StrictPath,
-    resource::config::{ToggledPaths, ToggledRegistry},
+    resource::config::{RedirectConfig, ToggledPaths, ToggledRegistry},
     scan::{
-        BackupInfo, ScanChange, ScanChangeCount, ScanKind, ScannedFile, ScannedRegistry,
-        layout::Backup,
+        BackupInfo, ScanChange, ScanChangeCount, ScanKind, ScannedFile, ScannedRegistry, game_file_target,
+        layout::{Backup, PathContext},
         registry::{self, RegistryItem},
     },
     semantic::{self, SemanticPath},
@@ -34,6 +34,9 @@ pub struct ScanInfo {
     pub will_start_new_semantic_full_backup: bool,
     /// Lazily computed semantic conflicts.
     pub cached_semantic_conflicts: OnceLock<Vec<semantic::conflict::SemanticConflict>>,
+    /// Source Wine prefix metadata for semantic backups. Maps context ID to prefix info.
+    /// Populated during backup scans from matched Wine prefixes and during restore scans from backup metadata.
+    pub path_contexts: BTreeMap<usize, PathContext>,
 }
 
 impl PartialEq for ScanInfo {
@@ -47,6 +50,7 @@ impl PartialEq for ScanInfo {
             && self.dumped_registry == other.dumped_registry
             && self.only_constructive_backups == other.only_constructive_backups
             && self.will_start_new_semantic_full_backup == other.will_start_new_semantic_full_backup
+            && self.path_contexts == other.path_contexts
     }
 }
 
@@ -106,7 +110,7 @@ impl ScanInfo {
             let files = self
                 .found_files
                 .iter()
-                .map(|(path, file)| (path.clone(), file.semantic_key.clone()))
+                .map(|(path, file)| (path.clone(), (file.semantic_key.clone(), file.mapping_context_id)))
                 .collect();
             semantic::conflict::detect_conflicts(&files)
         })
@@ -116,6 +120,31 @@ impl ScanInfo {
         self.semantic_conflicts()
             .iter()
             .any(|conflict| conflict.semantic_key.eq_semantic(semantic))
+    }
+
+    /// Recalculate `redirected`, `ignored`, and `change` for all files.
+    /// Call this after modifying `original_path` on any files (e.g., after materializing
+    /// semantic paths with context targets).
+    pub fn recalculate_restore_state(
+        &mut self,
+        redirects: &[RedirectConfig],
+        reverse_redirects_on_restore: bool,
+        toggled_paths: &ToggledPaths,
+    ) {
+        for file in self.found_files.values_mut() {
+            if let Some(ref original_path) = file.original_path {
+                let redirected = game_file_target(
+                    original_path,
+                    redirects,
+                    reverse_redirects_on_restore,
+                    ScanKind::Restore,
+                );
+                let ignorable_path = redirected.as_ref().unwrap_or(original_path);
+                file.ignored = toggled_paths.is_ignored(&self.game_name, ignorable_path);
+                file.change = ScanChange::evaluate_restore(ignorable_path, &file.hash);
+                file.redirected = redirected;
+            }
+        }
     }
 
     pub fn found_anything_processable(&self) -> bool {
@@ -732,5 +761,53 @@ mod tests {
         );
         assert_eq!(ScanChange::Same, scan.overall_change());
         assert!(scan.can_report_game());
+    }
+
+    #[test]
+    fn recalculate_restore_state_updates_redirect_and_ignored() {
+        let mut scan = ScanInfo {
+            game_name: "test".to_string(),
+            found_files: hash_map! {
+                "scan_key".into(): ScannedFile {
+                    original_path: Some(StrictPath::new("/old/path/save.dat")),
+                    hash: "abc123".to_string(),
+                    ignored: false,
+                    change: ScanChange::Unknown,
+                    redirected: None,
+                    ..Default::default()
+                },
+            },
+            ..Default::default()
+        };
+
+        // Without redirects, recalculate_restore_state should update change based on file existence.
+        scan.recalculate_restore_state(&[], false, &ToggledPaths::default());
+
+        let file = scan.found_files.values().next().unwrap();
+        // redirected should be None (no redirects configured)
+        assert!(file.redirected.is_none());
+        // change should be recalculated (not Unknown anymore)
+        assert_ne!(file.change, ScanChange::Unknown);
+    }
+
+    #[test]
+    fn recalculate_restore_state_preserves_restore_error() {
+        let mut scan = ScanInfo {
+            game_name: "test".to_string(),
+            found_files: hash_map! {
+                "scan_key".into(): ScannedFile {
+                    original_path: Some(StrictPath::new("/some/path/save.dat")),
+                    hash: "abc123".to_string(),
+                    restore_error: Some("old error".to_string()),
+                    ..Default::default()
+                },
+            },
+            ..Default::default()
+        };
+
+        scan.recalculate_restore_state(&[], false, &ToggledPaths::default());
+
+        let file = scan.found_files.values().next().unwrap();
+        assert_eq!(Some("old error"), file.restore_error.as_deref());
     }
 }

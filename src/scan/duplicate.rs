@@ -465,6 +465,7 @@ mod tests {
             container: None,
             redirected: None,
             origin: None,
+            mapping_context_id: None,
             semantic_key: None,
             restore_error: None,
         };
@@ -478,6 +479,7 @@ mod tests {
             container: None,
             redirected: None,
             origin: None,
+            mapping_context_id: None,
             semantic_key: None,
             restore_error: None,
         };
@@ -523,6 +525,7 @@ mod tests {
                     container: None,
                     redirected: None,
                     origin: None,
+                    mapping_context_id: None,
                     semantic_key: None,
                     restore_error: None,
                 }
@@ -553,6 +556,7 @@ mod tests {
                     container: None,
                     redirected: None,
                     origin: None,
+                    mapping_context_id: None,
                     semantic_key: None,
                     restore_error: None,
                 }

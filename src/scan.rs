@@ -11,7 +11,7 @@ pub mod steam;
 pub mod title;
 
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashMap, HashSet},
     sync::LazyLock,
 };
 
@@ -38,9 +38,10 @@ use crate::{
         },
         manifest::{Game, GameFileEntry, IdSet, Os, Store},
     },
-    scan::layout::LatestBackup,
+    scan::layout::{LatestBackup, PathContext},
     scan::saves::ScanOrigin,
     semantic::{
+        SemanticBase,
         convert::{derive_from_manifest_origin, expected_base_from_manifest, wine_physical_to_semantic},
         prefix::{ValidatedPrefix, validate_prefix},
     },
@@ -742,6 +743,9 @@ pub fn scan_game_for_backup(
         })
         .unwrap_or_default();
 
+    // Track which wine prefix index matched each file (for context ID assignment).
+    let mut file_prefix_indices: Vec<(StrictPath, usize)> = Vec::new();
+
     for (path, (case_sensitive, origins)) in paths_to_check {
         log::trace!("[{name}] checking: {path:?}");
         if filter.is_path_ignored(&path) {
@@ -768,9 +772,10 @@ pub fn scan_game_for_backup(
                 let redirected = game_file_target(&scan_key, redirects, reverse_redirects_on_restore, ScanKind::Backup);
                 let change =
                     ScanChange::evaluate_backup(&hash, previous_files.get(redirected.as_ref().unwrap_or(&scan_key)));
-                let (semantic_key, scan_origin) = if semantic_paths_enabled {
+                let (semantic_key, scan_origin, matched_prefix_idx) = if semantic_paths_enabled {
                     let mut key = None;
                     let mut origin = None;
+                    let mut matched_prefix_idx: Option<usize> = None;
                     // 1. Try manifest-derived first
                     for (manifest_path, store) in &origins {
                         if let Some(expected_base) = expected_base_from_manifest(manifest_path, *store) {
@@ -784,18 +789,11 @@ pub fn scan_game_for_backup(
                                         .map(|s| s.tail);
                                 }
                             }
-                            let tail = tail.or_else(|| {
-                                for prefix in &wine_prefixes {
-                                    if let Some(semantic) =
-                                        wine_physical_to_semantic(&scan_key, &prefix.path, &prefix.wine_user)
-                                        && semantic.base == expected_base
-                                    {
-                                        return Some(semantic.tail);
-                                    }
-                                }
-                                None
+                            let tail_and_idx = tail.map(|t| (t, None)).or_else(|| {
+                                wine_prefix_find_match(&scan_key, &wine_prefixes, Some(&expected_base))
+                                    .map(|(semantic, idx)| (semantic.tail, Some(idx)))
                             });
-                            if let Some(tail) = tail {
+                            if let Some((tail, idx)) = tail_and_idx {
                                 let scan_origin = ScanOrigin {
                                     manifest_path: manifest_path.clone(),
                                     store: *store,
@@ -806,6 +804,7 @@ pub fn scan_game_for_backup(
                                 if let Some(derived_key) = derive_from_manifest_origin(&scan_origin) {
                                     key = Some(derived_key);
                                     origin = Some(scan_origin);
+                                    matched_prefix_idx = idx;
                                     break;
                                 }
                             }
@@ -819,19 +818,20 @@ pub fn scan_game_for_backup(
                                 key = windows_physical_to_semantic(&scan_key, kf);
                             }
                         }
-                        if key.is_none() {
-                            for prefix in &wine_prefixes {
-                                if let Some(k) = wine_physical_to_semantic(&scan_key, &prefix.path, &prefix.wine_user) {
-                                    key = Some(k);
-                                    break;
-                                }
-                            }
+                        if key.is_none()
+                            && let Some((sp, idx)) = wine_prefix_find_match(&scan_key, &wine_prefixes, None)
+                        {
+                            key = Some(sp);
+                            matched_prefix_idx = Some(idx);
                         }
                     }
-                    (key, origin)
+                    (key, origin, matched_prefix_idx)
                 } else {
-                    (None, None)
+                    (None, None, None)
                 };
+                if let Some(idx) = matched_prefix_idx {
+                    file_prefix_indices.push((scan_key.clone(), idx));
+                }
                 found_files.insert(
                     scan_key,
                     ScannedFile {
@@ -843,6 +843,7 @@ pub fn scan_game_for_backup(
                         ignored,
                         container: None,
                         origin: scan_origin,
+                        mapping_context_id: None,
                         semantic_key,
                         restore_error: None,
                     },
@@ -880,9 +881,10 @@ pub fn scan_game_for_backup(
                             &hash,
                             previous_files.get(redirected.as_ref().unwrap_or(&scan_key)),
                         );
-                        let (semantic_key, scan_origin) = if semantic_paths_enabled {
+                        let (semantic_key, scan_origin, matched_prefix_idx) = if semantic_paths_enabled {
                             let mut key = None;
                             let mut origin = None;
+                            let mut matched_prefix_idx: Option<usize> = None;
                             // 1. Try manifest-derived first
                             for (manifest_path, store) in &origins {
                                 if let Some(expected_base) = expected_base_from_manifest(manifest_path, *store) {
@@ -896,18 +898,11 @@ pub fn scan_game_for_backup(
                                                 .map(|s| s.tail);
                                         }
                                     }
-                                    let tail = tail.or_else(|| {
-                                        for prefix in &wine_prefixes {
-                                            if let Some(semantic) =
-                                                wine_physical_to_semantic(&scan_key, &prefix.path, &prefix.wine_user)
-                                                && semantic.base == expected_base
-                                            {
-                                                return Some(semantic.tail);
-                                            }
-                                        }
-                                        None
+                                    let tail_and_idx = tail.map(|t| (t, None)).or_else(|| {
+                                        wine_prefix_find_match(&scan_key, &wine_prefixes, Some(&expected_base))
+                                            .map(|(semantic, idx)| (semantic.tail, Some(idx)))
                                     });
-                                    if let Some(tail) = tail {
+                                    if let Some((tail, idx)) = tail_and_idx {
                                         let scan_origin = ScanOrigin {
                                             manifest_path: manifest_path.clone(),
                                             store: *store,
@@ -918,6 +913,7 @@ pub fn scan_game_for_backup(
                                         if let Some(derived_key) = derive_from_manifest_origin(&scan_origin) {
                                             key = Some(derived_key);
                                             origin = Some(scan_origin);
+                                            matched_prefix_idx = idx;
                                             break;
                                         }
                                     }
@@ -931,21 +927,20 @@ pub fn scan_game_for_backup(
                                         key = windows_physical_to_semantic(&scan_key, kf);
                                     }
                                 }
-                                if key.is_none() {
-                                    for prefix in &wine_prefixes {
-                                        if let Some(k) =
-                                            wine_physical_to_semantic(&scan_key, &prefix.path, &prefix.wine_user)
-                                        {
-                                            key = Some(k);
-                                            break;
-                                        }
-                                    }
+                                if key.is_none()
+                                    && let Some((sp, idx)) = wine_prefix_find_match(&scan_key, &wine_prefixes, None)
+                                {
+                                    key = Some(sp);
+                                    matched_prefix_idx = Some(idx);
                                 }
                             }
-                            (key, origin)
+                            (key, origin, matched_prefix_idx)
                         } else {
-                            (None, None)
+                            (None, None, None)
                         };
+                        if let Some(idx) = matched_prefix_idx {
+                            file_prefix_indices.push((scan_key.clone(), idx));
+                        }
                         found_files.insert(
                             scan_key,
                             ScannedFile {
@@ -957,6 +952,7 @@ pub fn scan_game_for_backup(
                                 ignored,
                                 container: None,
                                 origin: scan_origin,
+                                mapping_context_id: None,
                                 semantic_key,
                                 restore_error: None,
                             },
@@ -985,13 +981,10 @@ pub fn scan_game_for_backup(
         if !current_files.contains(&previous_file_interpreted)
             && !current_files_with_redirects.contains(&previous_file_interpreted)
         {
-            // Preserve semantic key from previous backup if available.
-            let previous_semantic_key = previous.and_then(|prev| {
-                prev.scan
-                    .found_files
-                    .get(previous_file)
-                    .and_then(|f| f.semantic_key.clone())
-            });
+            // Preserve portable identity from the previous backup for removed files.
+            let previous_scanned_file = previous.and_then(|prev| prev.scan.found_files.get(previous_file));
+            let previous_semantic_key = previous_scanned_file.and_then(|f| f.semantic_key.clone());
+            let previous_mapping_context_id = previous_scanned_file.and_then(|f| f.mapping_context_id);
             found_files.insert(
                 previous_file.to_owned(),
                 ScannedFile {
@@ -1003,12 +996,68 @@ pub fn scan_game_for_backup(
                     ignored: ignored_paths.is_ignored(name, previous_file),
                     container: None,
                     origin: None,
+                    mapping_context_id: previous_mapping_context_id,
                     semantic_key: previous_semantic_key,
                     restore_error: None,
                 },
             );
         }
     }
+
+    // Assign deterministic context IDs for Wine-derived scans.
+    // Always populate path_contexts when files came from Wine prefixes (even single-prefix),
+    // so the source prefix metadata is available for cross-machine restore.
+    // Only set mapping_context_id on files (context-aware keys) when >1 unique prefix.
+    let path_contexts: BTreeMap<usize, PathContext> = if !file_prefix_indices.is_empty() {
+        let mut unique_indices: Vec<usize> = file_prefix_indices.iter().map(|(_, idx)| *idx).collect();
+        unique_indices.sort_unstable();
+        unique_indices.dedup();
+
+        // Sort canonically by (prefix_path, wine_user) for deterministic IDs
+        let mut sorted_indices = unique_indices.clone();
+        sorted_indices.sort_by(|&a, &b| {
+            let pa = &wine_prefixes[a];
+            let pb = &wine_prefixes[b];
+            (&pa.path.render(), &pa.wine_user).cmp(&(&pb.path.render(), &pb.wine_user))
+        });
+
+        // Only use context-aware mapping keys when >1 unique prefix
+        if unique_indices.len() > 1 {
+            let prefix_to_ctx: HashMap<usize, usize> = sorted_indices
+                .iter()
+                .enumerate()
+                .map(|(ctx_id, &prefix_idx)| (prefix_idx, ctx_id))
+                .collect();
+
+            // Set mapping_context_id on each file that has a matched prefix
+            for (scan_key, prefix_idx) in &file_prefix_indices {
+                if let Some(file) = found_files.get_mut(scan_key) {
+                    file.mapping_context_id = prefix_to_ctx.get(prefix_idx).copied();
+                }
+            }
+        }
+
+        // Build path_contexts metadata (always, even for single-prefix)
+        sorted_indices
+            .iter()
+            .enumerate()
+            .map(|(ctx_id, &prefix_idx)| {
+                let prefix = &wine_prefixes[prefix_idx];
+                let drive_mappings: BTreeMap<char, String> =
+                    prefix.drive_mappings.iter().map(|(&k, v)| (k, v.clone())).collect();
+                (
+                    ctx_id,
+                    PathContext {
+                        prefix_path: prefix.path.render(),
+                        wine_user: prefix.wine_user.clone(),
+                        drive_mappings,
+                    },
+                )
+            })
+            .collect()
+    } else {
+        BTreeMap::new()
+    };
 
     #[cfg(target_os = "windows")]
     {
@@ -1104,6 +1153,7 @@ pub fn scan_game_for_backup(
         dumped_registry,
         only_constructive_backups,
         will_start_new_semantic_full_backup: false,
+        path_contexts,
         ..Default::default()
     }
 }
@@ -1120,6 +1170,33 @@ fn scan_game_for_backup_add_prefix(
     if has_registry {
         paths_to_check.entry(wp.joined("*.reg")).or_insert((None, Vec::new()));
     }
+}
+
+/// Search `wine_prefixes` for the most specific prefix that can convert `scan_key` to a semantic path.
+/// Returns `(SemanticPath, index_in_wine_prefixes)` or `None`.
+fn wine_prefix_find_match(
+    scan_key: &StrictPath,
+    wine_prefixes: &[ValidatedPrefix],
+    expected_base: Option<&SemanticBase>,
+) -> Option<(crate::semantic::SemanticPath, usize)> {
+    let mut best: Option<(crate::semantic::SemanticPath, usize, usize)> = None;
+
+    for (i, prefix) in wine_prefixes.iter().enumerate() {
+        let Some(semantic) = wine_physical_to_semantic(scan_key, &prefix.path, &prefix.wine_user) else {
+            continue;
+        };
+        if expected_base.is_some_and(|base| &semantic.base != base) {
+            continue;
+        }
+
+        let prefix_len = prefix.path.render().len();
+        match best {
+            Some((_, _, best_len)) if best_len >= prefix_len => {}
+            _ => best = Some((semantic, i, prefix_len)),
+        }
+    }
+
+    best.map(|(semantic, i, _)| (semantic, i))
 }
 
 pub fn prepare_backup_target(target: &StrictPath) -> Result<(), Error> {
@@ -1438,6 +1515,79 @@ mod tests {
     }
 
     #[test]
+    fn removed_semantic_file_preserves_mapping_context_id() {
+        let semantic_key = crate::semantic::SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap();
+        let previous_path = StrictPath::new("/prefix-a/drive_c/users/steamuser/Documents/Game/save.dat");
+        let previous = LatestBackup {
+            scan: ScanInfo {
+                game_name: "game".to_string(),
+                found_files: hash_map! {
+                    previous_path.clone(): ScannedFile {
+                        size: 4,
+                        hash: "previous".to_string(),
+                        change: ScanChange::Same,
+                        semantic_key: Some(semantic_key.clone()),
+                        mapping_context_id: Some(2),
+                        ..Default::default()
+                    },
+                },
+                ..Default::default()
+            },
+            when: chrono::Utc::now(),
+            registry_content: None,
+        };
+
+        let scan = scan_game_for_backup(
+            &Game::default(),
+            "game",
+            &[],
+            &StrictPath::new(repo()),
+            &Launchers::default(),
+            &BackupFilter::default(),
+            None,
+            &ToggledPaths::default(),
+            &ToggledRegistry::default(),
+            Some(&previous),
+            &[],
+            false,
+            &Default::default(),
+            ONLY_CONSTRUCTIVE,
+            true,
+        );
+
+        let removed = scan.found_files.get(&previous_path).unwrap();
+        assert_eq!(ScanChange::Removed, removed.change);
+        assert_eq!(Some(semantic_key), removed.semantic_key);
+        assert_eq!(Some(2), removed.mapping_context_id);
+    }
+
+    #[test]
+    fn wine_prefix_match_uses_most_specific_prefix() {
+        let parent = StrictPath::new("/prefix");
+        let child = parent.joined("drive_c/users/steamuser/Documents/NestedPrefix");
+        let scan_key = child.joined("drive_c/users/bob/Documents/Game/save.dat");
+        let prefixes = vec![
+            ValidatedPrefix {
+                path: parent,
+                wine_user: "steamuser".to_string(),
+                has_drive_c: true,
+                drive_mappings: HashMap::new(),
+            },
+            ValidatedPrefix {
+                path: child,
+                wine_user: "bob".to_string(),
+                has_drive_c: true,
+                drive_mappings: HashMap::new(),
+            },
+        ];
+
+        let (semantic, idx) = wine_prefix_find_match(&scan_key, &prefixes, Some(&SemanticBase::WinDocuments)).unwrap();
+
+        assert_eq!(1, idx);
+        assert_eq!("<winDocuments>/Game/save.dat", semantic.serialize());
+    }
+
+    #[test]
     fn can_scan_game_for_backup_deduplicating_symlinks() {
         let roots = &[Root::new(format!("{}/tests/root3", repo()), Store::Other)];
         assert_eq!(
@@ -1485,6 +1635,7 @@ mod tests {
                         container: None,
                         redirected: Some(StrictPath::new(format!("{}/tests/root3/game5/data-symlink/file1.txt", repo()))),
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },

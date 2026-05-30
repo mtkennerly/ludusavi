@@ -19,7 +19,9 @@ use crate::{
         prepare_backup_target, registry,
     },
     semantic::SemanticPath,
-    semantic::materialize::{MaterializeTarget, materialize_semantic},
+    semantic::materialize::{
+        MaterializeTarget, ResolvedMaterializeTarget, materialize_semantic, resolved_target_from_path_context,
+    },
 };
 
 #[cfg_attr(not(target_os = "windows"), allow(unused))]
@@ -257,6 +259,123 @@ pub enum RegistryFormat {
     Unsupported,
 }
 
+/// Metadata about a source Wine prefix, stored in backup mapping.
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct PathContext {
+    pub prefix_path: String,
+    pub wine_user: String,
+    /// Use BTreeMap for deterministic serialization order.
+    pub drive_mappings: BTreeMap<char, String>,
+}
+
+impl PathContext {
+    /// Validate that this context's prefix path exists on the current system.
+    /// Returns a `ValidatedPrefix` if valid, `None` otherwise.
+    pub fn validate(&self) -> Option<crate::semantic::prefix::ValidatedPrefix> {
+        if self.prefix_path.is_empty() {
+            return None;
+        }
+        crate::semantic::prefix::validate_prefix(&StrictPath::new(&self.prefix_path))
+    }
+}
+
+/// A reserved prefix for context-aware mapping keys.
+const CONTEXT_PREFIX: &str = "__ludusavi_context__/";
+
+/// A key in the backup file mapping, with optional prefix context.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum MappingPathKey {
+    /// Semantic key without context (single prefix or Windows source).
+    Semantic(SemanticPath),
+    /// Semantic key with prefix context index for multi-prefix disambiguation.
+    SemanticWithContext(SemanticPath, usize),
+    /// Legacy absolute path (not semanticizable).
+    Legacy(String),
+}
+
+impl MappingPathKey {
+    /// Parse a mapping key string.
+    /// Order: try `__ludusavi_context__/` prefix first, then `SemanticPath::parse()`, then legacy.
+    pub fn parse(key: &str) -> Self {
+        if let Some(rest) = key.strip_prefix(CONTEXT_PREFIX) {
+            // Format: __ludusavi_context__/<N>/<semantic-key>
+            if let Some(slash_pos) = rest.find('/')
+                && let Ok(ctx_id) = rest[..slash_pos].parse::<usize>()
+                && let Ok(semantic) = SemanticPath::parse(&rest[slash_pos + 1..])
+            {
+                return Self::SemanticWithContext(semantic, ctx_id);
+            }
+            // If we can't parse the context prefix, treat as invalid legacy.
+            // This handles the edge case where a real path starts with __ludusavi_context__/.
+            return Self::Legacy(key.to_string());
+        }
+
+        if let Ok(semantic) = SemanticPath::parse(key) {
+            Self::Semantic(semantic)
+        } else {
+            Self::Legacy(key.to_string())
+        }
+    }
+
+    /// Serialize to mapping key string (stored in FullBackup.files).
+    pub fn serialize(&self) -> String {
+        match self {
+            Self::Semantic(semantic) => semantic.serialize(),
+            Self::SemanticWithContext(semantic, ctx_id) => {
+                format!("{}{}/{}", CONTEXT_PREFIX, ctx_id, semantic.serialize())
+            }
+            Self::Legacy(key) => key.clone(),
+        }
+    }
+
+    /// Storage path for backup files on disk or in zip entries.
+    pub fn storage_path(&self) -> String {
+        match self {
+            Self::Semantic(semantic) => semantic.storage_path(),
+            Self::SemanticWithContext(semantic, ctx_id) => {
+                // Each context gets its own directory tree to avoid disk collision.
+                format!("__ludusavi_context__/{}/{}", ctx_id, semantic.storage_path())
+            }
+            // Legacy keys don't use semantic storage; caller handles them separately.
+            Self::Legacy(key) => key.clone(),
+        }
+    }
+
+    /// Returns the inner SemanticPath if this is a semantic key (with or without context).
+    pub fn semantic(&self) -> Option<&SemanticPath> {
+        match self {
+            Self::Semantic(s) | Self::SemanticWithContext(s, _) => Some(s),
+            Self::Legacy(_) => None,
+        }
+    }
+
+    /// Returns the context ID if this is a contextual key.
+    pub fn context_id(&self) -> Option<usize> {
+        match self {
+            Self::SemanticWithContext(_, id) => Some(*id),
+            _ => None,
+        }
+    }
+}
+
+fn is_default_path_contexts(ctx: &BTreeMap<usize, PathContext>) -> bool {
+    ctx.is_empty()
+}
+
+// Context-aware Wine keys need their own prefix context. A Windows target is the
+// exception because Windows known folders are not prefix-specific.
+fn semantic_restore_fallback_target<'a, 'b>(
+    mapping_context_id: Option<usize>,
+    materialize_target: Option<&'a MaterializeTarget<'b>>,
+) -> Option<&'a MaterializeTarget<'b>> {
+    match (mapping_context_id, materialize_target) {
+        (Some(_), Some(target @ MaterializeTarget::CurrentWindows { .. })) => Some(target),
+        (Some(_), _) => None,
+        (None, target) => target,
+    }
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct FullBackup {
@@ -278,6 +397,10 @@ pub struct FullBackup {
     pub files: BTreeMap<String, IndividualMappingFile>,
     pub registry: IndividualMappingRegistry,
     pub children: VecDeque<DifferentialBackup>,
+    /// Source Wine prefix metadata for semantic backups. Maps context ID to prefix info.
+    /// Only populated when `path_format == SemanticV1` and files come from Wine prefixes.
+    #[serde(skip_serializing_if = "is_default_path_contexts")]
+    pub path_contexts: BTreeMap<usize, PathContext>,
 }
 
 fn is_default_path_format(f: &PathFormat) -> bool {
@@ -723,6 +846,7 @@ impl GameLayout {
                     reverse_redirects_on_restore,
                     toggled_paths,
                     materialize_target,
+                    &full.path_contexts,
                 ));
 
                 for (scan_key, full_file) in self.restorable_files_from_full_backup(
@@ -733,11 +857,18 @@ impl GameLayout {
                     toggled_paths,
                     materialize_target,
                 ) {
-                    let mapping_key = full_file
-                        .semantic_key
-                        .as_ref()
-                        .map(|semantic| semantic.serialize())
-                        .unwrap_or_else(|| full_file.original_path.as_ref().unwrap().render());
+                    // Build the full mapping key including context prefix,
+                    // so contextual keys match correctly in the diff.
+                    let mapping_key = if let Some(ref semantic) = full_file.semantic_key {
+                        let mpk = if let Some(ctx_id) = full_file.mapping_context_id {
+                            MappingPathKey::SemanticWithContext(semantic.clone(), ctx_id)
+                        } else {
+                            MappingPathKey::Semantic(semantic.clone())
+                        };
+                        mpk.serialize()
+                    } else {
+                        full_file.original_path.as_ref().unwrap().render()
+                    };
                     if diff.file(mapping_key) == BackupInclusion::Inherited {
                         files.insert(scan_key, full_file);
                     }
@@ -760,29 +891,53 @@ impl GameLayout {
         let mut restorables = HashMap::new();
         let is_semantic = backup.path_format == PathFormat::SemanticV1;
 
-        for (mapping_key, v) in &backup.files {
-            let semantic_key = if is_semantic {
-                SemanticPath::parse(mapping_key).ok()
+        let context_targets: HashMap<usize, ResolvedMaterializeTarget<'static>> = backup
+            .path_contexts
+            .iter()
+            .filter_map(|(&ctx_id, ctx)| {
+                let validated = ctx.validate()?;
+                Some((ctx_id, resolved_target_from_path_context(validated, ctx)))
+            })
+            .collect();
+
+        for (mapping_key_str, v) in &backup.files {
+            let parsed_key = if is_semantic {
+                MappingPathKey::parse(mapping_key_str)
             } else {
-                None
+                MappingPathKey::Legacy(mapping_key_str.clone())
             };
 
+            let semantic_key = parsed_key.semantic().cloned();
+            let mapping_context_id = parsed_key.context_id();
+
+            let contextual_target = mapping_context_id.and_then(|ctx_id| context_targets.get(&ctx_id));
+            let fallback_target = semantic_restore_fallback_target(mapping_context_id, materialize_target);
+
             let mut restore_error = None;
-            let original_path = if let Some(ref sk) = semantic_key {
-                if let Some(target) = materialize_target {
-                    match materialize_semantic(sk, target) {
-                        Ok(physical) => physical,
-                        Err(error) => {
-                            restore_error = Some(error.to_string());
-                            StrictPath::new(sk.serialize())
+            let original_path = match &parsed_key {
+                MappingPathKey::Semantic(sk) | MappingPathKey::SemanticWithContext(sk, _) => {
+                    if let Some(target) = contextual_target {
+                        match target.materialize(sk) {
+                            Ok(physical) => physical,
+                            Err(error) => {
+                                restore_error = Some(error.to_string());
+                                StrictPath::new(sk.serialize())
+                            }
                         }
+                    } else if let Some(target) = fallback_target {
+                        match materialize_semantic(sk, target) {
+                            Ok(physical) => physical,
+                            Err(error) => {
+                                restore_error = Some(error.to_string());
+                                StrictPath::new(sk.serialize())
+                            }
+                        }
+                    } else {
+                        restore_error = Some("No semantic restore target is available".to_string());
+                        StrictPath::new(sk.serialize())
                     }
-                } else {
-                    restore_error = Some("No semantic restore target is available".to_string());
-                    StrictPath::new(sk.serialize())
                 }
-            } else {
-                StrictPath::new(mapping_key.to_string())
+                MappingPathKey::Legacy(key) => StrictPath::new(key.clone()),
             };
 
             let redirected = game_file_target(
@@ -794,17 +949,14 @@ impl GameLayout {
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
-                    let scan_key = if is_semantic {
-                        // For semantic backups, use the storage path as the scan key
-                        if let Some(ref sk) = semantic_key {
-                            self.path.joined(&backup.name).joined(sk.storage_path())
-                        } else {
+                    let scan_key = match &parsed_key {
+                        MappingPathKey::Semantic(_) | MappingPathKey::SemanticWithContext(_, _) => {
+                            self.path.joined(&backup.name).joined(parsed_key.storage_path())
+                        }
+                        MappingPathKey::Legacy(_) => {
                             self.mapping
                                 .game_file_immutable(&self.path, &original_path, &backup.name)
                         }
-                    } else {
-                        self.mapping
-                            .game_file_immutable(&self.path, &original_path, &backup.name)
                     };
 
                     restorables.insert(
@@ -823,20 +975,20 @@ impl GameLayout {
                             original_path: Some(original_path),
                             container: None,
                             origin: None,
+                            mapping_context_id,
                             semantic_key,
                             restore_error: restore_error.clone(),
                         },
                     );
                 }
                 BackupFormat::Zip => {
-                    let scan_key = if is_semantic {
-                        if let Some(ref sk) = semantic_key {
-                            StrictPath::new(sk.storage_path())
-                        } else {
+                    let scan_key = match &parsed_key {
+                        MappingPathKey::Semantic(_) | MappingPathKey::SemanticWithContext(_, _) => {
+                            StrictPath::new(parsed_key.storage_path())
+                        }
+                        MappingPathKey::Legacy(_) => {
                             StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path))
                         }
-                    } else {
-                        StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path))
                     };
 
                     restorables.insert(
@@ -855,6 +1007,7 @@ impl GameLayout {
                             original_path: Some(original_path),
                             container: Some(self.path.joined(&backup.name)),
                             origin: None,
+                            mapping_context_id,
                             semantic_key,
                             restore_error,
                         },
@@ -875,34 +1028,58 @@ impl GameLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         materialize_target: Option<&MaterializeTarget>,
+        parent_path_contexts: &BTreeMap<usize, PathContext>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut restorables = HashMap::new();
         let is_semantic = path_format == PathFormat::SemanticV1;
 
-        for (mapping_key, v) in &backup.files {
+        let context_targets: HashMap<usize, ResolvedMaterializeTarget<'static>> = parent_path_contexts
+            .iter()
+            .filter_map(|(&ctx_id, ctx)| {
+                let validated = ctx.validate()?;
+                Some((ctx_id, resolved_target_from_path_context(validated, ctx)))
+            })
+            .collect();
+
+        for (mapping_key_str, v) in &backup.files {
             let v = some_or_continue!(v);
-            let semantic_key = if is_semantic {
-                SemanticPath::parse(mapping_key).ok()
+            let parsed_key = if is_semantic {
+                MappingPathKey::parse(mapping_key_str)
             } else {
-                None
+                MappingPathKey::Legacy(mapping_key_str.clone())
             };
 
+            let semantic_key = parsed_key.semantic().cloned();
+            let mapping_context_id = parsed_key.context_id();
+
+            let contextual_target = mapping_context_id.and_then(|ctx_id| context_targets.get(&ctx_id));
+            let fallback_target = semantic_restore_fallback_target(mapping_context_id, materialize_target);
+
             let mut restore_error = None;
-            let original_path = if let Some(ref sk) = semantic_key {
-                if let Some(target) = materialize_target {
-                    match materialize_semantic(sk, target) {
-                        Ok(physical) => physical,
-                        Err(error) => {
-                            restore_error = Some(error.to_string());
-                            StrictPath::new(sk.serialize())
+            let original_path = match &parsed_key {
+                MappingPathKey::Semantic(sk) | MappingPathKey::SemanticWithContext(sk, _) => {
+                    if let Some(target) = contextual_target {
+                        match target.materialize(sk) {
+                            Ok(physical) => physical,
+                            Err(error) => {
+                                restore_error = Some(error.to_string());
+                                StrictPath::new(sk.serialize())
+                            }
                         }
+                    } else if let Some(target) = fallback_target {
+                        match materialize_semantic(sk, target) {
+                            Ok(physical) => physical,
+                            Err(error) => {
+                                restore_error = Some(error.to_string());
+                                StrictPath::new(sk.serialize())
+                            }
+                        }
+                    } else {
+                        restore_error = Some("No semantic restore target is available".to_string());
+                        StrictPath::new(sk.serialize())
                     }
-                } else {
-                    restore_error = Some("No semantic restore target is available".to_string());
-                    StrictPath::new(sk.serialize())
                 }
-            } else {
-                StrictPath::new(mapping_key.to_string())
+                MappingPathKey::Legacy(key) => StrictPath::new(key.clone()),
             };
             let redirected = game_file_target(
                 &original_path,
@@ -913,11 +1090,14 @@ impl GameLayout {
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
                 BackupFormat::Simple => {
-                    let scan_key = if let Some(ref sk) = semantic_key {
-                        self.path.joined(&backup.name).joined(sk.storage_path())
-                    } else {
-                        self.mapping
-                            .game_file_immutable(&self.path, &original_path, &backup.name)
+                    let scan_key = match &parsed_key {
+                        MappingPathKey::Semantic(_) | MappingPathKey::SemanticWithContext(_, _) => {
+                            self.path.joined(&backup.name).joined(parsed_key.storage_path())
+                        }
+                        MappingPathKey::Legacy(_) => {
+                            self.mapping
+                                .game_file_immutable(&self.path, &original_path, &backup.name)
+                        }
                     };
 
                     restorables.insert(
@@ -936,16 +1116,20 @@ impl GameLayout {
                             original_path: Some(original_path),
                             container: None,
                             origin: None,
+                            mapping_context_id,
                             semantic_key,
                             restore_error: restore_error.clone(),
                         },
                     );
                 }
                 BackupFormat::Zip => {
-                    let scan_key = if let Some(ref sk) = semantic_key {
-                        StrictPath::new(sk.storage_path())
-                    } else {
-                        StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path))
+                    let scan_key = match &parsed_key {
+                        MappingPathKey::Semantic(_) | MappingPathKey::SemanticWithContext(_, _) => {
+                            StrictPath::new(parsed_key.storage_path())
+                        }
+                        MappingPathKey::Legacy(_) => {
+                            StrictPath::new(self.mapping.game_file_for_zip_immutable(&original_path))
+                        }
                     };
 
                     restorables.insert(
@@ -964,6 +1148,7 @@ impl GameLayout {
                             original_path: Some(original_path),
                             container: Some(self.path.joined(&backup.name)),
                             origin: None,
+                            mapping_context_id,
                             semantic_key,
                             restore_error,
                         },
@@ -1016,6 +1201,7 @@ impl GameLayout {
                         container: None,
                         redirected: None,
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },
@@ -1149,6 +1335,15 @@ impl GameLayout {
             return BackupKind::Full;
         }
 
+        // Differential backups inherit path context metadata from the parent full,
+        // so any context table change needs a fresh full backup.
+        if !scan.path_contexts.is_empty()
+            && let Some(last_full) = self.mapping.backups.back()
+            && scan.path_contexts != last_full.path_contexts
+        {
+            return BackupKind::Full;
+        }
+
         let fulls = self.mapping.backups.iter().filter(|full| !full.locked).count() as u8;
         let diffs = self
             .mapping
@@ -1219,6 +1414,7 @@ impl GameLayout {
             },
             registry_format: RegistryFormat::Default,
             files,
+            path_contexts: scan.path_contexts.clone(),
             registry,
             children: VecDeque::new(),
         }
@@ -1314,11 +1510,15 @@ impl GameLayout {
                 continue;
             }
 
-            let target_file = match &file.semantic_key {
-                Some(semantic) => self.path.joined(backup.name()).joined(semantic.storage_path()),
-                None => self
-                    .mapping
-                    .game_file(&self.path, file.effective(scan_key), backup.name()),
+            let mapping_key = file.mapping_path_key(scan_key);
+            let target_file = match &mapping_key {
+                MappingPathKey::Semantic(_) | MappingPathKey::SemanticWithContext(_, _) => {
+                    self.path.joined(backup.name()).joined(mapping_key.storage_path())
+                }
+                MappingPathKey::Legacy(_) => {
+                    self.mapping
+                        .game_file(&self.path, file.effective(scan_key), backup.name())
+                }
             };
             if scan_key.same_content(&target_file) {
                 log::info!(
@@ -1405,9 +1605,10 @@ impl GameLayout {
                 continue;
             }
 
-            let target_file_id = match &file.semantic_key {
-                Some(semantic) => semantic.storage_path(),
-                None => self.mapping.game_file_for_zip(file.effective(scan_key)),
+            let mapping_key = file.mapping_path_key(scan_key);
+            let target_file_id = match &mapping_key {
+                MappingPathKey::Semantic(_) | MappingPathKey::SemanticWithContext(_, _) => mapping_key.storage_path(),
+                MappingPathKey::Legacy(_) => self.mapping.game_file_for_zip(file.effective(scan_key)),
             };
 
             let mtime = match scan_key.get_mtime_zip() {
@@ -1794,6 +1995,7 @@ impl GameLayout {
         let mut found_registry_keys = HashMap::new();
         let mut available_backups = vec![];
         let mut backup = None;
+        let mut path_contexts = BTreeMap::new();
         #[cfg_attr(not(target_os = "windows"), allow(unused_mut))]
         let mut dumped_registry = None;
 
@@ -1811,6 +2013,10 @@ impl GameLayout {
             );
             available_backups = self.restorable_backups_flattened();
             backup = self.find_by_id_flattened(&id);
+            path_contexts = self
+                .find_by_id(&id)
+                .map(|(full, _)| full.path_contexts.clone())
+                .unwrap_or_default();
         }
 
         #[cfg(target_os = "windows")]
@@ -1883,6 +2089,7 @@ impl GameLayout {
             dumped_registry,
             only_constructive_backups: false,
             will_start_new_semantic_full_backup: false,
+            path_contexts,
             ..Default::default()
         }
     }
@@ -2249,9 +2456,21 @@ impl GameLayout {
                         .game_file_immutable(&self.path, &original_path, &backup.name),
                 )
             }
-            PathFormat::SemanticV1 => SemanticPath::parse(file)
-                .ok()
-                .map(|semantic| self.path.joined(&backup.name).joined(semantic.storage_path())),
+            PathFormat::SemanticV1 => {
+                let parsed = MappingPathKey::parse(file);
+                match &parsed {
+                    MappingPathKey::Semantic(_) | MappingPathKey::SemanticWithContext(_, _) => {
+                        Some(self.path.joined(&backup.name).joined(parsed.storage_path()))
+                    }
+                    MappingPathKey::Legacy(_) => {
+                        let original_path = StrictPath::new(file.to_string());
+                        Some(
+                            self.mapping
+                                .game_file_immutable(&self.path, &original_path, &backup.name),
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -2261,7 +2480,18 @@ impl GameLayout {
                 let original_path = StrictPath::new(file.to_string());
                 Some(self.mapping.game_file_for_zip_immutable(&original_path))
             }
-            PathFormat::SemanticV1 => SemanticPath::parse(file).ok().map(|semantic| semantic.storage_path()),
+            PathFormat::SemanticV1 => {
+                let parsed = MappingPathKey::parse(file);
+                match &parsed {
+                    MappingPathKey::Semantic(_) | MappingPathKey::SemanticWithContext(_, _) => {
+                        Some(parsed.storage_path())
+                    }
+                    MappingPathKey::Legacy(_) => {
+                        let original_path = StrictPath::new(file.to_string());
+                        Some(self.mapping.game_file_for_zip_immutable(&original_path))
+                    }
+                }
+            }
         }
     }
 
@@ -2529,6 +2759,96 @@ mod tests {
 
     use super::*;
     use crate::testing::{drives_x, make_original_path, mapping_file_key, repo, repo_raw, s};
+
+    mod mapping_path_key {
+        use super::*;
+
+        #[test]
+        fn parse_semantic_without_context() {
+            let key = MappingPathKey::parse("<winDocuments>/Game/save.dat");
+            match &key {
+                MappingPathKey::Semantic(sp) => {
+                    assert_eq!(sp.serialize(), "<winDocuments>/Game/save.dat");
+                }
+                _ => panic!("expected Semantic"),
+            }
+            assert_eq!(key.serialize(), "<winDocuments>/Game/save.dat");
+            assert!(key.context_id().is_none());
+        }
+
+        #[test]
+        fn parse_semantic_with_context() {
+            let key = MappingPathKey::parse("__ludusavi_context__/0/<winDocuments>/Game/save.dat");
+            match &key {
+                MappingPathKey::SemanticWithContext(sp, ctx) => {
+                    assert_eq!(sp.serialize(), "<winDocuments>/Game/save.dat");
+                    assert_eq!(*ctx, 0);
+                }
+                _ => panic!("expected SemanticWithContext"),
+            }
+            assert_eq!(key.serialize(), "__ludusavi_context__/0/<winDocuments>/Game/save.dat");
+            assert_eq!(key.context_id(), Some(0));
+        }
+
+        #[test]
+        fn parse_legacy_absolute_path() {
+            let key = MappingPathKey::parse(r#"C:\Users\me\Documents\Game\save.dat"#);
+            match &key {
+                MappingPathKey::Legacy(s) => {
+                    assert_eq!(s, r#"C:\Users\me\Documents\Game\save.dat"#);
+                }
+                _ => panic!("expected Legacy"),
+            }
+            assert!(key.semantic().is_none());
+            assert!(key.context_id().is_none());
+        }
+
+        #[test]
+        fn round_trip_semantic() {
+            let original = "<winAppData>/MyGame/config.ini";
+            let key = MappingPathKey::parse(original);
+            assert_eq!(key.serialize(), original);
+        }
+
+        #[test]
+        fn round_trip_contextual() {
+            let original = "__ludusavi_context__/2/<winLocalAppData>/MyGame/data.sav";
+            let key = MappingPathKey::parse(original);
+            assert_eq!(key.serialize(), original);
+        }
+
+        #[test]
+        fn storage_path_semantic() {
+            let key = MappingPathKey::parse("<winDocuments>/Game/save.dat");
+            assert_eq!(key.storage_path(), "__ludusavi_semantic__/winDocuments/Game/save.dat");
+        }
+
+        #[test]
+        fn storage_path_contextual() {
+            let key = MappingPathKey::parse("__ludusavi_context__/1/<winDocuments>/Game/save.dat");
+            assert_eq!(
+                key.storage_path(),
+                "__ludusavi_context__/1/__ludusavi_semantic__/winDocuments/Game/save.dat"
+            );
+        }
+
+        #[test]
+        fn storage_path_different_contexts_no_collision() {
+            let key0 = MappingPathKey::parse("__ludusavi_context__/0/<winDocuments>/Game/save.dat");
+            let key1 = MappingPathKey::parse("__ludusavi_context__/1/<winDocuments>/Game/save.dat");
+            assert_ne!(key0.storage_path(), key1.storage_path());
+        }
+
+        #[test]
+        fn invalid_context_prefix_falls_back_to_legacy() {
+            // A real path that happens to start with __ludusavi_context__/ should become Legacy.
+            let key = MappingPathKey::parse("__ludusavi_context__/not_a_number/rest");
+            match &key {
+                MappingPathKey::Legacy(_) => {}
+                _ => panic!("expected Legacy for invalid context prefix"),
+            }
+        }
+    }
 
     mod individual_mapping {
         use pretty_assertions::assert_eq;
@@ -2848,6 +3168,91 @@ mod tests {
         }
 
         #[test]
+        fn forces_new_full_when_context_id_not_in_parent() {
+            let mut path_contexts = BTreeMap::new();
+            path_contexts.insert(
+                0,
+                PathContext {
+                    prefix_path: "/prefix/a".to_string(),
+                    wine_user: "user".to_string(),
+                    drive_mappings: BTreeMap::new(),
+                },
+            );
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    backups: VecDeque::from_iter(vec![FullBackup {
+                        path_contexts,
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            // Scan has context ID 1, but parent full only has context ID 0.
+            let scan = ScanInfo {
+                path_contexts: {
+                    let mut ctxs = BTreeMap::new();
+                    ctxs.insert(
+                        1,
+                        PathContext {
+                            prefix_path: "/prefix/b".to_string(),
+                            wine_user: "user".to_string(),
+                            drive_mappings: BTreeMap::new(),
+                        },
+                    );
+                    ctxs
+                },
+                found_files: hash_map! {
+                    repo_file("f").into(): ScannedFile {
+                        mapping_context_id: Some(1),
+                        ..ScannedFile::with_change(1, "h", ScanChange::New)
+                    },
+                },
+                ..Default::default()
+            };
+            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(1, 2), &scan));
+        }
+
+        #[test]
+        fn forces_new_full_when_single_prefix_context_changes() {
+            let layout = GameLayout {
+                mapping: IndividualMapping {
+                    backups: VecDeque::from_iter(vec![FullBackup {
+                        path_format: PathFormat::SemanticV1,
+                        path_contexts: btree_map! {
+                            0: PathContext {
+                                prefix_path: "/prefix/a".to_string(),
+                                wine_user: "user".to_string(),
+                                drive_mappings: BTreeMap::new(),
+                            },
+                        },
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let scan = ScanInfo {
+                path_contexts: btree_map! {
+                    0: PathContext {
+                        prefix_path: "/prefix/b".to_string(),
+                        wine_user: "user".to_string(),
+                        drive_mappings: BTreeMap::new(),
+                    },
+                },
+                found_files: hash_map! {
+                    repo_file("f").into(): ScannedFile {
+                        semantic_key: Some(SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap()),
+                        mapping_context_id: None,
+                        ..ScannedFile::with_change(1, "h", ScanChange::New)
+                    },
+                },
+                ..Default::default()
+            };
+            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(1, 2), &scan));
+        }
+
+        #[test]
         fn can_plan_full_backup_with_files() {
             let scan = ScanInfo {
                 found_files: hash_map! {
@@ -3161,6 +3566,107 @@ mod tests {
             };
 
             assert!(layout.validate(BackupId::Latest));
+        }
+
+        #[test]
+        fn validate_context_aware_key() {
+            let temp = tempfile::tempdir().unwrap();
+            let backup_root = StrictPath::new(temp.path().join("backup/game").to_string_lossy().to_string());
+            let backup_name = "backup-1";
+
+            let ctx_key = MappingPathKey::parse("__ludusavi_context__/0/<winDocuments>/Game/save.dat");
+            let stored = backup_root.joined(backup_name).joined(ctx_key.storage_path());
+            stored.parent().unwrap().create_dirs().unwrap();
+            std::fs::write(stored.as_std_path_buf().unwrap(), "save").unwrap();
+
+            let layout = GameLayout {
+                path: backup_root,
+                mapping: IndividualMapping {
+                    name: "game".to_string(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: backup_name.to_string(),
+                        when: past(),
+                        path_format: PathFormat::SemanticV1,
+                        files: btree_map! {
+                            ctx_key.serialize(): IndividualMappingFile {
+                                hash: stored.sha1(),
+                                size: 4,
+                            },
+                        },
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+            };
+
+            assert!(layout.validate(BackupId::Latest));
+        }
+
+        #[test]
+        fn context_aware_full_restore_does_not_use_wine_fallback_when_context_missing() {
+            let temp = tempfile::tempdir().unwrap();
+            let backup_root = StrictPath::new(temp.path().join("backup/game").to_string_lossy().to_string());
+            let prefix_root = StrictPath::new(temp.path().join("prefix").to_string_lossy().to_string());
+            let backup_name = "backup-1";
+
+            let ctx_key = MappingPathKey::parse("__ludusavi_context__/0/<winDocuments>/Game/save.dat");
+            let stored = backup_root.joined(backup_name).joined(ctx_key.storage_path());
+            stored.parent().unwrap().create_dirs().unwrap();
+            std::fs::write(stored.as_std_path_buf().unwrap(), "save").unwrap();
+
+            let mut layout = GameLayout {
+                path: backup_root.clone(),
+                mapping: IndividualMapping {
+                    name: "game".to_string(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: backup_name.to_string(),
+                        when: past(),
+                        path_format: PathFormat::SemanticV1,
+                        files: btree_map! {
+                            ctx_key.serialize(): IndividualMappingFile {
+                                hash: stored.sha1(),
+                                size: 4,
+                            },
+                        },
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+            };
+            let prefix = crate::semantic::prefix::ValidatedPrefix {
+                path: prefix_root,
+                wine_user: "steamuser".to_string(),
+                has_drive_c: true,
+                drive_mappings: HashMap::new(),
+            };
+            let empty_drive_mappings: HashMap<char, String> = HashMap::new();
+            let target = MaterializeTarget::WinePrefix {
+                prefix: &prefix,
+                wine_user: "steamuser",
+                drive_mappings: &empty_drive_mappings,
+            };
+
+            let scan = layout.scan_for_restoration(
+                "game",
+                &BackupId::Latest,
+                &[],
+                false,
+                &Default::default(),
+                &Default::default(),
+                Some(&target),
+            );
+
+            let stored_key = backup_root.joined(backup_name).joined(ctx_key.storage_path());
+            let scanned = scan.found_files.get(&stored_key).unwrap();
+            assert_eq!(Some(0), scanned.mapping_context_id);
+            assert_eq!(
+                Some("<winDocuments>/Game/save.dat"),
+                scanned.original_path.as_ref().map(|x| x.raw()).as_deref()
+            );
+            assert_eq!(
+                Some("No semantic restore target is available"),
+                scanned.restore_error.as_deref()
+            );
         }
 
         #[test]
@@ -3699,6 +4205,7 @@ mod tests {
                         container: None,
                         redirected: None,
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },
@@ -3711,6 +4218,7 @@ mod tests {
                         container: None,
                         redirected: None,
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },
@@ -3755,6 +4263,7 @@ mod tests {
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },
@@ -3767,6 +4276,7 @@ mod tests {
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },
@@ -3822,6 +4332,7 @@ mod tests {
                         container: None,
                         redirected: None,
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },
@@ -3834,6 +4345,7 @@ mod tests {
                         container: None,
                         redirected: None,
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },
@@ -3846,6 +4358,7 @@ mod tests {
                         container: None,
                         redirected: None,
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },
@@ -3901,6 +4414,7 @@ mod tests {
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },
@@ -3913,6 +4427,7 @@ mod tests {
                         container: Some(make_path("backup-2.zip")),
                         redirected: None,
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },
@@ -3925,6 +4440,7 @@ mod tests {
                         container: Some(make_path("backup-2.zip")),
                         redirected: None,
                         origin: None,
+                        mapping_context_id: None,
                         semantic_key: None,
                         restore_error: None,
                     },
@@ -4043,6 +4559,140 @@ mod tests {
         }
 
         #[test]
+        fn context_aware_diff_restore_does_not_use_wine_fallback_when_context_missing() {
+            let temp = tempfile::tempdir().unwrap();
+            let backup_root = StrictPath::new(temp.path().join("backup/game").to_string_lossy().to_string());
+            let prefix_root = StrictPath::new(temp.path().join("prefix").to_string_lossy().to_string());
+            let ctx_key = MappingPathKey::parse("__ludusavi_context__/0/<winDocuments>/Game/save.dat");
+            let full_name = "backup-full";
+            let diff_name = "backup-diff";
+            let stored = backup_root.joined(diff_name).joined(ctx_key.storage_path());
+            stored.parent().unwrap().create_dirs().unwrap();
+            std::fs::write(stored.as_std_path_buf().unwrap(), "new").unwrap();
+
+            let mut layout = GameLayout {
+                path: backup_root.clone(),
+                mapping: IndividualMapping {
+                    name: "game".to_string(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: full_name.to_string(),
+                        when: now(),
+                        path_format: PathFormat::SemanticV1,
+                        children: VecDeque::from(vec![DifferentialBackup {
+                            name: diff_name.to_string(),
+                            when: now(),
+                            files: btree_map! {
+                                ctx_key.serialize(): Some(IndividualMappingFile {
+                                    hash: stored.sha1(),
+                                    size: 3,
+                                }),
+                            },
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+            };
+            let prefix = crate::semantic::prefix::ValidatedPrefix {
+                path: prefix_root,
+                wine_user: "steamuser".to_string(),
+                has_drive_c: true,
+                drive_mappings: HashMap::new(),
+            };
+            let empty_drive_mappings: HashMap<char, String> = HashMap::new();
+            let target = MaterializeTarget::WinePrefix {
+                prefix: &prefix,
+                wine_user: "steamuser",
+                drive_mappings: &empty_drive_mappings,
+            };
+
+            let scan = layout.scan_for_restoration(
+                "game",
+                &BackupId::Named(diff_name.to_string()),
+                &[],
+                false,
+                &Default::default(),
+                &Default::default(),
+                Some(&target),
+            );
+
+            let stored_key = backup_root.joined(diff_name).joined(ctx_key.storage_path());
+            let scanned = scan.found_files.get(&stored_key).unwrap();
+            assert_eq!(Some(0), scanned.mapping_context_id);
+            assert_eq!(
+                Some("<winDocuments>/Game/save.dat"),
+                scanned.original_path.as_ref().map(|x| x.raw()).as_deref()
+            );
+            assert_eq!(
+                Some("No semantic restore target is available"),
+                scanned.restore_error.as_deref()
+            );
+        }
+
+        #[test]
+        fn scan_for_restoration_populates_parent_full_path_contexts() {
+            let temp = tempfile::tempdir().unwrap();
+            let backup_root = StrictPath::new(temp.path().join("backup/game").to_string_lossy().to_string());
+            backup_root.create_dirs().unwrap();
+            let ctx_key = MappingPathKey::parse("__ludusavi_context__/0/<winDocuments>/Game/save.dat");
+            let full_name = "backup-full";
+            let diff_name = "backup-diff";
+            let context = PathContext {
+                prefix_path: temp.path().join("source-prefix").to_string_lossy().to_string(),
+                wine_user: "source_user".to_string(),
+                drive_mappings: btree_map! {
+                    'd': temp.path().join("source-drive-d").to_string_lossy().to_string(),
+                },
+            };
+
+            let mut layout = GameLayout {
+                path: backup_root,
+                mapping: IndividualMapping {
+                    name: "game".to_string(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: full_name.to_string(),
+                        when: now(),
+                        path_format: PathFormat::SemanticV1,
+                        path_contexts: btree_map! {
+                            0: context.clone(),
+                        },
+                        children: VecDeque::from(vec![DifferentialBackup {
+                            name: diff_name.to_string(),
+                            when: now(),
+                            files: btree_map! {
+                                ctx_key.serialize(): Some(IndividualMappingFile {
+                                    hash: "new".to_string(),
+                                    size: 3,
+                                }),
+                            },
+                            ..Default::default()
+                        }]),
+                        ..Default::default()
+                    }]),
+                    ..Default::default()
+                },
+            };
+
+            let scan = layout.scan_for_restoration(
+                "game",
+                &BackupId::Named(diff_name.to_string()),
+                &[],
+                false,
+                &Default::default(),
+                &Default::default(),
+                None,
+            );
+
+            assert_eq!(
+                btree_map! {
+                    0: context,
+                },
+                scan.path_contexts
+            );
+        }
+
+        #[test]
         fn can_scan_game_for_restoration_with_files() {
             let mut layout = GameLayout::new(
                 StrictPath::new(format!("{}/tests/backup/game1", repo())),
@@ -4089,6 +4739,7 @@ mod tests {
                             container: None,
                             redirected: None,
                             origin: None,
+                            mapping_context_id: None,
                             semantic_key: None,
                         restore_error: None,
                         },
@@ -4101,6 +4752,7 @@ mod tests {
                             container: None,
                             redirected: None,
                             origin: None,
+                            mapping_context_id: None,
                             semantic_key: None,
                         restore_error: None,
                         },

@@ -15,29 +15,32 @@ pub struct SemanticConflict {
 /// Detect duplicate semantic keys from distinct physical files.
 /// Same file reached through multiple aliases (symlinks) is collapsed.
 /// Distinct physical files with the same semantic key are reported as conflicts.
-pub fn detect_conflicts(files: &HashMap<StrictPath, Option<SemanticPath>>) -> Vec<SemanticConflict> {
-    // Group files by semantic key using semantic equality
-    let mut groups: Vec<(SemanticPath, Vec<StrictPath>)> = Vec::new();
+///
+/// Files with different `mapping_context_id` values are NOT considered conflicts,
+/// since they come from different Wine prefixes and will be stored separately.
+pub fn detect_conflicts(files: &HashMap<StrictPath, (Option<SemanticPath>, Option<usize>)>) -> Vec<SemanticConflict> {
+    // Group files by (semantic key, context id) using semantic equality
+    let mut groups: Vec<(SemanticPath, Option<usize>, Vec<StrictPath>)> = Vec::new();
 
-    for (physical, semantic) in files {
+    for (physical, (semantic, ctx_id)) in files {
         if let Some(sk) = semantic {
             let mut found = false;
-            for (key, paths) in &mut groups {
-                if key.eq_semantic(sk) {
+            for (key, existing_ctx, paths) in &mut groups {
+                if key.eq_semantic(sk) && existing_ctx == ctx_id {
                     paths.push(physical.clone());
                     found = true;
                     break;
                 }
             }
             if !found {
-                groups.push((sk.clone(), vec![physical.clone()]));
+                groups.push((sk.clone(), *ctx_id, vec![physical.clone()]));
             }
         }
     }
 
     // Find groups with multiple distinct physical files
     let mut conflicts = Vec::new();
-    for (semantic_key, paths) in groups {
+    for (semantic_key, _ctx_id, paths) in groups {
         if paths.len() > 1 {
             // Check if they are the same file (by rendered path) or truly distinct.
             // Use render() instead of interpret() to avoid filesystem dependency.
@@ -60,15 +63,22 @@ mod tests {
     use super::*;
     use crate::semantic::{SemanticBase, SemanticPath};
 
+    fn make_semantic(base: SemanticBase, tail: &str) -> (Option<SemanticPath>, Option<usize>) {
+        (
+            Some(SemanticPath {
+                base,
+                tail: tail.to_string(),
+            }),
+            None,
+        )
+    }
+
     #[test]
     fn no_conflict_with_single_file() {
         let mut files = HashMap::new();
         files.insert(
             StrictPath::new("/path/to/file1"),
-            Some(SemanticPath {
-                base: SemanticBase::WinDocuments,
-                tail: "Game/save.dat".to_string(),
-            }),
+            make_semantic(SemanticBase::WinDocuments, "Game/save.dat"),
         );
         let conflicts = detect_conflicts(&files);
         assert!(conflicts.is_empty());
@@ -79,17 +89,11 @@ mod tests {
         let mut files = HashMap::new();
         files.insert(
             StrictPath::new("/path/to/file1"),
-            Some(SemanticPath {
-                base: SemanticBase::WinDocuments,
-                tail: "Game/save.dat".to_string(),
-            }),
+            make_semantic(SemanticBase::WinDocuments, "Game/save.dat"),
         );
         files.insert(
             StrictPath::new("/other/path/to/file2"),
-            Some(SemanticPath {
-                base: SemanticBase::WinDocuments,
-                tail: "Game/save.dat".to_string(),
-            }),
+            make_semantic(SemanticBase::WinDocuments, "Game/save.dat"),
         );
         let conflicts = detect_conflicts(&files);
         assert_eq!(conflicts.len(), 1);
@@ -102,17 +106,11 @@ mod tests {
         let mut files = HashMap::new();
         files.insert(
             StrictPath::new("/path/to/./file1"),
-            Some(SemanticPath {
-                base: SemanticBase::WinDocuments,
-                tail: "Game/save.dat".to_string(),
-            }),
+            make_semantic(SemanticBase::WinDocuments, "Game/save.dat"),
         );
         files.insert(
             StrictPath::new("/path/to/file1"),
-            Some(SemanticPath {
-                base: SemanticBase::WinDocuments,
-                tail: "Game/save.dat".to_string(),
-            }),
+            make_semantic(SemanticBase::WinDocuments, "Game/save.dat"),
         );
         let conflicts = detect_conflicts(&files);
         // Both resolve to the same path, so no conflict
@@ -124,17 +122,11 @@ mod tests {
         let mut files = HashMap::new();
         files.insert(
             StrictPath::new("/path/to/file1"),
-            Some(SemanticPath {
-                base: SemanticBase::WinDocuments,
-                tail: "Game/save.dat".to_string(),
-            }),
+            make_semantic(SemanticBase::WinDocuments, "Game/save.dat"),
         );
         files.insert(
             StrictPath::new("/path/to/file2"),
-            Some(SemanticPath {
-                base: SemanticBase::WinAppData,
-                tail: "Game/config.ini".to_string(),
-            }),
+            make_semantic(SemanticBase::WinAppData, "Game/config.ini"),
         );
         let conflicts = detect_conflicts(&files);
         assert!(conflicts.is_empty());
@@ -143,8 +135,35 @@ mod tests {
     #[test]
     fn no_conflict_for_files_without_semantic_key() {
         let mut files = HashMap::new();
-        files.insert(StrictPath::new("/path/to/file1"), None);
-        files.insert(StrictPath::new("/path/to/file2"), None);
+        files.insert(StrictPath::new("/path/to/file1"), (None, None));
+        files.insert(StrictPath::new("/path/to/file2"), (None, None));
+        let conflicts = detect_conflicts(&files);
+        assert!(conflicts.is_empty());
+    }
+
+    #[test]
+    fn no_conflict_with_same_key_different_contexts() {
+        let mut files = HashMap::new();
+        files.insert(
+            StrictPath::new("/prefix_a/save.dat"),
+            (
+                Some(SemanticPath {
+                    base: SemanticBase::WinDocuments,
+                    tail: "Game/save.dat".to_string(),
+                }),
+                Some(0),
+            ),
+        );
+        files.insert(
+            StrictPath::new("/prefix_b/save.dat"),
+            (
+                Some(SemanticPath {
+                    base: SemanticBase::WinDocuments,
+                    tail: "Game/save.dat".to_string(),
+                }),
+                Some(1),
+            ),
+        );
         let conflicts = detect_conflicts(&files);
         assert!(conflicts.is_empty());
     }

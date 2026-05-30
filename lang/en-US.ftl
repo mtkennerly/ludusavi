@@ -16,6 +16,10 @@ cli-invalid-backup-id = Invalid backup ID.
 wine-prefix-conflict = Cannot use --wine-prefix for {$game} because it conflicts with the game's preferred Wine prefix.
 wine-prefix-conflict-cli = Command prefix: {$path}
 wine-prefix-conflict-configured = Preferred prefix: {$path}
+wine-prefix-ambiguity = Multiple Wine prefixes found for {$game}. Please set a preferred prefix in restore.preferred_wine_prefixes or use --wine-prefix.
+wine-prefix-ambiguity-candidate = Candidate: {$path}
+wine-user-ambiguity = Multiple Wine users found in the prefix for {$game}. Please set a preferred user in restore.preferred_wine_prefixes.
+wine-user-ambiguity-candidate = Candidate: {$user}
 
 badge-failed = FAILED
 badge-duplicates = DUPLICATES

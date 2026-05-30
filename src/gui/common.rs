@@ -84,6 +84,7 @@ pub enum RestorePhase {
         scan_info: Option<ScanInfo>,
         backup_info: Option<BackupInfo>,
         game_layout: Box<GameLayout>,
+        error: Option<Error>,
     },
     Done,
 }

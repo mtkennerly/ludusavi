@@ -1,12 +1,17 @@
+use std::collections::HashMap;
+
 use crate::path::{CommonPath, StrictPath};
 use crate::prelude::Error;
-use crate::resource::config::Config;
+use crate::resource::config::{Config, Root};
+use crate::scan::launchers::Launchers;
+use crate::scan::layout::PathContext;
 use crate::semantic::SemanticBase;
 use crate::semantic::SemanticPath;
 use crate::semantic::convert::KnownFolders;
-use crate::semantic::prefix::{ValidatedPrefix, validate_prefix};
+use crate::semantic::prefix::{ValidatedPrefix, choose_wine_user_for_restore, validate_prefix};
 
 /// Target platform for materialization.
+#[derive(Clone)]
 pub enum MaterializeTarget<'a> {
     CurrentWindows {
         known_folders: &'a KnownFolders,
@@ -17,6 +22,48 @@ pub enum MaterializeTarget<'a> {
         /// Fallback drive mappings when dosdevices are unavailable.
         drive_mappings: &'a std::collections::HashMap<char, String>,
     },
+}
+
+#[derive(Clone, Debug)]
+pub enum ResolvedMaterializeTarget<'a> {
+    CurrentWindows {
+        known_folders: &'a KnownFolders,
+    },
+    WinePrefix {
+        prefix: ValidatedPrefix,
+        wine_user: String,
+        drive_mappings: HashMap<char, String>,
+    },
+}
+
+impl ResolvedMaterializeTarget<'_> {
+    pub fn materialize(&self, semantic: &SemanticPath) -> Result<StrictPath, MaterializeError> {
+        match self {
+            Self::CurrentWindows { known_folders } => {
+                materialize_semantic(semantic, &MaterializeTarget::CurrentWindows { known_folders })
+            }
+            Self::WinePrefix {
+                prefix,
+                wine_user,
+                drive_mappings,
+            } => materialize_semantic(
+                semantic,
+                &MaterializeTarget::WinePrefix {
+                    prefix,
+                    wine_user,
+                    drive_mappings,
+                },
+            ),
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum ContextualFallback {
+    /// Windows restores can materialize any semantic key against current known folders.
+    Allow,
+    /// Wine restores must not map a context-aware file through a generic prefix fallback.
+    Disallow,
 }
 
 /// Build `KnownFolders` from the current platform's `CommonPath` values.
@@ -50,12 +97,12 @@ pub fn known_folders_from_common_path() -> KnownFolders {
 /// Discover a Wine prefix from a list of candidate paths.
 /// Returns the first valid prefix found, or None.
 pub fn discover_wine_prefix(candidates: &[StrictPath]) -> Option<ValidatedPrefix> {
-    for candidate in candidates {
-        if let Some(prefix) = validate_prefix(candidate) {
-            return Some(prefix);
-        }
-    }
-    None
+    discover_all_valid_prefixes(candidates).into_iter().next()
+}
+
+/// Discover all valid Wine prefixes from a list of candidate paths.
+pub fn discover_all_valid_prefixes(candidates: &[StrictPath]) -> Vec<ValidatedPrefix> {
+    candidates.iter().filter_map(validate_prefix).collect()
 }
 
 fn preferred_wine_prefix_for_game<'a>(
@@ -73,11 +120,18 @@ fn preferred_wine_prefix_for_game<'a>(
 }
 
 /// Resolve the Wine prefix to use for a game's semantic restore.
+///
+/// Priority: CLI → per-game preferred → source context → custom game → launcher → global → root discovery.
 pub fn resolve_wine_prefix_for_game(
     config: &Config,
     game: &str,
+    game_wine_prefixes: &[StrictPath],
     cli_wine_prefix: Option<&StrictPath>,
+    launchers: &Launchers,
+    roots: &[Root],
+    source_context: Option<&PathContext>,
 ) -> Result<Option<ValidatedPrefix>, Error> {
+    // 1. CLI override
     if let Some(cli) = cli_wine_prefix {
         if let Some(preference) = preferred_wine_prefix_for_game(config, game)
             && !preference.path.equivalent(cli)
@@ -91,11 +145,21 @@ pub fn resolve_wine_prefix_for_game(
         return Ok(validate_prefix(cli));
     }
 
-    Ok(resolve_wine_prefix_without_cli(config, game))
+    resolve_wine_prefix_without_cli(config, game, game_wine_prefixes, launchers, roots, source_context)
 }
 
 /// Resolve the configured or discovered Wine prefix for a game when no CLI override is involved.
-pub fn resolve_wine_prefix_without_cli(config: &Config, game: &str) -> Option<ValidatedPrefix> {
+///
+/// Priority: per-game preferred → source context → custom game → launcher → global → root discovery.
+pub fn resolve_wine_prefix_without_cli(
+    config: &Config,
+    game: &str,
+    game_wine_prefixes: &[StrictPath],
+    launchers: &Launchers,
+    roots: &[Root],
+    source_context: Option<&PathContext>,
+) -> Result<Option<ValidatedPrefix>, Error> {
+    // 2. Per-game preferred
     if let Some(preference) = preferred_wine_prefix_for_game(config, game) {
         if let Some(mut prefix) = validate_prefix(&preference.path) {
             if let Some(wine_user) = &preference.wine_user {
@@ -106,13 +170,93 @@ pub fn resolve_wine_prefix_without_cli(config: &Config, game: &str) -> Option<Va
                     .drive_mappings
                     .insert(drive.to_ascii_lowercase(), target.render());
             }
-            return Some(prefix);
+            return Ok(Some(prefix));
         }
-        return None;
+        return Ok(None);
     }
 
-    let roots: Vec<StrictPath> = config.roots.iter().map(|root| root.path().clone()).collect();
-    discover_wine_prefix(&roots)
+    // 3. Source context from backup metadata (if path exists on current system)
+    if let Some(ctx) = source_context
+        && !ctx.prefix_path.is_empty()
+        && let Some(prefix) = validate_prefix(&StrictPath::new(&ctx.prefix_path))
+    {
+        return Ok(Some(prefix));
+    }
+
+    // 4. Custom game winePrefix
+    if !game_wine_prefixes.is_empty() {
+        let candidates = discover_all_valid_prefixes(game_wine_prefixes);
+        return resolve_from_candidates(candidates, game, config);
+    }
+
+    // 5. Launcher-discovered prefixes
+    let launcher_prefixes: Vec<StrictPath> = roots
+        .iter()
+        .flat_map(|root| {
+            launchers
+                .get_game(root, game)
+                .filter_map(|g| g.prefix.as_ref())
+                .flat_map(|wp| {
+                    let pfx = wp.joined("pfx");
+                    vec![wp.clone(), pfx]
+                })
+                .collect::<Vec<_>>()
+        })
+        .collect();
+    if !launcher_prefixes.is_empty() {
+        let candidates = discover_all_valid_prefixes(&launcher_prefixes);
+        return resolve_from_candidates(candidates, game, config);
+    }
+
+    // 6. Global fallback: config.restore.wine_prefix
+    if let Some(ref global_prefix) = config.restore.wine_prefix
+        && let Some(prefix) = validate_prefix(global_prefix)
+    {
+        return Ok(Some(prefix));
+    }
+
+    // 7. Root discovery
+    let root_paths: Vec<StrictPath> = roots.iter().map(|root| root.path().clone()).collect();
+    let candidates = discover_all_valid_prefixes(&root_paths);
+    resolve_from_candidates(candidates, game, config)
+}
+
+/// Resolve from a list of candidates, returning ambiguity error if multiple found.
+fn resolve_from_candidates(
+    candidates: Vec<ValidatedPrefix>,
+    game: &str,
+    config: &Config,
+) -> Result<Option<ValidatedPrefix>, Error> {
+    if candidates.is_empty() {
+        return Ok(None);
+    }
+    if candidates.len() == 1 {
+        let prefix = candidates.into_iter().next().unwrap();
+        return Ok(Some(resolve_wine_user(prefix, game, config)?));
+    }
+
+    // Multiple candidates — ambiguity
+    Err(Error::WinePrefixAmbiguity {
+        game: config.display_name(game).to_string(),
+        candidates: candidates.into_iter().map(|p| p.path).collect(),
+    })
+}
+
+/// Resolve wine user for a prefix, checking for ambiguity.
+fn resolve_wine_user(prefix: ValidatedPrefix, game: &str, config: &Config) -> Result<ValidatedPrefix, Error> {
+    let preferred_user = preferred_wine_prefix_for_game(config, game).and_then(|p| p.wine_user.as_deref());
+
+    match choose_wine_user_for_restore(&prefix, preferred_user, None, false) {
+        Ok(user) => {
+            let mut prefix = prefix;
+            prefix.wine_user = user;
+            Ok(prefix)
+        }
+        Err(ambiguity) => Err(Error::WineUserAmbiguity {
+            game: config.display_name(game).to_string(),
+            candidates: ambiguity.candidates,
+        }),
+    }
 }
 
 /// Error type for materialization failures.
@@ -150,9 +294,11 @@ pub fn materialize_semantic(
 ) -> Result<StrictPath, MaterializeError> {
     match target {
         MaterializeTarget::CurrentWindows { known_folders } => materialize_to_windows(semantic, known_folders),
-        MaterializeTarget::WinePrefix { prefix, wine_user, drive_mappings } => {
-            materialize_to_wine(semantic, prefix, wine_user, drive_mappings)
-        }
+        MaterializeTarget::WinePrefix {
+            prefix,
+            wine_user,
+            drive_mappings,
+        } => materialize_to_wine(semantic, prefix, wine_user, drive_mappings),
     }
 }
 
@@ -281,6 +427,126 @@ fn materialize_to_wine(
     Ok(StrictPath::new(format!("{}/{}", base_path, semantic.tail)))
 }
 
+/// Build per-context `MaterializeTarget` from backup's `path_contexts`.
+///
+/// For each context:
+/// - If the source prefix path is valid on this machine, use it directly.
+/// - If invalid, call `resolve_wine_prefix_for_game` with `source_context` as a candidate.
+/// - If no prefix can be resolved, leave that context unresolved.
+/// - If resolution is ambiguous or conflicts with configuration, return that error.
+///
+/// Returns a map from context ID to an owned materialization target.
+pub fn build_context_targets(
+    path_contexts: &std::collections::BTreeMap<usize, PathContext>,
+    config: &Config,
+    game: &str,
+    game_wine_prefixes: &[StrictPath],
+    cli_wine_prefix: Option<&StrictPath>,
+    launchers: &Launchers,
+    roots: &[Root],
+) -> Result<HashMap<usize, ResolvedMaterializeTarget<'static>>, Error> {
+    let mut result = HashMap::new();
+    for (&ctx_id, ctx) in path_contexts {
+        let validated = ctx.validate();
+        let target = if let Some(prefix) = validated {
+            resolved_target_from_path_context(prefix, ctx)
+        } else {
+            // Context prefix doesn't exist on this machine — resolve with source_context.
+            match resolve_wine_prefix_for_game(
+                config,
+                game,
+                game_wine_prefixes,
+                cli_wine_prefix,
+                launchers,
+                roots,
+                Some(ctx),
+            ) {
+                Ok(Some(prefix)) => resolved_target_from_validated_prefix(prefix),
+                Ok(None) => continue,
+                Err(error) => return Err(error),
+            }
+        };
+        result.insert(ctx_id, target);
+    }
+    Ok(result)
+}
+
+pub(crate) fn resolved_target_from_path_context(
+    mut prefix: ValidatedPrefix,
+    ctx: &PathContext,
+) -> ResolvedMaterializeTarget<'static> {
+    let drive_mappings: HashMap<char, String> = ctx.drive_mappings.iter().map(|(&k, v)| (k, v.clone())).collect();
+    let wine_user = if ctx.wine_user.is_empty() {
+        prefix.wine_user.clone()
+    } else {
+        ctx.wine_user.clone()
+    };
+
+    if !drive_mappings.is_empty() {
+        prefix.drive_mappings.clone_from(&drive_mappings);
+    }
+
+    ResolvedMaterializeTarget::WinePrefix {
+        prefix,
+        wine_user,
+        drive_mappings,
+    }
+}
+
+fn resolved_target_from_validated_prefix(prefix: ValidatedPrefix) -> ResolvedMaterializeTarget<'static> {
+    ResolvedMaterializeTarget::WinePrefix {
+        wine_user: prefix.wine_user.clone(),
+        drive_mappings: prefix.drive_mappings.clone(),
+        prefix,
+    }
+}
+
+/// Materialize semantic files and recalculate restore state.
+///
+/// For files with `semantic_key` set and `mapping_context_id` matching one of the
+/// context targets, materialize using the per-context target. If a contextual
+/// file has no matching target, only use `fallback_target` when explicitly
+/// allowed. For non-contextual semantic files, use the provided `fallback_target`.
+///
+/// After materializing, recalculates `redirected`, `ignored`, `change`, and clears
+/// `restore_error` for all files that were successfully materialized.
+pub fn materialize_and_fixup(
+    scan_info: &mut crate::scan::ScanInfo,
+    context_targets: &HashMap<usize, ResolvedMaterializeTarget<'static>>,
+    fallback_target: Option<&ResolvedMaterializeTarget<'_>>,
+    contextual_fallback: ContextualFallback,
+    redirects: &[crate::resource::config::RedirectConfig],
+    reverse_redirects_on_restore: bool,
+    toggled_paths: &crate::resource::config::ToggledPaths,
+) {
+    for file in scan_info.found_files.values_mut() {
+        if let Some(ref semantic) = file.semantic_key {
+            let effective_target = match file.mapping_context_id {
+                Some(ctx_id) => match context_targets.get(&ctx_id) {
+                    Some(target) => Some(target),
+                    None => match contextual_fallback {
+                        ContextualFallback::Allow => fallback_target,
+                        ContextualFallback::Disallow => None,
+                    },
+                },
+                None => fallback_target,
+            };
+            if let Some(target) = effective_target {
+                match target.materialize(semantic) {
+                    Ok(physical) => {
+                        file.original_path = Some(physical);
+                        file.restore_error = None;
+                    }
+                    Err(e) => {
+                        file.restore_error = Some(format!("{e}"));
+                    }
+                }
+            }
+        }
+    }
+    scan_info.recalculate_restore_state(redirects, reverse_redirects_on_restore, toggled_paths);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -346,7 +612,10 @@ mod tests {
             },
         );
 
-        let resolved = resolve_wine_prefix_without_cli(&config, "Game").unwrap();
+        let resolved =
+            resolve_wine_prefix_without_cli(&config, "Game", &[], &Launchers::default(), &config.roots.clone(), None)
+                .unwrap()
+                .unwrap();
         assert_eq!(preferred.render(), resolved.path.render());
         assert_eq!("alice", resolved.wine_user);
     }
@@ -372,7 +641,10 @@ mod tests {
             },
         );
 
-        let resolved = resolve_wine_prefix_without_cli(&config, "Game").unwrap();
+        let resolved =
+            resolve_wine_prefix_without_cli(&config, "Game", &[], &Launchers::default(), &config.roots.clone(), None)
+                .unwrap()
+                .unwrap();
         assert_eq!(preferred.render(), resolved.path.render());
     }
 
@@ -393,7 +665,16 @@ mod tests {
             },
         );
 
-        let error = resolve_wine_prefix_for_game(&config, "Game", Some(&cli)).unwrap_err();
+        let error = resolve_wine_prefix_for_game(
+            &config,
+            "Game",
+            &[],
+            Some(&cli),
+            &Launchers::default(),
+            &config.roots.clone(),
+            None,
+        )
+        .unwrap_err();
         assert_eq!(
             Error::WinePrefixConflict {
                 game: "Game".to_string(),
@@ -427,7 +708,16 @@ mod tests {
             },
         );
 
-        let error = resolve_wine_prefix_for_game(&config, "Game", Some(&cli)).unwrap_err();
+        let error = resolve_wine_prefix_for_game(
+            &config,
+            "Game",
+            &[],
+            Some(&cli),
+            &Launchers::default(),
+            &config.roots.clone(),
+            None,
+        )
+        .unwrap_err();
         assert_eq!(
             Error::WinePrefixConflict {
                 game: "Display Game".to_string(),
@@ -453,9 +743,17 @@ mod tests {
             },
         );
 
-        let resolved = resolve_wine_prefix_for_game(&config, "Game", Some(&preferred))
-            .unwrap()
-            .unwrap();
+        let resolved = resolve_wine_prefix_for_game(
+            &config,
+            "Game",
+            &[],
+            Some(&preferred),
+            &Launchers::default(),
+            &config.roots.clone(),
+            None,
+        )
+        .unwrap()
+        .unwrap();
         assert_eq!(preferred.render(), resolved.path.render());
     }
 
@@ -476,8 +774,149 @@ mod tests {
             },
         );
 
-        let resolved = resolve_wine_prefix_without_cli(&config, "Game").unwrap();
+        let resolved =
+            resolve_wine_prefix_without_cli(&config, "Game", &[], &Launchers::default(), &config.roots.clone(), None)
+                .unwrap()
+                .unwrap();
         assert_eq!(Some(&drive.render()), resolved.drive_mappings.get(&'d'));
+    }
+
+    #[test]
+    fn build_context_targets_uses_saved_context_user_and_drive_mappings() {
+        use std::collections::BTreeMap;
+
+        let temp = tempfile::tempdir().unwrap();
+        let prefix = StrictPath::new(temp.path().join("prefix").to_string_lossy().to_string());
+        let drive = StrictPath::new(temp.path().join("drive-d").to_string_lossy().to_string());
+        make_valid_prefix(&prefix, "detected_user");
+
+        let mut contexts = BTreeMap::new();
+        contexts.insert(
+            0,
+            PathContext {
+                prefix_path: prefix.render(),
+                wine_user: "saved_user".to_string(),
+                drive_mappings: [('d', drive.render())].into_iter().collect(),
+            },
+        );
+
+        let targets = build_context_targets(
+            &contexts,
+            &Config::default(),
+            "Game",
+            &[],
+            None,
+            &Launchers::default(),
+            &[],
+        )
+        .unwrap();
+        let target = targets.get(&0).unwrap();
+
+        let documents = SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap();
+        let materialized = target.materialize(&documents).unwrap();
+        assert!(
+            materialized.render().contains("/drive_c/users/saved_user/Documents/"),
+            "expected saved context user, got {}",
+            materialized.render()
+        );
+
+        let drive_file = SemanticPath::parse("<winDrive-d>/Game/save.dat").unwrap();
+        let materialized = target.materialize(&drive_file).unwrap();
+        assert_eq!(format!("{}/Game/save.dat", drive.render()), materialized.render());
+    }
+
+    #[test]
+    fn build_context_targets_uses_resolved_prefix_user_when_source_context_is_missing() {
+        use crate::resource::config::Root;
+        use crate::resource::manifest::Store;
+        use std::collections::BTreeMap;
+
+        let temp = tempfile::tempdir().unwrap();
+        let source_drive = StrictPath::new(temp.path().join("source-drive-d").to_string_lossy().to_string());
+        let target_prefix = StrictPath::new(temp.path().join("target-prefix").to_string_lossy().to_string());
+        make_valid_prefix(&target_prefix, "target_user");
+
+        let mut contexts = BTreeMap::new();
+        contexts.insert(
+            0,
+            PathContext {
+                prefix_path: temp.path().join("missing-source-prefix").to_string_lossy().to_string(),
+                wine_user: "source_user".to_string(),
+                drive_mappings: [('d', source_drive.render())].into_iter().collect(),
+            },
+        );
+        let roots = vec![Root::new(target_prefix.clone(), Store::OtherWine)];
+
+        let targets = build_context_targets(
+            &contexts,
+            &Config::default(),
+            "Game",
+            &[],
+            None,
+            &Launchers::default(),
+            &roots,
+        )
+        .unwrap();
+        let target = targets.get(&0).unwrap();
+
+        let documents = SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap();
+        let materialized = target.materialize(&documents).unwrap();
+        assert_eq!(
+            format!(
+                "{}/drive_c/users/target_user/Documents/Game/save.dat",
+                target_prefix.render()
+            ),
+            materialized.render()
+        );
+
+        let drive_file = SemanticPath::parse("<winDrive-d>/Game/save.dat").unwrap();
+        assert!(target.materialize(&drive_file).is_err());
+    }
+
+    #[test]
+    fn build_context_targets_propagates_resolver_errors() {
+        use crate::resource::config::Root;
+        use crate::resource::manifest::Store;
+        use std::collections::BTreeMap;
+
+        let temp = tempfile::tempdir().unwrap();
+        let prefix_a = StrictPath::new(temp.path().join("prefix-a").to_string_lossy().to_string());
+        let prefix_b = StrictPath::new(temp.path().join("prefix-b").to_string_lossy().to_string());
+        make_valid_prefix(&prefix_a, "steamuser");
+        make_valid_prefix(&prefix_b, "steamuser");
+
+        let mut contexts = BTreeMap::new();
+        contexts.insert(
+            0,
+            PathContext {
+                prefix_path: temp.path().join("missing").to_string_lossy().to_string(),
+                wine_user: "steamuser".to_string(),
+                drive_mappings: BTreeMap::new(),
+            },
+        );
+        let roots = vec![
+            Root::new(prefix_a.clone(), Store::OtherWine),
+            Root::new(prefix_b.clone(), Store::OtherWine),
+        ];
+
+        let error = build_context_targets(
+            &contexts,
+            &Config::default(),
+            "Game",
+            &[],
+            None,
+            &Launchers::default(),
+            &roots,
+        )
+        .unwrap_err();
+
+        assert_eq!(
+            Error::WinePrefixAmbiguity {
+                game: "Game".to_string(),
+                candidates: vec![prefix_a, prefix_b],
+            },
+            error
+        );
     }
 
     #[test]
@@ -663,5 +1102,235 @@ mod tests {
             ..Default::default()
         };
         assert_eq!(semantic_full.path_format, PathFormat::SemanticV1);
+    }
+
+    #[test]
+    fn materialize_and_fixup_recalculates_restore_state() {
+        use crate::resource::config::ToggledPaths;
+        use crate::scan::ScanChange;
+        use crate::scan::ScanInfo;
+        use crate::scan::ScannedFile;
+        use std::collections::HashMap;
+
+        let semantic = SemanticPath {
+            base: SemanticBase::WinDocuments,
+            tail: "MyGame/save.dat".to_string(),
+        };
+
+        let mut scan_info = ScanInfo {
+            game_name: "MyGame".to_string(),
+            found_files: HashMap::new(),
+            ..Default::default()
+        };
+
+        // File with semantic key but no mapping_context_id (non-contextual).
+        scan_info.found_files.insert(
+            crate::path::StrictPath::new("scan_key"),
+            ScannedFile {
+                semantic_key: Some(semantic),
+                mapping_context_id: None,
+                original_path: Some(crate::path::StrictPath::new("<winDocuments>/MyGame/save.dat")),
+                hash: "abc123".to_string(),
+                change: ScanChange::Unknown,
+                ..Default::default()
+            },
+        );
+
+        let context_targets = HashMap::new();
+
+        // Create a fallback target.
+        let kf = make_known_folders();
+        let fallback = ResolvedMaterializeTarget::CurrentWindows { known_folders: &kf };
+
+        materialize_and_fixup(
+            &mut scan_info,
+            &context_targets,
+            Some(&fallback),
+            ContextualFallback::Disallow,
+            &[],
+            false,
+            &ToggledPaths::default(),
+        );
+
+        let file = scan_info.found_files.values().next().unwrap();
+        // original_path should be materialized (not the placeholder semantic string).
+        assert!(file.original_path.is_some());
+        let path = file.original_path.as_ref().unwrap().render();
+        assert!(!path.contains("<winDocuments>"), "path should be materialized: {path}");
+        // change should be recalculated (not Unknown).
+        assert_ne!(file.change, ScanChange::Unknown);
+        // restore_error should be cleared.
+        assert!(file.restore_error.is_none());
+    }
+
+    #[test]
+    fn materialize_and_fixup_uses_context_target_over_fallback() {
+        use crate::resource::config::ToggledPaths;
+        use crate::scan::ScanChange;
+        use crate::scan::ScanInfo;
+        use crate::scan::ScannedFile;
+        use std::collections::HashMap;
+
+        let semantic = SemanticPath {
+            base: SemanticBase::WinDocuments,
+            tail: "MyGame/save.dat".to_string(),
+        };
+
+        let mut scan_info = ScanInfo {
+            game_name: "MyGame".to_string(),
+            found_files: HashMap::new(),
+            ..Default::default()
+        };
+
+        // File with semantic key AND mapping_context_id (contextual).
+        scan_info.found_files.insert(
+            crate::path::StrictPath::new("scan_key"),
+            ScannedFile {
+                semantic_key: Some(semantic),
+                mapping_context_id: Some(0),
+                original_path: Some(crate::path::StrictPath::new("<winDocuments>/MyGame/save.dat")),
+                hash: "abc123".to_string(),
+                change: ScanChange::Unknown,
+                ..Default::default()
+            },
+        );
+
+        // Context target for ctx_id=0 uses a Wine prefix.
+        let mut context_targets = HashMap::new();
+        context_targets.insert(
+            0,
+            ResolvedMaterializeTarget::WinePrefix {
+                prefix: make_wine_prefix(),
+                wine_user: "steamuser".to_string(),
+                drive_mappings: HashMap::new(),
+            },
+        );
+
+        // Fallback is Windows — should NOT be used for this contextual file.
+        let kf = make_known_folders();
+        let fallback = ResolvedMaterializeTarget::CurrentWindows { known_folders: &kf };
+
+        materialize_and_fixup(
+            &mut scan_info,
+            &context_targets,
+            Some(&fallback),
+            ContextualFallback::Disallow,
+            &[],
+            false,
+            &ToggledPaths::default(),
+        );
+
+        let file = scan_info.found_files.values().next().unwrap();
+        let path = file.original_path.as_ref().unwrap().render();
+        // Should use Wine prefix path, not Windows path.
+        assert!(path.contains("drive_c"), "should use Wine prefix: {path}");
+        assert!(path.contains("Prefixes"), "should use Wine prefix: {path}");
+    }
+
+    #[test]
+    fn materialize_and_fixup_does_not_use_fallback_for_missing_context() {
+        use crate::resource::config::ToggledPaths;
+        use crate::scan::ScanChange;
+        use crate::scan::ScanInfo;
+        use crate::scan::ScannedFile;
+        use std::collections::HashMap;
+
+        let semantic = SemanticPath {
+            base: SemanticBase::WinDocuments,
+            tail: "MyGame/save.dat".to_string(),
+        };
+        let original = crate::path::StrictPath::new("<winDocuments>/MyGame/save.dat");
+
+        let mut scan_info = ScanInfo {
+            game_name: "MyGame".to_string(),
+            found_files: HashMap::new(),
+            ..Default::default()
+        };
+        scan_info.found_files.insert(
+            crate::path::StrictPath::new("scan_key"),
+            ScannedFile {
+                semantic_key: Some(semantic),
+                mapping_context_id: Some(99),
+                original_path: Some(original.clone()),
+                hash: "abc123".to_string(),
+                change: ScanChange::Unknown,
+                restore_error: Some("No semantic restore target is available".to_string()),
+                ..Default::default()
+            },
+        );
+
+        let context_targets = HashMap::new();
+        let kf = make_known_folders();
+        let fallback = ResolvedMaterializeTarget::CurrentWindows { known_folders: &kf };
+
+        materialize_and_fixup(
+            &mut scan_info,
+            &context_targets,
+            Some(&fallback),
+            ContextualFallback::Disallow,
+            &[],
+            false,
+            &ToggledPaths::default(),
+        );
+
+        let file = scan_info.found_files.values().next().unwrap();
+        assert_eq!(Some(&original), file.original_path.as_ref());
+        assert_eq!(
+            Some("No semantic restore target is available"),
+            file.restore_error.as_deref()
+        );
+    }
+
+    #[test]
+    fn materialize_and_fixup_uses_fallback_for_missing_context_when_allowed() {
+        use crate::resource::config::ToggledPaths;
+        use crate::scan::ScanChange;
+        use crate::scan::ScanInfo;
+        use crate::scan::ScannedFile;
+        use std::collections::HashMap;
+
+        let semantic = SemanticPath {
+            base: SemanticBase::WinDocuments,
+            tail: "MyGame/save.dat".to_string(),
+        };
+
+        let mut scan_info = ScanInfo {
+            game_name: "MyGame".to_string(),
+            found_files: HashMap::new(),
+            ..Default::default()
+        };
+        scan_info.found_files.insert(
+            crate::path::StrictPath::new("scan_key"),
+            ScannedFile {
+                semantic_key: Some(semantic),
+                mapping_context_id: Some(99),
+                original_path: Some(crate::path::StrictPath::new("<winDocuments>/MyGame/save.dat")),
+                hash: "abc123".to_string(),
+                change: ScanChange::Unknown,
+                restore_error: Some("No semantic restore target is available".to_string()),
+                ..Default::default()
+            },
+        );
+
+        let context_targets = HashMap::new();
+        let kf = make_known_folders();
+        let fallback = ResolvedMaterializeTarget::CurrentWindows { known_folders: &kf };
+
+        materialize_and_fixup(
+            &mut scan_info,
+            &context_targets,
+            Some(&fallback),
+            ContextualFallback::Allow,
+            &[],
+            false,
+            &ToggledPaths::default(),
+        );
+
+        let file = scan_info.found_files.values().next().unwrap();
+        assert_eq!(
+            Some("C:/Users/Alice/Documents/MyGame/save.dat"),
+            file.original_path.as_ref().map(|x| x.render()).as_deref()
+        );
+        assert!(file.restore_error.is_none());
     }
 }

@@ -408,6 +408,8 @@ impl Translator {
             Error::CliBackupIdWithMultipleGames => self.cli_backup_id_with_multiple_games(),
             Error::CliInvalidBackupId => self.cli_invalid_backup_id(),
             Error::WinePrefixConflict { game, cli, configured } => self.wine_prefix_conflict(game, cli, configured),
+            Error::WinePrefixAmbiguity { game, candidates } => self.wine_prefix_ambiguity(game, candidates),
+            Error::WineUserAmbiguity { game, candidates } => self.wine_user_ambiguity(game, candidates),
             Error::NoSaveDataFound => self.notify_single_game_status(false),
             Error::GameIsUnrecognized => self.game_is_unrecognized(),
             Error::SomeEntriesFailed => self.some_entries_failed(),
@@ -500,6 +502,30 @@ impl Translator {
         args.set(PATH, configured.render());
         let configured = translate_args("wine-prefix-conflict-configured", &args);
         format!("{}\n{}\n{}", self.prefix_error(&primary), cli, configured)
+    }
+
+    pub fn wine_prefix_ambiguity(&self, game: &str, candidates: &[StrictPath]) -> String {
+        let mut args = FluentArgs::new();
+        args.set(GAME, game);
+        let primary = translate_args("wine-prefix-ambiguity", &args);
+        let mut lines = vec![self.prefix_error(&primary)];
+        for candidate in candidates {
+            args.set(PATH, candidate.render());
+            lines.push(translate_args("wine-prefix-ambiguity-candidate", &args));
+        }
+        lines.join("\n")
+    }
+
+    pub fn wine_user_ambiguity(&self, game: &str, candidates: &[String]) -> String {
+        let mut args = FluentArgs::new();
+        args.set(GAME, game);
+        let primary = translate_args("wine-user-ambiguity", &args);
+        let mut lines = vec![self.prefix_error(&primary)];
+        for candidate in candidates {
+            args.set("user", candidate.as_str());
+            lines.push(translate_args("wine-user-ambiguity-candidate", &args));
+        }
+        lines.join("\n")
     }
 
     pub fn cloud_not_configured(&self) -> String {

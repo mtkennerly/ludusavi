@@ -2,7 +2,11 @@ mod api;
 pub mod parse;
 mod ui;
 
-use std::{collections::BTreeSet, process::Command, time::Duration};
+use std::{
+    collections::{BTreeSet, HashMap},
+    process::Command,
+    time::Duration,
+};
 
 use clap::CommandFactory;
 use indicatif::{ParallelProgressIterator, ProgressBar};
@@ -22,16 +26,16 @@ use crate::{
     report::{self, Reporter, report_cloud_changes},
     resource::{ResourceFile, SaveableResourceFile, cache::Cache, config::Config, manifest::Manifest},
     scan::{
-        BackupId, DuplicateDetector, Launchers, OperationStepDecision, ScanInfo, ScanKind, SteamShortcuts, TitleFinder,
+        BackupId, DuplicateDetector, Launchers, OperationStepDecision, ScanKind, SteamShortcuts, TitleFinder,
         TitleQuery, layout::BackupLayout, prepare_backup_target, scan_game_for_backup,
     },
-    semantic::{
-        materialize::{MaterializeTarget, discover_wine_prefix, resolve_wine_prefix_for_game},
-        prefix::{ValidatedPrefix, validate_prefix},
-    },
+    semantic::materialize::{ContextualFallback, ResolvedMaterializeTarget, materialize_and_fixup},
     semantic::preview::{SemanticPreviewAnalysis, will_start_new_semantic_full_backup},
     wrap,
 };
+
+#[cfg(not(target_os = "windows"))]
+use crate::semantic::materialize::{build_context_targets, resolve_wine_prefix_for_game};
 
 #[cfg(target_os = "windows")]
 use crate::semantic::materialize::known_folders_from_common_path;
@@ -592,64 +596,133 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             #[cfg(target_os = "windows")]
             let kf = known_folders_from_common_path();
             #[cfg(target_os = "windows")]
-            let win_target = MaterializeTarget::CurrentWindows { known_folders: &kf };
-            #[cfg(not(target_os = "windows"))]
-            let linux_wine_prefix: Option<ValidatedPrefix> = if let Some(ref wp) = wine_prefix {
-                validate_prefix(wp)
-            } else {
-                let roots: Vec<StrictPath> = config.roots.iter().map(|r| r.path().clone()).collect();
-                discover_wine_prefix(&roots)
-            };
-            #[cfg(not(target_os = "windows"))]
-            let _linux_wine_target = linux_wine_prefix.as_ref().map(|prefix| MaterializeTarget::WinePrefix {
-                prefix,
-                wine_user: &prefix.wine_user,
-                drive_mappings: &config.restore.drive_mappings,
-            });
+            let win_target = ResolvedMaterializeTarget::CurrentWindows { known_folders: &kf };
+
+            // Scan launchers for Wine prefix discovery during restore.
+            let restore_roots = config.roots.clone();
+            let launchers = Launchers::scan(&restore_roots, &manifest, &games, &title_finder, None);
 
             let step = |i, name| {
                 log::trace!("step {i} / {}: {name}", games.len());
                 let mut layout = layout.game_layout(name);
 
-                #[cfg(target_os = "windows")]
-                let materialize_target: Option<&MaterializeTarget> = Some(&win_target);
-                #[cfg(not(target_os = "windows"))]
-                let linux_wine_prefix = match resolve_wine_prefix_for_game(&config, name, wine_prefix.as_ref()) {
-                    Ok(prefix) => prefix,
-                    Err(error) => {
-                        log::trace!("step {i} completed (wine prefix conflict)");
-                        let display_title = config.display_name(name);
-                        return Some((
-                            display_title,
-                            ScanInfo {
-                                game_name: name.to_string(),
-                                has_backups: layout.has_backups(),
-                                ..Default::default()
-                            },
-                            Default::default(),
-                            OperationStepDecision::Processed,
-                            Some(Err(error)),
-                        ));
-                    }
-                };
-                #[cfg(not(target_os = "windows"))]
-                let linux_wine_target = linux_wine_prefix.as_ref().map(|prefix| MaterializeTarget::WinePrefix {
-                    prefix,
-                    wine_user: &prefix.wine_user,
-                    drive_mappings: &config.restore.drive_mappings,
-                });
-                #[cfg(not(target_os = "windows"))]
-                let materialize_target: Option<&MaterializeTarget> = linux_wine_target.as_ref();
-
-                let scan_info = layout.scan_for_restoration(
+                // Phase 1: Scan with None to read backup metadata (pathContexts).
+                let mut scan_info = layout.scan_for_restoration(
                     name,
                     backup_id.as_ref().unwrap_or(&BackupId::Latest),
                     &config.redirects,
                     config.restore.reverse_redirects,
                     &config.restore.toggled_paths,
                     &config.restore.toggled_registry,
-                    materialize_target,
+                    None,
                 );
+
+                // Phase 2: Build per-file materialize targets from backup context + resolver.
+                #[cfg(target_os = "windows")]
+                {
+                    let context_targets = HashMap::new();
+                    materialize_and_fixup(
+                        &mut scan_info,
+                        &context_targets,
+                        Some(&win_target),
+                        ContextualFallback::Allow,
+                        &config.redirects,
+                        config.restore.reverse_redirects,
+                        &config.restore.toggled_paths,
+                    );
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    let path_contexts = &scan_info.path_contexts;
+                    let game_wine_prefixes: Vec<StrictPath> = manifest
+                        .0
+                        .get(name)
+                        .map(|game| game.wine_prefix.iter().map(StrictPath::new).collect())
+                        .unwrap_or_default();
+
+                    // Build per-context targets from pathContexts.
+                    let context_targets = if !path_contexts.is_empty() {
+                        match build_context_targets(
+                            path_contexts,
+                            &config,
+                            name,
+                            &game_wine_prefixes,
+                            wine_prefix.as_ref(),
+                            &launchers,
+                            &restore_roots,
+                        ) {
+                            Ok(targets) => targets,
+                            Err(error) => {
+                                log::trace!("step {i} completed (wine prefix conflict for context-aware files)");
+                                let display_title = config.display_name(name);
+                                return Some((
+                                    display_title,
+                                    scan_info,
+                                    Default::default(),
+                                    OperationStepDecision::Processed,
+                                    Some(Err(error)),
+                                ));
+                            }
+                        }
+                    } else {
+                        HashMap::new()
+                    };
+
+                    // For non-contextual semantic files: if there's exactly one path context,
+                    // use it as the fallback (avoids ambiguity on multi-prefix systems).
+                    // Otherwise resolve normally.
+                    let has_non_contextual = scan_info
+                        .found_files
+                        .values()
+                        .any(|f| f.semantic_key.is_some() && f.mapping_context_id.is_none());
+                    let non_contextual_fallback: Option<ResolvedMaterializeTarget> = if has_non_contextual {
+                        if path_contexts.len() == 1 {
+                            // Single context: use it as fallback for non-contextual files.
+                            context_targets.values().next().cloned()
+                        } else {
+                            // No contexts or multiple contexts: resolve normally.
+                            match resolve_wine_prefix_for_game(
+                                &config,
+                                name,
+                                &game_wine_prefixes,
+                                wine_prefix.as_ref(),
+                                &launchers,
+                                &restore_roots,
+                                None,
+                            ) {
+                                Ok(Some(prefix)) => Some(ResolvedMaterializeTarget::WinePrefix {
+                                    wine_user: prefix.wine_user.clone(),
+                                    drive_mappings: prefix.drive_mappings.clone(),
+                                    prefix,
+                                }),
+                                Ok(None) => None,
+                                Err(error) => {
+                                    log::trace!("step {i} completed (wine prefix conflict)");
+                                    let display_title = config.display_name(name);
+                                    return Some((
+                                        display_title,
+                                        scan_info,
+                                        Default::default(),
+                                        OperationStepDecision::Processed,
+                                        Some(Err(error)),
+                                    ));
+                                }
+                            }
+                        }
+                    } else {
+                        None
+                    };
+
+                    materialize_and_fixup(
+                        &mut scan_info,
+                        &context_targets,
+                        non_contextual_fallback.as_ref(),
+                        ContextualFallback::Disallow,
+                        &config.redirects,
+                        config.restore.reverse_redirects,
+                        &config.restore.toggled_paths,
+                    );
+                }
                 let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified && !include_disabled;
                 let decision = if ignored {
                     OperationStepDecision::Ignored

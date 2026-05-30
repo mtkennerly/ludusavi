@@ -1,8 +1,11 @@
 use std::{
     num::NonZeroUsize,
     path::PathBuf,
-    sync::{Arc, LazyLock, Mutex, atomic::AtomicBool},
+    sync::{LazyLock, Mutex},
 };
+
+#[cfg(feature = "app")]
+use std::sync::{Arc, atomic::AtomicBool};
 
 use itertools::Itertools;
 
@@ -123,6 +126,14 @@ pub enum Error {
         game: String,
         cli: Box<StrictPath>,
         configured: Box<StrictPath>,
+    },
+    WinePrefixAmbiguity {
+        game: String,
+        candidates: Vec<StrictPath>,
+    },
+    WineUserAmbiguity {
+        game: String,
+        candidates: Vec<String>,
     },
     GameDidNotLaunch {
         why: String,

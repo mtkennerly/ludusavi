@@ -68,3 +68,51 @@ When restoring a semantic backup:
 Semantic backups use `pathFormat: semantic-v1` in `mapping.yaml`
 and store files under a `__ludusavi_semantic__/` namespace
 within the backup folder.
+
+### Multi-prefix context metadata
+
+When a game's saves come from multiple Wine prefixes (e.g., two different Heroic
+installations), the backup stores **context metadata** to track which prefix each
+file originated from. This ensures that:
+
+- Files from different prefixes don't collide when they share the same semantic key
+- On restore, each file returns to its correct prefix
+
+**Mapping key format:**
+
+| Type | Format | Example |
+|------|--------|---------|
+| No context | `<baseName>/<tail>` | `<winDocuments>/Game/save.dat` |
+| With context | `__ludusavi_context__/<N>/<baseName>/<tail>` | `__ludusavi_context__/0/<winDocuments>/Game/save.dat` |
+| Legacy absolute | Anything else | `C:\Users\me\Documents\Game\save.dat` |
+
+**Storage path format:**
+
+| Type | Storage path |
+|------|-------------|
+| No context | `__ludusavi_semantic__/<baseName>/<tail>` |
+| With context | `__ludusavi_context__/<N>/__ludusavi_semantic__/<baseName>/<tail>` |
+
+Context IDs (`<N>`) are assigned deterministically by sorting prefixes
+canonically by `(prefix_path, wine_user)`. Single-prefix backups use plain
+semantic keys (no context prefix) but still store the source prefix info in
+`mapping.yaml` under `pathContexts` for future cross-machine restore.
+
+The `pathContexts` field in `mapping.yaml` maps context IDs to prefix metadata:
+
+```yaml
+pathContexts:
+  0:
+    prefixPath: /home/deck/Prefixes/Game1
+    wineUser: steamuser
+    driveMappings:
+      z: /home/deck/Prefixes/Game1/dosdevices/z
+  1:
+    prefixPath: /home/user/.wine
+    wineUser: user
+```
+
+Only `FullBackup` entries store `pathContexts`. `DifferentialBackup` entries
+reference context IDs defined in their parent full backup. If a scan's
+non-empty context metadata differs from the parent full backup, Ludusavi
+forces a new full backup.
