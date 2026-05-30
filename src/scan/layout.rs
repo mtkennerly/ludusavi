@@ -3661,7 +3661,7 @@ mod tests {
             assert_eq!(Some(0), scanned.mapping_context_id);
             assert_eq!(
                 Some("<winDocuments>/Game/save.dat"),
-                scanned.original_path.as_ref().map(|x| x.raw()).as_deref()
+                scanned.original_path.as_ref().map(|x| x.raw())
             );
             assert_eq!(
                 Some("No semantic restore target is available"),
@@ -4622,7 +4622,7 @@ mod tests {
             assert_eq!(Some(0), scanned.mapping_context_id);
             assert_eq!(
                 Some("<winDocuments>/Game/save.dat"),
-                scanned.original_path.as_ref().map(|x| x.raw()).as_deref()
+                scanned.original_path.as_ref().map(|x| x.raw())
             );
             assert_eq!(
                 Some("No semantic restore target is available"),

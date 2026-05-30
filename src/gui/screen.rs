@@ -14,7 +14,9 @@ use crate::{
         search::CustomGamesFilter,
         shortcuts::TextHistories,
         style,
-        widget::{Button, Column, Container, Element, IcedParentExt, Row, checkbox, number_input, pick_list, text},
+        widget::{
+            Button, Column, Container, Element, IcedParentExt, Row, TextInput, checkbox, number_input, pick_list, text,
+        },
     },
     lang::{Language, TRANSLATOR},
     prelude::{AVAILABLE_PARALELLISM, STEAM_DECK},
@@ -580,6 +582,11 @@ pub fn other<'a>(
                                     TRANSLATOR.skip_unconstructive_backups(),
                                     config.backup.only_constructive,
                                     Message::config(config::Event::OnlyConstructiveBackups),
+                                )))
+                                .push(Row::new().spacing(5).align_y(Alignment::Center).push(checkbox(
+                                    TRANSLATOR.portable_backups(),
+                                    config.backup.semantic_paths,
+                                    Message::config(config::Event::SemanticPaths),
                                 ))),
                         )
                         .class(style::Container::GameListEntry),
@@ -719,7 +726,46 @@ pub fn other<'a>(
                     Column::new()
                         .push(text(TRANSLATOR.redirects_label()))
                         .push(editor::redirect(config, histories, modifiers).padding(padding::top(10))),
-                );
+                )
+                .push_if(!config.restore.preferred_wine_prefixes.is_empty(), || {
+                    Column::new()
+                        .spacing(5)
+                        .push(text(TRANSLATOR.preferred_wine_prefixes_label()))
+                        .push(
+                            Container::new(config.restore.preferred_wine_prefixes.iter().fold(
+                                Column::new().spacing(4),
+                                |col, (game, pref)| {
+                                    let game_name = game.clone();
+                                    let game_name2 = game.clone();
+                                    col.push(
+                                        Row::new()
+                                            .align_y(iced::Alignment::Center)
+                                            .spacing(20)
+                                            .push(text(game.as_str()).width(200))
+                                            .push(
+                                                TextInput::new("", &pref.path.render())
+                                                    .on_input(move |value| Message::Config {
+                                                        event: config::Event::PreferredWinePrefixPath(
+                                                            game_name.clone(),
+                                                            value,
+                                                        ),
+                                                    })
+                                                    .padding(5),
+                                            )
+                                            .push(
+                                                Button::new(text("X"))
+                                                    .on_press(Message::Config {
+                                                        event: config::Event::PreferredWinePrefixRemove(game_name2),
+                                                    })
+                                                    .padding(5),
+                                            ),
+                                    )
+                                },
+                            ))
+                            .padding(5)
+                            .class(style::Container::GameListEntry),
+                        )
+                });
             ScrollSubject::Other.into_widget(content)
         });
 

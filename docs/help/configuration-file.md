@@ -35,6 +35,19 @@ but Ludusavi rejects it if it conflicts with a saved preference for the game.
 It is used when no per-game preference, source context, custom game winePrefix,
 or launcher-discovered prefix applies.
 
+### CLI interaction with preferred prefixes
+
+- `--wine-prefix <path>` — Override the target Wine prefix for this restore.
+  Must match the saved preference if one exists for the game.
+- `--wine-user <name>` — Override the Wine user profile when the prefix has
+  multiple users (e.g., `steamuser`).
+- `--persist-wine-prefix` — Save the chosen prefix as the game's preferred
+  prefix in `restore.preferredWinePrefixes`. Only applies to single-game
+  restores.
+
+In the GUI, your prefix selection during interactive restore is automatically
+saved per-game. No additional flags are needed.
+
 ### Wine prefix resolver priority
 
 When restoring a portable Windows/Wine backup, Ludusavi resolves the target

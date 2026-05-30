@@ -711,7 +711,7 @@ new full backup may change which older full chains are retained.
 
 ## Implementation phases
 
-### Phase 1: Windows/Wine semantic file paths
+### Phase 1: [x] Windows/Wine semantic file paths
 
 Add a semantic path type, for example:
 
@@ -775,7 +775,7 @@ through the selected prefix's Windows-view path, such as
 filesystem will place the file at the symlink target while Ludusavi still keeps
 the semantic identity as `<winDocuments>`.
 
-### Phase 2: Preserve physical and semantic paths during scanning
+### Phase 2: [x] Preserve physical and semantic paths during scanning
 
 Replace the current assumption that one `StrictPath` is enough to represent a
 scanned file.
@@ -848,7 +848,7 @@ the changed key.
 For restore previews, the selectable row should be keyed by the semantic source,
 while the rendered target shows the materialized and redirected physical path.
 
-### Phase 3: Restore materialization
+### Phase 3: [x] Restore materialization
 
 When reading a semantic backup:
 
@@ -864,7 +864,7 @@ The UI and CLI preview should show both:
 - the current physical target, such as
   `/home/deck/Prefixes/Game/drive_c/users/steamuser/Documents/Game/save.dat`.
 
-### Phase 4: Warnings and foreign-platform handling
+### Phase 4: [x] Warnings and foreign-platform handling
 
 Use semantic identity to expose explicit comparison signals for #490:
 
@@ -887,7 +887,7 @@ Behavior should follow from those signals:
 - `ambiguousMaterialization` should block restore for that key until the user
   chooses a target.
 
-### Phase 4.5: Preview and dry-run analysis
+### Phase 4.5: [x] Preview and dry-run analysis
 
 Before migration tooling exists, preview should expose what semantic mode would
 do without writing anything:
@@ -958,6 +958,23 @@ restore:
 When materializing `<<winDrive-d>>/path/to/save` and no matching `dosdevices`
 symlink exists, fall back to the configured mapping. If neither exists, raise
 an actionable error suggesting the user configure a mapping.
+
+### Remaining work
+
+The core semantic-path engine (Phases 1–4.5) is implemented. The following
+items have been completed to make the feature fully user-facing:
+
+- [x] **Interactive Wine prefix selection.** When automatic prefix resolution
+  cannot decide (ambiguous candidates or no prefix found), the GUI prompts
+  the user to choose a prefix. The choice is persisted per-game in
+  `restore.preferredWinePrefixes`.
+- [x] **GUI toggle for portable backups.** A checkbox in backup settings to
+  enable/disable `backup.semanticPaths` (off by default).
+- [x] **Per-game preferred prefix editor.** A minimal editor in the "Other"
+  settings screen to view, edit, or remove saved per-game prefix preferences.
+- [x] **End-user documentation.** Help docs explaining the opt-in workflow,
+  the prefix-selection behavior, and the `semantic-v1` backup structure.
+- [x] **Verification.** Full build/test/clippy/fmt pass with all new code.
 
 ### Out of scope for this work
 

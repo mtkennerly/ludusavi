@@ -718,6 +718,10 @@ impl Translator {
         translate("semantic-format-switch-notice")
     }
 
+    pub fn semantic_prefix_ambiguous(&self) -> String {
+        translate("semantic-prefix-ambiguous")
+    }
+
     pub fn semantic_prefix_invalid(&self, path: &str) -> String {
         let mut args = FluentArgs::new();
         args.set(PATH, path);
@@ -734,6 +738,27 @@ impl Translator {
         let mut args = FluentArgs::new();
         args.set(KEY, key);
         translate_args("semantic-key-conflict", &args)
+    }
+
+    pub fn wine_prefix_selection_prompt(&self, game: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(GAME, game);
+        translate_args("wine-prefix-selection-prompt", &args)
+    }
+
+    pub fn wine_prefix_missing_warning(&self, game: &str, path: &str) -> String {
+        let mut args = FluentArgs::new();
+        args.set(GAME, game);
+        args.set(PATH, path);
+        translate_args("wine-prefix-missing-warning", &args)
+    }
+
+    pub fn wine_prefix_invalid_selection(&self) -> String {
+        translate("wine-prefix-invalid-selection")
+    }
+
+    pub fn preferred_wine_prefixes_label(&self) -> String {
+        translate("preferred-wine-prefixes-label")
     }
 
     pub fn semantic_preview_would_become(&self, legacy: &str, semantic: &str) -> String {
@@ -1456,6 +1481,14 @@ impl Translator {
 
     pub fn skip_unconstructive_backups(&self) -> String {
         translate("skip-unconstructive-backups")
+    }
+
+    pub fn portable_backups(&self) -> String {
+        translate("portable-backups")
+    }
+
+    pub fn portable_backups_tooltip(&self) -> String {
+        translate("portable-backups-tooltip")
     }
 
     pub fn total_games(&self) -> String {

@@ -85,6 +85,8 @@ pub enum RestorePhase {
         backup_info: Option<BackupInfo>,
         game_layout: Box<GameLayout>,
         error: Option<Error>,
+        #[allow(dead_code)]
+        needs_prefix: Option<crate::semantic::restore_prompt::PrefixSelectionRequest>,
     },
     Done,
 }
@@ -212,6 +214,17 @@ pub enum Message {
     ShowScanActiveGames,
     CopyText(String),
     OpenRegistry(RegistryItem),
+    ConfirmWinePrefixSelection {
+        game: String,
+        prefix: StrictPath,
+        wine_user: Option<String>,
+    },
+    SelectWinePrefixCandidate {
+        index: usize,
+    },
+    WinePrefixSelected {
+        path: StrictPath,
+    },
 }
 
 impl Message {
@@ -238,6 +251,16 @@ impl Message {
                 ),
                 BrowseSubject::BackupFilterIgnoredPath(i) => {
                     config::Event::BackupFilterIgnoredPath(EditAction::Change(i, crate::path::render_pathbuf(&path)))
+                }
+                BrowseSubject::WinePrefixSelection => {
+                    return Message::WinePrefixSelected {
+                        path: StrictPath::from(path),
+                    };
+                }
+                BrowseSubject::PreferredWinePrefix(game) => {
+                    return Message::Config {
+                        event: config::Event::PreferredWinePrefixPath(game, crate::path::render_pathbuf(&path)),
+                    };
                 }
             }
             .into(),
@@ -684,6 +707,9 @@ pub enum BrowseSubject {
     RedirectTarget(usize),
     CustomGameFile(usize, usize),
     BackupFilterIgnoredPath(usize),
+    WinePrefixSelection,
+    #[allow(dead_code)]
+    PreferredWinePrefix(String),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -719,6 +745,8 @@ pub enum UndoSubject {
     CloudPath,
     ModalField(ModalInputKind),
     BackupComment(String),
+    #[allow(dead_code)]
+    PreferredWinePrefix(String),
 }
 
 impl UndoSubject {
@@ -746,7 +774,8 @@ impl UndoSubject {
             | UndoSubject::RcloneArguments
             | UndoSubject::CloudRemoteId
             | UndoSubject::CloudPath
-            | UndoSubject::BackupComment(_) => Privacy::Public,
+            | UndoSubject::BackupComment(_)
+            | UndoSubject::PreferredWinePrefix(_) => Privacy::Public,
             UndoSubject::ModalField(field) => match field {
                 ModalInputKind::Url | ModalInputKind::Host | ModalInputKind::Port | ModalInputKind::Username => {
                     Privacy::Public

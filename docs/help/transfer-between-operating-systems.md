@@ -17,6 +17,7 @@ When a game's saves are stored under standard Windows locations
 (Documents, AppData, ProgramData, etc.),
 Ludusavi automatically uses a portable semantic path format
 that works across Windows and Wine environments.
+This feature is off by default; enable it with `backup.semanticPaths: true` in your configuration.
 
 This means:
 
@@ -40,6 +41,30 @@ Wine prefix paths are intentionally excluded from the backup identity.
   `--wine-prefix` value must match that saved preference for the game;
   otherwise Ludusavi stops instead of silently restoring into a different
   prefix.
+
+### Interactive prefix selection
+
+When restoring a portable Windows/Wine backup on Linux, Ludusavi may need
+your input to choose the right Wine prefix for each game. This happens in
+these situations:
+
+- **Multiple prefixes found:** Several Wine prefixes contain the game.
+  Ludusavi shows a list of candidates so you can pick one.
+- **No prefix found:** Ludusavi cannot locate a prefix for the game.
+  You can browse to select one manually.
+- **Multiple Wine users:** The chosen prefix has more than one user profile
+  (e.g., `steamuser` and `user`). You pick which one to restore to.
+- **Saved prefix missing:** A previously saved preferred prefix no longer
+  exists on this system. You can browse for a replacement.
+
+In the GUI, Ludusavi prompts you for each game after all scans complete.
+Your choice is saved as the game's preferred prefix so you are not prompted
+again on the next restore.
+
+In the CLI, use `--wine-prefix <path>` to specify the prefix and
+`--wine-user <name>` to select the Wine user. Add `--persist-wine-prefix`
+to save the chosen prefix as the game's preferred prefix for future
+restores.
 
 ### Limitations
 

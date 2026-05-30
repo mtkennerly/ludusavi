@@ -42,7 +42,9 @@ use crate::{
 };
 
 #[cfg(not(target_os = "windows"))]
-use crate::semantic::materialize::{build_context_targets, resolve_wine_prefix_without_cli};
+use crate::semantic::materialize::build_context_targets;
+#[cfg(not(target_os = "windows"))]
+use crate::semantic::restore_prompt::{ResolutionOutcome, decide_prefix_resolution};
 
 #[cfg(target_os = "windows")]
 use crate::semantic::materialize::known_folders_from_common_path;
@@ -123,6 +125,8 @@ pub struct App {
     pending_save: HashMap<SaveKind, Instant>,
     modifiers: keyboard::Modifiers,
     jump_to_game_after_scan: Option<String>,
+    pending_prefix_selections: Vec<crate::semantic::restore_prompt::PrefixSelectionRequest>,
+    resolved_prefix_games: Vec<String>,
 }
 
 impl App {
@@ -135,6 +139,8 @@ impl App {
         self.operation = Operation::Idle;
         self.operation_steps.clear();
         self.operation_steps_active = 0;
+        self.pending_prefix_selections.clear();
+        self.resolved_prefix_games.clear();
         self.close_specific_modal_alt(modal::Kind::ActiveScanGames);
         self.progress.reset();
         self.operation_should_cancel
@@ -969,24 +975,58 @@ impl App {
                                     if scan_info.path_contexts.len() == 1 {
                                         context_targets.values().next().cloned()
                                     } else {
-                                        match resolve_wine_prefix_without_cli(
+                                        match decide_prefix_resolution(
                                             &config,
                                             &name,
                                             &game_wine_prefixes,
+                                            None,
                                             &launchers,
                                             &config.roots,
                                             None,
+                                            false,
                                         ) {
-                                            Ok(Some(prefix)) => Some(ResolvedMaterializeTarget::WinePrefix {
-                                                wine_user: prefix.wine_user.clone(),
-                                                drive_mappings: prefix.drive_mappings.clone(),
-                                                prefix,
-                                            }),
-                                            Ok(None) => None,
-                                            Err(error) => {
-                                                log::trace!("restore step completed (wine prefix conflict): {error:?}");
-                                                return (Some(scan_info), None, layout, Some(error));
+                                            Some(ResolutionOutcome::Resolved { prefix }) => {
+                                                Some(ResolvedMaterializeTarget::WinePrefix {
+                                                    wine_user: prefix.wine_user.clone(),
+                                                    drive_mappings: prefix.drive_mappings.clone(),
+                                                    prefix,
+                                                })
                                             }
+                                            Some(ResolutionOutcome::Ambiguous { candidates }) => {
+                                                return (
+                                                    Some(scan_info),
+                                                    None,
+                                                    layout,
+                                                    Some(Error::WinePrefixAmbiguity {
+                                                        game: name.clone(),
+                                                        candidates,
+                                                    }),
+                                                );
+                                            }
+                                            Some(ResolutionOutcome::AmbiguousUser { candidates }) => {
+                                                return (
+                                                    Some(scan_info),
+                                                    None,
+                                                    layout,
+                                                    Some(Error::WineUserAmbiguity {
+                                                        game: name.clone(),
+                                                        candidates,
+                                                    }),
+                                                );
+                                            }
+                                            Some(ResolutionOutcome::Conflict { game, cli, configured }) => {
+                                                return (
+                                                    Some(scan_info),
+                                                    None,
+                                                    layout,
+                                                    Some(Error::WinePrefixConflict {
+                                                        game,
+                                                        cli: Box::new(cli),
+                                                        configured: Box::new(configured),
+                                                    }),
+                                                );
+                                            }
+                                            _ => None,
                                         }
                                     }
                                 } else {
@@ -1021,6 +1061,7 @@ impl App {
                                     backup_info,
                                     game_layout: Box::new(game_layout),
                                     error,
+                                    needs_prefix: None,
                                 })
                             },
                         ),
@@ -1041,6 +1082,7 @@ impl App {
                 backup_info,
                 game_layout,
                 error,
+                needs_prefix: _,
             } => {
                 self.progress.step();
                 let full = self.operation.full();
@@ -1053,6 +1095,50 @@ impl App {
                         scan_info.game_name
                     );
                     self.operation.remove_active_game(&scan_info.game_name);
+
+                    // Detect NoCandidate/StalePreference: semantic files with no materialization target.
+                    #[cfg(not(target_os = "windows"))]
+                    if error.is_none() {
+                        let has_unmaterialized = scan_info.found_files.values().any(|f| {
+                            f.semantic_key.is_some()
+                                && f.original_path.is_none()
+                                && f.restore_error.as_deref() == Some("No semantic restore target is available")
+                        });
+                        if has_unmaterialized {
+                            // Check if this is a stale preference (saved prefix no longer valid).
+                            let display_name = self.config.display_name(&scan_info.game_name);
+                            let kind = if let Some(pref) = crate::semantic::materialize::preferred_wine_prefix_for_game(
+                                &self.config,
+                                &scan_info.game_name,
+                            ) {
+                                if crate::semantic::prefix::validate_prefix(&pref.path).is_none() {
+                                    log::info!(
+                                        "game '{}' has stale preferred prefix: {}",
+                                        scan_info.game_name,
+                                        pref.path.render()
+                                    );
+                                    crate::semantic::restore_prompt::PrefixSelectionKind::SavedPrefixMissing {
+                                        saved: pref.path.clone(),
+                                    }
+                                } else {
+                                    crate::semantic::restore_prompt::PrefixSelectionKind::NoPrefix
+                                }
+                            } else {
+                                log::info!(
+                                    "game '{}' has semantic files with no restore target",
+                                    scan_info.game_name
+                                );
+                                crate::semantic::restore_prompt::PrefixSelectionKind::NoPrefix
+                            };
+                            self.pending_prefix_selections.push(
+                                crate::semantic::restore_prompt::PrefixSelectionRequest {
+                                    game: display_name.to_string(),
+                                    kind,
+                                },
+                            );
+                        }
+                    }
+
                     if scan_info.can_report_game() {
                         if let Some(backup_info) = backup_info.as_ref() {
                             scan_info.clear_processed_changes(backup_info, SCAN_KIND);
@@ -1099,7 +1185,19 @@ impl App {
                     );
                 }
                 if let Some(error) = error {
-                    self.operation.push_error(error);
+                    // Check if this is a prefix resolution error that needs user input.
+                    let prefix_request = crate::semantic::restore_prompt::error_to_resolution_outcome(&error).and_then(
+                        |(game, outcome)| {
+                            crate::semantic::restore_prompt::outcome_to_selection_request(&game, &outcome)
+                        },
+                    );
+
+                    if let Some(request) = prefix_request {
+                        log::info!("game '{}' needs prefix selection: {:?}", request.game, request.kind);
+                        self.pending_prefix_selections.push(request);
+                    } else {
+                        self.operation.push_error(error);
+                    }
                 }
 
                 match self.operation_steps.pop() {
@@ -1110,6 +1208,15 @@ impl App {
                     None => {
                         self.operation_steps_active -= 1;
                         if self.operation_steps_active == 0 {
+                            // Before finishing, check if any games need prefix selection.
+                            if !self.pending_prefix_selections.is_empty() {
+                                let first = self.pending_prefix_selections[0].clone();
+                                return self.show_modal(Modal::WinePrefixSelection {
+                                    game: first.game,
+                                    kind: first.kind,
+                                    selected: None,
+                                });
+                            }
                             self.handle_restore(RestorePhase::Done)
                         } else {
                             Task::none()
@@ -2119,6 +2226,17 @@ impl App {
                             entry.scan_info.only_constructive_backups = value;
                         }
                     }
+                    config::Event::SemanticPaths(value) => {
+                        self.config.backup.semantic_paths = value;
+                    }
+                    config::Event::PreferredWinePrefixPath(game, value) => {
+                        if let Some(pref) = self.config.restore.preferred_wine_prefixes.get_mut(&game) {
+                            pref.path = StrictPath::new(&value);
+                        }
+                    }
+                    config::Event::PreferredWinePrefixRemove(game) => {
+                        self.config.restore.preferred_wine_prefixes.remove(&game);
+                    }
                 }
 
                 self.save_config();
@@ -2532,6 +2650,8 @@ impl App {
                         StrictPath::new(self.config.custom_games[i].files[j].clone())
                     }
                     BrowseSubject::BackupFilterIgnoredPath(i) => self.config.backup.filter.ignored_paths[i].clone(),
+                    BrowseSubject::WinePrefixSelection => return Task::none(),
+                    BrowseSubject::PreferredWinePrefix(_) => return Task::none(),
                 };
 
                 match path.parent_if_file() {
@@ -2701,6 +2821,9 @@ impl App {
                             ModalInputKind::Password => self.text_histories.modal.password.apply(shortcut),
                         }
                         return Task::none();
+                    }
+                    UndoSubject::PreferredWinePrefix(_game) => {
+                        // Per-game preferred prefix editing is handled via config events
                     }
                     UndoSubject::BackupComment(game) => {
                         if let Some(info) = self.text_histories.backup_comments.get_mut(&game) {
@@ -3066,6 +3189,79 @@ impl App {
                             log::error!("Failed to open Regedit: {e:?}");
                             return Task::none();
                         }
+                    }
+                }
+                Task::none()
+            }
+            Message::ConfirmWinePrefixSelection {
+                game,
+                prefix,
+                wine_user,
+            } => {
+                // Validate the prefix before saving
+                if crate::semantic::prefix::validate_prefix(&prefix).is_none() {
+                    return self.show_modal(Modal::Error {
+                        variant: Error::ConfigInvalid {
+                            why: crate::lang::TRANSLATOR.wine_prefix_invalid_selection(),
+                        },
+                    });
+                }
+
+                // Save the preference
+                self.config.restore.preferred_wine_prefixes.insert(
+                    game.clone(),
+                    crate::resource::config::GameWinePrefixPreference {
+                        path: prefix,
+                        wine_user,
+                        drive_mappings: std::collections::BTreeMap::new(),
+                    },
+                );
+                self.save_config();
+
+                // Close the modal and process next pending selection
+                let _ = self.close_specific_modal(modal::Kind::WinePrefixSelection);
+                self.pending_prefix_selections.retain(|r| r.game != game);
+                self.resolved_prefix_games.push(game.clone());
+
+                // If more pending selections, show the next one
+                if let Some(next) = self.pending_prefix_selections.first().cloned() {
+                    let _ = self.show_modal(Modal::WinePrefixSelection {
+                        game: next.game,
+                        kind: next.kind,
+                        selected: None,
+                    });
+                    Task::none()
+                } else {
+                    // All prefix selections resolved — re-run restore for all resolved games.
+                    let games: Vec<String> = self.resolved_prefix_games.drain(..).collect();
+                    Task::done(Message::Restore(RestorePhase::Start {
+                        preview: false,
+                        games: Some(GameSelection::group(games.into_iter().collect())),
+                    }))
+                }
+            }
+            Message::SelectWinePrefixCandidate { index } => {
+                // Update the selected index in the current WinePrefixSelection modal
+                for modal in &mut self.modals {
+                    if let Modal::WinePrefixSelection { selected, .. } = modal {
+                        *selected = Some(index);
+                    }
+                }
+                Task::none()
+            }
+            Message::WinePrefixSelected { path } => {
+                // Update the path in the current WinePrefixSelection modal
+                for modal in &mut self.modals {
+                    if let Modal::WinePrefixSelection { game, kind, .. } = modal {
+                        let game = game.clone();
+                        *kind = crate::semantic::restore_prompt::PrefixSelectionKind::AmbiguousPrefix {
+                            candidates: vec![path.clone()],
+                        };
+                        return Task::done(Message::ConfirmWinePrefixSelection {
+                            game,
+                            prefix: path.clone(),
+                            wine_user: None,
+                        });
                     }
                 }
                 Task::none()

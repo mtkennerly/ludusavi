@@ -99,6 +99,9 @@ pub enum Event {
     CloudPath(String),
     SortCustomGames,
     OnlyConstructiveBackups(bool),
+    SemanticPaths(bool),
+    PreferredWinePrefixPath(String, String),
+    PreferredWinePrefixRemove(String),
 }
 
 /// Settings for `config.yaml`
@@ -2602,6 +2605,65 @@ customGames:
             .unwrap()
             .trim(),
         );
+    }
+
+    #[test]
+    fn preferred_wine_prefix_persists_through_round_trip() {
+        let mut config = Config::default();
+        config.restore.preferred_wine_prefixes.insert(
+            s("My Game"),
+            GameWinePrefixPreference {
+                path: StrictPath::new(s("/home/user/.wine")),
+                wine_user: Some(s("steamuser")),
+                drive_mappings: {
+                    let mut m = BTreeMap::new();
+                    m.insert('D', StrictPath::new(s("/mnt/games")));
+                    m
+                },
+            },
+        );
+        config.restore.preferred_wine_prefixes.insert(
+            s("Other Game"),
+            GameWinePrefixPreference {
+                path: StrictPath::new(s("/home/user/Games/pfx")),
+                wine_user: None,
+                ..Default::default()
+            },
+        );
+
+        let yaml = serde_yaml::to_string(&config).unwrap();
+        let reloaded = Config::load_from_string(&yaml).unwrap();
+
+        assert_eq!(reloaded.restore.preferred_wine_prefixes.len(), 2);
+
+        let my_game = &reloaded.restore.preferred_wine_prefixes["My Game"];
+        assert_eq!(my_game.path.render(), "/home/user/.wine");
+        assert_eq!(my_game.wine_user.as_deref(), Some("steamuser"));
+        assert_eq!(my_game.drive_mappings.len(), 1);
+        assert_eq!(my_game.drive_mappings[&'D'].render(), "/mnt/games");
+
+        let other_game = &reloaded.restore.preferred_wine_prefixes["Other Game"];
+        assert_eq!(other_game.path.render(), "/home/user/Games/pfx");
+        assert!(other_game.wine_user.is_none());
+        assert!(other_game.drive_mappings.is_empty());
+    }
+
+    #[test]
+    fn preferred_wine_prefix_with_wine_user_serializes_correctly() {
+        let mut config = Config::default();
+        config.restore.preferred_wine_prefixes.insert(
+            s("Test Game"),
+            GameWinePrefixPreference {
+                path: StrictPath::new(s("/home/user/.wine")),
+                wine_user: Some(s("steamuser")),
+                ..Default::default()
+            },
+        );
+
+        let yaml = serde_yaml::to_string(&config).unwrap();
+        assert!(yaml.contains("preferredWinePrefixes"));
+        assert!(yaml.contains("Test Game"));
+        assert!(yaml.contains("wineUser: steamuser"));
     }
 
     mod ignored_paths {

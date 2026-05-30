@@ -35,7 +35,9 @@ use crate::{
 };
 
 #[cfg(not(target_os = "windows"))]
-use crate::semantic::materialize::{build_context_targets, resolve_wine_prefix_for_game};
+use crate::semantic::materialize::build_context_targets;
+#[cfg(not(target_os = "windows"))]
+use crate::semantic::restore_prompt::{ResolutionOutcome, decide_prefix_resolution, format_cli_prefix_message};
 
 #[cfg(target_os = "windows")]
 use crate::semantic::materialize::known_folders_from_common_path;
@@ -489,6 +491,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             force,
             no_force_cloud_conflict,
             wine_prefix,
+            wine_user,
+            persist_wine_prefix,
             api,
             gui,
             sort,
@@ -668,45 +672,124 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         HashMap::new()
                     };
 
-                    // For non-contextual semantic files: if there's exactly one path context,
-                    // use it as the fallback (avoids ambiguity on multi-prefix systems).
-                    // Otherwise resolve normally.
+                    // For non-contextual semantic files: use the pure decision function
+                    // to classify the resolution outcome, then act accordingly.
                     let has_non_contextual = scan_info
                         .found_files
                         .values()
                         .any(|f| f.semantic_key.is_some() && f.mapping_context_id.is_none());
                     let non_contextual_fallback: Option<ResolvedMaterializeTarget> = if has_non_contextual {
-                        if path_contexts.len() == 1 {
-                            // Single context: use it as fallback for non-contextual files.
+                        let decision = decide_prefix_resolution(
+                            &config,
+                            name,
+                            &game_wine_prefixes,
+                            wine_prefix.as_ref(),
+                            &launchers,
+                            &restore_roots,
+                            None,
+                            false,
+                        );
+
+                        // Early exit for stale preference: warn and skip.
+                        if let Some(ResolutionOutcome::StalePreference { .. }) = &decision {
+                            if let Some(msg) =
+                                format_cli_prefix_message(config.display_name(name), decision.as_ref().unwrap())
+                            {
+                                eprintln!("Warning: {}", msg);
+                            }
+                            None
+                        } else if path_contexts.len() == 1
+                            && !matches!(decision, Some(ResolutionOutcome::Conflict { .. }))
+                        {
+                            // Single context: use it as fallback (avoids ambiguity).
+                            // Conflict is still an error even with a single context.
                             context_targets.values().next().cloned()
                         } else {
-                            // No contexts or multiple contexts: resolve normally.
-                            match resolve_wine_prefix_for_game(
-                                &config,
-                                name,
-                                &game_wine_prefixes,
-                                wine_prefix.as_ref(),
-                                &launchers,
-                                &restore_roots,
-                                None,
-                            ) {
-                                Ok(Some(prefix)) => Some(ResolvedMaterializeTarget::WinePrefix {
-                                    wine_user: prefix.wine_user.clone(),
-                                    drive_mappings: prefix.drive_mappings.clone(),
-                                    prefix,
-                                }),
-                                Ok(None) => None,
-                                Err(error) => {
-                                    log::trace!("step {i} completed (wine prefix conflict)");
+                            match decision {
+                                Some(ResolutionOutcome::Resolved { mut prefix }) => {
+                                    if let Some(ref user) = wine_user {
+                                        prefix.wine_user.clone_from(user);
+                                    }
+                                    Some(ResolvedMaterializeTarget::WinePrefix {
+                                        wine_user: prefix.wine_user.clone(),
+                                        drive_mappings: prefix.drive_mappings.clone(),
+                                        prefix,
+                                    })
+                                }
+                                Some(ResolutionOutcome::NoCandidate) => {
+                                    if let Some(msg) =
+                                        format_cli_prefix_message(config.display_name(name), decision.as_ref().unwrap())
+                                    {
+                                        eprintln!("Warning: {}", msg);
+                                    }
+                                    None
+                                }
+                                Some(ResolutionOutcome::Ambiguous { ref candidates }) => {
+                                    log::trace!("step {i} completed (wine prefix ambiguity)");
                                     let display_title = config.display_name(name);
+                                    let msg = format_cli_prefix_message(display_title, decision.as_ref().unwrap());
+                                    if let Some(ref msg) = msg {
+                                        eprintln!("Error: {}", msg);
+                                    }
+                                    let candidates = candidates.clone();
                                     return Some((
                                         display_title,
                                         scan_info,
                                         Default::default(),
                                         OperationStepDecision::Processed,
-                                        Some(Err(error)),
+                                        Some(Err(Error::WinePrefixAmbiguity {
+                                            game: name.to_string(),
+                                            candidates,
+                                        })),
                                     ));
                                 }
+                                Some(ResolutionOutcome::AmbiguousUser { ref candidates }) => {
+                                    log::trace!("step {i} completed (wine user ambiguity)");
+                                    let display_title = config.display_name(name);
+                                    let msg = format_cli_prefix_message(display_title, decision.as_ref().unwrap());
+                                    if let Some(ref msg) = msg {
+                                        eprintln!("Error: {}", msg);
+                                    }
+                                    let candidates = candidates.clone();
+                                    return Some((
+                                        display_title,
+                                        scan_info,
+                                        Default::default(),
+                                        OperationStepDecision::Processed,
+                                        Some(Err(Error::WineUserAmbiguity {
+                                            game: name.to_string(),
+                                            candidates,
+                                        })),
+                                    ));
+                                }
+                                Some(ResolutionOutcome::Conflict {
+                                    ref game,
+                                    ref cli,
+                                    ref configured,
+                                }) => {
+                                    log::trace!("step {i} completed (wine prefix conflict)");
+                                    let display_title = config.display_name(name);
+                                    let msg = format_cli_prefix_message(display_title, decision.as_ref().unwrap());
+                                    if let Some(ref msg) = msg {
+                                        eprintln!("Error: {}", msg);
+                                    }
+                                    let game = game.clone();
+                                    let cli = cli.clone();
+                                    let configured = configured.clone();
+                                    return Some((
+                                        display_title,
+                                        scan_info,
+                                        Default::default(),
+                                        OperationStepDecision::Processed,
+                                        Some(Err(Error::WinePrefixConflict {
+                                            game,
+                                            cli: Box::new(cli),
+                                            configured: Box::new(configured),
+                                        })),
+                                    ));
+                                }
+                                Some(ResolutionOutcome::StalePreference { .. }) => unreachable!(),
+                                None => None,
                             }
                         }
                     } else {
@@ -835,6 +918,34 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 }
             }
             reporter.print(&restore_dir);
+
+            // Persist the chosen prefix if --persist-wine-prefix is set.
+            if persist_wine_prefix {
+                if let Some(ref prefix_path) = wine_prefix {
+                    if games.len() == 1 {
+                        let game_name = &games[0];
+                        let display_name = config.display_name(game_name).to_string();
+                        config.restore.preferred_wine_prefixes.insert(
+                            display_name.clone(),
+                            crate::resource::config::GameWinePrefixPreference {
+                                path: prefix_path.clone(),
+                                wine_user: wine_user.clone(),
+                                drive_mappings: std::collections::BTreeMap::new(),
+                            },
+                        );
+                        config.save();
+                        log::info!(
+                            "Persisted preferred prefix for '{}': {}",
+                            display_name,
+                            prefix_path.render()
+                        );
+                    } else {
+                        eprintln!("Warning: --persist-wine-prefix only works with a single game. Skipping.");
+                    }
+                } else {
+                    eprintln!("Warning: --persist-wine-prefix requires --wine-prefix. Skipping.");
+                }
+            }
         }
         Subcommand::Complete { shell } => {
             let clap_shell = match shell {
@@ -1332,6 +1443,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         force: true,
                         no_force_cloud_conflict: no_force_cloud_conflict || !force,
                         wine_prefix: Default::default(),
+                        wine_user: Default::default(),
+                        persist_wine_prefix: false,
                         preview,
                         path: path.clone(),
                         api: Default::default(),

@@ -18,6 +18,7 @@ use crate::{
         widget::{Column, Container, Element, IcedParentExt, Row, Space, pick_list, text},
     },
     lang::TRANSLATOR,
+    path::StrictPath,
     prelude::{Error, Finality, SyncDirection},
     resource::{
         config::{Config, Root},
@@ -133,6 +134,7 @@ pub enum Kind {
     ConfigureWebDavRemote,
     GameNotes,
     ActiveScanGames,
+    WinePrefixSelection,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -178,6 +180,11 @@ pub enum Modal {
         notes: Vec<manifest::Note>,
     },
     ActiveScanGames,
+    WinePrefixSelection {
+        game: String,
+        kind: crate::semantic::restore_prompt::PrefixSelectionKind,
+        selected: Option<usize>,
+    },
 }
 
 impl Modal {
@@ -199,6 +206,7 @@ impl Modal {
             Modal::ConfigureWebDavRemote { .. } => Kind::ConfigureWebDavRemote,
             Modal::GameNotes { .. } => Kind::GameNotes,
             Modal::ActiveScanGames => Kind::ActiveScanGames,
+            Modal::WinePrefixSelection { .. } => Kind::WinePrefixSelection,
         }
     }
 
@@ -221,6 +229,7 @@ impl Modal {
             Modal::ConfigureWebDavRemote { .. } => false,
             Modal::GameNotes { .. } => false,
             Modal::ActiveScanGames => false,
+            Modal::WinePrefixSelection { .. } => true,
         }
     }
 
@@ -238,7 +247,8 @@ impl Modal {
             | Self::ConfigureFtpRemote { .. }
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
-            | Self::AppUpdate { .. } => ModalVariant::Confirm,
+            | Self::AppUpdate { .. }
+            | Self::WinePrefixSelection { .. } => ModalVariant::Confirm,
             Self::BackupValidation { games } => {
                 if games.is_empty() {
                     ModalVariant::Info
@@ -297,6 +307,7 @@ impl Modal {
             Self::ConfigureWebDavRemote { .. } => RemoteChoice::WebDav.to_string(),
             Self::GameNotes { game, .. } => game.clone(),
             Self::ActiveScanGames => "".to_string(),
+            Self::WinePrefixSelection { game, .. } => TRANSLATOR.wine_prefix_selection_prompt(game),
         }
     }
 
@@ -387,6 +398,24 @@ impl Modal {
                     }))
                 }
             }
+            Self::WinePrefixSelection { game, kind, selected } => match kind {
+                crate::semantic::restore_prompt::PrefixSelectionKind::AmbiguousPrefix { candidates } => selected
+                    .and_then(|i| candidates.get(i))
+                    .map(|prefix| Message::ConfirmWinePrefixSelection {
+                        game: game.clone(),
+                        prefix: prefix.clone(),
+                        wine_user: None,
+                    }),
+                crate::semantic::restore_prompt::PrefixSelectionKind::AmbiguousUser { candidates } => selected
+                    .and_then(|i| candidates.get(i))
+                    .map(|user| Message::ConfirmWinePrefixSelection {
+                        game: game.clone(),
+                        prefix: StrictPath::default(),
+                        wine_user: Some(user.clone()),
+                    }),
+                crate::semantic::restore_prompt::PrefixSelectionKind::NoPrefix => None,
+                crate::semantic::restore_prompt::PrefixSelectionKind::SavedPrefixMissing { .. } => None,
+            },
         }
     }
 
@@ -433,7 +462,8 @@ impl Modal {
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
             | Self::GameNotes { .. }
-            | Self::ActiveScanGames => vec![],
+            | Self::ActiveScanGames
+            | Self::WinePrefixSelection { .. } => vec![],
         }
     }
 
@@ -554,6 +584,45 @@ impl Modal {
                     col = col.align_x(Alignment::Start).spacing(2);
                 }
             }
+            Self::WinePrefixSelection {
+                game,
+                kind,
+                selected: _,
+            } => match kind {
+                crate::semantic::restore_prompt::PrefixSelectionKind::AmbiguousPrefix { candidates } => {
+                    col = col.push(text(TRANSLATOR.semantic_prefix_ambiguous()));
+                    for (i, candidate) in candidates.iter().enumerate() {
+                        let label = candidate.render();
+                        col = col.push(button::primary(
+                            label,
+                            Some(Message::SelectWinePrefixCandidate { index: i }),
+                        ));
+                    }
+                }
+                crate::semantic::restore_prompt::PrefixSelectionKind::AmbiguousUser { candidates } => {
+                    col = col.push(text(TRANSLATOR.wine_user_ambiguity(game, candidates)));
+                    for (i, candidate) in candidates.iter().enumerate() {
+                        col = col.push(button::primary(
+                            candidate.clone(),
+                            Some(Message::SelectWinePrefixCandidate { index: i }),
+                        ));
+                    }
+                }
+                crate::semantic::restore_prompt::PrefixSelectionKind::NoPrefix => {
+                    col = col.push(text(TRANSLATOR.wine_prefix_selection_prompt(game)));
+                    col = col.push(button::choose_folder(
+                        crate::gui::common::BrowseSubject::WinePrefixSelection,
+                        &iced::keyboard::Modifiers::default(),
+                    ));
+                }
+                crate::semantic::restore_prompt::PrefixSelectionKind::SavedPrefixMissing { saved } => {
+                    col = col.push(text(TRANSLATOR.wine_prefix_missing_warning(game, &saved.render())));
+                    col = col.push(button::choose_folder(
+                        crate::gui::common::BrowseSubject::WinePrefixSelection,
+                        &iced::keyboard::Modifiers::default(),
+                    ));
+                }
+            },
         }
 
         col
@@ -625,7 +694,8 @@ impl Modal {
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
             | Self::GameNotes { .. }
-            | Self::ActiveScanGames => (),
+            | Self::ActiveScanGames
+            | Self::WinePrefixSelection { .. } => (),
         }
     }
 
@@ -664,7 +734,8 @@ impl Modal {
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
             | Self::GameNotes { .. }
-            | Self::ActiveScanGames => (),
+            | Self::ActiveScanGames
+            | Self::WinePrefixSelection { .. } => (),
         }
     }
 
@@ -687,7 +758,8 @@ impl Modal {
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
             | Self::GameNotes { .. }
-            | Self::ActiveScanGames => (),
+            | Self::ActiveScanGames
+            | Self::WinePrefixSelection { .. } => (),
         }
     }
 
@@ -708,7 +780,8 @@ impl Modal {
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
             | Self::GameNotes { .. }
-            | Self::ActiveScanGames => false,
+            | Self::ActiveScanGames
+            | Self::WinePrefixSelection { .. } => false,
         }
     }
 
@@ -729,7 +802,8 @@ impl Modal {
             | Self::ConfigureSmbRemote { .. }
             | Self::ConfigureWebDavRemote { .. }
             | Self::GameNotes { .. }
-            | Self::ActiveScanGames => 2,
+            | Self::ActiveScanGames
+            | Self::WinePrefixSelection { .. } => 2,
         }
     }
 

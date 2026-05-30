@@ -3,6 +3,7 @@ pub mod convert;
 pub mod materialize;
 pub mod prefix;
 pub mod preview;
+pub mod restore_prompt;
 pub mod signals;
 
 use std::fmt;

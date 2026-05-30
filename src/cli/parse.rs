@@ -268,6 +268,17 @@ pub enum Subcommand {
         #[clap(long, value_parser = parse_strict_path)]
         wine_prefix: Option<StrictPath>,
 
+        /// Wine user profile to use when multiple exist in the prefix.
+        /// If not specified and multiple users are found, the restore will fail
+        /// with an actionable error listing the candidates.
+        #[clap(long)]
+        wine_user: Option<String>,
+
+        /// Persist the chosen --wine-prefix and --wine-user as the per-game
+        /// preferred prefix in the config file after a successful restore.
+        #[clap(long)]
+        persist_wine_prefix: bool,
+
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
         #[clap(long)]
@@ -1146,6 +1157,8 @@ mod tests {
                     force: false,
                     no_force_cloud_conflict: false,
                     wine_prefix: None,
+                    wine_user: None,
+                    persist_wine_prefix: false,
                     api: false,
                     gui: false,
                     sort: None,
@@ -1198,6 +1211,8 @@ mod tests {
                     force: true,
                     no_force_cloud_conflict: true,
                     wine_prefix: None,
+                    wine_user: None,
+                    persist_wine_prefix: false,
                     api: true,
                     gui: false,
                     sort: Some(CliSort::Name),
@@ -1244,6 +1259,8 @@ mod tests {
                         force: false,
                         no_force_cloud_conflict: false,
                         wine_prefix: None,
+                        wine_user: None,
+                        persist_wine_prefix: false,
                         api: false,
                         gui: false,
                         sort: Some(sort),

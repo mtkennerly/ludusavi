@@ -377,6 +377,7 @@ impl TextHistories {
                 ModalInputKind::Password => self.modal.password.current(),
             },
             UndoSubject::BackupComment(game) => self.backup_comments.get(game).map(|x| x.current()).unwrap_or_default(),
+            UndoSubject::PreferredWinePrefix(_game) => "".to_string(),
         };
 
         let event: Box<dyn Fn(String) -> Message> = match subject.clone() {
@@ -445,6 +446,12 @@ impl TextHistories {
             }),
             // TODO: This is now handled separately with a `TextEditor`.
             UndoSubject::BackupComment(_) => Box::new(|_| Message::Ignore),
+            UndoSubject::PreferredWinePrefix(game) => {
+                let game = game.clone();
+                Box::new(move |value| Message::Config {
+                    event: config::Event::PreferredWinePrefixPath(game.clone(), value),
+                })
+            }
         };
 
         let placeholder = match &subject {
@@ -472,6 +479,7 @@ impl TextHistories {
             UndoSubject::CloudPath => "".to_string(),
             UndoSubject::ModalField(_) => "".to_string(),
             UndoSubject::BackupComment(_) => TRANSLATOR.comment_label(),
+            UndoSubject::PreferredWinePrefix(_) => "".to_string(),
         };
 
         let icon = match &subject {
@@ -499,7 +507,8 @@ impl TextHistories {
             | UndoSubject::CloudRemoteId
             | UndoSubject::CloudPath
             | UndoSubject::ModalField(_)
-            | UndoSubject::BackupComment(_) => None,
+            | UndoSubject::BackupComment(_)
+            | UndoSubject::PreferredWinePrefix(_) => None,
         };
 
         let id = match &subject {

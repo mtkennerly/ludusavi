@@ -105,7 +105,7 @@ pub fn discover_all_valid_prefixes(candidates: &[StrictPath]) -> Vec<ValidatedPr
     candidates.iter().filter_map(validate_prefix).collect()
 }
 
-fn preferred_wine_prefix_for_game<'a>(
+pub fn preferred_wine_prefix_for_game<'a>(
     config: &'a Config,
     game: &str,
 ) -> Option<&'a crate::resource::config::GameWinePrefixPreference> {
@@ -541,6 +541,8 @@ pub fn materialize_and_fixup(
                         file.restore_error = Some(format!("{e}"));
                     }
                 }
+            } else {
+                file.restore_error = Some("No semantic restore target is available".to_string());
             }
         }
     }
@@ -1332,5 +1334,219 @@ mod tests {
             file.original_path.as_ref().map(|x| x.render()).as_deref()
         );
         assert!(file.restore_error.is_none());
+    }
+
+    /// Req 13.1: Multi-prefix same-game round-trip.
+    /// Two files from different Wine prefixes restore to their correct per-context targets.
+    #[test]
+    fn e2e_multi_prefix_restore_to_correct_context_targets() {
+        use crate::resource::config::ToggledPaths;
+        use crate::scan::ScanInfo;
+        use crate::scan::ScannedFile;
+        use crate::scan::layout::PathContext;
+        use std::collections::{BTreeMap, HashMap};
+
+        let semantic1 = SemanticPath {
+            base: SemanticBase::WinDocuments,
+            tail: "MyGame/save.dat".to_string(),
+        };
+        let semantic2 = SemanticPath {
+            base: SemanticBase::WinAppData,
+            tail: "MyGame/settings.cfg".to_string(),
+        };
+
+        // Two different source prefixes.
+        let ctx0 = PathContext {
+            prefix_path: "/home/deck/.wine".to_string(),
+            wine_user: "steamuser".to_string(),
+            drive_mappings: BTreeMap::new(),
+        };
+        let ctx1 = PathContext {
+            prefix_path: "/home/deck/.wine-alt".to_string(),
+            wine_user: "steamuser".to_string(),
+            drive_mappings: BTreeMap::new(),
+        };
+
+        let mut path_contexts = BTreeMap::new();
+        path_contexts.insert(0, ctx0.clone());
+        path_contexts.insert(1, ctx1.clone());
+
+        let mut scan_info = ScanInfo {
+            game_name: "MyGame".to_string(),
+            found_files: HashMap::new(),
+            path_contexts: path_contexts.clone(),
+            ..Default::default()
+        };
+
+        // File from context 0
+        scan_info.found_files.insert(
+            StrictPath::new("scan_key_0"),
+            ScannedFile {
+                semantic_key: Some(semantic1),
+                mapping_context_id: Some(0),
+                original_path: Some(StrictPath::new("<winDocuments>/MyGame/save.dat")),
+                hash: "abc".to_string(),
+                ..Default::default()
+            },
+        );
+        // File from context 1
+        scan_info.found_files.insert(
+            StrictPath::new("scan_key_1"),
+            ScannedFile {
+                semantic_key: Some(semantic2),
+                mapping_context_id: Some(1),
+                original_path: Some(StrictPath::new("<winAppData>/MyGame/settings.cfg")),
+                hash: "def".to_string(),
+                ..Default::default()
+            },
+        );
+
+        // Build context targets: each context maps to its own prefix.
+        let prefix0 = make_wine_prefix(); // /home/deck/Prefixes/Game
+        let mut prefix1 = make_wine_prefix();
+        prefix1.path = StrictPath::new("/home/deck/Prefixes/GameAlt");
+
+        let mut context_targets = HashMap::new();
+        context_targets.insert(
+            0,
+            ResolvedMaterializeTarget::WinePrefix {
+                prefix: prefix0.clone(),
+                wine_user: "steamuser".to_string(),
+                drive_mappings: HashMap::new(),
+            },
+        );
+        context_targets.insert(
+            1,
+            ResolvedMaterializeTarget::WinePrefix {
+                prefix: prefix1.clone(),
+                wine_user: "steamuser".to_string(),
+                drive_mappings: HashMap::new(),
+            },
+        );
+
+        materialize_and_fixup(
+            &mut scan_info,
+            &context_targets,
+            None,
+            ContextualFallback::Disallow,
+            &[],
+            false,
+            &ToggledPaths::default(),
+        );
+
+        // File 0 should be under prefix0
+        let file0 = scan_info.found_files.get(&StrictPath::new("scan_key_0")).unwrap();
+        let path0 = file0.original_path.as_ref().unwrap().render();
+        assert!(
+            path0.contains("/home/deck/Prefixes/Game/"),
+            "file0 should be under prefix0: {path0}"
+        );
+        assert!(
+            path0.contains("steamuser/Documents/MyGame/save.dat"),
+            "file0 wrong path: {path0}"
+        );
+        assert!(file0.restore_error.is_none(), "file0 should have no error");
+
+        // File 1 should be under prefix1
+        let file1 = scan_info.found_files.get(&StrictPath::new("scan_key_1")).unwrap();
+        let path1 = file1.original_path.as_ref().unwrap().render();
+        assert!(
+            path1.contains("/home/deck/Prefixes/GameAlt/"),
+            "file1 should be under prefix1: {path1}"
+        );
+        assert!(
+            path1.contains("steamuser/AppData/Roaming/MyGame/settings.cfg"),
+            "file1 wrong path: {path1}"
+        );
+        assert!(file1.restore_error.is_none(), "file1 should have no error");
+
+        // Paths must be different (different prefixes)
+        assert_ne!(
+            path0, path1,
+            "files from different prefixes must have different restore paths"
+        );
+    }
+
+    /// Req 13.4: NoCandidate path — semantic files with no target get restore error.
+    #[test]
+    fn e2e_no_candidate_produces_restore_error() {
+        use crate::resource::config::ToggledPaths;
+        use crate::scan::ScanInfo;
+        use crate::scan::ScannedFile;
+        use std::collections::HashMap;
+
+        let semantic = SemanticPath {
+            base: SemanticBase::WinDocuments,
+            tail: "MyGame/save.dat".to_string(),
+        };
+
+        let mut scan_info = ScanInfo {
+            game_name: "MyGame".to_string(),
+            found_files: HashMap::new(),
+            ..Default::default()
+        };
+        scan_info.found_files.insert(
+            StrictPath::new("scan_key"),
+            ScannedFile {
+                semantic_key: Some(semantic),
+                mapping_context_id: None,
+                original_path: Some(StrictPath::new("<winDocuments>/MyGame/save.dat")),
+                hash: "abc".to_string(),
+                ..Default::default()
+            },
+        );
+
+        // No context targets, no fallback — simulates NoCandidate.
+        materialize_and_fixup(
+            &mut scan_info,
+            &HashMap::new(),
+            None,
+            ContextualFallback::Disallow,
+            &[],
+            false,
+            &ToggledPaths::default(),
+        );
+
+        let file = scan_info.found_files.values().next().unwrap();
+        assert_eq!(
+            Some("No semantic restore target is available"),
+            file.restore_error.as_deref(),
+            "NoCandidate should produce restore error"
+        );
+    }
+
+    /// Req 13.5: StalePreference — saved prefix that doesn't validate.
+    #[test]
+    fn e2e_stale_preference_detected_by_decision_function() {
+        use crate::resource::config::{Config, GameWinePrefixPreference};
+        use crate::semantic::restore_prompt::{ResolutionOutcome, decide_prefix_resolution};
+
+        let mut config = Config::default();
+        config.restore.preferred_wine_prefixes.insert(
+            "MyGame".to_string(),
+            GameWinePrefixPreference {
+                path: StrictPath::new("/nonexistent/stale/prefix"),
+                wine_user: None,
+                drive_mappings: Default::default(),
+            },
+        );
+
+        let launchers = Launchers::default();
+        let outcome = decide_prefix_resolution(
+            &config,
+            "MyGame",
+            &[],
+            None,
+            &launchers,
+            &[],
+            None,
+            false, // not Windows
+        );
+
+        assert!(
+            matches!(outcome, Some(ResolutionOutcome::StalePreference { ref game, .. }) if game == "MyGame"),
+            "Expected StalePreference for nonexistent saved prefix, got: {:?}",
+            outcome
+        );
     }
 }
