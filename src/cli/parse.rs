@@ -155,11 +155,6 @@ pub enum Subcommand {
         #[clap(long)]
         no_force_cloud_conflict: bool,
 
-        /// Extra Wine/Proton prefix to check for saves. This should be a folder
-        /// with an immediate child folder named "drive_c" (or another letter).
-        #[clap(long, value_parser = parse_strict_path)]
-        wine_prefix: Option<StrictPath>,
-
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
         #[clap(long)]
@@ -261,23 +256,6 @@ pub enum Subcommand {
         /// rather than ignoring it and continuing silently.
         #[clap(long)]
         no_force_cloud_conflict: bool,
-
-        /// Wine/Proton prefix for restoring Windows saves on Linux.
-        /// This should be a folder with a "drive_c" subfolder.
-        /// Required for restoring semantic (portable) Windows backups on Linux.
-        #[clap(long, value_parser = parse_strict_path)]
-        wine_prefix: Option<StrictPath>,
-
-        /// Wine user profile to use when multiple exist in the prefix.
-        /// If not specified and multiple users are found, the restore will fail
-        /// with an actionable error listing the candidates.
-        #[clap(long)]
-        wine_user: Option<String>,
-
-        /// Persist the chosen --wine-prefix and --wine-user as the per-game
-        /// preferred prefix in the config file after a successful restore.
-        #[clap(long)]
-        persist_wine_prefix: bool,
 
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
@@ -947,7 +925,6 @@ mod tests {
                     path: None,
                     force: false,
                     no_force_cloud_conflict: false,
-                    wine_prefix: None,
                     api: false,
                     gui: false,
                     sort: None,
@@ -978,8 +955,6 @@ mod tests {
                 "tests/backup",
                 "--force",
                 "--no-force-cloud-conflict",
-                "--wine-prefix",
-                "tests/wine-prefix",
                 "--api",
                 "--gui",
                 "--sort",
@@ -1011,7 +986,6 @@ mod tests {
                     path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
                     force: true,
                     no_force_cloud_conflict: true,
-                    wine_prefix: Some(StrictPath::relative(s("tests/wine-prefix"), Some(repo_raw()))),
                     api: true,
                     gui: true,
                     sort: Some(CliSort::Name),
@@ -1045,7 +1019,6 @@ mod tests {
                     path: Some(StrictPath::relative(s("tests/fake"), Some(repo_raw()))),
                     force: false,
                     no_force_cloud_conflict: false,
-                    wine_prefix: None,
                     api: false,
                     gui: false,
                     sort: None,
@@ -1087,7 +1060,6 @@ mod tests {
                         path: None,
                         force: false,
                         no_force_cloud_conflict: false,
-                        wine_prefix: None,
                         api: false,
                         gui: false,
                         sort: Some(sort),
@@ -1122,7 +1094,6 @@ mod tests {
                     path: None,
                     force: false,
                     no_force_cloud_conflict: false,
-                    wine_prefix: None,
                     api: false,
                     gui: false,
                     sort: None,
@@ -1156,9 +1127,6 @@ mod tests {
                     path: None,
                     force: false,
                     no_force_cloud_conflict: false,
-                    wine_prefix: None,
-                    wine_user: None,
-                    persist_wine_prefix: false,
                     api: false,
                     gui: false,
                     sort: None,
@@ -1210,9 +1178,6 @@ mod tests {
                     )),
                     force: true,
                     no_force_cloud_conflict: true,
-                    wine_prefix: None,
-                    wine_user: None,
-                    persist_wine_prefix: false,
                     api: true,
                     gui: false,
                     sort: Some(CliSort::Name),
@@ -1258,9 +1223,6 @@ mod tests {
                         path: None,
                         force: false,
                         no_force_cloud_conflict: false,
-                        wine_prefix: None,
-                        wine_user: None,
-                        persist_wine_prefix: false,
                         api: false,
                         gui: false,
                         sort: Some(sort),

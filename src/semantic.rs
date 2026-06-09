@@ -1,14 +1,9 @@
-pub mod conflict;
-pub mod convert;
-pub mod materialize;
-pub mod prefix;
-pub mod preview;
-pub mod restore_prompt;
-pub mod signals;
-
 use std::fmt;
 
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+pub mod convert;
+pub mod prefix;
 
 /// Represents a portable semantic location category.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -169,13 +164,6 @@ impl SemanticPath {
         format!("<{}>/{}", self.base.display_name(), self.tail)
     }
 
-    /// Returns the safe backup storage path: `__ludusavi_semantic__/<baseName>/tail`.
-    pub fn storage_path(&self) -> String {
-        let base_name = self.base.display_name();
-        let safe_tail = self.tail.replace('\\', "/");
-        format!("__ludusavi_semantic__/{}/{}", base_name, safe_tail)
-    }
-
     /// Semantic equality that respects case policy of the base.
     pub fn eq_semantic(&self, other: &Self) -> bool {
         if self.base != other.base {
@@ -280,34 +268,6 @@ mod tests {
             SemanticPath::parse("<winDocuments>/Game/../save.dat"),
             Err(SemanticPathError::InvalidTailComponent)
         );
-    }
-
-    #[test]
-    fn storage_path_never_uses_backslash() {
-        let path = SemanticPath::parse("<winDocuments>/Game/save.dat").unwrap();
-        let storage = path.storage_path();
-        assert!(!storage.contains('\\'), "storage path contains backslash: {}", storage);
-        assert_eq!(storage, "__ludusavi_semantic__/winDocuments/Game/save.dat");
-    }
-
-    #[test]
-    fn storage_path_for_all_bases() {
-        let cases = [
-            ("<winHome>/x", "__ludusavi_semantic__/winHome/x"),
-            ("<winDocuments>/x", "__ludusavi_semantic__/winDocuments/x"),
-            ("<winAppData>/x", "__ludusavi_semantic__/winAppData/x"),
-            ("<winLocalAppData>/x", "__ludusavi_semantic__/winLocalAppData/x"),
-            ("<winLocalAppDataLow>/x", "__ludusavi_semantic__/winLocalAppDataLow/x"),
-            ("<winSavedGames>/x", "__ludusavi_semantic__/winSavedGames/x"),
-            ("<winPublic>/x", "__ludusavi_semantic__/winPublic/x"),
-            ("<winProgramData>/x", "__ludusavi_semantic__/winProgramData/x"),
-            ("<winDir>/x", "__ludusavi_semantic__/winDir/x"),
-            ("<winDrive-d>/x", "__ludusavi_semantic__/winDrive-d/x"),
-        ];
-        for (input, expected) in cases {
-            let path = SemanticPath::parse(input).unwrap();
-            assert_eq!(path.storage_path(), expected, "storage_path failed for: {}", input);
-        }
     }
 
     #[test]

@@ -200,14 +200,6 @@ impl FileTreeNode {
                         })
                     })
                     .push({
-                        self.scanned_file.as_ref().and_then(|(_, scanned)| {
-                            scanned
-                                .semantic_key
-                                .as_ref()
-                                .map(|semantic| Badge::new(&TRANSLATOR.badge_portable(&semantic.serialize())).view())
-                        })
-                    })
-                    .push({
                         self.scanned_file.as_ref().map(|(_, f)| {
                             let size = TRANSLATOR.adjusted_size(f.size);
                             Badge::new(&size).faded(f.ignored).view()

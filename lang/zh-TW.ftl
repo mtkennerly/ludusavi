@@ -258,10 +258,3 @@ custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
 
-semantic-prefix-ambiguous = 偵測到多個 Wine 前綴。請選擇一個。
-semantic-prefix-invalid = 設定的 Wine 前綴無效：{ $path }
-semantic-drive-missing = 目標系統中不存在 { $drive } 磁碟機。
-semantic-key-conflict = 多個檔案對應到同一個可攜式儲存位置：{ $key }
-semantic-foreign-namespace = 此備份包含其他平台的存檔，無法在此還原。
-semantic-format-switch-notice = 此遊戲將切換為可攜式備份格式。將建立新的完整備份。
-semantic-preview-would-become = { $legacy } → { $semantic }

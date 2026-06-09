@@ -10,7 +10,7 @@ use ludusavi::{
     lang::{self, TRANSLATOR},
     metadata, path,
     prelude::{self, CONFIG_DIR, VERSION, app_dir},
-    report, resource, scan, semantic, wrap,
+    report, resource, scan, wrap,
 };
 
 /// The logger handle must be retained until the application closes.

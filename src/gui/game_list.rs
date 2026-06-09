@@ -31,7 +31,6 @@ use crate::{
     scan::{
         BackupInfo, DuplicateDetector, OperationStatus, ScanChange, ScanInfo, ScanKind, game_filter, layout::GameLayout,
     },
-    semantic::preview,
 };
 
 #[derive(Default)]
@@ -72,11 +71,6 @@ impl GameListEntry {
         let changes = self.scan_info.overall_change();
         let duplication = duplicate_detector.is_game_duplicated(&self.scan_info.game_name);
         let display_name = config.display_name(&self.scan_info.game_name);
-        let invalid_prefixes = if scan_kind.is_backup() {
-            preview::invalid_configured_prefixes_for_scan(config, display_name, &self.scan_info)
-        } else {
-            Vec::new()
-        };
 
         Container::new(
             Column::new()
@@ -171,45 +165,6 @@ impl GameListEntry {
                                 .view()
                         })
                         .push_if(!successful, || Badge::new(&TRANSLATOR.badge_failed()).view())
-                        .push_if(self.scan_info.has_semantic_keys(), || {
-                            Badge::new(&TRANSLATOR.portable_label().to_uppercase()).view()
-                        })
-                        .push_if(self.scan_info.will_start_new_semantic_full_backup, || {
-                            Badge::new(&TRANSLATOR.new_full_backup_label().to_uppercase())
-                                .tooltip(TRANSLATOR.semantic_format_switch_notice())
-                                .view()
-                        })
-                        .push_if(!self.scan_info.semantic_conflicts().is_empty(), || {
-                            Badge::new(&TRANSLATOR.semantic_conflict_label().to_uppercase())
-                                .tooltip(
-                                    self.scan_info
-                                        .semantic_conflicts()
-                                        .iter()
-                                        .map(|conflict| {
-                                            TRANSLATOR.semantic_key_conflict(&conflict.semantic_key.serialize())
-                                        })
-                                        .collect::<Vec<_>>()
-                                        .join("\n"),
-                                )
-                                .view()
-                        })
-                        .push_if(!invalid_prefixes.is_empty(), || {
-                            Badge::new(&TRANSLATOR.invalid_prefix_label().to_uppercase())
-                                .tooltip(
-                                    invalid_prefixes
-                                        .iter()
-                                        .map(|prefix| {
-                                            format!(
-                                                "{} ({})",
-                                                TRANSLATOR.semantic_prefix_invalid(&prefix.path),
-                                                prefix.reason
-                                            )
-                                        })
-                                        .collect::<Vec<_>>()
-                                        .join("\n"),
-                                )
-                                .view()
-                        })
                         .push({
                             self.scan_info
                                 .backup

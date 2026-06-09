@@ -1,15 +1,13 @@
-use std::collections::{BTreeMap, HashMap};
-use std::sync::OnceLock;
+use std::collections::HashMap;
 
 use crate::{
     path::StrictPath,
     resource::config::{RedirectConfig, ToggledPaths, ToggledRegistry},
     scan::{
         BackupInfo, ScanChange, ScanChangeCount, ScanKind, ScannedFile, ScannedRegistry, game_file_target,
-        layout::{Backup, PathContext},
+        layout::{Backup, BackupSemantics},
         registry::{self, RegistryItem},
     },
-    semantic::{self, SemanticPath},
 };
 
 #[derive(Clone, Debug, Default)]
@@ -30,13 +28,8 @@ pub struct ScanInfo {
     pub dumped_registry: Option<registry::Hives>,
     /// Last known configuration.
     pub only_constructive_backups: bool,
-    /// Preview-only notice that this game will start a portable full backup chain.
-    pub will_start_new_semantic_full_backup: bool,
-    /// Lazily computed semantic conflicts.
-    pub cached_semantic_conflicts: OnceLock<Vec<semantic::conflict::SemanticConflict>>,
-    /// Source Wine prefix metadata for semantic backups. Maps context ID to prefix info.
-    /// Populated during backup scans from matched Wine prefixes and during restore scans from backup metadata.
-    pub path_contexts: BTreeMap<usize, PathContext>,
+    /// Source environment metadata for generating cross-platform redirects.
+    pub semantics: BackupSemantics,
 }
 
 impl PartialEq for ScanInfo {
@@ -49,8 +42,7 @@ impl PartialEq for ScanInfo {
             && self.has_backups == other.has_backups
             && self.dumped_registry == other.dumped_registry
             && self.only_constructive_backups == other.only_constructive_backups
-            && self.will_start_new_semantic_full_backup == other.will_start_new_semantic_full_backup
-            && self.path_contexts == other.path_contexts
+            && self.semantics == other.semantics
     }
 }
 
@@ -100,28 +92,6 @@ impl ScanInfo {
         !self.found_files.is_empty() || !self.found_registry_keys.is_empty()
     }
 
-    /// Returns true if any found file has a semantic key derived.
-    pub fn has_semantic_keys(&self) -> bool {
-        self.found_files.values().any(|f| f.semantic_key.is_some())
-    }
-
-    pub fn semantic_conflicts(&self) -> &[semantic::conflict::SemanticConflict] {
-        self.cached_semantic_conflicts.get_or_init(|| {
-            let files = self
-                .found_files
-                .iter()
-                .map(|(path, file)| (path.clone(), (file.semantic_key.clone(), file.mapping_context_id)))
-                .collect();
-            semantic::conflict::detect_conflicts(&files)
-        })
-    }
-
-    pub fn has_semantic_conflict(&self, semantic: &SemanticPath) -> bool {
-        self.semantic_conflicts()
-            .iter()
-            .any(|conflict| conflict.semantic_key.eq_semantic(semantic))
-    }
-
     /// Recalculate `redirected`, `ignored`, and `change` for all files.
     /// Call this after modifying `original_path` on any files (e.g., after materializing
     /// semantic paths with context targets).
@@ -138,6 +108,9 @@ impl ScanInfo {
                     redirects,
                     reverse_redirects_on_restore,
                     ScanKind::Restore,
+                    false,
+                    None,
+                    None,
                 );
                 let ignorable_path = redirected.as_ref().unwrap_or(original_path);
                 file.ignored = toggled_paths.is_ignored(&self.game_name, ignorable_path);
@@ -535,8 +508,6 @@ mod tests {
             found_files: hash_map! {
                 "/new".into(): ScannedFile {
                     redirected: Some(StrictPath::new("/old")),
-                    origin: None,
-                    semantic_key: None,
                     change: ScanChange::New,
                     ..Default::default()
                 },
@@ -551,8 +522,6 @@ mod tests {
             found_files: hash_map! {
                 "/new".into(): ScannedFile {
                     redirected: Some(StrictPath::new("/old")),
-                    origin: None,
-                    semantic_key: None,
                     change: ScanChange::New,
                     ..Default::default()
                 },
@@ -790,24 +759,4 @@ mod tests {
         assert_ne!(file.change, ScanChange::Unknown);
     }
 
-    #[test]
-    fn recalculate_restore_state_preserves_restore_error() {
-        let mut scan = ScanInfo {
-            game_name: "test".to_string(),
-            found_files: hash_map! {
-                "scan_key".into(): ScannedFile {
-                    original_path: Some(StrictPath::new("/some/path/save.dat")),
-                    hash: "abc123".to_string(),
-                    restore_error: Some("old error".to_string()),
-                    ..Default::default()
-                },
-            },
-            ..Default::default()
-        };
-
-        scan.recalculate_restore_state(&[], false, &ToggledPaths::default());
-
-        let file = scan.found_files.values().next().unwrap();
-        assert_eq!(Some("old error"), file.restore_error.as_deref());
-    }
 }

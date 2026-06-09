@@ -260,10 +260,3 @@ custom-game-will-override = Dieses benutzerdefinierte Spiel überschreibt einen 
 custom-game-will-extend = Dieses benutzerdefinierte Spiel erweitert einen Manifest-Eintrag
 operation-will-only-include-listed-games = Hiermit werden nur die derzeit aufgelisteten Spiele verarbeitet
 
-semantic-prefix-ambiguous = Für dieses Spiel wurden mehrere Wine-Präfixe gefunden. Bitte wählen Sie eines aus.
-semantic-prefix-invalid = Das konfigurierte Wine-Präfix ist ungültig: { $path }
-semantic-drive-missing = Laufwerk { $drive } ist auf dem Zielsystem nicht verfügbar.
-semantic-key-conflict = Mehrere Dateien werden auf denselben portablen Speicherort abgebildet: { $key }
-semantic-foreign-namespace = Diese Sicherung enthält Speicherstände von einer anderen Plattform, die hier nicht wiederhergestellt werden können.
-semantic-format-switch-notice = Dieses Spiel wechselt zu einem portablen Sicherungsformat. Eine neue vollständige Sicherung wird erstellt.
-semantic-preview-would-become = { $legacy } → { $semantic }

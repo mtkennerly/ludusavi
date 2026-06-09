@@ -260,10 +260,3 @@ custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = Tämä käsittelee vain pelit, jotka on tällä hetkellä lueteltu
 
-semantic-prefix-ambiguous = Tälle pelille löytyi useita Wine-etuliitteitä. Valitse yksi.
-semantic-prefix-invalid = Määritetty Wine-etuliite ei ole kelvollinen: { $path }
-semantic-drive-missing = Asema { $drive } ei ole käytettävissä kohdejärjestelmässä.
-semantic-key-conflict = Useat tiedostot osoittavat samaan siirrettävään tallennuspaikkaan: { $key }
-semantic-foreign-namespace = Tämä varmuuskopio sisältää tallennuksia toiselta alustalta, joita ei voi palauttaa täällä.
-semantic-format-switch-notice = Tämä peli siirtyy siirrettävään varmuuskopiointimuotoon. Uusi täysi varmuuskopio luodaan.
-semantic-preview-would-become = { $legacy } → { $semantic }

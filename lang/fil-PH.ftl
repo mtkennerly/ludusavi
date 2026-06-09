@@ -260,10 +260,3 @@ custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
 
-semantic-prefix-ambiguous = Maraming Wine prefix ang natagpuan para sa larong ito. Pumili ng isa.
-semantic-prefix-invalid = Ang nakaconfig na Wine prefix ay hindi valid: { $path }
-semantic-drive-missing = Ang drive { $drive } ay hindi available sa target system.
-semantic-key-conflict = Maraming file ang naka-map sa parehong portable save location: { $key }
-semantic-foreign-namespace = Ang backup na ito ay naglalaman ng saves mula sa ibang platform na hindi ma-restore dito.
-semantic-format-switch-notice = Ang larong ito ay magiging portable backup format. Isang bagong full backup ang malilikha.
-semantic-preview-would-become = { $legacy } → { $semantic }

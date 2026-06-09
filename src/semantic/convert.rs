@@ -332,7 +332,13 @@ fn classify_windows_user_subpath(sub_path: &str) -> Option<SemanticPath> {
         });
     }
 
-    // AppData/Local/Low or Local Settings/Application Data/Low
+    // AppData/LocalLow, AppData/Local/Low, or Local Settings/Application Data/Low
+    if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "appdata/locallow") {
+        return Some(SemanticPath {
+            base: SemanticBase::WinLocalAppDataLow,
+            tail,
+        });
+    }
     if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "appdata/local/low") {
         return Some(SemanticPath {
             base: SemanticBase::WinLocalAppDataLow,
@@ -401,7 +407,15 @@ fn strip_known_folder_alias(lower: &str, original: &str, alias: &str) -> Option<
     None
 }
 
-use crate::scan::saves::ScanOrigin;
+/// Origin metadata for a scanned file, used for manifest-based semantic key derivation.
+#[derive(Clone, Debug, Default)]
+pub struct ScanOrigin {
+    pub manifest_path: String,
+    pub store: crate::resource::manifest::Store,
+    pub expanded_prefix: String,
+    pub matched_prefix_len: usize,
+    pub tail: String,
+}
 
 /// Mapping from manifest placeholder strings to semantic bases.
 const PLACEHOLDER_TO_BASE: &[(&str, SemanticBase)] = &[

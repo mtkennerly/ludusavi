@@ -260,10 +260,3 @@ custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
 
-semantic-prefix-ambiguous = Đã tìm thấy nhiều tiền tố Wine cho trò chơi này. Vui lòng chọn một.
-semantic-prefix-invalid = Tiền tố Wine được cấu hình không hợp lệ: { $path }
-semantic-drive-missing = Ổ đĩa { $drive } không khả dụng trên hệ thống đích.
-semantic-key-conflict = Nhiều tệp ánh xạ đến cùng một vị trí lưu di động: { $key }
-semantic-foreign-namespace = Bản sao lưu này chứa dữ liệu lưu từ nền tảng khác không thể khôi phục tại đây.
-semantic-format-switch-notice = Trò chơi này sẽ chuyển sang định dạng sao lưu di động. Một bản sao lưu đầy đủ mới sẽ được tạo.
-semantic-preview-would-become = { $legacy } → { $semantic }

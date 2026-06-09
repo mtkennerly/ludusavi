@@ -260,10 +260,3 @@ custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
 
-semantic-prefix-ambiguous = Flera Wine-prefix hittades för detta spel. Välj ett.
-semantic-prefix-invalid = Det konfigurerade Wine-prefixet är inte giltigt: { $path }
-semantic-drive-missing = Enheten { $drive } är inte tillgänglig på målsystemet.
-semantic-key-conflict = Flera filer mappar till samma bärbara sparplats: { $key }
-semantic-foreign-namespace = Denna säkerhetskopia innehåller sparningar från en annan plattform som inte kan återställas här.
-semantic-format-switch-notice = Detta spel kommer att växla till ett bärbart säkerhetskopieringsformat. En ny fullständig säkerhetskopia skapas.
-semantic-preview-would-become = { $legacy } → { $semantic }

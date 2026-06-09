@@ -2,25 +2,8 @@ use std::collections::BTreeMap;
 
 use crate::{
     prelude::StrictPath,
-    resource::manifest::Store,
-    scan::{ScanChange, ScanKind, layout::MappingPathKey},
-    semantic::SemanticPath,
+    scan::{ScanChange, ScanKind},
 };
-
-/// Records the manifest origin of a scanned file, used for semantic key derivation.
-#[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
-pub struct ScanOrigin {
-    /// The manifest placeholder path, e.g. `<winDocuments>/Remedy/Alan Wake`.
-    pub manifest_path: String,
-    /// The store/root kind that provided this match.
-    pub store: Store,
-    /// The expanded prefix that was stripped to find the tail.
-    pub expanded_prefix: String,
-    /// The matched prefix length (characters stripped from the expanded path).
-    pub matched_prefix_len: usize,
-    /// The remaining tail after the matched prefix.
-    pub tail: String,
-}
 
 #[derive(Clone, Debug, Default, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct ScannedFile {
@@ -33,15 +16,6 @@ pub struct ScannedFile {
     /// An enclosing archive file, if any, depending on the `BackupFormat`.
     pub container: Option<StrictPath>,
     pub redirected: Option<StrictPath>,
-    /// Origin metadata from manifest, used for semantic key derivation.
-    pub origin: Option<ScanOrigin>,
-    /// The semantic key for this file, if derived. Used as the portable backup identity.
-    pub semantic_key: Option<SemanticPath>,
-    /// Index into `ScanInfo.path_contexts` for multi-prefix disambiguation.
-    /// When set, the mapping key will include the context prefix.
-    pub mapping_context_id: Option<usize>,
-    /// A restoration error detected while planning, before copying starts.
-    pub restore_error: Option<String>,
 }
 
 impl ScannedFile {
@@ -55,10 +29,6 @@ impl ScannedFile {
             change: Default::default(),
             container: None,
             redirected: None,
-            origin: None,
-            mapping_context_id: None,
-            semantic_key: None,
-            restore_error: None,
         }
     }
 
@@ -72,10 +42,6 @@ impl ScannedFile {
             change,
             container: None,
             redirected: None,
-            origin: None,
-            mapping_context_id: None,
-            semantic_key: None,
-            restore_error: None,
         }
     }
 
@@ -114,18 +80,7 @@ impl ScannedFile {
 
     /// This is stored in the mapping file.
     pub fn mapping_key(&self, scan_key: &StrictPath) -> String {
-        self.mapping_path_key(scan_key).serialize()
-    }
-
-    /// Returns the structured mapping key with optional context.
-    pub fn mapping_path_key(&self, scan_key: &StrictPath) -> MappingPathKey {
-        if let Some(ref semantic) = self.semantic_key {
-            if let Some(ctx_id) = self.mapping_context_id {
-                return MappingPathKey::SemanticWithContext(semantic.clone(), ctx_id);
-            }
-            return MappingPathKey::Semantic(semantic.clone());
-        }
-        MappingPathKey::Legacy(self.effective(scan_key).render())
+        self.effective(scan_key).render()
     }
 
     /// This is used for operations.

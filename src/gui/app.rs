@@ -37,17 +37,8 @@ use crate::{
         BackupId, Launchers, ScanKind, SteamShortcuts, TitleFinder, game_filter, layout::BackupLayout,
         prepare_backup_target, registry::RegistryItem, scan_game_for_backup,
     },
-    semantic::materialize::{ContextualFallback, ResolvedMaterializeTarget, materialize_and_fixup},
-    semantic::preview::will_start_new_semantic_full_backup,
 };
 
-#[cfg(not(target_os = "windows"))]
-use crate::semantic::materialize::build_context_targets;
-#[cfg(not(target_os = "windows"))]
-use crate::semantic::restore_prompt::{ResolutionOutcome, decide_prefix_resolution};
-
-#[cfg(target_os = "windows")]
-use crate::semantic::materialize::known_folders_from_common_path;
 
 pub struct Executor(tokio::runtime::Runtime);
 
@@ -125,8 +116,6 @@ pub struct App {
     pending_save: HashMap<SaveKind, Instant>,
     modifiers: keyboard::Modifiers,
     jump_to_game_after_scan: Option<String>,
-    pending_prefix_selections: Vec<crate::semantic::restore_prompt::PrefixSelectionRequest>,
-    resolved_prefix_games: Vec<String>,
 }
 
 impl App {
@@ -139,8 +128,6 @@ impl App {
         self.operation = Operation::Idle;
         self.operation_steps.clear();
         self.operation_steps_active = 0;
-        self.pending_prefix_selections.clear();
-        self.resolved_prefix_games.clear();
         self.close_specific_modal_alt(modal::Kind::ActiveScanGames);
         self.progress.reset();
         self.operation_should_cancel
@@ -514,6 +501,11 @@ impl App {
                                     return (None, None);
                                 }
 
+                                let wine_ctx = crate::scan::WineRedirectContext::for_game(
+                                    &key,
+                                    &config,
+                                    config.scan.redirect_wine,
+                                );
                                 let previous = layout.latest_backup(
                                     &key,
                                     SCAN_KIND,
@@ -521,6 +513,8 @@ impl App {
                                     config.restore.reverse_redirects,
                                     &config.restore.toggled_paths,
                                     config.backup.only_constructive,
+                                    config.scan.redirect_wine,
+                                    wine_ctx.as_ref(),
                                 );
 
                                 if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
@@ -543,13 +537,9 @@ impl App {
                                     config.restore.reverse_redirects,
                                     &steam_shortcuts,
                                     config.backup.only_constructive,
-                                    config.backup.semantic_paths,
+                                    config.scan.redirect_wine,
                                 );
-                                let mut scan_info = scan_info;
-                                if preview {
-                                    scan_info.will_start_new_semantic_full_backup =
-                                        will_start_new_semantic_full_backup(&layout, &scan_info);
-                                }
+                                let scan_info = scan_info;
                                 if !config.is_game_enabled_for_backup(&key) && !single {
                                     return (Some(scan_info), None);
                                 }
@@ -873,33 +863,12 @@ impl App {
 
                 let config = std::sync::Arc::new(self.config.clone());
                 let layout = std::sync::Arc::new(layout);
-                #[cfg(target_os = "windows")]
-                let kf = known_folders_from_common_path();
-
-                // Scan launchers for Wine prefix discovery during restore.
-                let restore_roots = config.roots.clone();
-                let mut manifest_for_restore = self.manifest.primary.clone();
-                manifest_for_restore.incorporate_extensions(&config);
-                let restore_subjects: Vec<String> = restorables.clone();
-                let restore_title_finder =
-                    TitleFinder::new(&config, &manifest_for_restore, layout.restorable_game_set());
-                let launchers = std::sync::Arc::new(Launchers::scan(
-                    &restore_roots,
-                    &manifest_for_restore,
-                    &restore_subjects,
-                    &restore_title_finder,
-                    None,
-                ));
 
                 for name in restorables {
                     let config = config.clone();
                     let layout = layout.clone();
                     let cancel_flag = self.operation_should_cancel.clone();
                     let backup_id = self.backups_to_restore.get(&name).cloned().unwrap_or(BackupId::Latest);
-                    #[cfg(target_os = "windows")]
-                    let kf = kf.clone();
-                    let launchers = launchers.clone();
-                    let manifest_ref = manifest_for_restore.clone();
                     self.operation_steps.push(OperationStep {
                         title: name.clone(),
                         task: Task::perform(
@@ -910,143 +879,21 @@ impl App {
                                     return (None, None, layout, None);
                                 }
 
-                                // Phase 1: Scan backup metadata without materializing paths yet.
-                                let mut scan_info = layout.scan_for_restoration(
+                                let wine_ctx = crate::scan::WineRedirectContext::for_game(&name, &config, config.scan.redirect_wine);
+                                let scan_info = layout.scan_for_restoration(
                                     &name,
                                     &backup_id,
                                     &config.redirects,
                                     config.restore.reverse_redirects,
                                     &config.restore.toggled_paths,
                                     &config.restore.toggled_registry,
-                                    None,
+                                    config.scan.redirect_wine,
+                                    wine_ctx.as_ref(),
                                 );
 
                                 if !config.is_game_enabled_for_restore(&name) && !single {
                                     return (Some(scan_info), None, layout, None);
                                 }
-
-                                // Phase 2: Build per-file restore targets from pathContexts.
-                                let game_wine_prefixes: Vec<StrictPath> = manifest_ref
-                                    .0
-                                    .get(&name)
-                                    .map(|g| g.wine_prefix.iter().map(StrictPath::new).collect())
-                                    .unwrap_or_default();
-
-                                // Build per-context targets from pathContexts.
-                                #[cfg(target_os = "windows")]
-                                let context_targets = HashMap::new();
-                                #[cfg(not(target_os = "windows"))]
-                                let context_targets = if !scan_info.path_contexts.is_empty() {
-                                    match build_context_targets(
-                                        &scan_info.path_contexts,
-                                        &config,
-                                        &name,
-                                        &game_wine_prefixes,
-                                        None,
-                                        &launchers,
-                                        &config.roots,
-                                    ) {
-                                        Ok(targets) => targets,
-                                        Err(error) => {
-                                            log::trace!(
-                                                "restore step completed (wine prefix conflict for context-aware files): {error:?}"
-                                            );
-                                            return (Some(scan_info), None, layout, Some(error));
-                                        }
-                                    }
-                                } else {
-                                    HashMap::new()
-                                };
-
-                                // For non-contextual semantic files: if there's exactly one path context,
-                                // use it as the fallback (avoids ambiguity on multi-prefix systems).
-                                #[cfg(target_os = "windows")]
-                                let non_contextual_fallback =
-                                    Some(ResolvedMaterializeTarget::CurrentWindows { known_folders: &kf });
-                                #[cfg(not(target_os = "windows"))]
-                                let has_non_contextual = scan_info
-                                    .found_files
-                                    .values()
-                                    .any(|f| f.semantic_key.is_some() && f.mapping_context_id.is_none());
-                                #[cfg(not(target_os = "windows"))]
-                                let non_contextual_fallback: Option<
-                                    ResolvedMaterializeTarget,
-                                > = if has_non_contextual {
-                                    if scan_info.path_contexts.len() == 1 {
-                                        context_targets.values().next().cloned()
-                                    } else {
-                                        match decide_prefix_resolution(
-                                            &config,
-                                            &name,
-                                            &game_wine_prefixes,
-                                            None,
-                                            &launchers,
-                                            &config.roots,
-                                            None,
-                                            false,
-                                        ) {
-                                            Some(ResolutionOutcome::Resolved { prefix }) => {
-                                                Some(ResolvedMaterializeTarget::WinePrefix {
-                                                    wine_user: prefix.wine_user.clone(),
-                                                    drive_mappings: prefix.drive_mappings.clone(),
-                                                    prefix,
-                                                })
-                                            }
-                                            Some(ResolutionOutcome::Ambiguous { candidates }) => {
-                                                return (
-                                                    Some(scan_info),
-                                                    None,
-                                                    layout,
-                                                    Some(Error::WinePrefixAmbiguity {
-                                                        game: name.clone(),
-                                                        candidates,
-                                                    }),
-                                                );
-                                            }
-                                            Some(ResolutionOutcome::AmbiguousUser { candidates }) => {
-                                                return (
-                                                    Some(scan_info),
-                                                    None,
-                                                    layout,
-                                                    Some(Error::WineUserAmbiguity {
-                                                        game: name.clone(),
-                                                        candidates,
-                                                    }),
-                                                );
-                                            }
-                                            Some(ResolutionOutcome::Conflict { game, cli, configured }) => {
-                                                return (
-                                                    Some(scan_info),
-                                                    None,
-                                                    layout,
-                                                    Some(Error::WinePrefixConflict {
-                                                        game,
-                                                        cli: Box::new(cli),
-                                                        configured: Box::new(configured),
-                                                    }),
-                                                );
-                                            }
-                                            _ => None,
-                                        }
-                                    }
-                                } else {
-                                    None
-                                };
-
-                                #[cfg(target_os = "windows")]
-                                let contextual_fallback = ContextualFallback::Allow;
-                                #[cfg(not(target_os = "windows"))]
-                                let contextual_fallback = ContextualFallback::Disallow;
-
-                                materialize_and_fixup(
-                                    &mut scan_info,
-                                    &context_targets,
-                                    non_contextual_fallback.as_ref(),
-                                    contextual_fallback,
-                                    &config.redirects,
-                                    config.restore.reverse_redirects,
-                                    &config.restore.toggled_paths,
-                                );
 
                                 let backup_info = if scan_info.backup.is_some() && !preview {
                                     Some(layout.restore(&scan_info, &config.restore.toggled_registry))
@@ -1061,7 +908,6 @@ impl App {
                                     backup_info,
                                     game_layout: Box::new(game_layout),
                                     error,
-                                    needs_prefix: None,
                                 })
                             },
                         ),
@@ -1082,7 +928,6 @@ impl App {
                 backup_info,
                 game_layout,
                 error,
-                needs_prefix: _,
             } => {
                 self.progress.step();
                 let full = self.operation.full();
@@ -1095,49 +940,6 @@ impl App {
                         scan_info.game_name
                     );
                     self.operation.remove_active_game(&scan_info.game_name);
-
-                    // Detect NoCandidate/StalePreference: semantic files with no materialization target.
-                    #[cfg(not(target_os = "windows"))]
-                    if error.is_none() {
-                        let has_unmaterialized = scan_info.found_files.values().any(|f| {
-                            f.semantic_key.is_some()
-                                && f.original_path.is_none()
-                                && f.restore_error.as_deref() == Some("No semantic restore target is available")
-                        });
-                        if has_unmaterialized {
-                            // Check if this is a stale preference (saved prefix no longer valid).
-                            let display_name = self.config.display_name(&scan_info.game_name);
-                            let kind = if let Some(pref) = crate::semantic::materialize::preferred_wine_prefix_for_game(
-                                &self.config,
-                                &scan_info.game_name,
-                            ) {
-                                if crate::semantic::prefix::validate_prefix(&pref.path).is_none() {
-                                    log::info!(
-                                        "game '{}' has stale preferred prefix: {}",
-                                        scan_info.game_name,
-                                        pref.path.render()
-                                    );
-                                    crate::semantic::restore_prompt::PrefixSelectionKind::SavedPrefixMissing {
-                                        saved: pref.path.clone(),
-                                    }
-                                } else {
-                                    crate::semantic::restore_prompt::PrefixSelectionKind::NoPrefix
-                                }
-                            } else {
-                                log::info!(
-                                    "game '{}' has semantic files with no restore target",
-                                    scan_info.game_name
-                                );
-                                crate::semantic::restore_prompt::PrefixSelectionKind::NoPrefix
-                            };
-                            self.pending_prefix_selections.push(
-                                crate::semantic::restore_prompt::PrefixSelectionRequest {
-                                    game: display_name.to_string(),
-                                    kind,
-                                },
-                            );
-                        }
-                    }
 
                     if scan_info.can_report_game() {
                         if let Some(backup_info) = backup_info.as_ref() {
@@ -1185,19 +987,7 @@ impl App {
                     );
                 }
                 if let Some(error) = error {
-                    // Check if this is a prefix resolution error that needs user input.
-                    let prefix_request = crate::semantic::restore_prompt::error_to_resolution_outcome(&error).and_then(
-                        |(game, outcome)| {
-                            crate::semantic::restore_prompt::outcome_to_selection_request(&game, &outcome)
-                        },
-                    );
-
-                    if let Some(request) = prefix_request {
-                        log::info!("game '{}' needs prefix selection: {:?}", request.game, request.kind);
-                        self.pending_prefix_selections.push(request);
-                    } else {
-                        self.operation.push_error(error);
-                    }
+                    self.operation.push_error(error);
                 }
 
                 match self.operation_steps.pop() {
@@ -1208,15 +998,6 @@ impl App {
                     None => {
                         self.operation_steps_active -= 1;
                         if self.operation_steps_active == 0 {
-                            // Before finishing, check if any games need prefix selection.
-                            if !self.pending_prefix_selections.is_empty() {
-                                let first = self.pending_prefix_selections[0].clone();
-                                return self.show_modal(Modal::WinePrefixSelection {
-                                    game: first.game,
-                                    kind: first.kind,
-                                    selected: None,
-                                });
-                            }
                             self.handle_restore(RestorePhase::Done)
                         } else {
                             Task::none()
@@ -1974,29 +1755,6 @@ impl App {
                             self.config.custom_games[game_index].install_dir.swap(index, offset);
                         }
                     },
-                    config::Event::CustomGameWinePrefix(game_index, action) => match action {
-                        EditAction::Add => {
-                            self.text_histories.custom_games[game_index]
-                                .wine_prefix
-                                .push(Default::default());
-                            self.config.custom_games[game_index].wine_prefix.push("".to_string());
-                        }
-                        EditAction::Change(index, value) => {
-                            self.text_histories.custom_games[game_index].wine_prefix[index].push(&value);
-                            self.config.custom_games[game_index].wine_prefix[index] = value;
-                        }
-                        EditAction::Remove(index) => {
-                            self.text_histories.custom_games[game_index].wine_prefix.remove(index);
-                            self.config.custom_games[game_index].wine_prefix.remove(index);
-                        }
-                        EditAction::Move(index, direction) => {
-                            let offset = direction.shift(index);
-                            self.text_histories.custom_games[game_index]
-                                .wine_prefix
-                                .swap(index, offset);
-                            self.config.custom_games[game_index].wine_prefix.swap(index, offset);
-                        }
-                    },
                     config::Event::ExcludeStoreScreenshots(enabled) => {
                         self.config.backup.filter.exclude_store_screenshots = enabled;
                     }
@@ -2225,17 +1983,6 @@ impl App {
                         for entry in &mut self.backup_screen.log.entries {
                             entry.scan_info.only_constructive_backups = value;
                         }
-                    }
-                    config::Event::SemanticPaths(value) => {
-                        self.config.backup.semantic_paths = value;
-                    }
-                    config::Event::PreferredWinePrefixPath(game, value) => {
-                        if let Some(pref) = self.config.restore.preferred_wine_prefixes.get_mut(&game) {
-                            pref.path = StrictPath::new(&value);
-                        }
-                    }
-                    config::Event::PreferredWinePrefixRemove(game) => {
-                        self.config.restore.preferred_wine_prefixes.remove(&game);
                     }
                 }
 
@@ -2650,8 +2397,6 @@ impl App {
                         StrictPath::new(self.config.custom_games[i].files[j].clone())
                     }
                     BrowseSubject::BackupFilterIgnoredPath(i) => self.config.backup.filter.ignored_paths[i].clone(),
-                    BrowseSubject::WinePrefixSelection => return Task::none(),
-                    BrowseSubject::PreferredWinePrefix(_) => return Task::none(),
                 };
 
                 match path.parent_if_file() {
@@ -2784,10 +2529,6 @@ impl App {
                         &mut self.config.custom_games[i].install_dir[j],
                         &mut self.text_histories.custom_games[i].install_dir[j],
                     ),
-                    UndoSubject::CustomGameWinePrefix(i, j) => shortcut.apply_to_string_field(
-                        &mut self.config.custom_games[i].wine_prefix[j],
-                        &mut self.text_histories.custom_games[i].wine_prefix[j],
-                    ),
                     UndoSubject::BackupFilterIgnoredPath(i) => shortcut.apply_to_strict_path_field(
                         &mut self.config.backup.filter.ignored_paths[i],
                         &mut self.text_histories.backup_filter_ignored_paths[i],
@@ -2821,9 +2562,6 @@ impl App {
                             ModalInputKind::Password => self.text_histories.modal.password.apply(shortcut),
                         }
                         return Task::none();
-                    }
-                    UndoSubject::PreferredWinePrefix(_game) => {
-                        // Per-game preferred prefix editing is handled via config events
                     }
                     UndoSubject::BackupComment(game) => {
                         if let Some(info) = self.text_histories.backup_comments.get_mut(&game) {
@@ -3189,79 +2927,6 @@ impl App {
                             log::error!("Failed to open Regedit: {e:?}");
                             return Task::none();
                         }
-                    }
-                }
-                Task::none()
-            }
-            Message::ConfirmWinePrefixSelection {
-                game,
-                prefix,
-                wine_user,
-            } => {
-                // Validate the prefix before saving
-                if crate::semantic::prefix::validate_prefix(&prefix).is_none() {
-                    return self.show_modal(Modal::Error {
-                        variant: Error::ConfigInvalid {
-                            why: crate::lang::TRANSLATOR.wine_prefix_invalid_selection(),
-                        },
-                    });
-                }
-
-                // Save the preference
-                self.config.restore.preferred_wine_prefixes.insert(
-                    game.clone(),
-                    crate::resource::config::GameWinePrefixPreference {
-                        path: prefix,
-                        wine_user,
-                        drive_mappings: std::collections::BTreeMap::new(),
-                    },
-                );
-                self.save_config();
-
-                // Close the modal and process next pending selection
-                let _ = self.close_specific_modal(modal::Kind::WinePrefixSelection);
-                self.pending_prefix_selections.retain(|r| r.game != game);
-                self.resolved_prefix_games.push(game.clone());
-
-                // If more pending selections, show the next one
-                if let Some(next) = self.pending_prefix_selections.first().cloned() {
-                    let _ = self.show_modal(Modal::WinePrefixSelection {
-                        game: next.game,
-                        kind: next.kind,
-                        selected: None,
-                    });
-                    Task::none()
-                } else {
-                    // All prefix selections resolved — re-run restore for all resolved games.
-                    let games: Vec<String> = self.resolved_prefix_games.drain(..).collect();
-                    Task::done(Message::Restore(RestorePhase::Start {
-                        preview: false,
-                        games: Some(GameSelection::group(games.into_iter().collect())),
-                    }))
-                }
-            }
-            Message::SelectWinePrefixCandidate { index } => {
-                // Update the selected index in the current WinePrefixSelection modal
-                for modal in &mut self.modals {
-                    if let Modal::WinePrefixSelection { selected, .. } = modal {
-                        *selected = Some(index);
-                    }
-                }
-                Task::none()
-            }
-            Message::WinePrefixSelected { path } => {
-                // Update the path in the current WinePrefixSelection modal
-                for modal in &mut self.modals {
-                    if let Modal::WinePrefixSelection { game, kind, .. } = modal {
-                        let game = game.clone();
-                        *kind = crate::semantic::restore_prompt::PrefixSelectionKind::AmbiguousPrefix {
-                            candidates: vec![path.clone()],
-                        };
-                        return Task::done(Message::ConfirmWinePrefixSelection {
-                            game,
-                            prefix: path.clone(),
-                            wine_user: None,
-                        });
                     }
                 }
                 Task::none()

@@ -209,7 +209,6 @@ pub struct CustomGameHistory {
     pub files: Vec<TextHistory>,
     pub registry: Vec<TextHistory>,
     pub install_dir: Vec<TextHistory>,
-    pub wine_prefix: Vec<TextHistory>,
 }
 
 #[derive(Default)]
@@ -300,7 +299,6 @@ impl TextHistories {
             files: game.files.iter().map(|x| TextHistory::raw(x)).collect(),
             registry: game.registry.iter().map(|x| TextHistory::raw(x)).collect(),
             install_dir: game.install_dir.iter().map(|x| TextHistory::raw(x)).collect(),
-            wine_prefix: game.wine_prefix.iter().map(|x| TextHistory::raw(x)).collect(),
         };
         self.custom_games.push(history);
     }
@@ -350,11 +348,6 @@ impl TextHistories {
                 .get(*i)
                 .and_then(|x| x.install_dir.get(*j).map(|y| y.current()))
                 .unwrap_or_default(),
-            UndoSubject::CustomGameWinePrefix(i, j) => self
-                .custom_games
-                .get(*i)
-                .and_then(|x| x.wine_prefix.get(*j).map(|y| y.current()))
-                .unwrap_or_default(),
             UndoSubject::BackupFilterIgnoredPath(i) => self
                 .backup_filter_ignored_paths
                 .get(*i)
@@ -377,7 +370,6 @@ impl TextHistories {
                 ModalInputKind::Password => self.modal.password.current(),
             },
             UndoSubject::BackupComment(game) => self.backup_comments.get(game).map(|x| x.current()).unwrap_or_default(),
-            UndoSubject::PreferredWinePrefix(_game) => "".to_string(),
         };
 
         let event: Box<dyn Fn(String) -> Message> = match subject.clone() {
@@ -422,9 +414,6 @@ impl TextHistories {
             UndoSubject::CustomGameInstallDir(i, j) => Box::new(Message::config(move |value| {
                 config::Event::CustomGameInstallDir(i, EditAction::Change(j, value))
             })),
-            UndoSubject::CustomGameWinePrefix(i, j) => Box::new(Message::config(move |value| {
-                config::Event::CustomGameWinePrefix(i, EditAction::Change(j, value))
-            })),
             UndoSubject::BackupFilterIgnoredPath(i) => Box::new(Message::config(move |value| {
                 config::Event::BackupFilterIgnoredPath(EditAction::Change(i, value))
             })),
@@ -446,12 +435,6 @@ impl TextHistories {
             }),
             // TODO: This is now handled separately with a `TextEditor`.
             UndoSubject::BackupComment(_) => Box::new(|_| Message::Ignore),
-            UndoSubject::PreferredWinePrefix(game) => {
-                let game = game.clone();
-                Box::new(move |value| Message::Config {
-                    event: config::Event::PreferredWinePrefixPath(game.clone(), value),
-                })
-            }
         };
 
         let placeholder = match &subject {
@@ -470,7 +453,6 @@ impl TextHistories {
             UndoSubject::CustomGameFile(_, _) => "".to_string(),
             UndoSubject::CustomGameRegistry(_, _) => "".to_string(),
             UndoSubject::CustomGameInstallDir(_, _) => "".to_string(),
-            UndoSubject::CustomGameWinePrefix(_, _) => "".to_string(),
             UndoSubject::BackupFilterIgnoredPath(_) => "".to_string(),
             UndoSubject::BackupFilterIgnoredRegistry(_) => "".to_string(),
             UndoSubject::RcloneExecutable => TRANSLATOR.executable_label(),
@@ -479,7 +461,6 @@ impl TextHistories {
             UndoSubject::CloudPath => "".to_string(),
             UndoSubject::ModalField(_) => "".to_string(),
             UndoSubject::BackupComment(_) => TRANSLATOR.comment_label(),
-            UndoSubject::PreferredWinePrefix(_) => "".to_string(),
         };
 
         let icon = match &subject {
@@ -491,7 +472,6 @@ impl TextHistories {
             | UndoSubject::RedirectTarget(_)
             | UndoSubject::CustomGameFile(_, _)
             | UndoSubject::CustomGameInstallDir(_, _)
-            | UndoSubject::CustomGameWinePrefix(_, _)
             | UndoSubject::BackupFilterIgnoredPath(_)
             | UndoSubject::RcloneExecutable => (!path_appears_valid(&current)).then_some(ERROR_ICON),
             UndoSubject::CustomGameName(_) | UndoSubject::CustomGameAlias(_) => {
@@ -507,8 +487,7 @@ impl TextHistories {
             | UndoSubject::CloudRemoteId
             | UndoSubject::CloudPath
             | UndoSubject::ModalField(_)
-            | UndoSubject::BackupComment(_)
-            | UndoSubject::PreferredWinePrefix(_) => None,
+            | UndoSubject::BackupComment(_) => None,
         };
 
         let id = match &subject {

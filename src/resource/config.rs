@@ -48,7 +48,6 @@ pub enum Event {
     CustomGameFile(usize, EditAction),
     CustomGameRegistry(usize, EditAction),
     CustomGameInstallDir(usize, EditAction),
-    CustomGameWinePrefix(usize, EditAction),
     ExcludeStoreScreenshots(bool),
     CloudFilter(CloudFilter),
     BackupFilterIgnoredPath(EditAction),
@@ -99,9 +98,6 @@ pub enum Event {
     CloudPath(String),
     SortCustomGames,
     OnlyConstructiveBackups(bool),
-    SemanticPaths(bool),
-    PreferredWinePrefixPath(String, String),
-    PreferredWinePrefixRemove(String),
 }
 
 /// Settings for `config.yaml`
@@ -1128,9 +1124,6 @@ pub struct BackupConfig {
     pub format: BackupFormats,
     /// Don't create a new backup if there are only removed saves and no new/edited ones.
     pub only_constructive: bool,
-    /// Use portable semantic paths for Windows/Wine saves instead of absolute paths.
-    /// When enabled, backups are cross-platform between Windows and Wine.
-    pub semantic_paths: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -1140,33 +1133,10 @@ pub struct RestoreConfig {
     pub path: StrictPath,
     /// Names of games to skip when restoring.
     pub ignored_games: BTreeSet<String>,
-    /// Preferred Wine/Proton prefixes for restoring portable Windows saves on non-Windows systems.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub preferred_wine_prefixes: BTreeMap<String, GameWinePrefixPreference>,
     pub toggled_paths: ToggledPaths,
     pub toggled_registry: ToggledRegistry,
     pub sort: Sort,
     pub reverse_redirects: bool,
-    /// Global Wine prefix for restoring Windows semantic backups on Linux.
-    /// Used as a fallback when no game-specific prefix is configured.
-    pub wine_prefix: Option<StrictPath>,
-    /// Manual drive letter mappings for WinDrive semantic keys
-    /// when dosdevices symlinks are not available. Keys are lowercase
-    /// drive letters (a-z), values are target paths.
-    pub drive_mappings: HashMap<char, String>,
-}
-
-#[derive(Clone, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
-#[serde(default, rename_all = "camelCase")]
-pub struct GameWinePrefixPreference {
-    /// Wine/Proton prefix to use for this game when restoring portable Windows saves.
-    pub path: StrictPath,
-    /// Preferred Wine user inside the prefix, if the prefix has multiple user profiles.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub wine_user: Option<String>,
-    /// Optional non-C drive mappings for this game.
-    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
-    pub drive_mappings: BTreeMap<char, StrictPath>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize, schemars::JsonSchema)]
@@ -1178,6 +1148,9 @@ pub struct Scan {
     pub show_unchanged_games: bool,
     /// In the GUI, show recent games that have not been scanned yet.
     pub show_unscanned_games: bool,
+    /// Generate best-effort Windows/Wine redirects during scans.
+    #[serde(default)]
+    pub redirect_wine: bool,
 }
 
 impl Default for Scan {
@@ -1186,6 +1159,7 @@ impl Default for Scan {
             show_deselected_games: true,
             show_unchanged_games: true,
             show_unscanned_games: true,
+            redirect_wine: false,
         }
     }
 }
@@ -1391,7 +1365,6 @@ impl Default for BackupConfig {
             retention: Retention::default(),
             format: Default::default(),
             only_constructive: Default::default(),
-            semantic_paths: false,
         }
     }
 }
@@ -1401,13 +1374,10 @@ impl Default for RestoreConfig {
         Self {
             path: default_backup_dir(),
             ignored_games: BTreeSet::new(),
-            preferred_wine_prefixes: Default::default(),
             toggled_paths: Default::default(),
             toggled_registry: Default::default(),
             sort: Default::default(),
             reverse_redirects: false,
-            wine_prefix: None,
-            drive_mappings: HashMap::new(),
         }
     }
 }
@@ -1844,12 +1814,6 @@ impl Config {
         let cwd = StrictPath::cwd();
         self.backup.path.rebase(&cwd);
         self.restore.path.rebase(&cwd);
-        for preference in self.restore.preferred_wine_prefixes.values_mut() {
-            preference.path.rebase(&cwd);
-            for path in preference.drive_mappings.values_mut() {
-                path.rebase(&cwd);
-            }
-        }
     }
 }
 
@@ -2163,18 +2127,14 @@ mod tests {
                     retention: Retention::default(),
                     format: Default::default(),
                     only_constructive: false,
-                    semantic_paths: false,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::relative(s("~/restore"), Some(StrictPath::cwd().render())),
                     ignored_games: BTreeSet::new(),
-                    preferred_wine_prefixes: Default::default(),
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
                     reverse_redirects: false,
-                    wine_prefix: None,
-                    drive_mappings: HashMap::new(),
                 },
                 scan: Default::default(),
                 apps: Apps {
@@ -2298,7 +2258,6 @@ mod tests {
                     retention: Retention::default(),
                     format: Default::default(),
                     only_constructive: true,
-                    semantic_paths: false,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::relative(s("~/restore"), Some(StrictPath::cwd().render())),
@@ -2306,18 +2265,16 @@ mod tests {
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
-                    preferred_wine_prefixes: Default::default(),
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
                     reverse_redirects: false,
-                    wine_prefix: None,
-                    drive_mappings: HashMap::new(),
                 },
                 scan: Scan {
                     show_deselected_games: false,
                     show_unchanged_games: false,
                     show_unscanned_games: false,
+                    redirect_wine: false,
                 },
                 cloud: Cloud {
                     remote: Some(Remote::GoogleDrive {
@@ -2428,7 +2385,6 @@ backup:
       zstd:
         level: 10
   onlyConstructive: false
-  semanticPaths: false
 restore:
   path: ~/restore
   ignoredGames:
@@ -2441,12 +2397,11 @@ restore:
     key: status
     reversed: false
   reverseRedirects: false
-  winePrefix: ~
-  driveMappings: {}
 scan:
   showDeselectedGames: false
   showUnchangedGames: false
   showUnscannedGames: false
+  redirectWine: false
 cloud:
   remote:
     GoogleDrive:
@@ -2524,7 +2479,6 @@ customGames:
                     retention: Retention::default(),
                     format: Default::default(),
                     only_constructive: false,
-                    semantic_paths: false,
                 },
                 restore: RestoreConfig {
                     path: StrictPath::new(s("~/restore")),
@@ -2533,18 +2487,16 @@ customGames:
                         s("Restore Game 1"),
                         s("Restore Game 2"),
                     },
-                    preferred_wine_prefixes: Default::default(),
                     toggled_paths: Default::default(),
                     toggled_registry: Default::default(),
                     sort: Default::default(),
                     reverse_redirects: false,
-                    wine_prefix: None,
-                    drive_mappings: HashMap::new(),
                 },
                 scan: Scan {
                     show_deselected_games: false,
                     show_unchanged_games: false,
                     show_unscanned_games: false,
+                    redirect_wine: false,
                 },
                 cloud: Cloud {
                     remote: Some(Remote::GoogleDrive {
@@ -2605,65 +2557,6 @@ customGames:
             .unwrap()
             .trim(),
         );
-    }
-
-    #[test]
-    fn preferred_wine_prefix_persists_through_round_trip() {
-        let mut config = Config::default();
-        config.restore.preferred_wine_prefixes.insert(
-            s("My Game"),
-            GameWinePrefixPreference {
-                path: StrictPath::new(s("/home/user/.wine")),
-                wine_user: Some(s("steamuser")),
-                drive_mappings: {
-                    let mut m = BTreeMap::new();
-                    m.insert('D', StrictPath::new(s("/mnt/games")));
-                    m
-                },
-            },
-        );
-        config.restore.preferred_wine_prefixes.insert(
-            s("Other Game"),
-            GameWinePrefixPreference {
-                path: StrictPath::new(s("/home/user/Games/pfx")),
-                wine_user: None,
-                ..Default::default()
-            },
-        );
-
-        let yaml = serde_yaml::to_string(&config).unwrap();
-        let reloaded = Config::load_from_string(&yaml).unwrap();
-
-        assert_eq!(reloaded.restore.preferred_wine_prefixes.len(), 2);
-
-        let my_game = &reloaded.restore.preferred_wine_prefixes["My Game"];
-        assert_eq!(my_game.path.render(), "/home/user/.wine");
-        assert_eq!(my_game.wine_user.as_deref(), Some("steamuser"));
-        assert_eq!(my_game.drive_mappings.len(), 1);
-        assert_eq!(my_game.drive_mappings[&'D'].render(), "/mnt/games");
-
-        let other_game = &reloaded.restore.preferred_wine_prefixes["Other Game"];
-        assert_eq!(other_game.path.render(), "/home/user/Games/pfx");
-        assert!(other_game.wine_user.is_none());
-        assert!(other_game.drive_mappings.is_empty());
-    }
-
-    #[test]
-    fn preferred_wine_prefix_with_wine_user_serializes_correctly() {
-        let mut config = Config::default();
-        config.restore.preferred_wine_prefixes.insert(
-            s("Test Game"),
-            GameWinePrefixPreference {
-                path: StrictPath::new(s("/home/user/.wine")),
-                wine_user: Some(s("steamuser")),
-                ..Default::default()
-            },
-        );
-
-        let yaml = serde_yaml::to_string(&config).unwrap();
-        assert!(yaml.contains("preferredWinePrefixes"));
-        assert!(yaml.contains("Test Game"));
-        assert!(yaml.contains("wineUser: steamuser"));
     }
 
     mod ignored_paths {
@@ -3079,5 +2972,57 @@ customGames:
                 ],
             );
         }
+    }
+
+    #[test]
+    fn scan_redirect_wine_defaults_to_false() {
+        let scan = Scan::default();
+        assert!(!scan.redirect_wine);
+    }
+
+    #[test]
+    fn scan_redirect_wine_can_be_enabled_via_config() {
+        let config = Config::load_from_string(
+            r#"
+            manifest:
+              url: example.com
+            roots: []
+            backup:
+              path: ~/backup
+            restore:
+              path: ~/restore
+            scan:
+              redirectWine: true
+            apps:
+              rclone:
+                path: rclone
+            "#,
+        )
+        .unwrap();
+        assert!(config.scan.redirect_wine);
+    }
+
+    #[test]
+    fn scan_redirect_wine_round_trips_through_serde() {
+        let config = Config::load_from_string(
+            r#"
+            manifest:
+              url: example.com
+            roots: []
+            backup:
+              path: ~/backup
+            restore:
+              path: ~/restore
+            scan:
+              redirectWine: true
+            apps:
+              rclone:
+                path: rclone
+            "#,
+        )
+        .unwrap();
+        let serialized = serde_yaml::to_string(&config).unwrap();
+        let deserialized: Config = serde_yaml::from_str(&serialized).unwrap();
+        assert!(deserialized.scan.redirect_wine);
     }
 }

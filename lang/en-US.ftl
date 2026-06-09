@@ -16,10 +16,6 @@ cli-invalid-backup-id = Invalid backup ID.
 wine-prefix-conflict = Cannot use --wine-prefix for {$game} because it conflicts with the game's preferred Wine prefix.
 wine-prefix-conflict-cli = Command prefix: {$path}
 wine-prefix-conflict-configured = Preferred prefix: {$path}
-wine-prefix-ambiguity = Multiple Wine prefixes found for {$game}. Please set a preferred prefix in restore.preferred_wine_prefixes or use --wine-prefix.
-wine-prefix-ambiguity-candidate = Candidate: {$path}
-wine-user-ambiguity = Multiple Wine users found in the prefix for {$game}. Use --wine-user <name> or set restore.preferredWinePrefixes.{$game}.wineUser in config.
-wine-user-ambiguity-candidate = Candidate: {$user}
 
 badge-failed = FAILED
 badge-duplicates = DUPLICATES
@@ -37,7 +33,6 @@ some-entries-failed = Some entries failed to process; look for {badge-failed} in
 
 cli-game-line-item-redirected = Redirected from: {$path}
 cli-game-line-item-redirecting = Redirecting to: {$path}
-cli-game-line-item-portable = Stored as portable save location: {$path}
 
 button-backup = Back up
 button-preview = Preview
@@ -228,8 +223,6 @@ override-max-threads = Override max threads
 synchronize-automatically = Synchronize automatically
 prefer-alias-display = Display alias instead of original name
 skip-unconstructive-backups = Skip backup when data would be removed, but not added or updated
-portable-backups = Use portable backups for cross-platform Windows/Wine saves
-portable-backups-tooltip = Store Windows save locations portably so backups can be restored across Windows and Wine/Proton without per-game redirects. Off by default; only affects new backups.
 
 explanation-for-exclude-store-screenshots =
     In backups, exclude store-specific screenshots
@@ -313,14 +306,3 @@ custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
 
 ## Semantic path / cross-platform messages
-semantic-prefix-ambiguous = Multiple Wine prefixes found for this game. Please select one.
-semantic-prefix-invalid = The configured Wine prefix is not valid: { $path }
-semantic-drive-missing = Drive { $drive } is not available on the target system.
-semantic-key-conflict = Multiple files map to the same portable save location: { $key }
-semantic-foreign-namespace = This backup contains saves from another platform that cannot be restored here.
-semantic-format-switch-notice = This game will switch to a portable backup format. A new full backup will be created.
-semantic-preview-would-become = { $legacy } → { $semantic }
-wine-prefix-selection-prompt = Select a Wine prefix for {$game}
-wine-prefix-missing-warning = The saved Wine prefix for {$game} is no longer available: {$path}
-wine-prefix-invalid-selection = The selected directory is not a valid Wine prefix.
-preferred-wine-prefixes-label = Preferred Wine prefixes

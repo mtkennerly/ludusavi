@@ -260,10 +260,3 @@ custom-game-will-override = Пользовательская игра перео
 custom-game-will-extend = Пользовательская игра расширяет манифест
 operation-will-only-include-listed-games = Обработаются только перечисленные игры
 
-semantic-prefix-ambiguous = Для этой игры найдено несколько префиксов Wine. Выберите один.
-semantic-prefix-invalid = Настроенный префикс Wine недействителен: { $path }
-semantic-drive-missing = Диск { $drive } недоступен в целевой системе.
-semantic-key-conflict = Несколько файлов сопоставляются с одним и тем же портативным местом сохранения: { $key }
-semantic-foreign-namespace = Эта резервная копия содержит сохранения с другой платформы, которые нельзя восстановить здесь.
-semantic-format-switch-notice = Эта игра перейдет на портативный формат резервного копирования. Будет создана новая полная резервная копия.
-semantic-preview-would-become = { $legacy } → { $semantic }

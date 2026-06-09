@@ -258,10 +258,3 @@ custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
 
-semantic-prefix-ambiguous = 이 게임에 대해 여러 Wine 접두사가 발견되었습니다. 하나를 선택하세요.
-semantic-prefix-invalid = 구성된 Wine 접두사가 유효하지 않습니다: { $path }
-semantic-drive-missing = 드라이브 { $drive }는 대상 시스템에서 사용할 수 없습니다.
-semantic-key-conflict = 여러 파일이 동일한 휴대용 저장 위치에 매핑됩니다: { $key }
-semantic-foreign-namespace = 이 백업에는 여기에서 복원할 수 없는 다른 플랫폼의 저장 데이터가 포함되어 있습니다.
-semantic-format-switch-notice = 이 게임은 휴대용 백업 형식으로 전환됩니다. 새로운 전체 백업이 생성됩니다.
-semantic-preview-would-become = { $legacy } → { $semantic }

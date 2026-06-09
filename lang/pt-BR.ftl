@@ -260,10 +260,3 @@ custom-game-will-override = Esse jogo personalizado substitui uma entrada de man
 custom-game-will-extend = Este jogo personalizado estende uma entrada de manifesto
 operation-will-only-include-listed-games = Isso processará apenas os jogos que estão listados no momento
 
-semantic-prefix-ambiguous = Vários prefixos do Wine encontrados para este jogo. Selecione um.
-semantic-prefix-invalid = O prefixo do Wine configurado não é válido: { $path }
-semantic-drive-missing = A unidade { $drive } não está disponível no sistema de destino.
-semantic-key-conflict = Vários arquivos mapeiam para o mesmo local de salvamento portátil: { $key }
-semantic-foreign-namespace = Este backup contém saves de outra plataforma que não podem ser restaurados aqui.
-semantic-format-switch-notice = Este jogo mudará para um formato de backup portátil. Um novo backup completo será criado.
-semantic-preview-would-become = { $legacy } → { $semantic }

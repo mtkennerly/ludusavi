@@ -13,7 +13,6 @@ use crate::{
         manifest::Store,
     },
     scan::{BackupError, OperationStatus, OperationStepDecision, ScanChange, game_filter},
-    semantic::preview::SemanticPreviewAnalysis,
 };
 
 const PATH: &str = "path";
@@ -32,8 +31,6 @@ const APP: &str = "app";
 const GAME: &str = "game";
 const VERSION: &str = "version";
 const DRIVE: &str = "drive";
-const LEGACY: &str = "legacy";
-const SEMANTIC: &str = "semantic";
 const KEY: &str = "key";
 
 pub const TRANSLATOR: Translator = Translator {};
@@ -407,9 +404,6 @@ impl Translator {
             Error::CliUnableToRequestConfirmation => self.cli_unable_to_request_confirmation(),
             Error::CliBackupIdWithMultipleGames => self.cli_backup_id_with_multiple_games(),
             Error::CliInvalidBackupId => self.cli_invalid_backup_id(),
-            Error::WinePrefixConflict { game, cli, configured } => self.wine_prefix_conflict(game, cli, configured),
-            Error::WinePrefixAmbiguity { game, candidates } => self.wine_prefix_ambiguity(game, candidates),
-            Error::WineUserAmbiguity { game, candidates } => self.wine_user_ambiguity(game, candidates),
             Error::NoSaveDataFound => self.notify_single_game_status(false),
             Error::GameIsUnrecognized => self.game_is_unrecognized(),
             Error::SomeEntriesFailed => self.some_entries_failed(),
@@ -759,55 +753,6 @@ impl Translator {
 
     pub fn preferred_wine_prefixes_label(&self) -> String {
         translate("preferred-wine-prefixes-label")
-    }
-
-    pub fn semantic_preview_would_become(&self, legacy: &str, semantic: &str) -> String {
-        let mut args = FluentArgs::new();
-        args.set(LEGACY, legacy);
-        args.set(SEMANTIC, semantic);
-        translate_args("semantic-preview-would-become", &args)
-    }
-
-    pub fn semantic_preview(&self, analysis: &SemanticPreviewAnalysis) -> String {
-        let mut lines = Vec::new();
-
-        for game in &analysis.new_full_chains {
-            lines.push(self.prefix_warning(&format!("{game}: {}", self.semantic_format_switch_notice())));
-        }
-
-        for migration in &analysis.migrations {
-            lines.push(format!(
-                "{}: {}",
-                migration.game_name,
-                self.semantic_preview_would_become(&migration.legacy_key, &migration.semantic_key)
-            ));
-        }
-
-        for prefix in &analysis.invalid_prefixes {
-            lines.push(self.prefix_warning(&format!(
-                "{}: {} ({})",
-                prefix.game_name,
-                self.semantic_prefix_invalid(&prefix.path),
-                prefix.reason
-            )));
-        }
-
-        for conflict in &analysis.conflicts {
-            lines.push(self.prefix_error(&format!(
-                "{}: {}",
-                conflict.game_name,
-                self.semantic_key_conflict(&conflict.semantic_key)
-            )));
-            for path in &conflict.physical_paths {
-                lines.push(format!("    - {path}"));
-            }
-        }
-
-        if lines.is_empty() {
-            "".to_string()
-        } else {
-            format!("{}\n", lines.join("\n"))
-        }
     }
 
     pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {
