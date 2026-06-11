@@ -104,6 +104,7 @@ properties:
       - $ref: "#/definitions/Runtime"
   scan:
     default:
+      redirectWine: false
       showDeselectedGames: true
       showUnchangedGames: true
       showUnscannedGames: true
@@ -855,6 +856,10 @@ definitions:
   Scan:
     type: object
     properties:
+      redirectWine:
+        description: Generate best-effort Windows/Wine redirects during scans.
+        default: false
+        type: boolean
       showDeselectedGames:
         description: "In the GUI, show games that have been deselected."
         default: true

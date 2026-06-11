@@ -39,7 +39,6 @@ use crate::{
     },
 };
 
-
 pub struct Executor(tokio::runtime::Runtime);
 
 impl iced::Executor for Executor {
@@ -879,7 +878,11 @@ impl App {
                                     return (None, None, layout, None);
                                 }
 
-                                let wine_ctx = crate::scan::WineRedirectContext::for_game(&name, &config, config.scan.redirect_wine);
+                                let wine_ctx = crate::scan::WineRedirectContext::for_game(
+                                    &name,
+                                    &config,
+                                    config.scan.redirect_wine,
+                                );
                                 let scan_info = layout.scan_for_restoration(
                                     &name,
                                     &backup_id,

@@ -758,5 +758,4 @@ mod tests {
         // change should be recalculated (not Unknown anymore)
         assert_ne!(file.change, ScanChange::Unknown);
     }
-
 }

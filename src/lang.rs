@@ -30,8 +30,6 @@ const MESSAGE: &str = "message";
 const APP: &str = "app";
 const GAME: &str = "game";
 const VERSION: &str = "version";
-const DRIVE: &str = "drive";
-const KEY: &str = "key";
 
 pub const TRANSLATOR: Translator = Translator {};
 pub const ADD_SYMBOL: &str = "+";
@@ -487,41 +485,6 @@ impl Translator {
         translate("cli-invalid-backup-id")
     }
 
-    pub fn wine_prefix_conflict(&self, game: &str, cli: &StrictPath, configured: &StrictPath) -> String {
-        let mut args = FluentArgs::new();
-        args.set(GAME, game);
-        let primary = translate_args("wine-prefix-conflict", &args);
-        args.set(PATH, cli.render());
-        let cli = translate_args("wine-prefix-conflict-cli", &args);
-        args.set(PATH, configured.render());
-        let configured = translate_args("wine-prefix-conflict-configured", &args);
-        format!("{}\n{}\n{}", self.prefix_error(&primary), cli, configured)
-    }
-
-    pub fn wine_prefix_ambiguity(&self, game: &str, candidates: &[StrictPath]) -> String {
-        let mut args = FluentArgs::new();
-        args.set(GAME, game);
-        let primary = translate_args("wine-prefix-ambiguity", &args);
-        let mut lines = vec![self.prefix_error(&primary)];
-        for candidate in candidates {
-            args.set(PATH, candidate.render());
-            lines.push(translate_args("wine-prefix-ambiguity-candidate", &args));
-        }
-        lines.join("\n")
-    }
-
-    pub fn wine_user_ambiguity(&self, game: &str, candidates: &[String]) -> String {
-        let mut args = FluentArgs::new();
-        args.set(GAME, game);
-        let primary = translate_args("wine-user-ambiguity", &args);
-        let mut lines = vec![self.prefix_error(&primary)];
-        for candidate in candidates {
-            args.set("user", candidate.as_str());
-            lines.push(translate_args("wine-user-ambiguity-candidate", &args));
-        }
-        lines.join("\n")
-    }
-
     pub fn cloud_not_configured(&self) -> String {
         translate("cloud-not-configured")
     }
@@ -598,26 +561,8 @@ impl Translator {
         translate_args("badge-redirecting-to", &args)
     }
 
-    pub fn badge_portable(&self, path: &str) -> String {
-        let mut args = FluentArgs::new();
-        args.set(PATH, path);
-        translate_args("badge-portable", &args)
-    }
-
-    pub fn portable_label(&self) -> String {
-        translate("label-portable")
-    }
-
     pub fn new_full_backup_label(&self) -> String {
         translate("label-new-full-backup")
-    }
-
-    pub fn semantic_conflict_label(&self) -> String {
-        translate("label-portable-conflict")
-    }
-
-    pub fn invalid_prefix_label(&self) -> String {
-        translate("label-invalid-prefix")
     }
 
     pub fn cli_game_header(
@@ -698,61 +643,8 @@ impl Translator {
         format!("    - {}", translate_args("cli-game-line-item-redirecting", &args),)
     }
 
-    pub fn cli_game_line_item_portable(&self, item: &str) -> String {
-        let mut args = FluentArgs::new();
-        args.set(PATH, item);
-        format!("    - {}", translate_args("cli-game-line-item-portable", &args),)
-    }
-
     pub fn cli_game_line_item_error(&self, error: &BackupError) -> String {
         format!("    - {}", error.message())
-    }
-
-    pub fn semantic_format_switch_notice(&self) -> String {
-        translate("semantic-format-switch-notice")
-    }
-
-    pub fn semantic_prefix_ambiguous(&self) -> String {
-        translate("semantic-prefix-ambiguous")
-    }
-
-    pub fn semantic_prefix_invalid(&self, path: &str) -> String {
-        let mut args = FluentArgs::new();
-        args.set(PATH, path);
-        translate_args("semantic-prefix-invalid", &args)
-    }
-
-    pub fn semantic_drive_missing(&self, drive: char) -> String {
-        let mut args = FluentArgs::new();
-        args.set(DRIVE, drive.to_string());
-        translate_args("semantic-drive-missing", &args)
-    }
-
-    pub fn semantic_key_conflict(&self, key: &str) -> String {
-        let mut args = FluentArgs::new();
-        args.set(KEY, key);
-        translate_args("semantic-key-conflict", &args)
-    }
-
-    pub fn wine_prefix_selection_prompt(&self, game: &str) -> String {
-        let mut args = FluentArgs::new();
-        args.set(GAME, game);
-        translate_args("wine-prefix-selection-prompt", &args)
-    }
-
-    pub fn wine_prefix_missing_warning(&self, game: &str, path: &str) -> String {
-        let mut args = FluentArgs::new();
-        args.set(GAME, game);
-        args.set(PATH, path);
-        translate_args("wine-prefix-missing-warning", &args)
-    }
-
-    pub fn wine_prefix_invalid_selection(&self) -> String {
-        translate("wine-prefix-invalid-selection")
-    }
-
-    pub fn preferred_wine_prefixes_label(&self) -> String {
-        translate("preferred-wine-prefixes-label")
     }
 
     pub fn cli_summary(&self, status: &OperationStatus, location: &StrictPath) -> String {
@@ -1426,14 +1318,6 @@ impl Translator {
 
     pub fn skip_unconstructive_backups(&self) -> String {
         translate("skip-unconstructive-backups")
-    }
-
-    pub fn portable_backups(&self) -> String {
-        translate("portable-backups")
-    }
-
-    pub fn portable_backups_tooltip(&self) -> String {
-        translate("portable-backups-tooltip")
     }
 
     pub fn total_games(&self) -> String {

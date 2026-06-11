@@ -118,7 +118,7 @@ impl fmt::Display for SemanticPathError {
 
 impl std::error::Error for SemanticPathError {}
 
-/// A portable save-file identity.
+/// A normalized Windows location used while generating Wine redirects.
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SemanticPath {
     pub base: SemanticBase,

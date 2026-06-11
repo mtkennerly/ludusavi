@@ -12,7 +12,6 @@ use crate::{
     },
 };
 
-
 pub use crate::{
     path::StrictPath,
     prelude::{Finality, SyncDirection},
@@ -196,11 +195,8 @@ impl Ludusavi {
             log::trace!("step {i} / {}: {name}", games.len());
             let game = &self.manifest.0[name];
 
-            let wine_ctx = crate::scan::WineRedirectContext::for_game(
-                name,
-                &self.config,
-                self.config.scan.redirect_wine,
-            );
+            let wine_ctx =
+                crate::scan::WineRedirectContext::for_game(name, &self.config, self.config.scan.redirect_wine);
             let previous = self.layout.latest_backup(
                 name,
                 ScanKind::Backup,
@@ -380,7 +376,8 @@ impl Ludusavi {
             log::trace!("step {i} / {}: {name}", games.len());
             let mut layout = self.layout.game_layout(name);
 
-            let wine_ctx = crate::scan::WineRedirectContext::for_game(name, &self.config, self.config.scan.redirect_wine);
+            let wine_ctx =
+                crate::scan::WineRedirectContext::for_game(name, &self.config, self.config.scan.redirect_wine);
             let scan_info = layout.scan_for_restoration(
                 name,
                 backup_id.as_ref().unwrap_or(&BackupId::Latest),

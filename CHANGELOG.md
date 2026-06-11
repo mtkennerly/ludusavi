@@ -1,16 +1,9 @@
 ## Unreleased
 
 * Added:
-  * Opt-in portable backups for cross-platform Windows and Wine/Proton saves.
-    When enabled via the new `backup.semanticPaths` setting (off by default),
-    Windows save locations are stored portably so that a backup made on Windows
-    can be restored into a Wine/Proton prefix on Linux (and vice versa) without
-    per-game redirects.
-    New restore settings support this: `restore.winePrefix` (global fallback
-    prefix), `restore.preferredWinePrefixes` (per-game prefix, Wine user, and
-    drive mappings), and `restore.driveMappings` (manual drive-letter mappings).
-    On Linux, restoring a portable backup will prompt for a Wine prefix when one
-    cannot be determined automatically.
+  * Config: `scan.redirectWine` can generate best-effort redirects between
+    Windows paths and Wine/Proton prefixes during backup and restore scans.
+    This is disabled by default.
     ([#194](https://github.com/mtkennerly/ludusavi/issues/194),
     [#310](https://github.com/mtkennerly/ludusavi/issues/310))
 

@@ -2,11 +2,7 @@ mod api;
 pub mod parse;
 mod ui;
 
-use std::{
-    collections::BTreeSet,
-    process::Command,
-    time::Duration,
-};
+use std::{collections::BTreeSet, process::Command, time::Duration};
 
 use clap::CommandFactory;
 use indicatif::{ParallelProgressIterator, ProgressBar};
@@ -31,7 +27,6 @@ use crate::{
     },
     wrap,
 };
-
 
 const PROGRESS_BAR_REFRESH_INTERVAL: Duration = Duration::from_millis(50);
 
@@ -292,11 +287,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 log::trace!("step {i} / {}: {name}", games.len());
                 let game = &manifest.0[name];
 
-                let wine_ctx = crate::scan::WineRedirectContext::for_game(
-                    name,
-                    &config,
-                    config.scan.redirect_wine,
-                );
+                let wine_ctx = crate::scan::WineRedirectContext::for_game(name, &config, config.scan.redirect_wine);
                 let previous = layout.latest_backup(
                     name,
                     ScanKind::Backup,

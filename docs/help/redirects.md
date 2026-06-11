@@ -47,11 +47,3 @@ that may lead to an undesired result:
 `D:/Games/Title/save.dat` won't trigger the first redirect,
 so it would restore to `C:/Games/Title/save.dat`.
 You can enable the "reverse sequence of redirects when restoring" option to change this behavior.
-
-<!--
-Portable Windows/Wine backups apply redirects after Ludusavi has translated the
-portable save identity back into a physical path for the current Windows user or
-selected Wine prefix. Redirects remain useful for custom layouts and unsupported
-cases, but they are no longer needed just to remove Windows usernames or Wine
-prefix paths from those portable backup keys.
--->

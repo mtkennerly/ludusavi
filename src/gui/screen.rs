@@ -14,9 +14,7 @@ use crate::{
         search::CustomGamesFilter,
         shortcuts::TextHistories,
         style,
-        widget::{
-            Button, Column, Container, Element, IcedParentExt, Row, checkbox, number_input, pick_list, text,
-        },
+        widget::{Button, Column, Container, Element, IcedParentExt, Row, checkbox, number_input, pick_list, text},
     },
     lang::{Language, TRANSLATOR},
     prelude::{AVAILABLE_PARALELLISM, STEAM_DECK},

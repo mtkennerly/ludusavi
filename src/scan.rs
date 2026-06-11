@@ -73,11 +73,7 @@ pub struct WineRedirectContext {
 impl WineRedirectContext {
     /// Build a context from the current game's config and system state.
     /// Returns None if redirect_wine is disabled or no usable context exists.
-    pub fn for_game(
-        game_name: &str,
-        config: &Config,
-        redirect_wine: bool,
-    ) -> Option<Self> {
+    pub fn for_game(game_name: &str, config: &Config, redirect_wine: bool) -> Option<Self> {
         if !redirect_wine {
             return None;
         }
@@ -127,25 +123,15 @@ fn known_folders_from_env() -> Option<KnownFolders> {
         .ok()
         .map(|p| format!("{}/Saved Games", p.replace('\\', "/")));
 
-    let app_data = std::env::var("APPDATA")
-        .ok()
-        .map(|p| p.replace('\\', "/"));
+    let app_data = std::env::var("APPDATA").ok().map(|p| p.replace('\\', "/"));
 
-    let local_app_data = std::env::var("LOCALAPPDATA")
-        .ok()
-        .map(|p| p.replace('\\', "/"));
+    let local_app_data = std::env::var("LOCALAPPDATA").ok().map(|p| p.replace('\\', "/"));
 
-    let public = std::env::var("PUBLIC")
-        .ok()
-        .map(|p| p.replace('\\', "/"));
+    let public = std::env::var("PUBLIC").ok().map(|p| p.replace('\\', "/"));
 
-    let program_data = std::env::var("ProgramData")
-        .ok()
-        .map(|p| p.replace('\\', "/"));
+    let program_data = std::env::var("ProgramData").ok().map(|p| p.replace('\\', "/"));
 
-    let windows = std::env::var("SystemRoot")
-        .ok()
-        .map(|p| p.replace('\\', "/"));
+    let windows = std::env::var("SystemRoot").ok().map(|p| p.replace('\\', "/"));
 
     Some(KnownFolders {
         saved_games,
@@ -243,11 +229,7 @@ fn generate_restore_redirect(
         {
             let prefix_sp = StrictPath::new(prefix_path.clone());
             let wine_user = detect_wine_user_from_path(stored_raw, prefix_path)?;
-            let semantic = crate::semantic::convert::wine_physical_to_semantic(
-                stored_path,
-                &prefix_sp,
-                &wine_user,
-            )?;
+            let semantic = crate::semantic::convert::wine_physical_to_semantic(stored_path, &prefix_sp, &wine_user)?;
             return materialize_to_windows(&semantic, kf);
         }
 
@@ -256,11 +238,9 @@ fn generate_restore_redirect(
         if let Some(ref prefix) = context.preferred_prefix {
             let prefix_sp = StrictPath::new(prefix_path.clone());
             let wine_user = detect_wine_user_from_path(stored_raw, prefix_path)?;
-            if let Some(semantic) = crate::semantic::convert::wine_physical_to_semantic(
-                stored_path,
-                &prefix_sp,
-                &wine_user,
-            ).and_then(|s| materialize_to_wine(&s, prefix))
+            if let Some(semantic) =
+                crate::semantic::convert::wine_physical_to_semantic(stored_path, &prefix_sp, &wine_user)
+                    .and_then(|s| materialize_to_wine(&s, prefix))
             {
                 return Some(semantic);
             }
@@ -380,10 +360,7 @@ fn materialize_to_windows(
 
 /// Materialize a semantic path into a Wine prefix path.
 /// Maps semantic bases to their Wine directory equivalents under `drive_c/`.
-fn materialize_to_wine(
-    semantic: &crate::semantic::SemanticPath,
-    prefix: &ValidatedPrefix,
-) -> Option<StrictPath> {
+fn materialize_to_wine(semantic: &crate::semantic::SemanticPath, prefix: &ValidatedPrefix) -> Option<StrictPath> {
     use crate::semantic::SemanticBase;
 
     let base_path = match &semantic.base {
@@ -990,14 +967,25 @@ pub fn scan_game_for_backup(
         }
     }
 
-    let previous_files: HashMap<&StrictPath, &String> = previous
+    let previous_hashes: HashMap<&StrictPath, &String> = previous
+        .as_ref()
+        .map(|previous| {
+            let mut files = HashMap::new();
+            for (scan_key, file) in &previous.scan.found_files {
+                files.insert(file.original_path(scan_key), &file.hash);
+                files.insert(file.effective(scan_key), &file.hash);
+            }
+            files
+        })
+        .unwrap_or_default();
+    let previous_files_for_removal: Vec<&StrictPath> = previous
         .as_ref()
         .map(|previous| {
             previous
                 .scan
                 .found_files
                 .iter()
-                .map(|(scan_key, x)| (x.original_path(scan_key), &x.hash))
+                .map(|(scan_key, file)| file.effective(scan_key))
                 .collect()
         })
         .unwrap_or_default();
@@ -1025,9 +1013,17 @@ pub fn scan_game_for_backup(
                 log::debug!("[{name}] found: {scan_key:?}");
                 let size = scan_key.size();
                 let hash = scan_key.sha1();
-                let redirected = game_file_target(&scan_key, redirects, reverse_redirects_on_restore, ScanKind::Backup, false, None, None);
+                let redirected = game_file_target(
+                    &scan_key,
+                    redirects,
+                    reverse_redirects_on_restore,
+                    ScanKind::Backup,
+                    false,
+                    None,
+                    None,
+                );
                 let change =
-                    ScanChange::evaluate_backup(&hash, previous_files.get(redirected.as_ref().unwrap_or(&scan_key)));
+                    ScanChange::evaluate_backup(&hash, previous_hashes.get(redirected.as_ref().unwrap_or(&scan_key)));
                 found_files.insert(
                     scan_key,
                     ScannedFile {
@@ -1067,11 +1063,18 @@ pub fn scan_game_for_backup(
                         log::debug!("[{name}] found: {scan_key:?}");
                         let size = scan_key.size();
                         let hash = scan_key.sha1();
-                        let redirected =
-                            game_file_target(&scan_key, redirects, reverse_redirects_on_restore, ScanKind::Backup, false, None, None);
+                        let redirected = game_file_target(
+                            &scan_key,
+                            redirects,
+                            reverse_redirects_on_restore,
+                            ScanKind::Backup,
+                            false,
+                            None,
+                            None,
+                        );
                         let change = ScanChange::evaluate_backup(
                             &hash,
-                            previous_files.get(redirected.as_ref().unwrap_or(&scan_key)),
+                            previous_hashes.get(redirected.as_ref().unwrap_or(&scan_key)),
                         );
                         found_files.insert(
                             scan_key,
@@ -1104,7 +1107,7 @@ pub fn scan_game_for_backup(
         .filter(|(_, x)| x.redirected.is_some())
         .map(|(scan_key, _)| scan_key.interpret())
         .collect();
-    for (previous_file, _) in previous_files {
+    for previous_file in previous_files_for_removal {
         let previous_file_interpreted = previous_file.interpret();
         if !current_files.contains(&previous_file_interpreted)
             && !current_files_with_redirects.contains(&previous_file_interpreted)
@@ -1218,32 +1221,24 @@ pub fn scan_game_for_backup(
             }
             let sp = StrictPath::new(wp);
             if crate::semantic::prefix::validate_prefix(&sp).is_some() {
-                semantics
-                    .directories
-                    .insert(sp.render(), SemanticDirKind::Wine);
+                semantics.directories.insert(sp.render(), SemanticDirKind::Wine);
             }
         }
         // Check the explicit wine_prefix parameter (from CLI).
         if let Some(wp) = wine_prefix
             && crate::semantic::prefix::validate_prefix(wp).is_some()
         {
-            semantics
-                .directories
-                .insert(wp.render(), SemanticDirKind::Wine);
+            semantics.directories.insert(wp.render(), SemanticDirKind::Wine);
         }
         // Check launcher-discovered prefixes (Heroic, Lutris, Steam Proton).
         for root in roots {
             for wp in launchers.get_game(root, name).filter_map(|x| x.prefix.as_ref()) {
                 if crate::semantic::prefix::validate_prefix(wp).is_some() {
-                    semantics
-                        .directories
-                        .insert(wp.render(), SemanticDirKind::Wine);
+                    semantics.directories.insert(wp.render(), SemanticDirKind::Wine);
                 }
                 let pfx = wp.joined("pfx");
                 if pfx.exists() && crate::semantic::prefix::validate_prefix(&pfx).is_some() {
-                    semantics
-                        .directories
-                        .insert(pfx.render(), SemanticDirKind::Wine);
+                    semantics.directories.insert(pfx.render(), SemanticDirKind::Wine);
                 }
             }
         }
@@ -1431,7 +1426,15 @@ mod tests {
         // No redirects
         assert_eq!(
             None,
-            game_file_target(&StrictPath::new("/foo"), &[], false, ScanKind::Backup, false, None, None)
+            game_file_target(
+                &StrictPath::new("/foo"),
+                &[],
+                false,
+                ScanKind::Backup,
+                false,
+                None,
+                None
+            )
         );
 
         // Match - backup
@@ -2008,6 +2011,105 @@ mod tests {
                 ONLY_CONSTRUCTIVE,
                 false,
             ),
+        );
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_matches_previous_wine_redirect_target() {
+        let current_path = StrictPath::new(format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()));
+        let previous_source = StrictPath::new("/old-prefix/drive_c/users/steamuser/data.txt");
+        let previous = LatestBackup {
+            scan: ScanInfo {
+                found_files: hash_map! {
+                    StrictPath::new("/backup/game4/file.dat"): ScannedFile {
+                        size: 0,
+                        hash: EMPTY_HASH.to_string(),
+                        original_path: Some(previous_source.clone()),
+                        ignored: false,
+                        change: ScanChange::Unknown,
+                        container: None,
+                        redirected: Some(current_path.clone()),
+                    },
+                },
+                ..Default::default()
+            },
+            when: chrono::Utc::now(),
+            registry_content: None,
+        };
+
+        let scan = scan_game_for_backup(
+            &manifest().0["game4"],
+            "game4",
+            &config().roots,
+            &StrictPath::new(repo()),
+            &Launchers::scan_dirs(&config().roots, &manifest(), &["game4".to_string()]),
+            &BackupFilter::default(),
+            Some(&StrictPath::new(format!("{}/tests/wine-prefix", repo()))),
+            &ToggledPaths::default(),
+            &ToggledRegistry::default(),
+            Some(&previous),
+            &[],
+            false,
+            &Default::default(),
+            ONLY_CONSTRUCTIVE,
+            false,
+        );
+
+        assert_eq!(
+            Some(ScanChange::Same),
+            scan.found_files.get(&current_path).map(|file| file.change)
+        );
+        assert!(!scan.found_files.contains_key(&previous_source));
+    }
+
+    #[test]
+    fn can_scan_game_for_backup_matches_previous_user_redirect_key() {
+        let live_path = StrictPath::new(format!("{}/tests/root2/game1/file1.txt", repo()));
+        let stored_path = StrictPath::new("/redirected/file1.txt");
+        let previous = LatestBackup {
+            scan: ScanInfo {
+                found_files: hash_map! {
+                    StrictPath::new("/backup/game1/file1.txt"): ScannedFile {
+                        size: 1,
+                        hash: "3a52ce780950d4d969792a2559cd519d7ee8c727".to_string(),
+                        original_path: Some(stored_path.clone()),
+                        ignored: false,
+                        change: ScanChange::Unknown,
+                        container: None,
+                        redirected: None,
+                    },
+                },
+                ..Default::default()
+            },
+            when: chrono::Utc::now(),
+            registry_content: None,
+        };
+
+        let scan = scan_game_for_backup(
+            &manifest().0["game1"],
+            "game1",
+            &config().roots,
+            &StrictPath::new(repo()),
+            &Launchers::scan_dirs(&config().roots, &manifest(), &["game1".to_string()]),
+            &BackupFilter::default(),
+            None,
+            &ToggledPaths::default(),
+            &ToggledRegistry::default(),
+            Some(&previous),
+            &[RedirectConfig {
+                kind: RedirectKind::Backup,
+                source: live_path.clone(),
+                target: stored_path,
+            }],
+            false,
+            &Default::default(),
+            ONLY_CONSTRUCTIVE,
+            false,
+        );
+
+        assert_eq!(
+            Some(ScanChange::Same),
+            scan.found_files.get(&live_path).map(|file| file.change)
         );
     }
 
@@ -2595,16 +2697,10 @@ mod tests {
         );
 
         // Not a recognized pattern
-        assert_eq!(
-            detect_windows_special_folder("/home/user/game/save.dat"),
-            None,
-        );
+        assert_eq!(detect_windows_special_folder("/home/user/game/save.dat"), None,);
 
         // Path without special folder after username
-        assert_eq!(
-            detect_windows_special_folder("C:/Users/Alice/random/file.dat"),
-            None,
-        );
+        assert_eq!(detect_windows_special_folder("C:/Users/Alice/random/file.dat"), None,);
     }
 
     // ── Real-path integration tests using Steam Deck / Proton backup data ──
@@ -2688,7 +2784,10 @@ mod tests {
             Some(&sem),
             Some(&ctx),
         );
-        assert!(result.is_some(), "Cuphead AppData/Roaming Wine→Windows should produce a redirect");
+        assert!(
+            result.is_some(),
+            "Cuphead AppData/Roaming Wine→Windows should produce a redirect"
+        );
         let path = result.unwrap();
         assert_eq!(
             path.raw(),
@@ -2730,7 +2829,10 @@ mod tests {
             Some(&sem),
             Some(&ctx),
         );
-        assert!(result.is_some(), "Cuphead LocalLow Wine→Windows should produce a redirect");
+        assert!(
+            result.is_some(),
+            "Cuphead LocalLow Wine→Windows should produce a redirect"
+        );
         let path = result.unwrap();
         // LocalLow is a sub-path under AppData/Local, so the path includes it.
         assert!(
@@ -2770,7 +2872,10 @@ mod tests {
         let path = result.unwrap();
         assert_eq!(
             path.raw(),
-            format!("{}/drive_c/users/steamuser/Documents/Saved Games/Hades/Profile1.sav", prefix_path),
+            format!(
+                "{}/drive_c/users/steamuser/Documents/Saved Games/Hades/Profile1.sav",
+                prefix_path
+            ),
             "Hades: should map to Wine prefix Documents path"
         );
     }
@@ -2803,7 +2908,10 @@ mod tests {
         let path = result.unwrap();
         assert_eq!(
             path.raw(),
-            format!("{}/drive_c/users/steamuser/AppData/Roaming/Cuphead/cuphead_player_data_v1_slot_0.sav", prefix_path),
+            format!(
+                "{}/drive_c/users/steamuser/AppData/Roaming/Cuphead/cuphead_player_data_v1_slot_0.sav",
+                prefix_path
+            ),
             "Cuphead: should map to Wine prefix AppData/Roaming path"
         );
     }
@@ -2846,7 +2954,10 @@ mod tests {
             Some(&sem),
             Some(&ctx),
         );
-        assert!(result.is_some(), "Wine→Wine with different user should produce a redirect");
+        assert!(
+            result.is_some(),
+            "Wine→Wine with different user should produce a redirect"
+        );
         let path = result.unwrap();
         // The old username "deck" under drive_c/users/ should be replaced with "steamuser"
         assert!(
@@ -2855,7 +2966,8 @@ mod tests {
             path.raw()
         );
         assert!(
-            path.raw().contains("drive_c/users/steamuser/Documents/Saved Games/Hades/Profile1.sav"),
+            path.raw()
+                .contains("drive_c/users/steamuser/Documents/Saved Games/Hades/Profile1.sav"),
             "should map through new prefix with new username: {}",
             path.raw()
         );
