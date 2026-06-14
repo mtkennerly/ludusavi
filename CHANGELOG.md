@@ -1,3 +1,12 @@
+## Unreleased
+
+* Added:
+  * Ludusavi can now translate native Windows paths into Wine prefixes and vice versa.
+    During a scan, these will appear like any other redirected path.
+    This is supported for Wine specifically, not any other native Linux paths.
+    Currently, this only translates file paths, not the registry.
+    ([Contributed by thedavidweng](https://github.com/mtkennerly/ludusavi/pull/614))
+
 ## v0.31.0 (2026-04-04)
 
 * Added:

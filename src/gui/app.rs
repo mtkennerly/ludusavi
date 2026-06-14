@@ -34,8 +34,8 @@ use crate::{
         manifest::Manifest,
     },
     scan::{
-        BackupId, Launchers, ScanKind, SteamShortcuts, TitleFinder, game_filter, layout::BackupLayout,
-        prepare_backup_target, registry::RegistryItem, scan_game_for_backup,
+        BackupId, Launchers, ScanKind, SteamShortcuts, TitleFinder, WineRedirectContext, game_filter,
+        layout::BackupLayout, prepare_backup_target, registry::RegistryItem, scan_game_for_backup,
     },
 };
 
@@ -500,11 +500,7 @@ impl App {
                                     return (None, None);
                                 }
 
-                                let wine_ctx = crate::scan::WineRedirectContext::for_game(
-                                    &key,
-                                    &config,
-                                    config.scan.redirect_wine,
-                                );
+                                let wine_ctx = WineRedirectContext::for_game(&key, &config);
                                 let previous = layout.latest_backup(
                                     &key,
                                     SCAN_KIND,
@@ -875,11 +871,7 @@ impl App {
                                     return (None, None, layout);
                                 }
 
-                                let wine_ctx = crate::scan::WineRedirectContext::for_game(
-                                    &name,
-                                    &config,
-                                    config.scan.redirect_wine,
-                                );
+                                let wine_ctx = WineRedirectContext::for_game(&name, &config);
                                 let scan_info = layout.scan_for_restoration(
                                     &name,
                                     &backup_id,

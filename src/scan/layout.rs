@@ -15,8 +15,8 @@ use crate::{
         manifest::Os,
     },
     scan::{
-        BackupError, BackupId, BackupInfo, ScanChange, ScanInfo, ScanKind, ScannedFile, game_file_target,
-        prepare_backup_target, registry,
+        BackupError, BackupId, BackupInfo, ScanChange, ScanInfo, ScanKind, ScannedFile, WineRedirectContext,
+        game_file_target, prepare_backup_target, registry,
     },
 };
 
@@ -233,17 +233,6 @@ impl ToString for Backup {
     }
 }
 
-/// Format of registry data stored in a backup chain.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub enum RegistryFormat {
-    /// Default/legacy behavior.
-    #[default]
-    Default,
-    /// Cross-platform registry transfer is not yet supported.
-    Unsupported,
-}
-
 /// Source environment metadata for generating cross-platform redirects.
 /// Only populated when the backup contains files from Wine prefixes.
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -262,10 +251,6 @@ impl BackupSemantics {
 #[serde(rename_all = "camelCase")]
 pub struct DirectorySemantics {
     pub kind: SemanticDirKind,
-}
-
-fn is_default_semantics(s: &BackupSemantics) -> bool {
-    s.is_empty()
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
@@ -288,19 +273,12 @@ pub struct FullBackup {
     /// Locked backups do not count toward retention limits and are never deleted.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub locked: bool,
-    /// Registry format for this backup chain.
-    #[serde(skip_serializing_if = "is_default_registry_format")]
-    pub registry_format: RegistryFormat,
     /// Source environment metadata for generating cross-platform redirects.
-    #[serde(skip_serializing_if = "is_default_semantics")]
+    #[serde(skip_serializing_if = "BackupSemantics::is_empty")]
     pub semantics: BackupSemantics,
     pub files: BTreeMap<String, IndividualMappingFile>,
     pub registry: IndividualMappingRegistry,
     pub children: VecDeque<DifferentialBackup>,
-}
-
-fn is_default_registry_format(f: &RegistryFormat) -> bool {
-    *f == RegistryFormat::Default
 }
 
 impl FullBackup {
@@ -339,7 +317,7 @@ pub struct DifferentialBackup {
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub locked: bool,
     /// Source environment metadata for generating cross-platform redirects.
-    #[serde(skip_serializing_if = "is_default_semantics")]
+    #[serde(skip_serializing_if = "BackupSemantics::is_empty")]
     pub semantics: BackupSemantics,
     pub files: BTreeMap<String, Option<IndividualMappingFile>>,
     pub registry: Option<IndividualMappingRegistry>,
@@ -667,7 +645,7 @@ impl GameLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         only_constructive_backups: bool,
-        wine_redirect: Option<&super::WineRedirectContext>,
+        wine_redirect: Option<&WineRedirectContext>,
     ) -> Option<ScanInfo> {
         if self.mapping.backups.is_empty() {
             None
@@ -690,7 +668,7 @@ impl GameLayout {
                 // Registry is handled separately.
                 dumped_registry: None,
                 only_constructive_backups,
-                ..Default::default()
+                semantics: BackupSemantics::default(),
             })
         }
     }
@@ -715,7 +693,7 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
-        wine_redirect: Option<&super::WineRedirectContext>,
+        wine_redirect: Option<&WineRedirectContext>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut files = HashMap::new();
 
@@ -749,8 +727,8 @@ impl GameLayout {
                     toggled_paths,
                     wine_redirect,
                 ) {
-                    let mapping_key = full_file.original_path.as_ref().unwrap().render();
-                    if diff.file(mapping_key) == BackupInclusion::Inherited {
+                    let original_path = full_file.original_path.as_ref().unwrap().render();
+                    if diff.file(original_path) == BackupInclusion::Inherited {
                         files.insert(scan_key, full_file);
                     }
                 }
@@ -767,12 +745,12 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
-        wine_redirect: Option<&super::WineRedirectContext>,
+        wine_redirect: Option<&WineRedirectContext>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut restorables = HashMap::new();
 
-        for (mapping_key_str, v) in &backup.files {
-            let original_path = StrictPath::new(mapping_key_str.clone());
+        for (mapping_key, v) in &backup.files {
+            let original_path = StrictPath::new(mapping_key.clone());
 
             let redirected = game_file_target(
                 &original_path,
@@ -841,13 +819,13 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
-        wine_redirect: Option<&super::WineRedirectContext>,
+        wine_redirect: Option<&WineRedirectContext>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut restorables = HashMap::new();
 
-        for (mapping_key_str, v) in &backup.files {
+        for (mapping_key, v) in &backup.files {
             let v = some_or_continue!(v);
-            let original_path = StrictPath::new(mapping_key_str.clone());
+            let original_path = StrictPath::new(mapping_key.clone());
 
             let redirected = game_file_target(
                 &original_path,
@@ -1055,7 +1033,7 @@ impl GameLayout {
             return None;
         }
 
-        let kind = self.plan_backup_kind(retention, scan);
+        let kind = self.plan_backup_kind(retention);
 
         let backup = match kind {
             BackupKind::Full => Backup::Full(self.plan_full_backup(scan, now, format, retention)),
@@ -1067,7 +1045,7 @@ impl GameLayout {
         backup.needed().then_some(backup)
     }
 
-    fn plan_backup_kind(&self, retention: Retention, _scan: &ScanInfo) -> BackupKind {
+    fn plan_backup_kind(&self, retention: Retention) -> BackupKind {
         if retention.force_new_full {
             return BackupKind::Full;
         }
@@ -1127,7 +1105,6 @@ impl GameLayout {
             os: Some(Os::HOST),
             comment: None,
             locked: false,
-            registry_format: RegistryFormat::Default,
             semantics: scan.semantics.clone(),
             files,
             registry,
@@ -1666,7 +1643,7 @@ impl GameLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         #[cfg_attr(not(target_os = "windows"), allow(unused))] toggled_registry: &ToggledRegistry,
-        wine_redirect: Option<&super::WineRedirectContext>,
+        wine_redirect: Option<&WineRedirectContext>,
     ) -> ScanInfo {
         log::trace!("[{name}] beginning scan for restore");
 
@@ -1763,8 +1740,7 @@ impl GameLayout {
             has_backups,
             dumped_registry,
             only_constructive_backups: false,
-
-            ..Default::default()
+            semantics: BackupSemantics::default(),
         }
     }
 
@@ -2146,19 +2122,19 @@ impl GameLayout {
                 }
             }
 
-            if let Some(diff_backup) = diff {
-                match diff_backup.format() {
+            if let Some(backup) = diff {
+                match backup.format() {
                     BackupFormat::Simple => {
-                        for (file, data) in &diff_backup.files {
+                        for (file, data) in &backup.files {
                             if data.is_none() {
                                 // File is deliberately omitted.
                                 continue;
                             }
 
                             let original_path = StrictPath::new(file.to_string());
-                            let stored =
-                                self.mapping
-                                    .game_file_immutable(&self.path, &original_path, &diff_backup.name);
+                            let stored = self
+                                .mapping
+                                .game_file_immutable(&self.path, &original_path, &backup.name);
                             if !stored.is_file() {
                                 #[cfg(test)]
                                 eprintln!("can't find {}", stored.render());
@@ -2167,14 +2143,14 @@ impl GameLayout {
                         }
                     }
                     BackupFormat::Zip => {
-                        let Ok(handle) = self.path.joined(&diff_backup.name).open() else {
+                        let Ok(handle) = self.path.joined(&backup.name).open() else {
                             return false;
                         };
                         let Ok(mut archive) = zip::ZipArchive::new(handle) else {
                             return false;
                         };
 
-                        for (file, data) in &diff_backup.files {
+                        for (file, data) in &backup.files {
                             if data.is_none() {
                                 // File is deliberately omitted.
                                 continue;
@@ -2303,7 +2279,7 @@ impl BackupLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         only_constructive: bool,
-        wine_redirect: Option<&super::WineRedirectContext>,
+        wine_redirect: Option<&WineRedirectContext>,
     ) -> Option<LatestBackup> {
         if self.contains_game(name) {
             let game_layout = self.game_layout(name);
@@ -2505,8 +2481,8 @@ mod tests {
             }
         }
 
-        fn wine_redirect_context(prefix: &str, wine_user: &str) -> crate::scan::WineRedirectContext {
-            crate::scan::WineRedirectContext {
+        fn wine_redirect_context(prefix: &str, wine_user: &str) -> WineRedirectContext {
+            WineRedirectContext {
                 preferred_prefix: Some(crate::scan::semantic::prefix::ValidatedPrefix {
                     path: StrictPath::new(prefix),
                     wine_user: wine_user.to_string(),
@@ -2535,10 +2511,7 @@ mod tests {
         #[test]
         fn can_plan_backup_kind_when_first_time() {
             let layout = GameLayout::default();
-            assert_eq!(
-                BackupKind::Full,
-                layout.plan_backup_kind(Retention::default(), &ScanInfo::default())
-            );
+            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::default()));
         }
 
         #[test]
@@ -2550,10 +2523,7 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(
-                BackupKind::Full,
-                layout.plan_backup_kind(Retention::new(1, 0), &ScanInfo::default())
-            );
+            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(1, 0)));
         }
 
         #[test]
@@ -2568,10 +2538,7 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(
-                BackupKind::Full,
-                layout.plan_backup_kind(Retention::new(1, 0), &ScanInfo::default())
-            );
+            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(1, 0)));
         }
 
         #[test]
@@ -2583,10 +2550,7 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(
-                BackupKind::Full,
-                layout.plan_backup_kind(Retention::new(2, 0), &ScanInfo::default())
-            );
+            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(2, 0)));
         }
 
         #[test]
@@ -2598,10 +2562,7 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(
-                BackupKind::Differential,
-                layout.plan_backup_kind(Retention::new(1, 1), &ScanInfo::default())
-            );
+            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(1, 1)));
         }
 
         #[test]
@@ -2616,10 +2577,7 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(
-                BackupKind::Differential,
-                layout.plan_backup_kind(Retention::new(1, 1), &ScanInfo::default())
-            );
+            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(1, 1)));
         }
 
         #[test]
@@ -2643,10 +2601,7 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(
-                BackupKind::Differential,
-                layout.plan_backup_kind(Retention::new(2, 2), &ScanInfo::default())
-            );
+            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(2, 2)));
         }
 
         #[test]
@@ -2673,10 +2628,7 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(
-                BackupKind::Full,
-                layout.plan_backup_kind(Retention::new(2, 2), &ScanInfo::default())
-            );
+            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(2, 2)));
         }
 
         #[test]
@@ -2697,10 +2649,7 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(
-                BackupKind::Differential,
-                layout.plan_backup_kind(Retention::new(1, 2), &ScanInfo::default())
-            );
+            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(1, 2)));
         }
 
         #[test]

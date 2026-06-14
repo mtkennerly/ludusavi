@@ -39,8 +39,10 @@ use crate::{
         },
         manifest::{Game, GameFileEntry, IdSet, Os, Store},
     },
-    scan::layout::{BackupSemantics, DirectorySemantics, LatestBackup, SemanticDirKind},
-    scan::semantic::{convert::KnownFolders, prefix::ValidatedPrefix},
+    scan::{
+        layout::{BackupSemantics, DirectorySemantics, LatestBackup, SemanticDirKind},
+        semantic::{convert::KnownFolders, prefix::ValidatedPrefix},
+    },
 };
 
 #[cfg(target_os = "windows")]
@@ -73,8 +75,8 @@ pub struct WineRedirectContext {
 impl WineRedirectContext {
     /// Build a context from the current game's config and system state.
     /// Returns None if redirect_wine is disabled or no usable context exists.
-    pub fn for_game(game_name: &str, config: &Config, redirect_wine: bool) -> Option<Self> {
-        if !redirect_wine {
+    pub fn for_game(game_name: &str, config: &Config) -> Option<Self> {
+        if !config.scan.redirect_wine {
             return None;
         }
 
@@ -213,7 +215,7 @@ fn generate_restore_redirect(
 
     if let Some((prefix_path, _)) = wine_match {
         // Linux/Wine backup → Windows restore: preferred_prefix is None, known_folders is Some.
-        if let Some(ref kf) = context.known_folders
+        if let Some(kf) = &context.known_folders
             && context.preferred_prefix.is_none()
         {
             let prefix_sp = StrictPath::new(prefix_path.clone());
@@ -224,7 +226,7 @@ fn generate_restore_redirect(
 
         // Wine backup → Wine restore (same or different prefix):
         // Use semantic conversion to handle username changes correctly.
-        if let Some(ref prefix) = context.preferred_prefix {
+        if let Some(prefix) = &context.preferred_prefix {
             let prefix_sp = StrictPath::new(prefix_path.clone());
             let wine_user = detect_wine_user_from_path(stored_raw, prefix_path)?;
             if let Some(semantic) = semantic::convert::wine_physical_to_semantic(stored_path, &prefix_sp, &wine_user)
@@ -238,7 +240,7 @@ fn generate_restore_redirect(
     // Windows backup → Linux/Wine restore: detect Windows special folders heuristically.
     // This handles the case where the stored path is a Windows path (e.g., C:/Users/...)
     // and we're restoring into a Wine prefix.
-    if let Some(ref prefix) = context.preferred_prefix
+    if let Some(prefix) = &context.preferred_prefix
         && let Some(semantic) = semantic::convert::windows_physical_to_semantic(stored_path, &KnownFolders::default())
         && let Some(target) = materialize_to_wine(&semantic, prefix)
     {
@@ -744,8 +746,7 @@ pub fn scan_game_for_backup(
     let mut dumped_registry = None;
     let has_backups = previous.is_some();
 
-    #[allow(clippy::type_complexity)]
-    let mut paths_to_check: HashMap<StrictPath, (Option<bool>, Vec<(String, Store)>)> = HashMap::new();
+    let mut paths_to_check = HashSet::<(StrictPath, Option<bool>)>::new();
 
     // Add a dummy root for checking paths without `<root>`.
     let mut roots_to_check: Vec<Root> = vec![Root::new(SKIP, Store::Other)];
@@ -846,58 +847,44 @@ pub fn scan_game_for_backup(
 
             for (candidate, case_sensitive) in candidates {
                 log::trace!("[{name}] parsed candidate: {candidate:?}");
-                paths_to_check
-                    .entry(candidate)
-                    .or_insert((Some(case_sensitive), Vec::new()))
-                    .1
-                    .push((raw_path.clone(), root.store()));
+                paths_to_check.insert((candidate, Some(case_sensitive)));
             }
         }
         if root.store() == Store::Steam {
             for id in all_ids.steam(steam_shortcut.map(|x| x.id)) {
                 // Cloud saves:
-                paths_to_check
-                    .entry(StrictPath::relative(
+                paths_to_check.insert((
+                    StrictPath::relative(
                         format!("{}/userdata/*/{}/remote/", &root_globbable, id),
                         Some(manifest_dir_globbable.clone()),
-                    ))
-                    .or_insert((None, Vec::new()))
-                    .1
-                    .push((
-                        "<root>/userdata/<storeUserId>/<storeGameId>/remote".to_string(),
-                        Store::Steam,
-                    ));
+                    ),
+                    None,
+                ));
 
                 // Screenshots:
                 if !filter.exclude_store_screenshots {
-                    paths_to_check
-                        .entry(StrictPath::relative(
+                    paths_to_check.insert((
+                        StrictPath::relative(
                             format!("{}/userdata/*/760/remote/{}/screenshots/*.*", &root_globbable, id),
                             Some(manifest_dir_globbable.clone()),
-                        ))
-                        .or_insert((None, Vec::new()))
-                        .1
-                        .push((
-                            "<root>/userdata/<storeUserId>/760/remote/<storeGameId>/screenshots/*.*".to_string(),
-                            Store::Steam,
-                        ));
+                        ),
+                        None,
+                    ));
                 }
 
                 // Registry:
                 if !game.registry.is_empty() {
                     let prefix = format!("{}/steamapps/compatdata/{}/pfx", &root_globbable, id);
-                    paths_to_check
-                        .entry(StrictPath::relative(
-                            format!("{prefix}/*.reg"),
-                            Some(manifest_dir_globbable.clone()),
-                        ))
-                        .or_insert((None, Vec::new()));
+                    paths_to_check.insert((
+                        StrictPath::relative(format!("{prefix}/*.reg"), Some(manifest_dir_globbable.clone())),
+                        None,
+                    ));
                 }
             }
         }
     }
 
-    let previous_hashes: HashMap<&StrictPath, &String> = previous
+    let previous_files: HashMap<&StrictPath, &String> = previous
         .as_ref()
         .map(|previous| {
             let mut files = HashMap::new();
@@ -920,7 +907,7 @@ pub fn scan_game_for_backup(
         })
         .unwrap_or_default();
 
-    for (path, (case_sensitive, _origins)) in paths_to_check {
+    for (path, case_sensitive) in paths_to_check {
         log::trace!("[{name}] checking: {path:?}");
         if filter.is_path_ignored(&path) {
             log::debug!("[{name}] excluded: {path:?}");
@@ -952,7 +939,7 @@ pub fn scan_game_for_backup(
                     None,
                 );
                 let change =
-                    ScanChange::evaluate_backup(&hash, previous_hashes.get(redirected.as_ref().unwrap_or(&scan_key)));
+                    ScanChange::evaluate_backup(&hash, previous_files.get(redirected.as_ref().unwrap_or(&scan_key)));
                 found_files.insert(
                     scan_key,
                     ScannedFile {
@@ -1002,7 +989,7 @@ pub fn scan_game_for_backup(
                         );
                         let change = ScanChange::evaluate_backup(
                             &hash,
-                            previous_hashes.get(redirected.as_ref().unwrap_or(&scan_key)),
+                            previous_files.get(redirected.as_ref().unwrap_or(&scan_key)),
                         );
                         found_files.insert(
                             scan_key,
@@ -1215,17 +1202,15 @@ fn file_is_included_in_backup(file: &ScannedFile) -> bool {
         )
 }
 
-type PathToCheck = HashMap<StrictPath, (Option<bool>, Vec<(String, Store)>)>;
-
 fn scan_game_for_backup_add_prefix(
     roots_to_check: &mut Vec<Root>,
-    paths_to_check: &mut PathToCheck,
+    paths_to_check: &mut HashSet<(StrictPath, Option<bool>)>,
     wp: &StrictPath,
     has_registry: bool,
 ) {
     roots_to_check.push(Root::new(wp.clone(), Store::OtherWine));
     if has_registry {
-        paths_to_check.entry(wp.joined("*.reg")).or_insert((None, Vec::new()));
+        paths_to_check.insert((wp.joined("*.reg"), None));
     }
 }
 
@@ -2400,7 +2385,7 @@ mod tests {
                 &title,
                 roots,
                 &StrictPath::new(repo()),
-                &Launchers::scan_dirs(roots, &manifest, std::slice::from_ref(&title)),
+                &Launchers::scan_dirs(roots, &manifest, &[title.clone()]),
                 &BackupFilter::default(),
                 None,
                 &ToggledPaths::default(),

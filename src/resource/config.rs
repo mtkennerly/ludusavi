@@ -1150,7 +1150,6 @@ pub struct Scan {
     /// In the GUI, show recent games that have not been scanned yet.
     pub show_unscanned_games: bool,
     /// Generate best-effort Windows/Wine redirects during scans.
-    #[serde(default)]
     pub redirect_wine: bool,
 }
 

@@ -2,8 +2,10 @@ use std::sync::LazyLock;
 
 use regex::Regex;
 
-use crate::path::StrictPath;
-use crate::scan::semantic::{SemanticBase, SemanticPath};
+use crate::{
+    path::StrictPath,
+    scan::semantic::{SemanticBase, SemanticPath},
+};
 
 /// Holds the physical paths of Windows known folders for semantic path derivation.
 /// All paths should use `/` separators and not have trailing slashes.
@@ -39,7 +41,7 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         return None;
     }
 
-    if let Some(ref sg) = known_folders.saved_games
+    if let Some(sg) = &known_folders.saved_games
         && let Some(tail) = tail_for_known_folder(physical, sg)
     {
         return Some(SemanticPath {
@@ -48,7 +50,7 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    if let Some(ref docs) = known_folders.documents
+    if let Some(docs) = &known_folders.documents
         && let Some(tail) = tail_for_known_folder(physical, docs)
     {
         return Some(SemanticPath {
@@ -57,7 +59,7 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    if let Some(ref local_low) = known_folders.local_low_app_data
+    if let Some(local_low) = &known_folders.local_low_app_data
         && let Some(tail) = tail_for_known_folder(physical, local_low)
     {
         return Some(SemanticPath {
@@ -66,7 +68,7 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    if let Some(ref local) = known_folders.local_app_data
+    if let Some(local) = &known_folders.local_app_data
         && let Some(tail) = tail_for_known_folder(physical, local)
     {
         return Some(SemanticPath {
@@ -75,7 +77,7 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    if let Some(ref roaming) = known_folders.app_data
+    if let Some(roaming) = &known_folders.app_data
         && let Some(tail) = tail_for_known_folder(physical, roaming)
     {
         return Some(SemanticPath {
@@ -84,7 +86,7 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    if let Some(ref public) = known_folders.public
+    if let Some(public) = &known_folders.public
         && let Some(tail) = tail_for_known_folder(physical, public)
     {
         return Some(SemanticPath {
@@ -93,7 +95,7 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    if let Some(ref pd) = known_folders.program_data
+    if let Some(pd) = &known_folders.program_data
         && let Some(tail) = tail_for_known_folder(physical, pd)
     {
         return Some(SemanticPath {
@@ -102,7 +104,7 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    if let Some(ref win) = known_folders.windows
+    if let Some(win) = &known_folders.windows
         && let Some(tail) = tail_for_known_folder(physical, win)
     {
         return Some(SemanticPath {
@@ -111,7 +113,7 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    if let Some(ref home) = known_folders.user_profile
+    if let Some(home) = &known_folders.user_profile
         && let Some(tail) = tail_for_known_folder(physical, home)
     {
         return Some(SemanticPath {
