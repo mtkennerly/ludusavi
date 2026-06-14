@@ -1,8 +1,11 @@
 use std::{
     num::NonZeroUsize,
     path::PathBuf,
-    sync::{Arc, LazyLock, Mutex, atomic::AtomicBool},
+    sync::{LazyLock, Mutex},
 };
+
+#[cfg(feature = "app")]
+use std::sync::{Arc, atomic::AtomicBool};
 
 use itertools::Itertools;
 

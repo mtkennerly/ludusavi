@@ -5,7 +5,7 @@ use crate::{
     resource::config::{ToggledPaths, ToggledRegistry},
     scan::{
         BackupInfo, ScanChange, ScanChangeCount, ScanKind, ScannedFile, ScannedRegistry,
-        layout::Backup,
+        layout::{Backup, BackupSemantics},
         registry::{self, RegistryItem},
     },
 };
@@ -28,6 +28,8 @@ pub struct ScanInfo {
     pub dumped_registry: Option<registry::Hives>,
     /// Last known configuration.
     pub only_constructive_backups: bool,
+    /// Source environment metadata for generating cross-platform redirects.
+    pub semantics: BackupSemantics,
 }
 
 impl ScanInfo {

@@ -196,6 +196,8 @@ impl Ludusavi {
             log::trace!("step {i} / {}: {name}", games.len());
             let game = &self.manifest.0[name];
 
+            let wine_ctx =
+                crate::scan::WineRedirectContext::for_game(name, &self.config, self.config.scan.redirect_wine);
             let previous = self.layout.latest_backup(
                 name,
                 ScanKind::Backup,
@@ -203,6 +205,7 @@ impl Ludusavi {
                 self.config.restore.reverse_redirects,
                 &self.config.restore.toggled_paths,
                 self.config.backup.only_constructive,
+                wine_ctx.as_ref(),
             );
 
             if self
@@ -291,12 +294,12 @@ impl Ludusavi {
             );
         }
 
-        for (name, scan_info, backup_info, decision) in info {
+        for (name, scan_info, backup_info, decision) in &info {
             reporter.add_game(
                 name,
-                &scan_info,
+                scan_info,
                 backup_info.as_ref(),
-                &decision,
+                decision,
                 &duplicate_detector,
                 false,
             );
@@ -370,6 +373,9 @@ impl Ludusavi {
         let step = |i, name| {
             log::trace!("step {i} / {}: {name}", games.len());
             let mut layout = self.layout.game_layout(name);
+
+            let wine_ctx =
+                crate::scan::WineRedirectContext::for_game(name, &self.config, self.config.scan.redirect_wine);
             let scan_info = layout.scan_for_restoration(
                 name,
                 backup_id.as_ref().unwrap_or(&BackupId::Latest),
@@ -377,7 +383,9 @@ impl Ludusavi {
                 self.config.restore.reverse_redirects,
                 &self.config.restore.toggled_paths,
                 &self.config.restore.toggled_registry,
+                wine_ctx.as_ref(),
             );
+
             let ignored = !&self.config.is_game_enabled_for_restore(name) && !games_specified && !include_disabled;
             let decision = if ignored {
                 OperationStepDecision::Ignored
@@ -414,7 +422,7 @@ impl Ludusavi {
                 None
             } else {
                 let display_title = self.config.display_name(name);
-                Some((display_title, scan_info, restore_info, decision, None))
+                Some((display_title, scan_info, restore_info, decision, None::<Error>))
             }
         };
 

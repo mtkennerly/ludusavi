@@ -288,6 +288,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 log::trace!("step {i} / {}: {name}", games.len());
                 let game = &manifest.0[name];
 
+                let wine_ctx = crate::scan::WineRedirectContext::for_game(name, &config, config.scan.redirect_wine);
                 let previous = layout.latest_backup(
                     name,
                     ScanKind::Backup,
@@ -295,6 +296,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     config.restore.reverse_redirects,
                     &config.restore.toggled_paths,
                     config.backup.only_constructive,
+                    wine_ctx.as_ref(),
                 );
 
                 if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
@@ -444,12 +446,12 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 info.reverse();
             }
 
-            for (name, scan_info, backup_info, decision) in info {
+            for (name, scan_info, backup_info, decision) in &info {
                 if !reporter.add_game(
                     name,
-                    &scan_info,
+                    scan_info,
                     backup_info.as_ref(),
-                    &decision,
+                    decision,
                     &duplicate_detector,
                     dump_registry,
                 ) {
@@ -569,6 +571,8 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             let step = |i, name| {
                 log::trace!("step {i} / {}: {name}", games.len());
                 let mut layout = layout.game_layout(name);
+
+                let wine_ctx = crate::scan::WineRedirectContext::for_game(name, &config, config.scan.redirect_wine);
                 let scan_info = layout.scan_for_restoration(
                     name,
                     backup_id.as_ref().unwrap_or(&BackupId::Latest),
@@ -576,7 +580,9 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     config.restore.reverse_redirects,
                     &config.restore.toggled_paths,
                     &config.restore.toggled_registry,
+                    wine_ctx.as_ref(),
                 );
+
                 let ignored = !&config.is_game_enabled_for_restore(name) && !games_specified && !include_disabled;
                 let decision = if ignored {
                     OperationStepDecision::Ignored
@@ -621,7 +627,13 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     None
                 } else {
                     let display_title = config.display_name(name);
-                    Some((display_title, scan_info, restore_info, decision, None))
+                    Some((
+                        display_title,
+                        scan_info,
+                        restore_info,
+                        decision,
+                        None::<Result<(), Error>>,
+                    ))
                 }
             };
 

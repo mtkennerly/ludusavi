@@ -233,6 +233,49 @@ impl ToString for Backup {
     }
 }
 
+/// Format of registry data stored in a backup chain.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum RegistryFormat {
+    /// Default/legacy behavior.
+    #[default]
+    Default,
+    /// Cross-platform registry transfer is not yet supported.
+    Unsupported,
+}
+
+/// Source environment metadata for generating cross-platform redirects.
+/// Only populated when the backup contains files from Wine prefixes.
+#[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(default, rename_all = "camelCase")]
+pub struct BackupSemantics {
+    pub directories: BTreeMap<String, DirectorySemantics>,
+}
+
+impl BackupSemantics {
+    pub fn is_empty(&self) -> bool {
+        self.directories.is_empty()
+    }
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct DirectorySemantics {
+    pub kind: SemanticDirKind,
+}
+
+fn is_default_semantics(s: &BackupSemantics) -> bool {
+    s.is_empty()
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum SemanticDirKind {
+    /// A Wine/Proton prefix. Redirect logic uses heuristics to find
+    /// the wine user and drive mappings at restore time.
+    Wine,
+}
+
 #[derive(Clone, Debug, Default, Eq, PartialEq, serde::Serialize, serde::Deserialize)]
 #[serde(default, rename_all = "camelCase")]
 pub struct FullBackup {
@@ -245,9 +288,19 @@ pub struct FullBackup {
     /// Locked backups do not count toward retention limits and are never deleted.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub locked: bool,
+    /// Registry format for this backup chain.
+    #[serde(skip_serializing_if = "is_default_registry_format")]
+    pub registry_format: RegistryFormat,
+    /// Source environment metadata for generating cross-platform redirects.
+    #[serde(skip_serializing_if = "is_default_semantics")]
+    pub semantics: BackupSemantics,
     pub files: BTreeMap<String, IndividualMappingFile>,
     pub registry: IndividualMappingRegistry,
     pub children: VecDeque<DifferentialBackup>,
+}
+
+fn is_default_registry_format(f: &RegistryFormat) -> bool {
+    *f == RegistryFormat::Default
 }
 
 impl FullBackup {
@@ -285,6 +338,9 @@ pub struct DifferentialBackup {
     /// Locked backups do not count toward retention limits and are never deleted.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub locked: bool,
+    /// Source environment metadata for generating cross-platform redirects.
+    #[serde(skip_serializing_if = "is_default_semantics")]
+    pub semantics: BackupSemantics,
     pub files: BTreeMap<String, Option<IndividualMappingFile>>,
     pub registry: Option<IndividualMappingRegistry>,
 }
@@ -611,6 +667,7 @@ impl GameLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         only_constructive_backups: bool,
+        wine_redirect: Option<&super::WineRedirectContext>,
     ) -> Option<ScanInfo> {
         if self.mapping.backups.is_empty() {
             None
@@ -623,6 +680,7 @@ impl GameLayout {
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
+                    wine_redirect,
                 ),
                 // Registry is handled separately.
                 found_registry_keys: Default::default(),
@@ -632,6 +690,7 @@ impl GameLayout {
                 // Registry is handled separately.
                 dumped_registry: None,
                 only_constructive_backups,
+                ..Default::default()
             })
         }
     }
@@ -656,6 +715,7 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
+        wine_redirect: Option<&super::WineRedirectContext>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut files = HashMap::new();
 
@@ -668,6 +728,7 @@ impl GameLayout {
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
+                    wine_redirect,
                 ));
             }
             Some((full, Some(diff))) => {
@@ -677,6 +738,7 @@ impl GameLayout {
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
+                    wine_redirect,
                 ));
 
                 for (scan_key, full_file) in self.restorable_files_from_full_backup(
@@ -685,9 +747,10 @@ impl GameLayout {
                     redirects,
                     reverse_redirects_on_restore,
                     toggled_paths,
+                    wine_redirect,
                 ) {
-                    let original_path = full_file.original_path.as_ref().unwrap().render();
-                    if diff.file(original_path) == BackupInclusion::Inherited {
+                    let mapping_key = full_file.original_path.as_ref().unwrap().render();
+                    if diff.file(mapping_key) == BackupInclusion::Inherited {
                         files.insert(scan_key, full_file);
                     }
                 }
@@ -704,16 +767,20 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
+        wine_redirect: Option<&super::WineRedirectContext>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut restorables = HashMap::new();
 
-        for (mapping_key, v) in &backup.files {
-            let original_path = StrictPath::new(mapping_key.to_string());
+        for (mapping_key_str, v) in &backup.files {
+            let original_path = StrictPath::new(mapping_key_str.clone());
+
             let redirected = game_file_target(
                 &original_path,
                 redirects,
                 reverse_redirects_on_restore,
                 ScanKind::Restore,
+                Some(&backup.semantics),
+                wine_redirect,
             );
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
@@ -774,17 +841,21 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
+        wine_redirect: Option<&super::WineRedirectContext>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut restorables = HashMap::new();
 
-        for (mapping_key, v) in &backup.files {
+        for (mapping_key_str, v) in &backup.files {
             let v = some_or_continue!(v);
-            let original_path = StrictPath::new(mapping_key.to_string());
+            let original_path = StrictPath::new(mapping_key_str.clone());
+
             let redirected = game_file_target(
                 &original_path,
                 redirects,
                 reverse_redirects_on_restore,
                 ScanKind::Restore,
+                Some(&backup.semantics),
+                wine_redirect,
             );
             let ignorable_path = redirected.as_ref().unwrap_or(&original_path);
             match backup.format() {
@@ -984,7 +1055,7 @@ impl GameLayout {
             return None;
         }
 
-        let kind = self.plan_backup_kind(retention);
+        let kind = self.plan_backup_kind(retention, scan);
 
         let backup = match kind {
             BackupKind::Full => Backup::Full(self.plan_full_backup(scan, now, format, retention)),
@@ -996,7 +1067,7 @@ impl GameLayout {
         backup.needed().then_some(backup)
     }
 
-    fn plan_backup_kind(&self, retention: Retention) -> BackupKind {
+    fn plan_backup_kind(&self, retention: Retention, _scan: &ScanInfo) -> BackupKind {
         if retention.force_new_full {
             return BackupKind::Full;
         }
@@ -1056,6 +1127,8 @@ impl GameLayout {
             os: Some(Os::HOST),
             comment: None,
             locked: false,
+            registry_format: RegistryFormat::Default,
+            semantics: scan.semantics.clone(),
             files,
             registry,
             children: VecDeque::new(),
@@ -1129,6 +1202,7 @@ impl GameLayout {
             os: Some(Os::HOST),
             comment: None,
             locked: false,
+            semantics: scan.semantics.clone(),
             files,
             registry,
         }
@@ -1492,6 +1566,7 @@ impl GameLayout {
             os,
             comment,
             locked,
+            semantics,
             files,
             registry,
         } = initial.children.pop_front()?;
@@ -1501,6 +1576,7 @@ impl GameLayout {
         initial.os = os;
         initial.comment = comment;
         initial.locked = initial.locked || locked;
+        initial.semantics = semantics;
         initial.files = files.into_iter().filter_map(|(k, v)| Some((k, v?))).collect();
         if let Some(registry) = registry {
             initial.registry = registry;
@@ -1590,6 +1666,7 @@ impl GameLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         #[cfg_attr(not(target_os = "windows"), allow(unused))] toggled_registry: &ToggledRegistry,
+        wine_redirect: Option<&super::WineRedirectContext>,
     ) -> ScanInfo {
         log::trace!("[{name}] beginning scan for restore");
 
@@ -1611,6 +1688,7 @@ impl GameLayout {
                 redirects,
                 reverse_redirects_on_restore,
                 toggled_paths,
+                wine_redirect,
             );
             available_backups = self.restorable_backups_flattened();
             backup = self.find_by_id_flattened(&id);
@@ -1685,6 +1763,8 @@ impl GameLayout {
             has_backups,
             dumped_registry,
             only_constructive_backups: false,
+
+            ..Default::default()
         }
     }
 
@@ -2066,19 +2146,19 @@ impl GameLayout {
                 }
             }
 
-            if let Some(backup) = diff {
-                match backup.format() {
+            if let Some(diff_backup) = diff {
+                match diff_backup.format() {
                     BackupFormat::Simple => {
-                        for (file, data) in &backup.files {
+                        for (file, data) in &diff_backup.files {
                             if data.is_none() {
                                 // File is deliberately omitted.
                                 continue;
                             }
 
                             let original_path = StrictPath::new(file.to_string());
-                            let stored = self
-                                .mapping
-                                .game_file_immutable(&self.path, &original_path, &backup.name);
+                            let stored =
+                                self.mapping
+                                    .game_file_immutable(&self.path, &original_path, &diff_backup.name);
                             if !stored.is_file() {
                                 #[cfg(test)]
                                 eprintln!("can't find {}", stored.render());
@@ -2087,14 +2167,14 @@ impl GameLayout {
                         }
                     }
                     BackupFormat::Zip => {
-                        let Ok(handle) = self.path.joined(&backup.name).open() else {
+                        let Ok(handle) = self.path.joined(&diff_backup.name).open() else {
                             return false;
                         };
                         let Ok(mut archive) = zip::ZipArchive::new(handle) else {
                             return false;
                         };
 
-                        for (file, data) in &backup.files {
+                        for (file, data) in &diff_backup.files {
                             if data.is_none() {
                                 // File is deliberately omitted.
                                 continue;
@@ -2223,6 +2303,7 @@ impl BackupLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         only_constructive: bool,
+        wine_redirect: Option<&super::WineRedirectContext>,
     ) -> Option<LatestBackup> {
         if self.contains_game(name) {
             let game_layout = self.game_layout(name);
@@ -2233,6 +2314,7 @@ impl BackupLayout {
                 reverse_redirects_on_restore,
                 toggled_paths,
                 only_constructive,
+                wine_redirect,
             );
             scan.map(|scan| LatestBackup {
                 scan,
@@ -2413,6 +2495,26 @@ mod tests {
             "20000102T030405Z".to_string()
         }
 
+        fn wine_semantics(prefix: &str) -> BackupSemantics {
+            BackupSemantics {
+                directories: btree_map! {
+                    prefix.to_string(): DirectorySemantics {
+                        kind: SemanticDirKind::Wine,
+                    },
+                },
+            }
+        }
+
+        fn wine_redirect_context(prefix: &str, wine_user: &str) -> crate::scan::WineRedirectContext {
+            crate::scan::WineRedirectContext {
+                preferred_prefix: Some(crate::scan::semantic::prefix::ValidatedPrefix {
+                    path: StrictPath::new(prefix),
+                    wine_user: wine_user.to_string(),
+                }),
+                known_folders: None,
+            }
+        }
+
         fn repo_file(path: &str) -> String {
             format!("{}/{}", repo_raw(), path)
         }
@@ -2433,7 +2535,10 @@ mod tests {
         #[test]
         fn can_plan_backup_kind_when_first_time() {
             let layout = GameLayout::default();
-            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::default()));
+            assert_eq!(
+                BackupKind::Full,
+                layout.plan_backup_kind(Retention::default(), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2445,7 +2550,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(1, 0)));
+            assert_eq!(
+                BackupKind::Full,
+                layout.plan_backup_kind(Retention::new(1, 0), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2460,7 +2568,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(1, 0)));
+            assert_eq!(
+                BackupKind::Full,
+                layout.plan_backup_kind(Retention::new(1, 0), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2472,7 +2583,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(2, 0)));
+            assert_eq!(
+                BackupKind::Full,
+                layout.plan_backup_kind(Retention::new(2, 0), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2484,7 +2598,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(1, 1)));
+            assert_eq!(
+                BackupKind::Differential,
+                layout.plan_backup_kind(Retention::new(1, 1), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2499,7 +2616,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(1, 1)));
+            assert_eq!(
+                BackupKind::Differential,
+                layout.plan_backup_kind(Retention::new(1, 1), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2523,7 +2643,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(2, 2)));
+            assert_eq!(
+                BackupKind::Differential,
+                layout.plan_backup_kind(Retention::new(2, 2), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2550,7 +2673,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Full, layout.plan_backup_kind(Retention::new(2, 2)));
+            assert_eq!(
+                BackupKind::Full,
+                layout.plan_backup_kind(Retention::new(2, 2), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -2571,7 +2697,10 @@ mod tests {
                 },
                 ..Default::default()
             };
-            assert_eq!(BackupKind::Differential, layout.plan_backup_kind(Retention::new(1, 2)));
+            assert_eq!(
+                BackupKind::Differential,
+                layout.plan_backup_kind(Retention::new(1, 2), &ScanInfo::default())
+            );
         }
 
         #[test]
@@ -3138,6 +3267,7 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+
                     },
                     make_restorable_path("backup-1", "file2.txt"): ScannedFile {
                         size: 2,
@@ -3147,9 +3277,17 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
+                layout.restorable_files(
+                    &BackupId::Latest,
+                    ScanKind::Backup,
+                    &[],
+                    false,
+                    &Default::default(),
+                    None,
+                ),
             );
         }
 
@@ -3181,6 +3319,7 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
+
                     },
                     make_restorable_path_zip("file2.txt"): ScannedFile {
                         size: 2,
@@ -3190,9 +3329,17 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
+
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
+                layout.restorable_files(
+                    &BackupId::Latest,
+                    ScanKind::Backup,
+                    &[],
+                    false,
+                    &Default::default(),
+                    None,
+                ),
             );
         }
 
@@ -3235,6 +3382,7 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+
                     },
                     make_restorable_path("backup-2", "changed.txt"): ScannedFile {
                         size: 2,
@@ -3244,6 +3392,7 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+
                     },
                     make_restorable_path("backup-2", "added.txt"): ScannedFile {
                         size: 5,
@@ -3253,10 +3402,88 @@ mod tests {
                         change: Default::default(),
                         container: None,
                         redirected: None,
+
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
+                layout.restorable_files(
+                    &BackupId::Latest,
+                    ScanKind::Backup,
+                    &[],
+                    false,
+                    &Default::default(),
+                    None,
+                ),
             );
+        }
+
+        #[test]
+        fn can_report_restorable_files_for_differential_backup_with_wine_redirect() {
+            let source_prefix = "/home/deck/.local/share/Steam/steamapps/compatdata/1145360/pfx";
+            let diff_source_prefix = "/home/deck/.local/share/Steam/steamapps/compatdata/1145360/pfx-diff";
+            let target_prefix = "/home/deck/Games/Hades/pfx";
+            let unchanged_source =
+                format!("{source_prefix}/drive_c/users/steamuser/Documents/Saved Games/Hades/Profile1.sav");
+            let changed_source =
+                format!("{diff_source_prefix}/drive_c/users/steamuser/Documents/Saved Games/Hades/Profile2.sav");
+            let added_source =
+                format!("{diff_source_prefix}/drive_c/users/steamuser/Documents/Saved Games/Hades/Profile3.sav");
+            let layout = GameLayout {
+                path: StrictPath::new(format!("{}/tests/backup/game1", repo_raw())),
+                mapping: IndividualMapping {
+                    name: "Hades".to_string(),
+                    drives: drives_x(),
+                    backups: VecDeque::from(vec![FullBackup {
+                        name: "backup-1".into(),
+                        when: past(),
+                        files: btree_map! {
+                            unchanged_source.clone(): IndividualMappingFile { hash: "old".into(), size: 1 },
+                            changed_source.clone(): IndividualMappingFile { hash: "old".into(), size: 2 },
+                        },
+                        children: VecDeque::from([DifferentialBackup {
+                            name: "backup-2".into(),
+                            when: past2(),
+                            semantics: wine_semantics(diff_source_prefix),
+                            files: btree_map! {
+                                changed_source.clone(): Some(IndividualMappingFile { hash: "new".into(), size: 2 }),
+                                added_source.clone(): Some(IndividualMappingFile { hash: "new".into(), size: 5 }),
+                            },
+                            ..Default::default()
+                        }]),
+                        semantics: wine_semantics(source_prefix),
+                        ..Default::default()
+                    }]),
+                },
+            };
+            let wine_ctx = wine_redirect_context(target_prefix, "deck");
+            let files = layout.restorable_files(
+                &BackupId::Latest,
+                ScanKind::Restore,
+                &[],
+                false,
+                &Default::default(),
+                Some(&wine_ctx),
+            );
+
+            for source in [&unchanged_source, &changed_source, &added_source] {
+                let source = source.as_str();
+                let source_prefix = if source.starts_with(diff_source_prefix) {
+                    diff_source_prefix
+                } else {
+                    source_prefix
+                };
+                let file = files
+                    .values()
+                    .find(|file| file.original_path.as_ref() == Some(&StrictPath::new(source)))
+                    .unwrap();
+                assert_eq!(
+                    Some(StrictPath::new(
+                        source
+                            .replace(source_prefix, target_prefix)
+                            .replace("drive_c/users/steamuser", "drive_c/users/deck",)
+                    )),
+                    file.redirected
+                );
+            }
         }
 
         #[test]
@@ -3298,6 +3525,7 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-1.zip")),
                         redirected: None,
+
                     },
                     make_restorable_path_zip("changed.txt"): ScannedFile {
                         size: 2,
@@ -3307,6 +3535,7 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-2.zip")),
                         redirected: None,
+
                     },
                     make_restorable_path_zip("added.txt"): ScannedFile {
                         size: 5,
@@ -3316,9 +3545,17 @@ mod tests {
                         change: Default::default(),
                         container: Some(make_path("backup-2.zip")),
                         redirected: None,
+
                     },
                 },
-                layout.restorable_files(&BackupId::Latest, ScanKind::Backup, &[], false, &Default::default()),
+                layout.restorable_files(
+                    &BackupId::Latest,
+                    ScanKind::Backup,
+                    &[],
+                    false,
+                    &Default::default(),
+                    None,
+                ),
             );
         }
     }
@@ -3395,7 +3632,8 @@ mod tests {
                             change: ScanChange::New,
                             container: None,
                             redirected: None,
-                        },
+
+                    },
                         restorable_file_simple(SOLO, "file2.txt"): ScannedFile {
                             size: 2,
                             hash: "9d891e731f75deae56884d79e9816736b7488080".into(),
@@ -3404,7 +3642,8 @@ mod tests {
                             change: ScanChange::New,
                             container: None,
                             redirected: None,
-                        },
+
+                    },
                     },
                     found_registry_keys: Default::default(),
                     available_backups: backups.clone(),
@@ -3412,6 +3651,8 @@ mod tests {
                     has_backups: true,
                     dumped_registry: None,
                     only_constructive_backups: false,
+
+                    ..Default::default()
                 },
                 layout.scan_for_restoration(
                     "game1",
@@ -3419,7 +3660,8 @@ mod tests {
                     &[],
                     false,
                     &Default::default(),
-                    &Default::default()
+                    &Default::default(),
+                    None,
                 ),
             );
         }
@@ -3472,6 +3714,8 @@ mod tests {
                             })
                         })),
                         only_constructive_backups: false,
+
+                        ..Default::default()
                     },
                     layout.scan_for_restoration(
                         "game3",
@@ -3479,7 +3723,8 @@ mod tests {
                         &[],
                         false,
                         &Default::default(),
-                        &Default::default()
+                        &Default::default(),
+                        None,
                     ),
                 );
             } else {
@@ -3507,6 +3752,8 @@ mod tests {
                         has_backups: true,
                         dumped_registry: None,
                         only_constructive_backups: false,
+
+                        ..Default::default()
                     },
                     layout.scan_for_restoration(
                         "game3",
@@ -3514,7 +3761,8 @@ mod tests {
                         &[],
                         false,
                         &Default::default(),
-                        &Default::default()
+                        &Default::default(),
+                        None,
                     ),
                 );
             }
@@ -3861,6 +4109,94 @@ mod tests {
             let mut game_layout = GameLayout::default();
             game_layout.migrate_initial_empty_backup(false);
             assert_eq!(GameLayout::default().mapping, game_layout.mapping);
+        }
+    }
+
+    mod backup_semantics {
+        use super::*;
+
+        #[test]
+        fn default_semantics_is_empty() {
+            let s = BackupSemantics::default();
+            assert!(s.is_empty());
+        }
+
+        #[test]
+        fn semantics_with_wine_kind_round_trips() {
+            let mut dirs = BTreeMap::new();
+            dirs.insert(
+                "/home/user/Games/prefix".to_string(),
+                DirectorySemantics {
+                    kind: SemanticDirKind::Wine,
+                },
+            );
+            let sem = BackupSemantics { directories: dirs };
+
+            let json = serde_json::to_string(&sem).unwrap();
+            assert_eq!(r#"{"directories":{"/home/user/Games/prefix":{"kind":"wine"}}}"#, json);
+
+            let back: BackupSemantics = serde_json::from_str(&json).unwrap();
+            assert_eq!(sem, back);
+        }
+
+        #[test]
+        fn old_backup_without_semantics_deserializes() {
+            let yaml = r#"
+name: "."
+when: "2024-01-01T00:00:00Z"
+os: linux
+files: {}
+registry: {}
+children: []
+"#;
+            let full: FullBackup = serde_yaml::from_str(yaml).unwrap();
+            assert_eq!(full.semantics, BackupSemantics::default());
+        }
+
+        #[test]
+        fn backup_with_wine_semantics_serializes_and_deserializes() {
+            let mut dirs = BTreeMap::new();
+            dirs.insert(
+                "/home/user/Games/prefix".to_string(),
+                DirectorySemantics {
+                    kind: SemanticDirKind::Wine,
+                },
+            );
+            let full = FullBackup {
+                name: ".".to_string(),
+                when: chrono::DateTime::<chrono::Utc>::default(),
+                os: Some(Os::Linux),
+                semantics: BackupSemantics { directories: dirs },
+                ..Default::default()
+            };
+
+            let yaml = serde_yaml::to_string(&full).unwrap();
+            assert_eq!(
+                r#"---
+name: "."
+when: "1970-01-01T00:00:00Z"
+os: linux
+semantics:
+  directories:
+    /home/user/Games/prefix:
+      kind: wine
+files: {}
+registry:
+  hash: ~
+children: []
+"#,
+                yaml,
+            );
+
+            let back: FullBackup = serde_yaml::from_str(&yaml).unwrap();
+            assert_eq!(full.semantics, back.semantics);
+        }
+
+        #[test]
+        fn default_semantics_is_skipped_in_serialization() {
+            let full = FullBackup::default();
+            let yaml = serde_yaml::to_string(&full).unwrap();
+            assert!(!yaml.contains("semantics"), "default semantics should be skipped");
         }
     }
 }

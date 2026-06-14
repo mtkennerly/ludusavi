@@ -1149,6 +1149,9 @@ pub struct Scan {
     pub show_unchanged_games: bool,
     /// In the GUI, show recent games that have not been scanned yet.
     pub show_unscanned_games: bool,
+    /// Generate best-effort Windows/Wine redirects during scans.
+    #[serde(default)]
+    pub redirect_wine: bool,
 }
 
 impl Default for Scan {
@@ -1157,6 +1160,7 @@ impl Default for Scan {
             show_deselected_games: true,
             show_unchanged_games: true,
             show_unscanned_games: true,
+            redirect_wine: false,
         }
     }
 }
@@ -2271,6 +2275,7 @@ mod tests {
                     show_deselected_games: false,
                     show_unchanged_games: false,
                     show_unscanned_games: false,
+                    redirect_wine: false,
                 },
                 cloud: Cloud {
                     remote: Some(Remote::GoogleDrive {
@@ -2397,6 +2402,7 @@ scan:
   showDeselectedGames: false
   showUnchangedGames: false
   showUnscannedGames: false
+  redirectWine: false
 cloud:
   remote:
     GoogleDrive:
@@ -2491,6 +2497,7 @@ customGames:
                     show_deselected_games: false,
                     show_unchanged_games: false,
                     show_unscanned_games: false,
+                    redirect_wine: false,
                 },
                 cloud: Cloud {
                     remote: Some(Remote::GoogleDrive {
@@ -2966,5 +2973,37 @@ customGames:
                 ],
             );
         }
+    }
+
+    #[test]
+    fn scan_redirect_wine_defaults_to_false() {
+        let scan = Scan::default();
+        assert!(!scan.redirect_wine);
+    }
+
+    #[test]
+    fn scan_redirect_wine_can_be_enabled_via_config() {
+        let config = Config::load_from_string(
+            r#"
+            scan:
+              redirectWine: true
+            "#,
+        )
+        .unwrap();
+        assert!(config.scan.redirect_wine);
+    }
+
+    #[test]
+    fn scan_redirect_wine_round_trips_through_serde() {
+        let config = Config::load_from_string(
+            r#"
+            scan:
+              redirectWine: true
+            "#,
+        )
+        .unwrap();
+        let serialized = serde_yaml::to_string(&config).unwrap();
+        let deserialized: Config = serde_yaml::from_str(&serialized).unwrap();
+        assert!(deserialized.scan.redirect_wine);
     }
 }

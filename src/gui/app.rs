@@ -500,6 +500,11 @@ impl App {
                                     return (None, None);
                                 }
 
+                                let wine_ctx = crate::scan::WineRedirectContext::for_game(
+                                    &key,
+                                    &config,
+                                    config.scan.redirect_wine,
+                                );
                                 let previous = layout.latest_backup(
                                     &key,
                                     SCAN_KIND,
@@ -507,6 +512,7 @@ impl App {
                                     config.restore.reverse_redirects,
                                     &config.restore.toggled_paths,
                                     config.backup.only_constructive,
+                                    wine_ctx.as_ref(),
                                 );
 
                                 if filter.excludes(games_specified, previous.is_some(), &game.cloud) {
@@ -869,6 +875,11 @@ impl App {
                                     return (None, None, layout);
                                 }
 
+                                let wine_ctx = crate::scan::WineRedirectContext::for_game(
+                                    &name,
+                                    &config,
+                                    config.scan.redirect_wine,
+                                );
                                 let scan_info = layout.scan_for_restoration(
                                     &name,
                                     &backup_id,
@@ -876,7 +887,9 @@ impl App {
                                     config.restore.reverse_redirects,
                                     &config.restore.toggled_paths,
                                     &config.restore.toggled_registry,
+                                    wine_ctx.as_ref(),
                                 );
+
                                 if !config.is_game_enabled_for_restore(&name) && !single {
                                     return (Some(scan_info), None, layout);
                                 }
@@ -924,6 +937,7 @@ impl App {
                         scan_info.game_name
                     );
                     self.operation.remove_active_game(&scan_info.game_name);
+
                     if scan_info.can_report_game() {
                         if let Some(backup_info) = backup_info.as_ref() {
                             scan_info.clear_processed_changes(backup_info, SCAN_KIND);
@@ -969,7 +983,6 @@ impl App {
                         self.operation_steps_active
                     );
                 }
-
                 match self.operation_steps.pop() {
                     Some(step) => {
                         self.operation.add_active_game(step.title);
