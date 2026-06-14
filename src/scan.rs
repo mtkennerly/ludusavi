@@ -2707,7 +2707,7 @@ mod tests {
 
         let sem = wine_semantics(prefix_path);
         let kf = KnownFolders {
-            local_app_data: Some("C:/Users/Alice/AppData/Local".to_string()),
+            local_low_app_data: Some("C:/Users/Alice/AppData/LocalLow".to_string()),
             ..Default::default()
         };
         let ctx = WineRedirectContext {
@@ -2727,11 +2727,9 @@ mod tests {
             "Cuphead LocalLow Wine→Windows should produce a redirect"
         );
         let path = result.unwrap();
-        // LocalLow is a sub-path under AppData/Local, so the path includes it.
-        assert!(
-            path.raw().contains("Studio MDHR/Cuphead/output_log.txt"),
-            "Cuphead: should preserve tail path: {}",
-            path.raw()
+        assert_eq!(
+            path.raw(),
+            "C:/Users/Alice/AppData/LocalLow/Studio MDHR/Cuphead/output_log.txt"
         );
     }
 
