@@ -561,10 +561,6 @@ impl Translator {
         translate_args("badge-redirecting-to", &args)
     }
 
-    pub fn new_full_backup_label(&self) -> String {
-        translate("label-new-full-backup")
-    }
-
     pub fn cli_game_header(
         &self,
         name: &str,

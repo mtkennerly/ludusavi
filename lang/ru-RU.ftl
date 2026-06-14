@@ -259,4 +259,3 @@ new-version-available = Доступно обновление приложени
 custom-game-will-override = Пользовательская игра переопределяет элемент манифеста
 custom-game-will-extend = Пользовательская игра расширяет манифест
 operation-will-only-include-listed-games = Обработаются только перечисленные игры
-

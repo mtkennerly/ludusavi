@@ -1,12 +1,3 @@
-## Unreleased
-
-* Added:
-  * Config: `scan.redirectWine` can generate best-effort redirects between
-    Windows paths and Wine/Proton prefixes during backup and restore scans.
-    This is disabled by default.
-    ([#194](https://github.com/mtkennerly/ludusavi/issues/194),
-    [#310](https://github.com/mtkennerly/ludusavi/issues/310))
-
 ## v0.31.0 (2026-04-04)
 
 * Added:

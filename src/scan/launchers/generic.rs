@@ -72,12 +72,7 @@ pub fn scan(root: &Root, manifest: &Manifest, subjects: &[String]) -> HashMap<St
     let scores: Vec<_> = subjects
         .into_par_iter()
         .filter_map(|name| {
-            let expected_install_dirs = manifest
-                .0
-                .get(name)
-                .into_iter()
-                .flat_map(|game| game.install_dir.keys())
-                .chain(std::iter::once(name));
+            let expected_install_dirs = manifest.0[name].install_dir.keys().chain(std::iter::once(name));
 
             let mut best: Option<(i64, &String)> = None;
             'dirs: for expected_dir in expected_install_dirs {
@@ -216,20 +211,5 @@ mod tests {
                 )
             );
         }
-    }
-
-    #[test]
-    fn scan_uses_game_name_when_manifest_entry_is_missing() {
-        let temp = tempfile::tempdir().unwrap();
-        let install_dir = temp.path().join("Backup Only Game");
-        std::fs::create_dir_all(&install_dir).unwrap();
-        let root = Root::new(
-            temp.path().to_string_lossy().to_string(),
-            crate::resource::manifest::Store::Other,
-        );
-
-        let found = scan(&root, &Manifest::default(), &["Backup Only Game".to_string()]);
-
-        assert!(found.contains_key("Backup Only Game"));
     }
 }

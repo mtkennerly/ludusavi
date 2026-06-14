@@ -84,7 +84,6 @@ pub enum RestorePhase {
         scan_info: Option<ScanInfo>,
         backup_info: Option<BackupInfo>,
         game_layout: Box<GameLayout>,
-        error: Option<Error>,
     },
     Done,
 }
@@ -710,6 +709,7 @@ pub enum UndoSubject {
     CustomGameFile(usize, usize),
     CustomGameRegistry(usize, usize),
     CustomGameInstallDir(usize, usize),
+    CustomGameWinePrefix(usize, usize),
     BackupFilterIgnoredPath(usize),
     BackupFilterIgnoredRegistry(usize),
     RcloneExecutable,
@@ -738,6 +738,7 @@ impl UndoSubject {
             | UndoSubject::CustomGameFile(_, _)
             | UndoSubject::CustomGameRegistry(_, _)
             | UndoSubject::CustomGameInstallDir(_, _)
+            | UndoSubject::CustomGameWinePrefix(_, _)
             | UndoSubject::BackupFilterIgnoredPath(_)
             | UndoSubject::BackupFilterIgnoredRegistry(_)
             | UndoSubject::RcloneExecutable

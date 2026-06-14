@@ -259,4 +259,3 @@ new-version-available = يتوفر تحديث للتطبيق: { $version }. هل
 custom-game-will-override = هذه اللعبة المخصصة تتجاوز عنصر في اللائحة
 custom-game-will-extend = هذه اللعبة المخصصة توسع عنصر في اللائحة
 operation-will-only-include-listed-games = سيؤدي هذا فقط إلى معالجة الألعاب المدرجة حاليا
-

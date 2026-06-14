@@ -257,4 +257,3 @@ new-version-available = Une mise à jour de l'application est disponible : { $ve
 custom-game-will-override = Ce jeu personnalisé remplace une entrée du manifeste
 custom-game-will-extend = Ce jeu personnalisé étend une entrée du manifeste
 operation-will-only-include-listed-games = Cette opération ne traitera que les jeux qui sont actuellement répertoriés
-

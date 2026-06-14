@@ -48,6 +48,7 @@ pub enum Event {
     CustomGameFile(usize, EditAction),
     CustomGameRegistry(usize, EditAction),
     CustomGameInstallDir(usize, EditAction),
+    CustomGameWinePrefix(usize, EditAction),
     ExcludeStoreScreenshots(bool),
     CloudFilter(CloudFilter),
     BackupFilterIgnoredPath(EditAction),
@@ -2984,18 +2985,8 @@ customGames:
     fn scan_redirect_wine_can_be_enabled_via_config() {
         let config = Config::load_from_string(
             r#"
-            manifest:
-              url: example.com
-            roots: []
-            backup:
-              path: ~/backup
-            restore:
-              path: ~/restore
             scan:
               redirectWine: true
-            apps:
-              rclone:
-                path: rclone
             "#,
         )
         .unwrap();
@@ -3006,18 +2997,8 @@ customGames:
     fn scan_redirect_wine_round_trips_through_serde() {
         let config = Config::load_from_string(
             r#"
-            manifest:
-              url: example.com
-            roots: []
-            backup:
-              path: ~/backup
-            restore:
-              path: ~/restore
             scan:
               redirectWine: true
-            apps:
-              rclone:
-                path: rclone
             "#,
         )
         .unwrap();

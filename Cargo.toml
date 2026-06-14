@@ -82,9 +82,7 @@ windows = { version = "0.60.0", features = ["Win32_System_Console", "Win32_Syste
 embed-resource = "3.0.6"
 
 [dev-dependencies]
-criterion = { version = "0.5", features = ["html_reports"] }
 pretty_assertions = "1.4.1"
-proptest = "1.6.0"
 tempfile = "3.14.0"
 velcro = "0.5.4"
 

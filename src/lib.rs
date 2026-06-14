@@ -14,7 +14,6 @@ pub mod prelude;
 pub mod report;
 pub mod resource;
 pub mod scan;
-pub mod semantic;
 pub mod serialization;
 pub mod wrap;
 

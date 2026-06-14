@@ -1,6 +1,9 @@
+use std::sync::LazyLock;
+
+use regex::Regex;
+
 use crate::path::StrictPath;
-use crate::resource::manifest::Store;
-use crate::semantic::{SemanticBase, SemanticPath};
+use crate::scan::semantic::{SemanticBase, SemanticPath};
 
 /// Holds the physical paths of Windows known folders for semantic path derivation.
 /// All paths should use `/` separators and not have trailing slashes.
@@ -9,6 +12,7 @@ pub struct KnownFolders {
     pub saved_games: Option<String>,
     pub documents: Option<String>,
     pub local_app_data: Option<String>,
+    pub local_low_app_data: Option<String>,
     pub app_data: Option<String>,
     pub public: Option<String>,
     pub program_data: Option<String>,
@@ -21,20 +25,9 @@ fn normalize_path(path: &str) -> String {
     p.trim_end_matches('/').to_string()
 }
 
-fn strip_prefix_case_insensitive(path: &str, prefix: &str) -> Option<String> {
-    let path_norm = normalize_path(path);
-    let prefix_norm = normalize_path(prefix);
-
-    if path_norm.len() > prefix_norm.len()
-        && path_norm.as_bytes()[prefix_norm.len()] == b'/'
-        && path_norm[..prefix_norm.len()].eq_ignore_ascii_case(&prefix_norm)
-    {
-        let tail = &path_norm[prefix_norm.len() + 1..];
-        if !tail.is_empty() {
-            return Some(tail.to_string());
-        }
-    }
-    None
+fn tail_for_known_folder(path: &StrictPath, prefix: &str) -> Option<String> {
+    path.case_insensitive_tail_for(&StrictPath::new(prefix))
+        .map(|tail| tail.join("/"))
 }
 
 /// Convert a physical Windows path to a semantic path for the current user.
@@ -42,15 +35,12 @@ fn strip_prefix_case_insensitive(path: &str, prefix: &str) -> Option<String> {
 pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &KnownFolders) -> Option<SemanticPath> {
     let rendered = physical.render();
 
-    // Reject UNC paths
     if rendered.starts_with("//") || rendered.starts_with(r"\\") {
         return None;
     }
 
-    // Priority order per plan:
-    // 1. Saved Games
     if let Some(ref sg) = known_folders.saved_games
-        && let Some(tail) = strip_prefix_case_insensitive(&rendered, sg)
+        && let Some(tail) = tail_for_known_folder(physical, sg)
     {
         return Some(SemanticPath {
             base: SemanticBase::WinSavedGames,
@@ -58,9 +48,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    // 2. Documents
     if let Some(ref docs) = known_folders.documents
-        && let Some(tail) = strip_prefix_case_insensitive(&rendered, docs)
+        && let Some(tail) = tail_for_known_folder(physical, docs)
     {
         return Some(SemanticPath {
             base: SemanticBase::WinDocuments,
@@ -68,20 +57,17 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    // 3. LocalAppData/Low (check before LocalAppData)
-    if let Some(ref local) = known_folders.local_app_data {
-        let low_path = format!("{}/Low", local);
-        if let Some(tail) = strip_prefix_case_insensitive(&rendered, &low_path) {
-            return Some(SemanticPath {
-                base: SemanticBase::WinLocalAppDataLow,
-                tail,
-            });
-        }
+    if let Some(ref local_low) = known_folders.local_low_app_data
+        && let Some(tail) = tail_for_known_folder(physical, local_low)
+    {
+        return Some(SemanticPath {
+            base: SemanticBase::WinLocalAppDataLow,
+            tail,
+        });
     }
 
-    // 4. LocalAppData
     if let Some(ref local) = known_folders.local_app_data
-        && let Some(tail) = strip_prefix_case_insensitive(&rendered, local)
+        && let Some(tail) = tail_for_known_folder(physical, local)
     {
         return Some(SemanticPath {
             base: SemanticBase::WinLocalAppData,
@@ -89,9 +75,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    // 5. AppData (Roaming)
     if let Some(ref roaming) = known_folders.app_data
-        && let Some(tail) = strip_prefix_case_insensitive(&rendered, roaming)
+        && let Some(tail) = tail_for_known_folder(physical, roaming)
     {
         return Some(SemanticPath {
             base: SemanticBase::WinAppData,
@@ -99,9 +84,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    // 6. Public
     if let Some(ref public) = known_folders.public
-        && let Some(tail) = strip_prefix_case_insensitive(&rendered, public)
+        && let Some(tail) = tail_for_known_folder(physical, public)
     {
         return Some(SemanticPath {
             base: SemanticBase::WinPublic,
@@ -109,9 +93,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    // 7. ProgramData
     if let Some(ref pd) = known_folders.program_data
-        && let Some(tail) = strip_prefix_case_insensitive(&rendered, pd)
+        && let Some(tail) = tail_for_known_folder(physical, pd)
     {
         return Some(SemanticPath {
             base: SemanticBase::WinProgramData,
@@ -119,9 +102,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    // 8. Windows directory
     if let Some(ref win) = known_folders.windows
-        && let Some(tail) = strip_prefix_case_insensitive(&rendered, win)
+        && let Some(tail) = tail_for_known_folder(physical, win)
     {
         return Some(SemanticPath {
             base: SemanticBase::WinDir,
@@ -129,50 +111,34 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
         });
     }
 
-    // 9. User profile home
     if let Some(ref home) = known_folders.user_profile
-        && let Some(tail) = strip_prefix_case_insensitive(&rendered, home)
+        && let Some(tail) = tail_for_known_folder(physical, home)
     {
-        // Don't let broad user profile swallow paths that should have been
-        // handled by more specific bases. Check that the first tail component
-        // is not a known folder alias.
-        let first_component = tail.split('/').next().unwrap_or("");
-        let lower = first_component.to_ascii_lowercase();
-        if matches!(
-            lower.as_str(),
-            "documents"
-                | "my documents"
-                | "appdata"
-                | "application data"
-                | "local settings"
-                | "saved games"
-                | "desktop"
-        ) {
-            // Only swallow if the relevant KnownFolder check already proved
-            // this directory is NOT that semantic location. Since we already
-            // checked above and they didn't match, we should still NOT use
-            // WinHome for these known aliases.
-            // Fall through to drive-based classification.
-        } else {
-            return Some(SemanticPath {
-                base: SemanticBase::WinHome,
-                tail,
-            });
-        }
+        return Some(SemanticPath {
+            base: SemanticBase::WinHome,
+            tail,
+        });
     }
 
-    // 10. Drive-root classification
+    static USER_PATH: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^C:/Users/[^/]+/(.+)$").unwrap());
+
+    let normalized = normalize_path(&rendered);
+    if let Some(captures) = USER_PATH.captures(&normalized)
+        && let Some(tail) = captures.get(1)
+    {
+        return classify_windows_user_subpath(tail.as_str());
+    }
+
     extract_drive_path(&rendered)
 }
 
 fn extract_drive_path(rendered: &str) -> Option<SemanticPath> {
     let norm = normalize_path(rendered);
 
-    // Match patterns like "C:/..." or "C:\..."
     let bytes = norm.as_bytes();
     if bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/' {
         let drive_letter = (bytes[0] as char).to_ascii_lowercase();
-        let tail = &norm[3..]; // skip "C:/"
+        let tail = &norm[3..];
         if !tail.is_empty() {
             return Some(SemanticPath {
                 base: SemanticBase::WinDrive(drive_letter),
@@ -192,21 +158,8 @@ pub fn wine_physical_to_semantic(
     prefix_path: &StrictPath,
     wine_user: &str,
 ) -> Option<SemanticPath> {
-    let rendered = physical.render();
-    let prefix_rendered = normalize_path(&prefix_path.render());
-    let rendered_norm = normalize_path(&rendered);
+    let relative = physical.case_insensitive_tail_for(prefix_path)?.join("/");
 
-    // Strip prefix to get prefix-relative path
-    let relative = if rendered_norm.len() > prefix_rendered.len()
-        && rendered_norm.as_bytes()[prefix_rendered.len()] == b'/'
-        && rendered_norm[..prefix_rendered.len()].eq_ignore_ascii_case(&prefix_rendered)
-    {
-        &rendered_norm[prefix_rendered.len() + 1..]
-    } else {
-        return None;
-    };
-
-    // Check if path is under drive_c/users/<wine_user>/
     let user_prefix = format!("drive_c/users/{}", wine_user.to_ascii_lowercase());
     let relative_lower = relative.to_ascii_lowercase();
 
@@ -215,12 +168,11 @@ pub fn wine_physical_to_semantic(
         if after_user.is_empty() || !after_user.starts_with('/') {
             return None;
         }
-        let sub_path = &after_user[1..]; // skip the '/'
+        let sub_path = &after_user[1..];
 
         return classify_windows_user_subpath(sub_path);
     }
 
-    // Check if path is under drive_c/users/Public
     let public_prefix = "drive_c/users/public";
     if relative_lower.starts_with(public_prefix) {
         let after = &relative[public_prefix.len()..];
@@ -237,7 +189,6 @@ pub fn wine_physical_to_semantic(
         return None;
     }
 
-    // Check if path is under drive_c/ProgramData
     let pd_prefix = "drive_c/programdata";
     if relative_lower.starts_with(pd_prefix) {
         let after = &relative[pd_prefix.len()..];
@@ -254,7 +205,6 @@ pub fn wine_physical_to_semantic(
         return None;
     }
 
-    // Check if path is under drive_c/windows
     let win_prefix = "drive_c/windows";
     if relative_lower.starts_with(win_prefix) {
         let after = &relative[win_prefix.len()..];
@@ -271,7 +221,6 @@ pub fn wine_physical_to_semantic(
         return None;
     }
 
-    // Check if path is under drive_<letter> (not drive_c)
     if let Some(after_drive) = relative_lower.strip_prefix("drive_")
         && after_drive.len() >= 2
         && after_drive.as_bytes()[0].is_ascii_alphabetic()
@@ -279,7 +228,7 @@ pub fn wine_physical_to_semantic(
     {
         let letter = (after_drive.as_bytes()[0] as char).to_ascii_lowercase();
         if letter != 'c' {
-            let tail = &relative[8..]; // skip "drive_x/"
+            let tail = &relative[8..];
             if !tail.is_empty() {
                 return Some(SemanticPath {
                     base: SemanticBase::WinDrive(letter),
@@ -289,7 +238,6 @@ pub fn wine_physical_to_semantic(
         }
     }
 
-    // If path is under drive_c but not matched above, use WinDrive('c')
     let dc_prefix = "drive_c";
     if relative_lower.starts_with(dc_prefix) {
         let after = &relative[dc_prefix.len()..];
@@ -407,76 +355,16 @@ fn strip_known_folder_alias(lower: &str, original: &str, alias: &str) -> Option<
     None
 }
 
-/// Origin metadata for a scanned file, used for manifest-based semantic key derivation.
-#[derive(Clone, Debug, Default)]
-pub struct ScanOrigin {
-    pub manifest_path: String,
-    pub store: crate::resource::manifest::Store,
-    pub expanded_prefix: String,
-    pub matched_prefix_len: usize,
-    pub tail: String,
-}
-
-/// Mapping from manifest placeholder strings to semantic bases.
-const PLACEHOLDER_TO_BASE: &[(&str, SemanticBase)] = &[
-    ("<winDocuments>", SemanticBase::WinDocuments),
-    ("<winAppData>", SemanticBase::WinAppData),
-    ("<winLocalAppData>", SemanticBase::WinLocalAppData),
-    ("<winLocalAppDataLow>", SemanticBase::WinLocalAppDataLow),
-    ("<winSavedGames>", SemanticBase::WinSavedGames),
-    ("<winPublic>", SemanticBase::WinPublic),
-    ("<winProgramData>", SemanticBase::WinProgramData),
-    ("<winDir>", SemanticBase::WinDir),
-    ("<winHome>", SemanticBase::WinHome),
-];
-
-/// Determine the expected semantic base from a manifest path.
-/// Returns None if the manifest path does not use a known semantic placeholder.
-pub fn expected_base_from_manifest(manifest_path: &str, _store: Store) -> Option<SemanticBase> {
-    for (placeholder, base) in PLACEHOLDER_TO_BASE {
-        if manifest_path.starts_with(placeholder) {
-            return Some(base.clone());
-        }
-    }
-    None
-}
-
-/// Derive a semantic key from manifest origin metadata.
-/// Returns None if the origin does not support semantic derivation.
-///
-/// Source precedence: manifest-derived keys are called FIRST.
-/// Only if this returns None should the caller invoke reverse mapping.
-pub fn derive_from_manifest_origin(origin: &ScanOrigin) -> Option<SemanticPath> {
-    let manifest_path = &origin.manifest_path;
-    let tail = &origin.tail;
-
-    // Check if the manifest placeholder maps to a recognized semantic base
-    for (placeholder, base) in PLACEHOLDER_TO_BASE {
-        if manifest_path.starts_with(placeholder) {
-            if tail.is_empty() {
-                return None;
-            }
-            return Some(SemanticPath {
-                base: base.clone(),
-                tail: tail.clone(),
-            });
-        }
-    }
-
-    // Generic <base> or <root> with non-portable root → None (fall through to reverse mapping)
-    None
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resource::manifest::Store;
 
     fn make_known_folders() -> KnownFolders {
         KnownFolders {
             saved_games: Some("C:/Users/Alice/Saved Games".to_string()),
             documents: Some("C:/Users/Alice/Documents".to_string()),
             local_app_data: Some("C:/Users/Alice/AppData/Local".to_string()),
+            local_low_app_data: Some("C:/Users/Alice/AppData/LocalLow".to_string()),
             app_data: Some("C:/Users/Alice/AppData/Roaming".to_string()),
             public: Some("C:/Users/Public".to_string()),
             program_data: Some("C:/ProgramData".to_string()),
@@ -515,7 +403,7 @@ mod tests {
     #[test]
     fn windows_local_appdata_low() {
         let kf = make_known_folders();
-        let path = StrictPath::new("C:/Users/Alice/AppData/Local/Low/Game/save.dat");
+        let path = StrictPath::new("C:/Users/Alice/AppData/LocalLow/Game/save.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
         assert_eq!(result.base, SemanticBase::WinLocalAppDataLow);
         assert_eq!(result.tail, "Game/save.dat");
@@ -682,100 +570,5 @@ mod tests {
         let result = wine_physical_to_semantic(&physical, &prefix, "steamuser").unwrap();
         assert_eq!(result.base, SemanticBase::WinDocuments);
         assert_eq!(result.tail, "Game/save.dat");
-    }
-
-    // Manifest derivation tests
-
-    #[test]
-    fn manifest_derive_win_documents() {
-        let origin = ScanOrigin {
-            manifest_path: "<winDocuments>/Remedy/Alan Wake".to_string(),
-            store: Store::Other,
-            expanded_prefix: "C:/Users/Alice/Documents".to_string(),
-            matched_prefix_len: "C:/Users/Alice/Documents".len(),
-            tail: "Remedy/Alan Wake/save.dat".to_string(),
-        };
-        let result = derive_from_manifest_origin(&origin).unwrap();
-        assert_eq!(result.base, SemanticBase::WinDocuments);
-        assert_eq!(result.tail, "Remedy/Alan Wake/save.dat");
-    }
-
-    #[test]
-    fn manifest_derive_win_appdata() {
-        let origin = ScanOrigin {
-            manifest_path: "<winAppData>/Game".to_string(),
-            store: Store::Other,
-            expanded_prefix: "C:/Users/Alice/AppData/Roaming".to_string(),
-            matched_prefix_len: "C:/Users/Alice/AppData/Roaming".len(),
-            tail: "Game/config.ini".to_string(),
-        };
-        let result = derive_from_manifest_origin(&origin).unwrap();
-        assert_eq!(result.base, SemanticBase::WinAppData);
-        assert_eq!(result.tail, "Game/config.ini");
-    }
-
-    #[test]
-    fn manifest_derive_steam_userdata_falls_back_to_legacy() {
-        // Steam userdata is a native Windows/Linux concern, not Windows/Wine,
-        // so it is intentionally out of scope and falls back to legacy
-        // absolute-path behavior (None here).
-        let origin = ScanOrigin {
-            manifest_path: "<root>/userdata/<storeUserId>/<storeGameId>/remote".to_string(),
-            store: Store::Steam,
-            expanded_prefix: "C:/Program Files (x86)/Steam".to_string(),
-            matched_prefix_len: "C:/Program Files (x86)/Steam".len(),
-            tail: "userdata/12345/67890/remote/save.dat".to_string(),
-        };
-        assert!(derive_from_manifest_origin(&origin).is_none());
-    }
-
-    #[test]
-    fn manifest_derive_generic_base_returns_none() {
-        let origin = ScanOrigin {
-            manifest_path: "<base>/saves".to_string(),
-            store: Store::Other,
-            expanded_prefix: "/home/user/game".to_string(),
-            matched_prefix_len: "/home/user/game".len(),
-            tail: "saves/file.dat".to_string(),
-        };
-        assert!(derive_from_manifest_origin(&origin).is_none());
-    }
-
-    #[test]
-    fn manifest_derive_empty_tail_returns_none() {
-        let origin = ScanOrigin {
-            manifest_path: "<winDocuments>/Game".to_string(),
-            store: Store::Other,
-            expanded_prefix: "C:/Users/Alice/Documents".to_string(),
-            matched_prefix_len: "C:/Users/Alice/Documents".len(),
-            tail: "".to_string(),
-        };
-        assert!(derive_from_manifest_origin(&origin).is_none());
-    }
-
-    #[test]
-    fn manifest_derive_all_win_bases() {
-        let cases = [
-            ("<winDocuments>", SemanticBase::WinDocuments),
-            ("<winAppData>", SemanticBase::WinAppData),
-            ("<winLocalAppData>", SemanticBase::WinLocalAppData),
-            ("<winLocalAppDataLow>", SemanticBase::WinLocalAppDataLow),
-            ("<winSavedGames>", SemanticBase::WinSavedGames),
-            ("<winPublic>", SemanticBase::WinPublic),
-            ("<winProgramData>", SemanticBase::WinProgramData),
-            ("<winDir>", SemanticBase::WinDir),
-            ("<winHome>", SemanticBase::WinHome),
-        ];
-        for (placeholder, expected_base) in cases {
-            let origin = ScanOrigin {
-                manifest_path: format!("{}/Game", placeholder),
-                store: Store::Other,
-                expanded_prefix: "some/prefix".to_string(),
-                matched_prefix_len: 11,
-                tail: "Game/save.dat".to_string(),
-            };
-            let result = derive_from_manifest_origin(&origin).unwrap();
-            assert_eq!(result.base, expected_base, "failed for: {}", placeholder);
-        }
     }
 }

@@ -7,6 +7,7 @@ pub mod layout;
 pub mod preview;
 pub mod registry;
 pub mod saves;
+pub mod semantic;
 pub mod steam;
 pub mod title;
 
@@ -38,9 +39,8 @@ use crate::{
         },
         manifest::{Game, GameFileEntry, IdSet, Os, Store},
     },
-    scan::layout::{BackupSemantics, LatestBackup, SemanticDirKind},
-    semantic::convert::KnownFolders,
-    semantic::prefix::ValidatedPrefix,
+    scan::layout::{BackupSemantics, DirectorySemantics, LatestBackup, SemanticDirKind},
+    scan::semantic::{convert::KnownFolders, prefix::ValidatedPrefix},
 };
 
 #[cfg(target_os = "windows")]
@@ -87,11 +87,11 @@ impl WineRedirectContext {
                 cg.wine_prefix
                     .iter()
                     .filter(|wp| !wp.trim().is_empty())
-                    .find_map(|wp| crate::semantic::prefix::validate_prefix(&StrictPath::new(wp)))
+                    .find_map(|wp| semantic::prefix::validate_prefix(&StrictPath::new(wp)))
             });
 
-        // On Windows, populate known_folders from environment variables
-        // so that Wine→Windows restore can convert semantic paths to physical paths.
+        // On Windows, populate known_folders so that Wine→Windows restore can
+        // convert semantic paths to physical paths.
         let known_folders = if cfg!(target_os = "windows") {
             known_folders_from_env()
         } else {
@@ -110,38 +110,28 @@ impl WineRedirectContext {
     }
 }
 
-/// Populate Windows known folder paths from environment variables.
-/// Returns None if the essential USERPROFILE variable is not set.
+/// Populate Windows known folder paths.
+/// Returns None if the home directory cannot be determined.
 fn known_folders_from_env() -> Option<KnownFolders> {
-    let user_profile = std::env::var("USERPROFILE").ok()?;
+    fn common_path(path: CommonPath) -> Option<String> {
+        path.get().map(|p| p.replace('\\', "/"))
+    }
 
-    let documents = std::env::var("USERPROFILE")
-        .ok()
-        .map(|p| format!("{}/Documents", p.replace('\\', "/")));
-
-    let saved_games = std::env::var("USERPROFILE")
-        .ok()
-        .map(|p| format!("{}/Saved Games", p.replace('\\', "/")));
-
-    let app_data = std::env::var("APPDATA").ok().map(|p| p.replace('\\', "/"));
-
-    let local_app_data = std::env::var("LOCALAPPDATA").ok().map(|p| p.replace('\\', "/"));
-
-    let public = std::env::var("PUBLIC").ok().map(|p| p.replace('\\', "/"));
+    let user_profile = common_path(CommonPath::Home)?;
 
     let program_data = std::env::var("ProgramData").ok().map(|p| p.replace('\\', "/"));
-
     let windows = std::env::var("SystemRoot").ok().map(|p| p.replace('\\', "/"));
 
     Some(KnownFolders {
-        saved_games,
-        documents,
-        local_app_data,
-        app_data,
-        public,
+        saved_games: common_path(CommonPath::SavedGames),
+        documents: common_path(CommonPath::Document),
+        local_app_data: common_path(CommonPath::DataLocal),
+        local_low_app_data: common_path(CommonPath::DataLocalLow),
+        app_data: common_path(CommonPath::Data),
+        public: common_path(CommonPath::Public),
         program_data,
         windows,
-        user_profile: Some(user_profile.replace('\\', "/")),
+        user_profile: Some(user_profile),
     })
 }
 
@@ -151,10 +141,13 @@ pub fn game_file_target(
     redirects: &[RedirectConfig],
     reverse_redirects_on_restore: bool,
     scan_kind: ScanKind,
-    redirect_wine: bool,
     semantics: Option<&BackupSemantics>,
     wine_redirect: Option<&WineRedirectContext>,
 ) -> Option<StrictPath> {
+    if redirects.is_empty() && wine_redirect.is_none() {
+        return None;
+    }
+
     let mut redirected = original.clone();
 
     // Apply user-configured redirects.
@@ -190,13 +183,11 @@ pub fn game_file_target(
         return Some(redirected);
     }
 
-    // Wine redirect: best effort.
     // On backup: no redirect needed (store absolute path). Semantics populated elsewhere.
     // On restore: generate redirect from stored path to current system path.
-    if redirect_wine
-        && scan_kind.is_restore()
-        && let (Some(sem), Some(ctx)) = (semantics, wine_redirect)
-        && let Some(result) = generate_restore_redirect(&redirected, sem, ctx)
+    if scan_kind.is_restore()
+        && let Some(ctx) = wine_redirect
+        && let Some(result) = semantics.and_then(|sem| generate_restore_redirect(&redirected, sem, ctx))
     {
         return Some(result);
     }
@@ -215,21 +206,19 @@ fn generate_restore_redirect(
 ) -> Option<StrictPath> {
     let stored_raw = stored_path.raw();
 
-    // Check if the stored path falls under a known Wine prefix directory.
     let wine_match = semantics
         .directories
         .iter()
-        .find(|(dir, _)| stored_raw.starts_with(dir.as_str()))
-        .filter(|(_, kind)| *kind == &SemanticDirKind::Wine);
+        .find(|(dir, semantics)| stored_raw.starts_with(dir.as_str()) && semantics.kind == SemanticDirKind::Wine);
 
-    if let Some((prefix_path, _kind)) = wine_match {
+    if let Some((prefix_path, _)) = wine_match {
         // Linux/Wine backup → Windows restore: preferred_prefix is None, known_folders is Some.
         if let Some(ref kf) = context.known_folders
             && context.preferred_prefix.is_none()
         {
             let prefix_sp = StrictPath::new(prefix_path.clone());
             let wine_user = detect_wine_user_from_path(stored_raw, prefix_path)?;
-            let semantic = crate::semantic::convert::wine_physical_to_semantic(stored_path, &prefix_sp, &wine_user)?;
+            let semantic = semantic::convert::wine_physical_to_semantic(stored_path, &prefix_sp, &wine_user)?;
             return materialize_to_windows(&semantic, kf);
         }
 
@@ -238,9 +227,8 @@ fn generate_restore_redirect(
         if let Some(ref prefix) = context.preferred_prefix {
             let prefix_sp = StrictPath::new(prefix_path.clone());
             let wine_user = detect_wine_user_from_path(stored_raw, prefix_path)?;
-            if let Some(semantic) =
-                crate::semantic::convert::wine_physical_to_semantic(stored_path, &prefix_sp, &wine_user)
-                    .and_then(|s| materialize_to_wine(&s, prefix))
+            if let Some(semantic) = semantic::convert::wine_physical_to_semantic(stored_path, &prefix_sp, &wine_user)
+                .and_then(|s| materialize_to_wine(&s, prefix))
             {
                 return Some(semantic);
             }
@@ -251,62 +239,10 @@ fn generate_restore_redirect(
     // This handles the case where the stored path is a Windows path (e.g., C:/Users/...)
     // and we're restoring into a Wine prefix.
     if let Some(ref prefix) = context.preferred_prefix
-        && let Some(tail) = detect_windows_special_folder(stored_raw)
+        && let Some(semantic) = semantic::convert::windows_physical_to_semantic(stored_path, &KnownFolders::default())
+        && let Some(target) = materialize_to_wine(&semantic, prefix)
     {
-        let wine_path = format!(
-            "{}/drive_c/users/{}/{}",
-            prefix.path.raw().trim_end_matches('/'),
-            prefix.wine_user,
-            tail
-        );
-        return Some(StrictPath::new(wine_path));
-    }
-
-    None
-}
-
-/// Heuristically detect if a path is under a Windows special folder.
-/// Returns the relative path after the special folder, or None.
-fn detect_windows_special_folder(path: &str) -> Option<String> {
-    let normalized = path.replace('\\', "/");
-    let lower = normalized.to_ascii_lowercase();
-
-    // Pattern: <drive>:/users/<username>/<special_folder>/<rest>
-    // We look for common Windows special folder names after "users/<username>/"
-    let users_marker = "/users/";
-    let users_idx = lower.find(users_marker)?;
-    let after_users = &normalized[users_idx + users_marker.len()..];
-    let after_users_lower = &lower[users_idx + users_marker.len()..];
-
-    // Skip the username component.
-    let username_end = after_users_lower.find('/')?;
-    let after_username = &after_users[username_end + 1..];
-    let after_username_lower = &after_users_lower[username_end + 1..];
-
-    // Check for known Windows special folders.
-    let special_folders = [
-        ("documents/", "Documents"),
-        ("my documents/", "Documents"),
-        ("appdata/local/", "AppData/Local"),
-        ("appdata/locallow/", "AppData/LocalLow"),
-        ("appdata/roaming/", "AppData/Roaming"),
-        ("saved games/", "Saved Games"),
-        ("desktop/", "Desktop"),
-        ("downloads/", "Downloads"),
-        ("pictures/", "Pictures"),
-        ("music/", "Music"),
-        ("videos/", "Videos"),
-    ];
-
-    for (pattern, folder_name) in &special_folders {
-        if after_username_lower.starts_with(pattern) {
-            let tail = &after_username[pattern.len()..];
-            if !tail.is_empty() {
-                // Include the special folder name in the result so the caller
-                // can map it to the correct location (e.g., Documents/...).
-                return Some(format!("{}/{}", folder_name, tail));
-            }
-        }
+        return Some(target);
     }
 
     None
@@ -315,43 +251,32 @@ fn detect_windows_special_folder(path: &str) -> Option<String> {
 /// Detect the Wine user from a path under a Wine prefix.
 /// Looks for `drive_c/users/<username>/` pattern.
 fn detect_wine_user_from_path(path: &str, prefix: &str) -> Option<String> {
-    let relative = path.strip_prefix(prefix)?.trim_start_matches('/');
-    let lower = relative.to_ascii_lowercase();
-    let marker = "drive_c/users/";
-    let idx = lower.find(marker)?;
-    let after = &relative[idx + marker.len()..];
-    let user = after.split('/').next()?;
-    if user.is_empty() {
-        return None;
-    }
-    Some(user.to_string())
+    static PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^drive_c/users/([^/]+)(?:/|$)").unwrap());
+
+    let relative = StrictPath::new(path)
+        .case_insensitive_tail_for(&StrictPath::new(prefix))?
+        .join("/");
+    PATTERN
+        .captures(&relative)
+        .and_then(|captures| captures.get(1))
+        .map(|user| user.as_str().to_string())
 }
 
 /// Materialize a semantic path to a Windows physical path using known folders.
-fn materialize_to_windows(
-    semantic: &crate::semantic::SemanticPath,
-    known_folders: &KnownFolders,
-) -> Option<StrictPath> {
-    use crate::semantic::SemanticBase;
+fn materialize_to_windows(semantic: &semantic::SemanticPath, known_folders: &KnownFolders) -> Option<StrictPath> {
+    use semantic::SemanticBase;
 
     let base_path = match &semantic.base {
         SemanticBase::WinHome => known_folders.user_profile.as_deref()?,
         SemanticBase::WinDocuments => known_folders.documents.as_deref()?,
         SemanticBase::WinAppData => known_folders.app_data.as_deref()?,
         SemanticBase::WinLocalAppData => known_folders.local_app_data.as_deref()?,
-        SemanticBase::WinLocalAppDataLow => {
-            // Derive LocalLow from LocalAppData: "AppData/Local" → "AppData/LocalLow"
-            let local = known_folders.local_app_data.as_deref()?;
-            if let Some(parent) = local.rsplit_once('/') {
-                return Some(StrictPath::new(format!("{}/LocalLow/{}", parent.0, semantic.tail)));
-            }
-            return None;
-        }
+        SemanticBase::WinLocalAppDataLow => known_folders.local_low_app_data.as_deref()?,
         SemanticBase::WinSavedGames => known_folders.saved_games.as_deref()?,
         SemanticBase::WinPublic => known_folders.public.as_deref()?,
         SemanticBase::WinProgramData => known_folders.program_data.as_deref()?,
         SemanticBase::WinDir => known_folders.windows.as_deref()?,
-        SemanticBase::WinDrive(_) => return None, // Drive letters not handled in MVP
+        SemanticBase::WinDrive(_) => return None,
     };
 
     let path = format!("{}/{}", base_path.trim_end_matches('/'), semantic.tail);
@@ -360,8 +285,8 @@ fn materialize_to_windows(
 
 /// Materialize a semantic path into a Wine prefix path.
 /// Maps semantic bases to their Wine directory equivalents under `drive_c/`.
-fn materialize_to_wine(semantic: &crate::semantic::SemanticPath, prefix: &ValidatedPrefix) -> Option<StrictPath> {
-    use crate::semantic::SemanticBase;
+fn materialize_to_wine(semantic: &semantic::SemanticPath, prefix: &ValidatedPrefix) -> Option<StrictPath> {
+    use semantic::SemanticBase;
 
     let base_path = match &semantic.base {
         SemanticBase::WinDocuments => format!("drive_c/users/{}/Documents", prefix.wine_user),
@@ -373,7 +298,13 @@ fn materialize_to_wine(semantic: &crate::semantic::SemanticPath, prefix: &Valida
         SemanticBase::WinProgramData => "drive_c/ProgramData".to_string(),
         SemanticBase::WinDir => "drive_c/Windows".to_string(),
         SemanticBase::WinHome => format!("drive_c/users/{}", prefix.wine_user),
-        SemanticBase::WinDrive(c) => format!("drive_{}", c),
+        SemanticBase::WinDrive(c) => {
+            let drive = prefix.path.joined(format!("drive_{c}"));
+            if *c != 'c' && !drive.is_dir() {
+                return None;
+            }
+            format!("drive_{}", c)
+        }
     };
 
     let path = format!(
@@ -803,7 +734,6 @@ pub fn scan_game_for_backup(
     reverse_redirects_on_restore: bool,
     steam_shortcuts: &SteamShortcuts,
     only_constructive_backups: bool,
-    redirect_wine: bool,
 ) -> ScanInfo {
     log::trace!("[{name}] beginning scan for backup");
 
@@ -1018,7 +948,6 @@ pub fn scan_game_for_backup(
                     redirects,
                     reverse_redirects_on_restore,
                     ScanKind::Backup,
-                    false,
                     None,
                     None,
                 );
@@ -1068,7 +997,6 @@ pub fn scan_game_for_backup(
                             redirects,
                             reverse_redirects_on_restore,
                             ScanKind::Backup,
-                            false,
                             None,
                             None,
                         );
@@ -1211,37 +1139,14 @@ pub fn scan_game_for_backup(
 
     log::trace!("[{name}] completed scan for backup");
 
-    // Populate semantics for Wine redirect if enabled.
     let mut semantics = BackupSemantics::default();
-    if redirect_wine {
-        // Check game.wine_prefix entries.
-        for wp in &game.wine_prefix {
-            if wp.trim().is_empty() {
-                continue;
-            }
-            let sp = StrictPath::new(wp);
-            if crate::semantic::prefix::validate_prefix(&sp).is_some() {
-                semantics.directories.insert(sp.render(), SemanticDirKind::Wine);
-            }
-        }
-        // Check the explicit wine_prefix parameter (from CLI).
-        if let Some(wp) = wine_prefix
-            && crate::semantic::prefix::validate_prefix(wp).is_some()
-        {
-            semantics.directories.insert(wp.render(), SemanticDirKind::Wine);
-        }
-        // Check launcher-discovered prefixes (Heroic, Lutris, Steam Proton).
-        for root in roots {
-            for wp in launchers.get_game(root, name).filter_map(|x| x.prefix.as_ref()) {
-                if crate::semantic::prefix::validate_prefix(wp).is_some() {
-                    semantics.directories.insert(wp.render(), SemanticDirKind::Wine);
-                }
-                let pfx = wp.joined("pfx");
-                if pfx.exists() && crate::semantic::prefix::validate_prefix(&pfx).is_some() {
-                    semantics.directories.insert(pfx.render(), SemanticDirKind::Wine);
-                }
-            }
-        }
+    for prefix in wine_prefixes_with_included_files(game, name, roots, launchers, wine_prefix, &found_files) {
+        semantics.directories.insert(
+            prefix.render(),
+            DirectorySemantics {
+                kind: SemanticDirKind::Wine,
+            },
+        );
     }
 
     ScanInfo {
@@ -1255,6 +1160,59 @@ pub fn scan_game_for_backup(
         only_constructive_backups,
         semantics,
     }
+}
+
+fn wine_prefixes_with_included_files(
+    game: &Game,
+    name: &str,
+    roots: &[Root],
+    launchers: &Launchers,
+    wine_prefix: Option<&StrictPath>,
+    found_files: &HashMap<StrictPath, ScannedFile>,
+) -> Vec<StrictPath> {
+    let mut prefixes = Vec::new();
+
+    for wp in &game.wine_prefix {
+        if !wp.trim().is_empty() {
+            prefixes.push(StrictPath::new(wp));
+        }
+    }
+    if let Some(wp) = wine_prefix {
+        prefixes.push(wp.clone());
+    }
+    for root in roots {
+        for wp in launchers.get_game(root, name).filter_map(|x| x.prefix.as_ref()) {
+            prefixes.push(wp.clone());
+            let pfx = wp.joined("pfx");
+            if pfx.exists() {
+                prefixes.push(pfx);
+            }
+        }
+    }
+
+    let mut valid = Vec::new();
+    for prefix in prefixes {
+        if valid.iter().any(|seen: &StrictPath| seen == &prefix) {
+            continue;
+        }
+        if semantic::prefix::validate_prefix(&prefix).is_some()
+            && found_files.iter().any(|(scan_key, file)| {
+                file_is_included_in_backup(file) && scan_key.case_insensitive_tail_for(&prefix).is_some()
+            })
+        {
+            valid.push(prefix);
+        }
+    }
+
+    valid
+}
+
+fn file_is_included_in_backup(file: &ScannedFile) -> bool {
+    !file.ignored
+        && matches!(
+            file.change(),
+            ScanChange::New | ScanChange::Different | ScanChange::Same
+        )
 }
 
 type PathToCheck = HashMap<StrictPath, (Option<bool>, Vec<(String, Store)>)>;
@@ -1356,6 +1314,16 @@ mod tests {
 
     const ONLY_CONSTRUCTIVE: bool = false;
 
+    fn wine_semantics(prefix: &str) -> BackupSemantics {
+        BackupSemantics {
+            directories: btree_map! {
+                prefix.to_string(): DirectorySemantics {
+                    kind: SemanticDirKind::Wine,
+                },
+            },
+        }
+    }
+
     fn config() -> Config {
         Config::load_from_string(&format!(
             r#"
@@ -1426,15 +1394,7 @@ mod tests {
         // No redirects
         assert_eq!(
             None,
-            game_file_target(
-                &StrictPath::new("/foo"),
-                &[],
-                false,
-                ScanKind::Backup,
-                false,
-                None,
-                None
-            )
+            game_file_target(&StrictPath::new("/foo"), &[], false, ScanKind::Backup, None, None)
         );
 
         // Match - backup
@@ -1461,7 +1421,6 @@ mod tests {
                 ],
                 false,
                 ScanKind::Backup,
-                false,
                 None,
                 None,
             ),
@@ -1491,7 +1450,6 @@ mod tests {
                 ],
                 false,
                 ScanKind::Restore,
-                false,
                 None,
                 None,
             ),
@@ -1521,7 +1479,6 @@ mod tests {
                 ],
                 true,
                 ScanKind::Restore,
-                false,
                 None,
                 None,
             ),
@@ -1539,7 +1496,6 @@ mod tests {
                 },],
                 false,
                 ScanKind::Backup,
-                false,
                 None,
                 None,
             ),
@@ -1573,7 +1529,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
 
@@ -1601,7 +1556,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -1633,7 +1587,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -1677,7 +1630,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -1709,7 +1661,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -1755,7 +1706,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -1791,7 +1741,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -1826,7 +1775,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -1840,6 +1788,7 @@ mod tests {
                     format!("{}/tests/wine-prefix/drive_c/users/anyone/data.txt", repo()).into(): ScannedFile::new(0, EMPTY_HASH).change_new(),
                 },
                 found_registry_keys: hash_map! {},
+                semantics: wine_semantics(&format!("{}/tests/wine-prefix", repo())),
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1857,7 +1806,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -1871,6 +1819,7 @@ mod tests {
                     format!("{}/tests/wine-prefix/user.reg", repo()).into(): ScannedFile::new(37, "4a5b7e9de7d84ffb4bb3e9f38667f85741d5fbc0",).change_new(),
                 },
                 found_registry_keys: hash_map! {},
+                semantics: wine_semantics(&format!("{}/tests/wine-prefix", repo())),
                 ..Default::default()
             },
             scan_game_for_backup(
@@ -1888,7 +1837,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -1927,7 +1875,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -1968,7 +1915,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -2009,7 +1955,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -2052,7 +1997,6 @@ mod tests {
             false,
             &Default::default(),
             ONLY_CONSTRUCTIVE,
-            false,
         );
 
         assert_eq!(
@@ -2104,7 +2048,6 @@ mod tests {
             false,
             &Default::default(),
             ONLY_CONSTRUCTIVE,
-            false,
         );
 
         assert_eq!(
@@ -2158,7 +2101,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -2217,7 +2159,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -2349,7 +2290,6 @@ mod tests {
                     false,
                     &Default::default(),
                     ONLY_CONSTRUCTIVE,
-                    false,
                 ),
             );
         }
@@ -2387,7 +2327,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -2424,7 +2363,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -2472,7 +2410,6 @@ mod tests {
                 false,
                 &Default::default(),
                 ONLY_CONSTRUCTIVE,
-                false,
             ),
         );
     }
@@ -2487,7 +2424,6 @@ mod tests {
                 &[],
                 false,
                 ScanKind::Restore,
-                false,
                 None,
                 None,
             )
@@ -2497,13 +2433,7 @@ mod tests {
     #[test]
     fn game_file_target_redirect_wine_on_backup_is_noop() {
         // On backup, Wine redirect is not applied (store absolute path).
-        let sem = BackupSemantics {
-            directories: {
-                let mut m = std::collections::BTreeMap::new();
-                m.insert("/home/user/prefix".to_string(), SemanticDirKind::Wine);
-                m
-            },
-        };
+        let sem = wine_semantics("/home/user/prefix");
         assert_eq!(
             None,
             game_file_target(
@@ -2511,7 +2441,6 @@ mod tests {
                 &[],
                 false,
                 ScanKind::Backup,
-                true,
                 Some(&sem),
                 None,
             )
@@ -2521,13 +2450,7 @@ mod tests {
     #[test]
     fn game_file_target_redirect_wine_restore_linux_to_windows() {
         // Linux/Wine backup → Windows restore
-        let sem = BackupSemantics {
-            directories: {
-                let mut m = std::collections::BTreeMap::new();
-                m.insert("/home/user/prefix".to_string(), SemanticDirKind::Wine);
-                m
-            },
-        };
+        let sem = wine_semantics("/home/user/prefix");
         let kf = KnownFolders {
             documents: Some("C:/Users/Alice/Documents".to_string()),
             ..Default::default()
@@ -2541,7 +2464,6 @@ mod tests {
             &[],
             false,
             ScanKind::Restore,
-            true,
             Some(&sem),
             Some(&ctx),
         );
@@ -2567,8 +2489,6 @@ mod tests {
         let prefix = ValidatedPrefix {
             path: StrictPath::new("/home/user/new-prefix".to_string()),
             wine_user: "wineuser".to_string(),
-            has_drive_c: true,
-            drive_mappings: Default::default(),
         };
         let ctx = WineRedirectContext {
             preferred_prefix: Some(prefix),
@@ -2579,7 +2499,6 @@ mod tests {
             &[],
             false,
             ScanKind::Restore,
-            true,
             Some(&sem),
             Some(&ctx),
         );
@@ -2603,15 +2522,72 @@ mod tests {
     }
 
     #[test]
-    fn game_file_target_redirect_wine_no_prefix_falls_through() {
-        // No prefix found → falls through to existing behavior (no crash)
-        let sem = BackupSemantics {
-            directories: {
-                let mut m = std::collections::BTreeMap::new();
-                m.insert("/some/other/prefix".to_string(), SemanticDirKind::Wine);
-                m
-            },
+    fn game_file_target_redirect_wine_restore_windows_drive_c_to_linux() {
+        let prefix = ValidatedPrefix {
+            path: StrictPath::new("/home/user/prefix"),
+            wine_user: "wineuser".to_string(),
         };
+        let ctx = WineRedirectContext {
+            preferred_prefix: Some(prefix),
+            known_folders: None,
+        };
+
+        let result = game_file_target(
+            &StrictPath::new("C:/Program Files/Game/save.dat"),
+            &[],
+            false,
+            ScanKind::Restore,
+            Some(&BackupSemantics::default()),
+            Some(&ctx),
+        );
+
+        assert_eq!(
+            Some(StrictPath::new("/home/user/prefix/drive_c/Program Files/Game/save.dat")),
+            result,
+        );
+    }
+
+    #[test]
+    fn game_file_target_redirect_wine_restore_other_windows_drive_requires_existing_wine_drive() {
+        let tmp = tempfile::tempdir().unwrap();
+        let prefix = StrictPath::new(tmp.path().to_string_lossy().to_string());
+        let ctx = WineRedirectContext {
+            preferred_prefix: Some(ValidatedPrefix {
+                path: prefix.clone(),
+                wine_user: "wineuser".to_string(),
+            }),
+            known_folders: None,
+        };
+
+        assert_eq!(
+            None,
+            game_file_target(
+                &StrictPath::new("D:/Game/save.dat"),
+                &[],
+                false,
+                ScanKind::Restore,
+                Some(&BackupSemantics::default()),
+                Some(&ctx),
+            ),
+        );
+
+        std::fs::create_dir(prefix.joined("drive_d").as_std_path_buf().unwrap()).unwrap();
+        assert_eq!(
+            Some(StrictPath::new(format!("{}/drive_d/Game/save.dat", prefix.raw()))),
+            game_file_target(
+                &StrictPath::new("D:/Game/save.dat"),
+                &[],
+                false,
+                ScanKind::Restore,
+                Some(&BackupSemantics::default()),
+                Some(&ctx),
+            ),
+        );
+    }
+
+    #[test]
+    fn game_file_target_redirect_wine_no_prefix_returns_none() {
+        let sem = wine_semantics("/some/other/prefix");
         let ctx = WineRedirectContext {
             preferred_prefix: None,
             known_folders: Some(KnownFolders::default()),
@@ -2623,7 +2599,6 @@ mod tests {
                 &[],
                 false,
                 ScanKind::Restore,
-                true,
                 Some(&sem),
                 Some(&ctx),
             )
@@ -2633,13 +2608,7 @@ mod tests {
     #[test]
     fn game_file_target_redirect_wine_user_redirects_take_priority() {
         // User-configured redirects take precedence over Wine redirect.
-        let sem = BackupSemantics {
-            directories: {
-                let mut m = std::collections::BTreeMap::new();
-                m.insert("/home/user/prefix".to_string(), SemanticDirKind::Wine);
-                m
-            },
-        };
+        let sem = wine_semantics("/home/user/prefix");
         let ctx = WineRedirectContext {
             preferred_prefix: None,
             known_folders: Some(KnownFolders {
@@ -2656,51 +2625,11 @@ mod tests {
             }],
             false,
             ScanKind::Restore,
-            true,
             Some(&sem),
             Some(&ctx),
         );
         // User redirect should win.
         assert_eq!(result, Some(StrictPath::new("/custom/target/save.dat")));
-    }
-
-    #[test]
-    fn detect_windows_special_folder_works() {
-        // Standard Windows path — includes the special folder name
-        assert_eq!(
-            detect_windows_special_folder("C:/Users/Alice/Documents/game/save.dat"),
-            Some("Documents/game/save.dat".to_string()),
-        );
-
-        // AppData/Roaming
-        assert_eq!(
-            detect_windows_special_folder("C:/Users/Alice/AppData/Roaming/Publisher/Game/settings.cfg"),
-            Some("AppData/Roaming/Publisher/Game/settings.cfg".to_string()),
-        );
-
-        // AppData/Local
-        assert_eq!(
-            detect_windows_special_folder("D:/Users/Bob/AppData/Local/Game/cache.dat"),
-            Some("AppData/Local/Game/cache.dat".to_string()),
-        );
-
-        // Saved Games
-        assert_eq!(
-            detect_windows_special_folder("C:/Users/Alice/Saved Games/MyGame/profile.sav"),
-            Some("Saved Games/MyGame/profile.sav".to_string()),
-        );
-
-        // Backslash paths (Windows style)
-        assert_eq!(
-            detect_windows_special_folder("C:\\Users\\Alice\\Documents\\game\\save.dat"),
-            Some("Documents/game/save.dat".to_string()),
-        );
-
-        // Not a recognized pattern
-        assert_eq!(detect_windows_special_folder("/home/user/game/save.dat"), None,);
-
-        // Path without special folder after username
-        assert_eq!(detect_windows_special_folder("C:/Users/Alice/random/file.dat"), None,);
     }
 
     // ── Real-path integration tests using Steam Deck / Proton backup data ──
@@ -2716,13 +2645,7 @@ mod tests {
             prefix_path
         );
 
-        let sem = BackupSemantics {
-            directories: {
-                let mut m = std::collections::BTreeMap::new();
-                m.insert(prefix_path.to_string(), SemanticDirKind::Wine);
-                m
-            },
-        };
+        let sem = wine_semantics(prefix_path);
         let kf = KnownFolders {
             documents: Some("C:/Users/Alice/Documents".to_string()),
             saved_games: Some("C:/Users/Alice/Saved Games".to_string()),
@@ -2737,7 +2660,6 @@ mod tests {
             &[],
             false,
             ScanKind::Restore,
-            true,
             Some(&sem),
             Some(&ctx),
         );
@@ -2760,13 +2682,7 @@ mod tests {
             prefix_path
         );
 
-        let sem = BackupSemantics {
-            directories: {
-                let mut m = std::collections::BTreeMap::new();
-                m.insert(prefix_path.to_string(), SemanticDirKind::Wine);
-                m
-            },
-        };
+        let sem = wine_semantics(prefix_path);
         let kf = KnownFolders {
             app_data: Some("C:/Users/Alice/AppData/Roaming".to_string()),
             ..Default::default()
@@ -2780,7 +2696,6 @@ mod tests {
             &[],
             false,
             ScanKind::Restore,
-            true,
             Some(&sem),
             Some(&ctx),
         );
@@ -2805,13 +2720,7 @@ mod tests {
             prefix_path
         );
 
-        let sem = BackupSemantics {
-            directories: {
-                let mut m = std::collections::BTreeMap::new();
-                m.insert(prefix_path.to_string(), SemanticDirKind::Wine);
-                m
-            },
-        };
+        let sem = wine_semantics(prefix_path);
         let kf = KnownFolders {
             local_app_data: Some("C:/Users/Alice/AppData/Local".to_string()),
             ..Default::default()
@@ -2825,7 +2734,6 @@ mod tests {
             &[],
             false,
             ScanKind::Restore,
-            true,
             Some(&sem),
             Some(&ctx),
         );
@@ -2851,8 +2759,6 @@ mod tests {
         let prefix = ValidatedPrefix {
             path: StrictPath::new(prefix_path.to_string()),
             wine_user: "steamuser".to_string(),
-            has_drive_c: true,
-            drive_mappings: Default::default(),
         };
         let ctx = WineRedirectContext {
             preferred_prefix: Some(prefix),
@@ -2864,7 +2770,6 @@ mod tests {
             &[],
             false,
             ScanKind::Restore,
-            true,
             Some(&sem),
             Some(&ctx),
         );
@@ -2887,8 +2792,6 @@ mod tests {
         let prefix = ValidatedPrefix {
             path: StrictPath::new(prefix_path.to_string()),
             wine_user: "steamuser".to_string(),
-            has_drive_c: true,
-            drive_mappings: Default::default(),
         };
         let ctx = WineRedirectContext {
             preferred_prefix: Some(prefix),
@@ -2900,7 +2803,6 @@ mod tests {
             &[],
             false,
             ScanKind::Restore,
-            true,
             Some(&sem),
             Some(&ctx),
         );
@@ -2928,18 +2830,10 @@ mod tests {
             old_prefix
         );
 
-        let sem = BackupSemantics {
-            directories: {
-                let mut m = std::collections::BTreeMap::new();
-                m.insert(old_prefix.to_string(), SemanticDirKind::Wine);
-                m
-            },
-        };
+        let sem = wine_semantics(old_prefix);
         let prefix = ValidatedPrefix {
             path: StrictPath::new(new_prefix.to_string()),
             wine_user: "steamuser".to_string(),
-            has_drive_c: true,
-            drive_mappings: Default::default(),
         };
         let ctx = WineRedirectContext {
             preferred_prefix: Some(prefix),
@@ -2950,7 +2844,6 @@ mod tests {
             &[],
             false,
             ScanKind::Restore,
-            true,
             Some(&sem),
             Some(&ctx),
         );

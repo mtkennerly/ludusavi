@@ -2,15 +2,15 @@ use std::collections::HashMap;
 
 use crate::{
     path::StrictPath,
-    resource::config::{RedirectConfig, ToggledPaths, ToggledRegistry},
+    resource::config::{ToggledPaths, ToggledRegistry},
     scan::{
-        BackupInfo, ScanChange, ScanChangeCount, ScanKind, ScannedFile, ScannedRegistry, game_file_target,
+        BackupInfo, ScanChange, ScanChangeCount, ScanKind, ScannedFile, ScannedRegistry,
         layout::{Backup, BackupSemantics},
         registry::{self, RegistryItem},
     },
 };
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct ScanInfo {
     pub game_name: String,
     /// The key is the actual location on disk.
@@ -31,22 +31,6 @@ pub struct ScanInfo {
     /// Source environment metadata for generating cross-platform redirects.
     pub semantics: BackupSemantics,
 }
-
-impl PartialEq for ScanInfo {
-    fn eq(&self, other: &Self) -> bool {
-        self.game_name == other.game_name
-            && self.found_files == other.found_files
-            && self.found_registry_keys == other.found_registry_keys
-            && self.available_backups == other.available_backups
-            && self.backup == other.backup
-            && self.has_backups == other.has_backups
-            && self.dumped_registry == other.dumped_registry
-            && self.only_constructive_backups == other.only_constructive_backups
-            && self.semantics == other.semantics
-    }
-}
-
-impl Eq for ScanInfo {}
 
 impl ScanInfo {
     pub fn sum_bytes(&self, backup_info: Option<&BackupInfo>) -> u64 {
@@ -90,34 +74,6 @@ impl ScanInfo {
 
     pub fn found_anything(&self) -> bool {
         !self.found_files.is_empty() || !self.found_registry_keys.is_empty()
-    }
-
-    /// Recalculate `redirected`, `ignored`, and `change` for all files.
-    /// Call this after modifying `original_path` on any files (e.g., after materializing
-    /// semantic paths with context targets).
-    pub fn recalculate_restore_state(
-        &mut self,
-        redirects: &[RedirectConfig],
-        reverse_redirects_on_restore: bool,
-        toggled_paths: &ToggledPaths,
-    ) {
-        for file in self.found_files.values_mut() {
-            if let Some(ref original_path) = file.original_path {
-                let redirected = game_file_target(
-                    original_path,
-                    redirects,
-                    reverse_redirects_on_restore,
-                    ScanKind::Restore,
-                    false,
-                    None,
-                    None,
-                );
-                let ignorable_path = redirected.as_ref().unwrap_or(original_path);
-                file.ignored = toggled_paths.is_ignored(&self.game_name, ignorable_path);
-                file.change = ScanChange::evaluate_restore(ignorable_path, &file.hash);
-                file.redirected = redirected;
-            }
-        }
     }
 
     pub fn found_anything_processable(&self) -> bool {
@@ -730,32 +686,5 @@ mod tests {
         );
         assert_eq!(ScanChange::Same, scan.overall_change());
         assert!(scan.can_report_game());
-    }
-
-    #[test]
-    fn recalculate_restore_state_updates_redirect_and_ignored() {
-        let mut scan = ScanInfo {
-            game_name: "test".to_string(),
-            found_files: hash_map! {
-                "scan_key".into(): ScannedFile {
-                    original_path: Some(StrictPath::new("/old/path/save.dat")),
-                    hash: "abc123".to_string(),
-                    ignored: false,
-                    change: ScanChange::Unknown,
-                    redirected: None,
-                    ..Default::default()
-                },
-            },
-            ..Default::default()
-        };
-
-        // Without redirects, recalculate_restore_state should update change based on file existence.
-        scan.recalculate_restore_state(&[], false, &ToggledPaths::default());
-
-        let file = scan.found_files.values().next().unwrap();
-        // redirected should be None (no redirects configured)
-        assert!(file.redirected.is_none());
-        // change should be recalculated (not Unknown anymore)
-        assert_ne!(file.change, ScanChange::Unknown);
     }
 }

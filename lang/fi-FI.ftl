@@ -259,4 +259,3 @@ new-version-available = Sovelluspäivitys saatavilla: { $version }. Haluatko nä
 custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = Tämä käsittelee vain pelit, jotka on tällä hetkellä lueteltu
-

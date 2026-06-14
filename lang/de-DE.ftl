@@ -259,4 +259,3 @@ new-version-available = Eine Anwendungsaktualisierung ist verfügbar: { $version
 custom-game-will-override = Dieses benutzerdefinierte Spiel überschreibt einen Manifest-Eintrag
 custom-game-will-extend = Dieses benutzerdefinierte Spiel erweitert einen Manifest-Eintrag
 operation-will-only-include-listed-games = Hiermit werden nur die derzeit aufgelisteten Spiele verarbeitet
-

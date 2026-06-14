@@ -157,6 +157,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
             path,
             force,
             no_force_cloud_conflict,
+            wine_prefix,
             api,
             gui,
             sort,
@@ -295,7 +296,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     config.restore.reverse_redirects,
                     &config.restore.toggled_paths,
                     config.backup.only_constructive,
-                    config.scan.redirect_wine,
                     wine_ctx.as_ref(),
                 );
 
@@ -311,7 +311,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     &app_dir(),
                     &launchers,
                     &filter,
-                    None,
+                    wine_prefix.as_ref(),
                     &toggled_paths,
                     &toggled_registry,
                     previous.as_ref(),
@@ -319,9 +319,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     config.restore.reverse_redirects,
                     &steam_shortcuts,
                     config.backup.only_constructive,
-                    config.scan.redirect_wine,
                 );
-                let scan_info = scan_info;
                 let ignored = !&config.is_game_enabled_for_backup(name) && !games_specified && !include_disabled;
                 let decision = if ignored {
                     OperationStepDecision::Ignored
@@ -582,7 +580,6 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                     config.restore.reverse_redirects,
                     &config.restore.toggled_paths,
                     &config.restore.toggled_registry,
-                    config.scan.redirect_wine,
                     wine_ctx.as_ref(),
                 );
 
@@ -1262,6 +1259,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                         no_force_cloud_conflict: no_force_cloud_conflict || !force,
                         preview,
                         path,
+                        wine_prefix: Default::default(),
                         api: Default::default(),
                         gui,
                         sort: Default::default(),

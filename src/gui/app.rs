@@ -512,7 +512,6 @@ impl App {
                                     config.restore.reverse_redirects,
                                     &config.restore.toggled_paths,
                                     config.backup.only_constructive,
-                                    config.scan.redirect_wine,
                                     wine_ctx.as_ref(),
                                 );
 
@@ -536,9 +535,7 @@ impl App {
                                     config.restore.reverse_redirects,
                                     &steam_shortcuts,
                                     config.backup.only_constructive,
-                                    config.scan.redirect_wine,
                                 );
-                                let scan_info = scan_info;
                                 if !config.is_game_enabled_for_backup(&key) && !single {
                                     return (Some(scan_info), None);
                                 }
@@ -875,7 +872,7 @@ impl App {
                                 let mut layout = layout.game_layout(&name);
 
                                 if cancel_flag.load(std::sync::atomic::Ordering::Relaxed) {
-                                    return (None, None, layout, None);
+                                    return (None, None, layout);
                                 }
 
                                 let wine_ctx = crate::scan::WineRedirectContext::for_game(
@@ -890,12 +887,11 @@ impl App {
                                     config.restore.reverse_redirects,
                                     &config.restore.toggled_paths,
                                     &config.restore.toggled_registry,
-                                    config.scan.redirect_wine,
                                     wine_ctx.as_ref(),
                                 );
 
                                 if !config.is_game_enabled_for_restore(&name) && !single {
-                                    return (Some(scan_info), None, layout, None);
+                                    return (Some(scan_info), None, layout);
                                 }
 
                                 let backup_info = if scan_info.backup.is_some() && !preview {
@@ -903,14 +899,13 @@ impl App {
                                 } else {
                                     None
                                 };
-                                (Some(scan_info), backup_info, layout, None)
+                                (Some(scan_info), backup_info, layout)
                             },
-                            move |(scan_info, backup_info, game_layout, error)| {
+                            move |(scan_info, backup_info, game_layout)| {
                                 Message::Restore(RestorePhase::GameScanned {
                                     scan_info,
                                     backup_info,
                                     game_layout: Box::new(game_layout),
-                                    error,
                                 })
                             },
                         ),
@@ -930,7 +925,6 @@ impl App {
                 scan_info,
                 backup_info,
                 game_layout,
-                error,
             } => {
                 self.progress.step();
                 let full = self.operation.full();
@@ -989,10 +983,6 @@ impl App {
                         self.operation_steps_active
                     );
                 }
-                if let Some(error) = error {
-                    self.operation.push_error(error);
-                }
-
                 match self.operation_steps.pop() {
                     Some(step) => {
                         self.operation.add_active_game(step.title);
@@ -1756,6 +1746,29 @@ impl App {
                                 .install_dir
                                 .swap(index, offset);
                             self.config.custom_games[game_index].install_dir.swap(index, offset);
+                        }
+                    },
+                    config::Event::CustomGameWinePrefix(game_index, action) => match action {
+                        EditAction::Add => {
+                            self.text_histories.custom_games[game_index]
+                                .wine_prefix
+                                .push(Default::default());
+                            self.config.custom_games[game_index].wine_prefix.push("".to_string());
+                        }
+                        EditAction::Change(index, value) => {
+                            self.text_histories.custom_games[game_index].wine_prefix[index].push(&value);
+                            self.config.custom_games[game_index].wine_prefix[index] = value;
+                        }
+                        EditAction::Remove(index) => {
+                            self.text_histories.custom_games[game_index].wine_prefix.remove(index);
+                            self.config.custom_games[game_index].wine_prefix.remove(index);
+                        }
+                        EditAction::Move(index, direction) => {
+                            let offset = direction.shift(index);
+                            self.text_histories.custom_games[game_index]
+                                .wine_prefix
+                                .swap(index, offset);
+                            self.config.custom_games[game_index].wine_prefix.swap(index, offset);
                         }
                     },
                     config::Event::ExcludeStoreScreenshots(enabled) => {
@@ -2531,6 +2544,10 @@ impl App {
                     UndoSubject::CustomGameInstallDir(i, j) => shortcut.apply_to_string_field(
                         &mut self.config.custom_games[i].install_dir[j],
                         &mut self.text_histories.custom_games[i].install_dir[j],
+                    ),
+                    UndoSubject::CustomGameWinePrefix(i, j) => shortcut.apply_to_string_field(
+                        &mut self.config.custom_games[i].wine_prefix[j],
+                        &mut self.text_histories.custom_games[i].wine_prefix[j],
                     ),
                     UndoSubject::BackupFilterIgnoredPath(i) => shortcut.apply_to_strict_path_field(
                         &mut self.config.backup.filter.ignored_paths[i],

@@ -20,7 +20,6 @@ badge-duplicated = DUPLICATED
 badge-ignored = IGNORED
 badge-redirected-from = FROM: {$path}
 badge-redirecting-to = TO: {$path}
-label-new-full-backup = New full backup
 
 some-entries-failed = Some entries failed to process; look for {badge-failed} in the output for details. Double check whether you can access those files or whether their paths are very long.
 

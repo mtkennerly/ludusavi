@@ -259,4 +259,3 @@ new-version-available = Una actualización de la aplicación está disponible: {
 custom-game-will-override = Este juego personalizado reemplaza una entrada de manifiesto
 custom-game-will-extend = Este juego personalizado extiende una entrada de manifiesto
 operation-will-only-include-listed-games = Esto solo procesará los juegos que se encuentran actualmente listados
-

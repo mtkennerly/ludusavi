@@ -259,4 +259,3 @@ new-version-available = Un aggiornamento dell'applicazione è disponibile: { $ve
 custom-game-will-override = Questo gioco personalizzato sovrascrive una voce del manifesto
 custom-game-will-extend = Questo gioco personalizzato estende una voce del manifesto
 operation-will-only-include-listed-games = Questo processerà solo i giochi che sono attualmente elencati
-

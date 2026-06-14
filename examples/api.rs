@@ -3,7 +3,7 @@ use ludusavi::api::*;
 fn main() {
     let mut ludusavi = Ludusavi::load().unwrap();
 
-    let games = vec![std::env::args().nth(1).unwrap_or_else(|| "Celeste".to_string())];
+    let games = vec![std::env::args().skip(1).next().unwrap_or_else(|| "Celeste".to_string())];
 
     let backups = ludusavi
         .list_backups(parameters::ListBackups { games: games.clone() })

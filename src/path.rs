@@ -1034,6 +1034,38 @@ impl StrictPath {
         (!tail.is_empty()).then_some(tail)
     }
 
+    pub fn case_insensitive_tail_for(&self, prefix: &Self) -> Option<Vec<String>> {
+        let us = self.analyze();
+        let them = prefix.analyze();
+
+        if us.drive != them.drive {
+            return None;
+        }
+
+        if us.parts.len() < them.parts.len() {
+            return None;
+        }
+
+        let mut tail = vec![];
+        for part in us.parts.iter().zip_longest(&them.parts) {
+            match part {
+                itertools::EitherOrBoth::Both(us, them) => {
+                    if !us.eq_ignore_ascii_case(them) {
+                        return None;
+                    }
+                }
+                itertools::EitherOrBoth::Left(part) => {
+                    tail.push(part.clone());
+                }
+                itertools::EitherOrBoth::Right(_) => {
+                    return None;
+                }
+            }
+        }
+
+        (!tail.is_empty()).then_some(tail)
+    }
+
     pub fn glob(&self) -> Vec<StrictPath> {
         self.glob_case_sensitive(Os::HOST.is_case_sensitive())
     }
@@ -1427,6 +1459,18 @@ mod tests {
             assert_eq!(None, base.tail_for(&StrictPath::new("C:/foo")));
             assert_eq!(None, base.tail_for(&StrictPath::new("/quux")));
             assert_eq!(None, base.tail_for(&StrictPath::new("")));
+        }
+
+        #[test]
+        fn can_determine_case_insensitive_tail_for() {
+            let base = StrictPath::new("C:/Users/Alice/Documents/Game/save.dat");
+
+            assert_eq!(
+                Some(vec!["Game".to_string(), "save.dat".to_string()]),
+                base.case_insensitive_tail_for(&StrictPath::new("c:/users/alice/documents")),
+            );
+            assert_eq!(None, base.case_insensitive_tail_for(&StrictPath::new("D:/Users/Alice")));
+            assert_eq!(None, base.case_insensitive_tail_for(&StrictPath::new("C:/Users/Bob")));
         }
     }
 

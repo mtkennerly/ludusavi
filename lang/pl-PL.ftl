@@ -257,4 +257,3 @@ new-version-available = Dostępna jest aktualizacja aplikacji: { $version }. Chc
 custom-game-will-override = Ta niestandardowa gra zastępuje wpis manifestu
 custom-game-will-extend = Ta niestandardowa gra rozszerza wpis manifestu
 operation-will-only-include-listed-games = Spowoduje to przetworzenie tylko tych gier, które aktualnie znajdują się na liście
-

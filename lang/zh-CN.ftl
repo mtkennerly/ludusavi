@@ -249,4 +249,3 @@ new-version-available = 应用程序更新可用：{ $version }. 是否要查看
 custom-game-will-override = 这个自定义游戏会覆盖一个清单项
 custom-game-will-extend = 这个自定义游戏会扩展一个清单项
 operation-will-only-include-listed-games = 这将仅处理当前列出的游戏
-

@@ -155,6 +155,11 @@ pub enum Subcommand {
         #[clap(long)]
         no_force_cloud_conflict: bool,
 
+        /// Extra Wine/Proton prefix to check for saves. This should be a folder
+        /// with an immediate child folder named "drive_c" (or another letter).
+        #[clap(long, value_parser = parse_strict_path)]
+        wine_prefix: Option<StrictPath>,
+
         /// Print information to stdout in machine-readable JSON.
         /// This replaces the default, human-readable output.
         #[clap(long)]
@@ -925,6 +930,7 @@ mod tests {
                     path: None,
                     force: false,
                     no_force_cloud_conflict: false,
+                    wine_prefix: None,
                     api: false,
                     gui: false,
                     sort: None,
@@ -955,6 +961,8 @@ mod tests {
                 "tests/backup",
                 "--force",
                 "--no-force-cloud-conflict",
+                "--wine-prefix",
+                "tests/wine-prefix",
                 "--api",
                 "--gui",
                 "--sort",
@@ -986,6 +994,7 @@ mod tests {
                     path: Some(StrictPath::relative(s("tests/backup"), Some(repo_raw()))),
                     force: true,
                     no_force_cloud_conflict: true,
+                    wine_prefix: Some(StrictPath::relative(s("tests/wine-prefix"), Some(repo_raw()))),
                     api: true,
                     gui: true,
                     sort: Some(CliSort::Name),
@@ -1019,6 +1028,7 @@ mod tests {
                     path: Some(StrictPath::relative(s("tests/fake"), Some(repo_raw()))),
                     force: false,
                     no_force_cloud_conflict: false,
+                    wine_prefix: None,
                     api: false,
                     gui: false,
                     sort: None,
@@ -1060,6 +1070,7 @@ mod tests {
                         path: None,
                         force: false,
                         no_force_cloud_conflict: false,
+                        wine_prefix: None,
                         api: false,
                         gui: false,
                         sort: Some(sort),
@@ -1094,6 +1105,7 @@ mod tests {
                     path: None,
                     force: false,
                     no_force_cloud_conflict: false,
+                    wine_prefix: None,
                     api: false,
                     gui: false,
                     sort: None,

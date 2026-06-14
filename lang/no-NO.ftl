@@ -243,4 +243,3 @@ new-version-available = En programoppdatering er tilgjenglig: { $version }. Vil 
 custom-game-will-override = Dette tilpassede spillet overskriver en manifest oppføring
 custom-game-will-extend = Dette tilpassede spillet utvider en manifest oppføring
 operation-will-only-include-listed-games = Dette kommer bare til å prosessere spillene som er for øyeblikket oppført
-

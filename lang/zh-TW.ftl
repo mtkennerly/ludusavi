@@ -257,4 +257,3 @@ new-version-available = 可用的更新：{ $version }。您要查看更新說�
 custom-game-will-override = This custom game overrides a manifest entry
 custom-game-will-extend = This custom game extends a manifest entry
 operation-will-only-include-listed-games = This will only process the games that are currently listed
-

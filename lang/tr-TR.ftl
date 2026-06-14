@@ -259,4 +259,3 @@ new-version-available = Güncelleme mevcut: { $version }. Sürüm notlarını g�
 custom-game-will-override = Bu özel oyun, bildirim girişini geçersiz kılıyor
 custom-game-will-extend = Bu özel oyun, manifest girişini genişletiyor
 operation-will-only-include-listed-games = Bu yalnızca şu anda listelenen oyunları işleyecektir
-

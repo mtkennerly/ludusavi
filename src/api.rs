@@ -122,6 +122,7 @@ impl Ludusavi {
             games,
             finality,
             resolve_cloud_conflict,
+            wine_prefix,
             include_disabled,
             skip_downgrade,
         }: parameters::BackUp,
@@ -204,7 +205,6 @@ impl Ludusavi {
                 self.config.restore.reverse_redirects,
                 &self.config.restore.toggled_paths,
                 self.config.backup.only_constructive,
-                self.config.scan.redirect_wine,
                 wine_ctx.as_ref(),
             );
 
@@ -225,7 +225,7 @@ impl Ludusavi {
                 &app_dir(),
                 &launchers,
                 &self.config.backup.filter,
-                None,
+                wine_prefix.as_ref(),
                 &self.config.backup.toggled_paths,
                 &self.config.backup.toggled_registry,
                 previous.as_ref(),
@@ -233,9 +233,7 @@ impl Ludusavi {
                 self.config.restore.reverse_redirects,
                 &self.steam_shortcuts,
                 self.config.backup.only_constructive,
-                self.config.scan.redirect_wine,
             );
-            let scan_info = scan_info;
             let ignored = !&self.config.is_game_enabled_for_backup(name) && !games_specified && !include_disabled;
             let decision = if ignored {
                 OperationStepDecision::Ignored
@@ -385,7 +383,6 @@ impl Ludusavi {
                 self.config.restore.reverse_redirects,
                 &self.config.restore.toggled_paths,
                 &self.config.restore.toggled_registry,
-                self.config.scan.redirect_wine,
                 wine_ctx.as_ref(),
             );
 
@@ -543,6 +540,9 @@ pub mod parameters {
         pub finality: Finality,
         /// Automatically resolve cloud conflicts by performing an upload or download.
         pub resolve_cloud_conflict: Option<SyncDirection>,
+        /// Extra Wine/Proton prefix to check for saves.
+        /// This should be a folder with an immediate child folder named "drive_c" (or another letter).
+        pub wine_prefix: Option<StrictPath>,
         /// Process disabled games.
         pub include_disabled: bool,
         /// Skip a game when its backup is newer than the live data.
