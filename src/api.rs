@@ -8,7 +8,7 @@ use crate::{
     report,
     scan::{
         BackupId, DuplicateDetector, Launchers, OperationStepDecision, ScanKind, SteamShortcuts, TitleFinder,
-        TitleMatch, WineRedirectContext, layout::BackupLayout, prepare_backup_target, scan_game_for_backup,
+        TitleMatch, layout::BackupLayout, prepare_backup_target, scan_game_for_backup, semantic,
     },
 };
 
@@ -196,7 +196,7 @@ impl Ludusavi {
             log::trace!("step {i} / {}: {name}", games.len());
             let game = &self.manifest.0[name];
 
-            let wine_ctx = WineRedirectContext::for_game(name, &self.config);
+            let wine_ctx = semantic::Wine::for_game(name, &self.config);
             let previous = self.layout.latest_backup(
                 name,
                 ScanKind::Backup,
@@ -373,7 +373,7 @@ impl Ludusavi {
             log::trace!("step {i} / {}: {name}", games.len());
             let mut layout = self.layout.game_layout(name);
 
-            let wine_ctx = WineRedirectContext::for_game(name, &self.config);
+            let wine_ctx = semantic::Wine::for_game(name, &self.config);
             let scan_info = layout.scan_for_restoration(
                 name,
                 backup_id.as_ref().unwrap_or(&BackupId::Latest),

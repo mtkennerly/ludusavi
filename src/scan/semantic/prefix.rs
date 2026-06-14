@@ -1,45 +1,51 @@
+use std::sync::LazyLock;
+
+use regex::Regex;
+
 use crate::path::StrictPath;
 
 const SYSTEM_USERS: &[&str] = &["public", "default", "default user", "all users"];
 
 #[derive(Clone, Debug)]
-pub struct ValidatedPrefix {
+pub struct Prefix {
     pub path: StrictPath,
     pub wine_user: String,
 }
 
-/// Validate a candidate Wine prefix path.
-///
-/// `candidate/drive_c` must exist as a directory.
-/// At least one of `candidate/system.reg`, `candidate/user.reg`, or
-/// `candidate/dosdevices` must exist.
-/// `candidate/drive_c/users` must exist as a directory.
-pub fn validate_prefix(candidate: &StrictPath) -> Option<ValidatedPrefix> {
-    let drive_c = candidate.joined("drive_c");
-    if !drive_c.is_dir() {
-        return None;
-    }
+impl Prefix {
+    /// Validate a candidate Wine prefix path.
+    ///
+    /// `candidate/drive_c` must exist as a directory.
+    /// At least one of `candidate/system.reg`, `candidate/user.reg`, or
+    /// `candidate/dosdevices` must exist.
+    /// `candidate/drive_c/users` must exist as a directory.
+    pub fn validated(candidate: &StrictPath) -> Option<Self> {
+        let drive_c = candidate.joined("drive_c");
+        if !drive_c.is_dir() {
+            return None;
+        }
 
-    let has_marker = candidate.joined("system.reg").exists()
-        || candidate.joined("user.reg").exists()
-        || candidate.joined("dosdevices").is_dir();
-    if !has_marker {
-        return None;
-    }
+        let has_marker = candidate.joined("system.reg").exists()
+            || candidate.joined("user.reg").exists()
+            || candidate.joined("dosdevices").is_dir();
+        if !has_marker {
+            return None;
+        }
 
-    let users = drive_c.joined("users");
-    if !users.is_dir() {
-        return None;
-    }
+        let users = drive_c.joined("users");
+        if !users.is_dir() {
+            return None;
+        }
 
-    let wine_user = detect_wine_user(&users)?;
-    Some(ValidatedPrefix {
-        path: candidate.clone(),
-        wine_user,
-    })
+        let wine_user = detect_wine_user_from_live_path(&users)?;
+        Some(Prefix {
+            path: candidate.clone(),
+            wine_user,
+        })
+    }
 }
 
-fn detect_wine_user(users_path: &StrictPath) -> Option<String> {
+fn detect_wine_user_from_live_path(users_path: &StrictPath) -> Option<String> {
     let mut candidates = vec![];
     for entry in users_path.read_dir().ok()?.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
@@ -60,6 +66,20 @@ fn detect_wine_user(users_path: &StrictPath) -> Option<String> {
     None
 }
 
+/// Detect the Wine user from a path under a Wine prefix.
+/// Looks for `drive_c/users/<username>/` pattern.
+pub fn detect_wine_user_from_raw_path(path: &str, prefix: &str) -> Option<String> {
+    static PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^drive_c/users/([^/]+)(?:/|$)").unwrap());
+
+    let relative = StrictPath::new(path)
+        .case_insensitive_tail_for(&StrictPath::new(prefix))?
+        .join("/");
+    PATTERN
+        .captures(&relative)
+        .and_then(|captures| captures.get(1))
+        .map(|user| user.as_str().to_string())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -78,7 +98,7 @@ mod tests {
     fn valid_prefix_with_system_reg() {
         let tmp = tempfile::tempdir().unwrap();
         let prefix = create_test_prefix(tmp.path().to_str().unwrap());
-        let result = validate_prefix(&StrictPath::new(&prefix)).unwrap();
+        let result = Prefix::validated(&StrictPath::new(&prefix)).unwrap();
         assert_eq!(result.wine_user, "steamuser");
     }
 
@@ -88,7 +108,7 @@ mod tests {
         let prefix = format!("{}/no_drive_c", tmp.path().to_str().unwrap());
         let _ = fs::create_dir_all(&prefix);
         let _ = fs::File::create(format!("{}/system.reg", prefix));
-        assert!(validate_prefix(&StrictPath::new(&prefix)).is_none());
+        assert!(Prefix::validated(&StrictPath::new(&prefix)).is_none());
     }
 
     #[test]
@@ -96,7 +116,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let prefix = format!("{}/no_markers", tmp.path().to_str().unwrap());
         let _ = fs::create_dir_all(format!("{}/drive_c/users/testuser", prefix));
-        assert!(validate_prefix(&StrictPath::new(&prefix)).is_none());
+        assert!(Prefix::validated(&StrictPath::new(&prefix)).is_none());
     }
 
     #[test]
@@ -105,7 +125,7 @@ mod tests {
         let prefix = format!("{}/no_users", tmp.path().to_str().unwrap());
         let _ = fs::create_dir_all(format!("{}/drive_c", prefix));
         let _ = fs::File::create(format!("{}/system.reg", prefix));
-        assert!(validate_prefix(&StrictPath::new(&prefix)).is_none());
+        assert!(Prefix::validated(&StrictPath::new(&prefix)).is_none());
     }
 
     #[test]
@@ -118,7 +138,7 @@ mod tests {
         let _ = fs::create_dir_all(format!("{}/dosdevices", prefix));
         let _ = fs::File::create(format!("{}/system.reg", prefix));
 
-        let result = validate_prefix(&StrictPath::new(&prefix)).unwrap();
+        let result = Prefix::validated(&StrictPath::new(&prefix)).unwrap();
         assert_eq!(result.wine_user, "myuser");
     }
 
@@ -132,7 +152,7 @@ mod tests {
         let _ = fs::create_dir_all(format!("{}/dosdevices", prefix));
         let _ = fs::File::create(format!("{}/system.reg", prefix));
 
-        let result = validate_prefix(&StrictPath::new(&prefix)).unwrap();
+        let result = Prefix::validated(&StrictPath::new(&prefix)).unwrap();
         assert_eq!(result.wine_user, "steamuser");
     }
 
@@ -146,7 +166,7 @@ mod tests {
         let _ = fs::create_dir_all(format!("{}/dosdevices", prefix));
         let _ = fs::File::create(format!("{}/system.reg", prefix));
 
-        let result = validate_prefix(&StrictPath::new(&prefix)).unwrap();
+        let result = Prefix::validated(&StrictPath::new(&prefix)).unwrap();
         assert_eq!(result.wine_user, "SteamUser");
     }
 
@@ -160,6 +180,6 @@ mod tests {
         let _ = fs::create_dir_all(format!("{}/dosdevices", prefix));
         let _ = fs::File::create(format!("{}/system.reg", prefix));
 
-        assert!(validate_prefix(&StrictPath::new(&prefix)).is_none());
+        assert!(Prefix::validated(&StrictPath::new(&prefix)).is_none());
     }
 }

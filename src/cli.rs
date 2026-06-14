@@ -23,7 +23,7 @@ use crate::{
     resource::{ResourceFile, SaveableResourceFile, cache::Cache, config::Config, manifest::Manifest},
     scan::{
         BackupId, DuplicateDetector, Launchers, OperationStepDecision, ScanKind, SteamShortcuts, TitleFinder,
-        TitleQuery, WineRedirectContext, layout::BackupLayout, prepare_backup_target, scan_game_for_backup,
+        TitleQuery, layout::BackupLayout, prepare_backup_target, scan_game_for_backup, semantic,
     },
     wrap,
 };
@@ -288,7 +288,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 log::trace!("step {i} / {}: {name}", games.len());
                 let game = &manifest.0[name];
 
-                let wine_ctx = WineRedirectContext::for_game(name, &config);
+                let wine_ctx = semantic::Wine::for_game(name, &config);
                 let previous = layout.latest_backup(
                     name,
                     ScanKind::Backup,
@@ -572,7 +572,7 @@ pub fn run(sub: Subcommand, no_manifest_update: bool, try_manifest_update: bool)
                 log::trace!("step {i} / {}: {name}", games.len());
                 let mut layout = layout.game_layout(name);
 
-                let wine_ctx = WineRedirectContext::for_game(name, &config);
+                let wine_ctx = semantic::Wine::for_game(name, &config);
                 let scan_info = layout.scan_for_restoration(
                     name,
                     backup_id.as_ref().unwrap_or(&BackupId::Latest),

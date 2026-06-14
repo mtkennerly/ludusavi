@@ -15,8 +15,8 @@ use crate::{
         manifest::Os,
     },
     scan::{
-        BackupError, BackupId, BackupInfo, ScanChange, ScanInfo, ScanKind, ScannedFile, WineRedirectContext,
-        game_file_target, prepare_backup_target, registry,
+        BackupError, BackupId, BackupInfo, ScanChange, ScanInfo, ScanKind, ScannedFile, game_file_target,
+        prepare_backup_target, registry, semantic,
     },
 };
 
@@ -645,7 +645,7 @@ impl GameLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         only_constructive_backups: bool,
-        wine_redirect: Option<&WineRedirectContext>,
+        wine_redirect: Option<&semantic::Wine>,
     ) -> Option<ScanInfo> {
         if self.mapping.backups.is_empty() {
             None
@@ -693,7 +693,7 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
-        wine_redirect: Option<&WineRedirectContext>,
+        wine_redirect: Option<&semantic::Wine>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut files = HashMap::new();
 
@@ -745,7 +745,7 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
-        wine_redirect: Option<&WineRedirectContext>,
+        wine_redirect: Option<&semantic::Wine>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut restorables = HashMap::new();
 
@@ -819,7 +819,7 @@ impl GameLayout {
         redirects: &[RedirectConfig],
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
-        wine_redirect: Option<&WineRedirectContext>,
+        wine_redirect: Option<&semantic::Wine>,
     ) -> HashMap<StrictPath, ScannedFile> {
         let mut restorables = HashMap::new();
 
@@ -1643,7 +1643,7 @@ impl GameLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         #[cfg_attr(not(target_os = "windows"), allow(unused))] toggled_registry: &ToggledRegistry,
-        wine_redirect: Option<&WineRedirectContext>,
+        wine_redirect: Option<&semantic::Wine>,
     ) -> ScanInfo {
         log::trace!("[{name}] beginning scan for restore");
 
@@ -2279,7 +2279,7 @@ impl BackupLayout {
         reverse_redirects_on_restore: bool,
         toggled_paths: &ToggledPaths,
         only_constructive: bool,
-        wine_redirect: Option<&WineRedirectContext>,
+        wine_redirect: Option<&semantic::Wine>,
     ) -> Option<LatestBackup> {
         if self.contains_game(name) {
             let game_layout = self.game_layout(name);
@@ -2481,9 +2481,9 @@ mod tests {
             }
         }
 
-        fn wine_redirect_context(prefix: &str, wine_user: &str) -> WineRedirectContext {
-            WineRedirectContext {
-                preferred_prefix: Some(crate::scan::semantic::prefix::ValidatedPrefix {
+        fn wine_redirect_context(prefix: &str, wine_user: &str) -> semantic::Wine {
+            semantic::Wine {
+                preferred_prefix: Some(semantic::Prefix {
                     path: StrictPath::new(prefix),
                     wine_user: wine_user.to_string(),
                 }),

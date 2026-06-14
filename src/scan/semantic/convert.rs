@@ -3,8 +3,8 @@ use std::sync::LazyLock;
 use regex::Regex;
 
 use crate::{
-    path::StrictPath,
-    scan::semantic::{SemanticBase, SemanticPath},
+    path::{CommonPath, StrictPath},
+    scan::semantic,
 };
 
 /// Holds the physical paths of Windows known folders for semantic path derivation.
@@ -22,6 +22,33 @@ pub struct KnownFolders {
     pub user_profile: Option<String>,
 }
 
+impl KnownFolders {
+    /// Populate Windows known folder paths.
+    /// Returns None if the home directory cannot be determined.
+    pub fn new() -> Option<Self> {
+        fn common_path(path: CommonPath) -> Option<String> {
+            path.get().map(|p| p.replace('\\', "/"))
+        }
+
+        let user_profile = common_path(CommonPath::Home)?;
+
+        let program_data = std::env::var("ProgramData").ok().map(|p| p.replace('\\', "/"));
+        let windows = std::env::var("SystemRoot").ok().map(|p| p.replace('\\', "/"));
+
+        Some(Self {
+            saved_games: common_path(CommonPath::SavedGames),
+            documents: common_path(CommonPath::Document),
+            local_app_data: common_path(CommonPath::DataLocal),
+            local_low_app_data: common_path(CommonPath::DataLocalLow),
+            app_data: common_path(CommonPath::Data),
+            public: common_path(CommonPath::Public),
+            program_data,
+            windows,
+            user_profile: Some(user_profile),
+        })
+    }
+}
+
 fn normalize_path(path: &str) -> String {
     let p = path.replace('\\', "/");
     p.trim_end_matches('/').to_string()
@@ -34,7 +61,7 @@ fn tail_for_known_folder(path: &StrictPath, prefix: &str) -> Option<String> {
 
 /// Convert a physical Windows path to a semantic path for the current user.
 /// Returns None if the path cannot be semantically classified.
-pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &KnownFolders) -> Option<SemanticPath> {
+pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &KnownFolders) -> Option<semantic::Path> {
     let rendered = physical.render();
 
     if rendered.starts_with("//") || rendered.starts_with(r"\\") {
@@ -44,8 +71,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
     if let Some(sg) = &known_folders.saved_games
         && let Some(tail) = tail_for_known_folder(physical, sg)
     {
-        return Some(SemanticPath {
-            base: SemanticBase::WinSavedGames,
+        return Some(semantic::Path {
+            base: semantic::Base::WinSavedGames,
             tail,
         });
     }
@@ -53,8 +80,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
     if let Some(docs) = &known_folders.documents
         && let Some(tail) = tail_for_known_folder(physical, docs)
     {
-        return Some(SemanticPath {
-            base: SemanticBase::WinDocuments,
+        return Some(semantic::Path {
+            base: semantic::Base::WinDocuments,
             tail,
         });
     }
@@ -62,8 +89,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
     if let Some(local_low) = &known_folders.local_low_app_data
         && let Some(tail) = tail_for_known_folder(physical, local_low)
     {
-        return Some(SemanticPath {
-            base: SemanticBase::WinLocalAppDataLow,
+        return Some(semantic::Path {
+            base: semantic::Base::WinLocalAppDataLow,
             tail,
         });
     }
@@ -71,8 +98,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
     if let Some(local) = &known_folders.local_app_data
         && let Some(tail) = tail_for_known_folder(physical, local)
     {
-        return Some(SemanticPath {
-            base: SemanticBase::WinLocalAppData,
+        return Some(semantic::Path {
+            base: semantic::Base::WinLocalAppData,
             tail,
         });
     }
@@ -80,8 +107,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
     if let Some(roaming) = &known_folders.app_data
         && let Some(tail) = tail_for_known_folder(physical, roaming)
     {
-        return Some(SemanticPath {
-            base: SemanticBase::WinAppData,
+        return Some(semantic::Path {
+            base: semantic::Base::WinAppData,
             tail,
         });
     }
@@ -89,8 +116,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
     if let Some(public) = &known_folders.public
         && let Some(tail) = tail_for_known_folder(physical, public)
     {
-        return Some(SemanticPath {
-            base: SemanticBase::WinPublic,
+        return Some(semantic::Path {
+            base: semantic::Base::WinPublic,
             tail,
         });
     }
@@ -98,8 +125,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
     if let Some(pd) = &known_folders.program_data
         && let Some(tail) = tail_for_known_folder(physical, pd)
     {
-        return Some(SemanticPath {
-            base: SemanticBase::WinProgramData,
+        return Some(semantic::Path {
+            base: semantic::Base::WinProgramData,
             tail,
         });
     }
@@ -107,8 +134,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
     if let Some(win) = &known_folders.windows
         && let Some(tail) = tail_for_known_folder(physical, win)
     {
-        return Some(SemanticPath {
-            base: SemanticBase::WinDir,
+        return Some(semantic::Path {
+            base: semantic::Base::WinDir,
             tail,
         });
     }
@@ -116,8 +143,8 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
     if let Some(home) = &known_folders.user_profile
         && let Some(tail) = tail_for_known_folder(physical, home)
     {
-        return Some(SemanticPath {
-            base: SemanticBase::WinHome,
+        return Some(semantic::Path {
+            base: semantic::Base::WinHome,
             tail,
         });
     }
@@ -134,7 +161,7 @@ pub fn windows_physical_to_semantic(physical: &StrictPath, known_folders: &Known
     extract_drive_path(&rendered)
 }
 
-fn extract_drive_path(rendered: &str) -> Option<SemanticPath> {
+fn extract_drive_path(rendered: &str) -> Option<semantic::Path> {
     let norm = normalize_path(rendered);
 
     let bytes = norm.as_bytes();
@@ -142,8 +169,8 @@ fn extract_drive_path(rendered: &str) -> Option<SemanticPath> {
         let drive_letter = (bytes[0] as char).to_ascii_lowercase();
         let tail = &norm[3..];
         if !tail.is_empty() {
-            return Some(SemanticPath {
-                base: SemanticBase::WinDrive(drive_letter),
+            return Some(semantic::Path {
+                base: semantic::Base::WinDrive(drive_letter),
                 tail: tail.to_string(),
             });
         }
@@ -159,7 +186,7 @@ pub fn wine_physical_to_semantic(
     physical: &StrictPath,
     prefix_path: &StrictPath,
     wine_user: &str,
-) -> Option<SemanticPath> {
+) -> Option<semantic::Path> {
     let relative = physical.case_insensitive_tail_for(prefix_path)?.join("/");
 
     let user_prefix = format!("drive_c/users/{}", wine_user.to_ascii_lowercase());
@@ -183,8 +210,8 @@ pub fn wine_physical_to_semantic(
         }
         let tail = &after[1..];
         if !tail.is_empty() {
-            return Some(SemanticPath {
-                base: SemanticBase::WinPublic,
+            return Some(semantic::Path {
+                base: semantic::Base::WinPublic,
                 tail: tail.to_string(),
             });
         }
@@ -199,8 +226,8 @@ pub fn wine_physical_to_semantic(
         }
         let tail = &after[1..];
         if !tail.is_empty() {
-            return Some(SemanticPath {
-                base: SemanticBase::WinProgramData,
+            return Some(semantic::Path {
+                base: semantic::Base::WinProgramData,
                 tail: tail.to_string(),
             });
         }
@@ -215,8 +242,8 @@ pub fn wine_physical_to_semantic(
         }
         let tail = &after[1..];
         if !tail.is_empty() {
-            return Some(SemanticPath {
-                base: SemanticBase::WinDir,
+            return Some(semantic::Path {
+                base: semantic::Base::WinDir,
                 tail: tail.to_string(),
             });
         }
@@ -232,8 +259,8 @@ pub fn wine_physical_to_semantic(
         if letter != 'c' {
             let tail = &relative[8..];
             if !tail.is_empty() {
-                return Some(SemanticPath {
-                    base: SemanticBase::WinDrive(letter),
+                return Some(semantic::Path {
+                    base: semantic::Base::WinDrive(letter),
                     tail: tail.to_string(),
                 });
             }
@@ -246,8 +273,8 @@ pub fn wine_physical_to_semantic(
         if let Some(tail) = after.strip_prefix('/')
             && !tail.is_empty()
         {
-            return Some(SemanticPath {
-                base: SemanticBase::WinDrive('c'),
+            return Some(semantic::Path {
+                base: semantic::Base::WinDrive('c'),
                 tail: tail.to_string(),
             });
         }
@@ -257,83 +284,83 @@ pub fn wine_physical_to_semantic(
 }
 
 /// Classify a sub-path under the Wine user's profile directory.
-fn classify_windows_user_subpath(sub_path: &str) -> Option<SemanticPath> {
+fn classify_windows_user_subpath(sub_path: &str) -> Option<semantic::Path> {
     let lower = sub_path.to_ascii_lowercase();
 
     // Saved Games
     if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "saved games") {
-        return Some(SemanticPath {
-            base: SemanticBase::WinSavedGames,
+        return Some(semantic::Path {
+            base: semantic::Base::WinSavedGames,
             tail,
         });
     }
 
     // Documents / My Documents
     if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "my documents") {
-        return Some(SemanticPath {
-            base: SemanticBase::WinDocuments,
+        return Some(semantic::Path {
+            base: semantic::Base::WinDocuments,
             tail,
         });
     }
     if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "documents") {
-        return Some(SemanticPath {
-            base: SemanticBase::WinDocuments,
+        return Some(semantic::Path {
+            base: semantic::Base::WinDocuments,
             tail,
         });
     }
 
     // AppData/LocalLow, AppData/Local/Low, or Local Settings/Application Data/Low
     if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "appdata/locallow") {
-        return Some(SemanticPath {
-            base: SemanticBase::WinLocalAppDataLow,
+        return Some(semantic::Path {
+            base: semantic::Base::WinLocalAppDataLow,
             tail,
         });
     }
     if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "appdata/local/low") {
-        return Some(SemanticPath {
-            base: SemanticBase::WinLocalAppDataLow,
+        return Some(semantic::Path {
+            base: semantic::Base::WinLocalAppDataLow,
             tail,
         });
     }
     if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "local settings/application data/low") {
-        return Some(SemanticPath {
-            base: SemanticBase::WinLocalAppDataLow,
+        return Some(semantic::Path {
+            base: semantic::Base::WinLocalAppDataLow,
             tail,
         });
     }
 
     // AppData/Local or Local Settings/Application Data
     if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "appdata/local") {
-        return Some(SemanticPath {
-            base: SemanticBase::WinLocalAppData,
+        return Some(semantic::Path {
+            base: semantic::Base::WinLocalAppData,
             tail,
         });
     }
     if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "local settings/application data") {
-        return Some(SemanticPath {
-            base: SemanticBase::WinLocalAppData,
+        return Some(semantic::Path {
+            base: semantic::Base::WinLocalAppData,
             tail,
         });
     }
 
     // AppData/Roaming or Application Data
     if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "appdata/roaming") {
-        return Some(SemanticPath {
-            base: SemanticBase::WinAppData,
+        return Some(semantic::Path {
+            base: semantic::Base::WinAppData,
             tail,
         });
     }
     if let Some(tail) = strip_known_folder_alias(&lower, sub_path, "application data") {
-        return Some(SemanticPath {
-            base: SemanticBase::WinAppData,
+        return Some(semantic::Path {
+            base: semantic::Base::WinAppData,
             tail,
         });
     }
 
     // Default: WinHome
     if !sub_path.is_empty() {
-        return Some(SemanticPath {
-            base: SemanticBase::WinHome,
+        return Some(semantic::Path {
+            base: semantic::Base::WinHome,
             tail: sub_path.to_string(),
         });
     }
@@ -380,7 +407,7 @@ mod tests {
         let kf = make_known_folders();
         let path = StrictPath::new("C:/Users/Alice/Documents/Game/save.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
-        assert_eq!(result.base, SemanticBase::WinDocuments);
+        assert_eq!(result.base, semantic::Base::WinDocuments);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -389,7 +416,7 @@ mod tests {
         let kf = make_known_folders();
         let path = StrictPath::new("C:/Users/Alice/AppData/Roaming/Game/save.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
-        assert_eq!(result.base, SemanticBase::WinAppData);
+        assert_eq!(result.base, semantic::Base::WinAppData);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -398,7 +425,7 @@ mod tests {
         let kf = make_known_folders();
         let path = StrictPath::new("C:/Users/Alice/AppData/Local/Game/save.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
-        assert_eq!(result.base, SemanticBase::WinLocalAppData);
+        assert_eq!(result.base, semantic::Base::WinLocalAppData);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -407,7 +434,7 @@ mod tests {
         let kf = make_known_folders();
         let path = StrictPath::new("C:/Users/Alice/AppData/LocalLow/Game/save.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
-        assert_eq!(result.base, SemanticBase::WinLocalAppDataLow);
+        assert_eq!(result.base, semantic::Base::WinLocalAppDataLow);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -416,7 +443,7 @@ mod tests {
         let kf = make_known_folders();
         let path = StrictPath::new("C:/Users/Alice/Saved Games/Game/save.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
-        assert_eq!(result.base, SemanticBase::WinSavedGames);
+        assert_eq!(result.base, semantic::Base::WinSavedGames);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -426,7 +453,7 @@ mod tests {
         kf.documents = Some("D:/MyDocs".to_string());
         let path = StrictPath::new("D:/MyDocs/Game/save.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
-        assert_eq!(result.base, SemanticBase::WinDocuments);
+        assert_eq!(result.base, semantic::Base::WinDocuments);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -435,7 +462,7 @@ mod tests {
         let kf = make_known_folders();
         let path = StrictPath::new("D:/Games/save.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
-        assert_eq!(result.base, SemanticBase::WinDrive('d'));
+        assert_eq!(result.base, semantic::Base::WinDrive('d'));
         assert_eq!(result.tail, "Games/save.dat");
     }
 
@@ -446,7 +473,7 @@ mod tests {
         // should map to WinHome, not WinDocuments.
         let path = StrictPath::new("C:/Users/Alice/MyGames/save.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
-        assert_eq!(result.base, SemanticBase::WinHome);
+        assert_eq!(result.base, semantic::Base::WinHome);
         assert_eq!(result.tail, "MyGames/save.dat");
     }
 
@@ -455,7 +482,7 @@ mod tests {
         let kf = make_known_folders();
         let path = StrictPath::new("c:/users/alice/documents/game/save.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
-        assert_eq!(result.base, SemanticBase::WinDocuments);
+        assert_eq!(result.base, semantic::Base::WinDocuments);
         assert_eq!(result.tail, "game/save.dat");
     }
 
@@ -471,7 +498,7 @@ mod tests {
         let kf = make_known_folders();
         let path = StrictPath::new("C:/ProgramData/Game/save.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
-        assert_eq!(result.base, SemanticBase::WinProgramData);
+        assert_eq!(result.base, semantic::Base::WinProgramData);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -480,7 +507,7 @@ mod tests {
         let kf = make_known_folders();
         let path = StrictPath::new("C:/Windows/System32/config.dat");
         let result = windows_physical_to_semantic(&path, &kf).unwrap();
-        assert_eq!(result.base, SemanticBase::WinDir);
+        assert_eq!(result.base, semantic::Base::WinDir);
         assert_eq!(result.tail, "System32/config.dat");
     }
 
@@ -493,7 +520,7 @@ mod tests {
             "/home/deck/Prefixes/Alan Wake/drive_c/users/steamuser/Documents/Remedy/Alan Wake/save.dat",
         );
         let result = wine_physical_to_semantic(&physical, &prefix, "steamuser").unwrap();
-        assert_eq!(result.base, SemanticBase::WinDocuments);
+        assert_eq!(result.base, semantic::Base::WinDocuments);
         assert_eq!(result.tail, "Remedy/Alan Wake/save.dat");
     }
 
@@ -502,7 +529,7 @@ mod tests {
         let prefix = StrictPath::new("/home/deck/Prefixes/Game");
         let physical = StrictPath::new("/home/deck/Prefixes/Game/drive_c/users/deck/AppData/Roaming/Game/save.dat");
         let result = wine_physical_to_semantic(&physical, &prefix, "deck").unwrap();
-        assert_eq!(result.base, SemanticBase::WinAppData);
+        assert_eq!(result.base, semantic::Base::WinAppData);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -512,7 +539,7 @@ mod tests {
         let physical =
             StrictPath::new("/home/deck/Prefixes/Game/drive_c/users/steamuser/Application Data/Game/save.dat");
         let result = wine_physical_to_semantic(&physical, &prefix, "steamuser").unwrap();
-        assert_eq!(result.base, SemanticBase::WinAppData);
+        assert_eq!(result.base, semantic::Base::WinAppData);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -523,7 +550,7 @@ mod tests {
             "/home/deck/Prefixes/Game/drive_c/users/steamuser/Local Settings/Application Data/Game/save.dat",
         );
         let result = wine_physical_to_semantic(&physical, &prefix, "steamuser").unwrap();
-        assert_eq!(result.base, SemanticBase::WinLocalAppData);
+        assert_eq!(result.base, semantic::Base::WinLocalAppData);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -532,7 +559,7 @@ mod tests {
         let prefix = StrictPath::new("/home/deck/Prefixes/Game");
         let physical = StrictPath::new("/home/deck/Prefixes/Game/drive_c/users/steamuser/My Documents/Game/save.dat");
         let result = wine_physical_to_semantic(&physical, &prefix, "steamuser").unwrap();
-        assert_eq!(result.base, SemanticBase::WinDocuments);
+        assert_eq!(result.base, semantic::Base::WinDocuments);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -541,7 +568,7 @@ mod tests {
         let prefix = StrictPath::new("/home/deck/Prefixes/Game");
         let physical = StrictPath::new("/home/deck/Prefixes/Game/drive_c/ProgramData/Game/save.dat");
         let result = wine_physical_to_semantic(&physical, &prefix, "steamuser").unwrap();
-        assert_eq!(result.base, SemanticBase::WinProgramData);
+        assert_eq!(result.base, semantic::Base::WinProgramData);
         assert_eq!(result.tail, "Game/save.dat");
     }
 
@@ -550,7 +577,7 @@ mod tests {
         let prefix = StrictPath::new("/home/deck/Prefixes/Game");
         let physical = StrictPath::new("/home/deck/Prefixes/Game/drive_d/Games/save.dat");
         let result = wine_physical_to_semantic(&physical, &prefix, "steamuser").unwrap();
-        assert_eq!(result.base, SemanticBase::WinDrive('d'));
+        assert_eq!(result.base, semantic::Base::WinDrive('d'));
         assert_eq!(result.tail, "Games/save.dat");
     }
 
@@ -559,7 +586,7 @@ mod tests {
         let prefix = StrictPath::new("/home/deck/Prefixes/Game");
         let physical = StrictPath::new("/home/deck/Prefixes/Game/DRIVE_C/users/steamuser/documents/game/save.dat");
         let result = wine_physical_to_semantic(&physical, &prefix, "steamuser").unwrap();
-        assert_eq!(result.base, SemanticBase::WinDocuments);
+        assert_eq!(result.base, semantic::Base::WinDocuments);
         assert_eq!(result.tail, "game/save.dat");
     }
 
@@ -570,7 +597,7 @@ mod tests {
         let prefix = StrictPath::new("/home/deck/Prefixes/Game");
         let physical = StrictPath::new("/home/deck/Prefixes/Game/drive_c/users/steamuser/Documents/Game/save.dat");
         let result = wine_physical_to_semantic(&physical, &prefix, "steamuser").unwrap();
-        assert_eq!(result.base, SemanticBase::WinDocuments);
+        assert_eq!(result.base, semantic::Base::WinDocuments);
         assert_eq!(result.tail, "Game/save.dat");
     }
 }

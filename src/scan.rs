@@ -39,10 +39,7 @@ use crate::{
         },
         manifest::{Game, GameFileEntry, IdSet, Os, Store},
     },
-    scan::{
-        layout::{BackupSemantics, DirectorySemantics, LatestBackup, SemanticDirKind},
-        semantic::{convert::KnownFolders, prefix::ValidatedPrefix},
-    },
+    scan::layout::{BackupSemantics, DirectorySemantics, LatestBackup, SemanticDirKind},
 };
 
 #[cfg(target_os = "windows")]
@@ -64,79 +61,6 @@ impl ScanKind {
     }
 }
 
-/// Context for generating Wine ↔ Windows redirects at restore time.
-pub struct WineRedirectContext {
-    /// First valid `wine_prefix` from the matching custom game.
-    pub preferred_prefix: Option<ValidatedPrefix>,
-    /// Current Windows known folders, only populated on Windows.
-    pub known_folders: Option<KnownFolders>,
-}
-
-impl WineRedirectContext {
-    /// Build a context from the current game's config and system state.
-    /// Returns None if redirect_wine is disabled or no usable context exists.
-    pub fn for_game(game_name: &str, config: &Config) -> Option<Self> {
-        if !config.scan.redirect_wine {
-            return None;
-        }
-
-        // Find the first valid wine_prefix from a matching custom game.
-        let preferred_prefix = config
-            .custom_games
-            .iter()
-            .find(|cg| cg.name == game_name)
-            .and_then(|cg| {
-                cg.wine_prefix
-                    .iter()
-                    .filter(|wp| !wp.trim().is_empty())
-                    .find_map(|wp| semantic::prefix::validate_prefix(&StrictPath::new(wp)))
-            });
-
-        // On Windows, populate known_folders so that Wine→Windows restore can
-        // convert semantic paths to physical paths.
-        let known_folders = if cfg!(target_os = "windows") {
-            known_folders_from_env()
-        } else {
-            None
-        };
-
-        // Return context if we have either a usable prefix or known folders.
-        if preferred_prefix.is_some() || known_folders.is_some() {
-            Some(Self {
-                preferred_prefix,
-                known_folders,
-            })
-        } else {
-            None
-        }
-    }
-}
-
-/// Populate Windows known folder paths.
-/// Returns None if the home directory cannot be determined.
-fn known_folders_from_env() -> Option<KnownFolders> {
-    fn common_path(path: CommonPath) -> Option<String> {
-        path.get().map(|p| p.replace('\\', "/"))
-    }
-
-    let user_profile = common_path(CommonPath::Home)?;
-
-    let program_data = std::env::var("ProgramData").ok().map(|p| p.replace('\\', "/"));
-    let windows = std::env::var("SystemRoot").ok().map(|p| p.replace('\\', "/"));
-
-    Some(KnownFolders {
-        saved_games: common_path(CommonPath::SavedGames),
-        documents: common_path(CommonPath::Document),
-        local_app_data: common_path(CommonPath::DataLocal),
-        local_low_app_data: common_path(CommonPath::DataLocalLow),
-        app_data: common_path(CommonPath::Data),
-        public: common_path(CommonPath::Public),
-        program_data,
-        windows,
-        user_profile: Some(user_profile),
-    })
-}
-
 /// Returns the effective target, if different from the original.
 pub fn game_file_target(
     original: &StrictPath,
@@ -144,7 +68,7 @@ pub fn game_file_target(
     reverse_redirects_on_restore: bool,
     scan_kind: ScanKind,
     semantics: Option<&BackupSemantics>,
-    wine_redirect: Option<&WineRedirectContext>,
+    wine_redirect: Option<&semantic::Wine>,
 ) -> Option<StrictPath> {
     if redirects.is_empty() && wine_redirect.is_none() {
         return None;
@@ -189,133 +113,12 @@ pub fn game_file_target(
     // On restore: generate redirect from stored path to current system path.
     if scan_kind.is_restore()
         && let Some(ctx) = wine_redirect
-        && let Some(result) = semantics.and_then(|sem| generate_restore_redirect(&redirected, sem, ctx))
+        && let Some(result) = semantics.and_then(|sem| semantic::generate_restore_redirect(&redirected, sem, ctx))
     {
         return Some(result);
     }
 
     None
-}
-
-/// Generate a redirect for restoring a file from a backup with Wine semantics.
-///
-/// Linux/Wine backup → Windows restore: convert Wine path to Windows known-folder path.
-/// Windows backup → Linux/Wine restore: convert Windows path to Wine prefix path.
-fn generate_restore_redirect(
-    stored_path: &StrictPath,
-    semantics: &BackupSemantics,
-    context: &WineRedirectContext,
-) -> Option<StrictPath> {
-    let stored_raw = stored_path.raw();
-
-    let wine_match = semantics
-        .directories
-        .iter()
-        .find(|(dir, semantics)| stored_raw.starts_with(dir.as_str()) && semantics.kind == SemanticDirKind::Wine);
-
-    if let Some((prefix_path, _)) = wine_match {
-        // Linux/Wine backup → Windows restore: preferred_prefix is None, known_folders is Some.
-        if let Some(kf) = &context.known_folders
-            && context.preferred_prefix.is_none()
-        {
-            let prefix_sp = StrictPath::new(prefix_path.clone());
-            let wine_user = detect_wine_user_from_path(stored_raw, prefix_path)?;
-            let semantic = semantic::convert::wine_physical_to_semantic(stored_path, &prefix_sp, &wine_user)?;
-            return materialize_to_windows(&semantic, kf);
-        }
-
-        // Wine backup → Wine restore (same or different prefix):
-        // Use semantic conversion to handle username changes correctly.
-        if let Some(prefix) = &context.preferred_prefix {
-            let prefix_sp = StrictPath::new(prefix_path.clone());
-            let wine_user = detect_wine_user_from_path(stored_raw, prefix_path)?;
-            if let Some(semantic) = semantic::convert::wine_physical_to_semantic(stored_path, &prefix_sp, &wine_user)
-                .and_then(|s| materialize_to_wine(&s, prefix))
-            {
-                return Some(semantic);
-            }
-        }
-    }
-
-    // Windows backup → Linux/Wine restore: detect Windows special folders heuristically.
-    // This handles the case where the stored path is a Windows path (e.g., C:/Users/...)
-    // and we're restoring into a Wine prefix.
-    if let Some(prefix) = &context.preferred_prefix
-        && let Some(semantic) = semantic::convert::windows_physical_to_semantic(stored_path, &KnownFolders::default())
-        && let Some(target) = materialize_to_wine(&semantic, prefix)
-    {
-        return Some(target);
-    }
-
-    None
-}
-
-/// Detect the Wine user from a path under a Wine prefix.
-/// Looks for `drive_c/users/<username>/` pattern.
-fn detect_wine_user_from_path(path: &str, prefix: &str) -> Option<String> {
-    static PATTERN: LazyLock<Regex> = LazyLock::new(|| Regex::new(r"(?i)^drive_c/users/([^/]+)(?:/|$)").unwrap());
-
-    let relative = StrictPath::new(path)
-        .case_insensitive_tail_for(&StrictPath::new(prefix))?
-        .join("/");
-    PATTERN
-        .captures(&relative)
-        .and_then(|captures| captures.get(1))
-        .map(|user| user.as_str().to_string())
-}
-
-/// Materialize a semantic path to a Windows physical path using known folders.
-fn materialize_to_windows(semantic: &semantic::SemanticPath, known_folders: &KnownFolders) -> Option<StrictPath> {
-    use semantic::SemanticBase;
-
-    let base_path = match &semantic.base {
-        SemanticBase::WinHome => known_folders.user_profile.as_deref()?,
-        SemanticBase::WinDocuments => known_folders.documents.as_deref()?,
-        SemanticBase::WinAppData => known_folders.app_data.as_deref()?,
-        SemanticBase::WinLocalAppData => known_folders.local_app_data.as_deref()?,
-        SemanticBase::WinLocalAppDataLow => known_folders.local_low_app_data.as_deref()?,
-        SemanticBase::WinSavedGames => known_folders.saved_games.as_deref()?,
-        SemanticBase::WinPublic => known_folders.public.as_deref()?,
-        SemanticBase::WinProgramData => known_folders.program_data.as_deref()?,
-        SemanticBase::WinDir => known_folders.windows.as_deref()?,
-        SemanticBase::WinDrive(_) => return None,
-    };
-
-    let path = format!("{}/{}", base_path.trim_end_matches('/'), semantic.tail);
-    Some(StrictPath::new(path))
-}
-
-/// Materialize a semantic path into a Wine prefix path.
-/// Maps semantic bases to their Wine directory equivalents under `drive_c/`.
-fn materialize_to_wine(semantic: &semantic::SemanticPath, prefix: &ValidatedPrefix) -> Option<StrictPath> {
-    use semantic::SemanticBase;
-
-    let base_path = match &semantic.base {
-        SemanticBase::WinDocuments => format!("drive_c/users/{}/Documents", prefix.wine_user),
-        SemanticBase::WinAppData => format!("drive_c/users/{}/AppData/Roaming", prefix.wine_user),
-        SemanticBase::WinLocalAppData => format!("drive_c/users/{}/AppData/Local", prefix.wine_user),
-        SemanticBase::WinLocalAppDataLow => format!("drive_c/users/{}/AppData/LocalLow", prefix.wine_user),
-        SemanticBase::WinSavedGames => format!("drive_c/users/{}/Saved Games", prefix.wine_user),
-        SemanticBase::WinPublic => "drive_c/users/Public".to_string(),
-        SemanticBase::WinProgramData => "drive_c/ProgramData".to_string(),
-        SemanticBase::WinDir => "drive_c/Windows".to_string(),
-        SemanticBase::WinHome => format!("drive_c/users/{}", prefix.wine_user),
-        SemanticBase::WinDrive(c) => {
-            let drive = prefix.path.joined(format!("drive_{c}"));
-            if *c != 'c' && !drive.is_dir() {
-                return None;
-            }
-            format!("drive_{}", c)
-        }
-    };
-
-    let path = format!(
-        "{}/{}/{}",
-        prefix.path.raw().trim_end_matches('/'),
-        base_path,
-        semantic.tail
-    );
-    Some(StrictPath::new(path))
 }
 
 fn check_windows_path(path: &str) -> &str {
@@ -1182,7 +985,7 @@ fn wine_prefixes_with_included_files(
         if valid.iter().any(|seen: &StrictPath| seen == &prefix) {
             continue;
         }
-        if semantic::prefix::validate_prefix(&prefix).is_some()
+        if semantic::Prefix::validated(&prefix).is_some()
             && found_files.iter().any(|(scan_key, file)| {
                 file_is_included_in_backup(file) && scan_key.case_insensitive_tail_for(&prefix).is_some()
             })
@@ -2436,11 +2239,11 @@ mod tests {
     fn game_file_target_redirect_wine_restore_linux_to_windows() {
         // Linux/Wine backup → Windows restore
         let sem = wine_semantics("/home/user/prefix");
-        let kf = KnownFolders {
+        let kf = semantic::KnownFolders {
             documents: Some("C:/Users/Alice/Documents".to_string()),
             ..Default::default()
         };
-        let ctx = WineRedirectContext {
+        let ctx = semantic::Wine {
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2471,11 +2274,11 @@ mod tests {
         // Windows backup → Linux/Wine restore via heuristic detection.
         // No Wine directory in semantics — the heuristic detects "Documents" in the path.
         let sem = BackupSemantics::default();
-        let prefix = ValidatedPrefix {
+        let prefix = semantic::Prefix {
             path: StrictPath::new("/home/user/new-prefix".to_string()),
             wine_user: "wineuser".to_string(),
         };
-        let ctx = WineRedirectContext {
+        let ctx = semantic::Wine {
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2508,11 +2311,11 @@ mod tests {
 
     #[test]
     fn game_file_target_redirect_wine_restore_windows_drive_c_to_linux() {
-        let prefix = ValidatedPrefix {
+        let prefix = semantic::Prefix {
             path: StrictPath::new("/home/user/prefix"),
             wine_user: "wineuser".to_string(),
         };
-        let ctx = WineRedirectContext {
+        let ctx = semantic::Wine {
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2536,8 +2339,8 @@ mod tests {
     fn game_file_target_redirect_wine_restore_other_windows_drive_requires_existing_wine_drive() {
         let tmp = tempfile::tempdir().unwrap();
         let prefix = StrictPath::new(tmp.path().to_string_lossy().to_string());
-        let ctx = WineRedirectContext {
-            preferred_prefix: Some(ValidatedPrefix {
+        let ctx = semantic::Wine {
+            preferred_prefix: Some(semantic::Prefix {
                 path: prefix.clone(),
                 wine_user: "wineuser".to_string(),
             }),
@@ -2573,9 +2376,9 @@ mod tests {
     #[test]
     fn game_file_target_redirect_wine_no_prefix_returns_none() {
         let sem = wine_semantics("/some/other/prefix");
-        let ctx = WineRedirectContext {
+        let ctx = semantic::Wine {
             preferred_prefix: None,
-            known_folders: Some(KnownFolders::default()),
+            known_folders: Some(semantic::KnownFolders::default()),
         };
         assert_eq!(
             None,
@@ -2594,9 +2397,9 @@ mod tests {
     fn game_file_target_redirect_wine_user_redirects_take_priority() {
         // User-configured redirects take precedence over Wine redirect.
         let sem = wine_semantics("/home/user/prefix");
-        let ctx = WineRedirectContext {
+        let ctx = semantic::Wine {
             preferred_prefix: None,
-            known_folders: Some(KnownFolders {
+            known_folders: Some(semantic::KnownFolders {
                 documents: Some("C:/Users/Alice/Documents".to_string()),
                 ..Default::default()
             }),
@@ -2631,12 +2434,12 @@ mod tests {
         );
 
         let sem = wine_semantics(prefix_path);
-        let kf = KnownFolders {
+        let kf = semantic::KnownFolders {
             documents: Some("C:/Users/Alice/Documents".to_string()),
             saved_games: Some("C:/Users/Alice/Saved Games".to_string()),
             ..Default::default()
         };
-        let ctx = WineRedirectContext {
+        let ctx = semantic::Wine {
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2668,11 +2471,11 @@ mod tests {
         );
 
         let sem = wine_semantics(prefix_path);
-        let kf = KnownFolders {
+        let kf = semantic::KnownFolders {
             app_data: Some("C:/Users/Alice/AppData/Roaming".to_string()),
             ..Default::default()
         };
-        let ctx = WineRedirectContext {
+        let ctx = semantic::Wine {
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2706,11 +2509,11 @@ mod tests {
         );
 
         let sem = wine_semantics(prefix_path);
-        let kf = KnownFolders {
+        let kf = semantic::KnownFolders {
             local_low_app_data: Some("C:/Users/Alice/AppData/LocalLow".to_string()),
             ..Default::default()
         };
-        let ctx = WineRedirectContext {
+        let ctx = semantic::Wine {
             preferred_prefix: None,
             known_folders: Some(kf),
         };
@@ -2739,11 +2542,11 @@ mod tests {
         // Stored: C:/Users/Alice/Documents/Saved Games/Hades/Profile1.sav
         // Target: /home/deck/.local/share/Steam/steamapps/compatdata/1145360/pfx/drive_c/users/steamuser/Documents/Saved Games/Hades/Profile1.sav
         let prefix_path = "/home/deck/.local/share/Steam/steamapps/compatdata/1145360/pfx";
-        let prefix = ValidatedPrefix {
+        let prefix = semantic::Prefix {
             path: StrictPath::new(prefix_path.to_string()),
             wine_user: "steamuser".to_string(),
         };
-        let ctx = WineRedirectContext {
+        let ctx = semantic::Wine {
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2772,11 +2575,11 @@ mod tests {
     fn real_path_cuphead_windows_to_wine() {
         // Windows backup → Linux/Wine restore: AppData/Roaming heuristic.
         let prefix_path = "/home/deck/.local/share/Steam/steamapps/compatdata/268910/pfx";
-        let prefix = ValidatedPrefix {
+        let prefix = semantic::Prefix {
             path: StrictPath::new(prefix_path.to_string()),
             wine_user: "steamuser".to_string(),
         };
-        let ctx = WineRedirectContext {
+        let ctx = semantic::Wine {
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
@@ -2814,11 +2617,11 @@ mod tests {
         );
 
         let sem = wine_semantics(old_prefix);
-        let prefix = ValidatedPrefix {
+        let prefix = semantic::Prefix {
             path: StrictPath::new(new_prefix.to_string()),
             wine_user: "steamuser".to_string(),
         };
-        let ctx = WineRedirectContext {
+        let ctx = semantic::Wine {
             preferred_prefix: Some(prefix),
             known_folders: None,
         };
