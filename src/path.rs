@@ -33,6 +33,8 @@ pub enum CommonPath {
     Home,
     Public,
     SavedGames,
+    WindowsProgramData,
+    WindowsSystemRoot,
 }
 
 impl CommonPath {
@@ -64,6 +66,22 @@ impl CommonPath {
         #[cfg(not(windows))]
         static SAVED_GAMES: Option<String> = None;
 
+        #[cfg(windows)]
+        static WINDOWS_PROGRAM_DATA: LazyLock<Option<String>> = LazyLock::new(|| {
+            known_folders::get_known_folder_path(known_folders::KnownFolder::ProgramData)
+                .map(|x| x.to_string_lossy().trim_end_matches(['/', '\\']).to_string())
+        });
+        #[cfg(not(windows))]
+        static WINDOWS_PROGRAM_DATA: Option<String> = None;
+
+        #[cfg(windows)]
+        static WINDOWS_SYSTEM_ROOT: LazyLock<Option<String>> = LazyLock::new(|| {
+            known_folders::get_known_folder_path(known_folders::KnownFolder::Windows)
+                .map(|x| x.to_string_lossy().trim_end_matches(['/', '\\']).to_string())
+        });
+        #[cfg(not(windows))]
+        static WINDOWS_SYSTEM_ROOT: Option<String> = None;
+
         match self {
             Self::Config => CONFIG.as_ref(),
             Self::Data => DATA.as_ref(),
@@ -73,6 +91,8 @@ impl CommonPath {
             Self::Home => HOME.as_ref(),
             Self::Public => PUBLIC.as_ref(),
             Self::SavedGames => SAVED_GAMES.as_ref(),
+            Self::WindowsProgramData => WINDOWS_PROGRAM_DATA.as_ref(),
+            Self::WindowsSystemRoot => WINDOWS_SYSTEM_ROOT.as_ref(),
         }
         .map(|x| x.as_str())
     }
@@ -94,6 +114,16 @@ impl CommonPath {
             LazyLock::new(|| CommonPath::Public.get().map(|x| StrictPath::new(x).globbable()));
         static SAVED_GAMES: LazyLock<Option<String>> =
             LazyLock::new(|| CommonPath::SavedGames.get().map(|x| StrictPath::new(x).globbable()));
+        static WINDOWS_PROGRAM_DATA: LazyLock<Option<String>> = LazyLock::new(|| {
+            CommonPath::WindowsProgramData
+                .get()
+                .map(|x| StrictPath::new(x).globbable())
+        });
+        static WINDOWS_SYSTEM_ROOT: LazyLock<Option<String>> = LazyLock::new(|| {
+            CommonPath::WindowsSystemRoot
+                .get()
+                .map(|x| StrictPath::new(x).globbable())
+        });
 
         match self {
             Self::Config => CONFIG.as_ref(),
@@ -104,6 +134,8 @@ impl CommonPath {
             Self::Home => HOME.as_ref(),
             Self::Public => PUBLIC.as_ref(),
             Self::SavedGames => SAVED_GAMES.as_ref(),
+            Self::WindowsProgramData => WINDOWS_PROGRAM_DATA.as_ref(),
+            Self::WindowsSystemRoot => WINDOWS_SYSTEM_ROOT.as_ref(),
         }
         .map(|x| x.as_str())
     }

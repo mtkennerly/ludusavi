@@ -58,11 +58,7 @@ impl Wine {
 
         // On Windows, populate known_folders so that Wine→Windows restore can
         // convert semantic paths to physical paths.
-        let known_folders = if cfg!(target_os = "windows") {
-            KnownFolders::new()
-        } else {
-            None
-        };
+        let known_folders = KnownFolders::windows();
 
         // Return context if we have either a usable prefix or known folders.
         if preferred_prefix.is_some() || known_folders.is_some() {

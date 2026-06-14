@@ -4,6 +4,7 @@ use regex::Regex;
 
 use crate::{
     path::{CommonPath, StrictPath},
+    resource::manifest::Os,
     scan::semantic,
 };
 
@@ -24,16 +25,14 @@ pub struct KnownFolders {
 
 impl KnownFolders {
     /// Populate Windows known folder paths.
-    /// Returns None if the home directory cannot be determined.
-    pub fn new() -> Option<Self> {
+    pub fn windows() -> Option<Self> {
         fn common_path(path: CommonPath) -> Option<String> {
             path.get().map(|p| p.replace('\\', "/"))
         }
 
-        let user_profile = common_path(CommonPath::Home)?;
-
-        let program_data = std::env::var("ProgramData").ok().map(|p| p.replace('\\', "/"));
-        let windows = std::env::var("SystemRoot").ok().map(|p| p.replace('\\', "/"));
+        if Os::HOST != Os::Windows {
+            return None;
+        }
 
         Some(Self {
             saved_games: common_path(CommonPath::SavedGames),
@@ -42,9 +41,9 @@ impl KnownFolders {
             local_low_app_data: common_path(CommonPath::DataLocalLow),
             app_data: common_path(CommonPath::Data),
             public: common_path(CommonPath::Public),
-            program_data,
-            windows,
-            user_profile: Some(user_profile),
+            program_data: common_path(CommonPath::WindowsProgramData),
+            windows: common_path(CommonPath::WindowsSystemRoot),
+            user_profile: common_path(CommonPath::Home),
         })
     }
 }
