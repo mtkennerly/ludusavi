@@ -118,7 +118,7 @@ and that these projects are not officially affiliated with Ludusavi itself:
     * This has an example of using a scheduled GitHub workflow
       to generate a manifest that adds more paths to the primary manifest's entries.
 * Plugins for other applications:
-  * Decky Loader on Steam Deck:: https://github.com/GedasFX/decky-ludusavi
+  * Decky Loader on Steam Deck: https://github.com/GedasFX/decky-ludusavi
   * LaunchBox: https://github.com/johagan94/ludusavi-launchbox
   * VS Code: https://marketplace.visualstudio.com/items?itemName=claui.ludusavi
 * Tools:
