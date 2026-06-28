@@ -30,6 +30,11 @@ then try double checking your [configured roots](/docs/help/roots.md).
 Ludusavi may only be able to scan some paths if an applicable root is configured.
 For example, having a Steam root will enable Ludusavi to check its `compatdata` folder.
 
+If Ludusavi can find a game when you preview it directly, but the game does not
+appear in a full backup preview, check your
+[backup exclusions](/docs/help/backup-exclusions.md). Cloud-supported game
+exclusions can hide first-time backups from full previews.
+
 ## Flatpak
 If you're using Flatpak on Linux, then by default,
 Ludusavi only has permission to view certain folders.
