@@ -6,6 +6,12 @@
     This is supported for Wine specifically, not any other native Linux paths.
     Currently, this only translates file paths, not the registry.
     ([Contributed by thedavidweng](https://github.com/mtkennerly/ludusavi/pull/614))
+* Fixed:
+  * Two distinct drives whose escaped folder names collided (such as the UNC
+    shares `\\a_b\c` and `\\a\b_c`) would share one backup folder, so saves from
+    one could silently overwrite the other. Colliding folder names are now
+    disambiguated with a numeric suffix.
+    ([Contributed by dkxmercury](https://github.com/mtkennerly/ludusavi/pull/631))
 
 ## v0.31.0 (2026-04-04)
 
