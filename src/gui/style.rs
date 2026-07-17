@@ -305,6 +305,8 @@ pub enum Container {
     ModalForeground,
     ModalBackground,
     GameListEntry,
+    /// Game card container for sync screen - Steam Deck optimized.
+    Card,
     Badge,
     BadgeActivated,
     BadgeFaded,
@@ -327,7 +329,7 @@ impl container::Catalog for Theme {
         container::Style {
             background: Some(match class {
                 Container::Wrapper => Color::TRANSPARENT.into(),
-                Container::GameListEntry => self.field.alpha(0.15).into(),
+                Container::GameListEntry | Container::Card => self.field.alpha(0.15).into(),
                 Container::ModalBackground => self.field.alpha(0.75).into(),
                 Container::Notification => self.field.alpha(0.5).into(),
                 Container::Tooltip => self.field.into(),
@@ -338,7 +340,7 @@ impl container::Catalog for Theme {
             border: Border {
                 color: match class {
                     Container::Wrapper => Color::TRANSPARENT,
-                    Container::GameListEntry | Container::Notification => self.field,
+                    Container::GameListEntry | Container::Card | Container::Notification => self.field,
                     Container::ChangeBadge { change, faded } => {
                         if *faded {
                             self.disabled
@@ -357,6 +359,7 @@ impl container::Catalog for Theme {
                 },
                 width: match class {
                     Container::GameListEntry
+                    | Container::Card
                     | Container::ModalForeground
                     | Container::Badge
                     | Container::BadgeActivated
@@ -368,6 +371,7 @@ impl container::Catalog for Theme {
                 radius: match class {
                     Container::ModalForeground
                     | Container::GameListEntry
+                    | Container::Card
                     | Container::Badge
                     | Container::BadgeActivated
                     | Container::BadgeFaded

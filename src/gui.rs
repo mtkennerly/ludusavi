@@ -5,6 +5,7 @@ mod common;
 mod editor;
 mod file_tree;
 mod font;
+mod game_card;
 mod game_list;
 mod icon;
 mod modal;

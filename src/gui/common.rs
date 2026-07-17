@@ -211,6 +211,26 @@ pub enum Message {
     ShowScanActiveGames,
     CopyText(String),
     OpenRegistry(RegistryItem),
+
+    // Per-game sync operations
+    ToggleSyncGame {
+        name: String,
+    },
+    PushGame {
+        name: String,
+    },
+    PullGame {
+        name: String,
+    },
+    SyncAllEnabled,
+    ScanSingleGame {
+        name: String,
+    },
+    SyncGameComplete {
+        name: String,
+        success: bool,
+    },
+    SyncAllComplete,
 }
 
 impl Message {
@@ -670,6 +690,8 @@ pub enum Screen {
     #[default]
     Backup,
     Restore,
+    /// New per-game sync screen with game cards.
+    Sync,
     CustomGames,
     Other,
 }
@@ -760,6 +782,7 @@ impl UndoSubject {
 pub enum ScrollSubject {
     Backup,
     Restore,
+    Sync,
     CustomGames,
     Other,
     Modal,
@@ -777,6 +800,7 @@ impl ScrollSubject {
         match self {
             Self::Backup => crate::gui::widget::id::backup_scroll(),
             Self::Restore => crate::gui::widget::id::restore_scroll(),
+            Self::Sync => crate::gui::widget::id::sync_scroll(),
             Self::CustomGames => crate::gui::widget::id::custom_games_scroll(),
             Self::Other => crate::gui::widget::id::other_scroll(),
             Self::Modal => crate::gui::widget::id::modal_scroll(),
@@ -803,6 +827,7 @@ impl From<Screen> for ScrollSubject {
         match value {
             Screen::Backup => Self::Backup,
             Screen::Restore => Self::Restore,
+            Screen::Sync => Self::Sync,
             Screen::CustomGames => Self::CustomGames,
             Screen::Other => Self::Other,
         }

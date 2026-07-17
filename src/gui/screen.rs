@@ -301,6 +301,33 @@ impl CustomGames {
     }
 }
 
+/// Sync screen with game cards for per-game cloud sync.
+/// Steam Deck optimized with larger touch targets.
+#[derive(Default)]
+pub struct Sync {
+    /// Whether we're currently syncing all enabled games.
+    pub syncing_all: bool,
+}
+
+impl Sync {
+    pub fn view<'a>(&'a self, config: &'a Config, game_cards: &'a [crate::gui::game_card::GameCard]) -> Element<'a> {
+        use crate::gui::game_card;
+
+        let content = Column::new()
+            .push(
+                Row::new()
+                    .padding([0, 20])
+                    .spacing(20)
+                    .align_y(Alignment::Center)
+                    .push(text("Game Sync").size(24))
+                    .push(text(format!("{} games enabled", config.sync.enabled_games.len())).size(16)),
+            )
+            .push(game_card::view(game_cards, config, self.syncing_all));
+
+        template(content)
+    }
+}
+
 pub fn other<'a>(
     updating_manifest: bool,
     config: &'a Config,

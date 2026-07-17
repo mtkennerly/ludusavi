@@ -323,6 +323,7 @@ pub fn nav<'a>(screen: Screen, current_screen: Screen) -> Button<'a> {
     let label = match screen {
         Screen::Backup => TRANSLATOR.nav_backup_button(),
         Screen::Restore => TRANSLATOR.nav_restore_button(),
+        Screen::Sync => "Sync".to_string(),
         Screen::CustomGames => TRANSLATOR.nav_custom_games_button(),
         Screen::Other => TRANSLATOR.nav_other_button(),
     };

@@ -99,6 +99,9 @@ pub struct App {
     backup_screen: screen::Backup,
     restore_screen: screen::Restore,
     custom_games_screen: screen::CustomGames,
+    sync_screen: screen::Sync,
+    /// Game cards for the sync screen.
+    game_cards: Vec<crate::gui::game_card::GameCard>,
     operation_should_cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
     operation_steps: Vec<OperationStep>,
     operation_steps_active: usize,
@@ -1441,6 +1444,20 @@ impl App {
 
         let text_histories = TextHistories::new(&config);
 
+        let game_cards = {
+            let sync_state = crate::resource::sync_state::SyncStateFile::load_from(&config.backup.path);
+            manifest
+                .extended
+                .0
+                .keys()
+                .map(|name| crate::gui::game_card::GameCard::new(
+                    name,
+                    &config,
+                    sync_state.game_info(name).cloned(),
+                ))
+                .collect()
+        };
+
         log::debug!("Config on startup: {config:?}");
 
         if flags.update_manifest {
@@ -1470,6 +1487,7 @@ impl App {
                 modals,
                 updating_manifest: flags.update_manifest,
                 text_histories,
+                game_cards,
                 flags,
                 screen,
                 pending_save,
@@ -2197,7 +2215,7 @@ impl App {
                             self.custom_games_screen.filter.enabled = !self.custom_games_screen.filter.enabled;
                             task = Some(iced::widget::operation::focus(id::custom_games_search()));
                         }
-                        Screen::Other => {}
+                        Screen::Other | Screen::Sync => {}
                     },
                     game_filter::Event::ToggledFilter { filter, enabled } => match self.screen {
                         Screen::Backup => {
@@ -2206,7 +2224,7 @@ impl App {
                         Screen::Restore => {
                             self.restore_screen.log.search.toggle_filter(filter, enabled);
                         }
-                        Screen::CustomGames => {}
+                        Screen::CustomGames | Screen::Sync => {}
                         Screen::Other => {}
                     },
                     game_filter::Event::EditedGameName(value) => match self.screen {
@@ -2222,7 +2240,7 @@ impl App {
                             self.text_histories.custom_games_search_game_name.push(&value);
                             self.custom_games_screen.filter.name = value;
                         }
-                        Screen::Other => {}
+                        Screen::Other | Screen::Sync => {}
                     },
                     game_filter::Event::Reset => match self.screen {
                         Screen::Backup => {
@@ -2237,7 +2255,7 @@ impl App {
                             self.custom_games_screen.filter.reset();
                             self.text_histories.custom_games_search_game_name.push("");
                         }
-                        Screen::Other => {}
+                        Screen::Other | Screen::Sync => {}
                     },
                     game_filter::Event::EditedFilterUniqueness(value) => match self.screen {
                         Screen::Backup => {
@@ -2246,7 +2264,7 @@ impl App {
                         Screen::Restore => {
                             self.restore_screen.log.search.uniqueness.choice = value;
                         }
-                        Screen::CustomGames => {}
+                        Screen::CustomGames | Screen::Sync => {}
                         Screen::Other => {}
                     },
                     game_filter::Event::EditedFilterCompleteness(value) => match self.screen {
@@ -2256,7 +2274,7 @@ impl App {
                         Screen::Restore => {
                             self.restore_screen.log.search.completeness.choice = value;
                         }
-                        Screen::CustomGames => {}
+                        Screen::CustomGames | Screen::Sync => {}
                         Screen::Other => {}
                     },
                     game_filter::Event::EditedFilterEnablement(value) => match self.screen {
@@ -2266,7 +2284,7 @@ impl App {
                         Screen::Restore => {
                             self.restore_screen.log.search.enablement.choice = value;
                         }
-                        Screen::CustomGames => {}
+                        Screen::CustomGames | Screen::Sync => {}
                         Screen::Other => {}
                     },
                     game_filter::Event::EditedFilterChange(value) => match self.screen {
@@ -2276,7 +2294,7 @@ impl App {
                         Screen::Restore => {
                             self.restore_screen.log.search.change.choice = value;
                         }
-                        Screen::CustomGames => {}
+                        Screen::CustomGames | Screen::Sync => {}
                         Screen::Other => {}
                     },
                     game_filter::Event::EditedFilterManifest(value) => match self.screen {
@@ -2286,7 +2304,7 @@ impl App {
                         Screen::Restore => {
                             self.restore_screen.log.search.manifest.choice = value;
                         }
-                        Screen::CustomGames => {}
+                        Screen::CustomGames | Screen::Sync => {}
                         Screen::Other => {}
                     },
                 }
@@ -2950,6 +2968,146 @@ impl App {
                 }
                 Task::none()
             }
+            Message::ToggleSyncGame { name } => {
+                let enabled = !self.config.sync.enabled_games.contains(&name);
+                if enabled {
+                    self.config.sync.enabled_games.insert(name.clone());
+                } else {
+                    self.config.sync.enabled_games.remove(&name);
+                }
+                if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                    card.enabled = enabled;
+                }
+                self.save_config();
+                Task::none()
+            }
+            Message::PushGame { name } => {
+                log::info!("Pushing game: {}", name);
+                if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                    card.syncing = true;
+                }
+                let config = self.config.clone();
+                let backup_dir = self.config.backup.path.clone();
+                let cloud_path = self.config.cloud.path.clone();
+                let game_name = name.clone();
+
+                Task::future(async move {
+                    let result = crate::sync::push_game(
+                        &config,
+                        &backup_dir,
+                        &cloud_path,
+                        &game_name,
+                        Finality::Final,
+                    );
+                    match result {
+                        Ok(_) => Message::SyncGameComplete {
+                            name: game_name,
+                            success: true,
+                        },
+                        Err(e) => {
+                            log::error!("Push failed for {}: {:?}", game_name, e);
+                            Message::SyncGameComplete {
+                                name: game_name,
+                                success: false,
+                            }
+                        }
+                    }
+                })
+            }
+            Message::PullGame { name } => {
+                log::info!("Pulling game: {}", name);
+                if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                    card.syncing = true;
+                }
+                let config = self.config.clone();
+                let backup_dir = self.config.backup.path.clone();
+                let cloud_path = self.config.cloud.path.clone();
+                let game_name = name.clone();
+
+                Task::future(async move {
+                    let result = crate::sync::pull_game(
+                        &config,
+                        &backup_dir,
+                        &cloud_path,
+                        &game_name,
+                        Finality::Final,
+                    );
+                    match result {
+                        Ok(_) => Message::SyncGameComplete {
+                            name: game_name,
+                            success: true,
+                        },
+                        Err(e) => {
+                            log::error!("Pull failed for {}: {:?}", game_name, e);
+                            Message::SyncGameComplete {
+                                name: game_name,
+                                success: false,
+                            }
+                        }
+                    }
+                })
+            }
+            Message::SyncAllEnabled => {
+                log::info!("Syncing all enabled games");
+                self.sync_screen.syncing_all = true;
+                let enabled: Vec<String> = self.game_cards
+                    .iter()
+                    .filter(|c| c.enabled && !c.syncing)
+                    .map(|c| c.name.clone())
+                    .collect();
+                for name in &enabled {
+                    if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == *name) {
+                        card.syncing = true;
+                    }
+                }
+                if enabled.is_empty() {
+                    self.sync_screen.syncing_all = false;
+                    return Task::none();
+                }
+                let config = self.config.clone();
+                let backup_dir = self.config.backup.path.clone();
+                let cloud_path = self.config.cloud.path.clone();
+                Task::future(async move {
+                    for game_name in &enabled {
+                        let _ = crate::sync::push_game(
+                            &config, &backup_dir, &cloud_path, game_name, Finality::Final,
+                        );
+                    }
+                    Message::SyncAllComplete
+                })
+            }
+            Message::ScanSingleGame { name } => {
+                log::info!("Scanning single game: {}", name);
+                // TODO: Implement single game scan for sync screen
+                Task::none()
+            }
+            Message::SyncGameComplete { name, success } => {
+                if success {
+                    log::info!("Sync completed for {}", name);
+                    // Update game card state
+                    if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                        card.syncing = false;
+                        card.sync_state = crate::gui::game_card::SyncState::Synced;
+                    }
+                } else {
+                    log::error!("Sync failed for {}", name);
+                    if let Some(card) = self.game_cards.iter_mut().find(|c| c.name == name) {
+                        card.syncing = false;
+                    }
+                }
+                Task::none()
+            }
+            Message::SyncAllComplete => {
+                log::info!("Batch sync complete");
+                self.sync_screen.syncing_all = false;
+                for card in &mut self.game_cards {
+                    if card.syncing {
+                        card.syncing = false;
+                        card.sync_state = crate::gui::game_card::SyncState::Synced;
+                    }
+                }
+                Task::none()
+            }
         }
     }
 
@@ -3001,6 +3159,7 @@ impl App {
                     .spacing(20)
                     .push(button::nav(Screen::Backup, self.screen))
                     .push(button::nav(Screen::Restore, self.screen))
+                    .push(button::nav(Screen::Sync, self.screen))
                     .push(button::nav(Screen::CustomGames, self.screen))
                     .push(button::nav(Screen::Other, self.screen)),
             )
@@ -3019,6 +3178,7 @@ impl App {
                     &self.text_histories,
                     &self.modifiers,
                 ),
+                Screen::Sync => self.sync_screen.view(&self.config, &self.game_cards),
                 Screen::CustomGames => self.custom_games_screen.view(
                     &self.config,
                     &self.manifest.extended,
