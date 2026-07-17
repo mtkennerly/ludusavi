@@ -838,7 +838,10 @@ impl StrictPath {
 
     pub fn parent(&self) -> Option<Self> {
         let popped = self.popped();
-        (self != &popped).then_some(popped)
+        // Compare by analysis rather than raw string. A bare drive root like
+        // "C:" pops to "C:/", a different string that denotes the same location,
+        // and should have no parent, matching the Unix root "/".
+        (self.analyze() != popped.analyze()).then_some(popped)
     }
 
     pub fn parent_if_file(&self) -> Result<Self, StrictPathError> {
@@ -1849,6 +1852,21 @@ mod tests {
             check!(r"C:", r"C:");
             check!(r"C:\", r"C:");
             check!(r"C:/", r"C:");
+        }
+
+        #[test]
+        fn parent_of_a_root_is_none() {
+            // A Unix root has no parent, and a bare Windows drive root should
+            // behave the same instead of reporting itself (as "C:/") as its parent.
+            assert_eq!(None, StrictPath::new("/".to_string()).parent());
+            assert_eq!(None, StrictPath::new("C:".to_string()).parent());
+            assert_eq!(None, StrictPath::new("C:/".to_string()).parent());
+
+            // A non-root path still has the expected parent.
+            assert_eq!(
+                Some(StrictPath::new("C:/foo".to_string())),
+                StrictPath::new("C:/foo/bar".to_string()).parent()
+            );
         }
 
         #[test]
